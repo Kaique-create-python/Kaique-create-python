@@ -1,0 +1,7 @@
+name: Generate Contribution Snake
+
+on: {workflow_dispatch: {}, schedule: [{cron: "0 0 * * *"}]}
+
+permissions: {contents: write}
+
+jobs: {generate: {runs-on: ubuntu-latest, timeout-minutes: 10, steps: [{name: Generate snake, uses: Platane/snk/svg-only@v3, with: {github_user_name: Kaique-create-python, outputs: "dist/github-contribution-grid-snake.svg\ndist/github-contribution-grid-snake-dark.svg?palette=github-dark"}}, {name: Publish snake, uses: crazy-max/ghaction-github-pages@v4, with: {build_dir: dist, branch: output}, env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}}]}}
