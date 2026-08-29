@@ -1,24 +1,47 @@
 <div align="center">
 
-<img width="100%" src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=28&duration=2600&pause=900&color=00D9FF&background=0D111700&center=true&vCenter=true&repeat=true&width=1000&height=90&lines=Kaique+Pereira+Ramos;Desenvolvedor+em+formacao;Python+%7C+Backend+%7C+Automacoes+%7C+IA" alt="Apresentação de Kaique Pereira Ramos" />
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/hero-banner.svg" alt="Banner de Kaique Pereira Ramos" />
 
-<h1>Kaique Pereira Ramos</h1>
-
-<p><strong>Desenvolvedor em formação</strong></p>
-<p>Python intermediário | Backend | Automações | Inteligência Artificial</p>
+<br>
 
 <a href="https://github.com/Kaique-create-python">
-  <img src="https://img.shields.io/badge/GitHub-Kaique--create--python-0D1117?style=for-the-badge&logo=github&logoColor=00D9FF" alt="Perfil no GitHub" />
+  <img src="https://img.shields.io/badge/GitHub-Kaique--create--python-0D1117?style=for-the-badge&logo=github&logoColor=00D9FF" alt="Perfil de Kaique no GitHub" />
 </a>
-<img src="https://img.shields.io/badge/Foco-Backend_e_IA-0D1117?style=for-the-badge&labelColor=161B22&color=00D9FF" alt="Foco em backend e inteligência artificial" />
+<img src="https://img.shields.io/badge/Python-intermediário-0D1117?style=for-the-badge&logo=python&logoColor=00D9FF" alt="Python intermediário" />
+<img src="https://img.shields.io/badge/Status-construindo-0D1117?style=for-the-badge&labelColor=161B22&color=00D9FF" alt="Status construindo" />
 
 </div>
+
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
 
 ## Sobre mim
 
 Sou desenvolvedor em formação, com conhecimento intermediário em Python e foco em backend, automações e Inteligência Artificial.
 
 Estudo Java, HTML, CSS, APIs e LLMs locais. Também desenvolvo minha base em vetores, matrizes, plano cartesiano e matemática aplicada à computação. Meu objetivo é transformar esses estudos em projetos próprios, código bem estruturado e soluções que possam ser testadas e melhoradas.
+
+- Linguagem principal: Python
+- Foco técnico: backend, automações e IA
+- Base matemática: vetores, matrizes e plano cartesiano
+- Objetivo profissional: construir um portfólio técnico sólido
+
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
+
+## Projetos em desenvolvimento
+
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/project-neura-x.svg" alt="Projeto NEURA X" />
+
+<br>
+
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/project-orbita.svg" alt="Projeto ÓRBITA" />
+
+<br>
+
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/project-python-lab.svg" alt="Projeto Laboratório Python" />
+
+<sub>Os projetos permanecem marcados como em desenvolvimento até possuírem repositórios públicos completos.</sub>
+
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
 
 ## Tech Stack
 
@@ -28,14 +51,15 @@ Estudo Java, HTML, CSS, APIs e LLMs locais. Também desenvolvo minha base em vet
 <img src="https://img.shields.io/badge/Java-0D1117?style=for-the-badge&logo=openjdk&logoColor=00D9FF" alt="Java" />
 <img src="https://img.shields.io/badge/HTML5-0D1117?style=for-the-badge&logo=html5&logoColor=00D9FF" alt="HTML5" />
 <img src="https://img.shields.io/badge/CSS3-0D1117?style=for-the-badge&logo=css3&logoColor=00D9FF" alt="CSS3" />
-<img src="https://img.shields.io/badge/Backend-0D1117?style=for-the-badge&logo=serverfault&logoColor=00D9FF" alt="Backend" />
+<img src="https://img.shields.io/badge/TypeScript-0D1117?style=for-the-badge&logo=typescript&logoColor=00D9FF" alt="TypeScript" />
+<img src="https://img.shields.io/badge/React-0D1117?style=for-the-badge&logo=react&logoColor=00D9FF" alt="React" />
+<img src="https://img.shields.io/badge/Three.js-0D1117?style=for-the-badge&logo=threedotjs&logoColor=00D9FF" alt="Three.js" />
 <img src="https://img.shields.io/badge/APIs-0D1117?style=for-the-badge&logo=fastapi&logoColor=00D9FF" alt="APIs" />
-<img src="https://img.shields.io/badge/Inteligência_Artificial-0D1117?style=for-the-badge&logo=openai&logoColor=00D9FF" alt="Inteligência Artificial" />
 <img src="https://img.shields.io/badge/LLMs_locais-0D1117?style=for-the-badge&logo=ollama&logoColor=00D9FF" alt="LLMs locais" />
 
 </div>
 
-## Ferramentas
+### Ferramentas
 
 <div align="center">
 
@@ -47,47 +71,26 @@ Estudo Java, HTML, CSS, APIs e LLMs locais. Também desenvolvo minha base em vet
 
 </div>
 
-## Projetos
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
 
-### NEURA X
+## Current Mission
 
-<code>Em desenvolvimento</code>
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/current-mission.svg" alt="Missão atual de Kaique" />
 
-Assistente de Inteligência Artificial com Python, LLMs, APIs e automação.
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
 
-### ÓRBITA
-
-<code>Em desenvolvimento</code>
-
-Simulador e laboratório de física e gravidade usando React, TypeScript, Three.js e física computacional.
-
-### LABORATÓRIO PYTHON
-
-<code>Em desenvolvimento</code>
-
-Estudos, algoritmos, automações e experimentos em Python.
-
-## Objetivos atuais
-
-~~~text
-kaique@dev:~$ current-goals
-
-[ativo] aprofundar Python e escrever código mais sólido
-[ativo] evoluir em backend, APIs e automações
-[ativo] estudar Java, HTML e CSS
-[ativo] entender LLMs locais e aplicações de IA
-[ativo] fortalecer matemática aplicada à computação
-[ativo] construir um portfólio técnico consistente
-~~~
-
-## GitHub Stats
+## GitHub Analytics
 
 <div align="center">
 
-<img src="https://img.shields.io/github/actions/workflow/status/Kaique-create-python/Kaique-create-python/snake.yml?branch=main&style=for-the-badge&label=PROFILE_SYSTEM&labelColor=0D1117&color=00D9FF" alt="Status do sistema do perfil" />
+<img src="https://img.shields.io/github/actions/workflow/status/Kaique-create-python/Kaique-create-python/snake.yml?branch=main&style=for-the-badge&label=PROFILE_SYSTEM&labelColor=0D1117&color=00D9FF" alt="Status da automação do perfil" />
 <img src="https://img.shields.io/badge/ASSETS-VERIFICADOS-0D1117?style=for-the-badge&labelColor=161B22&color=00D9FF" alt="Assets verificados" />
 
-<br><br>
+</div>
+
+### GitHub Stats
+
+<div align="center">
 
 <img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=Kaique-create-python&theme=github_dark" alt="Resumo detalhado da atividade de Kaique" />
 
@@ -97,26 +100,19 @@ kaique@dev:~$ current-goals
 
 </div>
 
-## Top Languages
+### Top Languages
 
 <div align="center">
 
-<img src="https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=Kaique-create-python&theme=github_dark" alt="Linguagens dos repositórios públicos de Kaique" />
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=Kaique-create-python&theme=github_dark" alt="Linguagens detectadas nos repositórios públicos de Kaique" />
 
-<br><br>
+<br>
 
-<img src="https://img.shields.io/badge/Python-intermediário-0D1117?style=for-the-badge&logo=python&logoColor=00D9FF" alt="Python intermediário" />
-<img src="https://img.shields.io/badge/Java-em_estudo-0D1117?style=for-the-badge&logo=openjdk&logoColor=00D9FF" alt="Java em estudo" />
-<img src="https://img.shields.io/badge/HTML5-em_estudo-0D1117?style=for-the-badge&logo=html5&logoColor=00D9FF" alt="HTML5 em estudo" />
-<img src="https://img.shields.io/badge/CSS3-em_estudo-0D1117?style=for-the-badge&logo=css3&logoColor=00D9FF" alt="CSS3 em estudo" />
-
-<br><br>
-
-<sub>O gráfico considera somente linguagens detectadas em repositórios públicos.</sub>
+<sub>Este card considera somente código existente em repositórios públicos.</sub>
 
 </div>
 
-## GitHub Streak
+### GitHub Streak
 
 <div align="center">
 
@@ -124,48 +120,34 @@ kaique@dev:~$ current-goals
 
 </div>
 
-## Activity Graph
+### Activity Graph
 
-<div align="center">
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/activity-graph.svg" alt="Gráfico anual de atividade de Kaique" />
 
-<img src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/activity-graph.svg" alt="Gráfico anual de atividade de Kaique" />
+### GitHub Trophies
 
-</div>
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/profile-milestones.svg" alt="Marcos verificados do perfil de Kaique" />
 
-## GitHub Trophies
+<sub>Painel próprio atualizado diariamente a partir do calendário público do GitHub.</sub>
 
-<div align="center">
-
-<img src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/profile-milestones.svg" alt="Marcos verificados do perfil de Kaique" />
-
-<br>
-
-<sub>Painel próprio, atualizado diariamente a partir do calendário público do GitHub.</sub>
-
-</div>
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
 
 ## Snake Contribution Animation
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/github-contribution-grid-snake-dark.svg" alt="Animação das contribuições de Kaique" />
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/github-contribution-grid-snake-dark.svg" alt="Animação das contribuições de Kaique" />
 
 </div>
 
-## Contato e perfil
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/section-divider.svg" alt="" />
 
 <div align="center">
 
-<a href="https://github.com/Kaique-create-python">
-  <img src="https://img.shields.io/badge/Abrir_perfil_no_GitHub-0D1117?style=for-the-badge&logo=github&logoColor=00D9FF" alt="Abrir perfil de Kaique no GitHub" />
-</a>
+<img width="100%" src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/footer-status.svg" alt="Status final do perfil de Kaique" />
 
-<br><br>
+<br>
 
 <img src="https://komarev.com/ghpvc/?username=Kaique-create-python&style=for-the-badge&color=00D9FF&label=VISITAS" alt="Contador de visitas do perfil" />
-
-<br><br>
-
-<sub>Kaique Pereira Ramos | Python, backend, automações e Inteligência Artificial</sub>
 
 </div>
