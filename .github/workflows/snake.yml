@@ -1,9 +1,6 @@
 name: Generate Contribution Snake
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
@@ -225,46 +222,3 @@ jobs:
           target_branch: output
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  audit-readme:
-    needs: generate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check final profile cards
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          check_svg() {
-            name="$1"
-            url="$2"
-            file="$(mktemp)"
-            status="$(curl --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 60 -L -sS -A "GitHub-README-audit" -o "$file" -w "%{http_code}" "$url")"
-
-            if [ "$status" -lt 200 ] || [ "$status" -ge 400 ]; then
-              echo "::error::$name returned HTTP $status"
-              exit 1
-            fi
-
-            if ! grep -qi "<svg" "$file"; then
-              echo "::error::$name did not return SVG content"
-              exit 1
-            fi
-
-            if grep -Eqi "Something went wrong|Rate limit exceeded|Error fetching|card is unavailable|upstream error" "$file"; then
-              echo "::error::$name returned an error card"
-              exit 1
-            fi
-
-            echo "$name: OK ($status)"
-          }
-
-          check_svg "Profile Details" "https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=Kaique-create-python&theme=github_dark"
-          check_svg "Profile Stats" "https://github-profile-summary-cards.vercel.app/api/cards/stats?username=Kaique-create-python&theme=github_dark"
-          check_svg "Top Languages" "https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=Kaique-create-python&theme=github_dark"
-          check_svg "GitHub Streak" "https://streak-stats.demolab.com?user=Kaique-create-python&hide_border=true&background=0D1117&ring=00D9FF&fire=00D9FF&currStreakLabel=00D9FF&sideLabels=C9D1D9&currStreakNum=F0F6FC&sideNums=F0F6FC&dates=8B949E&border_radius=8&locale=pt_BR"
-          check_svg "Activity Graph" "https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/activity-graph.svg"
-          check_svg "Profile Milestones" "https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/profile-milestones.svg"
-          check_svg "Contribution Snake" "https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/github-contribution-grid-snake-dark.svg"
