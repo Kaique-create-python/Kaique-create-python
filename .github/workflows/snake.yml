@@ -1,6 +1,9 @@
 name: Generate Contribution Snake
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
@@ -213,7 +216,207 @@ jobs:
 
           with open("dist/profile-milestones.svg", "w", encoding="utf-8") as file:
               file.write("\n".join(milestone))
+
+          def write_asset(filename, parts):
+              content = "\n".join(parts) if isinstance(parts, list) else parts
+              with open(f"dist/{filename}", "w", encoding="utf-8") as file:
+                  file.write(content)
+
+          hero_grid = []
+          for x in range(0, 961, 40):
+              hero_grid.append(
+                  f'<line x1="{x}" y1="0" x2="{x}" y2="260" stroke="#00D9FF" stroke-opacity=".055"/>'
+              )
+          for y in range(0, 261, 40):
+              hero_grid.append(
+                  f'<line x1="0" y1="{y}" x2="960" y2="{y}" stroke="#00D9FF" stroke-opacity=".055"/>'
+              )
+
+          hero = [
+              '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260" role="img" aria-label="Banner de Kaique Pereira Ramos">',
+              '<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.kicker{font-size:11px;letter-spacing:2px;fill:#8B949E}.name{font-size:34px;font-weight:800;fill:#F0F6FC}.role{font-size:15px;font-weight:600;letter-spacing:1.2px;fill:#00D9FF}.meta{font-size:11px;fill:#8B949E}.label{font-size:9px;letter-spacing:1.4px;fill:#8B949E}.value{font-size:12px;font-weight:700;fill:#F0F6FC}.cursor{animation:blink 1.1s steps(1,end) infinite}@keyframes blink{0%,45%{opacity:1}50%,100%{opacity:0}}</style>',
+              '<rect width="960" height="260" rx="14" fill="#0D1117"/>',
+              '<rect x="1" y="1" width="958" height="258" rx="13" fill="none" stroke="#00D9FF" stroke-opacity=".42"/>',
+              '<g>',
+          ]
+          hero.extend(hero_grid)
+          hero.extend([
+              '</g>',
+              '<path d="M1 48H18L34 32H245" fill="none" stroke="#00D9FF" stroke-opacity=".55"/>',
+              '<path d="M959 212H942L926 228H715" fill="none" stroke="#00D9FF" stroke-opacity=".55"/>',
+              '<rect x="0" y="0" width="4" height="260" rx="2" fill="#00D9FF"/>',
+              '<text x="46" y="34" class="kicker">KPR // DEVELOPER PROFILE // BRASIL</text>',
+              '<text x="46" y="88" class="name">KAIQUE PEREIRA RAMOS</text>',
+              '<text x="46" y="120" class="role">DESENVOLVEDOR EM FORMAÇÃO<tspan class="cursor">_</tspan></text>',
+              '<text x="46" y="151" class="meta">PYTHON  //  BACKEND  //  AUTOMAÇÕES  //  INTELIGÊNCIA ARTIFICIAL</text>',
+              '<circle cx="822" cy="104" r="69" fill="none" stroke="#00D9FF" stroke-opacity=".22"/>',
+              '<circle cx="822" cy="104" r="48" fill="none" stroke="#00D9FF" stroke-opacity=".38"/>',
+              '<circle cx="822" cy="104" r="20" fill="none" stroke="#00D9FF" stroke-opacity=".62"/>',
+              '<path d="M742 104H902M822 24V184" stroke="#00D9FF" stroke-opacity=".18"/>',
+              '<path d="M822 36A68 68 0 0 1 890 104" fill="none" stroke="#00D9FF" stroke-width="3"/>',
+              '<circle cx="847" cy="82" r="4" fill="#67E8F9"/>',
+              '<circle cx="788" cy="125" r="3" fill="#0891B2"/>',
+              '<text x="760" y="193" class="label">SIGNAL // STABLE</text>',
+              '<rect x="46" y="184" width="250" height="48" rx="7" fill="#161B22" stroke="#00D9FF" stroke-opacity=".25"/>',
+              '<text x="62" y="202" class="label">PYTHON CORE</text>',
+              '<text x="62" y="221" class="value">INTERMEDIÁRIO</text>',
+              '<rect x="316" y="184" width="250" height="48" rx="7" fill="#161B22" stroke="#00D9FF" stroke-opacity=".25"/>',
+              '<text x="332" y="202" class="label">BACKEND MODULE</text>',
+              '<text x="332" y="221" class="value">LEARNING</text>',
+              '<rect x="586" y="184" width="250" height="48" rx="7" fill="#161B22" stroke="#00D9FF" stroke-opacity=".25"/>',
+              '<text x="602" y="202" class="label">BUILD MODE</text>',
+              '<text x="602" y="221" class="value">ACTIVE</text>',
+              '<rect x="-30" y="0" width="28" height="260" fill="#00D9FF" opacity=".08"><animate attributeName="x" from="-30" to="990" dur="7s" repeatCount="indefinite"/></rect>',
+              '</svg>',
+          ])
+          write_asset("hero-banner.svg", hero)
+
+          divider = [
+              '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="38" viewBox="0 0 960 38" role="img" aria-label="Divisor de seção">',
+              '<rect width="960" height="38" fill="#0D1117" fill-opacity="0"/>',
+              '<path d="M0 19H420L436 5H524L540 19H960" fill="none" stroke="#00D9FF" stroke-opacity=".42"/>',
+              '<circle cx="448" cy="5" r="3" fill="#00D9FF"/>',
+              '<rect x="470" y="1" width="20" height="8" rx="2" fill="#161B22" stroke="#00D9FF" stroke-opacity=".65"/>',
+              '<circle cx="512" cy="5" r="3" fill="#00D9FF"/>',
+              '<path d="M438 30H522" stroke="#00D9FF" stroke-opacity=".16"/>',
+              '</svg>',
+          ]
+          write_asset("section-divider.svg", divider)
+
+          def project_card(index, title, status, description, technologies, filename):
+              chips = []
+              chip_x = 112
+              for technology in technologies:
+                  width = max(76, 24 + len(technology) * 8)
+                  chips.extend([
+                      f'<rect x="{chip_x}" y="118" width="{width}" height="28" rx="6" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>',
+                      f'<text x="{chip_x + 12}" y="137" class="chip">{html.escape(technology)}</text>',
+                  ])
+                  chip_x += width + 10
+
+              card = [
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="174" viewBox="0 0 960 174" role="img" aria-label="Projeto em desenvolvimento">',
+                  '<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.index{font-size:30px;font-weight:800;fill:#00D9FF}.title{font-size:22px;font-weight:800;fill:#F0F6FC}.desc{font-size:13px;fill:#C9D1D9}.status{font-size:10px;font-weight:700;letter-spacing:1px;fill:#00D9FF}.chip{font-size:10px;font-weight:600;fill:#C9D1D9}.meta{font-size:9px;letter-spacing:1px;fill:#8B949E}</style>',
+                  '<rect width="960" height="174" rx="12" fill="#0D1117"/>',
+                  '<rect x="1" y="1" width="958" height="172" rx="11" fill="none" stroke="#00D9FF" stroke-opacity=".27"/>',
+                  '<rect x="0" y="22" width="5" height="130" rx="2" fill="#00D9FF"/>',
+                  f'<text x="30" y="58" class="index">{index}</text>',
+                  f'<text x="112" y="52" class="title">{html.escape(title)}</text>',
+                  f'<text x="112" y="88" class="desc">{html.escape(description)}</text>',
+                  '<rect x="756" y="24" width="174" height="32" rx="6" fill="#161B22" stroke="#00D9FF" stroke-opacity=".42"/>',
+                  f'<text x="843" y="44" text-anchor="middle" class="status">{html.escape(status)}</text>',
+                  f'<text x="812" y="153" class="meta">MODULE // {index}</text>',
+              ]
+              card.extend(chips)
+              card.append('</svg>')
+              write_asset(filename, card)
+
+          project_card(
+              "01",
+              "NEURA X",
+              "EM DESENVOLVIMENTO",
+              "Assistente de IA com Python, LLMs locais, APIs e automação.",
+              ["PYTHON", "LLM", "API", "AUTOMAÇÃO"],
+              "project-neura-x.svg",
+          )
+          project_card(
+              "02",
+              "ÓRBITA",
+              "EM DESENVOLVIMENTO",
+              "Laboratório de gravidade com React, TypeScript, Three.js e física computacional.",
+              ["REACT", "TYPESCRIPT", "THREE.JS", "FÍSICA"],
+              "project-orbita.svg",
+          )
+          project_card(
+              "03",
+              "LABORATÓRIO PYTHON",
+              "EM DESENVOLVIMENTO",
+              "Algoritmos, automações, backend e experimentos práticos em Python.",
+              ["PYTHON", "ALGORITMOS", "BACKEND", "TESTES"],
+              "project-python-lab.svg",
+          )
+
+          mission_rows = [
+              ("PYTHON CORE", "EVOLUINDO", "Código sólido, orientação a objetos e algoritmos"),
+              ("BACKEND", "EM FOCO", "APIs, integração de sistemas e automações"),
+              ("INTELIGÊNCIA ARTIFICIAL", "PESQUISANDO", "LLMs locais e aplicações práticas"),
+              ("MATEMÁTICA APLICADA", "FORTALECENDO", "Vetores, matrizes e plano cartesiano"),
+          ]
+          mission = [
+              '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-label="Missão atual de desenvolvimento">',
+              '<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.title{font-size:19px;font-weight:800;fill:#00D9FF}.sub{font-size:11px;fill:#8B949E}.name{font-size:12px;font-weight:700;fill:#F0F6FC}.status{font-size:10px;font-weight:700;fill:#00D9FF}.desc{font-size:11px;fill:#C9D1D9}.prompt{font-size:10px;fill:#8B949E}</style>',
+              '<rect width="960" height="300" rx="12" fill="#0D1117"/>',
+              '<rect x="1" y="1" width="958" height="298" rx="11" fill="none" stroke="#00D9FF" stroke-opacity=".3"/>',
+              '<text x="34" y="38" class="title">CURRENT MISSION // BUILD A SOLID TECHNICAL PORTFOLIO</text>',
+              '<text x="34" y="59" class="sub">Plano ativo de estudo e construção</text>',
+          ]
+          for row_index, (name, status, description) in enumerate(mission_rows):
+              y = 88 + row_index * 48
+              mission.extend([
+                  f'<rect x="34" y="{y - 20}" width="892" height="40" rx="6" fill="#161B22"/>',
+                  f'<text x="52" y="{y + 4}" class="name">{html.escape(name)}</text>',
+                  f'<rect x="292" y="{y - 13}" width="142" height="26" rx="5" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>',
+                  f'<text x="363" y="{y + 4}" text-anchor="middle" class="status">{html.escape(status)}</text>',
+                  f'<text x="466" y="{y + 4}" class="desc">{html.escape(description)}</text>',
+              ])
+          mission.extend([
+              '<text x="34" y="281" class="prompt">kaique@dev:~$ mission --status active</text>',
+              '</svg>',
+          ])
+          write_asset("current-mission.svg", mission)
+
+          sync_date = today.isoformat()
+          footer = [
+              '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="126" viewBox="0 0 960 126" role="img" aria-label="Rodapé do perfil">',
+              '<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.name{font-size:15px;font-weight:800;fill:#F0F6FC}.meta{font-size:10px;letter-spacing:1px;fill:#8B949E}.status{font-size:10px;font-weight:700;fill:#00D9FF}</style>',
+              '<rect width="960" height="126" rx="12" fill="#0D1117"/>',
+              '<rect x="1" y="1" width="958" height="124" rx="11" fill="none" stroke="#00D9FF" stroke-opacity=".28"/>',
+              '<path d="M0 24H28L42 10H185" fill="none" stroke="#00D9FF" stroke-opacity=".5"/>',
+              '<path d="M960 102H932L918 116H775" fill="none" stroke="#00D9FF" stroke-opacity=".5"/>',
+              '<circle cx="58" cy="66" r="7" fill="#00D9FF"><animate attributeName="opacity" values="1;.25;1" dur="2s" repeatCount="indefinite"/></circle>',
+              '<text x="82" y="60" class="name">KAIQUE PEREIRA RAMOS // DEVELOPER PROFILE</text>',
+              '<text x="82" y="82" class="meta">PYTHON  |  BACKEND  |  AUTOMAÇÕES  |  INTELIGÊNCIA ARTIFICIAL</text>',
+              '<rect x="700" y="42" width="212" height="42" rx="7" fill="#161B22" stroke="#00D9FF" stroke-opacity=".34"/>',
+              '<text x="718" y="59" class="meta">PROFILE SYSTEM</text>',
+              '<text x="718" y="76" class="status">ONLINE // VERIFIED</text>',
+              f'<text x="700" y="104" class="meta">LAST SYNC // {sync_date}</text>',
+              '</svg>',
+          ]
+          write_asset("footer-status.svg", footer)
+
           PY
+
+      - name: Validate profile assets
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          required = {
+              "activity-graph.svg",
+              "profile-milestones.svg",
+              "hero-banner.svg",
+              "section-divider.svg",
+              "project-neura-x.svg",
+              "project-orbita.svg",
+              "project-python-lab.svg",
+              "current-mission.svg",
+              "footer-status.svg",
+              "github-contribution-grid-snake.svg",
+              "github-contribution-grid-snake-dark.svg",
+          }
+
+          present = {path.name for path in Path("dist").glob("*.svg")}
+          missing = required - present
+          if missing:
+              raise RuntimeError(f"Missing assets: {sorted(missing)}")
+
+          for filename in sorted(required):
+              ET.parse(Path("dist") / filename)
+              print(f"{filename}: valid")
+          PY
+
 
       - name: Publish profile assets
         uses: crazy-max/ghaction-github-pages@v4
@@ -222,3 +425,55 @@ jobs:
           target_branch: output
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  audit-readme:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Audit profile assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          check_svg() {
+            name="$1"
+            url="$2"
+            file="$(mktemp)"
+            status="$(curl --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 60 -L -sS -A "GitHub-README-audit" -o "$file" -w "%{http_code}" "$url")"
+
+            if [ "$status" -lt 200 ] || [ "$status" -ge 400 ]; then
+              echo "::error::$name returned HTTP $status"
+              exit 1
+            fi
+
+            if ! grep -qi "<svg" "$file"; then
+              echo "::error::$name did not return SVG content"
+              exit 1
+            fi
+
+            if grep -Eqi "Something went wrong|Rate limit exceeded|Error fetching|card is unavailable|upstream error" "$file"; then
+              echo "::error::$name returned an error card"
+              exit 1
+            fi
+
+            echo "$name: OK ($status)"
+          }
+
+          base="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output"
+          check_svg "Hero Banner" "$base/hero-banner.svg"
+          check_svg "Section Divider" "$base/section-divider.svg"
+          check_svg "NEURA X Card" "$base/project-neura-x.svg"
+          check_svg "ORBITA Card" "$base/project-orbita.svg"
+          check_svg "Python Lab Card" "$base/project-python-lab.svg"
+          check_svg "Current Mission" "$base/current-mission.svg"
+          check_svg "Activity Graph" "$base/activity-graph.svg"
+          check_svg "Profile Milestones" "$base/profile-milestones.svg"
+          check_svg "Footer Status" "$base/footer-status.svg"
+          check_svg "Contribution Snake" "$base/github-contribution-grid-snake-dark.svg"
+          check_svg "Profile Details" "https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=Kaique-create-python&theme=github_dark"
+          check_svg "Profile Stats" "https://github-profile-summary-cards.vercel.app/api/cards/stats?username=Kaique-create-python&theme=github_dark"
+          check_svg "Top Languages" "https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=Kaique-create-python&theme=github_dark"
+          check_svg "GitHub Streak" "https://streak-stats.demolab.com?user=Kaique-create-python&hide_border=true&background=0D1117&ring=00D9FF&fire=00D9FF&currStreakLabel=00D9FF&sideLabels=C9D1D9&currStreakNum=F0F6FC&sideNums=F0F6FC&dates=8B949E&border_radius=8&locale=pt_BR"
+
