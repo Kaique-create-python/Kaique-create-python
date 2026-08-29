@@ -1,6 +1,9 @@
 name: Generate Contribution Snake
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
@@ -29,3 +32,45 @@ jobs:
           target_branch: output
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  audit-readme:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check profile cards
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          check_svg() {
+            name="$1"
+            url="$2"
+            file="$(mktemp)"
+            status="$(curl --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 60 -L -sS -A "GitHub-README-audit" -o "$file" -w "%{http_code}" "$url")"
+
+            if [ "$status" -lt 200 ] || [ "$status" -ge 400 ]; then
+              echo "::error::$name returned HTTP $status"
+              exit 1
+            fi
+
+            if ! grep -qi "<svg" "$file"; then
+              echo "::error::$name did not return SVG content"
+              exit 1
+            fi
+
+            if grep -Eqi "Something went wrong|Rate limit exceeded|Error fetching|No languages data|card is unavailable|upstream error" "$file"; then
+              echo "::error::$name returned an error card"
+              head -c 500 "$file" | tr "\n" " "
+              exit 1
+            fi
+
+            echo "$name: OK ($status)"
+          }
+
+          check_svg "GitHub Stats" "https://github-readme-stats.vercel.app/api?username=Kaique-create-python&show_icons=true&include_all_commits=true&hide_border=true&bg_color=0D1117&title_color=00D9FF&icon_color=00D9FF&text_color=C9D1D9&ring_color=00D9FF&border_radius=8&locale=pt-br"
+          check_svg "Top Languages" "https://github-readme-stats.vercel.app/api/top-langs/?username=Kaique-create-python&layout=compact&langs_count=8&hide_border=true&bg_color=0D1117&title_color=00D9FF&text_color=C9D1D9&border_radius=8&locale=pt-br"
+          check_svg "GitHub Streak" "https://streak-stats.demolab.com?user=Kaique-create-python&hide_border=true&background=0D1117&ring=00D9FF&fire=00D9FF&currStreakLabel=00D9FF&sideLabels=C9D1D9&currStreakNum=F0F6FC&sideNums=F0F6FC&dates=8B949E&border_radius=8&locale=pt_BR"
+          check_svg "Activity Graph" "https://github-readme-activity-graph.vercel.app/graph?username=Kaique-create-python&bg_color=0D1117&color=C9D1D9&line=00D9FF&point=F0F6FC&area=true&area_color=00D9FF&hide_border=true&custom_title=Contribution%20Activity"
+          check_svg "GitHub Trophies" "https://github-profile-trophy.vercel.app/?username=Kaique-create-python&theme=darkhub&no-frame=true&no-bg=true&margin-w=8&margin-h=8&column=4"
+          check_svg "Contribution Snake" "https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/github-contribution-grid-snake-dark.svg"
