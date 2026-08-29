@@ -33,65 +33,85 @@ jobs:
           python - <<'PY'
           import datetime as dt
           import html
-          import json
           import os
+          import urllib.parse
           import urllib.request
+          from html.parser import HTMLParser
 
           username = "Kaique-create-python"
-          token = os.environ["GITHUB_TOKEN"]
           today = dt.date.today()
           start = today - dt.timedelta(days=364)
           end = today + dt.timedelta(days=1)
 
-          query = """
-          query($login: String!, $from: DateTime!, $to: DateTime!) {
-            user(login: $login) {
-              contributionsCollection(from: $from, to: $to) {
-                contributionCalendar {
-                  totalContributions
-                  weeks {
-                    contributionDays {
-                      contributionCount
-                      date
-                      weekday
-                    }
-                  }
-                }
-              }
-            }
-          }
-          """
+          class CalendarParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.days = []
 
-          payload = json.dumps({
-              "query": query,
-              "variables": {
-                  "login": username,
-                  "from": start.isoformat() + "T00:00:00Z",
-                  "to": end.isoformat() + "T00:00:00Z",
-              },
-          }).encode()
+              def handle_starttag(self, tag, attrs):
+                  attributes = dict(attrs)
+                  classes = attributes.get("class", "")
+                  if "ContributionCalendar-day" not in classes:
+                      return
+                  if not attributes.get("data-date"):
+                      return
+                  self.days.append({
+                      "date": attributes["data-date"],
+                      "level": int(attributes.get("data-level", "0")),
+                  })
 
+          params = urllib.parse.urlencode({
+              "from": start.isoformat(),
+              "to": today.isoformat(),
+          })
+          contributions_url = (
+              f"https://github.com/users/{username}/contributions?{params}"
+          )
           request = urllib.request.Request(
-              "https://api.github.com/graphql",
-              data=payload,
+              contributions_url,
               headers={
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
+                  "Accept": "text/html",
+                  "Accept-Language": "en-US,en;q=0.9",
                   "User-Agent": "Kaique-profile-workflow",
               },
           )
 
           with urllib.request.urlopen(request, timeout=30) as response:
-              data = json.load(response)
+              calendar_html = response.read().decode("utf-8")
 
-          if data.get("errors"):
-              raise RuntimeError(data["errors"])
+          parser = CalendarParser()
+          parser.feed(calendar_html)
 
-          calendar = data["data"]["user"]["contributionsCollection"]["contributionCalendar"]
-          weeks = calendar["weeks"]
-          days = [day for week in weeks for day in week["contributionDays"]]
-          counts = {day["date"]: int(day["contributionCount"]) for day in days}
-          total = int(calendar["totalContributions"])
+          if not parser.days:
+              raise RuntimeError("GitHub contribution calendar returned no days")
+
+          unique_days = {
+              item["date"]: item["level"]
+              for item in parser.days
+          }
+          parsed_days = []
+          week_map = {}
+
+          for date_text, level in sorted(unique_days.items()):
+              date_value = dt.date.fromisoformat(date_text)
+              day = {
+                  "date": date_text,
+                  "contributionCount": level,
+                  "weekday": date_value.weekday(),
+              }
+              parsed_days.append(day)
+              monday = date_value - dt.timedelta(days=date_value.weekday())
+              week_map.setdefault(monday.isoformat(), []).append(day)
+
+          weeks = [
+              {"contributionDays": week_map[key]}
+              for key in sorted(week_map)
+          ]
+          days = parsed_days
+          counts = {
+              day["date"]: int(day["contributionCount"])
+              for day in days
+          }
           active_days = sum(1 for count in counts.values() if count > 0)
           best_day = max(counts.values(), default=0)
 
@@ -136,7 +156,7 @@ jobs:
                   date = html.escape(day["date"])
                   rects.append(
                       f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="2" '
-                      f'fill="{color_for(count)}"><title>{date}: {count} contribuições</title></rect>'
+                      f'fill="{color_for(count)}"><title>{date}: nível de atividade {count}</title></rect>'
                   )
 
           graph = [
@@ -145,7 +165,7 @@ jobs:
               '<rect width="960" height="205" rx="12" fill="#0D1117"/>',
               '<rect x="1" y="1" width="958" height="203" rx="11" fill="none" stroke="#1F6FEB" stroke-opacity=".35"/>',
               '<text x="28" y="34" class="title">CONTRIBUTION ACTIVITY // 365 DAYS</text>',
-              f'<text x="28" y="54" class="sub">{total} contribuições registradas no período</text>',
+              f'<text x="28" y="54" class="sub">{active_days} dias com atividade no período</text>',
               '<text x="28" y="88" class="label">SEG</text>',
               '<text x="28" y="118" class="label">QUA</text>',
               '<text x="28" y="148" class="label">SEX</text>',
@@ -166,10 +186,10 @@ jobs:
               file.write("\n".join(graph))
 
           metrics = [
-              ("CONTRIBUIÇÕES", total, "últimos 365 dias"),
-              ("DIAS ATIVOS", active_days, "dias com atividade"),
+              ("DIAS ATIVOS", active_days, "últimos 365 dias"),
+              ("SEMANAS", len(weeks), "período monitorado"),
               ("SEQUÊNCIA ATUAL", current_streak, "dias consecutivos"),
-              ("MELHOR DIA", best_day, "contribuições em um dia"),
+              ("PICO DE ATIVIDADE", best_day, "nível máximo registrado"),
           ]
 
           milestone = [
