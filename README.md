@@ -84,7 +84,16 @@ kaique@dev:~$ current-goals
 
 <div align="center">
 
-<img src="https://github-readme-stats.vercel.app/api?username=Kaique-create-python&show_icons=true&include_all_commits=true&hide_border=true&bg_color=0D1117&title_color=00D9FF&icon_color=00D9FF&text_color=C9D1D9&ring_color=00D9FF&border_radius=8&locale=pt-br" alt="Estatísticas do GitHub de Kaique" />
+<img src="https://img.shields.io/github/actions/workflow/status/Kaique-create-python/Kaique-create-python/snake.yml?branch=main&style=for-the-badge&label=PROFILE_SYSTEM&labelColor=0D1117&color=00D9FF" alt="Status do sistema do perfil" />
+<img src="https://img.shields.io/badge/ASSETS-VERIFICADOS-0D1117?style=for-the-badge&labelColor=161B22&color=00D9FF" alt="Assets verificados" />
+
+<br><br>
+
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=Kaique-create-python&theme=github_dark" alt="Resumo detalhado da atividade de Kaique" />
+
+<br><br>
+
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/stats?username=Kaique-create-python&theme=github_dark" alt="Estatísticas do GitHub de Kaique" />
 
 </div>
 
@@ -92,7 +101,18 @@ kaique@dev:~$ current-goals
 
 <div align="center">
 
-<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=Kaique-create-python&layout=compact&langs_count=8&hide_border=true&bg_color=0D1117&title_color=00D9FF&text_color=C9D1D9&border_radius=8&locale=pt-br" alt="Linguagens mais usadas por Kaique" />
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=Kaique-create-python&theme=github_dark" alt="Linguagens dos repositórios públicos de Kaique" />
+
+<br><br>
+
+<img src="https://img.shields.io/badge/Python-intermediário-0D1117?style=for-the-badge&logo=python&logoColor=00D9FF" alt="Python intermediário" />
+<img src="https://img.shields.io/badge/Java-em_estudo-0D1117?style=for-the-badge&logo=openjdk&logoColor=00D9FF" alt="Java em estudo" />
+<img src="https://img.shields.io/badge/HTML5-em_estudo-0D1117?style=for-the-badge&logo=html5&logoColor=00D9FF" alt="HTML5 em estudo" />
+<img src="https://img.shields.io/badge/CSS3-em_estudo-0D1117?style=for-the-badge&logo=css3&logoColor=00D9FF" alt="CSS3 em estudo" />
+
+<br><br>
+
+<sub>O gráfico considera somente linguagens detectadas em repositórios públicos.</sub>
 
 </div>
 
@@ -108,7 +128,7 @@ kaique@dev:~$ current-goals
 
 <div align="center">
 
-<img src="https://github-readme-activity-graph.vercel.app/graph?username=Kaique-create-python&bg_color=0D1117&color=C9D1D9&line=00D9FF&point=F0F6FC&area=true&area_color=00D9FF&hide_border=true&custom_title=Contribution%20Activity" alt="Gráfico de atividade de Kaique" />
+<img src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/activity-graph.svg" alt="Gráfico anual de atividade de Kaique" />
 
 </div>
 
@@ -116,7 +136,11 @@ kaique@dev:~$ current-goals
 
 <div align="center">
 
-<img src="https://github-profile-trophy.vercel.app/?username=Kaique-create-python&theme=darkhub&no-frame=true&no-bg=true&margin-w=8&margin-h=8&column=4" alt="Troféus do perfil de Kaique" />
+<img src="https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/output/profile-milestones.svg" alt="Marcos verificados do perfil de Kaique" />
+
+<br>
+
+<sub>Painel próprio, atualizado diariamente a partir do calendário público do GitHub.</sub>
 
 </div>
 
