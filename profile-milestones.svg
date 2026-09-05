@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="210" viewBox="0 0 960 210" role="img" aria-label="Marcos do perfil no GitHub">
+<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.title{font-size:18px;font-weight:700;fill:#00D9FF}.value{font-size:28px;font-weight:800;fill:#F0F6FC}.name{font-size:11px;font-weight:700;fill:#00D9FF}.desc{font-size:10px;fill:#8B949E}</style>
+<rect width="960" height="210" rx="12" fill="#0D1117"/>
+<rect x="1" y="1" width="958" height="208" rx="11" fill="none" stroke="#1F6FEB" stroke-opacity=".35"/>
+<text x="28" y="36" class="title">PROFILE MILESTONES // VERIFIED DATA</text>
+<rect x="28" y="62" width="210" height="112" rx="10" fill="#161B22" stroke="#00D9FF" stroke-opacity=".32"/>
+<text x="46" y="91" class="name">DIAS ATIVOS</text>
+<text x="46" y="130" class="value">3</text>
+<text x="46" y="154" class="desc">últimos 365 dias</text>
+<rect x="260" y="62" width="210" height="112" rx="10" fill="#161B22" stroke="#00D9FF" stroke-opacity=".32"/>
+<text x="278" y="91" class="name">SEMANAS</text>
+<text x="278" y="130" class="value">53</text>
+<text x="278" y="154" class="desc">período monitorado</text>
+<rect x="492" y="62" width="210" height="112" rx="10" fill="#161B22" stroke="#00D9FF" stroke-opacity=".32"/>
+<text x="510" y="91" class="name">SEQUÊNCIA ATUAL</text>
+<text x="510" y="130" class="value">0</text>
+<text x="510" y="154" class="desc">dias consecutivos</text>
+<rect x="724" y="62" width="210" height="112" rx="10" fill="#161B22" stroke="#00D9FF" stroke-opacity=".32"/>
+<text x="742" y="91" class="name">PICO DE ATIVIDADE</text>
+<text x="742" y="130" class="value">4</text>
+<text x="742" y="154" class="desc">nível máximo registrado</text>
+<text x="28" y="197" class="desc">Dados gerados diariamente pela API oficial do GitHub</text>
+</svg>

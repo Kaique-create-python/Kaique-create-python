@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="126" viewBox="0 0 960 126" role="img" aria-label="Rodapé do perfil">
+<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.name{font-size:15px;font-weight:800;fill:#F0F6FC}.meta{font-size:10px;letter-spacing:1px;fill:#8B949E}.status{font-size:10px;font-weight:700;fill:#00D9FF}</style>
+<rect width="960" height="126" rx="12" fill="#0D1117"/>
+<rect x="1" y="1" width="958" height="124" rx="11" fill="none" stroke="#00D9FF" stroke-opacity=".28"/>
+<path d="M0 24H28L42 10H185" fill="none" stroke="#00D9FF" stroke-opacity=".5"/>
+<path d="M960 102H932L918 116H775" fill="none" stroke="#00D9FF" stroke-opacity=".5"/>
+<circle cx="58" cy="66" r="7" fill="#00D9FF"><animate attributeName="opacity" values="1;.25;1" dur="2s" repeatCount="indefinite"/></circle>
+<text x="82" y="60" class="name">KAIQUE PEREIRA RAMOS // DEVELOPER PROFILE</text>
+<text x="82" y="82" class="meta">PYTHON  |  BACKEND  |  AUTOMAÇÕES  |  INTELIGÊNCIA ARTIFICIAL</text>
+<rect x="700" y="42" width="212" height="42" rx="7" fill="#161B22" stroke="#00D9FF" stroke-opacity=".34"/>
+<text x="718" y="59" class="meta">PROFILE SYSTEM</text>
+<text x="718" y="76" class="status">ONLINE // VERIFIED</text>
+<text x="700" y="104" class="meta">LAST SYNC // 2026-09-05</text>
+</svg>
