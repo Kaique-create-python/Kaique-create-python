@@ -25,6 +25,17 @@ jobs:
           base64 -d xkiro-ai-studio/project.tar.gz.b64 > /tmp/xkiro-project.tgz
           tar -xzf /tmp/xkiro-project.tgz -C "$GITHUB_WORKSPACE"
 
+      - name: Upload restored source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: xKiro-AI-Studio-source
+          path: |
+            xkiro-ai-studio/app
+            xkiro-ai-studio/build.gradle.kts
+            xkiro-ai-studio/settings.gradle.kts
+            xkiro-ai-studio/gradle.properties
+          if-no-files-found: error
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
