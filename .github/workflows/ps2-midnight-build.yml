@@ -27,7 +27,7 @@ jobs:
           tar -xzf /tmp/ps2dev.tar.gz -C "$HOME/ps2dev-toolchain"
           CC_PATH="$(find "$HOME/ps2dev-toolchain" -type f -name mips64r5900el-ps2-elf-gcc | head -n 1)"
           test -n "$CC_PATH"
-          PS2DEV_ROOT="$(dirname "$(dirname "$CC_PATH")")"
+          PS2DEV_ROOT="$(dirname "$(dirname "$(dirname "$CC_PATH")")")"
           PS2SDK_ROOT="$PS2DEV_ROOT/ps2sdk"
           GSKIT_ROOT="$(find "$PS2DEV_ROOT" -maxdepth 1 -type d -iname 'gskit' | head -n 1)"
           test -d "$PS2SDK_ROOT"
