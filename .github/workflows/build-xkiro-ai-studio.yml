@@ -30,31 +30,42 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Android SDK packages
-        shell: bash
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(command -v sdkmanager)"
-          fi
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0" "platform-tools"
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.6.0"
 
+      - name: Android SDK diagnostic
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_HOME/platforms" || true
+          ls -la "$ANDROID_HOME/build-tools" || true
+
       - name: Build debug APK
         working-directory: xkiro-ai-studio
-        run: gradle --stacktrace :app:assembleDebug
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --stacktrace :app:assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/xkiro-build.log"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xKiro-AI-Studio-build-log
+          path: xkiro-build.log
+          if-no-files-found: ignore
 
       - name: Upload Actions artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: xKiro-AI-Studio-debug
           path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Publish/update downloadable release
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
