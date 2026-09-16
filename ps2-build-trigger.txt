@@ -1,0 +1,1 @@
+Trigger Midnight Circuit PS2 ISO build on isolated branch.
