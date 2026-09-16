@@ -45,12 +45,14 @@ jobs:
           mkdir -p ps2_midnight_build
           tar -xzf ps2-build/project.tar.gz -C ps2_midnight_build
           chmod +x ps2_midnight_build/scripts/make_iso.sh
+          sed -i 's|-L$(GSKIT)/lib|-L$(GSKIT)/lib -L$(PS2SDK)/ports/lib|' ps2_midnight_build/Makefile
 
       - name: Compile ELF
         working-directory: ps2_midnight_build
         run: |
           set -euxo pipefail
           mips64r5900el-ps2-elf-gcc --version
+          ls -l "$PS2SDK/ports/lib/libjpeg.a" "$PS2SDK/ports/lib/libpng.a" "$PS2SDK/ports/lib/libz.a"
           make clean
           make -j2
 
