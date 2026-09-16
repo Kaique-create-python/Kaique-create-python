@@ -58,7 +58,8 @@ jobs:
       - name: Apply v0.1.6 Screen Vision
         shell: bash
         run: |
-          base64 -d xkiro-overrides/v016.tar.gz.b64 > /tmp/xkiro-v016.tgz
+          cat xkiro-overrides/v016.b64.part* > /tmp/xkiro-v016.b64
+          base64 -d /tmp/xkiro-v016.b64 > /tmp/xkiro-v016.tgz
           gzip -t /tmp/xkiro-v016.tgz
           tar -xzf /tmp/xkiro-v016.tgz -C xkiro-ai-studio
           echo "Applied 1 FPS screen vision, on-demand screenshots and dual vision models"
