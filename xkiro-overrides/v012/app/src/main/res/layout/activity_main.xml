@@ -1,0 +1,212 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="xKiro AI Studio"
+            android:textColor="@color/text"
+            android:textStyle="bold"
+            android:textSize="28sp"/>
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="22 agent slots • Doctor • Device Agent • Voice"
+            android:textColor="@color/muted"
+            android:textSize="14sp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/panel"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Conexões"
+                android:textColor="@color/text"
+                android:textStyle="bold"
+                android:textSize="18sp"/>
+
+            <EditText
+                android:id="@+id/xkiroKey"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="xKiro API key"
+                android:inputType="textPassword"
+                android:textColor="@color/text"
+                android:textColorHint="@color/muted"/>
+
+            <EditText
+                android:id="@+id/voiceKey"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Voice Labs / ElevenLabs API key"
+                android:inputType="textPassword"
+                android:textColor="@color/text"
+                android:textColorHint="@color/muted"/>
+
+            <EditText
+                android:id="@+id/voiceId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Voice ID"
+                android:textColor="@color/text"
+                android:textColorHint="@color/muted"/>
+
+            <EditText
+                android:id="@+id/wakeWord"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Nome para chamar a IA (ex: Orizon)"
+                android:textColor="@color/text"
+                android:textColorHint="@color/muted"/>
+
+            <Button
+                android:id="@+id/saveSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Salvar no aparelho"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/panel"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Centro de agentes"
+                android:textColor="@color/text"
+                android:textStyle="bold"
+                android:textSize="18sp"/>
+
+            <TextView
+                android:id="@+id/modelsText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Catálogo ainda não carregado."
+                android:textColor="@color/muted"/>
+
+            <Button
+                android:id="@+id/refreshModels"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Descobrir modelos da xKiro"/>
+
+            <Button
+                android:id="@+id/swarmDemo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Teste de orquestração multi-IA"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/panel"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Modo Homem de Ferro"
+                android:textColor="@color/text"
+                android:textStyle="bold"
+                android:textSize="18sp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Voz em segundo plano, tela compartilhada e controle autorizado do Android. Comandos escritos também podem acionar o Device Agent."
+                android:textColor="@color/muted"/>
+
+            <Button
+                android:id="@+id/startVoice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ativar assistente de voz"/>
+
+            <Button
+                android:id="@+id/openAccessibility"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ativar Device Agent (Acessibilidade)"/>
+
+            <Button
+                android:id="@+id/shareScreen"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Compartilhar tela com os agentes"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/panel"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Workspace + Device Agent"
+                android:textColor="@color/text"
+                android:textStyle="bold"
+                android:textSize="18sp"/>
+
+            <EditText
+                android:id="@+id/prompt"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:gravity="top"
+                android:hint="Ex: cria um addon... ou: abra o Termux e programe uma IA simples no meu celular"
+                android:inputType="textMultiLine"
+                android:textColor="@color/text"
+                android:textColorHint="@color/muted"/>
+
+            <Button
+                android:id="@+id/sendPrompt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Executar / agir no celular"/>
+
+            <TextView
+                android:id="@+id/output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="160dp"
+                android:layout_marginTop="10dp"
+                android:fontFamily="monospace"
+                android:text="Pronto."
+                android:textColor="@color/text"
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
