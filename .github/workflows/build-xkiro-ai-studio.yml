@@ -1,0 +1,64 @@
+name: Build xKiro AI Studio APK
+
+on:
+  push:
+    branches: [ "xkiro-ai-studio" ]
+    paths:
+      - "xkiro-ai-studio/**"
+      - ".github/workflows/build-xkiro-ai-studio.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Android project
+        shell: bash
+        run: |
+          base64 -d xkiro-ai-studio/project.tar.gz.b64 > /tmp/xkiro-project.tgz
+          tar -xzf /tmp/xkiro-project.tgz -C "$GITHUB_WORKSPACE"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Build debug APK
+        working-directory: xkiro-ai-studio
+        run: gradle --stacktrace :app:assembleDebug
+
+      - name: Upload Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xKiro-AI-Studio-debug
+          path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish/update downloadable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk XKiro-AI-Studio-debug.apk
+          if gh release view xkiro-ai-studio-latest >/dev/null 2>&1; then
+            gh release upload xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --clobber
+          else
+            gh release create xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk \
+              --target "$GITHUB_SHA" \
+              --title "xKiro AI Studio - Latest Debug Build" \
+              --notes "Automatic APK build from the xkiro-ai-studio branch."
+          fi
