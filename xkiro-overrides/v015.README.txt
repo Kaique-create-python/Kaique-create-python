@@ -1,0 +1,1 @@
+v0.1.5 Fast Device Agent: batched actions, event-driven waits, stronger Enter, faster Termux generation, and voice fallback to Android TTS.
