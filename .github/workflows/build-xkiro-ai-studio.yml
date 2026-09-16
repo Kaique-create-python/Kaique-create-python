@@ -119,3 +119,5 @@ jobs:
               --title "xKiro AI Studio - Latest Debug Build" \
               --notes "Automatic APK build from the xkiro-ai-studio branch."
           fi
+
+# v0.1.5 build trigger
