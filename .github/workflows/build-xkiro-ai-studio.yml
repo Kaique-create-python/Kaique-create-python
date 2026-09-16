@@ -5,6 +5,7 @@ on:
     branches: [ "xkiro-ai-studio" ]
     paths:
       - "xkiro-ai-studio/**"
+      - "xkiro-overrides/**"
       - ".github/workflows/build-xkiro-ai-studio.yml"
   workflow_dispatch:
 
@@ -24,6 +25,12 @@ jobs:
         run: |
           base64 -d xkiro-ai-studio/project.tar.gz.b64 > /tmp/xkiro-project.tgz
           tar -xzf /tmp/xkiro-project.tgz -C "$GITHUB_WORKSPACE"
+
+      - name: Apply v0.1.2 source overrides
+        shell: bash
+        run: |
+          cp -a xkiro-overrides/v012/. xkiro-ai-studio/
+          echo "Applied typed Device Agent overrides"
 
       - name: Upload restored source snapshot
         uses: actions/upload-artifact@v4
