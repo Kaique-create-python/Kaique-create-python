@@ -50,8 +50,9 @@ jobs:
       - name: Apply v0.1.5 Fast Device Agent
         shell: bash
         run: |
-          gzip -t xkiro-overrides/v015.tar.gz
-          tar -xzf xkiro-overrides/v015.tar.gz -C xkiro-ai-studio
+          base64 -d xkiro-overrides/v015.b64 > /tmp/xkiro-v015.tgz
+          gzip -t /tmp/xkiro-v015.tgz
+          tar -xzf /tmp/xkiro-v015.tgz -C xkiro-ai-studio
           echo "Applied fast batched Device Agent, robust Enter and voice fallbacks"
 
       - name: Upload restored source snapshot
