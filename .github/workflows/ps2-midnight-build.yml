@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - ps2-midnight-build
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -13,19 +13,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install host dependencies
+      - name: Install host tools
         run: |
           sudo apt-get update
           sudo apt-get install -y curl genisoimage file
 
-      - name: Download official PS2DEV toolchain
+      - name: Install PS2DEV v2.0.0
         shell: bash
         run: |
           set -euxo pipefail
           mkdir -p "$HOME/ps2dev-toolchain"
-          curl -L --fail --retry 3 \
-            https://github.com/ps2dev/ps2dev/releases/download/v2.0.0/ps2dev-ubuntu-latest.tar.gz \
-            -o /tmp/ps2dev.tar.gz
+          curl -L --fail --retry 3 "https://github.com/ps2dev/ps2dev/releases/download/v2.0.0/ps2dev-ubuntu-latest.tar.gz" -o /tmp/ps2dev.tar.gz
           tar -xzf /tmp/ps2dev.tar.gz -C "$HOME/ps2dev-toolchain"
           CC_PATH="$(find "$HOME/ps2dev-toolchain" -type f -name mips64r5900el-ps2-elf-gcc | head -n 1)"
           test -n "$CC_PATH"
@@ -42,31 +40,17 @@ jobs:
           echo "$PS2DEV_ROOT/dvp/bin" >> "$GITHUB_PATH"
           echo "$PS2SDK_ROOT/bin" >> "$GITHUB_PATH"
 
-      - name: Recreate game source
-        shell: bash
+      - name: Extract game project
         run: |
-          set -euxo pipefail
           mkdir -p ps2_midnight_build
-          cat > /tmp/project.tar.gz.b64 <<'EOF'
-H4sIAAAAAAAAA+w9a3fbNrL9uv4ViLfrIzmSTVKi5EfsHlmiHbV6uJKcppumPJREyWwkSpUox243+9vvDACSAB969DbpvbvmiW0SHAwGg8HMYDBEmtYHe+RM7K8+46XAVSoW6V+48K9a1lX/WVWV8leqrulaSSkqqvYV/BSK6ldE+ZxE+ddq6VkLQr5azGbeOriZ5ZjLe2thD78EVV/sMgzzqt4iF6RZr7XqN697R0bjeg9K21ffdqF4uRgcTy3HPZrRW8edrzx+v7Ddob2wF/zRWi5tb8kf7NHIHgRP1mrozPj91HZX/HY5sF0bYPawvep1o3LTJS8vSL6tkfyNQvI/WJMJ/LYfvYUFf91ZfuWulvYwP7cW1tT27AXJ1x13MFkNbbj7OnPT/a7eyx7zIsTaqIVoGwHAxOnTl/Ur7GJ+Ml5+cDzTm80m8Nd/hr/DqcVu5tYQfkM3losHuPllbo+x1MXfv8HPdG/v6PZ1u/XjGUGaBxPbcomznO3B0xn5OsO4nN3bgzLx+W9HwISFM/eWwOQPtgmvj5b3e3sUwdne3xZTkh+F8OwORybL3i1GpL9yJsNjqGiCII9t/uyPplmtd6p39Z55W//nPytHSNKez7GvM7ddrVv7Lnu8tKbzib08bnJlcDRf2KNt4Gx7PJn1rcneXy3Gz9cfvLo/dntG86jauv58bWzQ/4qia1H9r+mFZ/3/Ja6rdrungRIcDBezqXL200/dxl3XPD09PTo9PVf33hgdeKkeKcrzFP+PvNAOf+42YIZrZV1Pn/9QJs9/tViG+a9/bsLw+i+f/6FTN/hsbWzQ/5pWiOn/cvlZ/3+R6+++l/dq6S0cd3x0f7kXln2wF649kcvAeQZ3OFI2s4bUIZRKl85oMR9IZftM1u739/aA754zIAPgKVmagNLsr0bvNL30npim5QE1/ZVnm2YmY02csWsPM6ViNps99yuuChrWW9gPYKGUSLE7+yiVOq4HpQvbGj6x8j0socSYjut4mYeZM8zu/b5H4MJXC9sDIHyCO6jSdUYN6GRzNlxN7Mw+NZbdeltrVlr7OaLkSOuu0QDiaP0RyWCtV0TJYvXVwt0K322ltjs6YFwdO6AI0FB2O1t47bntZhSKLmBwllxcCHjyaoima3tNWOkBSTavBQSZzWa7Zpi1u0qj+7pd/U4sbMAzbzXkrXru9xLxA6c/7e0hczmzV/Oh5dmZOj50YWxscohDZPu8BylcDTwk52rleTMXYVZLWNXgw/I8GB/sDq3I6Z/aU1h+ZmgR67Hzmz0bZTh2gTkvOK0+D0IGMITQB7i/sRl5lBMyaznYiwvKim6v0jPw91XDIAcHJAXgut6qVXu3aqRVjrIDBHGeH/CuZskljhPjCmMxl3Uq3edCORf2x2u4VuRnn1lHfc/nGOMsEJW/vLcnwwQk7CW0AKv44D05IP9mzTLIT5HBXN6vvOHsoyvPHuhSwOKQfC6T1clsKTFVlh4lbOiv1oz/HZcQuflsDsAG+19USnpg/3Ud7X9BBXfx2f5/gUu0/xikkw14gkswXn7neNGiHgudyaaei5Vg61Fxo6tgYgAtc9O9abSvKg1yOF7e0DBSjtx0e8bb3l3HIIee/ZijNYbOcmBOwSrlyADUmsdchsP72dIDq+bdy8UUGotj1lwwExS3YCTg2TcRcJu/rNkT64nqQVUovXYmGHO8ACpBnzd6Rsds1FtGpSPAvFlYUwrxXb1nVhpgIk2j02l3JONPeWgCPFgCmzEjZAGlLegz+YZkWMeyQc/IWVAWMCHuK6AxehHgEVXxtkTEGs762lmw8Ijs8kI09GzcmVtVoffkkJXh+MbHXBrj0A9g3mF0wDF8/K5ptO7Mqxuz2r5r9d5DX8K+7SPUGWuOxprpL+Xol/l4P7cBSt0KStsKqrAVVJFCMaaep/Wb8WZTv4MADgKx38rRt7c356pIRQKUuhWUthVUYSuoIocS+03dcdmX82VGmKesyJ+q7Cl/GU6Wi1CQZJA+aHdz9gEAQv0TSuCBCCZMvrAbaVd8WBFFZOxTK0d4g7E4zposZ8VotiAZhzpGxIFZLUnAOXn50hEntt8NJAR6+855v6nDFLI/Bsidus2ucEKG1dlTNuovcp0QOIyb9YKovp1QuUUGNMvVWM9+bFquNbYX5mhh22ljy+najatisyFnd2g5ZLLIF8HUce6MbcZOgI0xiC1Xh2CnBDebFlBd/69/sbeoiqXeBCs9XFBKS7NYl7D+e7A3cbrZmzOO49k1/w+6hH3Yv8r/L5UVPRL/K6jas///Ra61cb19LhmCC0+1Odv5N5c2uClDa/GUqcznPJhjzec50uGZAeRwITvnnuNNIm78ctXnpd0B6E/XYJkD5HAUqDo/0cBcwJvMgnoE8G+RvxyDlvrBGeIagD+9tp3xPdhwFW2K2TV6HePG7NxcVb7PFHME/ulQ9/GEBiCy59ujL0OJFsep6puQooONSItQ+7REoZWj8skoAdcpIFARi4qt+QjBGUf+pOIFhKqucMTFQhJiFXEqCKioImKf9+twF050jrtQTMB9Cm/9nxDxfvuMvGk3epXOPsfNE0L8+N8IlhcgKvnLEWZyIHZVG0VAGTkUdJENlxdMJn1EEclrgsniz2i9fFETw400dJUjFcxJ6T4tPXsKdfHBF7eQrpcvhTAdLaaNYwi1WzVahokeW8xVCKqTS6IVdbTNGdpoGF878CODHaie+r7aaXe7WRF/QB6ng5OBFv88DsSICIJq/kXNOl2d4Z0QhvskrhBpjJKVrmUBti2SSLHzwWFDQAeGc50x+nxTQ8nsqHeqDUPydzexIo0NqSyg9Jmu9ZARKf0UFT4umpuET9CD/A7kLuLYpWq9bWVuBA6+R6zzRH81cJNlGQpm+nBhffRjAJmQyMiCSD1StBHXi1usDaI6guuF+O9sivBJ+jggiqtl/iwrf6nQtwGFNGJjBPrICzqnKm1GvyIlPUsskCah8BgKj5RR2Bd7srTjugD0O6uaQa2QFzBkAYWegMJiuRejyNiynSBLFmn2Blphb1ShDxG9HjAUzRG1NyVUwCel0bb84kYKbIlagrvM6iQLbR/SYc1yC+BnoBGegbYvzfpkgrQiUKJpPkW6tj1FRbRSOILFFHpoApxIxAaLlBEH7x+kXMgC22Hsv0HC9BGshkSbJSIU7Rbv2nqNt/zoeIN7cbaL83VggSSEyu0srst5g0znhNz0NQyoFNkA9Be29eE8qYGW8YN5U2kaZwnaQnD3qLYLG9pvtd+0ybftm/Y+faj3DKIScnxMSLeO6WUVUjMI4r1tVH4kXaNTIRVy22m/rcMro1e5rezvRGa13erVW3e7ksmrgVMCD93KG4O02rBabrY7P5JqpVNjlAGUUe1Vam1S+f6uvhthVOK7O3MPGNalNBkNo1ppI7dYITHgvnvVaH9/Z9Tb3d2IMd72OpVdiWGVkJibSsPo1GHo2l1SacFI9TrtVr3aRqKQk8ZdrR1SB9xs7EZe+7ZXb7d2pa99W20zZl116o3XbUKMa6PeA6qqnR4hlbtaHcre1K86FeDkjmLVMWr1nYeP1aKDE1N6hGodNhVA3r81em3yut00rjrGD+S2q21B39AeWauJd5YG87/cKhWTtT9XAGDT+l8tRfN/ClrpOf//i1zh+n9qeffy6t+XC2H5j9k1C3dsumi48eFw6fur+PQInschzzl4JD9fwK9Xr4hakEouwUkpR2F0VnC4JFjwDfyAgX1UC3r59Kp2vZIil9jCp5CkEzKYWNO5aU3m91aGu8OSF40OE7hR3GcKHKrAZdLKwVt2LzWH7oQVrj99M0+XD6ne++gRTbnlThxYL9BWCzpHi6/GC8txabEmFo8mzuAD3WIE50IR4SfURRCpx+IHTIzyaM4K9UrCN6CqPthurAKMHU0VqaqVKkzCVbxb3B2KdYyFoLlzxJgMBba7dLynoNO0eL5C3xXcXPqYzWR8H0rVFHSiwJM6xP6ldVwpjchLjuVl2AitpCmJTFRPRnHQkyT+BTAJrIrU10Zx7nBXK4E78bWeuIPxlPM3MRiPPob8SVjQiJD3aZBslcNAYQ5Y3OE/PqSWMJC9I3J4zMIamOUtTBQVVxbANe0E/x7KEitulLCsLvIEQwcLcy97j/cvL0hJ3lNOXbRx6oEFH8MHaBjbx5DUzqs0S1g6fgp6XXGtyWxMqFCckeXcWoD8eI77RO5nC+e3metZE+LOHCgFgRyDt+yFzInuCNGOZk6AylDQDolWysZ2h6hGhIqBVjzg80ww62wkn56ESbGA+YAKNHsfg3t8FCfPAvXladYH/xgD/4iyVGBjKddST7CadiJUQWWJ2HGFVFawBgPVillyAHqhcJ1NWqdFBvUR5P3pCf8Cho8f8SEcT3Xb8RzkCP8nSGWZdUTkuooCmk0c8zevu4RP7b7lDsPxRNUuzPtLVCv6SArVwaykdVC6kRF0xIU6hwRX5CK7IzJCa8fkYVuZ2EUuQtg+qgMtcbA1HOzTSK010/KJTUg6dP17GDhtXWwnHlPWcfXPfiS1ovjD57OxoGcjsR5/hIDyAzQHLCX191jza6nnZIddQBEEelKjPqldwbhB+EsrJlAbRqc+RUSwem9bc+Ib4jOQktWCUFbkR9bQBtMxxK/yJrPBh3RdXFDYkBb1UBf7KJN3KSJRMf0kR3AMi/EIfaLaTMP2keQpLoUy9s/AqPjIMDLzZ2C7BxIR1w70SSqBm3uqEhR1tKURCxmi72yvJPc0pOCQnOqpmq0DKw0yc+08c57QpHMfSdJxmbiKoXr8+nqFrhbVJBnRwQJ1WsRGd+52aetQHNUM4a+C1L/n5IH/W1fwSfbn+/xnw/pf1QqFYvT7H7h7Xv9/iUvK/504/c0JwEl5AlSCxI96xA1+0/Hs6ZIlL9Z7RjOaviiGj1mBEKj1IViIlD35MUr25EcEeVU/Grf36TxCThcj6/UhWZow4mPbW0OSHA3PCWV+6FksY1FfsYRRKJbwaKeEioUbRUK/cHilUiiqBbVUXRdeoenTlju2Tfg9ZEQBiSwcMHXcB35nPT6IpErub+j58iawXuBzBy5vBpGAdedv1ayw6x/u2EZ2Wf1GedIo2wQRUkYpDG8d72GRa0/AztHsbkUs74+DD4Ci5dgLE8QZ2ABviyfSew8Ys3Q8Z+ZywUrYjGaQfvSlWCsWdKWgrSL947GX2D5yZJ/5D+Q04BBZ7pNJAWmoQ9pgf8G+ifO9ini/nCn4DpEPkpKh8nl5TzIFV5LLL23np/B2l2wFv79xop3hxDapZ7WMJwbw1/aD7Xqpb3kvgg+W2IbtmnYwlyRCYGKWw91tnFxBYjORkpckosRg/qi4EowURztB5e0Xx2MfNBSlTea0JIi1dNfaP7R2pPxz0bmeUJZVs1aO/VkcWgqZ9vdRKuPiTTQtSihM25GzmGaiOTDsLVsup/UkzoxLHtKOvznEiGgJo5+yEqOU+WIYIvXfYOpwosI7OEiYFpHpi/oF66DWD43FQaD2qEqWEpOpnMqqgiG4iKjjrI+YvRfFJkjZjgyHoMmxTsLryPSV3snKPqU7RcxSKJ8oaUMlapjLNCSqprCUP+DlNlxO0E5h6CpcCQYtIKMKYnpTggJLIw1TPAolJVZZ4G3xj8hwSH00cS6fj5H3KsFKrFfREYgkHZ/Yl3Sp1WJJSp9kq833BP7k7K/wswce+bOWtokOoJAoJLyhQXr9JPLqt9lsynOIWKw32EHw92ROUfaO8Q/VJrjxoYQ7VWw/x3JNOSQdwXKMWwH/oOHmPDmNkBBuqoh7UcLHD/1xzPMQZUSuXxb37ta5KWI12v18Kvwx6Oqg87TvtIU++moJX2b4QxfRUiFZ/XFicCUl1a4PUobDlON85rtcOcqsXUOZGzPtYn7Kn5Zst3XYH5ORyzlyEqctDH7Z1tDqOxMcPuCKPQliXmnkajpgLIHG0jTMA9Mx+S89IFfWtgg1BigVjjEh0qhiwiA2qUJ3SpoYbkzLcdNpLnaBp7iVtaR87SAHnKbXCWnVaUl1axvTSryxYmLWuQakY/Zc4VRqKsiXY3M56YspwWuL7oLwnQ2owLXTS6h2SArFWDajE1p8372KanyG7JdgUSA4O9vtdhQ1mP6/5ICePKbqayc60EOfX9Jwf2pIN0l+UXhOKEd1PRffKdhMA2tTJkJHhDsQoRZP0Dwjmhw5jebSrhMJbkegaapqijrIxBOdkWsTLpOI0Oh3BfSrhXJJ+q6Ah3yCD97wiqmezVQKlK3XhXEdg5FnBT+5ONlMmKh90ghin0KUODkFNZGc2McRSAD/EaZWLQ/rkDPSbOPpaoS8PcN8uut6p8k+l6CIE7JTI2Y3J+RfnEt1khNQd1zdowPi0XUMRmQSq2zeKN7Zimi7767QvWwPt2vlnZTnnYZtrvB41r/s/K+iXlTD8z/KCj3/6/n8xy9zrY/1e9bUe5rjF4CbT/tip+NGjgChkoUbA38f2iPHtUmr8sbsVpq3DaMLpkNTghdcBQYvYe0Zvrxp1HvV18G7IqyYgwD1Ui3haUXWwzsB9/tz+TWPvbyLtBIFYwvYd3Jz7yOniI1t115YQQBZ+jLSf2cuZyt3uJQORsKwOMs/whjwqWqoSq2i89h75DN3oZXIiVFRT0zodPzLdUBqu3hmlMj2vN+QD7L8FVd3gPQYlpC4f6ziZw4qOaPHg/mQjMf0SIEMcCubgWqHJIP4D0k54sRHqYzwfQ2lUTmIUTtXQ2pPU6mlkFoAWVDXQmLDGUAMRgRTDzV0VXE9CCSJDPClSGDCA37kB6KqAGb294xA4SuS90vzfvHDBh7JUreGRZHZIHGICdjPF/xG2B5KeCtsFSXX1cXe88khdD7DIk8M/ICfQIZBgIJWLp1wBgL3IwTDcEgxZXlKqeLuE51U84n1lInvbfgbITh1D/nR1GwzagCTzxMjKf0nz16Gs+sFrZ+/tF2rPxFnGAJQWMzPQSQo4dhHvpuEvRYW+hTykjDNZ1oPljNBhJmsjJG/x26YtOVMRtwgzQa0U4TCpheLqrGDdBK6n3hwjnTcEW95NPVMD+VtasnnIHFE4gkrNHaXDaojm9acrxLVd76fmXS8IR63Xoudbph0HKJ4+lF4SEq98/annyp3tW7nzRHcn6v7MKnYASzOcnYMRcfh2/WnKIazSpYEOVCYtq/EmEqHJSueynjuT2tg89FoYf/K9goVRXrRdzyac1iSSjHe7MICKTxySmgKhspkcJkD9jehXQH2YTZZTe1Ms/LWfNNu3DUNjHHJYxp2WI3KG26oJOwkkt/ZROQyQ81BTjQs2XPgkoDH3+/YBheHzUXVfxQnjzBvg5KB5iLKhyIUMYZH0qRvnrKRkDQG5/avKxSCFM4q/w/OSpH+I4fPtATY4P/rZa0Q/f6nqGvP/v+XuDac/7ddStBwaiUcCrjtOYGB+OE6gZkvHk2gKjb9wwpuxKRwg2/HAthoPBbjDcHpd9iAyf4Li4xgJ16IwPGzcuXQxT+vVqORjUxhJwN2jV6v3rox29fX5wngtdkK1ENanVZiFce73xr4tttkYHBjVntqqZsItXCmFUxINai2iiOmddi4smGoAbJOw+wYDQO7liO8oHldk567va551+reGtV4JCcAkat0qj9WzZMceObgctaaFbP6utJqGQ3zpn7NR4VTglaSkxMDY/5IOKxLurWWkYbyXABC/8Jkn15LQDRE3m4Z3dftnlQBLesc+MYSeWNVeHSq0rh9XcHolErlUWUxP0XCJJwZRjsToTEyXqOZ68kSiyXTjOTYSMAHBxyaApqrOa7YIxTLVbL0DMekfSv2Pn/ZnVsDJoLK0akYxJcB2SF76obdJhFWkRys+LnRgTbo22PHTVAHObIqFen/ubMAP2IyC/QD4wF9Eem8CJzQEvxdo3YY2l9X9so27Ud7kC5iyyd3YI7+p71j7U0jB37fX+Fucyg9BTZASJTsXaSqJb3etUkU0pNOvQiRsIS9hsdBIGmr/veb8dteL5Ac0Ic8aiH4MfZ67bHn6Zt0mF9EmwqovD9Cya6rtCX8RTOOTLcNDaNrnOzoqkpJvKXrevUfH9no3qaKoWKZ4zsgthh7dTQYNu/4N/yewIyfwv9JBb4rmtj5CTSJsW6e0Dipb5OeeXzNDMdl2rfnLIZpjUXMhAU86MYLOc9h56ii/BeqKX6ma815a+whFTL6CLQhOFlj8VgV61rFWFNGuQkTYWRwFXlDTBVdo26Q+EJYrWmmFkfNq3WtatzFcYJSkAnaiTDkHBmmTmVqV3tRUJYxSVi1iHVj1uPtWDMCm8pSU1pqCqWmmVKA4ZCoJ6RIy1gcc4p6Tsw6qlKMxiQa9si0WYZnKvHwrJg9m5YUC+LC5hjS8OYYPoFttfXxcp6pzYvq4fknn9xKKMIXAZvsKr28xVaMY5FSDYlrcXLnv7L466P8674i0yqM6//EaV6W2mkPZz0UYkaciA3xfNoiuQSQKr9mdFL2R3aHE4WrFkZyk32zor8BVp2nyuwG+v6jb2DwOH3c0AH57G1sizCdIXSId4V3gzatNEPW40oecIYTb6a/IgAoRv3kO/LMHda1W+PpkmFpJ/pZ1LEBLHrYfSDHKe/3+2r+H9tV4ABt/4/a7q7n/9YBD47/7roSxnHRi1tJFLaGQ2TzHPfBuPlBVzR5Z4AKh84p654yK7AlVcCMm1T0iFHPNqnJ/Oga/ZMp9foZfkwNkRBkotYcj9uYJ77fb1/Ypo0wkPBvk+duSaFmSKP/OXI7Y8iTnKc4TmdPyMz1Ao7Fdm8psgvRXUnXxNgyhNwakQ0tSzINEjv86KHLxuj4smRl8ogjzNI0twT6bjkC4cEAE0ApvPCuFHWTDadwBerjoKgb/JTyaJg9Zrg/DIan8qjlbl48QCwwmvT7jIkpq0RdvG3MADae9LUrsTZetnM2vKL37WQoOmPnCpIe29Jm+33SLz4KwiuDC5bVdiHyLVx0U+xshqfPXxKsQjotWG7tA/JT++9+uCXQmjonPTZ/QVgyygWHu5YxIpZhCasmIxZp6okCF7u6aivXnQKPtkiT77rQXRr0TLwWU9ul3RZUYG4cmjLKiAHKZkyBWd0WuC9MQVghZ5hPzkgWdL4ox7bEEafQjABpNq0wyrEtGPGdDA5TTRPzFZliafkc2uvTMrOvUMwc84Ye21BQobB6AVO8fs+muOmz9T1Isz08FPiOuNI7IB9+/2OlWtnz9z+uA8T7F8erVbQx5/y/vbtnx3+Hr21//l8HPE07QP478vr35vMGbIWN5m/S9iqb49LyqOKGk1ctCNCADFvgN/uxLV5JIvGkFVtp4uIJ874bdW7kUY1VgrjDIq+CZrXwhZ9646XcVhQ/+nqT+NEXgEDPn8KenXaWsRuL9c9YpCUgdMCc9Q/cvh3/obqz4+M/rAUy658uIcfq5+lfiZc3yYvm7bybQ2CoXSP3J9EIx7W4NFRL0WzZeYrmAapZZyp/QiuReqpZaRZSt+m8iEiR4+XOZKoZbxceJAJJmWTA47lhEuLVxhmIV+YQuVRy58ECQf/l8ltBG3PPf9XM+a9c8fF/1wIZ+l8/Oqq/cB8AVVae9Y6TFEvVEAstqtM2GuJRT+Bhyowy1I5PTxGR8fQ0FlMtQyANchIvFsE3XkJA3Ph/hI1dK8GT/B/baVfSxrz1X6vY/H+1tufPf2uBLP+HEfSd7B/PyD9vccvXPLZLHRrix9i3xwvYKMcL2h/Hi9kUx4saCn+/ZxSx/hUZX34b8/i/akb+t1PZ8/rftUBm/Z/Vj1/Wz+pnLhKg5T3A0jdPAqREIkL+c3RyfP4W9sWBzk5x2xAtAbdcpChnUpm5mNlw/GiDQrtmjoGgXWzVBnl2e8u3LbJbWKFhkN3ULKOc75fefmsg6D+X3aykjXnnv2otc/7brXr/77VAhv6/Pj59d+4i/iIjxz3cTeWRFesmN23FmPFgfEi/lWSJU3DN/oE6TnOSYNgC6OIoEXlJKyWpBkfg6cRsEOtfGEStoo1563+nlrn/eW/X+3+tBTLrn5pNOcU/MmeWDkBGgl7xXb3x+u5j/aGJiJT/4ItcURtz5T97ZX//21eCrPzn9NQp/aHJ8/Z+WGU9I4Q62meiT4ge9xxVeEb49DWFWRfqtjjnrCLjw+O3qaBThqWKDeVGixm+1C384pTpm6Ml46tROrwdR73Wh6SZjgel8fKpAK7xGfZflbKm/9+t7aH8p7bj7X/WAk+fRJPxKLpM+xHGarlsjbsBbISkmEwGZJgOE7QqDs5gGf8abmxetQl8ttNRH+O+hhvb4bOoVArR8n14134WBo3z56/qUBIrRJeT9KYdwaRCpft1EgYn787NPEleeDzLJo06WYIqcIIY9Uhx1IFWKNIw6H2AhklxKFIiJCSh/IVBP4IrzKUNCNSl+psjVajx5l2jub+/X9rf1ws3/sJriksvjvWiKi1IO+T9e1LsiPLssECNZiI0Rir9M7wOycVFTG67SR9IgELtLqo/QoREsvT76asw6KQBRgVKgYCQbVImFVIlOzFpDwJqCp7bB/zY+Jx+yfQjrydmBaM3+EGzaI8IgT61B/0kCFhwlWbj7AW8xM+njUrj5R8HxS9ROhhG6eg+4gHA4E9jwFS17Ajpedp71OO4BOhCDOWTq+6AhHetERLdA6IaI/0BCgkn/XZMzQ+YuJ7cpTc35DJBMszicbQoyUbri5AcFio41sHrxknz/OTkza8hzIZBr9fqt0lxilFtYAqmPZi05DBqJ9OoPwFslcNCGae6rKWVE0/8CZ5D5KvnJRry3geo0xnPRMzLxDj4MxHLgdG6EokW0jEZJf9OUqBZ5HZA6JLDWtgOGwOofZ/ekjIdDB1/EaohFQBExZtkmtzAZCz+Sez1SorQ9AYs61At04B1CHAROEpjUKcDQot8K1ueBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw4MGDBw8ePHjw8MPBfxiKvhYAyAAA==
-EOF
-          base64 -d /tmp/project.tar.gz.b64 > /tmp/project.tar.gz
-          tar -xzf /tmp/project.tar.gz -C ps2_midnight_build
+          tar -xzf ps2-build/project.tar.gz -C ps2_midnight_build
           chmod +x ps2_midnight_build/scripts/make_iso.sh
-
-      - name: Verify toolchain
-        run: |
-          set -euxo pipefail
-          echo "PS2DEV=$PS2DEV"
-          echo "PS2SDK=$PS2SDK"
-          echo "GSKIT=$GSKIT"
-          mips64r5900el-ps2-elf-gcc --version
-          test -f "$PS2SDK/samples/Makefile.pref"
 
       - name: Compile ELF
         working-directory: ps2_midnight_build
         run: |
           set -euxo pipefail
+          mips64r5900el-ps2-elf-gcc --version
           make clean
           make -j2
 
@@ -75,17 +59,12 @@ EOF
         run: |
           set -euxo pipefail
           make iso
-
-      - name: Inspect products
-        working-directory: ps2_midnight_build
-        run: |
-          set -euxo pipefail
           ls -lh MIDNIGHT.ELF build/MIDNIGHT_CIRCUIT_PIZZA.iso
           file MIDNIGHT.ELF build/MIDNIGHT_CIRCUIT_PIZZA.iso
           isoinfo -d -i build/MIDNIGHT_CIRCUIT_PIZZA.iso | head -50
           isoinfo -l -i build/MIDNIGHT_CIRCUIT_PIZZA.iso | head -120
 
-      - name: Upload PS2 build
+      - name: Upload build
         uses: actions/upload-artifact@v4
         with:
           name: Midnight-Circuit-Pizza-PS2
