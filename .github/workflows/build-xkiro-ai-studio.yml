@@ -41,6 +41,12 @@ jobs:
           tar -xzf /tmp/xkiro-v013.tgz -C xkiro-ai-studio
           echo "Applied ChatGPT-like UI, Shizuku authorization and stop controls"
 
+      - name: Apply v0.1.4 Shizuku fix
+        shell: bash
+        run: |
+          cp -a xkiro-overrides/v014/. xkiro-ai-studio/
+          echo "Applied live Shizuku detection and provider"
+
       - name: Upload restored source snapshot
         uses: actions/upload-artifact@v4
         with:
