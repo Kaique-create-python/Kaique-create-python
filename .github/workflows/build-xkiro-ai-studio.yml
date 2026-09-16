@@ -50,7 +50,7 @@ jobs:
       - name: Apply v0.1.5 Fast Device Agent
         shell: bash
         run: |
-          base64 -d xkiro-overrides/v015.b64 > /tmp/xkiro-v015.tgz
+          base64 -d xkiro-overrides/v015.tar.gz.b64 > /tmp/xkiro-v015.tgz
           gzip -t /tmp/xkiro-v015.tgz
           tar -xzf /tmp/xkiro-v015.tgz -C xkiro-ai-studio
           echo "Applied fast batched Device Agent, robust Enter and voice fallbacks"
@@ -119,5 +119,3 @@ jobs:
               --title "xKiro AI Studio - Latest Debug Build" \
               --notes "Automatic APK build from the xkiro-ai-studio branch."
           fi
-
-# v0.1.5 build trigger
