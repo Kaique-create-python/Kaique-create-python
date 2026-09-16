@@ -47,6 +47,13 @@ jobs:
           cp -a xkiro-overrides/v014/. xkiro-ai-studio/
           echo "Applied live Shizuku detection and provider"
 
+      - name: Apply v0.1.5 Fast Device Agent
+        shell: bash
+        run: |
+          gzip -t xkiro-overrides/v015.tar.gz
+          tar -xzf xkiro-overrides/v015.tar.gz -C xkiro-ai-studio
+          echo "Applied fast batched Device Agent, robust Enter and voice fallbacks"
+
       - name: Upload restored source snapshot
         uses: actions/upload-artifact@v4
         with:
