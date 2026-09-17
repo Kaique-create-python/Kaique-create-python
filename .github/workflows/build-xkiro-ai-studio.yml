@@ -46,10 +46,11 @@ jobs:
         run: cp /tmp/MainActivity-v029.kt xkiro-ai-studio/app/src/main/java/ai/xkiro/studio/MainActivity.kt
       - { name: Bind Diana UI safely, run: "python3 xkiro-overrides/v030post-apply.py" }
       - { name: Apply v0.3.1 pixel-match UI, run: "python3 xkiro-overrides/v031-apply.py" }
+      - { name: Apply v0.3.2 final visual pass, run: "python3 xkiro-overrides/v032-apply.py" }
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-v0.3.1-source
+          name: Diana-v0.3.2-source
           path: |
             xkiro-ai-studio/app
             xkiro-ai-studio/build.gradle.kts
@@ -67,15 +68,16 @@ jobs:
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with: { name: Diana-v0.3.1-build-log, path: diana-build.log, if-no-files-found: ignore }
+        with: { name: Diana-v0.3.2-build-log, path: diana-build.log, if-no-files-found: ignore }
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-v0.3.1-debug
+          name: Diana-v0.3.2-debug
           path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish latest release
         if: success()
+        continue-on-error: true
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           cp xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk Diana-debug.apk
