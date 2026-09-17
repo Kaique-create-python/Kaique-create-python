@@ -73,6 +73,15 @@ jobs:
           tar -xzf /tmp/xkiro-v017.tgz -C xkiro-ai-studio
           echo "Applied OpenRouter cost-aware routing, Work files, dual vision and xKiro fallback"
 
+      - name: Apply v0.1.8 Shared Memory + Advanced Gestures
+        shell: bash
+        run: |
+          cat xkiro-overrides/v018.b64.part* > /tmp/xkiro-v018.b64
+          base64 -d /tmp/xkiro-v018.b64 > /tmp/xkiro-v018.tgz
+          gzip -t /tmp/xkiro-v018.tgz
+          tar -xzf /tmp/xkiro-v018.tgz -C xkiro-ai-studio
+          echo "Applied shared agent memory and advanced touch gestures"
+
       - name: Upload restored source snapshot
         uses: actions/upload-artifact@v4
         with:
