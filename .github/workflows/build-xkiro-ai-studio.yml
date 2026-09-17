@@ -39,8 +39,12 @@ jobs:
       - { name: Apply v0.2.9c, run: "python3 xkiro-overrides/v029c-apply.py" }
       - { name: Apply v0.2.9d, run: "python3 xkiro-overrides/v029d-apply.py" }
       - { name: Apply v0.2.9e, run: "python3 xkiro-overrides/v029e-apply.py" }
+      - name: Preserve working v0.2.9 runtime
+        run: cp xkiro-ai-studio/app/src/main/java/ai/xkiro/studio/MainActivity.kt /tmp/MainActivity-v029.kt
       - { name: Apply v0.3.0 Diana UI, run: "python3 xkiro-overrides/v030-apply.py" }
-      - { name: Apply v0.3.0 runtime fix, run: "python3 xkiro-overrides/v030fix-apply.py" }
+      - name: Restore working runtime
+        run: cp /tmp/MainActivity-v029.kt xkiro-ai-studio/app/src/main/java/ai/xkiro/studio/MainActivity.kt
+      - { name: Bind Diana UI safely, run: "python3 xkiro-overrides/v030post-apply.py" }
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
