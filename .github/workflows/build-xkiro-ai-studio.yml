@@ -50,10 +50,11 @@ jobs:
       - { name: Apply v0.3.3 voice and settings UI, run: "cat xkiro-overrides/v033.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
       - { name: Apply v0.3.4 normal chat system, run: "cat xkiro-overrides/v034.fix.part00a xkiro-overrides/v034.fix.part00b xkiro-overrides/v034.b64.part01 xkiro-overrides/v034.b64.part02 | base64 -d | tar -xz -C xkiro-ai-studio" }
       - { name: Apply v0.3.5 Work live UI, run: "cat xkiro-overrides/v035.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.3.6 performance and Work fix, run: "tar -xzf xkiro-overrides/v036fix.tar.gz -C xkiro-ai-studio" }
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-v0.3.5-source
+          name: Diana-v0.3.6-source
           path: |
             xkiro-ai-studio/app
             xkiro-ai-studio/build.gradle.kts
@@ -71,12 +72,12 @@ jobs:
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with: { name: Diana-v0.3.5-build-log, path: diana-build.log, if-no-files-found: ignore }
+        with: { name: Diana-v0.3.6-build-log, path: diana-build.log, if-no-files-found: ignore }
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-v0.3.5-debug
+          name: Diana-v0.3.6-debug
           path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish latest release
         if: success()
