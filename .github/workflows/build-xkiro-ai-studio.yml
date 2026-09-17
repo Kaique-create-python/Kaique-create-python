@@ -109,6 +109,15 @@ jobs:
           tar -xzf /tmp/xkiro-v020.tgz -C xkiro-ai-studio
           echo "Applied full-display Screen Vision, Shizuku UserService, Termux RUN_COMMAND, image picker and ElevenLabs real-audio diagnostics"
 
+      - name: Apply v0.2.1 Doctor + Web Research + Accessibility Recovery
+        shell: bash
+        run: |
+          cat xkiro-overrides/v021.b64.part00 xkiro-overrides/v021.b64.part01 xkiro-overrides/v021.b64.part02 xkiro-overrides/v021.b64.part03 xkiro-overrides/v021.b64.part04 xkiro-overrides/v021.b64.part05 > /tmp/xkiro-v021.b64
+          base64 -d /tmp/xkiro-v021.b64 > /tmp/xkiro-v021.tgz
+          gzip -t /tmp/xkiro-v021.tgz
+          tar -xzf /tmp/xkiro-v021.tgz -C xkiro-ai-studio
+          echo "Applied Doctor recovery, robust accessibility detection, Shizuku vision fallback, web research and UI animations"
+
       - name: Upload restored source snapshot
         uses: actions/upload-artifact@v4
         with:
