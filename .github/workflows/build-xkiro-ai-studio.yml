@@ -32,6 +32,7 @@ jobs:
       - { name: Apply v0.2.4, run: "python3 xkiro-overrides/v024-apply.py" }
       - { name: Apply v0.2.5, run: "python3 xkiro-overrides/v025-apply.py" }
       - { name: Apply v0.2.6, run: "python3 xkiro-overrides/v026-apply.py" }
+      - { name: Apply v0.2.7, run: "python3 xkiro-overrides/v027-apply.py" }
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
@@ -58,7 +59,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: xKiro-AI-Studio-v0.2.6-debug
+          name: xKiro-AI-Studio-v0.2.7-debug
           path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish latest release
         if: success()
