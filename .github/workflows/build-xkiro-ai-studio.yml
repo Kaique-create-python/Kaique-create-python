@@ -1,4 +1,4 @@
-name: Build xKiro AI Studio APK
+name: Build Diana APK
 on:
   push:
     branches: [ "xkiro-ai-studio" ]
@@ -39,10 +39,11 @@ jobs:
       - { name: Apply v0.2.9c, run: "python3 xkiro-overrides/v029c-apply.py" }
       - { name: Apply v0.2.9d, run: "python3 xkiro-overrides/v029d-apply.py" }
       - { name: Apply v0.2.9e, run: "python3 xkiro-overrides/v029e-apply.py" }
+      - { name: Apply v0.3.0 Diana UI, run: "python3 xkiro-overrides/v030-apply.py" }
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: xKiro-AI-Studio-source
+          name: Diana-source
           path: |
             xkiro-ai-studio/app
             xkiro-ai-studio/build.gradle.kts
@@ -56,20 +57,20 @@ jobs:
         working-directory: xkiro-ai-studio
         run: |
           set -o pipefail
-          gradle --stacktrace :app:assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/xkiro-build.log"
+          gradle --stacktrace :app:assembleDebug 2>&1 | tee "$GITHUB_WORKSPACE/diana-build.log"
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with: { name: xKiro-AI-Studio-build-log, path: xkiro-build.log, if-no-files-found: ignore }
+        with: { name: Diana-build-log, path: diana-build.log, if-no-files-found: ignore }
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: xKiro-AI-Studio-v0.2.9-debug
+          name: Diana-v0.3.0-debug
           path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish latest release
         if: success()
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          cp xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk XKiro-AI-Studio-debug.apk
-          if gh release view xkiro-ai-studio-latest >/dev/null 2>&1; then gh release upload xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --clobber; else gh release create xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --target "$GITHUB_SHA" --title "xKiro AI Studio - Latest Debug Build" --notes "Automatic APK build."; fi
+          cp xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk Diana-debug.apk
+          if gh release view xkiro-ai-studio-latest >/dev/null 2>&1; then gh release upload xkiro-ai-studio-latest Diana-debug.apk --clobber; else gh release create xkiro-ai-studio-latest Diana-debug.apk --target "$GITHUB_SHA" --title "Diana - Latest Debug Build" --notes "Automatic APK build."; fi
