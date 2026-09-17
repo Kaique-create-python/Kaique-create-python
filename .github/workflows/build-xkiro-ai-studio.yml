@@ -1,14 +1,11 @@
 name: Build xKiro AI Studio APK
-
 on:
   push:
     branches: [ "xkiro-ai-studio" ]
     paths: [ "xkiro-ai-studio/**", "xkiro-overrides/**", ".github/workflows/build-xkiro-ai-studio.yml" ]
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,36 +16,22 @@ jobs:
         run: |
           base64 -d xkiro-ai-studio/project.tar.gz.b64 > /tmp/base.tgz
           tar -xzf /tmp/base.tgz -C "$GITHUB_WORKSPACE"
-      - name: Apply v0.1.2
-        run: cp -a xkiro-overrides/v012/. xkiro-ai-studio/
-      - name: Apply v0.1.3
-        run: cat xkiro-overrides/v013.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.1.4
-        run: cp -a xkiro-overrides/v014/. xkiro-ai-studio/
-      - name: Apply v0.1.5
-        run: base64 -d xkiro-overrides/v015.tar.gz.b64 | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.1.6
-        run: cat xkiro-overrides/v016.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.1.7
-        run: cat xkiro-overrides/v017.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.1.8
-        run: cat xkiro-overrides/v018.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.1.9
-        run: cat xkiro-overrides/v019.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.1.9 compile fix
-        run: cat xkiro-overrides/v019fix.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.2.0
-        run: cat xkiro-overrides/v020.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.2.1
-        run: cat xkiro-overrides/v021.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.2.2
-        run: python3 xkiro-overrides/v022-apply.py
-      - name: Apply v0.2.3
-        run: cat xkiro-overrides/v023.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
-      - name: Apply v0.2.4
-        run: python3 xkiro-overrides/v024-apply.py
-      - name: Apply v0.2.5
-        run: python3 xkiro-overrides/v025-apply.py
+      - { name: Apply v0.1.2, run: "cp -a xkiro-overrides/v012/. xkiro-ai-studio/" }
+      - { name: Apply v0.1.3, run: "cat xkiro-overrides/v013.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.1.4, run: "cp -a xkiro-overrides/v014/. xkiro-ai-studio/" }
+      - { name: Apply v0.1.5, run: "base64 -d xkiro-overrides/v015.tar.gz.b64 | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.1.6, run: "cat xkiro-overrides/v016.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.1.7, run: "cat xkiro-overrides/v017.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.1.8, run: "cat xkiro-overrides/v018.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.1.9, run: "cat xkiro-overrides/v019.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.1.9 compile fix, run: "cat xkiro-overrides/v019fix.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.2.0, run: "cat xkiro-overrides/v020.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.2.1, run: "cat xkiro-overrides/v021.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.2.2, run: "python3 xkiro-overrides/v022-apply.py" }
+      - { name: Apply v0.2.3, run: "cat xkiro-overrides/v023.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio" }
+      - { name: Apply v0.2.4, run: "python3 xkiro-overrides/v024-apply.py" }
+      - { name: Apply v0.2.5, run: "python3 xkiro-overrides/v025-apply.py" }
+      - { name: Apply v0.2.6, run: "python3 xkiro-overrides/v026-apply.py" }
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
@@ -59,12 +42,9 @@ jobs:
             xkiro-ai-studio/settings.gradle.kts
             xkiro-ai-studio/gradle.properties
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+        with: { distribution: temurin, java-version: "17" }
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.6.0"
+        with: { gradle-version: "9.6.0" }
       - name: Build debug APK
         working-directory: xkiro-ai-studio
         run: |
@@ -73,24 +53,16 @@ jobs:
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
-        with:
-          name: xKiro-AI-Studio-build-log
-          path: xkiro-build.log
-          if-no-files-found: ignore
+        with: { name: xKiro-AI-Studio-build-log, path: xkiro-build.log, if-no-files-found: ignore }
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: xKiro-AI-Studio-v0.2.5-debug
+          name: xKiro-AI-Studio-v0.2.6-debug
           path: xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish latest release
         if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           cp xkiro-ai-studio/app/build/outputs/apk/debug/app-debug.apk XKiro-AI-Studio-debug.apk
-          if gh release view xkiro-ai-studio-latest >/dev/null 2>&1; then
-            gh release upload xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --clobber
-          else
-            gh release create xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --target "$GITHUB_SHA" --title "xKiro AI Studio - Latest Debug Build" --notes "Automatic APK build."
-          fi
+          if gh release view xkiro-ai-studio-latest >/dev/null 2>&1; then gh release upload xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --clobber; else gh release create xkiro-ai-studio-latest XKiro-AI-Studio-debug.apk --target "$GITHUB_SHA" --title "xKiro AI Studio - Latest Debug Build" --notes "Automatic APK build."; fi
