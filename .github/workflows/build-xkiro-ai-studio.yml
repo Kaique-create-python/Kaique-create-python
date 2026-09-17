@@ -82,6 +82,15 @@ jobs:
           tar -xzf /tmp/xkiro-v018.tgz -C xkiro-ai-studio
           echo "Applied shared agent memory and advanced touch gestures"
 
+      - name: Apply v0.1.9 Adaptive Router + ElevenLabs + Device Freedom
+        shell: bash
+        run: |
+          cat xkiro-overrides/v019.b64.part* > /tmp/xkiro-v019.b64
+          base64 -d /tmp/xkiro-v019.b64 > /tmp/xkiro-v019.tgz
+          gzip -t /tmp/xkiro-v019.tgz
+          tar -xzf /tmp/xkiro-v019.tgz -C xkiro-ai-studio
+          echo "Applied adaptive 1/2/3 model router, ElevenLabs diagnostics and stronger device input"
+
       - name: Upload restored source snapshot
         uses: actions/upload-artifact@v4
         with:
