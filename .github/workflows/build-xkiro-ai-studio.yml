@@ -44,7 +44,7 @@ jobs:
       - name: Apply v0.2.2
         run: python3 xkiro-overrides/v022-apply.py
       - name: Apply v0.2.3
-        run: base64 -d xkiro-overrides/v023.tar.gz.b64 | tar -xz -C xkiro-ai-studio
+        run: cat xkiro-overrides/v023.b64.part* | base64 -d | tar -xz -C xkiro-ai-studio
       - name: Upload source snapshot
         uses: actions/upload-artifact@v4
         with:
