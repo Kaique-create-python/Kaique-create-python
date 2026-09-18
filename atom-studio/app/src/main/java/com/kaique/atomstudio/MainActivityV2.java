@@ -91,7 +91,7 @@ public class MainActivityV2 extends Activity {
         root.setPadding(pad, pad, pad, dp(30));
         scroll.addView(root);
 
-        TextView title = text("ATOM Studio v0.3 LiveMic", 30, Color.WHITE);
+        TextView title = text("ATOM Studio v0.4 AudioFix", 30, Color.WHITE);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
