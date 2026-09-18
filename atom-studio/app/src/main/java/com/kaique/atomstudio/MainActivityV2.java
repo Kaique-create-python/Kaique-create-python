@@ -1,6 +1,8 @@
 package com.kaique.atomstudio;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -29,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivityV2 extends Activity {
     private static final int REQ_AUDIO = 4041;
+    private static final int REQ_MIC = 4042;
 
     private EditText hostInput;
     private EditText passwordInput;
@@ -48,6 +51,7 @@ public class MainActivityV2 extends Activity {
 
     private WebReplClient client;
     private final AudioStreamer audioStreamer = new AudioStreamer();
+    private final LiveMicStreamer liveMicStreamer = new LiveMicStreamer();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -87,7 +91,7 @@ public class MainActivityV2 extends Activity {
         root.setPadding(pad, pad, pad, dp(30));
         scroll.addView(root);
 
-        TextView title = text("ATOM Studio v0.2", 30, Color.WHITE);
+        TextView title = text("ATOM Studio v0.3 LiveMic", 30, Color.WHITE);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
@@ -164,11 +168,32 @@ public class MainActivityV2 extends Activity {
             setStatus("Parando áudio...", false);
         });
 
+        root.addView(section("Microfone do celular → ATOM"));
+
         TextView mic = text(
-                "MIC: o hardware grava, mas o microfone SPM1423 é PDM. O MicroPython genérico atual não expõe PDM; para receber o microfone vamos usar um firmware próprio na próxima etapa.",
-                12, Color.rgb(255, 205, 90));
-        mic.setPadding(0, dp(10), 0, 0);
+                "Transmite sua voz ao vivo pela RAM. Nenhum arquivo de gravação é criado no celular nem gravado no ATOM.",
+                13, Color.rgb(170, 182, 195));
+        mic.setPadding(0, dp(4), 0, dp(6));
         root.addView(mic);
+
+        LinearLayout micRow = row();
+        Button startMic = button("INICIAR MIC AO VIVO");
+        Button stopMic = button("PARAR MIC");
+        micRow.addView(startMic, weight());
+        micRow.addView(stopMic, weight());
+        root.addView(micRow);
+
+        startMic.setOnClickListener(v -> startLiveMic());
+        stopMic.setOnClickListener(v -> {
+            liveMicStreamer.stop();
+            setStatus("Parando microfone ao vivo...", false);
+        });
+
+        TextView atomMic = text(
+                "Obs.: este botão usa o microfone do CELULAR. O microfone físico PDM do próprio ATOM ainda precisa de firmware específico.",
+                12, Color.rgb(255, 205, 90));
+        atomMic.setPadding(0, dp(8), 0, 0);
+        root.addView(atomMic);
 
         root.addView(section("Arquivos e editor"));
 
@@ -239,6 +264,7 @@ public class MainActivityV2 extends Activity {
         reboot.setOnClickListener(v -> {
             if (!requireConnection()) return;
             audioStreamer.stop();
+            liveMicStreamer.stop();
             client.executeRaw("import machine;print('Reiniciando...');machine.reset()");
         });
 
@@ -266,6 +292,7 @@ public class MainActivityV2 extends Activity {
     private void connectOrDisconnect() {
         if (client.isOpen()) {
             audioStreamer.stop();
+            liveMicStreamer.stop();
             client.disconnect();
             connectButton.setText("CONECTAR");
             setStatus("Desconectado.", false);
@@ -332,6 +359,7 @@ public class MainActivityV2 extends Activity {
             return;
         }
 
+        liveMicStreamer.stop();
         audioStreamer.start(this, selectedAudioUri, volumePercent, new AudioStreamer.Control() {
             @Override public void runPython(String code) {
                 client.executeRaw(code);
@@ -349,6 +377,48 @@ public class MainActivityV2 extends Activity {
                 runOnUiThread(() -> appendTerminal(text));
             }
         });
+    }
+
+    private void startLiveMic() {
+        if (!requireConnection()) return;
+
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+            return;
+        }
+
+        audioStreamer.stop();
+
+        liveMicStreamer.start(volumePercent, new LiveMicStreamer.Control() {
+            @Override public void runPython(String code) {
+                client.executeRaw(code);
+            }
+
+            @Override public String host() {
+                return cleanHost(hostInput.getText().toString());
+            }
+
+            @Override public void status(String text, boolean ok) {
+                runOnUiThread(() -> setStatus(text, ok));
+            }
+
+            @Override public void log(String text) {
+                runOnUiThread(() -> appendTerminal(text));
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQ_MIC) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startLiveMic();
+            } else {
+                toast("Permissão do microfone negada.");
+            }
+        }
     }
 
     private String cleanHost(String raw) {
@@ -601,6 +671,7 @@ public class MainActivityV2 extends Activity {
     @Override
     protected void onDestroy() {
         audioStreamer.shutdown();
+        liveMicStreamer.shutdown();
         client.disconnect();
         super.onDestroy();
     }
