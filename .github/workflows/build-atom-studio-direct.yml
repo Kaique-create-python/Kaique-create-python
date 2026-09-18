@@ -50,9 +50,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp "app/build/outputs/apk/debug/app-debug.apk" "ATOM-Studio-debug.apk"
+          cp "app/build/outputs/apk/debug/app-debug.apk" "ATOM-Studio-v0.3-LiveMic.apk"
           if gh release view atom-studio-direct >/dev/null 2>&1; then
-            gh release upload atom-studio-direct "ATOM-Studio-debug.apk" --clobber
+            gh release upload atom-studio-direct "ATOM-Studio-v0.3-LiveMic.apk" --clobber
           else
-            gh release create atom-studio-direct "ATOM-Studio-debug.apk"               --target atom-studio-public-build               --title "ATOM Studio APK"               --notes "APK direto do ATOM Studio."
+            gh release create atom-studio-direct "ATOM-Studio-v0.3-LiveMic.apk"               --target atom-studio-public-build               --title "ATOM Studio APK"               --notes "ATOM Studio v0.3 LiveMic - áudio e microfone ao vivo sem salvar gravações no ATOM."
           fi
