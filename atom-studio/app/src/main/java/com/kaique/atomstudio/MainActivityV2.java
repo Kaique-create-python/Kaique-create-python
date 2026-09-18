@@ -91,7 +91,7 @@ public class MainActivityV2 extends Activity {
         root.setPadding(pad, pad, pad, dp(30));
         scroll.addView(root);
 
-        TextView title = text("ATOM Studio v0.4 AudioFix", 30, Color.WHITE);
+        TextView title = text("ATOM Studio v0.5 StableAudio", 30, Color.WHITE);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
@@ -361,8 +361,12 @@ public class MainActivityV2 extends Activity {
 
         liveMicStreamer.stop();
         audioStreamer.start(this, selectedAudioUri, volumePercent, new AudioStreamer.Control() {
-            @Override public void runPython(String code) {
-                client.executeRaw(code);
+            @Override public void startBlockingPython(String code) {
+                client.startBlockingRaw(code);
+            }
+
+            @Override public void finishBlockingPython() {
+                client.finishBlockingRaw();
             }
 
             @Override public String host() {
@@ -390,8 +394,12 @@ public class MainActivityV2 extends Activity {
         audioStreamer.stop();
 
         liveMicStreamer.start(volumePercent, new LiveMicStreamer.Control() {
-            @Override public void runPython(String code) {
-                client.executeRaw(code);
+            @Override public void startBlockingPython(String code) {
+                client.startBlockingRaw(code);
+            }
+
+            @Override public void finishBlockingPython() {
+                client.finishBlockingRaw();
             }
 
             @Override public String host() {
