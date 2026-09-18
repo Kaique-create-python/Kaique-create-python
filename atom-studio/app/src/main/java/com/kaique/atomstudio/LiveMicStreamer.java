@@ -81,8 +81,7 @@ public class LiveMicStreamer {
                 throw new IllegalStateException("IP do ATOM inválido.");
             }
 
-            socket = new Socket();
-            socket.connect(new InetSocketAddress(host, PORT), 5000);
+            socket = connectWithRetry(host, PORT, 7000);
             socket.setTcpNoDelay(true);
             socket.setSendBufferSize(8192);
             socket.setSoTimeout(5000);
@@ -176,6 +175,25 @@ public class LiveMicStreamer {
         }
     }
 
+    private static Socket connectWithRetry(String host, int port, long timeoutMs) throws Exception {
+        long end = System.currentTimeMillis() + timeoutMs;
+        Exception last = null;
+
+        while (System.currentTimeMillis() < end) {
+            Socket s = new Socket();
+            try {
+                s.connect(new InetSocketAddress(host, port), 700);
+                return s;
+            } catch (Exception e) {
+                last = e;
+                try { s.close(); } catch (Exception ignored) {}
+                Thread.sleep(180);
+            }
+        }
+
+        throw last != null ? last : new IllegalStateException("Servidor de microfone do ATOM não abriu.");
+    }
+
     private static byte[] monoToStereo(
             byte[] mono,
             int length,
@@ -249,9 +267,9 @@ public class LiveMicStreamer {
                 " print('__MIC_I2S_OK__')\n" +
                 " b=bytearray(2048)\n" +
                 " while True:\n" +
-                "  n=c.recv_into(b)\n" +
-                "  if not n:break\n" +
-                "  a.write(memoryview(b)[:n])\n" +
+                "  d=c.recv(2048)\n" +
+                "  if not d:break\n" +
+                "  a.write(d)\n" +
                 "except Exception as e:\n" +
                 " try:\n" +
                 "  if c:c.send(b'E')\n" +
