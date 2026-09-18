@@ -49,21 +49,21 @@ jobs:
       - name: Commit APK binary for chat attachment
         run: |
           mkdir -p ../releases
-          cp "app/build/outputs/apk/debug/app-debug.apk" "../releases/ATOM-Studio-v0.3-LiveMic.apk"
+          cp "app/build/outputs/apk/debug/app-debug.apk" "../releases/ATOM-Studio-v0.4-AudioFix.apk"
           cd ..
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "releases/ATOM-Studio-v0.3-LiveMic.apk"
-          git commit -m "Update ATOM Studio v0.3 LiveMic APK binary" || true
+          git add "releases/ATOM-Studio-v0.4-AudioFix.apk"
+          git commit -m "Update ATOM Studio v0.4 AudioFix APK binary" || true
           git push origin HEAD:atom-studio-public-build
 
       - name: Publish APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp "app/build/outputs/apk/debug/app-debug.apk" "ATOM-Studio-v0.3-LiveMic.apk"
+          cp "app/build/outputs/apk/debug/app-debug.apk" "ATOM-Studio-v0.4-AudioFix.apk"
           if gh release view atom-studio-direct >/dev/null 2>&1; then
-            gh release upload atom-studio-direct "ATOM-Studio-v0.3-LiveMic.apk" --clobber
+            gh release upload atom-studio-direct "ATOM-Studio-v0.4-AudioFix.apk" --clobber
           else
-            gh release create atom-studio-direct "ATOM-Studio-v0.3-LiveMic.apk"               --target atom-studio-public-build               --title "ATOM Studio APK"               --notes "ATOM Studio v0.3 LiveMic - áudio e microfone ao vivo sem salvar gravações no ATOM."
+            gh release create atom-studio-direct "ATOM-Studio-v0.4-AudioFix.apk"               --target atom-studio-public-build               --title "ATOM Studio APK"               --notes "ATOM Studio v0.4 AudioFix - áudio e microfone ao vivo sem salvar gravações no ATOM."
           fi
