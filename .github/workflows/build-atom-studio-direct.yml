@@ -46,6 +46,17 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Commit APK binary for chat attachment
+        run: |
+          mkdir -p ../releases
+          cp "app/build/outputs/apk/debug/app-debug.apk" "../releases/ATOM-Studio-v0.3-LiveMic.apk"
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "releases/ATOM-Studio-v0.3-LiveMic.apk"
+          git commit -m "Update ATOM Studio v0.3 LiveMic APK binary" || true
+          git push origin HEAD:atom-studio-public-build
+
       - name: Publish APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
