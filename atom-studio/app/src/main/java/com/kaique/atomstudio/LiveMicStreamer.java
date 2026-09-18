@@ -1,0 +1,194 @@
+package com.kaique.atomstudio;
+
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class LiveMicStreamer {
+
+    public interface Control {
+        void runPython(String code);
+        String host();
+        void status(String text, boolean ok);
+        void log(String text);
+    }
+
+    private static final int PORT = 8267;
+    private static final int RATE = 16000;
+
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private volatile boolean stop;
+    private volatile Socket activeSocket;
+    private volatile AudioRecord recorder;
+
+    public void start(int volumePercent, Control ctl) {
+        if (recorder != null || activeSocket != null) {
+            ctl.status("O microfone já está transmitindo.", false);
+            return;
+        }
+
+        stop = false;
+        worker.execute(() -> run(volumePercent, ctl));
+    }
+
+    public void stop() {
+        stop = true;
+
+        AudioRecord r = recorder;
+        recorder = null;
+        if (r != null) {
+            try { r.stop(); } catch (Exception ignored) {}
+            try { r.release(); } catch (Exception ignored) {}
+        }
+
+        Socket s = activeSocket;
+        activeSocket = null;
+        if (s != null) {
+            try { s.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    public void shutdown() {
+        stop();
+        worker.shutdownNow();
+    }
+
+    private void run(int volumePercent, Control ctl) {
+        Socket socket = null;
+        AudioRecord localRecorder = null;
+
+        try {
+            ctl.status("Preparando microfone ao vivo...", true);
+            ctl.runPython(serverCode());
+
+            Thread.sleep(1100);
+
+            String host = ctl.host();
+            if (host == null || host.isEmpty()) {
+                throw new IllegalStateException("IP do ATOM inválido.");
+            }
+
+            socket = new Socket();
+            socket.connect(new InetSocketAddress(host, PORT), 5000);
+            socket.setTcpNoDelay(true);
+            socket.setSendBufferSize(32768);
+            activeSocket = socket;
+
+            int min = AudioRecord.getMinBufferSize(
+                    RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
+
+            int bufferSize = Math.max(min, 4096);
+
+            localRecorder = new AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize);
+
+            if (localRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
+                throw new IllegalStateException("Não consegui inicializar o microfone do celular.");
+            }
+
+            recorder = localRecorder;
+            OutputStream out = socket.getOutputStream();
+
+            byte[] mono = new byte[2048];
+            localRecorder.startRecording();
+
+            ctl.status("MIC AO VIVO → ATOM. Nada está sendo salvo.", true);
+
+            while (!stop) {
+                int n = localRecorder.read(mono, 0, mono.length);
+                if (n <= 0) continue;
+
+                byte[] stereo = monoToStereo(mono, n, volumePercent);
+                out.write(stereo);
+            }
+
+            try { out.flush(); } catch (Exception ignored) {}
+            ctl.status("Microfone ao vivo parado.", true);
+
+        } catch (Exception e) {
+            if (!stop) {
+                ctl.status("Erro no microfone: " + e.getMessage(), false);
+                ctl.log("\n[MIC] " + e + "\n");
+            }
+        } finally {
+            recorder = null;
+            activeSocket = null;
+
+            try {
+                if (localRecorder != null) {
+                    localRecorder.stop();
+                    localRecorder.release();
+                }
+            } catch (Exception ignored) {}
+
+            try { if (socket != null) socket.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private static byte[] monoToStereo(byte[] mono, int length, int volumePercent) {
+        double gain = Math.max(0.05, Math.min(volumePercent / 100.0, 0.70));
+        int samples = length / 2;
+
+        ByteBuffer in = ByteBuffer.wrap(mono, 0, samples * 2).order(ByteOrder.LITTLE_ENDIAN);
+        ByteBuffer out = ByteBuffer.allocate(samples * 4).order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int i = 0; i < samples; i++) {
+            int v = (int) Math.round(in.getShort() * gain);
+            v = Math.max(-32768, Math.min(32767, v));
+            short s = (short) v;
+            out.putShort(s);
+            out.putShort(s);
+        }
+
+        return out.array();
+    }
+
+    private static String serverCode() {
+        return "import _thread,socket\n" +
+                "from machine import I2S,Pin\n" +
+                "def __atom_mic_server():\n" +
+                " s=None\n" +
+                " c=None\n" +
+                " a=None\n" +
+                " try:\n" +
+                "  s=socket.socket()\n" +
+                "  try:s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\n" +
+                "  except:pass\n" +
+                "  s.bind(('0.0.0.0'," + PORT + "))\n" +
+                "  s.listen(1)\n" +
+                "  print('__MIC_READY__')\n" +
+                "  c,_=s.accept()\n" +
+                "  a=I2S(0,sck=Pin(19),ws=Pin(33),sd=Pin(22),mode=I2S.TX,bits=16,format=I2S.STEREO,rate=" + RATE + ",ibuf=32768)\n" +
+                "  b=bytearray(4096)\n" +
+                "  while True:\n" +
+                "   n=c.recv_into(b)\n" +
+                "   if not n:break\n" +
+                "   a.write(memoryview(b)[:n])\n" +
+                " except Exception as e:\n" +
+                "  print('__MIC_ERROR__',repr(e))\n" +
+                " finally:\n" +
+                "  try:a.deinit()\n" +
+                "  except:pass\n" +
+                "  try:c.close()\n" +
+                "  except:pass\n" +
+                "  try:s.close()\n" +
+                "  except:pass\n" +
+                "  print('__MIC_DONE__')\n" +
+                "_thread.start_new_thread(__atom_mic_server,())\n" +
+                "print('__MIC_THREAD_STARTED__')\n";
+    }
+}
