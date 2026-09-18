@@ -1,0 +1,22 @@
+name: Export ATOM APK
+
+on:
+  push:
+    branches:
+      - atom-studio-public-build
+    paths:
+      - ".github/workflows/export-atom-apk.yml"
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload APK attachment
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATOM-Studio-v0.3-LiveMic
+          path: releases/ATOM-Studio-v0.3-LiveMic.apk
+          if-no-files-found: error
+          retention-days: 1
