@@ -16,7 +16,8 @@ import java.util.concurrent.Executors;
 public class LiveMicStreamer {
 
     public interface Control {
-        void runPython(String code);
+        void startBlockingPython(String code);
+        void finishBlockingPython();
         String host();
         void status(String text, boolean ok);
         void log(String text);
@@ -45,6 +46,7 @@ public class LiveMicStreamer {
 
         AudioRecord r = recorder;
         recorder = null;
+
         if (r != null) {
             try { r.stop(); } catch (Exception ignored) {}
             try { r.release(); } catch (Exception ignored) {}
@@ -52,6 +54,7 @@ public class LiveMicStreamer {
 
         Socket s = activeSocket;
         activeSocket = null;
+
         if (s != null) {
             try { s.close(); } catch (Exception ignored) {}
         }
@@ -67,12 +70,13 @@ public class LiveMicStreamer {
         AudioRecord localRecorder = null;
 
         try {
-            ctl.status("Preparando microfone ao vivo...", true);
-            ctl.runPython(serverCode());
+            ctl.status("Preparando microfone estável...", true);
+            ctl.startBlockingPython(serverCode());
 
-            Thread.sleep(1100);
+            Thread.sleep(700);
 
             String host = ctl.host();
+
             if (host == null || host.isEmpty()) {
                 throw new IllegalStateException("IP do ATOM inválido.");
             }
@@ -83,6 +87,17 @@ public class LiveMicStreamer {
             socket.setSendBufferSize(8192);
             socket.setSoTimeout(5000);
             activeSocket = socket;
+
+            InputStream inReady = socket.getInputStream();
+            OutputStream out = socket.getOutputStream();
+
+            int ready = inReady.read();
+
+            if (ready != 82) {
+                throw new IllegalStateException("ATOM não confirmou o I2S. Código=" + ready);
+            }
+
+            socket.setSoTimeout(0);
 
             int min = AudioRecord.getMinBufferSize(
                     RATE,
@@ -99,34 +114,36 @@ public class LiveMicStreamer {
                     bufferSize);
 
             if (localRecorder.getState() != AudioRecord.STATE_INITIALIZED) {
-                throw new IllegalStateException("Não consegui inicializar o microfone do celular.");
+                throw new IllegalStateException(
+                        "Não consegui inicializar o microfone do celular.");
             }
 
             recorder = localRecorder;
-            InputStream inReady = socket.getInputStream();
-            OutputStream out = socket.getOutputStream();
 
-            int ready = inReady.read();
-            if (ready != 82) {
-                throw new IllegalStateException("ATOM não confirmou a inicialização do I2S.");
-            }
-            socket.setSoTimeout(0);
-            ctl.status("Alto-falante do ATOM pronto. Abrindo microfone...", true);
+            byte[] mono = new byte[1024];
 
-            byte[] mono = new byte[2048];
             localRecorder.startRecording();
 
             ctl.status("MIC AO VIVO → ATOM. Nada está sendo salvo.", true);
 
             while (!stop) {
                 int n = localRecorder.read(mono, 0, mono.length);
-                if (n <= 0) continue;
 
-                byte[] stereo = monoToStereo(mono, n, volumePercent);
+                if (n <= 0) {
+                    continue;
+                }
+
+                byte[] stereo =
+                        monoToStereo(
+                                mono,
+                                n,
+                                volumePercent);
+
                 out.write(stereo);
             }
 
             try { out.flush(); } catch (Exception ignored) {}
+
             ctl.status("Microfone ao vivo parado.", true);
 
         } catch (Exception e) {
@@ -134,6 +151,7 @@ public class LiveMicStreamer {
                 ctl.status("Erro no microfone: " + e.getMessage(), false);
                 ctl.log("\n[MIC] " + e + "\n");
             }
+
         } finally {
             recorder = null;
             activeSocket = null;
@@ -145,21 +163,65 @@ public class LiveMicStreamer {
                 }
             } catch (Exception ignored) {}
 
-            try { if (socket != null) socket.close(); } catch (Exception ignored) {}
+            try {
+                if (socket != null) {
+                    socket.close();
+                }
+            } catch (Exception ignored) {}
+
+            try {
+                Thread.sleep(250);
+                ctl.finishBlockingPython();
+            } catch (Exception ignored) {}
         }
     }
 
-    private static byte[] monoToStereo(byte[] mono, int length, int volumePercent) {
-        double gain = Math.max(0.05, Math.min(volumePercent / 100.0, 0.70));
-        int samples = length / 2;
+    private static byte[] monoToStereo(
+            byte[] mono,
+            int length,
+            int volumePercent) {
 
-        ByteBuffer in = ByteBuffer.wrap(mono, 0, samples * 2).order(ByteOrder.LITTLE_ENDIAN);
-        ByteBuffer out = ByteBuffer.allocate(samples * 4).order(ByteOrder.LITTLE_ENDIAN);
+        double gain =
+                Math.max(
+                        0.05,
+                        Math.min(
+                                volumePercent / 100.0,
+                                0.70));
+
+        int samples =
+                length / 2;
+
+        ByteBuffer in =
+                ByteBuffer
+                        .wrap(
+                                mono,
+                                0,
+                                samples * 2)
+                        .order(
+                                ByteOrder.LITTLE_ENDIAN);
+
+        ByteBuffer out =
+                ByteBuffer
+                        .allocate(
+                                samples * 4)
+                        .order(
+                                ByteOrder.LITTLE_ENDIAN);
 
         for (int i = 0; i < samples; i++) {
-            int v = (int) Math.round(in.getShort() * gain);
-            v = Math.max(-32768, Math.min(32767, v));
-            short s = (short) v;
+            int v =
+                    (int) Math.round(
+                            in.getShort() * gain);
+
+            v =
+                    Math.max(
+                            -32768,
+                            Math.min(
+                                    32767,
+                                    v));
+
+            short s =
+                    (short) v;
+
             out.putShort(s);
             out.putShort(s);
         }
@@ -168,40 +230,41 @@ public class LiveMicStreamer {
     }
 
     private static String serverCode() {
-        return "import _thread,socket,gc\n" +
+        return "import socket,gc\n" +
                 "from machine import I2S,Pin\n" +
-                "def __atom_mic_server():\n" +
-                " s=None\n" +
-                " c=None\n" +
-                " a=None\n" +
+                "s=None\n" +
+                "c=None\n" +
+                "a=None\n" +
+                "try:\n" +
+                " s=socket.socket()\n" +
+                " try:s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\n" +
+                " except:pass\n" +
+                " s.bind(('0.0.0.0'," + PORT + "))\n" +
+                " s.listen(1)\n" +
+                " print('__MIC_READY__')\n" +
+                " c,_=s.accept()\n" +
+                " gc.collect()\n" +
+                " a=I2S(0,sck=Pin(19),ws=Pin(33),sd=Pin(22),mode=I2S.TX,bits=16,format=I2S.STEREO,rate=" + RATE + ",ibuf=8192)\n" +
+                " c.send(b'R')\n" +
+                " print('__MIC_I2S_OK__')\n" +
+                " b=bytearray(2048)\n" +
+                " while True:\n" +
+                "  n=c.recv_into(b)\n" +
+                "  if not n:break\n" +
+                "  a.write(memoryview(b)[:n])\n" +
+                "except Exception as e:\n" +
                 " try:\n" +
-                "  s=socket.socket()\n" +
-                "  try:s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\n" +
-                "  except:pass\n" +
-                "  s.bind(('0.0.0.0'," + PORT + "))\n" +
-                "  s.listen(1)\n" +
-                "  print('__MIC_READY__')\n" +
-                "  c,_=s.accept()\n" +
-                "  gc.collect()\n" +
-                "  a=I2S(0,sck=Pin(19),ws=Pin(33),sd=Pin(22),mode=I2S.TX,bits=16,format=I2S.STEREO,rate=" + RATE + ",ibuf=8192)\n" +
-                "  c.send(b\'R\')\n" +
-                "  print(\'__MIC_I2S_OK__\')\n" +
-                "  b=bytearray(2048)\n" +
-                "  while True:\n" +
-                "   n=c.recv_into(b)\n" +
-                "   if not n:break\n" +
-                "   a.write(memoryview(b)[:n])\n" +
-                " except Exception as e:\n" +
-                "  print('__MIC_ERROR__',repr(e))\n" +
-                " finally:\n" +
-                "  try:a.deinit()\n" +
-                "  except:pass\n" +
-                "  try:c.close()\n" +
-                "  except:pass\n" +
-                "  try:s.close()\n" +
-                "  except:pass\n" +
-                "  print('__MIC_DONE__')\n" +
-                "_thread.start_new_thread(__atom_mic_server,())\n" +
-                "print('__MIC_THREAD_STARTED__')\n";
+                "  if c:c.send(b'E')\n" +
+                " except:pass\n" +
+                " print('__MIC_ERROR__',repr(e))\n" +
+                "finally:\n" +
+                " try:a.deinit()\n" +
+                " except:pass\n" +
+                " try:c.close()\n" +
+                " except:pass\n" +
+                " try:s.close()\n" +
+                " except:pass\n" +
+                " gc.collect()\n" +
+                " print('__MIC_DONE__')\n";
     }
 }
