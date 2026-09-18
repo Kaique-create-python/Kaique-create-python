@@ -16,7 +16,7 @@ jobs:
       - name: Upload APK attachment
         uses: actions/upload-artifact@v4
         with:
-          name: ATOM-Studio-v0.3-LiveMic
-          path: releases/ATOM-Studio-v0.3-LiveMic.apk
+          name: ATOM-Studio-v0.4-AudioFix
+          path: releases/ATOM-Studio-v0.4-AudioFix.apk
           if-no-files-found: error
           retention-days: 1
