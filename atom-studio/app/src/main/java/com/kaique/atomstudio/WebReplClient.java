@@ -114,6 +114,31 @@ public class WebReplClient {
         });
     }
 
+    public void startBlockingRaw(String code) {
+        if (!authenticated) return;
+        io.execute(() -> {
+            try {
+                send("\u0003\u0003");
+                sleep(120);
+                send("\u0001");
+                sleep(140);
+                send(code);
+                sleep(120);
+                send("\u0004");
+            } catch (Exception e) {
+                listener.onState("Erro iniciando stream Python: " + e.getMessage(), false);
+            }
+        });
+    }
+
+    public void finishBlockingRaw() {
+        if (!authenticated) return;
+        io.execute(() -> {
+            sleep(250);
+            send("\u0002");
+        });
+    }
+
     public void interrupt() {
         if (authenticated) send("\u0003\u0003");
     }
