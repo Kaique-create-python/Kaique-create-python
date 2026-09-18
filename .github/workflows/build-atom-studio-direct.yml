@@ -1,0 +1,58 @@
+name: Build ATOM Studio Direct APK
+
+on:
+  push:
+    branches:
+      - atom-studio-public-build
+    paths:
+      - "atom-studio/**"
+      - ".github/workflows/build-atom-studio-direct.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: atom-studio
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+      - name: Install Android 35
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp "app/build/outputs/apk/debug/app-debug.apk" "ATOM-Studio-debug.apk"
+          if gh release view atom-studio-direct >/dev/null 2>&1; then
+            gh release upload atom-studio-direct "ATOM-Studio-debug.apk" --clobber
+          else
+            gh release create atom-studio-direct "ATOM-Studio-debug.apk"               --target atom-studio-public-build               --title "ATOM Studio APK"               --notes "APK direto do ATOM Studio."
+          fi
