@@ -7,6 +7,7 @@ import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.net.Uri;
 
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -100,10 +101,19 @@ public class AudioStreamer {
             socket = new Socket();
             socket.connect(new InetSocketAddress(host, PORT), 5000);
             socket.setTcpNoDelay(true);
-            socket.setSendBufferSize(32768);
+            socket.setSendBufferSize(8192);
+            socket.setSoTimeout(5000);
             activeSocket = socket;
 
+            InputStream inReady = socket.getInputStream();
             OutputStream out = socket.getOutputStream();
+
+            int ready = inReady.read();
+            if (ready != 82) {
+                throw new IllegalStateException("ATOM não confirmou a inicialização do I2S.");
+            }
+            socket.setSoTimeout(0);
+            ctl.status("Alto-falante do ATOM pronto. Iniciando stream...", true);
 
             decoder = MediaCodec.createDecoderByType(mime);
             decoder.configure(inputFormat, null, null, 0);
@@ -194,7 +204,7 @@ public class AudioStreamer {
     }
 
     private static String serverCode(int rate) {
-        return "import _thread,socket\n" +
+        return "import _thread,socket,gc\n" +
                 "from machine import I2S,Pin\n" +
                 "def __atom_audio_server():\n" +
                 " s=None\n" +
@@ -208,8 +218,11 @@ public class AudioStreamer {
                 "  s.listen(1)\n" +
                 "  print('__AUDIO_READY__')\n" +
                 "  c,_=s.accept()\n" +
-                "  a=I2S(0,sck=Pin(19),ws=Pin(33),sd=Pin(22),mode=I2S.TX,bits=16,format=I2S.STEREO,rate=" + rate + ",ibuf=32768)\n" +
-                "  b=bytearray(4096)\n" +
+                "  gc.collect()\n" +
+                "  a=I2S(0,sck=Pin(19),ws=Pin(33),sd=Pin(22),mode=I2S.TX,bits=16,format=I2S.STEREO,rate=" + rate + ",ibuf=8192)\n" +
+                "  c.send(b\'R\')\n" +
+                "  print(\'__AUDIO_I2S_OK__\')\n" +
+                "  b=bytearray(2048)\n" +
                 "  while True:\n" +
                 "   n=c.recv_into(b)\n" +
                 "   if not n:break\n" +
