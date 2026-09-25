@@ -79,7 +79,7 @@ static void sendText(uint8_t type, const String &s, uint16_t seq = 0) {
 
 static String statusJson() {
   String s = "{";
-  s += "\"fw\":\"ATOM-LINK-0.1\",";
+  s += "\"fw\":\"ATOM-LINK-0.4-RXSYNC\",";
   s += "\"wifi\":";
   s += (WiFi.status() == WL_CONNECTED ? "true" : "false");
   s += ",\"ip\":\"";
@@ -90,82 +90,131 @@ static String statusJson() {
   return s;
 }
 
-static bool readExact(uint8_t *dst, size_t len, uint32_t timeoutMs) {
-  uint32_t start = millis();
-  size_t got = 0;
-  while (got < len && millis() - start < timeoutMs) {
-    int avail = Serial.available();
-    if (avail > 0) {
-      int n = Serial.readBytes(dst + got, len - got);
-      if (n > 0) got += n;
-    } else {
-      delay(1);
-    }
+static uint8_t serialRx[2048];
+static size_t serialRxLen = 0;
+
+static void dropRxPrefix(size_t count) {
+  if (count >= serialRxLen) {
+    serialRxLen = 0;
+    return;
   }
-  return got == len;
+  memmove(serialRx, serialRx + count, serialRxLen - count);
+  serialRxLen -= count;
 }
 
-static void handleFrame() {
-  if (Serial.available() > 0 && !linkValidated) {
-    sawSerialBytes = true;
-    setLed(35, 0, 35); // purple = USB/UART bytes reached ESP32
+static int findMagic() {
+  const uint8_t magicBytes[4] = {0x41, 0x4C, 0x4E, 0x4B}; // ALNK
+  if (serialRxLen < 4) return -1;
+
+  for (size_t i = 0; i + 4 <= serialRxLen; ++i) {
+    if (serialRx[i] == magicBytes[0] &&
+        serialRx[i + 1] == magicBytes[1] &&
+        serialRx[i + 2] == magicBytes[2] &&
+        serialRx[i + 3] == magicBytes[3]) {
+      return (int)i;
+    }
   }
+  return -1;
+}
 
-  if (Serial.available() < (int)sizeof(Header)) return;
-
-  static uint8_t headerBytes[sizeof(Header)];
-  if (!readExact(headerBytes, sizeof(Header), 100)) return;
-
-  Header h;
-  memcpy(&h, headerBytes, sizeof(h));
-
-  if (h.magic != MAGIC || h.version != 1 || h.length > sizeof(rxPayload)) {
-    // Any bytes already prove USB/UART activity. Purple stays latched.
-    return;
-  }
-
-  if (h.length && !readExact(rxPayload, h.length, 250)) {
-    sendText(MSG_ERROR, "short_payload", h.sequence);
-    return;
-  }
-
-  uint32_t rxCrc = 0;
-  if (!readExact(reinterpret_cast<uint8_t *>(&rxCrc), sizeof(rxCrc), 100)) {
-    sendText(MSG_ERROR, "no_crc", h.sequence);
-    return;
-  }
-
-  uint32_t crc = 0;
-  crc = crc32_update(crc, reinterpret_cast<uint8_t *>(&h), sizeof(h));
-  if (h.length) crc = crc32_update(crc, rxPayload, h.length);
-
-  if (crc != rxCrc) {
-    sendText(MSG_ERROR, "bad_crc", h.sequence);
-    return;
-  }
-
+static void processFrame(const Header &h, const uint8_t *payload) {
   switch (h.type) {
     case MSG_HELLO:
       linkValidated = true;
       setLed(0, 40, 0);
       sendText(MSG_HELLO_ACK, statusJson(), h.sequence);
       break;
+
     case MSG_PING:
       linkValidated = true;
       setLed(0, 40, 0); // green = valid ATOMLINK frame
-      sendFrame(MSG_PONG, rxPayload, h.length, h.sequence);
+      sendFrame(MSG_PONG, payload, h.length, h.sequence);
       break;
+
     case MSG_STATUS:
       sendText(MSG_STATUS, statusJson(), h.sequence);
       break;
+
     case MSG_NET_FRAME:
-      // The physical tunnel is ready, but full IP/NAT forwarding is deliberately
-      // gated until the PS2-side virtual NIC is verified on real hardware.
       sendText(MSG_ERROR, "net_not_enabled_yet", h.sequence);
       break;
+
     default:
       sendText(MSG_ERROR, "unknown_type", h.sequence);
       break;
+  }
+}
+
+static void handleFrame() {
+  bool gotBytes = false;
+
+  while (Serial.available() > 0) {
+    int value = Serial.read();
+    if (value < 0) break;
+
+    gotBytes = true;
+
+    if (serialRxLen < sizeof(serialRx)) {
+      serialRx[serialRxLen++] = (uint8_t)value;
+    } else {
+      // Never deadlock on junk: keep the newest bytes so ALNK can be found.
+      memmove(serialRx, serialRx + 1, sizeof(serialRx) - 1);
+      serialRx[sizeof(serialRx) - 1] = (uint8_t)value;
+    }
+  }
+
+  if (gotBytes && !linkValidated) {
+    sawSerialBytes = true;
+    setLed(35, 0, 35); // purple = at least one UART byte reached ESP32
+  }
+
+  while (serialRxLen >= 4) {
+    int magicPos = findMagic();
+
+    if (magicPos < 0) {
+      // Keep the final 3 bytes in case they are the start of "ALNK".
+      if (serialRxLen > 3)
+        dropRxPrefix(serialRxLen - 3);
+      return;
+    }
+
+    if (magicPos > 0)
+      dropRxPrefix((size_t)magicPos);
+
+    if (serialRxLen < sizeof(Header))
+      return;
+
+    Header h;
+    memcpy(&h, serialRx, sizeof(h));
+
+    if (h.magic != MAGIC || h.version != 1 || h.length > sizeof(rxPayload)) {
+      dropRxPrefix(1);
+      continue;
+    }
+
+    size_t total = sizeof(Header) + (size_t)h.length + sizeof(uint32_t);
+    if (serialRxLen < total)
+      return;
+
+    uint32_t rxCrc = 0;
+    memcpy(&rxCrc, serialRx + sizeof(Header) + h.length, sizeof(rxCrc));
+
+    uint32_t crc = 0;
+    crc = crc32_update(crc, serialRx, sizeof(Header));
+    if (h.length)
+      crc = crc32_update(crc, serialRx + sizeof(Header), h.length);
+
+    if (crc != rxCrc) {
+      sendText(MSG_ERROR, "bad_crc", h.sequence);
+      dropRxPrefix(1);
+      continue;
+    }
+
+    if (h.length)
+      memcpy(rxPayload, serialRx + sizeof(Header), h.length);
+
+    processFrame(h, h.length ? rxPayload : nullptr);
+    dropRxPrefix(total);
   }
 }
 
