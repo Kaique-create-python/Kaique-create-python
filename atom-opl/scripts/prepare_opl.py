@@ -40,6 +40,13 @@ replace(
     '\techo " -ATOMNET"\n\t$(MAKE) -C modules/network/atomnet clean\n'
 )
 
+# Expose the embedded atomnet IRX symbols to system.c.
+replace(
+    "include/extern_irx.h",
+    "IMPORT_BIN2C(apemodpatch_irx);\n",
+    "IMPORT_BIN2C(apemodpatch_irx);\n\nIMPORT_BIN2C(atomnet_ingame_irx);\n"
+)
+
 # Allocate a module ID for the resident ATOM link module.
 replace(
     "ee_core/include/modules.h",
