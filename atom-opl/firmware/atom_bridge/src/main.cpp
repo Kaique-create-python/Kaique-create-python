@@ -2,9 +2,18 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <Adafruit_NeoPixel.h>
 
 static const uint32_t SERIAL_BAUD = 115200;
 static const uint32_t MAGIC = 0x4B4E4C41; // "ALNK" little-endian
+static const uint8_t LED_PIN = 27;
+
+Adafruit_NeoPixel statusLed(1, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+static void setLed(uint8_t r, uint8_t g, uint8_t b) {
+  statusLed.setPixelColor(0, statusLed.Color(r, g, b));
+  statusLed.show();
+}
 
 enum MsgType : uint8_t {
   MSG_HELLO = 0x01,
@@ -131,9 +140,11 @@ static void handleFrame() {
 
   switch (h.type) {
     case MSG_HELLO:
+      setLed(0, 30, 0);
       sendText(MSG_HELLO_ACK, statusJson(), h.sequence);
       break;
     case MSG_PING:
+      setLed(0, 40, 0);
       sendFrame(MSG_PONG, rxPayload, h.length, h.sequence);
       break;
     case MSG_STATUS:
@@ -162,6 +173,7 @@ static String pageHtml() {
 
 static void startSetupPortal() {
   setupMode = true;
+  setLed(35, 20, 0);
   WiFi.mode(WIFI_AP);
   WiFi.softAP("ATOM-LINK-SETUP");
 
@@ -208,11 +220,19 @@ static bool connectStoredWifi() {
 }
 
 void setup() {
+  statusLed.begin();
+  statusLed.setBrightness(40);
+  setLed(35, 0, 0);
+
   Serial.begin(SERIAL_BAUD);
   delay(250);
 
   bool ok = connectStoredWifi();
-  if (!ok) startSetupPortal();
+  if (!ok) {
+    startSetupPortal();
+  } else {
+    setLed(0, 0, 35);
+  }
 
   sendText(MSG_STATUS, statusJson());
 }
