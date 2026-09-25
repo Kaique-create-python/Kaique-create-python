@@ -99,13 +99,13 @@ static int open_ftdi_endpoints(int devId, UsbConfigDescriptor *config)
                     if (g_atom.bulk_in < 0) {
                         g_atom.bulk_in = UsbOpenEndpointAligned(devId, ep);
                         printf("ATOMNET: bulk IN ep=%02X pipe=%d mps=%d\n",
-                               ep->bEndpointAddress, g_atom.bulk_in, ep->wMaxPacketSize);
+                               ep->bEndpointAddress, g_atom.bulk_in, ((int)ep->wMaxPacketSizeHB << 8) | ep->wMaxPacketSizeLB);
                     }
                 } else {
                     if (g_atom.bulk_out < 0) {
                         g_atom.bulk_out = UsbOpenEndpointAligned(devId, ep);
                         printf("ATOMNET: bulk OUT ep=%02X pipe=%d mps=%d\n",
-                               ep->bEndpointAddress, g_atom.bulk_out, ep->wMaxPacketSize);
+                               ep->bEndpointAddress, g_atom.bulk_out, ((int)ep->wMaxPacketSizeHB << 8) | ep->wMaxPacketSizeLB);
                     }
                 }
             }
