@@ -8,11 +8,12 @@ Phone hotspot -> ATOM Echo Wi-Fi -> ATOM USB/UART -> PS2 USB host -> in-game ATO
 
 This branch builds from the current official Open PS2 Loader source at build time and applies the ATOM integration patch.
 
-## Current milestone: v0.1
+## Current milestone: v0.2
 
 - Builds from official Open PS2 Loader master.
 - Keeps normal OPL USB game loading.
 - Adds an in-game `atomnet.irx` module to OPL's module store.
+- v0.2 detects the ATOM Echo FTDI USB-UART bridge and performs an ATOMLINK PING/PONG handshake.
 - Loads USBD + ATOMNET after each intercepted IOP reset.
 - ATOMNET probes common CP210x and WCH CH9102/CH34x USB-UART IDs.
 - Produces a versioned `ATOM-OPL-v0.1.ELF`.
