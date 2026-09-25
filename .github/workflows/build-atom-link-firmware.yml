@@ -26,12 +26,20 @@ jobs:
         working-directory: atom-opl/firmware/atom_bridge
         run: pio run
 
-      - name: Collect binaries
+      - name: Collect and merge binaries
         run: |
           mkdir -p out
-          cp atom-opl/firmware/atom_bridge/.pio/build/atom_echo/firmware.bin out/ATOM-Link-v0.1-firmware.bin
-          cp atom-opl/firmware/atom_bridge/.pio/build/atom_echo/bootloader.bin out/ATOM-Link-v0.1-bootloader.bin || true
-          cp atom-opl/firmware/atom_bridge/.pio/build/atom_echo/partitions.bin out/ATOM-Link-v0.1-partitions.bin || true
+          BUILD="atom-opl/firmware/atom_bridge/.pio/build/atom_echo"
+          cp "$BUILD/firmware.bin" out/ATOM-Link-v0.1-firmware.bin
+          cp "$BUILD/bootloader.bin" out/ATOM-Link-v0.1-bootloader.bin
+          cp "$BUILD/partitions.bin" out/ATOM-Link-v0.1-partitions.bin
+
+          BOOTAPP="$(find "$HOME/.platformio/packages" -name boot_app0.bin | head -n 1)"
+          echo "boot_app0=$BOOTAPP"
+          test -n "$BOOTAPP"
+
+          python -m esptool --chip esp32 merge_bin             -o out/ATOM-Link-v0.1-FULL.bin             --flash_mode dio --flash_freq 40m --flash_size 4MB             0x1000 "$BUILD/bootloader.bin"             0x8000 "$BUILD/partitions.bin"             0xe000 "$BOOTAPP"             0x10000 "$BUILD/firmware.bin"
+
           ls -lh out
 
       - uses: actions/upload-artifact@v4
