@@ -1,0 +1,41 @@
+name: Build ATOM Link firmware v0.1
+
+on:
+  push:
+    branches:
+      - atom-opl-dev
+    paths:
+      - "atom-opl/firmware/**"
+      - ".github/workflows/build-atom-link-firmware.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware
+        working-directory: atom-opl/firmware/atom_bridge
+        run: pio run
+
+      - name: Collect binaries
+        run: |
+          mkdir -p out
+          cp atom-opl/firmware/atom_bridge/.pio/build/atom_echo/firmware.bin out/ATOM-Link-v0.1-firmware.bin
+          cp atom-opl/firmware/atom_bridge/.pio/build/atom_echo/bootloader.bin out/ATOM-Link-v0.1-bootloader.bin || true
+          cp atom-opl/firmware/atom_bridge/.pio/build/atom_echo/partitions.bin out/ATOM-Link-v0.1-partitions.bin || true
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ATOM-Link-v0.1-firmware
+          path: out/*
+          retention-days: 7
