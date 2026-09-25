@@ -1,0 +1,2 @@
+ATOM-Link firmware build: v0.2
+Single-file merged image enabled.
