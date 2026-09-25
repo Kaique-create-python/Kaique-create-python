@@ -18,3 +18,7 @@ I_sceUsbdOpenPipeAligned
 I_sceUsbdClosePipe
 I_sceUsbdTransferPipe
 usbd_IMPORTS_end
+
+thbase_IMPORTS_start
+I_DelayThread
+thbase_IMPORTS_end
