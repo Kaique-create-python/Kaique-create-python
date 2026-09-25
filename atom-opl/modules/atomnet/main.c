@@ -7,7 +7,7 @@
 #include <usbd_macro.h>
 #include <irx.h>
 
-IRX_ID("atomnet", 1, 3);
+IRX_ID("atomnet", 1, 4);
 
 #define VID_FTDI 0x0403
 
@@ -60,6 +60,62 @@ static int g_heartbeat_thread = -1;
 static int atom_probe(int devId);
 static int atom_connect(int devId);
 static int atom_disconnect(int devId);
+
+static int open_ftdi_endpoints(int devId, UsbConfigDescriptor *config)
+{
+    u8 *p;
+    u8 *end;
+    UsbInterfaceDescriptor *interface = NULL;
+    UsbEndpointDescriptor *ep;
+
+    if (config == NULL)
+        return -1;
+
+    p = (u8 *)config + config->bLength;
+    end = (u8 *)config + config->wTotalLength;
+
+    while (p + 2 <= end) {
+        u8 len = p[0];
+        u8 type = p[1];
+
+        if (len < 2 || p + len > end)
+            break;
+
+        if (type == USB_DT_INTERFACE) {
+            interface = (UsbInterfaceDescriptor *)p;
+            printf("ATOMNET: iface=%d alt=%d eps=%d cls=%02X sub=%02X proto=%02X\n",
+                   interface->bInterfaceNumber,
+                   interface->bAlternateSetting,
+                   interface->bNumEndpoints,
+                   interface->bInterfaceClass,
+                   interface->bInterfaceSubClass,
+                   interface->bInterfaceProtocol);
+        } else if (type == USB_DT_ENDPOINT && interface != NULL) {
+            ep = (UsbEndpointDescriptor *)p;
+
+            if ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+                USB_ENDPOINT_XFER_BULK) {
+                if ((ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) {
+                    if (g_atom.bulk_in < 0) {
+                        g_atom.bulk_in = UsbOpenEndpointAligned(devId, ep);
+                        printf("ATOMNET: bulk IN ep=%02X pipe=%d mps=%d\n",
+                               ep->bEndpointAddress, g_atom.bulk_in, ep->wMaxPacketSize);
+                    }
+                } else {
+                    if (g_atom.bulk_out < 0) {
+                        g_atom.bulk_out = UsbOpenEndpointAligned(devId, ep);
+                        printf("ATOMNET: bulk OUT ep=%02X pipe=%d mps=%d\n",
+                               ep->bEndpointAddress, g_atom.bulk_out, ep->wMaxPacketSize);
+                    }
+                }
+            }
+        }
+
+        p += len;
+    }
+
+    return (g_atom.bulk_in >= 0 && g_atom.bulk_out >= 0) ? 0 : -1;
+}
 
 static UsbDriver atom_usb_driver = {
     NULL, NULL, "atomnet-usb", atom_probe, atom_connect, atom_disconnect
@@ -339,8 +395,6 @@ static int atom_connect(int devId)
 {
     UsbDeviceDescriptor *device;
     UsbConfigDescriptor *config;
-    UsbEndpointDescriptor *endpoint;
-    int i;
     int result;
 
     if (g_atom.dev_id >= 0)
@@ -365,26 +419,9 @@ static int atom_connect(int devId)
     g_atom.bulk_out = -1;
     g_device_ready = 0;
 
-    endpoint = (UsbEndpointDescriptor *)UsbGetDeviceStaticDescriptor(
-        devId, NULL, USB_DT_ENDPOINT);
-
-    for (i = 0; endpoint != NULL && i < 16; i++) {
-        if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-            USB_ENDPOINT_XFER_BULK) {
-            if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) {
-                if (g_atom.bulk_in < 0)
-                    g_atom.bulk_in = UsbOpenEndpointAligned(devId, endpoint);
-            } else {
-                if (g_atom.bulk_out < 0)
-                    g_atom.bulk_out = UsbOpenEndpointAligned(devId, endpoint);
-            }
-        }
-
-        if (endpoint->bLength == 0)
-            break;
-
-        endpoint = (UsbEndpointDescriptor *)((u8 *)endpoint + endpoint->bLength);
-    }
+    result = open_ftdi_endpoints(devId, config);
+    if (result < 0)
+        printf("ATOMNET: descriptor walk did not find both bulk endpoints\n");
 
     if (g_atom.control < 0 || g_atom.bulk_in < 0 || g_atom.bulk_out < 0) {
         printf("ATOMNET: endpoints missing ctl=%d in=%d out=%d\n",
