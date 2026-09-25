@@ -5,6 +5,7 @@
 #include <loadcore.h>
 #include <stdio.h>
 #include <sysclib.h>
+#include <thbase.h>
 #include <usbd.h>
 
 #endif
