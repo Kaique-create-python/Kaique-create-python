@@ -7,31 +7,19 @@
 #include <usbd_macro.h>
 #include <irx.h>
 
-IRX_ID("atomnet", 1, 1);
+IRX_ID("atomnet", 1, 3);
 
-#define VID_FTDI   0x0403
-#define PID_FT232R 0x6001
-#define PID_FT231X 0x6015
-
-#define VID_SILABS 0x10C4
-#define PID_CP210X 0xEA60
-#define PID_CP2105 0xEA70
-
-#define VID_WCH     0x1A86
-#define PID_CH340   0x7523
-#define PID_CH341   0x5523
-#define PID_CH9102  0x55D4
+#define VID_FTDI 0x0403
 
 #define SERIAL_KIND_UNKNOWN 0
 #define SERIAL_KIND_FTDI    1
-#define SERIAL_KIND_CP210X  2
-#define SERIAL_KIND_WCH     3
 
 #define FTDI_REQ_RESET       0
 #define FTDI_REQ_SET_BAUD    3
 #define FTDI_REQ_SET_DATA    4
 #define FTDI_REQ_SET_LATENCY 9
 #define FTDI_REQTYPE (USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE)
+#define FTDI_IFACE_A 1
 
 #define ATOM_MAGIC 0x4B4E4C41u
 #define MSG_PING   0x20
@@ -61,9 +49,13 @@ static atom_usb_t g_atom = {-1, -1, -1, -1, 0, 0, SERIAL_KIND_UNKNOWN};
 static volatile int g_xfer_done = 0;
 static volatile int g_xfer_result = 0;
 static volatile int g_xfer_count = 0;
+static volatile int g_device_ready = 0;
 
 static u8 g_tx[64] __attribute__((aligned(64)));
 static u8 g_rx[64] __attribute__((aligned(64)));
+
+static u16 g_sequence = 1;
+static int g_heartbeat_thread = -1;
 
 static int atom_probe(int devId);
 static int atom_connect(int devId);
@@ -121,7 +113,7 @@ static int control_out(int request, int value, int index)
         xfer_cb,
         NULL);
 
-    return wait_xfer(result, 300);
+    return wait_xfer(result, 500);
 }
 
 static int set_configuration(int value)
@@ -138,7 +130,7 @@ static int set_configuration(int value)
         xfer_cb,
         NULL);
 
-    return wait_xfer(result, 500);
+    return wait_xfer(result, 800);
 }
 
 static int bulk_out(const void *data, int len)
@@ -156,7 +148,7 @@ static int bulk_out(const void *data, int len)
         xfer_cb,
         NULL);
 
-    return wait_xfer(result, 500);
+    return wait_xfer(result, 700);
 }
 
 static int bulk_in(void *data, int len, int timeout_ms)
@@ -192,102 +184,136 @@ static u32 crc32_update(u32 crc, const u8 *data, int len)
     return ~crc;
 }
 
-static int serial_kind(u16 vid, u16 pid)
-{
-    if (vid == VID_FTDI && (pid == PID_FT232R || pid == PID_FT231X))
-        return SERIAL_KIND_FTDI;
-
-    if (vid == VID_SILABS && (pid == PID_CP210X || pid == PID_CP2105))
-        return SERIAL_KIND_CP210X;
-
-    if (vid == VID_WCH && (pid == PID_CH340 || pid == PID_CH341 || pid == PID_CH9102))
-        return SERIAL_KIND_WCH;
-
-    return SERIAL_KIND_UNKNOWN;
-}
-
 static int configure_ftdi(void)
 {
     int result;
 
-    /* Reset UART. */
-    result = control_out(FTDI_REQ_RESET, 0, 0);
-    if (result < 0)
-        return result;
-
     /*
-     * FT232R base clock is 3 MHz.
-     * Divisor 26 gives about 115384 baud, close enough for 115200.
+     * FTDI interface A uses wIndex=1.
+     * v0.2 used 0 here, which can leave the UART unconfigured on FT23x parts.
      */
-    result = control_out(FTDI_REQ_SET_BAUD, 26, 0);
+    result = control_out(FTDI_REQ_RESET, 0, FTDI_IFACE_A);
     if (result < 0)
         return result;
 
-    /* 8 data bits, 1 stop bit, no parity. */
-    result = control_out(FTDI_REQ_SET_DATA, 8, 0);
+    /* 3 MHz / 26 ~= 115200 baud on classic FTDI divisors. */
+    result = control_out(FTDI_REQ_SET_BAUD, 26, FTDI_IFACE_A);
     if (result < 0)
         return result;
 
-    /* Reduce receive latency for the PS2 <-> ATOM link. */
-    result = control_out(FTDI_REQ_SET_LATENCY, 1, 0);
+    /* 8N1. */
+    result = control_out(FTDI_REQ_SET_DATA, 8, FTDI_IFACE_A);
+    if (result < 0)
+        return result;
+
+    result = control_out(FTDI_REQ_SET_LATENCY, 1, FTDI_IFACE_A);
     if (result < 0)
         return result;
 
     return 0;
 }
 
+static int find_pong(const u8 *buf, int len, u16 sequence)
+{
+    int i;
+
+    /*
+     * FTDI bulk-IN adds two modem-status bytes to USB packets, and there may
+     * also be stale boot/status bytes in its RX FIFO. Scan instead of assuming
+     * the response begins at a fixed offset.
+     */
+    for (i = 0; i + (int)sizeof(atom_header_t) + 4 <= len; i++) {
+        const atom_header_t *h = (const atom_header_t *)&buf[i];
+
+        if (h->magic == ATOM_MAGIC &&
+            h->version == 1 &&
+            h->type == MSG_PONG &&
+            h->sequence == sequence &&
+            h->length == 0) {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 static int atom_ping(void)
 {
     atom_header_t *h = (atom_header_t *)g_tx;
-    atom_header_t *rh;
     u32 crc;
     int tx_len;
     int rx_len;
-    int offset;
+    int tries;
+    u16 sequence;
+
+    if (!g_device_ready || g_atom.bulk_in < 0 || g_atom.bulk_out < 0)
+        return -10;
 
     memset(g_tx, 0, sizeof(g_tx));
-    memset(g_rx, 0, sizeof(g_rx));
+    sequence = g_sequence++;
 
     h->magic = ATOM_MAGIC;
     h->version = 1;
     h->type = MSG_PING;
     h->length = 0;
-    h->sequence = 1;
+    h->sequence = sequence;
     h->flags = 0;
 
     crc = crc32_update(0, (u8 *)h, sizeof(*h));
     *(u32 *)(g_tx + sizeof(*h)) = crc;
-
     tx_len = sizeof(*h) + sizeof(u32);
 
     if (bulk_out(g_tx, tx_len) < 0)
         return -1;
 
     /*
-     * FTDI bulk-IN packets begin with two modem-status bytes.
-     * CP210x/WCH support will get their own setup/parser after hardware ID test.
+     * Read several packets because the first one can contain old UART bytes
+     * that were queued before the PS2 claimed the FTDI interface.
      */
-    rx_len = bulk_in(g_rx, sizeof(g_rx), 800);
-    if (rx_len < 0)
-        return -2;
+    for (tries = 0; tries < 4; tries++) {
+        memset(g_rx, 0, sizeof(g_rx));
+        rx_len = bulk_in(g_rx, sizeof(g_rx), 350);
 
-    offset = (g_atom.serial_kind == SERIAL_KIND_FTDI) ? 2 : 0;
+        if (rx_len > 0 && find_pong(g_rx, rx_len, sequence) == 0)
+            return 0;
 
-    if (rx_len < offset + (int)sizeof(atom_header_t) + 4)
-        return -3;
+        DelayThread(20000);
+    }
 
-    rh = (atom_header_t *)(g_rx + offset);
+    return -2;
+}
 
-    if (rh->magic != ATOM_MAGIC || rh->version != 1 || rh->type != MSG_PONG)
-        return -4;
+static void HeartbeatThread(void *arg)
+{
+    int result;
+    int last_ok = 0;
 
-    return 0;
+    (void)arg;
+
+    while (1) {
+        if (g_device_ready) {
+            result = atom_ping();
+
+            if (result == 0) {
+                if (!last_ok)
+                    printf("ATOMNET: ATOM-LINK online, heartbeat OK\n");
+                last_ok = 1;
+            } else {
+                if (last_ok)
+                    printf("ATOMNET: heartbeat lost (%d)\n", result);
+                last_ok = 0;
+            }
+        } else {
+            last_ok = 0;
+        }
+
+        DelayThread(1000000);
+    }
 }
 
 static int atom_probe(int devId)
 {
     UsbDeviceDescriptor *device;
-    int kind;
 
     device = (UsbDeviceDescriptor *)UsbGetDeviceStaticDescriptor(
         devId, NULL, USB_DT_DEVICE);
@@ -295,12 +321,16 @@ static int atom_probe(int devId)
     if (device == NULL)
         return 0;
 
-    kind = serial_kind(device->idVendor, device->idProduct);
-    if (kind == SERIAL_KIND_UNKNOWN)
+    /*
+     * ATOM Echo documentation uses an FTDI USB serial bridge.
+     * Accept the FTDI vendor instead of only two product IDs because M5Stack
+     * has shipped multiple FT23x variants.
+     */
+    if (device->idVendor != VID_FTDI)
         return 0;
 
-    printf("ATOMNET: USB serial candidate %04X:%04X dev=%d kind=%d\n",
-           device->idVendor, device->idProduct, devId, kind);
+    printf("ATOMNET: FTDI candidate %04X:%04X dev=%d\n",
+           device->idVendor, device->idProduct, devId);
 
     return 1;
 }
@@ -329,10 +359,11 @@ static int atom_connect(int devId)
     g_atom.dev_id = devId;
     g_atom.vid = device->idVendor;
     g_atom.pid = device->idProduct;
-    g_atom.serial_kind = serial_kind(g_atom.vid, g_atom.pid);
+    g_atom.serial_kind = SERIAL_KIND_FTDI;
     g_atom.control = UsbOpenEndpoint(devId, NULL);
     g_atom.bulk_in = -1;
     g_atom.bulk_out = -1;
+    g_device_ready = 0;
 
     endpoint = (UsbEndpointDescriptor *)UsbGetDeviceStaticDescriptor(
         devId, NULL, USB_DT_ENDPOINT);
@@ -369,31 +400,25 @@ static int atom_connect(int devId)
         return 1;
     }
 
-    if (g_atom.serial_kind == SERIAL_KIND_FTDI) {
-        result = configure_ftdi();
-        if (result < 0) {
-            printf("ATOMNET: FTDI setup failed %d\n", result);
-            atom_disconnect(devId);
-            return 1;
-        }
-
-        DelayThread(50000);
-
-        result = atom_ping();
-        if (result == 0)
-            printf("ATOMNET: ATOM-LINK PONG received - bridge alive\n");
-        else
-            printf("ATOMNET: USB found, ATOM-LINK ping pending (%d)\n", result);
-    } else {
-        printf("ATOMNET: serial chip detected; setup driver kind=%d pending\n",
-               g_atom.serial_kind);
+    result = configure_ftdi();
+    if (result < 0) {
+        printf("ATOMNET: FTDI setup failed %d\n", result);
+        atom_disconnect(devId);
+        return 1;
     }
+
+    g_device_ready = 1;
+
+    printf("ATOMNET: FTDI configured %04X:%04X, heartbeat armed\n",
+           g_atom.vid, g_atom.pid);
 
     return 0;
 }
 
 static int atom_disconnect(int devId)
 {
+    g_device_ready = 0;
+
     if (g_atom.dev_id != devId)
         return 0;
 
@@ -412,24 +437,37 @@ static int atom_disconnect(int devId)
     g_atom.pid = 0;
     g_atom.serial_kind = SERIAL_KIND_UNKNOWN;
 
-    printf("ATOMNET: USB serial disconnected\n");
+    printf("ATOMNET: FTDI disconnected\n");
     return 0;
 }
 
 int _start(int argc, char *argv[])
 {
     int result;
+    iop_thread_t thread;
 
     (void)argc;
     (void)argv;
 
-    printf("ATOMNET v0.2: starting USB-UART link detector\n");
+    printf("ATOMNET v0.3 USBFix: starting\n");
 
     result = UsbRegisterDriver(&atom_usb_driver);
     if (result < 0) {
         printf("ATOMNET: UsbRegisterDriver failed %d\n", result);
         return MODULE_NO_RESIDENT_END;
     }
+
+    thread.attr = TH_C;
+    thread.option = 0;
+    thread.thread = &HeartbeatThread;
+    thread.priority = 0x2f;
+    thread.stacksize = 0x1000;
+
+    g_heartbeat_thread = CreateThread(&thread);
+    if (g_heartbeat_thread > 0)
+        StartThread(g_heartbeat_thread, NULL);
+    else
+        printf("ATOMNET: heartbeat thread create failed %d\n", g_heartbeat_thread);
 
     return MODULE_RESIDENT_END;
 }
