@@ -1,4 +1,4 @@
-name: Build ATOM OPL v0.1
+name: Build ATOM OPL v0.2
 
 on:
   push:
@@ -30,17 +30,17 @@ jobs:
         working-directory: Open-PS2-Loader
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE/Open-PS2-Loader"
-          make LOCALVERSION=ATOM-OPL-v0.1 NOT_PACKED=1
-          cp opl.elf ../ATOM-OPL-v0.1.ELF
+          make LOCALVERSION=ATOM-OPL-v0.2 NOT_PACKED=1
+          cp opl.elf ../ATOM-OPL-v0.2.ELF
 
       - name: Verify ELF
         run: |
-          ls -lh ATOM-OPL-v0.1.ELF
-          file ATOM-OPL-v0.1.ELF || true
+          ls -lh ATOM-OPL-v0.2.ELF
+          file ATOM-OPL-v0.2.ELF || true
 
       - name: Upload ELF
         uses: actions/upload-artifact@v4
         with:
-          name: ATOM-OPL-v0.1
-          path: ATOM-OPL-v0.1.ELF
+          name: ATOM-OPL-v0.2
+          path: ATOM-OPL-v0.2.ELF
           retention-days: 7
