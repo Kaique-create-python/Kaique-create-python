@@ -39,6 +39,8 @@ Preferences prefs;
 WebServer server(80);
 
 static bool setupMode = false;
+static bool sawSerialBytes = false;
+static bool linkValidated = false;
 static uint16_t txSeq = 1;
 static uint8_t rxPayload[1600];
 
@@ -104,6 +106,11 @@ static bool readExact(uint8_t *dst, size_t len, uint32_t timeoutMs) {
 }
 
 static void handleFrame() {
+  if (Serial.available() > 0 && !linkValidated) {
+    sawSerialBytes = true;
+    setLed(35, 0, 35); // purple = USB/UART bytes reached ESP32
+  }
+
   if (Serial.available() < (int)sizeof(Header)) return;
 
   static uint8_t headerBytes[sizeof(Header)];
@@ -113,8 +120,7 @@ static void handleFrame() {
   memcpy(&h, headerBytes, sizeof(h));
 
   if (h.magic != MAGIC || h.version != 1 || h.length > sizeof(rxPayload)) {
-    sendText(MSG_ERROR, "bad_header", h.sequence);
-    while (Serial.available()) Serial.read();
+    // Any bytes already prove USB/UART activity. Purple stays latched.
     return;
   }
 
@@ -140,11 +146,13 @@ static void handleFrame() {
 
   switch (h.type) {
     case MSG_HELLO:
-      setLed(0, 30, 0);
+      linkValidated = true;
+      setLed(0, 40, 0);
       sendText(MSG_HELLO_ACK, statusJson(), h.sequence);
       break;
     case MSG_PING:
-      setLed(0, 40, 0);
+      linkValidated = true;
+      setLed(0, 40, 0); // green = valid ATOMLINK frame
       sendFrame(MSG_PONG, rxPayload, h.length, h.sequence);
       break;
     case MSG_STATUS:
@@ -231,7 +239,7 @@ void setup() {
   if (!ok) {
     startSetupPortal();
   } else {
-    setLed(0, 0, 35);
+    setLed(0, 0, 35); // blue = Wi-Fi OK, no PS2 bytes yet
   }
 
   sendText(MSG_STATUS, statusJson());
