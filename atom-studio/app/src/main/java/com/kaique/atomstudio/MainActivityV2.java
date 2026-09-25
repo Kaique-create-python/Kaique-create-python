@@ -37,10 +37,12 @@ public class MainActivityV2 extends Activity {
     private EditText passwordInput;
     private EditText fileInput;
     private EditText editor;
+    private EditText ps2IpInput;
     private TextView status;
     private TextView terminal;
     private TextView audioFileLabel;
     private TextView volumeLabel;
+    private TextView ps2Status;
     private Button connectButton;
 
     private Uri selectedAudioUri;
@@ -52,6 +54,7 @@ public class MainActivityV2 extends Activity {
     private WebReplClient client;
     private final AudioStreamer audioStreamer = new AudioStreamer();
     private final LiveMicStreamer liveMicStreamer = new LiveMicStreamer();
+    private final Ps2NetworkHelper ps2NetworkHelper = new Ps2NetworkHelper();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -91,7 +94,7 @@ public class MainActivityV2 extends Activity {
         root.setPadding(pad, pad, pad, dp(30));
         scroll.addView(root);
 
-        TextView title = text("ATOM Studio v0.6 HalfDuplexFix", 30, Color.WHITE);
+        TextView title = text("ATOM Studio v0.7 PS2Link", 30, Color.WHITE);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
@@ -122,6 +125,42 @@ public class MainActivityV2 extends Activity {
         Button find = button("ENCONTRAR ATOM NA REDE LOCAL");
         find.setOnClickListener(v -> discoverAtom());
         root.addView(find);
+
+        root.addView(section("PS2 Link"));
+
+        TextView ps2Info = text(
+                "Use o IP que aparece nas configurações de rede do OPL/PS2. Para o PS2 ficar online de verdade, ele ainda precisa estar ligado à rede pela Ethernet.",
+                13, Color.rgb(170, 182, 195));
+        root.addView(ps2Info);
+
+        ps2IpInput = input("IP do PS2. Ex.: 192.168.1.20", false);
+        ps2IpInput.setText(getPreferences(MODE_PRIVATE).getString("ps2_ip", ""));
+        root.addView(ps2IpInput);
+
+        ps2Status = text("PS2 ainda não testado.", 13, Color.rgb(255, 205, 90));
+        ps2Status.setPadding(0, dp(8), 0, dp(4));
+        root.addView(ps2Status);
+
+        LinearLayout ps2Row = row();
+        Button testPs2 = button("TESTAR PS2");
+        Button savePs2 = button("SALVAR IP");
+        ps2Row.addView(testPs2, weight());
+        ps2Row.addView(savePs2, weight());
+        root.addView(ps2Row);
+
+        testPs2.setOnClickListener(v -> testPs2Network());
+        savePs2.setOnClickListener(v -> {
+            String ip = ps2IpInput.getText().toString().trim();
+            getPreferences(MODE_PRIVATE).edit().putString("ps2_ip", ip).apply();
+            ps2Status.setText("IP do PS2 salvo: " + ip);
+            ps2Status.setTextColor(Color.rgb(110, 235, 165));
+        });
+
+        TextView oplInfo = text(
+                "OPL usa rede para funções como ETH/SMB. Isso não substitui a interface de rede que o próprio jogo usa para jogar online.",
+                12, Color.rgb(255, 205, 90));
+        oplInfo.setPadding(0, dp(8), 0, 0);
+        root.addView(oplInfo);
 
         root.addView(section("Áudio do celular → ATOM"));
 
@@ -310,6 +349,30 @@ public class MainActivityV2 extends Activity {
         getPreferences(MODE_PRIVATE).edit().putString("host", host).apply();
         setStatus("Conectando...", false);
         client.connect(host, pass);
+    }
+
+    private void testPs2Network() {
+        String ps2Ip = ps2IpInput.getText().toString().trim();
+        String atomIp = cleanHost(hostInput.getText().toString());
+
+        if (ps2Ip.isEmpty()) {
+            toast("Digite o IP do PS2.");
+            return;
+        }
+
+        getPreferences(MODE_PRIVATE).edit().putString("ps2_ip", ps2Ip).apply();
+
+        ps2Status.setText("Testando PS2 na rede...");
+        ps2Status.setTextColor(Color.rgb(255, 205, 90));
+
+        ps2NetworkHelper.test(ps2Ip, atomIp, (ok, message) ->
+                runOnUiThread(() -> {
+                    ps2Status.setText(message);
+                    ps2Status.setTextColor(ok
+                            ? Color.rgb(110, 235, 165)
+                            : Color.rgb(255, 120, 120));
+                    appendTerminal("\n[PS2 LINK] " + message + "\n");
+                }));
     }
 
     private void chooseAudio() {
@@ -680,6 +743,7 @@ public class MainActivityV2 extends Activity {
     protected void onDestroy() {
         audioStreamer.shutdown();
         liveMicStreamer.shutdown();
+        ps2NetworkHelper.shutdown();
         client.disconnect();
         super.onDestroy();
     }
