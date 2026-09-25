@@ -83,6 +83,18 @@ replace(
     "    }"
 )
 
+# Load ATOMNET while the OPL USB menu is running too.
+# This makes the ATOM LED a direct USB diagnostic before a game is launched.
+replace(
+    "src/bdmsupport.c",
+    "    LOG(\"[USBMASS_BD]:\\n\");\n"
+    "    sysLoadModuleBuffer(&usbmass_bd_irx, size_usbmass_bd_irx, 0, NULL);\n",
+    "    LOG(\"[USBMASS_BD]:\\n\");\n"
+    "    sysLoadModuleBuffer(&usbmass_bd_irx, size_usbmass_bd_irx, 0, NULL);\n"
+    "    LOG(\"[ATOMNET]:\\n\");\n"
+    "    sysLoadModuleBuffer(&atomnet_ingame_irx, size_atomnet_ingame_irx, 0, NULL);\n"
+)
+
 # Reload ATOMNET after every IOP reset performed by a USB-loaded game.
 replace(
     "ee_core/src/iopmgr.c",
