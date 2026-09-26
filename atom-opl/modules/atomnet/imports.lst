@@ -1,5 +1,6 @@
 loadcore_IMPORTS_start
 I_RegisterLibraryEntries
+I_GetLoadcoreInternalData
 loadcore_IMPORTS_end
 
 stdio_IMPORTS_start
@@ -7,7 +8,11 @@ I_printf
 stdio_IMPORTS_end
 
 sysclib_IMPORTS_start
+I_memcpy
+I_memmove
 I_memset
+I_strcmp
+I_strncmp
 sysclib_IMPORTS_end
 
 usbd_IMPORTS_start
@@ -24,3 +29,7 @@ I_CreateThread
 I_StartThread
 I_DelayThread
 thbase_IMPORTS_end
+
+thevent_IMPORTS_start
+I_SetEventFlag
+thevent_IMPORTS_end
