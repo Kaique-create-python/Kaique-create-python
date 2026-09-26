@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="38" viewBox="0 0 960 38" role="img" aria-label="Divisor de seção">
+<rect width="960" height="38" fill="#0D1117" fill-opacity="0"/>
+<path d="M0 19H420L436 5H524L540 19H960" fill="none" stroke="#00D9FF" stroke-opacity=".42"/>
+<circle cx="448" cy="5" r="3" fill="#00D9FF"/>
+<rect x="470" y="1" width="20" height="8" rx="2" fill="#161B22" stroke="#00D9FF" stroke-opacity=".65"/>
+<circle cx="512" cy="5" r="3" fill="#00D9FF"/>
+<path d="M438 30H522" stroke="#00D9FF" stroke-opacity=".16"/>
+</svg>
