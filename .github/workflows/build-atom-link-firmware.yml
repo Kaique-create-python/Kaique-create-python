@@ -1,4 +1,4 @@
-name: Build ATOM Link firmware v0.4-RXSYNC
+name: Build ATOM Link firmware v0.6-NAPT
 
 on:
   push:
@@ -35,9 +35,9 @@ jobs:
 
           BUILD="atom-opl/firmware/atom_bridge/.pio/build/atom_echo"
 
-          cp "$BUILD/firmware.bin" out/ATOM-Link-v0.4-RXSYNC-firmware.bin
-          cp "$BUILD/bootloader.bin" out/ATOM-Link-v0.4-RXSYNC-bootloader.bin
-          cp "$BUILD/partitions.bin" out/ATOM-Link-v0.4-RXSYNC-partitions.bin
+          cp "$BUILD/firmware.bin" out/ATOM-Link-v0.6-NAPT-firmware.bin
+          cp "$BUILD/bootloader.bin" out/ATOM-Link-v0.6-NAPT-bootloader.bin
+          cp "$BUILD/partitions.bin" out/ATOM-Link-v0.6-NAPT-partitions.bin
 
           BOOTAPP="$(find "$HOME/.platformio/packages" -name boot_app0.bin | head -n 1)"
           ESPTOOL="$(find "$HOME/.platformio/packages" -path "*/tool-esptoolpy/esptool.py" | head -n 1)"
@@ -49,7 +49,7 @@ jobs:
           test -n "$ESPTOOL"
 
           python "$ESPTOOL" --chip esp32 merge_bin \
-            -o out/ATOM-Link-v0.4-RXSYNC-FULL.bin \
+            -o out/ATOM-Link-v0.6-NAPT-FULL.bin \
             --flash_mode dio \
             --flash_freq 40m \
             --flash_size 4MB \
@@ -62,6 +62,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ATOM-Link-v0.4-RXSYNC-firmware
+          name: ATOM-Link-v0.6-NAPT-firmware
           path: out/*
           retention-days: 7
