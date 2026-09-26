@@ -10,6 +10,7 @@ extern "C" {
 #include "esp_netif_defaults.h"
 #include "esp_netif_types.h"
 #include "lwip/inet.h"
+#include "dhcpserver/dhcpserver.h"
 #include "dhcpserver/dhcpserver_options.h"
 }
 
@@ -74,11 +75,11 @@ static bool forwardingReady = false;
 
 static const esp_netif_ip_info_t ps2IpInfo = {
   .ip = { .addr = ESP_IP4TOADDR(10, 42, 0, 1) },
-  .gw = { .addr = ESP_IP4TOADDR(10, 42, 0, 1) },
   .netmask = { .addr = ESP_IP4TOADDR(255, 255, 255, 0) },
+  .gw = { .addr = ESP_IP4TOADDR(10, 42, 0, 1) },
 };
 
-static const uint8_t ps2GatewayMac[6] = {0x02, 0x4B, 0x4E, 0x4C, 0x00, 0x01};
+static uint8_t ps2GatewayMac[6] = {0x02, 0x4B, 0x4E, 0x4C, 0x00, 0x01};
 
 static uint32_t crc32_update(uint32_t crc, const uint8_t *data, size_t len) {
   crc = ~crc;
