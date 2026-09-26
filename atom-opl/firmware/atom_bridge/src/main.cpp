@@ -21,7 +21,7 @@ extern "C" {
 #error "ATOM Link requires CONFIG_LWIP_IP_FORWARD"
 #endif
 
-static const uint32_t SERIAL_BAUD = 115200;
+static const uint32_t SERIAL_BAUD = 1000000;
 static const uint32_t MAGIC = 0x4B4E4C41; // "ALNK" little-endian
 static const uint8_t LED_PIN = 27;
 static const uint16_t MAX_PAYLOAD = 1600;
@@ -255,7 +255,7 @@ static void injectPs2Ethernet(const uint8_t *frame, uint16_t len) {
 
 static String statusJson() {
   String s = "{";
-  s += "\"fw\":\"ATOM-LINK-0.6-NAPT\",";
+  s += "\"fw\":\"ATOM-LINK-0.6-NAPT-1M\",";
   s += "\"wifi\":";
   s += (WiFi.status() == WL_CONNECTED ? "true" : "false");
   s += ",\"ip\":\"";
