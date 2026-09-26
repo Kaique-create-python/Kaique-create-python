@@ -13,6 +13,7 @@ I_memmove
 I_memset
 I_strcmp
 I_strncmp
+I_strcpy
 sysclib_IMPORTS_end
 
 usbd_IMPORTS_start
