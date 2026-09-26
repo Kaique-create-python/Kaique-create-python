@@ -95,6 +95,24 @@ replace(
     "    sysLoadModuleBuffer(&atomnet_ingame_irx, size_atomnet_ingame_irx, 0, NULL);\n"
 )
 
+# For USB games, block the game's physical SMAP driver and let ATOMNET
+# provide a virtual SCE Ethernet adapter instead. BDM cdvdman normally does
+# not compile the SMAP fake entries, so enable them for BDM builds too.
+replace(
+    "modules/iopcore/cdvdman/ioplib_util.c",
+    '#ifdef SMB_DRIVER\n    {"SMAP.IRX", "INET_SMAP_driver", FAKE_MODULE_ID_SMAP, FAKE_MODULE_FLAG_SMAP, 0x0219, 2},',
+    '#if defined(SMB_DRIVER) || defined(BDM_DRIVER)\n    {"SMAP.IRX", "INET_SMAP_driver", FAKE_MODULE_ID_SMAP, FAKE_MODULE_FLAG_SMAP, 0x0219, 2},'
+)
+
+replace(
+    "src/bdmsupport.c",
+    '        settings->common.fakemodule_flags |= FAKE_MODULE_FLAG_USBD;\n'
+    '        sysLaunchLoaderElf(filename, "BDM_USB_MODE", irx_size, irx, size_mcemu_irx, bdm_mcemu_irx, EnablePS2Logo, compatmask);',
+    '        settings->common.fakemodule_flags |= FAKE_MODULE_FLAG_USBD;\n'
+    '        settings->common.fakemodule_flags |= FAKE_MODULE_FLAG_SMAP;\n'
+    '        sysLaunchLoaderElf(filename, "BDM_USB_MODE", irx_size, irx, size_mcemu_irx, bdm_mcemu_irx, EnablePS2Logo, compatmask);'
+)
+
 # Reload ATOMNET after every IOP reset performed by a USB-loaded game.
 replace(
     "ee_core/src/iopmgr.c",
