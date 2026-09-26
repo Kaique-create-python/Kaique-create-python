@@ -1,4 +1,4 @@
-name: Build ATOM Link firmware v0.6-NAPT
+name: Build ATOM Link firmware v0.6a-NAPT-115K
 
 on:
   push:
@@ -35,19 +35,19 @@ jobs:
 
           BUILD="atom-opl/firmware/atom_bridge/.pio/build/atom_echo"
 
-          cp "$BUILD/firmware.bin" out/ATOM-Link-v0.6-NAPT-firmware.bin
-          cp "$BUILD/bootloader.bin" out/ATOM-Link-v0.6-NAPT-bootloader.bin
-          cp "$BUILD/partitions.bin" out/ATOM-Link-v0.6-NAPT-partitions.bin
+          cp "$BUILD/firmware.bin" out/ATOM-Link-v0.6a-NAPT-115K-firmware.bin
+          cp "$BUILD/bootloader.bin" out/ATOM-Link-v0.6a-NAPT-115K-bootloader.bin
+          cp "$BUILD/partitions.bin" out/ATOM-Link-v0.6a-NAPT-115K-partitions.bin
 
           # PioArduino 3.x already generates a factory image containing
           # bootloader + partition table + boot_app0 + application.
           test -f "$BUILD/firmware.factory.bin"
-          cp "$BUILD/firmware.factory.bin" out/ATOM-Link-v0.6-NAPT-FULL.bin
+          cp "$BUILD/firmware.factory.bin" out/ATOM-Link-v0.6a-NAPT-115K-FULL.bin
 
           ls -lh out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ATOM-Link-v0.6-NAPT-firmware
+          name: ATOM-Link-v0.6a-NAPT-115K-firmware
           path: out/*
           retention-days: 7
