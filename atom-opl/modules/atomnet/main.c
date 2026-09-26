@@ -562,6 +562,8 @@ static int atom_ping_locked(void)
     return -3;
 }
 
+static const char g_netdev_libname[8] = {'n','e','t','d','e','v',0,0};
+
 static void **find_library_exports(const char *name)
 {
     iop_library_t *libptr;
@@ -714,7 +716,7 @@ static int try_register_virtual_netdev(void)
     if (g_netdev_registered)
         return 0;
 
-    exp = find_library_exports("netdev");
+    exp = find_library_exports(g_netdev_libname);
     if (exp == NULL)
         return -1;
 
@@ -809,7 +811,7 @@ static void AtomWorkerThread(void *arg)
          * 20 ms polling gives inbound packets a bounded latency while keeping
          * IOP usage reasonable. Network traffic itself is sent immediately.
          */
-        DelayThread(20000);
+        DelayThread(g_netdev_registered ? 10000 : 5000);
     }
 }
 
