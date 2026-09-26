@@ -14,6 +14,13 @@ extern "C" {
 #include "dhcpserver/dhcpserver_options.h"
 }
 
+#if !defined(CONFIG_LWIP_IPV4_NAPT) || !CONFIG_LWIP_IPV4_NAPT
+#error "ATOM Link requires CONFIG_LWIP_IPV4_NAPT"
+#endif
+#if !defined(CONFIG_LWIP_IP_FORWARD) || !CONFIG_LWIP_IP_FORWARD
+#error "ATOM Link requires CONFIG_LWIP_IP_FORWARD"
+#endif
+
 static const uint32_t SERIAL_BAUD = 115200;
 static const uint32_t MAGIC = 0x4B4E4C41; // "ALNK" little-endian
 static const uint8_t LED_PIN = 27;
