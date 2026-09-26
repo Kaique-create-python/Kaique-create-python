@@ -9,7 +9,7 @@
 #include <usbd_macro.h>
 #include <irx.h>
 
-IRX_ID("atomnet", 1, 6);
+IRX_ID("atomnet", 1, 7);
 
 #define VID_FTDI 0x0403
 #define PID_FT232R 0x6001
@@ -337,10 +337,11 @@ static int configure_ftdi(void)
         return result;
 
     /*
-     * FT232R base clock = 3 MHz. Divisor 3 gives 1,000,000 baud.
-     * ESP32 UART is configured to the same rate in ATOM-Link v0.6.
+     * Keep the transport at the already hardware-validated 115200 baud.
+     * v0.5 proved this exact FTDI/UART setting works on the user's PS2.
+     * Higher speeds will be reintroduced only after the VirtualNIC path is validated.
      */
-    result = control_out(FTDI_REQ_SET_BAUD, 3, FTDI_IFACE_A);
+    result = control_out(FTDI_REQ_SET_BAUD, 26, FTDI_IFACE_A);
     if (result < 0)
         return result;
 
@@ -788,7 +789,7 @@ static void AtomWorkerThread(void *arg)
                 }
 
                 g_transport_configured = 1;
-                printf("ATOMNET: FTDI @ 1,000,000 baud\n");
+                printf("ATOMNET: FTDI @ 115200 baud\n");
             }
 
             WaitSema(g_io_sema);
@@ -905,7 +906,7 @@ int _start(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    printf("ATOMNET v0.6 VirtualNIC starting\n");
+    printf("ATOMNET v0.6a VirtualNIC-115K starting\n");
 
     sema.attr = 0;
     sema.option = 0;
