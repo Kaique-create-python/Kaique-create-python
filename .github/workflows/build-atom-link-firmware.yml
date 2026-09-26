@@ -39,24 +39,10 @@ jobs:
           cp "$BUILD/bootloader.bin" out/ATOM-Link-v0.6-NAPT-bootloader.bin
           cp "$BUILD/partitions.bin" out/ATOM-Link-v0.6-NAPT-partitions.bin
 
-          BOOTAPP="$(find "$HOME/.platformio/packages" -name boot_app0.bin | head -n 1)"
-          ESPTOOL="$(find "$HOME/.platformio/packages" -path "*/tool-esptoolpy/esptool.py" | head -n 1)"
-
-          echo "boot_app0=$BOOTAPP"
-          echo "esptool=$ESPTOOL"
-
-          test -n "$BOOTAPP"
-          test -n "$ESPTOOL"
-
-          python "$ESPTOOL" --chip esp32 merge_bin \
-            -o out/ATOM-Link-v0.6-NAPT-FULL.bin \
-            --flash_mode dio \
-            --flash_freq 40m \
-            --flash_size 4MB \
-            0x1000 "$BUILD/bootloader.bin" \
-            0x8000 "$BUILD/partitions.bin" \
-            0xe000 "$BOOTAPP" \
-            0x10000 "$BUILD/firmware.bin"
+          # PioArduino 3.x already generates a factory image containing
+          # bootloader + partition table + boot_app0 + application.
+          test -f "$BUILD/firmware.factory.bin"
+          cp "$BUILD/firmware.factory.bin" out/ATOM-Link-v0.6-NAPT-FULL.bin
 
           ls -lh out
 
