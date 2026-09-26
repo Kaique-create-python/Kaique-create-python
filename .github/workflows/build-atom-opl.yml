@@ -1,4 +1,4 @@
-name: Build ATOM OPL v0.5 DeferredFTDI
+name: Build ATOM OPL v0.6 VirtualNIC
 
 on:
   push:
@@ -30,17 +30,17 @@ jobs:
         working-directory: Open-PS2-Loader
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE/Open-PS2-Loader"
-          make LOCALVERSION=ATOM-OPL-v0.5-DeferredFTDI NOT_PACKED=1
-          cp opl.elf ../ATOM-OPL-v0.5-DeferredFTDI.ELF
+          make LOCALVERSION=ATOM-OPL-v0.6-VirtualNIC NOT_PACKED=1
+          cp opl.elf ../ATOM-OPL-v0.6-VirtualNIC.ELF
 
       - name: Verify ELF
         run: |
-          ls -lh ATOM-OPL-v0.5-DeferredFTDI.ELF
-          file ATOM-OPL-v0.5-DeferredFTDI.ELF || true
+          ls -lh ATOM-OPL-v0.6-VirtualNIC.ELF
+          file ATOM-OPL-v0.6-VirtualNIC.ELF || true
 
       - name: Upload ELF
         uses: actions/upload-artifact@v4
         with:
-          name: ATOM-OPL-v0.5-DeferredFTDI
-          path: ATOM-OPL-v0.5-DeferredFTDI.ELF
+          name: ATOM-OPL-v0.6-VirtualNIC
+          path: ATOM-OPL-v0.6-VirtualNIC.ELF
           retention-days: 7
