@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sysclib.h>
 #include <thbase.h>
+#include <thevent.h>
 #include <usbd.h>
 
 #endif
