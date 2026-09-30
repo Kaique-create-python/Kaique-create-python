@@ -1,0 +1,99 @@
+name: Build Diana PC Public APK
+
+on:
+  push:
+    branches:
+      - diana-pc-public
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Fetch Winlator 11.2 source
+        run: |
+          git clone --depth 1 https://github.com/brunodev85/winlator-app.git upstream
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android build dependencies
+        run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
+
+      - name: Apply Diana PC patches
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd upstream
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          build = Path("app/build.gradle")
+          s = build.read_text()
+          s = s.replace("applicationId 'com.winlator'", "applicationId 'com.dianapc'")
+          s = s.replace('versionCode 33', 'versionCode 1')
+          s = s.replace('versionName "11.2"', 'versionName "0.1.0"')
+          build.write_text(s)
+
+          manifest = Path("app/src/main/AndroidManifest.xml")
+          s = manifest.read_text()
+          s = s.replace('android:authorities="com.winlator.FileProvider"', 'android:authorities="com.dianapc.FileProvider"')
+          manifest.write_text(s)
+
+          for p in Path("app/src/main/res").glob("values*/strings.xml"):
+              s = p.read_text()
+              s = s.replace('>Winlator<', '>Diana PC<')
+              s = s.replace(' Winlator ', ' Diana PC ')
+              s = s.replace(' Winlator<', ' Diana PC<')
+              s = s.replace('>Winlator ', '>Diana PC ')
+              p.write_text(s)
+          PY
+
+          cat > DIANA-PC-NOTES.md <<'EOF'
+          # Diana PC v0.1
+
+          Experimental Android Windows-compatibility build based on Winlator 11.2.
+
+          Included:
+          - Diana PC branding
+          - Independent Android application id: com.dianapc
+          - 1280x720 phone-friendly default
+          - Box64 Performance preset by default
+          - Touch controls, gamepad, keyboard/mouse support
+          - File manager, FPS/HUD, Wine, Box64, DXVK and VKD3D from upstream
+          - Upstream credits and LGPL licensing retained
+          EOF
+
+      - name: Build APK
+        working-directory: upstream
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug --stacktrace
+
+      - name: Prepare APK
+        run: |
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.1.apk
+          sha256sum Diana-PC-v0.1.apk | tee Diana-PC-v0.1.sha256
+          ls -lh Diana-PC-v0.1.apk
+
+      - name: Publish public GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete diana-pc-v0.1 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.1             Diana-PC-v0.1.apk             Diana-PC-v0.1.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.1"             --notes "APK experimental Diana PC v0.1 baseado no Winlator 11.2. Créditos e licenças upstream preservados."
