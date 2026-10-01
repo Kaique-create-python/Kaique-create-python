@@ -132,20 +132,23 @@ jobs:
           # Add the settings action before Exit.
           xserver = Path("app/src/main/java/com/winlator/XServerDisplayActivity.java")
           xs = xserver.read_text()
-          match = re.search(r'(?m)^(\\s*)case R\\.id\\.menu_item_exit:\\s*$', xs)
-          if not match:
+          needle = "case R.id.menu_item_exit:"
+          idx = xs.find(needle)
+          if idx < 0:
               raise SystemExit("XServer exit menu marker not found")
-          indent = match.group(1)
-          settings_case = (
-              indent + 'case R.id.menu_item_diana_settings:\\n' +
-              indent + '    Intent dianaSettingsIntent = new Intent(this, MainActivity.class);\\n' +
-              indent + '    dianaSettingsIntent.putExtra("diana_skip_autoboot", true);\\n' +
-              indent + '    dianaSettingsIntent.putExtra("edit_container_id", container.id);\\n' +
-              indent + '    startActivity(dianaSettingsIntent);\\n' +
-              indent + '    drawerLayout.closeDrawers();\\n' +
-              indent + '    break;\\n'
-          )
-          xs = xs[:match.start()] + settings_case + xs[match.start():]
+          NL = chr(10)
+          line_start = xs.rfind(NL, 0, idx) + 1
+          indent = xs[line_start:idx]
+          settings_case = NL.join([
+              indent + "case R.id.menu_item_diana_settings:",
+              indent + "    Intent dianaSettingsIntent = new Intent(this, MainActivity.class);",
+              indent + '    dianaSettingsIntent.putExtra("diana_skip_autoboot", true);',
+              indent + '    dianaSettingsIntent.putExtra("edit_container_id", container.id);',
+              indent + "    startActivity(dianaSettingsIntent);",
+              indent + "    drawerLayout.closeDrawers();",
+              indent + "    break;",
+          ]) + NL
+          xs = xs[:line_start] + settings_case + xs[line_start:]
           xserver.write_text(xs)
 
           # MainActivity imports.
