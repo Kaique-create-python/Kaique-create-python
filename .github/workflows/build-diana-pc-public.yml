@@ -141,174 +141,174 @@ jobs:
           # Diana PC desktop integration: system icons + automatic downloaded/installed app shortcuts.
           desktop_manager = Path("app/src/main/java/com/winlator/core/DianaDesktopManager.java")
           desktop_manager.write_text(r'''package com.winlator.core;
-
-import android.os.FileObserver;
-
-import com.winlator.container.Container;
-import com.winlator.win32.MSLink;
-
-import java.io.File;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-
-public abstract class DianaDesktopManager {
-    private static FileObserver downloadsObserver;
-    private static Timer syncTimer;
-    private static final Set<String> BUILTIN_START_MENU = new HashSet<>();
-
-    static {
-        String[] names = new String[]{
-            "7-Zip", "Chrome / Internet", "Internet Explorer", "Notepad", "Wordpad", "WineMine",
-            "GPUInfo", "Test Direct3D", "Computer", "Task Manager", "Registry Editor",
-            "Command Prompt", "Wine Configuration", "Wine Mono (.NET Framework)",
-            "Wine Gecko (For HTML Pages)", "Steam (Legacy)"
-        };
-        for (String name : names) BUILTIN_START_MENU.add(name.toLowerCase(Locale.ENGLISH));
-    }
-
-    public static synchronized void start(Container container) {
-        stop();
-        syncAll(container);
-
-        final File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
-        if (!downloadsDir.isDirectory()) downloadsDir.mkdirs();
-
-        downloadsObserver = new FileObserver(
-            downloadsDir.getAbsolutePath(),
-            FileObserver.CREATE | FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO
-        ) {
-            @Override
-            public void onEvent(int event, String path) {
-                if (path == null) return;
-                File file = new File(downloadsDir, path);
-                syncDownloadedProgram(container, file);
-            }
-        };
-        downloadsObserver.startWatching();
-
-        syncTimer = new Timer("DianaDesktopSync", true);
-        syncTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                syncAll(container);
-            }
-        }, 5000, 7000);
-    }
-
-    public static synchronized void stop() {
-        if (downloadsObserver != null) {
-            downloadsObserver.stopWatching();
-            downloadsObserver = null;
-        }
-        if (syncTimer != null) {
-            syncTimer.cancel();
-            syncTimer = null;
-        }
-    }
-
-    private static void syncAll(Container container) {
-        File desktopDir = getDesktopDir(container);
-        createDefaultIcons(desktopDir);
-        syncDownloads(container, desktopDir);
-        syncInstalledApps(container, desktopDir);
-    }
-
-    private static File getDesktopDir(Container container) {
-        File desktopDir = new File(container.getUserDir(), "Desktop");
-        if (!desktopDir.isDirectory()) desktopDir.mkdirs();
-        return desktopDir;
-    }
-
-    private static void createDefaultIcons(File desktopDir) {
-        createLink(desktopDir, "Computador", "C:\\windows\\wfm.exe", null, "C:\\windows\\wfm.exe", false);
-        createLink(desktopDir, "Downloads", "D:\\", null, "C:\\windows\\explorer.exe", true);
-        createLink(desktopDir, "Internet", "C:\\windows\\system32\\iexplore.exe", null, "C:\\windows\\system32\\iexplore.exe", false);
-        createLink(desktopDir, "Painel de Controle", "C:\\windows\\system32\\control.exe", null, "C:\\windows\\system32\\control.exe", false);
-        createLink(desktopDir, "Bloco de Notas", "C:\\windows\\notepad.exe", null, "C:\\windows\\notepad.exe", false);
-        createLink(desktopDir, "Terminal", "C:\\windows\\system32\\cmd.exe", null, "C:\\windows\\system32\\cmd.exe", false);
-    }
-
-    private static void syncDownloads(Container container, File desktopDir) {
-        File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
-        File[] files = downloadsDir.listFiles();
-        if (files == null) return;
-        for (File file : files) syncDownloadedProgram(container, file, desktopDir);
-    }
-
-    private static void syncDownloadedProgram(Container container, File file) {
-        syncDownloadedProgram(container, file, getDesktopDir(container));
-    }
-
-    private static void syncDownloadedProgram(Container container, File file, File desktopDir) {
-        if (file == null || !file.isFile()) return;
-        String lower = file.getName().toLowerCase(Locale.ENGLISH);
-        if (!(lower.endsWith(".exe") || lower.endsWith(".msi") || lower.endsWith(".bat") || lower.endsWith(".cmd"))) return;
-
-        String name = StringUtils.clearReservedChars(FileUtils.getBasename(file.getName()));
-        String dosPath = WineUtils.unixToDOSPath(file.getAbsolutePath(), container);
-        if (dosPath == null || dosPath.isEmpty()) return;
-
-        if (lower.endsWith(".msi")) {
-            createLink(
-                desktopDir,
-                name,
-                "C:\\windows\\system32\\msiexec.exe",
-                "/i \"" + dosPath + "\"",
-                "C:\\windows\\system32\\msiexec.exe",
-                false
-            );
-        }
-        else {
-            createLink(desktopDir, name, dosPath, null, dosPath, false);
-        }
-    }
-
-    private static void syncInstalledApps(Container container, File desktopDir) {
-        File startMenu = container.getStartMenuDir();
-        syncInstalledAppsRecursive(startMenu, desktopDir);
-    }
-
-    private static void syncInstalledAppsRecursive(File dir, File desktopDir) {
-        File[] files = dir.listFiles();
-        if (files == null) return;
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                syncInstalledAppsRecursive(file, desktopDir);
-            }
-            else if (file.getName().toLowerCase(Locale.ENGLISH).endsWith(".lnk")) {
-                String name = FileUtils.getBasename(file.getName());
-                if (BUILTIN_START_MENU.contains(name.toLowerCase(Locale.ENGLISH))) continue;
-
-                File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
-                if (!output.isFile()) FileUtils.copy(file, output);
-            }
-        }
-    }
-
-    private static void createLink(
-        File desktopDir,
-        String name,
-        String targetPath,
-        String arguments,
-        String iconLocation,
-        boolean directory
-    ) {
-        File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
-        if (output.isFile()) return;
-
-        MSLink.LinkInfo info = new MSLink.LinkInfo();
-        info.targetPath = targetPath;
-        info.arguments = arguments;
-        info.iconLocation = iconLocation;
-        info.isDirectory = directory;
-        MSLink.createFile(info, output);
-    }
-}
-''')
+          
+          import android.os.FileObserver;
+          
+          import com.winlator.container.Container;
+          import com.winlator.win32.MSLink;
+          
+          import java.io.File;
+          import java.util.HashSet;
+          import java.util.Locale;
+          import java.util.Set;
+          import java.util.Timer;
+          import java.util.TimerTask;
+          
+          public abstract class DianaDesktopManager {
+              private static FileObserver downloadsObserver;
+              private static Timer syncTimer;
+              private static final Set<String> BUILTIN_START_MENU = new HashSet<>();
+          
+              static {
+                  String[] names = new String[]{
+                      "7-Zip", "Chrome / Internet", "Internet Explorer", "Notepad", "Wordpad", "WineMine",
+                      "GPUInfo", "Test Direct3D", "Computer", "Task Manager", "Registry Editor",
+                      "Command Prompt", "Wine Configuration", "Wine Mono (.NET Framework)",
+                      "Wine Gecko (For HTML Pages)", "Steam (Legacy)"
+                  };
+                  for (String name : names) BUILTIN_START_MENU.add(name.toLowerCase(Locale.ENGLISH));
+              }
+          
+              public static synchronized void start(Container container) {
+                  stop();
+                  syncAll(container);
+          
+                  final File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
+                  if (!downloadsDir.isDirectory()) downloadsDir.mkdirs();
+          
+                  downloadsObserver = new FileObserver(
+                      downloadsDir.getAbsolutePath(),
+                      FileObserver.CREATE | FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO
+                  ) {
+                      @Override
+                      public void onEvent(int event, String path) {
+                          if (path == null) return;
+                          File file = new File(downloadsDir, path);
+                          syncDownloadedProgram(container, file);
+                      }
+                  };
+                  downloadsObserver.startWatching();
+          
+                  syncTimer = new Timer("DianaDesktopSync", true);
+                  syncTimer.scheduleAtFixedRate(new TimerTask() {
+                      @Override
+                      public void run() {
+                          syncAll(container);
+                      }
+                  }, 5000, 7000);
+              }
+          
+              public static synchronized void stop() {
+                  if (downloadsObserver != null) {
+                      downloadsObserver.stopWatching();
+                      downloadsObserver = null;
+                  }
+                  if (syncTimer != null) {
+                      syncTimer.cancel();
+                      syncTimer = null;
+                  }
+              }
+          
+              private static void syncAll(Container container) {
+                  File desktopDir = getDesktopDir(container);
+                  createDefaultIcons(desktopDir);
+                  syncDownloads(container, desktopDir);
+                  syncInstalledApps(container, desktopDir);
+              }
+          
+              private static File getDesktopDir(Container container) {
+                  File desktopDir = new File(container.getUserDir(), "Desktop");
+                  if (!desktopDir.isDirectory()) desktopDir.mkdirs();
+                  return desktopDir;
+              }
+          
+              private static void createDefaultIcons(File desktopDir) {
+                  createLink(desktopDir, "Computador", "C:\\windows\\wfm.exe", null, "C:\\windows\\wfm.exe", false);
+                  createLink(desktopDir, "Downloads", "D:\\", null, "C:\\windows\\explorer.exe", true);
+                  createLink(desktopDir, "Internet", "C:\\windows\\system32\\iexplore.exe", null, "C:\\windows\\system32\\iexplore.exe", false);
+                  createLink(desktopDir, "Painel de Controle", "C:\\windows\\system32\\control.exe", null, "C:\\windows\\system32\\control.exe", false);
+                  createLink(desktopDir, "Bloco de Notas", "C:\\windows\\notepad.exe", null, "C:\\windows\\notepad.exe", false);
+                  createLink(desktopDir, "Terminal", "C:\\windows\\system32\\cmd.exe", null, "C:\\windows\\system32\\cmd.exe", false);
+              }
+          
+              private static void syncDownloads(Container container, File desktopDir) {
+                  File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
+                  File[] files = downloadsDir.listFiles();
+                  if (files == null) return;
+                  for (File file : files) syncDownloadedProgram(container, file, desktopDir);
+              }
+          
+              private static void syncDownloadedProgram(Container container, File file) {
+                  syncDownloadedProgram(container, file, getDesktopDir(container));
+              }
+          
+              private static void syncDownloadedProgram(Container container, File file, File desktopDir) {
+                  if (file == null || !file.isFile()) return;
+                  String lower = file.getName().toLowerCase(Locale.ENGLISH);
+                  if (!(lower.endsWith(".exe") || lower.endsWith(".msi") || lower.endsWith(".bat") || lower.endsWith(".cmd"))) return;
+          
+                  String name = StringUtils.clearReservedChars(FileUtils.getBasename(file.getName()));
+                  String dosPath = WineUtils.unixToDOSPath(file.getAbsolutePath(), container);
+                  if (dosPath == null || dosPath.isEmpty()) return;
+          
+                  if (lower.endsWith(".msi")) {
+                      createLink(
+                          desktopDir,
+                          name,
+                          "C:\\windows\\system32\\msiexec.exe",
+                          "/i \"" + dosPath + "\"",
+                          "C:\\windows\\system32\\msiexec.exe",
+                          false
+                      );
+                  }
+                  else {
+                      createLink(desktopDir, name, dosPath, null, dosPath, false);
+                  }
+              }
+          
+              private static void syncInstalledApps(Container container, File desktopDir) {
+                  File startMenu = container.getStartMenuDir();
+                  syncInstalledAppsRecursive(startMenu, desktopDir);
+              }
+          
+              private static void syncInstalledAppsRecursive(File dir, File desktopDir) {
+                  File[] files = dir.listFiles();
+                  if (files == null) return;
+          
+                  for (File file : files) {
+                      if (file.isDirectory()) {
+                          syncInstalledAppsRecursive(file, desktopDir);
+                      }
+                      else if (file.getName().toLowerCase(Locale.ENGLISH).endsWith(".lnk")) {
+                          String name = FileUtils.getBasename(file.getName());
+                          if (BUILTIN_START_MENU.contains(name.toLowerCase(Locale.ENGLISH))) continue;
+          
+                          File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
+                          if (!output.isFile()) FileUtils.copy(file, output);
+                      }
+                  }
+              }
+          
+              private static void createLink(
+                  File desktopDir,
+                  String name,
+                  String targetPath,
+                  String arguments,
+                  String iconLocation,
+                  boolean directory
+              ) {
+                  File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
+                  if (output.isFile()) return;
+          
+                  MSLink.LinkInfo info = new MSLink.LinkInfo();
+                  info.targetPath = targetPath;
+                  info.arguments = arguments;
+                  info.iconLocation = iconLocation;
+                  info.isDirectory = directory;
+                  MSLink.createFile(info, output);
+              }
+          }
+          ''')
 
           # Wire desktop manager into the active Wine session.
           xserver = Path("app/src/main/java/com/winlator/XServerDisplayActivity.java")
