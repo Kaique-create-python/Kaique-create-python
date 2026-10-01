@@ -34,7 +34,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC v0.2 patches
+      - name: Apply Diana PC v0.3 Mali-safe patches
         shell: bash
         run: |
           set -euxo pipefail
@@ -53,8 +53,8 @@ jobs:
 
           # Identity/version.
           must_replace("app/build.gradle", "applicationId 'com.winlator'", "applicationId 'com.dianapc'")
-          must_replace("app/build.gradle", "versionCode 33", "versionCode 2")
-          must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.2.0"')
+          must_replace("app/build.gradle", "versionCode 33", "versionCode 3")
+          must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.3.0"')
           must_replace(
               "app/src/main/AndroidManifest.xml",
               'android:authorities="com.winlator.FileProvider"',
@@ -104,6 +104,14 @@ jobs:
               "app/src/main/java/com/winlator/XServerDisplayActivity.java",
               'String controlsProfile = shortcut.getExtra("controlsProfile");',
               'String controlsProfile = shortcut.getExtra("controlsProfile", "3");'
+          )
+
+          # On the POCO C65 / Mali path, VirGL should run without starting Vortek beside it.
+          # This avoids the renderer deadlock seen before the first Wine desktop window appears.
+          must_replace(
+              "app/src/main/java/com/winlator/XServerDisplayActivity.java",
+              'if (graphicsDriver[0].equals(GraphicsDrivers.VORTEK)) {',
+              'if (graphicsDriver[0].equals(GraphicsDrivers.VORTEK) && !graphicsDriver[1].equals(GraphicsDrivers.VIRGL)) {'
           )
 
           # Add in-session PC settings menu entry.
@@ -159,7 +167,11 @@ jobs:
               "import com.winlator.contentdialog.AboutDialog;\n"
               "import com.winlator.box64.Box64Preset;\n"
               "import com.winlator.container.Container;\n"
-              "import com.winlator.container.ContainerManager;\n",
+              "import com.winlator.container.ContainerManager;\n"
+              "import com.winlator.container.GraphicsDrivers;\n"
+              "import com.winlator.container.DXWrappers;\n"
+              "import com.winlator.core.EnvVars;\n"
+              "import com.winlator.core.GPUHelper;\n",
               1
           )
           s = s.replace(
@@ -225,7 +237,9 @@ jobs:
 
                       ContainerManager manager = new ContainerManager(MainActivity.this);
                       if (!manager.getContainers().isEmpty()) {
-                          launchDianaContainer(manager.getContainers().get(0));
+                          Container existing = manager.getContainers().get(0);
+                          configureDianaContainer(existing);
+                          launchDianaContainer(existing);
                           return;
                       }
 
@@ -241,7 +255,10 @@ jobs:
                           preloaderDialog.show(R.string.creating_container);
                           manager.createContainerAsync(data, (container) -> {
                               preloaderDialog.closeOnUiThread();
-                              if (container != null) launchDianaContainer(container);
+                              if (container != null) {
+                                  configureDianaContainer(container);
+                                  launchDianaContainer(container);
+                              }
                               else dianaAutoBootStarted = false;
                           });
                       }
@@ -250,6 +267,28 @@ jobs:
                       }
                   }
               });
+          }
+
+          private void configureDianaContainer(Container container) {
+              if (GPUHelper.getAdrenoModelId(this) <= 0 && !container.getExtra("dianaMaliSafeV3").equals("t")) {
+                  container.setGraphicsDriver(GraphicsDrivers.VORTEK + "," + GraphicsDrivers.VIRGL);
+                  container.setGraphicsDriverConfig("");
+                  container.setDXWrapper(DXWrappers.WINED3D);
+                  container.setDXWrapperConfig("");
+                  container.setBox64Preset(Box64Preset.STABILITY);
+
+                  EnvVars safeVars = new EnvVars(container.getEnvVars());
+                  safeVars.put("MESA_GLSL_VERSION_OVERRIDE", "410");
+                  safeVars.put("mesa_glthread", "false");
+                  safeVars.put("BOX64_MMAP32", "1");
+                  safeVars.put("BOX64_SAFEFLAGS", "2");
+                  safeVars.put("WINEDEBUG", "-all");
+                  container.setEnvVars(safeVars.toString());
+
+                  container.putExtra("dianaMaliSafeV3", "t");
+                  container.putExtra("dxwrapper", null);
+                  container.saveData();
+              }
           }
 
           private void launchDianaContainer(Container container) {
@@ -264,12 +303,15 @@ jobs:
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.2
+          # Diana PC v0.3
 
           Based on Winlator 11.2.
 
           - Creates a Diana PC container automatically on first launch.
           - Boots directly into the Wine desktop after system installation.
+          - Detects non-Adreno GPUs and performs a one-time Mali-safe migration.
+          - Mali-safe mode uses VirGL + WineD3D + Box64 Stability.
+          - Prevents Vortek from starting beside VirGL during the safe boot path.
           - D: = Android Downloads.
           - E: = Android shared internal storage.
           - Fixes runtime paths/authorities after package rename.
@@ -287,15 +329,15 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.2.apk
-          sha256sum Diana-PC-v0.2.apk | tee Diana-PC-v0.2.sha256
-          ls -lh Diana-PC-v0.2.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.3.apk
+          sha256sum Diana-PC-v0.3.apk | tee Diana-PC-v0.3.sha256
+          ls -lh Diana-PC-v0.3.apk
 
       - name: Upload APK for ChatGPT handoff
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-PC-v0.2-chat
-          path: Diana-PC-v0.2.apk
+          name: Diana-PC-v0.3-chat
+          path: Diana-PC-v0.3.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -304,5 +346,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.2 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.2             Diana-PC-v0.2.apk             Diana-PC-v0.2.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.2"             --notes "Diana PC v0.2: boot automático, container pronto, D: Downloads, E: armazenamento do celular, navegador integrado, configurações do PC e Virtual Gamepad padrão. Base Winlator 11.2 com licenças/créditos preservados."
+          gh release delete diana-pc-v0.3 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.3             Diana-PC-v0.3.apk             Diana-PC-v0.3.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.3"             --notes "Diana PC v0.3: corrige boot travado em GPUs Mali como a Mali-G52 do POCO C65 usando migração automática para VirGL + WineD3D + Box64 Stability; mantém boot automático, armazenamento do celular, navegador integrado, configurações e Virtual Gamepad. Base Winlator 11.2."
