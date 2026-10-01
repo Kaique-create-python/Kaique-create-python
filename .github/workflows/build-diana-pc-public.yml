@@ -423,7 +423,7 @@ jobs:
               raise SystemExit("DianaDesktopManager setup anchor not found")
           xs = xs.replace(
               setup_anchor,
-              setup_anchor + "            DianaDesktopManager.start(container);\n",
+              setup_anchor + "            DianaDesktopManager.start(this, container);\n",
               1
           )
 
