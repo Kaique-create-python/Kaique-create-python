@@ -291,6 +291,15 @@ jobs:
           sha256sum Diana-PC-v0.2.apk | tee Diana-PC-v0.2.sha256
           ls -lh Diana-PC-v0.2.apk
 
+      - name: Upload APK for ChatGPT handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: Diana-PC-v0.2-chat
+          path: Diana-PC-v0.2.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
       - name: Publish public GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
