@@ -34,7 +34,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC v0.4 runtime-safe patches
+      - name: Apply Diana PC v0.5 runtime-safe patches
         shell: bash
         run: |
           set -euxo pipefail
@@ -52,7 +52,7 @@ jobs:
               p.write_text(s.replace(old, new, count))
 
           # Identity/version.
-          must_replace("app/build.gradle", "versionCode 33", "versionCode 4")
+          must_replace("app/build.gradle", "versionCode 33", "versionCode 5")
           must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.3.0"')
           # Package rename leftovers that are runtime paths/authorities (not Java package names).
           # E: = phone shared storage; D: already maps to Downloads.
@@ -136,6 +136,209 @@ jobs:
               indent + "    break;",
           ]) + NL
           xs = xs[:line_start] + settings_case + xs[line_start:]
+          xserver.write_text(xs)
+
+          # Diana PC desktop integration: system icons + automatic downloaded/installed app shortcuts.
+          desktop_manager = Path("app/src/main/java/com/winlator/core/DianaDesktopManager.java")
+          desktop_manager.write_text(r'''package com.winlator.core;
+
+import android.os.FileObserver;
+
+import com.winlator.container.Container;
+import com.winlator.win32.MSLink;
+
+import java.io.File;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+
+public abstract class DianaDesktopManager {
+    private static FileObserver downloadsObserver;
+    private static Timer syncTimer;
+    private static final Set<String> BUILTIN_START_MENU = new HashSet<>();
+
+    static {
+        String[] names = new String[]{
+            "7-Zip", "Chrome / Internet", "Internet Explorer", "Notepad", "Wordpad", "WineMine",
+            "GPUInfo", "Test Direct3D", "Computer", "Task Manager", "Registry Editor",
+            "Command Prompt", "Wine Configuration", "Wine Mono (.NET Framework)",
+            "Wine Gecko (For HTML Pages)", "Steam (Legacy)"
+        };
+        for (String name : names) BUILTIN_START_MENU.add(name.toLowerCase(Locale.ENGLISH));
+    }
+
+    public static synchronized void start(Container container) {
+        stop();
+        syncAll(container);
+
+        final File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
+        if (!downloadsDir.isDirectory()) downloadsDir.mkdirs();
+
+        downloadsObserver = new FileObserver(
+            downloadsDir.getAbsolutePath(),
+            FileObserver.CREATE | FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO
+        ) {
+            @Override
+            public void onEvent(int event, String path) {
+                if (path == null) return;
+                File file = new File(downloadsDir, path);
+                syncDownloadedProgram(container, file);
+            }
+        };
+        downloadsObserver.startWatching();
+
+        syncTimer = new Timer("DianaDesktopSync", true);
+        syncTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                syncAll(container);
+            }
+        }, 5000, 7000);
+    }
+
+    public static synchronized void stop() {
+        if (downloadsObserver != null) {
+            downloadsObserver.stopWatching();
+            downloadsObserver = null;
+        }
+        if (syncTimer != null) {
+            syncTimer.cancel();
+            syncTimer = null;
+        }
+    }
+
+    private static void syncAll(Container container) {
+        File desktopDir = getDesktopDir(container);
+        createDefaultIcons(desktopDir);
+        syncDownloads(container, desktopDir);
+        syncInstalledApps(container, desktopDir);
+    }
+
+    private static File getDesktopDir(Container container) {
+        File desktopDir = new File(container.getUserDir(), "Desktop");
+        if (!desktopDir.isDirectory()) desktopDir.mkdirs();
+        return desktopDir;
+    }
+
+    private static void createDefaultIcons(File desktopDir) {
+        createLink(desktopDir, "Computador", "C:\\windows\\wfm.exe", null, "C:\\windows\\wfm.exe", false);
+        createLink(desktopDir, "Downloads", "D:\\", null, "C:\\windows\\explorer.exe", true);
+        createLink(desktopDir, "Internet", "C:\\windows\\system32\\iexplore.exe", null, "C:\\windows\\system32\\iexplore.exe", false);
+        createLink(desktopDir, "Painel de Controle", "C:\\windows\\system32\\control.exe", null, "C:\\windows\\system32\\control.exe", false);
+        createLink(desktopDir, "Bloco de Notas", "C:\\windows\\notepad.exe", null, "C:\\windows\\notepad.exe", false);
+        createLink(desktopDir, "Terminal", "C:\\windows\\system32\\cmd.exe", null, "C:\\windows\\system32\\cmd.exe", false);
+    }
+
+    private static void syncDownloads(Container container, File desktopDir) {
+        File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
+        File[] files = downloadsDir.listFiles();
+        if (files == null) return;
+        for (File file : files) syncDownloadedProgram(container, file, desktopDir);
+    }
+
+    private static void syncDownloadedProgram(Container container, File file) {
+        syncDownloadedProgram(container, file, getDesktopDir(container));
+    }
+
+    private static void syncDownloadedProgram(Container container, File file, File desktopDir) {
+        if (file == null || !file.isFile()) return;
+        String lower = file.getName().toLowerCase(Locale.ENGLISH);
+        if (!(lower.endsWith(".exe") || lower.endsWith(".msi") || lower.endsWith(".bat") || lower.endsWith(".cmd"))) return;
+
+        String name = StringUtils.clearReservedChars(FileUtils.getBasename(file.getName()));
+        String dosPath = WineUtils.unixToDOSPath(file.getAbsolutePath(), container);
+        if (dosPath == null || dosPath.isEmpty()) return;
+
+        if (lower.endsWith(".msi")) {
+            createLink(
+                desktopDir,
+                name,
+                "C:\\windows\\system32\\msiexec.exe",
+                "/i \"" + dosPath + "\"",
+                "C:\\windows\\system32\\msiexec.exe",
+                false
+            );
+        }
+        else {
+            createLink(desktopDir, name, dosPath, null, dosPath, false);
+        }
+    }
+
+    private static void syncInstalledApps(Container container, File desktopDir) {
+        File startMenu = container.getStartMenuDir();
+        syncInstalledAppsRecursive(startMenu, desktopDir);
+    }
+
+    private static void syncInstalledAppsRecursive(File dir, File desktopDir) {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                syncInstalledAppsRecursive(file, desktopDir);
+            }
+            else if (file.getName().toLowerCase(Locale.ENGLISH).endsWith(".lnk")) {
+                String name = FileUtils.getBasename(file.getName());
+                if (BUILTIN_START_MENU.contains(name.toLowerCase(Locale.ENGLISH))) continue;
+
+                File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
+                if (!output.isFile()) FileUtils.copy(file, output);
+            }
+        }
+    }
+
+    private static void createLink(
+        File desktopDir,
+        String name,
+        String targetPath,
+        String arguments,
+        String iconLocation,
+        boolean directory
+    ) {
+        File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
+        if (output.isFile()) return;
+
+        MSLink.LinkInfo info = new MSLink.LinkInfo();
+        info.targetPath = targetPath;
+        info.arguments = arguments;
+        info.iconLocation = iconLocation;
+        info.isDirectory = directory;
+        MSLink.createFile(info, output);
+    }
+}
+''')
+
+          # Wire desktop manager into the active Wine session.
+          xserver = Path("app/src/main/java/com/winlator/XServerDisplayActivity.java")
+          xs = xserver.read_text()
+          import_anchor = "import com.winlator.core.CursorLocker;\n"
+          if import_anchor not in xs:
+              raise SystemExit("DianaDesktopManager import anchor not found")
+          xs = xs.replace(
+              import_anchor,
+              import_anchor + "import com.winlator.core.DianaDesktopManager;\n",
+              1
+          )
+
+          setup_anchor = "            containerManager.activateContainer(container);\n"
+          if setup_anchor not in xs:
+              raise SystemExit("DianaDesktopManager setup anchor not found")
+          xs = xs.replace(
+              setup_anchor,
+              setup_anchor + "            DianaDesktopManager.start(container);\n",
+              1
+          )
+
+          destroy_anchor = "    protected void onDestroy() {\n        winHandler.stop();\n"
+          if destroy_anchor not in xs:
+              raise SystemExit("DianaDesktopManager destroy anchor not found")
+          xs = xs.replace(
+              destroy_anchor,
+              "    protected void onDestroy() {\n        DianaDesktopManager.stop();\n        winHandler.stop();\n",
+              1
+          )
           xserver.write_text(xs)
 
           # MainActivity imports.
@@ -282,7 +485,7 @@ jobs:
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.4
+          # Diana PC v0.5
 
           Based on Winlator 11.2.
 
@@ -297,6 +500,9 @@ jobs:
           - Fixes runtime paths/authorities after package rename.
           - "Chrome / Internet" uses Winlator's Android browser bridge; downloads land in D:.
           - Adds "PC Settings" inside the running session for wallpaper/theme/container settings.
+          - Desktop now starts with Computer, Downloads, Internet, Control Panel, Notepad and Terminal icons.
+          - EXE/MSI/BAT/CMD files downloaded to D: automatically receive desktop shortcuts.
+          - Newly installed Start Menu apps are mirrored to the desktop automatically while Diana PC is open.
           - Uses upstream Virtual Gamepad as the fallback control profile for launched shortcuts.
           - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
           EOF
@@ -309,15 +515,15 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.4.apk
-          sha256sum Diana-PC-v0.4.apk | tee Diana-PC-v0.4.sha256
-          ls -lh Diana-PC-v0.4.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.5.apk
+          sha256sum Diana-PC-v0.5.apk | tee Diana-PC-v0.5.sha256
+          ls -lh Diana-PC-v0.5.apk
 
       - name: Upload APK for ChatGPT handoff
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-PC-v0.4-chat
-          path: Diana-PC-v0.4.apk
+          name: Diana-PC-v0.5-chat
+          path: Diana-PC-v0.5.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -326,5 +532,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.4 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.4             Diana-PC-v0.4.apk             Diana-PC-v0.4.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.4"             --notes "Diana PC v0.4: restaura a identidade runtime com.winlator para compatibilidade com RootFS/binários nativos e mantém modo Mali seguro VirGL + WineD3D + Box64 Stability, boot automático, armazenamento, navegador e controles."
+          gh release delete diana-pc-v0.5 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.5             Diana-PC-v0.5.apk             Diana-PC-v0.5.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.5"             --notes "Diana PC v0.5: desktop mais parecido com PC, ícones padrão, atalhos automáticos para EXE/MSI/BAT/CMD baixados em D:, apps instalados sincronizados do Menu Iniciar para o desktop, além do modo Mali seguro e boot automático."
