@@ -313,7 +313,7 @@ jobs:
           # Wire desktop manager into the active Wine session.
           xserver = Path("app/src/main/java/com/winlator/XServerDisplayActivity.java")
           xs = xserver.read_text()
-          import_anchor = "import com.winlator.core.CursorLocker;\n"
+          import_anchor = "import com.winlator.core.AppUtils;\n"
           if import_anchor not in xs:
               raise SystemExit("DianaDesktopManager import anchor not found")
           xs = xs.replace(
