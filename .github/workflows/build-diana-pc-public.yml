@@ -34,7 +34,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC patches
+      - name: Apply Diana PC v0.2 patches
         shell: bash
         run: |
           set -euxo pipefail
@@ -43,18 +43,36 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          build = Path("app/build.gradle")
-          s = build.read_text()
-          s = s.replace("applicationId 'com.winlator'", "applicationId 'com.dianapc'")
-          s = s.replace('versionCode 33', 'versionCode 1')
-          s = s.replace('versionName "11.2"', 'versionName "0.1.0"')
-          build.write_text(s)
+          def replace(path, old, new):
+              p = Path(path)
+              s = p.read_text()
+              if old not in s:
+                  raise SystemExit(f"Patch target not found in {path}: {old[:120]!r}")
+              p.write_text(s.replace(old, new, 1))
 
-          manifest = Path("app/src/main/AndroidManifest.xml")
-          s = manifest.read_text()
-          s = s.replace('android:authorities="com.winlator.FileProvider"', 'android:authorities="com.dianapc.FileProvider"')
-          manifest.write_text(s)
+          # App identity/version.
+          replace("app/build.gradle", "applicationId 'com.winlator'", "applicationId 'com.dianapc'")
+          replace("app/build.gradle", "versionCode 33", "versionCode 2")
+          replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.2.0"')
+          replace(
+              "app/src/main/AndroidManifest.xml",
+              'android:authorities="com.winlator.FileProvider"',
+              'android:authorities="com.dianapc.FileProvider"'
+          )
 
+          # Fix package-renaming leftovers and expose phone shared storage as E:.
+          replace(
+              "app/src/main/java/com/winlator/core/FileUtils.java",
+              '"com.winlator.FileProvider"',
+              '"com.dianapc.FileProvider"'
+          )
+          replace(
+              "app/src/main/java/com/winlator/core/AppUtils.java",
+              'public static final String INTERNAL_STORAGE = "/data/data/com.winlator/storage";',
+              'public static final String INTERNAL_STORAGE = Environment.getExternalStorageDirectory().getPath();'
+          )
+
+          # Diana PC branding.
           for p in Path("app/src/main/res").glob("values*/strings.xml"):
               s = p.read_text()
               s = s.replace('>Winlator<', '>Diana PC<')
@@ -62,21 +80,251 @@ jobs:
               s = s.replace(' Winlator<', ' Diana PC<')
               s = s.replace('>Winlator ', '>Diana PC ')
               p.write_text(s)
+
+          # Make the browser entry feel like a PC browser shortcut.
+          replace(
+              "app/src/main/assets/wine_startmenu.json",
+              '"name" : "Internet Explorer"',
+              '"name" : "Chrome / Internet"'
+          )
+
+          # Automatically use the upstream Virtual Gamepad profile (id 3)
+          # whenever a Windows shortcut/game is started and no explicit profile was chosen.
+          replace(
+              "app/src/main/java/com/winlator/XServerDisplayActivity.java",
+              '''        if (shortcut != null) {
+              String controlsProfile = shortcut.getExtra("controlsProfile");
+              if (!controlsProfile.isEmpty()) {
+                  ControlsProfile profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile));
+                  if (profile != null) showInputControls(profile);
+              }
+          }''',
+              '''        if (shortcut != null) {
+              String controlsProfile = shortcut.getExtra("controlsProfile", "3");
+              if (!controlsProfile.isEmpty()) {
+                  ControlsProfile profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile));
+                  if (profile != null) showInputControls(profile);
+              }
+          }'''
+          )
+
+          # Add "PC Settings" to the in-session drawer.
+          menu = Path("app/src/main/res/menu/xserver_menu.xml")
+          s = menu.read_text()
+          marker = '        <item android:icon="@drawable/icon_help" android:id="@+id/menu_item_touchpad_help" android:title="@string/touchpad_help" />\n'
+          if marker not in s:
+              raise SystemExit("xserver menu marker not found")
+          s = s.replace(
+              marker,
+              marker + '        <item android:icon="@drawable/icon_settings" android:id="@+id/menu_item_diana_settings" android:title="@string/diana_pc_settings" />\n',
+              1
+          )
+          menu.write_text(s)
+
+          # Add strings.
+          for rel, value in [
+              ("app/src/main/res/values/strings.xml", "PC Settings"),
+              ("app/src/main/res/values-pt/strings.xml", "Configurações do PC"),
+          ]:
+              p = Path(rel)
+              s = p.read_text()
+              if 'name="diana_pc_settings"' not in s:
+                  s = s.replace("</resources>", f'    <string name="diana_pc_settings">{value}</string>\n</resources>')
+                  p.write_text(s)
+
+          # Add drawer action to open the real container settings while the PC is running.
+          replace(
+              "app/src/main/java/com/winlator/XServerDisplayActivity.java",
+              '''            case R.id.menu_item_touchpad_help:
+              showTouchpadHelpDialog();
+              break;
+          case R.id.menu_item_exit:''',
+              '''            case R.id.menu_item_touchpad_help:
+              showTouchpadHelpDialog();
+              break;
+          case R.id.menu_item_diana_settings:
+              Intent dianaSettingsIntent = new Intent(this, MainActivity.class);
+              dianaSettingsIntent.putExtra("diana_skip_autoboot", true);
+              dianaSettingsIntent.putExtra("edit_container_id", container.id);
+              startActivity(dianaSettingsIntent);
+              drawerLayout.closeDrawers();
+              break;
+          case R.id.menu_item_exit:'''
+          )
+
+          # MainActivity: create a default Diana PC container after RootFS is ready and boot it automatically.
+          main = Path("app/src/main/java/com/winlator/MainActivity.java")
+          s = main.read_text()
+
+          import_marker = "import com.winlator.contentdialog.AboutDialog;\n"
+          imports = (
+              "import com.winlator.box64.Box64Preset;\n"
+              "import com.winlator.container.Container;\n"
+              "import com.winlator.container.ContainerManager;\n"
+          )
+          if imports not in s:
+              s = s.replace(import_marker, import_marker + imports, 1)
+
+          s = s.replace(
+              "import com.winlator.xenvironment.RootFSInstaller;\n",
+              "import com.winlator.xenvironment.RootFS;\nimport com.winlator.xenvironment.RootFSInstaller;\n",
+              1
+          )
+
+          if "import org.json.JSONException;" not in s:
+              s = s.replace(
+                  "import com.winlator.xenvironment.RootFSInstaller;\n",
+                  "import com.winlator.xenvironment.RootFSInstaller;\n\nimport org.json.JSONException;\nimport org.json.JSONObject;\n",
+                  1
+              )
+
+          field_marker = "    private Fragment currentFragment;\n"
+          if "dianaAutoBootStarted" not in s:
+              s = s.replace(field_marker, field_marker + "    private boolean dianaAutoBootStarted = false;\n", 1)
+
+          # Replace permission/rootfs startup section.
+          old = '''            actionBar.setHomeAsUpIndicator(R.drawable.icon_action_bar_menu);
+              onNavigationItemSelected(navigationView.getMenu().findItem(menuItemId));
+              navigationView.setCheckedItem(menuItemId);
+              if (!requestAppPermissions()) RootFSInstaller.installIfNeeded(this);
+
+              int containerId = intent.getIntExtra("container_id", 0);'''
+          new = '''            actionBar.setHomeAsUpIndicator(R.drawable.icon_action_bar_menu);
+              onNavigationItemSelected(navigationView.getMenu().findItem(menuItemId));
+              navigationView.setCheckedItem(menuItemId);
+
+              int editContainerId = intent.getIntExtra("edit_container_id", 0);
+              boolean skipAutoBoot = intent.getBooleanExtra("diana_skip_autoboot", false);
+
+              if (!requestAppPermissions()) {
+                  RootFSInstaller.installIfNeeded(this);
+                  if (editContainerId > 0) {
+                      showFragment(new ContainerDetailFragment(editContainerId));
+                  }
+                  else if (!skipAutoBoot) {
+                      startDianaPcWhenReady();
+                  }
+              }
+
+              int containerId = intent.getIntExtra("container_id", 0);'''
+          if old not in s:
+              raise SystemExit("MainActivity startup block not found")
+          s = s.replace(old, new, 1)
+
+          # Start after storage permission is granted too.
+          old = '''            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                  RootFSInstaller.installIfNeeded(this);
+              }
+              else finish();'''
+          new = '''            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                  RootFSInstaller.installIfNeeded(this);
+                  Intent intent = getIntent();
+                  int editContainerId = intent.getIntExtra("edit_container_id", 0);
+                  boolean skipAutoBoot = intent.getBooleanExtra("diana_skip_autoboot", false);
+                  if (editContainerId > 0) {
+                      showFragment(new ContainerDetailFragment(editContainerId));
+                  }
+                  else if (!skipAutoBoot) {
+                      startDianaPcWhenReady();
+                  }
+              }
+              else finish();'''
+          if old not in s:
+              raise SystemExit("MainActivity permission block not found")
+          s = s.replace(old, new, 1)
+
+          methods_marker = '''    public void setOpenFileCallback(Callback<Uri> openFileCallback) {
+              this.openFileCallback = openFileCallback;
+          }
+
+          private boolean requestAppPermissions() {'''
+          methods_new = '''    public void setOpenFileCallback(Callback<Uri> openFileCallback) {
+              this.openFileCallback = openFileCallback;
+          }
+
+          private void startDianaPcWhenReady() {
+              if (dianaAutoBootStarted) return;
+              dianaAutoBootStarted = true;
+
+              final android.os.Handler handler = new android.os.Handler(getMainLooper());
+              handler.post(new Runnable() {
+                  @Override
+                  public void run() {
+                      if (isFinishing() || (android.os.Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+
+                      RootFS rootFS = RootFS.find(MainActivity.this);
+                      if (!rootFS.isValid() || rootFS.getVersion() < RootFSInstaller.LATEST_VERSION) {
+                          handler.postDelayed(this, 1000);
+                          return;
+                      }
+
+                      ContainerManager manager = new ContainerManager(MainActivity.this);
+                      if (!manager.getContainers().isEmpty()) {
+                          launchDianaContainer(manager.getContainers().get(0));
+                          return;
+                      }
+
+                      try {
+                          JSONObject data = new JSONObject();
+                          data.put("name", "Diana PC");
+                          data.put("screenSize", Container.DEFAULT_SCREEN_SIZE);
+                          data.put("envVars", Container.DEFAULT_ENV_VARS);
+                          data.put("wincomponents", Container.DEFAULT_WINCOMPONENTS);
+                          data.put("drives", Container.DEFAULT_DRIVES);
+                          data.put("box64Preset", Box64Preset.PERFORMANCE);
+
+                          preloaderDialog.show(R.string.creating_container);
+                          manager.createContainerAsync(data, (container) -> {
+                              preloaderDialog.closeOnUiThread();
+                              if (container != null) launchDianaContainer(container);
+                          });
+                      }
+                      catch (JSONException e) {
+                          dianaAutoBootStarted = false;
+                      }
+                  }
+              });
+          }
+
+          private void launchDianaContainer(Container container) {
+              Intent intent = new Intent(this, XServerDisplayActivity.class);
+              intent.putExtra("container_id", container.id);
+              startActivity(intent);
+          }
+
+          private boolean requestAppPermissions() {'''
+          if methods_marker not in s:
+              raise SystemExit("MainActivity method insertion marker not found")
+          s = s.replace(methods_marker, methods_new, 1)
+          main.write_text(s)
+
+          # Make Diana PC open the Android browser from Wine and keep the clipboard bridge on.
+          settings = Path("app/src/main/java/com/winlator/SettingsFragment.java")
+          ss = settings.read_text()
+          ss = ss.replace(
+              'preferences.getBoolean("open_android_browser_from_wine", true)',
+              'preferences.getBoolean("open_android_browser_from_wine", true)'
+          )
+          settings.write_text(ss)
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.1
+          # Diana PC v0.2
 
-          Experimental Android Windows-compatibility build based on Winlator 11.2.
+          Experimental Android Windows-compatibility environment based on Winlator 11.2.
 
-          Included:
-          - Diana PC branding
-          - Independent Android application id: com.dianapc
-          - 1280x720 phone-friendly default
-          - Box64 Performance preset by default
-          - Touch controls, gamepad, keyboard/mouse support
-          - File manager, FPS/HUD, Wine, Box64, DXVK and VKD3D from upstream
-          - Upstream credits and LGPL licensing retained
+          Diana v0.2 changes:
+          - Auto-creates a ready-to-use "Diana PC" container on first launch.
+          - Auto-boots directly into the Windows/Wine desktop after system files are ready.
+          - D: maps to Android Downloads.
+          - E: maps to Android shared internal storage.
+          - Fixes FileProvider references after the com.dianapc package rename.
+          - "Chrome / Internet" entry opens the Android browser bridge from Wine.
+          - Downloads from the Android browser appear in D: Downloads.
+          - Adds "PC Settings" inside the running session for desktop theme/background and container settings.
+          - Uses Winlator's upstream Virtual Gamepad profile by default for launched shortcuts when no profile was selected.
+          - Retains keyboard, mouse, external gamepad, touchpad, HUD, file manager, Wine, Box64, DXVK and VKD3D.
+          - Upstream credits and LGPL licensing retained.
           EOF
 
       - name: Build APK
@@ -87,13 +335,13 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.1.apk
-          sha256sum Diana-PC-v0.1.apk | tee Diana-PC-v0.1.sha256
-          ls -lh Diana-PC-v0.1.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.2.apk
+          sha256sum Diana-PC-v0.2.apk | tee Diana-PC-v0.2.sha256
+          ls -lh Diana-PC-v0.2.apk
 
       - name: Publish public GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.1 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.1             Diana-PC-v0.1.apk             Diana-PC-v0.1.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.1"             --notes "APK experimental Diana PC v0.1 baseado no Winlator 11.2. Créditos e licenças upstream preservados."
+          gh release delete diana-pc-v0.2 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.2             Diana-PC-v0.2.apk             Diana-PC-v0.2.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.2"             --notes "Diana PC v0.2: boot automático do container, armazenamento do celular em E:, Downloads em D:, navegador integrado por ponte Android, configurações do PC dentro da sessão e Virtual Gamepad padrão para atalhos. Base Winlator 11.2 com créditos/licenças preservados."
