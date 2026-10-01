@@ -86,34 +86,30 @@ jobs:
           # Native Android app bridge. Wine/IE sends the custom URL through WinHandler -> FileUtils.
           file_utils = Path("app/src/main/java/com/winlator/core/FileUtils.java")
           fus = file_utils.read_text()
-          old_open = '''    public static void openIntent(Activity activity, String path) {
-              Intent intent;
-              if (path.startsWith("file://")) {'''
-          new_open = '''    public static void openIntent(Activity activity, String path) {
-              if (path.startsWith("diana-app://")) {
-                  String packageName = Uri.parse(path).getHost();
-                  if (packageName == null || packageName.isEmpty()) {
-                      packageName = path.substring("diana-app://".length()).replace("/", "");
-                  }
-
-                  Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(packageName);
-                  if (launchIntent != null) {
-                      launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      activity.startActivity(launchIntent);
-                  }
-                  else if (packageName.equals("com.android.chrome")) {
-                      Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"));
-                      browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                      activity.startActivity(browserIntent);
-                  }
-                  return;
+          open_anchor = "    public static void openIntent(Activity activity, String path) {\n"
+          if open_anchor not in fus:
+              raise SystemExit("FileUtils openIntent signature not found")
+          bridge_code = '''        if (path.startsWith("diana-app://")) {
+              String packageName = Uri.parse(path).getHost();
+              if (packageName == null || packageName.isEmpty()) {
+                  packageName = path.substring("diana-app://".length()).replace("/", "");
               }
 
-              Intent intent;
-              if (path.startsWith("file://")) {'''
-          if old_open not in fus:
-              raise SystemExit("FileUtils openIntent anchor not found")
-          file_utils.write_text(fus.replace(old_open, new_open, 1))
+              Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(packageName);
+              if (launchIntent != null) {
+                  launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                  activity.startActivity(launchIntent);
+              }
+              else if (packageName.equals("com.android.chrome")) {
+                  Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"));
+                  browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                  activity.startActivity(browserIntent);
+              }
+              return;
+          }
+
+          '''
+          file_utils.write_text(fus.replace(open_anchor, open_anchor + bridge_code, 1))
 
           # Browser entry. Wine's browser registry bridge is already enabled by default upstream.
           must_replace(
