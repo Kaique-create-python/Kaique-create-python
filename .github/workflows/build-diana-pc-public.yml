@@ -37,7 +37,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC v0.10 Linux Terminal patches
+      - name: Apply Diana PC v0.11 Steam login performance patches
         shell: bash
         run: |
           set -euxo pipefail
@@ -55,7 +55,7 @@ jobs:
               p.write_text(s.replace(old, new, count))
 
           # Identity/version.
-          must_replace("app/build.gradle", "versionCode 33", "versionCode 10")
+          must_replace("app/build.gradle", "versionCode 33", "versionCode 11")
           must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.3.0"')
           # Package rename leftovers that are runtime paths/authorities (not Java package names).
           # E: = phone shared storage; D: already maps to Downloads.
@@ -471,6 +471,7 @@ jobs:
                   createDefaultIcons(desktopDir);
                   syncDownloads(container, desktopDir);
                   syncInstalledApps(container, desktopDir);
+                  syncSteamShortcuts(container, desktopDir);
           
                   final File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
                   if (!downloadsDir.isDirectory()) downloadsDir.mkdirs();
@@ -487,14 +488,15 @@ jobs:
                   };
                   downloadsObserver.startWatching();
           
-                  // Program installation is infrequent; scan only every 60s to avoid desktop stutter.
+                  // Program installation is infrequent; scan every 5 minutes so Steam CEF gets the CPU.
                   installedAppsTimer = new Timer("DianaInstalledAppsSync", true);
                   installedAppsTimer.scheduleAtFixedRate(new TimerTask() {
                       @Override
                       public void run() {
                           syncInstalledApps(container, getDesktopDir(container));
+                          syncSteamShortcuts(container, getDesktopDir(container));
                       }
-                  }, 60000, 60000);
+                  }, 300000, 300000);
               }
           
               public static synchronized void stop() {
@@ -567,6 +569,36 @@ jobs:
                   else createLink(desktopDir, name, dosPath, null, dosPath, false);
               }
           
+              private static void syncSteamShortcuts(Container container, File desktopDir) {
+                  File steamExe = new File(container.getRootDir(), ".wine/drive_c/Program Files (x86)/Steam/steam.exe");
+                  if (!steamExe.isFile()) {
+                      steamExe = new File(container.getRootDir(), ".wine/drive_c/Program Files/Steam/steam.exe");
+                  }
+                  if (!steamExe.isFile()) return;
+
+                  String steamTarget = steamExe.getAbsolutePath().contains("Program Files (x86)")
+                      ? "C:\\Program Files (x86)\\Steam\\steam.exe"
+                      : "C:\\Program Files\\Steam\\steam.exe";
+
+                  createOrReplaceLink(
+                      desktopDir,
+                      "Steam",
+                      steamTarget,
+                      "-no-cef-sandbox -cef-force-gpu -cef-disable-occlusion -noshaders -nooverlay -nocrashmonitor",
+                      steamTarget,
+                      false
+                  );
+
+                  createOrReplaceLink(
+                      desktopDir,
+                      "Steam Login Compat",
+                      steamTarget,
+                      "-no-cef-sandbox -cef-disable-gpu -cef-disable-gpu-compositing -cef-disable-gpu-sandbox -cef-disable-occlusion -noshaders -nooverlay -nocrashmonitor",
+                      steamTarget,
+                      false
+                  );
+              }
+
               private static void syncInstalledApps(Container container, File desktopDir) {
                   syncInstalledAppsRecursive(container.getStartMenuDir(), desktopDir);
               }
@@ -586,6 +618,25 @@ jobs:
                   }
               }
           
+              private static void createOrReplaceLink(
+                  File desktopDir,
+                  String name,
+                  String targetPath,
+                  String arguments,
+                  String iconLocation,
+                  boolean directory
+              ) {
+                  File output = new File(desktopDir, StringUtils.clearReservedChars(name) + ".lnk");
+                  if (output.isFile()) output.delete();
+
+                  MSLink.LinkInfo info = new MSLink.LinkInfo();
+                  info.targetPath = targetPath;
+                  info.arguments = arguments;
+                  info.iconLocation = iconLocation;
+                  info.isDirectory = directory;
+                  MSLink.createFile(info, output);
+              }
+
               private static void createLink(
                   File desktopDir,
                   String name,
@@ -668,14 +719,35 @@ jobs:
               raise SystemExit("onMapWindow anchor not found")
           xs = xs.replace(
               map_anchor,
-              "                maybeShowDianaGameControls(window);\n" + map_anchor,
+              "                maybeOptimizeDianaSteamWindow(window);\n" +
+              "                maybeShowDianaGameControls(window);\n" +
+              map_anchor,
               1
           )
 
           helper_anchor = "    private void showInputControlsDialog() {"
           if helper_anchor not in xs:
               raise SystemExit("input helper anchor not found")
-          helpers = '''    private void maybeShowDianaGameControls(Window window) {
+          helpers = '''    private void maybeOptimizeDianaSteamWindow(Window window) {
+              if (window == null) return;
+              String cls = window.getClassName().toLowerCase(java.util.Locale.ENGLISH);
+              if (!(cls.contains("steamwebhelper") || cls.contains("steam.exe"))) return;
+
+              runOnUiThread(() -> {
+                  if (inputControlsView != null && inputControlsView.getVisibility() == android.view.View.VISIBLE) {
+                      hideInputControls();
+                  }
+                  if (touchpadView != null) {
+                      touchpadView.setMoveCursorToTouchpoint(true);
+                      touchpadView.setSensitivity(1.0f);
+                      touchpadView.setPointerButtonLeftEnabled(true);
+                      touchpadView.setPointerButtonRightEnabled(true);
+                  }
+                  if (xServerView != null) xServerView.getRenderer().setCursorVisible(true);
+              });
+          }
+
+          private void maybeShowDianaGameControls(Window window) {
               if (dianaAutoGamepadVisible || window == null || !window.isRenderable() || !window.attributes.isViewable()) return;
 
               String cls = window.getClassName().toLowerCase(java.util.Locale.ENGLISH);
@@ -690,6 +762,7 @@ jobs:
 
               dianaAutoGamepadVisible = true;
               runOnUiThread(() -> {
+                  if (touchpadView != null) touchpadView.setMoveCursorToTouchpoint(false);
                   if (inputControlsView != null) showInputControls(profile);
               });
           }
@@ -838,12 +911,12 @@ jobs:
           }
 
           private void configureDianaContainer(Container container) {
-              if (GPUHelper.getAdrenoModelId(this) <= 0 && !container.getExtra("dianaMaliSafeV7").equals("t")) {
+              if (GPUHelper.getAdrenoModelId(this) <= 0 && !container.getExtra("dianaMaliSafeV11").equals("t")) {
                   container.setGraphicsDriver(GraphicsDrivers.VORTEK + "," + GraphicsDrivers.VIRGL);
                   container.setGraphicsDriverConfig("");
                   container.setDXWrapper(DXWrappers.WINED3D);
                   container.setDXWrapperConfig("");
-                  container.setBox64Preset(Box64Preset.INTERMEDIATE);
+                  container.setBox64Preset(Box64Preset.PERFORMANCE);
                   if (container.getScreenSize().equals(Container.DEFAULT_SCREEN_SIZE)) {
                       container.setScreenSize("1024x576");
                   }
@@ -856,7 +929,7 @@ jobs:
                   safeVars.put("WINEDEBUG", "-all");
                   container.setEnvVars(safeVars.toString());
 
-                  container.putExtra("dianaMaliSafeV7", "t");
+                  container.putExtra("dianaMaliSafeV11", "t");
                   container.putExtra("dxwrapper", null);
                   container.saveData();
               }
@@ -874,7 +947,7 @@ jobs:
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.10
+          # Diana PC v0.11
 
           Based on Winlator 11.2.
 
@@ -892,13 +965,13 @@ jobs:
           - Desktop starts with Computer, Downloads, Chrome, ChatGPT, Keyboard, Control Panel, Notepad, CMD, Linux Terminal and Steam installer icons.
           - Removed Android-game desktop mirroring and automatic keyboard popups.
           - One-finger hold-and-drag works for windows, maps and draggable UI.
-          - Installed-app scanning runs only once per minute to reduce desktop stutter.
-          - Mali mode uses a lighter 1024x576 desktop and Box64 Intermediate for smoother interaction.
+          - Installed-app scanning runs only once every 5 minutes to reduce Steam CEF stutter.
+          - Mali mode uses a lighter 1024x576 desktop and Box64 Performance for smoother Steam and game interaction.
           - Full-size non-system Windows app windows automatically receive the upstream Virtual Gamepad profile.
           - EXE/MSI/BAT/CMD files downloaded to D: automatically receive desktop shortcuts.
           - Newly installed Start Menu apps are mirrored to the desktop automatically while Diana PC is open.
           - Uses upstream Virtual Gamepad as the fallback control profile for launched shortcuts.
-          - Astra Control now uses Continue with ChatGPT and ChatGPT plan usage instead of an API key.\n          - It dynamically checks the signed-in account model catalog and selects the Astra model exposed to that account.\n          - Responses use store=false and stream=true as required for ChatGPT plan usage.\n          - Astra executes screenshots, mouse and keyboard actions directly on the Wine XServer.\n          - Astra is limited to the Wine/XServer desktop and has a hard stop button plus a 30-step cap.\n          - Adds a real Linux Bash terminal backed by the Winlator rootfs through Box64, with persistent stdin/stdout and access to Android Downloads.\n          - Keeps the Wine CMD separately as CMD.\n          - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
+          - Astra Control now uses Continue with ChatGPT and ChatGPT plan usage instead of an API key.\n          - It dynamically checks the signed-in account model catalog and selects the Astra model exposed to that account.\n          - Responses use store=false and stream=true as required for ChatGPT plan usage.\n          - Astra executes screenshots, mouse and keyboard actions directly on the Wine XServer.\n          - Astra is limited to the Wine/XServer desktop and has a hard stop button plus a 30-step cap.\n          - Adds a real Linux Bash terminal backed by the Winlator rootfs through Box64, with persistent stdin/stdout and access to Android Downloads.\n          - Keeps the Wine CMD separately as CMD.\n          - Steam/steamwebhelper windows switch the touchpad to direct-touch mode so CAPTCHA checkboxes can be tapped precisely.\n          - Creates an optimized Steam shortcut forcing CEF GPU acceleration and a Steam Login Compat fallback that disables CEF GPU if the accelerated path glitches.\n          - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
           EOF
 
       - name: Build APK
@@ -909,15 +982,15 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.10.apk
-          sha256sum Diana-PC-v0.10.apk | tee Diana-PC-v0.10.sha256
-          ls -lh Diana-PC-v0.10.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.11.apk
+          sha256sum Diana-PC-v0.11.apk | tee Diana-PC-v0.11.sha256
+          ls -lh Diana-PC-v0.11.apk
 
       - name: Upload APK for ChatGPT handoff
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-PC-v0.10-chat
-          path: Diana-PC-v0.10.apk
+          name: Diana-PC-v0.11-chat
+          path: Diana-PC-v0.11.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -926,5 +999,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.10 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.10             Diana-PC-v0.10.apk             Diana-PC-v0.10.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.10"             --notes "Diana PC v0.10: adiciona Linux Terminal com Bash real do rootfs via Box64 e acesso ao armazenamento do celular, mantém CMD separado e preserva Astra Control via plano ChatGPT."
+          gh release delete diana-pc-v0.11 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.11             Diana-PC-v0.11.apk             Diana-PC-v0.11.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.11"             --notes "Diana PC v0.11: otimiza login da Steam no POCO C65/Mali, reduz tarefas de fundo, usa Box64 Performance, ativa toque direto em steamwebhelper para CAPTCHA e cria Steam acelerado + Steam Login Compat."
