@@ -139,19 +139,14 @@ jobs:
           # Add in-session PC settings menu entry.
           menu = Path("app/src/main/res/menu/xserver_menu.xml")
           ms = menu.read_text()
-          if 'menu_item_astra_control' not in ms:
-              settings_item = '        <item android:icon="@drawable/icon_settings" android:id="@+id/menu_item_diana_settings" android:title="@string/diana_pc_settings" />\n'
-              astra_item = '        <item android:icon="@drawable/icon_play" android:id="@+id/menu_item_astra_control" android:title="@string/astra_control" />\n'
-              if settings_item in ms:
-                  ms = ms.replace(settings_item, settings_item + astra_item, 1)
           marker = '        <item android:icon="@drawable/icon_help" android:id="@+id/menu_item_touchpad_help" android:title="@string/touchpad_help" />\n'
           if marker not in ms:
               raise SystemExit("xserver menu marker not found")
-          ms = ms.replace(
-              marker,
-              marker + '        <item android:icon="@drawable/icon_settings" android:id="@+id/menu_item_diana_settings" android:title="@string/diana_pc_settings" />\n',
-              1
-          )
+          settings_item = '        <item android:icon="@drawable/icon_settings" android:id="@+id/menu_item_diana_settings" android:title="@string/diana_pc_settings" />\n'
+          astra_item = '        <item android:icon="@drawable/icon_settings" android:id="@+id/menu_item_astra_control" android:title="@string/astra_control" />\n'
+          ms = ms.replace(marker, marker + settings_item, 1)
+          if 'menu_item_astra_control' not in ms:
+              ms = ms.replace(settings_item, settings_item + astra_item, 1)
           menu.write_text(ms)
 
           for rel, value in [
