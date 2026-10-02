@@ -34,7 +34,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC v0.6 PC-integration patches
+      - name: Apply Diana PC v0.7 touch-and-performance patches
         shell: bash
         run: |
           set -euxo pipefail
@@ -52,7 +52,7 @@ jobs:
               p.write_text(s.replace(old, new, count))
 
           # Identity/version.
-          must_replace("app/build.gradle", "versionCode 33", "versionCode 6")
+          must_replace("app/build.gradle", "versionCode 33", "versionCode 7")
           must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.3.0"')
           # Package rename leftovers that are runtime paths/authorities (not Java package names).
           # E: = phone shared storage; D: already maps to Downloads.
@@ -61,18 +61,6 @@ jobs:
               'public static final String INTERNAL_STORAGE = "/data/data/com.winlator/storage";',
               'public static final String INTERNAL_STORAGE = Environment.getExternalStorageDirectory().getPath();'
           )
-
-          # Allow Diana PC to show launchable Android games on its desktop.
-          manifest = Path("app/src/main/AndroidManifest.xml")
-          ms = manifest.read_text()
-          query_perm = '    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>\n'
-          if "android.permission.QUERY_ALL_PACKAGES" not in ms:
-              ms = ms.replace(
-                  '    <uses-permission android:name="android.permission.INTERNET"/>\n',
-                  '    <uses-permission android:name="android.permission.INTERNET"/>\n' + query_perm,
-                  1
-              )
-              manifest.write_text(ms)
 
           # Branding.
           for p in Path("app/src/main/res").glob("values*/strings.xml"):
@@ -83,28 +71,33 @@ jobs:
               s = s.replace('>Winlator ', '>Diana PC ')
               p.write_text(s)
 
-          # Native Android app bridge. Wine/IE sends the custom URL through WinHandler -> FileUtils.
+          # Native Chrome + explicit soft keyboard bridge.
           file_utils = Path("app/src/main/java/com/winlator/core/FileUtils.java")
           fus = file_utils.read_text()
           open_anchor = "    public static void openIntent(Activity activity, String path) {\n"
           if open_anchor not in fus:
               raise SystemExit("FileUtils openIntent signature not found")
-          bridge_code = '''        if (path.startsWith("diana-app://")) {
-              String packageName = Uri.parse(path).getHost();
-              if (packageName == null || packageName.isEmpty()) {
-                  packageName = path.substring("diana-app://".length()).replace("/", "");
+          bridge_code = '''        if (path.equals("diana-browser://chrome")) {
+              Intent chromeIntent = activity.getPackageManager().getLaunchIntentForPackage("com.android.chrome");
+              if (chromeIntent != null) {
+                  chromeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                  activity.startActivity(chromeIntent);
               }
-
-              Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(packageName);
-              if (launchIntent != null) {
-                  launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                  activity.startActivity(launchIntent);
-              }
-              else if (packageName.equals("com.android.chrome")) {
+              else {
                   Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"));
                   browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                   activity.startActivity(browserIntent);
               }
+              return;
+          }
+
+          if (path.equals("diana-keyboard://show")) {
+              final android.view.inputmethod.InputMethodManager imm =
+                  (android.view.inputmethod.InputMethodManager)activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+              activity.getWindow().getDecorView().postDelayed(
+                  () -> imm.toggleSoftInput(android.view.inputmethod.InputMethodManager.SHOW_FORCED, 0),
+                  100L
+              );
               return;
           }
 
@@ -182,10 +175,6 @@ jobs:
           desktop_manager = Path("app/src/main/java/com/winlator/core/DianaDesktopManager.java")
           desktop_manager.write_text(r'''          package com.winlator.core;
           
-          import android.content.Context;
-          import android.content.Intent;
-          import android.content.pm.ApplicationInfo;
-          import android.content.pm.PackageManager;
           import android.os.FileObserver;
           
           import com.winlator.container.Container;
@@ -193,7 +182,6 @@ jobs:
           
           import java.io.File;
           import java.util.HashSet;
-          import java.util.List;
           import java.util.Locale;
           import java.util.Set;
           import java.util.Timer;
@@ -201,8 +189,7 @@ jobs:
           
           public abstract class DianaDesktopManager {
               private static FileObserver downloadsObserver;
-              private static Timer syncTimer;
-              private static Context appContext;
+              private static Timer installedAppsTimer;
               private static final Set<String> BUILTIN_START_MENU = new HashSet<>();
           
               static {
@@ -215,10 +202,13 @@ jobs:
                   for (String name : names) BUILTIN_START_MENU.add(name.toLowerCase(Locale.ENGLISH));
               }
           
-              public static synchronized void start(Context context, Container container) {
+              public static synchronized void start(android.content.Context context, Container container) {
                   stop();
-                  appContext = context.getApplicationContext();
-                  syncAll(container);
+          
+                  File desktopDir = getDesktopDir(container);
+                  createDefaultIcons(desktopDir);
+                  syncDownloads(container, desktopDir);
+                  syncInstalledApps(container, desktopDir);
           
                   final File downloadsDir = new File(AppUtils.DIRECTORY_DOWNLOADS);
                   if (!downloadsDir.isDirectory()) downloadsDir.mkdirs();
@@ -235,13 +225,14 @@ jobs:
                   };
                   downloadsObserver.startWatching();
           
-                  syncTimer = new Timer("DianaDesktopSync", true);
-                  syncTimer.scheduleAtFixedRate(new TimerTask() {
+                  // Program installation is infrequent; scan only every 60s to avoid desktop stutter.
+                  installedAppsTimer = new Timer("DianaInstalledAppsSync", true);
+                  installedAppsTimer.scheduleAtFixedRate(new TimerTask() {
                       @Override
                       public void run() {
-                          syncAll(container);
+                          syncInstalledApps(container, getDesktopDir(container));
                       }
-                  }, 5000, 10000);
+                  }, 60000, 60000);
               }
           
               public static synchronized void stop() {
@@ -249,19 +240,10 @@ jobs:
                       downloadsObserver.stopWatching();
                       downloadsObserver = null;
                   }
-                  if (syncTimer != null) {
-                      syncTimer.cancel();
-                      syncTimer = null;
+                  if (installedAppsTimer != null) {
+                      installedAppsTimer.cancel();
+                      installedAppsTimer = null;
                   }
-                  appContext = null;
-              }
-          
-              private static void syncAll(Container container) {
-                  File desktopDir = getDesktopDir(container);
-                  createDefaultIcons(desktopDir);
-                  syncDownloads(container, desktopDir);
-                  syncInstalledApps(container, desktopDir);
-                  syncAndroidGames(desktopDir);
               }
           
               private static File getDesktopDir(Container container) {
@@ -273,8 +255,9 @@ jobs:
               private static void createDefaultIcons(File desktopDir) {
                   createLink(desktopDir, "Computador", "C:\\windows\\wfm.exe", null, "C:\\windows\\wfm.exe", false);
                   createLink(desktopDir, "Downloads", "D:\\", null, "C:\\windows\\explorer.exe", true);
-                  createLink(desktopDir, "Chrome", "C:\\windows\\system32\\iexplore.exe", "diana-app://com.android.chrome", "C:\\windows\\system32\\iexplore.exe", false);
-                  createLink(desktopDir, "Internet", "C:\\windows\\system32\\iexplore.exe", "https://www.google.com", "C:\\windows\\system32\\iexplore.exe", false);
+                  createLink(desktopDir, "Chrome", "C:\\windows\\system32\\iexplore.exe", "diana-browser://chrome", "C:\\windows\\system32\\iexplore.exe", false);
+                  createLink(desktopDir, "ChatGPT", "C:\\windows\\system32\\iexplore.exe", "https://chatgpt.com", "C:\\windows\\system32\\iexplore.exe", false);
+                  createLink(desktopDir, "Teclado", "C:\\windows\\system32\\iexplore.exe", "diana-keyboard://show", "C:\\windows\\system32\\osk.exe", false);
                   createLink(desktopDir, "Painel de Controle", "C:\\windows\\system32\\control.exe", null, "C:\\windows\\system32\\control.exe", false);
                   createLink(desktopDir, "Bloco de Notas", "C:\\windows\\notepad.exe", null, "C:\\windows\\notepad.exe", false);
                   createLink(desktopDir, "Terminal", "C:\\windows\\system32\\cmd.exe", null, "C:\\windows\\system32\\cmd.exe", false);
@@ -338,50 +321,6 @@ jobs:
                           if (!output.isFile()) FileUtils.copy(file, output);
                       }
                   }
-              }
-          
-              private static void syncAndroidGames(File desktopDir) {
-                  if (appContext == null) return;
-          
-                  File[] oldLinks = desktopDir.listFiles((dir, name) -> name.startsWith("Android - ") && name.endsWith(".lnk"));
-                  if (oldLinks != null) {
-                      for (File file : oldLinks) file.delete();
-                  }
-          
-                  PackageManager pm = appContext.getPackageManager();
-                  List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-          
-                  for (ApplicationInfo app : apps) {
-                      if (app.packageName.equals(appContext.getPackageName())) continue;
-                      Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
-                      if (launchIntent == null) continue;
-          
-                      boolean isGame = app.category == ApplicationInfo.CATEGORY_GAME ||
-                          (app.flags & ApplicationInfo.FLAG_IS_GAME) != 0;
-                      if (!isGame) continue;
-          
-                      String label = pm.getApplicationLabel(app).toString().trim();
-                      String lower = label.toLowerCase(Locale.ENGLISH);
-                      if (isRestrictedGameLabel(lower)) continue;
-          
-                      createLink(
-                          desktopDir,
-                          "Android - " + label,
-                          "C:\\windows\\system32\\iexplore.exe",
-                          "diana-app://" + app.packageName,
-                          "shell32.dll",
-                          false
-                      );
-                  }
-              }
-          
-              private static boolean isRestrictedGameLabel(String lower) {
-                  String[] blocked = new String[]{
-                      "casino", "poker", "bet ", "bet-", "bet_", "bet365", "betano", "pixbet",
-                      "sportingbet", "stake", "blaze", "aposta", "bingo"
-                  };
-                  for (String word : blocked) if (lower.contains(word)) return true;
-                  return false;
               }
           
               private static void createLink(
@@ -470,32 +409,6 @@ jobs:
               1
           )
 
-          setup_ui_anchor = "        setupUI();\n\n        Executors.newSingleThreadExecutor().execute(() -> {"
-          if setup_ui_anchor not in xs:
-              raise SystemExit("setupUI interaction anchor not found")
-          keyboard_listener = '''        setupUI();
-
-          xServer.pointer.addOnPointerMotionListener(new Pointer.OnPointerMotionListener() {
-              @Override
-              public void onPointerButtonPress(Pointer.Button button) {
-                  if (button != Pointer.Button.BUTTON_LEFT) return;
-                  Window focused = xServer.windowManager.getFocusedWindow();
-                  if (focused == null) return;
-
-                  String cls = focused.getClassName().toLowerCase(java.util.Locale.ENGLISH);
-                  if (!isDianaTextApp(cls)) return;
-
-                  long now = android.os.SystemClock.elapsedRealtime();
-                  if (now - dianaLastKeyboardRequest < 2500) return;
-                  dianaLastKeyboardRequest = now;
-
-                  runOnUiThread(() -> AppUtils.showKeyboard(XServerDisplayActivity.this));
-              }
-          });
-
-          Executors.newSingleThreadExecutor().execute(() -> {'''
-          xs = xs.replace(setup_ui_anchor, keyboard_listener, 1)
-
           helper_anchor = "    private void showInputControlsDialog() {"
           if helper_anchor not in xs:
               raise SystemExit("input helper anchor not found")
@@ -530,19 +443,31 @@ jobs:
               return cls.contains("setup") || cls.contains("install") || cls.contains("uninstall");
           }
 
-          private boolean isDianaTextApp(String cls) {
-              if (dianaAutoGamepadVisible) return false;
-              String[] textApps = new String[]{
-                  "iexplore.exe", "notepad.exe", "write.exe", "steam.exe", "steamwebhelper.exe",
-                  "explorer.exe", "wfm.exe", "control.exe", "winecfg.exe", "msiexec.exe"
-              };
-              for (String name : textApps) if (cls.contains(name)) return true;
-              return cls.contains("setup") || cls.contains("install");
-          }
-
           '''
           xs = xs.replace(helper_anchor, helpers + helper_anchor, 1)
           xserver.write_text(xs)
+
+          # One-finger hold-and-drag: hold ~220 ms, then move to drag windows/maps/items.
+          touchpad = Path("app/src/main/java/com/winlator/widget/TouchpadView.java")
+          ts = touchpad.read_text()
+          move_anchor = '''    private void handleFingerMove(Finger finger1) {
+              if (!isEnabled()) return;
+              boolean skipPointerMove = false;
+          '''
+          move_new = '''    private void handleFingerMove(Finger finger1) {
+              if (!isEnabled()) return;
+              boolean skipPointerMove = false;
+
+              if (numFingers == 1 &&
+                  !scrolling &&
+                  !xServer.pointer.isButtonPressed(Pointer.Button.BUTTON_LEFT) &&
+                  (System.currentTimeMillis() - finger1.touchTime) >= 220) {
+                  pressPointerButtonLeft(finger1);
+              }
+          '''
+          if move_anchor not in ts:
+              raise SystemExit("Touchpad drag anchor not found")
+          touchpad.write_text(ts.replace(move_anchor, move_new, 1))
 
           # MainActivity imports.
           main = Path("app/src/main/java/com/winlator/MainActivity.java")
@@ -655,12 +580,15 @@ jobs:
           }
 
           private void configureDianaContainer(Container container) {
-              if (GPUHelper.getAdrenoModelId(this) <= 0 && !container.getExtra("dianaMaliSafeV3").equals("t")) {
+              if (GPUHelper.getAdrenoModelId(this) <= 0 && !container.getExtra("dianaMaliSafeV7").equals("t")) {
                   container.setGraphicsDriver(GraphicsDrivers.VORTEK + "," + GraphicsDrivers.VIRGL);
                   container.setGraphicsDriverConfig("");
                   container.setDXWrapper(DXWrappers.WINED3D);
                   container.setDXWrapperConfig("");
-                  container.setBox64Preset(Box64Preset.STABILITY);
+                  container.setBox64Preset(Box64Preset.INTERMEDIATE);
+                  if (container.getScreenSize().equals(Container.DEFAULT_SCREEN_SIZE)) {
+                      container.setScreenSize("1024x576");
+                  }
 
                   EnvVars safeVars = new EnvVars(container.getEnvVars());
                   safeVars.put("MESA_GLSL_VERSION_OVERRIDE", "410");
@@ -670,7 +598,7 @@ jobs:
                   safeVars.put("WINEDEBUG", "-all");
                   container.setEnvVars(safeVars.toString());
 
-                  container.putExtra("dianaMaliSafeV3", "t");
+                  container.putExtra("dianaMaliSafeV7", "t");
                   container.putExtra("dxwrapper", null);
                   container.saveData();
               }
@@ -688,7 +616,7 @@ jobs:
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.6
+          # Diana PC v0.7
 
           Based on Winlator 11.2.
 
@@ -703,10 +631,12 @@ jobs:
           - Fixes runtime paths/authorities after package rename.
           - "Chrome / Internet" uses Winlator's Android browser bridge; downloads land in D:.
           - Adds "PC Settings" inside the running session for wallpaper/theme/container settings.
-          - Desktop now starts with Computer, Downloads, Chrome, Internet, Control Panel, Notepad, Terminal and Steam installer icons.
-          - Installed Android games appear as desktop shortcuts and launch natively outside Wine.
+          - Desktop starts with Computer, Downloads, Chrome, ChatGPT, Keyboard, Control Panel, Notepad, Terminal and Steam installer icons.
+          - Removed Android-game desktop mirroring and automatic keyboard popups.
+          - One-finger hold-and-drag works for windows, maps and draggable UI.
+          - Installed-app scanning runs only once per minute to reduce desktop stutter.
+          - Mali mode uses a lighter 1024x576 desktop and Box64 Intermediate for smoother interaction.
           - Full-size non-system Windows app windows automatically receive the upstream Virtual Gamepad profile.
-          - Text-oriented Wine apps use a best-effort tap-to-open Android keyboard mode.
           - EXE/MSI/BAT/CMD files downloaded to D: automatically receive desktop shortcuts.
           - Newly installed Start Menu apps are mirrored to the desktop automatically while Diana PC is open.
           - Uses upstream Virtual Gamepad as the fallback control profile for launched shortcuts.
@@ -721,15 +651,15 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.6.apk
-          sha256sum Diana-PC-v0.6.apk | tee Diana-PC-v0.6.sha256
-          ls -lh Diana-PC-v0.6.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.7.apk
+          sha256sum Diana-PC-v0.7.apk | tee Diana-PC-v0.7.sha256
+          ls -lh Diana-PC-v0.7.apk
 
       - name: Upload APK for ChatGPT handoff
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-PC-v0.6-chat
-          path: Diana-PC-v0.6.apk
+          name: Diana-PC-v0.7-chat
+          path: Diana-PC-v0.7.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -738,5 +668,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.6 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.6             Diana-PC-v0.6.apk             Diana-PC-v0.6.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.6"             --notes "Diana PC v0.6: jogos Android no desktop com abertura nativa, Chrome nativo, instalador Steam, controle touch automático em jogos, teclado Android assistido em apps de texto, atalhos automáticos e modo Mali seguro para POCO C65."
+          gh release delete diana-pc-v0.7 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.7             Diana-PC-v0.7.apk             Diana-PC-v0.7.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.7"             --notes "Diana PC v0.7: remove apps Android do desktop e teclado automático, adiciona arrastar com 1 dedo segurando, reduz varredura em segundo plano, usa desktop 1024x576/Box64 Intermediate no Mali, mantém controle touch automático, Chrome, ChatGPT e Steam."
