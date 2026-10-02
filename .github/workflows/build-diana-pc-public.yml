@@ -18,6 +18,9 @@ jobs:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
+      - name: Checkout Diana patches
+        uses: actions/checkout@v4
+
       - name: Fetch Winlator 11.2 source
         run: |
           git clone --depth 1 https://github.com/brunodev85/winlator-app.git upstream
@@ -34,7 +37,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC v0.7 touch-and-performance patches
+      - name: Apply Diana PC v0.8 Astra Control patches
         shell: bash
         run: |
           set -euxo pipefail
@@ -52,7 +55,7 @@ jobs:
               p.write_text(s.replace(old, new, count))
 
           # Identity/version.
-          must_replace("app/build.gradle", "versionCode 33", "versionCode 7")
+          must_replace("app/build.gradle", "versionCode 33", "versionCode 8")
           must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.3.0"')
           # Package rename leftovers that are runtime paths/authorities (not Java package names).
           # E: = phone shared storage; D: already maps to Downloads.
@@ -61,6 +64,13 @@ jobs:
               'public static final String INTERNAL_STORAGE = "/data/data/com.winlator/storage";',
               'public static final String INTERNAL_STORAGE = Environment.getExternalStorageDirectory().getPath();'
           )
+
+          # Astra computer-use controller source.
+          astra_src = Path("../diana/v08/AstraController.java")
+          astra_dst = Path("app/src/main/java/com/winlator/core/AstraController.java")
+          if not astra_src.is_file():
+              raise SystemExit("AstraController.java not found in Diana repo")
+          astra_dst.write_text(astra_src.read_text())
 
           # Branding.
           for p in Path("app/src/main/res").glob("values*/strings.xml"):
@@ -129,6 +139,11 @@ jobs:
           # Add in-session PC settings menu entry.
           menu = Path("app/src/main/res/menu/xserver_menu.xml")
           ms = menu.read_text()
+          if 'menu_item_astra_control' not in ms:
+              settings_item = '        <item android:icon="@drawable/icon_settings" android:id="@+id/menu_item_diana_settings" android:title="@string/diana_pc_settings" />\n'
+              astra_item = '        <item android:icon="@drawable/icon_play" android:id="@+id/menu_item_astra_control" android:title="@string/astra_control" />\n'
+              if settings_item in ms:
+                  ms = ms.replace(settings_item, settings_item + astra_item, 1)
           marker = '        <item android:icon="@drawable/icon_help" android:id="@+id/menu_item_touchpad_help" android:title="@string/touchpad_help" />\n'
           if marker not in ms:
               raise SystemExit("xserver menu marker not found")
@@ -147,7 +162,10 @@ jobs:
               ss = p.read_text()
               if 'name="diana_pc_settings"' not in ss:
                   ss = ss.replace("</resources>", f'    <string name="diana_pc_settings">{value}</string>\n</resources>')
-                  p.write_text(ss)
+              if 'name="astra_control"' not in ss:
+                  astra_value = "Astra Control"
+                  ss = ss.replace("</resources>", f'    <string name="astra_control">{astra_value}</string>\n</resources>')
+              p.write_text(ss)
 
           # Add the settings action before Exit.
           xserver = Path("app/src/main/java/com/winlator/XServerDisplayActivity.java")
@@ -169,6 +187,163 @@ jobs:
               indent + "    break;",
           ]) + NL
           xs = xs[:line_start] + settings_case + xs[line_start:]
+          xserver.write_text(xs)
+
+          # Astra Control UI inside the running Diana PC session.
+          xserver = Path("app/src/main/java/com/winlator/XServerDisplayActivity.java")
+          xs = xserver.read_text()
+
+          import_anchor = "import com.winlator.core.AppUtils;\n"
+          if import_anchor not in xs:
+              raise SystemExit("Astra import anchor not found")
+          if "import com.winlator.core.AstraController;" not in xs:
+              xs = xs.replace(import_anchor, import_anchor + "import com.winlator.core.AstraController;\n", 1)
+
+          android_import_anchor = "import android.widget.ArrayAdapter;\n"
+          extra_android_imports = (
+              "import android.text.InputType;\n"
+              "import android.widget.Button;\n"
+              "import android.widget.EditText;\n"
+              "import android.widget.LinearLayout;\n"
+              "import android.widget.TextView;\n"
+              "import android.widget.Toast;\n"
+          )
+          if android_import_anchor not in xs:
+              raise SystemExit("Astra Android import anchor not found")
+          if "import android.widget.EditText;" not in xs:
+              xs = xs.replace(android_import_anchor, android_import_anchor + extra_android_imports, 1)
+
+          field_anchor = "    private Shortcut shortcut;\n"
+          if field_anchor not in xs:
+              raise SystemExit("Astra field anchor not found")
+          if "private AstraController astraController;" not in xs:
+              xs = xs.replace(field_anchor, field_anchor + "    private AstraController astraController;\n", 1)
+
+          exit_case = "            case R.id.menu_item_exit:\n"
+          if exit_case not in xs:
+              raise SystemExit("Astra menu case anchor not found")
+          if "case R.id.menu_item_astra_control:" not in xs:
+              astra_case = (
+                  "            case R.id.menu_item_astra_control:\n"
+                  "                showAstraControlDialog();\n"
+                  "                drawerLayout.closeDrawers();\n"
+                  "                break;\n"
+              )
+              xs = xs.replace(exit_case, astra_case + exit_case, 1)
+
+          helper_anchor = "    private void showInputControlsDialog() {"
+          if helper_anchor not in xs:
+              raise SystemExit("Astra helper anchor not found")
+          if "private void showAstraControlDialog()" not in xs:
+              astra_methods = r'''    private void showAstraControlDialog() {
+              final android.content.SharedPreferences astraPrefs =
+                  getSharedPreferences("diana_astra", MODE_PRIVATE);
+
+              final LinearLayout layout = new LinearLayout(this);
+              layout.setOrientation(LinearLayout.VERTICAL);
+              int pad = (int)(20 * getResources().getDisplayMetrics().density);
+              layout.setPadding(pad, pad, pad, pad);
+
+              final EditText apiKey = new EditText(this);
+              apiKey.setHint("OpenAI API key");
+              apiKey.setSingleLine(true);
+              apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+              apiKey.setText(astraPrefs.getString("api_key", ""));
+              layout.addView(apiKey);
+
+              final EditText task = new EditText(this);
+              task.setHint("Ex.: abra Downloads e instale o programa que baixei");
+              task.setMinLines(3);
+              task.setMaxLines(6);
+              task.setGravity(android.view.Gravity.TOP);
+              layout.addView(task);
+
+              final TextView info = new TextView(this);
+              info.setText("Astra controla somente o desktop emulado. A chave fica salva apenas no armazenamento privado deste app.");
+              info.setPadding(0, pad / 2, 0, pad / 2);
+              layout.addView(info);
+
+              final TextView status = new TextView(this);
+              status.setText(astraController != null && astraController.isRunning() ? "Astra executando..." : "Astra parado");
+              layout.addView(status);
+
+              final LinearLayout buttons = new LinearLayout(this);
+              buttons.setOrientation(LinearLayout.HORIZONTAL);
+
+              final Button start = new Button(this);
+              start.setText("Controlar PC");
+              buttons.addView(start, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+              final Button stop = new Button(this);
+              stop.setText("PARAR");
+              buttons.addView(stop, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+              layout.addView(buttons);
+
+              final androidx.appcompat.app.AlertDialog dialog =
+                  new androidx.appcompat.app.AlertDialog.Builder(this)
+                      .setTitle("Astra Control")
+                      .setView(layout)
+                      .setNegativeButton("Fechar", null)
+                      .create();
+
+              AstraController.Listener listener = new AstraController.Listener() {
+                  @Override
+                  public void onStatus(String message) {
+                      status.setText(message);
+                  }
+
+                  @Override
+                  public void onFinished(String message) {
+                      status.setText(message);
+                      Toast.makeText(XServerDisplayActivity.this, message, Toast.LENGTH_LONG).show();
+                  }
+
+                  @Override
+                  public void onError(String message) {
+                      status.setText(message);
+                      Toast.makeText(XServerDisplayActivity.this, message, Toast.LENGTH_LONG).show();
+                  }
+              };
+
+              start.setOnClickListener(v -> {
+                  String key = apiKey.getText().toString().trim();
+                  String command = task.getText().toString().trim();
+
+                  if (key.isEmpty() || command.isEmpty()) {
+                      Toast.makeText(this, "Digite a chave da API e o comando.", Toast.LENGTH_SHORT).show();
+                      return;
+                  }
+
+                  astraPrefs.edit().putString("api_key", key).apply();
+
+                  if (astraController != null) astraController.stop();
+                  astraController = new AstraController(this, xServer, xServerView, listener);
+                  astraController.start(key, command);
+                  status.setText("Astra iniciando...");
+              });
+
+              stop.setOnClickListener(v -> {
+                  if (astraController != null) astraController.stop();
+                  status.setText("Astra parado");
+              });
+
+              dialog.show();
+          }
+
+          '''
+              xs = xs.replace(helper_anchor, astra_methods + helper_anchor, 1)
+
+          destroy_anchor = "    protected void onDestroy() {\n"
+          if destroy_anchor not in xs:
+              raise SystemExit("Astra onDestroy anchor not found")
+          if "if (astraController != null) astraController.stop();" not in xs:
+              xs = xs.replace(
+                  destroy_anchor,
+                  destroy_anchor + "        if (astraController != null) astraController.stop();\n",
+                  1
+              )
+
           xserver.write_text(xs)
 
           # Diana PC desktop integration: system icons + automatic downloaded/installed app shortcuts.
@@ -611,7 +786,7 @@ jobs:
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.7
+          # Diana PC v0.8
 
           Based on Winlator 11.2.
 
@@ -635,7 +810,7 @@ jobs:
           - EXE/MSI/BAT/CMD files downloaded to D: automatically receive desktop shortcuts.
           - Newly installed Start Menu apps are mirrored to the desktop automatically while Diana PC is open.
           - Uses upstream Virtual Gamepad as the fallback control profile for launched shortcuts.
-          - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
+          - Adds Astra Control using the OpenAI Responses API + computer tool, with screenshot feedback and native XServer mouse/keyboard execution.\n          - Astra is limited to the Wine/XServer desktop and has a hard stop button plus a 30-step cap.\n          - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
           EOF
 
       - name: Build APK
@@ -646,15 +821,15 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.7.apk
-          sha256sum Diana-PC-v0.7.apk | tee Diana-PC-v0.7.sha256
-          ls -lh Diana-PC-v0.7.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.8.apk
+          sha256sum Diana-PC-v0.8.apk | tee Diana-PC-v0.8.sha256
+          ls -lh Diana-PC-v0.8.apk
 
       - name: Upload APK for ChatGPT handoff
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-PC-v0.7-chat
-          path: Diana-PC-v0.7.apk
+          name: Diana-PC-v0.8-chat
+          path: Diana-PC-v0.8.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -663,5 +838,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.7 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.7             Diana-PC-v0.7.apk             Diana-PC-v0.7.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.7"             --notes "Diana PC v0.7: remove apps Android do desktop e teclado automático, adiciona arrastar com 1 dedo segurando, reduz varredura em segundo plano, usa desktop 1024x576/Box64 Intermediate no Mali, mantém controle touch automático, Chrome, ChatGPT e Steam."
+          gh release delete diana-pc-v0.8 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.8             Diana-PC-v0.8.apk             Diana-PC-v0.8.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.8"             --notes "Diana PC v0.8: adiciona Astra Control para o GPT-6 Astra operar o desktop Wine via screenshots e ações de mouse/teclado usando a OpenAI Responses API; inclui botão PARAR, limite de 30 passos e mantém as otimizações do POCO C65."
