@@ -450,13 +450,8 @@ jobs:
           # One-finger hold-and-drag: hold ~220 ms, then move to drag windows/maps/items.
           touchpad = Path("app/src/main/java/com/winlator/widget/TouchpadView.java")
           ts = touchpad.read_text()
-          move_anchor = '''    private void handleFingerMove(Finger finger1) {
-              if (!isEnabled()) return;
-              boolean skipPointerMove = false;
-          '''
-          move_new = '''    private void handleFingerMove(Finger finger1) {
-              if (!isEnabled()) return;
-              boolean skipPointerMove = false;
+          drag_anchor = "        boolean skipPointerMove = false;\n"
+          drag_code = '''        boolean skipPointerMove = false;
 
               if (numFingers == 1 &&
                   !scrolling &&
@@ -465,9 +460,9 @@ jobs:
                   pressPointerButtonLeft(finger1);
               }
           '''
-          if move_anchor not in ts:
-              raise SystemExit("Touchpad drag anchor not found")
-          touchpad.write_text(ts.replace(move_anchor, move_new, 1))
+          if drag_anchor not in ts:
+              raise SystemExit("Touchpad drag line not found")
+          touchpad.write_text(ts.replace(drag_anchor, drag_code, 1))
 
           # MainActivity imports.
           main = Path("app/src/main/java/com/winlator/MainActivity.java")
