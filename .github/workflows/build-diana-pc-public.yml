@@ -37,7 +37,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;24.0.8215888" "cmake;3.22.1"
 
-      - name: Apply Diana PC v0.14 Remote Web autostart fix
+      - name: Apply Diana PC v0.15 low-latency stream
         shell: bash
         run: |
           set -euxo pipefail
@@ -55,8 +55,8 @@ jobs:
               p.write_text(s.replace(old, new, count))
 
           # Identity/version.
-          must_replace("app/build.gradle", "versionCode 33", "versionCode 14")
-          must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.3.0"')
+          must_replace("app/build.gradle", "versionCode 33", "versionCode 15")
+          must_replace("app/build.gradle", 'versionName "11.2"', 'versionName "0.15.0"')
           # Package rename leftovers that are runtime paths/authorities (not Java package names).
           # E: = phone shared storage; D: already maps to Downloads.
           must_replace(
@@ -81,10 +81,10 @@ jobs:
               raise SystemExit("Diana v0.10 LinuxTerminalActivity.java not found")
           linux_terminal_dst.write_text(linux_terminal_src.read_text())
 
-          remote_src = Path("../diana/v12/DianaRemoteServer.java")
+          remote_src = Path("../diana/v15/DianaRemoteServer.java")
           remote_dst = Path("app/src/main/java/com/winlator/core/DianaRemoteServer.java")
           if not remote_src.is_file():
-              raise SystemExit("Diana v0.12 DianaRemoteServer.java not found")
+              raise SystemExit("Diana v0.15 DianaRemoteServer.java not found")
           remote_dst.write_text(remote_src.read_text())
 
           manifest = Path("app/src/main/AndroidManifest.xml")
@@ -1158,7 +1158,7 @@ jobs:
           PY
 
           cat > DIANA-PC-NOTES.md <<'EOF'
-          # Diana PC v0.14
+          # Diana PC v0.15
 
           Based on Winlator 11.2.
 
@@ -1182,7 +1182,7 @@ jobs:
           - EXE/MSI/BAT/CMD files downloaded to D: automatically receive desktop shortcuts.
           - Newly installed Start Menu apps are mirrored to the desktop automatically while Diana PC is open.
           - Uses upstream Virtual Gamepad as the fallback control profile for launched shortcuts.
-          - Astra Control now uses Continue with ChatGPT and ChatGPT plan usage instead of an API key.\n          - It dynamically checks the signed-in account model catalog and selects the Astra model exposed to that account.\n          - Responses use store=false and stream=true as required for ChatGPT plan usage.\n          - Astra executes screenshots, mouse and keyboard actions directly on the Wine XServer.\n          - Astra is limited to the Wine/XServer desktop and has a hard stop button plus a 30-step cap.\n          - Adds a real Linux Bash terminal backed by the Winlator rootfs through Box64, with persistent stdin/stdout and access to Android Downloads.\n          - Keeps the Wine CMD separately as CMD.\n          - Steam/steamwebhelper windows switch the touchpad to direct-touch mode so CAPTCHA checkboxes can be tapped precisely.\n          - Creates an optimized Steam shortcut forcing CEF GPU acceleration and a Steam Login Compat fallback that disables CEF GPU if the accelerated path glitches.\n          - Adds Remote Web: stream the Wine desktop to a Chromebook/browser over the local network and control it with the Chromebook mouse/touchpad and physical keyboard.\n          - Remote Web is protected by a fresh six-digit PIN each time it starts and is off by default.\n          - Remote Web serializes mouse/keyboard events so click down/up order is reliable over HTTP.\n          - Remote Web now auto-starts as soon as its panel opens, immediately showing URL and PIN; the old LIGAR step is no longer required.\n          - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
+          - Astra Control now uses Continue with ChatGPT and ChatGPT plan usage instead of an API key.\n          - It dynamically checks the signed-in account model catalog and selects the Astra model exposed to that account.\n          - Responses use store=false and stream=true as required for ChatGPT plan usage.\n          - Astra executes screenshots, mouse and keyboard actions directly on the Wine XServer.\n          - Astra is limited to the Wine/XServer desktop and has a hard stop button plus a 30-step cap.\n          - Adds a real Linux Bash terminal backed by the Winlator rootfs through Box64, with persistent stdin/stdout and access to Android Downloads.\n          - Keeps the Wine CMD separately as CMD.\n          - Steam/steamwebhelper windows switch the touchpad to direct-touch mode so CAPTCHA checkboxes can be tapped precisely.\n          - Creates an optimized Steam shortcut forcing CEF GPU acceleration and a Steam Login Compat fallback that disables CEF GPU if the accelerated path glitches.\n          - Adds Remote Web: stream the Wine desktop to a Chromebook/browser over the local network and control it with the Chromebook mouse/touchpad and physical keyboard.\n          - Remote Web is protected by a fresh six-digit PIN each time it starts and is off by default.\n          - Remote Web serializes mouse/keyboard events so click down/up order is reliable over HTTP.\n          - Remote Web now auto-starts as soon as its panel opens, immediately showing URL and PIN; the old LIGAR step is no longer required.\n          - Remote video now uses one persistent MJPEG stream instead of one HTTP request per frame.\n          - 30 FPS mode uses full remote resolution with JPEG quality 82; 60 FPS experimental uses a lighter 0.78x stream with quality 74.\n          - JPEG compression runs off the GL renderer thread and missed frames are dropped instead of queued, keeping latency low.\n          - Retains upstream Wine, Box64, Mesa, DXVK, VKD3D, input controls and licensing/credits.
           EOF
 
       - name: Build APK
@@ -1193,15 +1193,15 @@ jobs:
 
       - name: Prepare APK
         run: |
-          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.14.apk
-          sha256sum Diana-PC-v0.14.apk | tee Diana-PC-v0.14.sha256
-          ls -lh Diana-PC-v0.14.apk
+          cp upstream/app/build/outputs/apk/debug/app-debug.apk Diana-PC-v0.15.apk
+          sha256sum Diana-PC-v0.15.apk | tee Diana-PC-v0.15.sha256
+          ls -lh Diana-PC-v0.15.apk
 
       - name: Upload APK for ChatGPT handoff
         uses: actions/upload-artifact@v4
         with:
-          name: Diana-PC-v0.14-chat
-          path: Diana-PC-v0.14.apk
+          name: Diana-PC-v0.15-chat
+          path: Diana-PC-v0.15.apk
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
@@ -1210,5 +1210,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete diana-pc-v0.14 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
-          gh release create diana-pc-v0.14             Diana-PC-v0.14.apk             Diana-PC-v0.14.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.14"             --notes "Diana PC v0.14: corrige o botão Remote Web que não reagia. Agora o servidor liga automaticamente ao abrir Remote Web, mostra URL/PIN imediatamente e exibe confirmação visual; REINICIAR e DESLIGAR continuam disponíveis."
+          gh release delete diana-pc-v0.15 --repo "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create diana-pc-v0.15             Diana-PC-v0.15.apk             Diana-PC-v0.15.sha256             --repo "$GITHUB_REPOSITORY"             --target diana-pc-public             --title "Diana PC v0.15"             --notes "Diana PC v0.15: troca o Remote Web por stream MJPEG contínuo de baixa latência. 30 FPS padrão em qualidade alta, 60 FPS experimental, sem fila de frames e com compressão JPEG fora da thread gráfica para reduzir atraso."
