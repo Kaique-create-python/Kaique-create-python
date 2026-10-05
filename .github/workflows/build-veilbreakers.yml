@@ -13,10 +13,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -26,25 +23,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Install Android SDK packages
-        shell: bash
+      - name: Ensure Android SDK packages
+        shell: pwsh
         run: |
-          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
-          fi
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+          $sdk = Join-Path $env:ANDROID_HOME "cmdline-tools\latest\bin\sdkmanager.bat"
+          if (Test-Path $sdk) {
+            & $sdk "platforms;android-35" "build-tools;35.0.0"
+          }
       - name: Decode clean animation frames
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p veilbreakers-prototype/app/src/main/assets
-          cat veilbreakers-prototype/app/src/main/assets_b64/kael_frames_v03.zip.b64.part-* | base64 -d > /tmp/kael_frames_v03.zip
-          unzip -o /tmp/kael_frames_v03.zip -d veilbreakers-prototype/app/src/main/assets
-          test -f veilbreakers-prototype/app/src/main/assets/kael/move/move_r0_f0.png
-          test -f veilbreakers-prototype/app/src/main/assets/kael/attack/attack_right_5.png
+          $dest = "veilbreakers-prototype/app/src/main/assets"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/kael_frames_v03.zip.b64.part-*" | Sort-Object Name
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\kael_frames_v03.zip", [Convert]::FromBase64String($b64))
+          Expand-Archive -Force "$env:RUNNER_TEMP\kael_frames_v03.zip" $dest
+          if (!(Test-Path "$dest/kael/move/move_r0_f0.png")) { throw "Movement frames missing" }
+          if (!(Test-Path "$dest/kael/attack/attack_right_5.png")) { throw "Attack frames missing" }
       - name: Build debug APK
         working-directory: veilbreakers-prototype
+        shell: pwsh
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
