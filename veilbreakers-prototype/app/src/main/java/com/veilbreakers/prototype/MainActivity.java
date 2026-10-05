@@ -51,12 +51,7 @@ public class MainActivity extends Activity {
     public void startGame(boolean continueGame) {
         SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         if (!continueGame) {
-            prefs.edit()
-                    .putBoolean("has_save", true)
-                    .remove("player_x_norm")
-                    .remove("player_y_norm")
-                    .remove("player_facing")
-                    .apply();
+            prefs.edit().clear().putBoolean("has_save", true).putBoolean("vibration", true).apply();
         }
 
         if (menuVideo != null) {
@@ -95,7 +90,9 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (currentView instanceof GameView) {
-            ((GameView) currentView).saveState();
+            GameView game = (GameView) currentView;
+            if (game.handleBack()) return;
+            game.saveState();
             showMenu();
             return;
         }

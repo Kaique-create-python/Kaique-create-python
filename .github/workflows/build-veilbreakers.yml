@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v07
+  group: veilbreakers-apk-v08
   cancel-in-progress: true
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
           if (Test-Path $sdk) {
             & $sdk "platforms;android-35" "build-tools;35.0.0"
           }
-      - name: Decode clean animation frames
+      - name: Decode character frames
         shell: pwsh
         run: |
           $dest = "veilbreakers-prototype/app/src/main/assets"
@@ -39,16 +39,30 @@ jobs:
           $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\kael_frames_v03.zip", [Convert]::FromBase64String($b64))
           Expand-Archive -Force "$env:RUNNER_TEMP\kael_frames_v03.zip" $dest
-          if (!(Test-Path "$dest/kael/move/move_r0_f0.png")) { throw "Movement frames missing" }
-          if (!(Test-Path "$dest/kael/attack/attack_right_5.png")) { throw "Attack frames missing" }
-          if (!(Test-Path "$dest/menu/menu_logo.png")) { throw "Menu logo missing" }
-          if (!(Test-Path "veilbreakers-prototype/app/src/main/res/raw/menu_background.mp4")) { throw "Menu video missing" }
+      - name: Decode v0.8 UI assets
+        shell: pwsh
+        run: |
+          $dest = "veilbreakers-prototype/app/src/main/assets"
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/ui_v08.zip.b64.part-*" | Sort-Object Name
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\ui_v08.zip", [Convert]::FromBase64String($b64))
+          Expand-Archive -Force "$env:RUNNER_TEMP\ui_v08.zip" $dest
+          if (!(Test-Path "$dest/ui/hud_hp_frame.png")) { throw "HUD assets missing" }
+          if (!(Test-Path "$dest/ui/status_attr_block.png")) { throw "Status assets missing" }
+      - name: Decode cropped menu video
+        shell: pwsh
+        run: |
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/menu_background_v08.mp4.b64.part-*" | Sort-Object Name
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          $raw = "veilbreakers-prototype/app/src/main/res/raw"
+          New-Item -ItemType Directory -Force -Path $raw | Out-Null
+          [IO.File]::WriteAllBytes("$raw\menu_background.mp4", [Convert]::FromBase64String($b64))
       - name: Build debug APK
         working-directory: veilbreakers-prototype
         shell: pwsh
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v0.7-apk
+          name: veilbreakers-v0.8-apk
           path: veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
