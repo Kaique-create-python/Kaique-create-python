@@ -1,6 +1,7 @@
 package com.veilbreakers.prototype;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -9,6 +10,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.MotionEvent;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 
 import java.io.IOException;
@@ -48,9 +50,17 @@ public class GameView extends View {
     private long lastNs = System.nanoTime();
 
     private final float[] attackDurations = {0.075f, 0.060f, 0.055f, 0.060f, 0.075f, 0.100f};
+    private final SharedPreferences prefs;
+    private final boolean loadExisting;
 
     public GameView(Context context) {
+        this(context, false);
+    }
+
+    public GameView(Context context, boolean loadExisting) {
         super(context);
+        this.loadExisting = loadExisting;
+        this.prefs = context.getSharedPreferences("veilbreakers_save", Context.MODE_PRIVATE);
         setFocusable(true);
         setKeepScreenOn(true);
 
@@ -104,8 +114,14 @@ public class GameView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         if (px < 0f) {
-            px = w * 0.50f;
-            py = h * 0.52f;
+            if (loadExisting && prefs.contains("player_x_norm") && prefs.contains("player_y_norm")) {
+                px = w * prefs.getFloat("player_x_norm", 0.50f);
+                py = h * prefs.getFloat("player_y_norm", 0.52f);
+                facing = prefs.getInt("player_facing", DOWN);
+            } else {
+                px = w * 0.50f;
+                py = h * 0.52f;
+            }
         }
     }
 
@@ -201,6 +217,9 @@ public class GameView extends View {
         attacking = true;
         attackClock = 0f;
         attackFacing = facing;
+        if (prefs.getBoolean("vibration", true)) {
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        }
     }
 
     private int currentAttackFrame() {
@@ -368,6 +387,22 @@ public class GameView extends View {
         }
         joyX = dx;
         joyY = dy;
+    }
+
+    public void saveState() {
+        if (getWidth() <= 0 || getHeight() <= 0 || px < 0f || py < 0f) return;
+        prefs.edit()
+                .putBoolean("has_save", true)
+                .putFloat("player_x_norm", clamp(px / getWidth(), 0f, 1f))
+                .putFloat("player_y_norm", clamp(py / getHeight(), 0f, 1f))
+                .putInt("player_facing", facing)
+                .apply();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        saveState();
+        super.onDetachedFromWindow();
     }
 
     private float distance(float x1, float y1, float x2, float y2) {
