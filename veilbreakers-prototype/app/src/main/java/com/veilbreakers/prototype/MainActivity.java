@@ -5,10 +5,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.FrameLayout;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "veilbreakers_save";
     private View currentView;
+    private MenuVideoView menuVideo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,8 +31,20 @@ public class MainActivity extends Activity {
 
     public void showMenu() {
         if (currentView instanceof GameView) ((GameView) currentView).saveState();
-        currentView = new MainMenuView(this);
-        setContentView(currentView);
+
+        FrameLayout root = new FrameLayout(this);
+        menuVideo = new MenuVideoView(this);
+        MainMenuView menu = new MainMenuView(this);
+
+        root.addView(menuVideo, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        root.addView(menu, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
+        currentView = menu;
+        setContentView(root);
         applyImmersive();
     }
 
@@ -44,6 +58,12 @@ public class MainActivity extends Activity {
                     .remove("player_facing")
                     .apply();
         }
+
+        if (menuVideo != null) {
+            menuVideo.releasePlayer();
+            menuVideo = null;
+        }
+
         currentView = new GameView(this, continueGame);
         setContentView(currentView);
         applyImmersive();
@@ -51,13 +71,25 @@ public class MainActivity extends Activity {
 
     public void exitGame() {
         if (currentView instanceof GameView) ((GameView) currentView).saveState();
+        if (menuVideo != null) {
+            menuVideo.releasePlayer();
+            menuVideo = null;
+        }
         finishAndRemoveTask();
     }
 
     @Override
     protected void onPause() {
         if (currentView instanceof GameView) ((GameView) currentView).saveState();
+        if (menuVideo != null) menuVideo.pauseVideo();
         super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        applyImmersive();
+        if (menuVideo != null) menuVideo.resumeVideo();
     }
 
     @Override

@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v04
+  group: veilbreakers-apk-v06
   cancel-in-progress: true
 
 jobs:
@@ -41,14 +41,14 @@ jobs:
           Expand-Archive -Force "$env:RUNNER_TEMP\kael_frames_v03.zip" $dest
           if (!(Test-Path "$dest/kael/move/move_r0_f0.png")) { throw "Movement frames missing" }
           if (!(Test-Path "$dest/kael/attack/attack_right_5.png")) { throw "Attack frames missing" }
-          if (!(Test-Path "$dest/menu/menu_bg.jpg")) { throw "Menu background missing" }
           if (!(Test-Path "$dest/menu/menu_logo.png")) { throw "Menu logo missing" }
+          if (!(Test-Path "veilbreakers-prototype/app/src/main/res/raw/menu_background.mp4")) { throw "Menu video missing" }
       - name: Build debug APK
         working-directory: veilbreakers-prototype
         shell: pwsh
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v0.4-apk
+          name: veilbreakers-v0.6-apk
           path: veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
