@@ -12,9 +12,13 @@ on:
       - 'veilbreakers-prototype/**'
       - '.github/workflows/build-veilbreakers.yml'
 
+concurrency:
+  group: veilbreakers-apk-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -48,6 +52,6 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v0.1-apk
+          name: veilbreakers-v0.2-apk
           path: veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
