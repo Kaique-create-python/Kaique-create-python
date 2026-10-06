@@ -499,77 +499,79 @@ public class GameView extends View {
 
         float a = smooth(statusAnim);
         float pop = 0.90f + 0.10f * easeOutBack(clamp(a / 0.92f, 0f, 1f));
-        float slideY = (1f - a) * getHeight() * 0.055f;
+        float slideY = (1f - a) * getHeight() * 0.045f;
 
-        // Dim the game gradually instead of instantly covering it.
-        overlayPaint.setColor(Color.argb((int) (205 * a), 2, 3, 6));
+        overlayPaint.setColor(Color.argb((int) (210 * a), 2, 3, 6));
         c.drawRect(0, 0, getWidth(), getHeight(), overlayPaint);
 
-        float finalW = getWidth() * 0.84f;
-        float finalH = getHeight() * 0.91f;
+        // v1.1: taller/less wide panel. Individual PNGs are fitted without distortion.
+        float finalW = getWidth() * 0.76f;
+        float finalH = getHeight() * 0.94f;
         float cx = getWidth() * 0.50f;
-        float cy = getHeight() * 0.500f + slideY;
+        float cy = getHeight() * 0.50f + slideY;
         float panelW = finalW * pop;
         float panelH = finalH * pop;
         RectF panel = new RectF(cx - panelW * 0.5f, cy - panelH * 0.5f,
                 cx + panelW * 0.5f, cy + panelH * 0.5f);
 
-        // Panel body.
-        overlayPaint.setColor(Color.argb((int) (240 * a), 7, 8, 12));
+        overlayPaint.setColor(Color.argb((int) (242 * a), 7, 8, 12));
         c.drawRoundRect(panel, getHeight() * 0.024f, getHeight() * 0.024f, overlayPaint);
 
         float pulse = 0.5f + 0.5f * (float) Math.sin(System.nanoTime() / 1_000_000_000.0 * 3.0);
         overlayPaint.setStyle(Paint.Style.STROKE);
-        overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.0045f));
-        overlayPaint.setColor(Color.argb((int) ((155 + 45 * pulse) * a), 132, 28, 39));
+        overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.0042f));
+        overlayPaint.setColor(Color.argb((int) ((150 + 45 * pulse) * a), 132, 28, 39));
         c.drawRoundRect(panel, getHeight() * 0.024f, getHeight() * 0.024f, overlayPaint);
-        overlayPaint.setStrokeWidth(Math.max(1f, getHeight() * 0.0018f));
-        overlayPaint.setColor(Color.argb((int) ((70 + 35 * pulse) * a), 245, 62, 74));
+        overlayPaint.setStrokeWidth(Math.max(1f, getHeight() * 0.0017f));
+        overlayPaint.setColor(Color.argb((int) ((65 + 35 * pulse) * a), 245, 62, 74));
         RectF innerGlow = new RectF(panel.left + getHeight() * 0.008f, panel.top + getHeight() * 0.008f,
                 panel.right - getHeight() * 0.008f, panel.bottom - getHeight() * 0.008f);
         c.drawRoundRect(innerGlow, getHeight() * 0.020f, getHeight() * 0.020f, overlayPaint);
         overlayPaint.setStyle(Paint.Style.FILL);
 
-        float headerReveal = revealWindow(a, 0.04f, 0.42f);
-        float leftReveal = revealWindow(a, 0.12f, 0.62f);
-        float rowsReveal = revealWindow(a, 0.17f, 0.72f);
-        float attrReveal = revealWindow(a, 0.30f, 0.82f);
-        float bottomReveal = revealWindow(a, 0.46f, 0.96f);
+        float headerReveal = revealWindow(a, 0.04f, 0.40f);
+        float leftReveal = revealWindow(a, 0.12f, 0.60f);
+        float rowsReveal = revealWindow(a, 0.17f, 0.70f);
+        float attrReveal = revealWindow(a, 0.28f, 0.82f);
+        float bottomReveal = revealWindow(a, 0.42f, 0.96f);
 
-        float headerW = panel.width() * 0.30f;
-        float headerH = headerW * statusHeader.getHeight() / (float) statusHeader.getWidth();
-        float headerOffsetY = (1f - headerReveal) * getHeight() * 0.035f;
-        RectF header = new RectF(panel.centerX() - headerW * 0.5f,
-                panel.top - headerH * 0.12f - headerOffsetY,
-                panel.centerX() + headerW * 0.5f,
-                panel.top + headerH * 0.88f - headerOffsetY);
+        RectF headerBounds = new RectF(
+                panel.centerX() - panel.width() * 0.17f,
+                panel.top - panel.height() * 0.015f,
+                panel.centerX() + panel.width() * 0.17f,
+                panel.top + panel.height() * 0.14f);
+        RectF header = fitBitmapRect(statusHeader, headerBounds);
+        header.offset(0f, -(1f - headerReveal) * getHeight() * 0.025f);
         drawBitmapAlpha(c, statusHeader, header, headerReveal);
 
-        closeStatusHit.set(panel.right - getHeight() * 0.070f, panel.top + getHeight() * 0.030f,
-                panel.right - getHeight() * 0.018f, panel.top + getHeight() * 0.082f);
+        closeStatusHit.set(panel.right - getHeight() * 0.068f, panel.top + getHeight() * 0.026f,
+                panel.right - getHeight() * 0.018f, panel.top + getHeight() * 0.076f);
         overlayPaint.setColor(Color.argb((int) (190 * rowsReveal), 110, 18, 28));
         c.drawRoundRect(closeStatusHit, getHeight() * 0.010f, getHeight() * 0.010f, overlayPaint);
         drawSmallValueAlpha(c, "×", closeStatusHit.centerX(),
-                closeStatusHit.centerY() + getHeight() * 0.017f,
-                getHeight() * 0.041f, Paint.Align.CENTER, rowsReveal, Color.rgb(245, 226, 218));
+                closeStatusHit.centerY() + getHeight() * 0.016f,
+                getHeight() * 0.039f, Paint.Align.CENTER, rowsReveal, Color.rgb(245, 226, 218));
 
-        float innerTop = panel.top + panel.height() * 0.145f;
-        float leftX = panel.left + panel.width() * 0.050f;
-        float leftW = panel.width() * 0.235f;
-        float rightX = panel.left + panel.width() * 0.325f;
-        float rightW = panel.width() * 0.625f;
+        float contentTop = panel.top + panel.height() * 0.135f;
+        float leftX = panel.left + panel.width() * 0.055f;
+        float leftMaxW = panel.width() * 0.235f;
+        float rightX = panel.left + panel.width() * 0.355f;
+        float rightMaxW = panel.width() * 0.405f;
 
-        // Portrait column enters from the left.
-        float portraitH = panel.height() * 0.30f;
-        float leftOffset = (1f - leftReveal) * panel.width() * 0.045f;
-        RectF portrait = new RectF(leftX - leftOffset, innerTop,
-                leftX - leftOffset + leftW, innerTop + portraitH);
+        // LEFT COLUMN -----------------------------------------------------
+        float leftOffset = (1f - leftReveal) * panel.width() * 0.035f;
+        RectF portraitBounds = new RectF(
+                leftX - leftOffset, contentTop,
+                leftX - leftOffset + leftMaxW,
+                contentTop + panel.height() * 0.315f);
+        RectF portrait = fitBitmapRect(statusPortraitFrame, portraitBounds);
         drawBitmapAlpha(c, statusPortraitFrame, portrait, leftReveal);
 
         Bitmap kael = idle[DOWN][1];
         float spriteH = portrait.height() * 0.70f;
         float spriteW = spriteH * kael.getWidth() / (float) kael.getHeight();
-        RectF kaelDst = new RectF(portrait.centerX() - spriteW * 0.5f,
+        RectF kaelDst = new RectF(
+                portrait.centerX() - spriteW * 0.5f,
                 portrait.bottom - spriteH * 0.91f,
                 portrait.centerX() + spriteW * 0.5f,
                 portrait.bottom + spriteH * 0.09f);
@@ -577,57 +579,102 @@ public class GameView extends View {
         c.drawBitmap(kael, null, kaelDst, pixelPaint);
         pixelPaint.setAlpha(255);
 
-        RectF desc = new RectF(leftX - leftOffset,
-                portrait.bottom + panel.height() * 0.026f,
-                leftX - leftOffset + leftW,
-                portrait.bottom + panel.height() * 0.165f);
+        RectF descBounds = new RectF(
+                leftX - leftOffset,
+                portrait.bottom + panel.height() * 0.020f,
+                leftX - leftOffset + leftMaxW,
+                portrait.bottom + panel.height() * 0.185f);
+        RectF desc = fitBitmapRect(statusDescFrame, descBounds);
         drawBitmapAlpha(c, statusDescFrame, desc, leftReveal);
         uiPaint.setTextAlign(Paint.Align.CENTER);
-        uiPaint.setTextSize(getHeight() * 0.018f);
+        uiPaint.setTextSize(getHeight() * 0.017f);
         uiPaint.setColor(Color.rgb(203, 196, 185));
         uiPaint.setAlpha((int) (255 * leftReveal));
-        c.drawText("Kael Varyn", desc.centerX(), desc.top + desc.height() * 0.42f, uiPaint);
+        c.drawText("Kael Varyn", desc.centerX(), desc.top + desc.height() * 0.43f, uiPaint);
         c.drawText("Portador da Marca VIII", desc.centerX(), desc.top + desc.height() * 0.70f, uiPaint);
         uiPaint.setAlpha(255);
         uiPaint.setTextAlign(Paint.Align.LEFT);
 
-        // Vital rows slide from the right in a short stagger.
-        float rowH = panel.height() * 0.066f;
-        float rowGap = panel.height() * 0.014f;
-        RectF[] rows = new RectF[4];
+        // Resource boxes now live in the left column, so the right side can breathe.
+        float resourceY = desc.bottom + panel.height() * 0.028f;
+        RectF apBounds = new RectF(leftX, resourceY, leftX + leftMaxW,
+                resourceY + panel.height() * 0.090f);
+        RectF ap = fitBitmapRect(statusAttrPoints, apBounds);
+        drawBitmapAlpha(c, statusAttrPoints, ap, bottomReveal);
+        drawSmallValueAlpha(c, String.valueOf(pendingPoints),
+                ap.right - ap.width() * 0.090f, ap.centerY() + getHeight() * 0.008f,
+                getHeight() * 0.021f, Paint.Align.RIGHT, bottomReveal, Color.rgb(255, 215, 133));
+
+        RectF moneyBounds = new RectF(leftX, ap.bottom + panel.height() * 0.012f,
+                leftX + leftMaxW, ap.bottom + panel.height() * 0.112f);
+        RectF money = fitBitmapRect(statusMoney, moneyBounds);
+        drawBitmapAlpha(c, statusMoney, money, bottomReveal);
+        drawSmallValueAlpha(c, String.valueOf(stats.money),
+                money.right - money.width() * 0.090f, money.centerY() + getHeight() * 0.008f,
+                getHeight() * 0.021f, Paint.Align.RIGHT, bottomReveal, Color.rgb(255, 215, 133));
+
+        RectF upgradeBounds = new RectF(
+                leftX - panel.width() * 0.010f,
+                money.bottom + panel.height() * 0.018f,
+                leftX + leftMaxW + panel.width() * 0.010f,
+                money.bottom + panel.height() * 0.120f);
+        upgradeHit.set(fitBitmapRect(statusUpgrade, upgradeBounds));
+        float buttonScale = hasPending() ? 1f + 0.018f * pulse : 1f;
+        RectF buttonDraw = scaleRect(upgradeHit, buttonScale);
+        imagePaint.setAlpha((int) ((hasPending() ? 255 : 135) * bottomReveal));
+        c.drawBitmap(statusUpgrade, null, buttonDraw, imagePaint);
+        imagePaint.setAlpha(255);
+        if (hasPending()) {
+            overlayPaint.setStyle(Paint.Style.STROKE);
+            overlayPaint.setStrokeWidth(Math.max(1f, getHeight() * 0.0025f));
+            overlayPaint.setColor(Color.argb((int) ((65 + 70 * pulse) * bottomReveal), 255, 72, 82));
+            c.drawRoundRect(buttonDraw, getHeight() * 0.014f, getHeight() * 0.014f, overlayPaint);
+            overlayPaint.setStyle(Paint.Style.FILL);
+        }
+
+        // RIGHT COLUMN ----------------------------------------------------
         Bitmap[] rowBmps = {statusHpRow, statusManaRow, statusLevelRow, statusXpRow};
+        RectF[] rows = new RectF[4];
+        float rowCursorY = contentTop;
+        float rowGap = panel.height() * 0.012f;
+
         for (int i = 0; i < 4; i++) {
-            float rr = revealWindow(a, 0.16f + i * 0.045f, 0.58f + i * 0.045f);
-            float y0 = innerTop + i * (rowH + rowGap);
-            float xOff = (1f - rr) * panel.width() * 0.045f;
-            rows[i] = new RectF(rightX + xOff, y0, rightX + rightW + xOff, y0 + rowH);
+            float rr = revealWindow(a, 0.16f + i * 0.045f, 0.56f + i * 0.045f);
+            RectF rowBounds = new RectF(
+                    rightX + (1f - rr) * panel.width() * 0.035f,
+                    rowCursorY,
+                    rightX + rightMaxW + (1f - rr) * panel.width() * 0.035f,
+                    rowCursorY + panel.height() * 0.105f);
+            rows[i] = fitBitmapRect(rowBmps[i], rowBounds);
             drawBitmapAlpha(c, rowBmps[i], rows[i], rr);
+            rowCursorY = rows[i].bottom + rowGap;
         }
 
         drawStatusMeterAlpha(c, rows[0], stats.hpRatio(), Color.rgb(205, 28, 45), rowsReveal);
         drawStatusMeterAlpha(c, rows[1], stats.manaRatio(), Color.rgb(35, 118, 232), rowsReveal);
         drawStatusMeterAlpha(c, rows[3], stats.xpRatio(), Color.rgb(151, 50, 220), rowsReveal);
-        // Redraw row frames after the fills so borders stay crisp.
         for (int i = 0; i < 4; i++) drawBitmapAlpha(c, rowBmps[i], rows[i], rowsReveal);
 
         drawSmallValueAlpha(c, stats.hp + " / " + stats.maxHp,
                 rows[0].left + rows[0].width() * 0.61f, rows[0].centerY() + getHeight() * 0.009f,
-                getHeight() * 0.020f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
+                getHeight() * 0.019f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
         drawSmallValueAlpha(c, stats.mana + " / " + stats.maxMana,
                 rows[1].left + rows[1].width() * 0.61f, rows[1].centerY() + getHeight() * 0.009f,
-                getHeight() * 0.020f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
+                getHeight() * 0.019f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
         drawSmallValueAlpha(c, String.valueOf(stats.level),
                 rows[2].left + rows[2].width() * 0.64f, rows[2].centerY() + getHeight() * 0.009f,
-                getHeight() * 0.022f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
+                getHeight() * 0.021f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
         drawSmallValueAlpha(c, stats.xp + " / " + stats.xpToNext,
                 rows[3].left + rows[3].width() * 0.61f, rows[3].centerY() + getHeight() * 0.009f,
-                getHeight() * 0.019f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
+                getHeight() * 0.018f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
 
-        // Attribute block sits fully above the resources row.
-        float blockTop = rows[3].bottom + panel.height() * 0.028f;
-        float blockH = panel.height() * 0.245f;
-        float attrOffset = (1f - attrReveal) * getHeight() * 0.020f;
-        RectF block = new RectF(rightX, blockTop + attrOffset, rightX + rightW, blockTop + blockH + attrOffset);
+        float blockTop = rowCursorY + panel.height() * 0.010f;
+        RectF blockBounds = new RectF(
+                rightX + panel.width() * 0.020f,
+                blockTop + (1f - attrReveal) * getHeight() * 0.018f,
+                rightX + rightMaxW - panel.width() * 0.020f,
+                panel.bottom - panel.height() * 0.055f);
+        RectF block = fitBitmapRect(statusAttrBlock, blockBounds);
         drawBitmapAlpha(c, statusAttrBlock, block, attrReveal);
 
         int[] base = {stats.attack, stats.defense, stats.crit, stats.speed};
@@ -637,62 +684,42 @@ public class GameView extends View {
         for (int i = 0; i < 4; i++) {
             float y0 = block.top + block.height() * (0.045f + i * 0.247f);
             float y1 = y0 + block.height() * 0.195f;
-            RectF valueRect = new RectF(block.left + block.width() * 0.405f, y0,
+            RectF valueRect = new RectF(
+                    block.left + block.width() * 0.405f, y0,
                     block.left + block.width() * 0.655f, y1);
             String preview = delta[i] > 0
                     ? base[i] + " → " + (base[i] + delta[i]) + suffix[i]
                     : base[i] + suffix[i];
             int color = delta[i] > 0 ? Color.rgb(255, 207, 118) : Color.rgb(239, 229, 210);
             drawSmallValueAlpha(c, preview, valueRect.centerX(),
-                    valueRect.centerY() + getHeight() * 0.009f,
-                    getHeight() * (delta[i] > 0 ? 0.020f : 0.022f),
+                    valueRect.centerY() + getHeight() * 0.008f,
+                    getHeight() * (delta[i] > 0 ? 0.018f : 0.020f),
                     Paint.Align.CENTER, attrReveal, color);
 
-            minusHits[i].set(block.left + block.width() * 0.685f, y0,
+            minusHits[i].set(
+                    block.left + block.width() * 0.685f, y0,
                     block.left + block.width() * 0.825f, y1);
-            plusHits[i].set(block.left + block.width() * 0.835f, y0,
+            plusHits[i].set(
+                    block.left + block.width() * 0.835f, y0,
                     block.right, y1);
-        }
-
-        // Resources are on their own row, with the upgrade button below them.
-        float upW = panel.width() * 0.255f;
-        float upH = upW * statusUpgrade.getHeight() / (float) statusUpgrade.getWidth();
-        float upBottom = panel.bottom - panel.height() * 0.035f;
-        upgradeHit.set(panel.centerX() - upW * 0.5f, upBottom - upH,
-                panel.centerX() + upW * 0.5f, upBottom);
-
-        float resH = panel.height() * 0.062f;
-        float resBottom = upgradeHit.top - panel.height() * 0.024f;
-        float resTop = resBottom - resH;
-        RectF ap = new RectF(panel.left + panel.width() * 0.070f, resTop,
-                panel.left + panel.width() * 0.470f, resBottom);
-        RectF money = new RectF(panel.left + panel.width() * 0.530f, resTop,
-                panel.right - panel.width() * 0.070f, resBottom);
-
-        drawBitmapAlpha(c, statusAttrPoints, ap, bottomReveal);
-        drawBitmapAlpha(c, statusMoney, money, bottomReveal);
-        drawSmallValueAlpha(c, String.valueOf(pendingPoints),
-                ap.right - ap.width() * 0.105f, ap.centerY() + getHeight() * 0.009f,
-                getHeight() * 0.023f, Paint.Align.RIGHT, bottomReveal, Color.rgb(255, 215, 133));
-        drawSmallValueAlpha(c, String.valueOf(stats.money),
-                money.right - money.width() * 0.105f, money.centerY() + getHeight() * 0.009f,
-                getHeight() * 0.023f, Paint.Align.RIGHT, bottomReveal, Color.rgb(255, 215, 133));
-
-        float buttonScale = hasPending() ? 1f + 0.018f * pulse : 1f;
-        RectF buttonDraw = scaleRect(upgradeHit, buttonScale);
-        imagePaint.setAlpha((int) ((hasPending() ? 255 : 135) * bottomReveal));
-        c.drawBitmap(statusUpgrade, null, buttonDraw, imagePaint);
-        imagePaint.setAlpha(255);
-
-        if (hasPending()) {
-            overlayPaint.setStyle(Paint.Style.STROKE);
-            overlayPaint.setStrokeWidth(Math.max(1f, getHeight() * 0.0025f));
-            overlayPaint.setColor(Color.argb((int) ((65 + 70 * pulse) * bottomReveal), 255, 72, 82));
-            c.drawRoundRect(buttonDraw, getHeight() * 0.014f, getHeight() * 0.014f, overlayPaint);
-            overlayPaint.setStyle(Paint.Style.FILL);
         }
     }
 
+
+    private RectF fitBitmapRect(Bitmap bitmap, RectF bounds) {
+        float bw = Math.max(1f, bounds.width());
+        float bh = Math.max(1f, bounds.height());
+        float aspect = bitmap.getWidth() / (float) bitmap.getHeight();
+        float w = bw;
+        float h = w / aspect;
+        if (h > bh) {
+            h = bh;
+            w = h * aspect;
+        }
+        float cx = bounds.centerX();
+        float cy = bounds.centerY();
+        return new RectF(cx - w * 0.5f, cy - h * 0.5f, cx + w * 0.5f, cy + h * 0.5f);
+    }
 
     private void drawStatusMeterAlpha(Canvas c, RectF row, float ratio, int color, float alpha) {
         RectF track = new RectF(
