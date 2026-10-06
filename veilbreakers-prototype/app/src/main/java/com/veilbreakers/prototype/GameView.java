@@ -1279,7 +1279,6 @@ public class GameView extends View {
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent e) {    @Override
     public boolean onTouchEvent(MotionEvent e) {
         int action = e.getActionMasked();
         int actionIndex = e.getActionIndex();
