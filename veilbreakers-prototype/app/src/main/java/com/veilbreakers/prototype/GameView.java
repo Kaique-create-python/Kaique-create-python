@@ -33,6 +33,8 @@ public class GameView extends View {
     private final Bitmap[][] idle = new Bitmap[4][];
     private final Bitmap[][] run = new Bitmap[4][];
     private final Bitmap[][] attack = new Bitmap[4][];
+    private final Bitmap[][] comboLeft = new Bitmap[3][];
+    private final Bitmap[][] comboRight = new Bitmap[3][];
     private Bitmap[] sideWalkLeft, sideWalkRight;
     private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
@@ -173,6 +175,13 @@ public class GameView extends View {
         attack[UP] = loadSequence(c, "kael/attack/attack_up_", 6);
         attack[LEFT] = loadSequence(c, "kael/attack/attack_left_", 6);
         attack[RIGHT] = loadSequence(c, "kael/attack/attack_right_", 6);
+
+        // v1.3: three visually distinct chained attacks for horizontal combat.
+        for (int stage = 0; stage < 3; stage++) {
+            int n = stage + 1;
+            comboLeft[stage] = loadSequence(c, "kael_v13/combo/left_c" + n + "_", 5);
+            comboRight[stage] = loadSequence(c, "kael_v13/combo/right_c" + n + "_", 5);
+        }
 
         // First proper Veilborn sprite set.
         enemyIdleFrames = loadSequence(c, "enemy_v13/idle_front_", 4);
@@ -432,6 +441,15 @@ public class GameView extends View {
         return attackDurations.length - 1;
     }
 
+    private int currentComboVisualFrame() {
+        int f = currentAttackFrame();
+        if (f <= 0) return 0;
+        if (f == 1) return 1;
+        if (f == 2) return 2;
+        if (f == 3) return 3;
+        return 4;
+    }
+
     private void drawArena(Canvas c) {
         c.drawColor(Color.rgb(8, 10, 14));
         float tile = Math.max(48f, getHeight() / 10f);
@@ -452,8 +470,18 @@ public class GameView extends View {
     private void drawPlayer(Canvas c) {
         Bitmap frame;
         int bottomPad;
+        boolean comboVisual = false;
+
         if (attacking) {
-            frame = attack[attackFacing][currentAttackFrame()];
+            if (attackFacing == LEFT) {
+                frame = comboLeft[comboStage][currentComboVisualFrame()];
+                comboVisual = true;
+            } else if (attackFacing == RIGHT) {
+                frame = comboRight[comboStage][currentComboVisualFrame()];
+                comboVisual = true;
+            } else {
+                frame = attack[attackFacing][currentAttackFrame()];
+            }
             bottomPad = 12;
         } else {
             float maxSpeed = getHeight() * 0.39f * stats.moveMultiplier();
@@ -469,17 +497,28 @@ public class GameView extends View {
             bottomPad = 8;
         }
 
-        float scale = (getHeight() / 720f) * 0.92f;
-        // New side frames have a larger transparent canvas, so normalize their visual height.
-        if (!attacking && (facing == LEFT || facing == RIGHT) &&
-                ((float) Math.hypot(vx, vy) > getHeight() * 0.02f)) {
-            scale *= 0.70f;
+        RectF dst;
+        if (comboVisual) {
+            // Combo source frames include large slash VFX. Fit by a controlled screen height
+            // so Combo 2/3 do not suddenly make Kael gigantic.
+            float desiredH = getHeight() * (comboStage == 0 ? 0.255f : 0.315f);
+            float scale = desiredH / Math.max(1f, frame.getHeight());
+            float fw = frame.getWidth() * scale;
+            float fh = frame.getHeight() * scale;
+            float bottom = py + getHeight() * 0.035f;
+            dst = new RectF(px - fw * 0.5f, bottom - fh, px + fw * 0.5f, bottom);
+        } else {
+            float scale = (getHeight() / 720f) * 0.92f;
+            if (!attacking && (facing == LEFT || facing == RIGHT) &&
+                    ((float) Math.hypot(vx, vy) > getHeight() * 0.02f)) {
+                scale *= 0.70f;
+            }
+            float fw = frame.getWidth() * scale;
+            float fh = frame.getHeight() * scale;
+            dst = new RectF(px - fw * 0.5f, py - (frame.getHeight() - bottomPad) * scale,
+                    px - fw * 0.5f + fw, py - (frame.getHeight() - bottomPad) * scale + fh);
         }
 
-        float w = frame.getWidth() * scale;
-        float h = frame.getHeight() * scale;
-        RectF dst = new RectF(px - w * 0.5f, py - (frame.getHeight() - bottomPad) * scale,
-                px - w * 0.5f + w, py - (frame.getHeight() - bottomPad) * scale + h);
         float shadowW = getHeight() * 0.085f;
         float shadowH = getHeight() * 0.020f;
         c.drawOval(new RectF(px - shadowW, py - shadowH * 0.3f, px + shadowW, py + shadowH), shadowPaint);
