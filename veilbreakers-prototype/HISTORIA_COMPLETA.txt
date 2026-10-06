@@ -1,0 +1,97 @@
+VEILBREAKERS: Crown of the Hollow Sun — HISTÓRIA CANÔNICA
+
+MUNDO — ELYNDRA
+A população de Elyndra acredita que os Sete Deuses Eternos criaram a vida, a morte, o tempo, a magia, a guerra, a natureza e o destino. No centro do mundo existe o Hollow Sun (Sol Oco), uma estrela artificial construída como prisão.
+
+Dentro dele está The First, uma entidade primordial que existia antes do tempo, da matéria e dos próprios deuses. Os Sete derrotaram The First, roubaram fragmentos de seu poder e apagaram a história verdadeira. Esses fragmentos ficaram conhecidos como Crowns (Coroas).
+
+PROTAGONISTA — KAEL VARYN
+Kael é um jovem guerreiro com cabelo preto bagunçado, olhos cinza que ficam vermelho-violeta quando usa o poder do Oitavo, armadura leve preta e prateada parcialmente danificada, capa curta escura com detalhes vermelhos, uma marca brilhante VIII no peito e uma espada longa simples e desgastada.
+
+Durante o ataque à cidade de Kael, ele é morto por um Veilborn, mas retorna à vida. A marca VIII surge em seu peito. Não existe registro confiável de um Oitavo Deus.
+
+VERDADE SOBRE KAEL
+Kael é um receptáculo criado por The First. Ele consegue absorver essência de guerreiros, criaturas, entidades e divindades poderosas que derrota. Quanto mais forte Kael fica, mais The First consegue perceber o mundo através dele.
+
+OS SETE DEUSES
+1. Vaelor — Deus da Guerra. Um rei-guerreiro gigantesco. Acredita que guerras impedem que a humanidade enfraqueça.
+2. Seraphyne — Deusa da Vida. Parece benevolente, mas cria vida sem se importar necessariamente com o sofrimento que ela terá.
+3. Morveth — Deus da Morte. Paradoxalmente pode ser um dos mais justos: acredita que tudo precisa ter um fim.
+4. Astrael — Deusa do Tempo. Enxerga milhares de futuros e quase todos mostram Kael destruindo os deuses.
+5. Nyxara — Deusa da Magia. Criadora das escolas mágicas humanas. Secretamente estuda The First.
+6. Sylvaris — Deus da Natureza. Não odeia humanos, mas acredita que a civilização ultrapassou limites perigosos.
+7. Eidolon — Deus do Destino. Inicialmente parece o grande manipulador e antagonista.
+
+VIII — O OITAVO
+A marca de Kael é associada a um suposto Oitavo Deus que não existe nos registros oficiais. A verdade dessa identidade é um dos mistérios centrais.
+
+ENTIDADES EXTERNAS
+The Smiling Moon aparece em algumas noites. Quando surge, NPCs podem agir de forma estranha, desaparecer ou falar frases fora de contexto. Ela não é uma lua: é um olho observando Elyndra de fora da realidade. Pode se tornar um superboss opcional e participa do final secreto.
+
+INÍCIO DA CAMPANHA
+A cidade natal de Kael é destruída pelo Domínio Áureo (The Aureate Dominion). O início parece uma história de vingança. Os primeiros inimigos incluem soldados, mercenários, criaturas, magos e Veilborn.
+
+O Domínio procura Divine Remnants, que posteriormente são revelados como partes ligadas aos deuses. Os deuses ainda estão vivos e em conflito.
+
+PRIMEIRA MISSÃO — CINZAS DO OITAVO
+Kael acorda entre as ruínas depois de ter morrido no ataque.
+Objetivos planejados:
+- explorar as ruínas;
+- encontrar a espada;
+- abrir o primeiro baú;
+- lutar contra inimigos;
+- encontrar sobreviventes;
+- descobrir desaparecimentos estranhos;
+- enfrentar um Veilborn mais forte;
+- ganhar XP e subir de nível;
+- chegar ao Portão Norte.
+
+No final, o céu escurece por alguns segundos, a marca VIII reage e Kael vê por um instante algo parecido com um olho atrás do Hollow Sun. Ele acredita que pode ter sido uma alucinação.
+
+PRIMEIRO MAPA PLANEJADO
+Distrito Destruído -> Praça Central -> Casas Queimadas -> Aqueduto -> Portão Norte -> Santuário Abandonado.
+
+REVELAÇÃO DE EIDOLON
+Eidolon parece ser o vilão principal, mas quando Kael o derrota surge a revelação: Eidolon estava tentando impedir Kael de libertar The First.
+
+Ao matar grandes inimigos e coletar Crowns, Kael rompe os sete selos do Hollow Sun. Ele era a chave.
+
+THE FIRST TAMBÉM MENTIU
+The First participou da criação de grande parte da realidade, mas pretende destruir o universo atual e criar outro. Os Sete o traíram em parte para permitir que os mortais tivessem escolha própria. Nenhum dos lados é totalmente correto.
+
+ARCO FINAL
+O céu se rompe. Regiões começam a se misturar com versões de seu próprio passado. Linhas do tempo se sobrepõem, surgem loops, lugares impossíveis e entidades de outras realidades. O Hollow Sun finalmente se abre.
+
+FINAIS PLANEJADOS
+Godslayer — Kael mata The First e os Sete Deuses, deixando a humanidade sem divindades.
+Divine — Kael se torna o Oitavo Deus e mantém um novo equilíbrio.
+Origin — Kael se funde com The First e reinicia o universo.
+Broken Crown — Kael destrói as Crowns sem matar seus portadores e rompe o ciclo.
+True Ending — envolve The Smiling Moon e revela que até The First existe dentro de algo maior.
+
+COMBATE
+Três pilares:
+- Weapon Combat
+- Arcana
+- Divine Powers
+
+Combos devem ser rápidos, encadeados e permitir cancelamentos no futuro: ataque -> dash -> magia -> habilidade -> parry -> finisher.
+
+Rank de fluxo planejado: D -> C -> B -> A -> S -> SS -> SSS. Rankings altos futuramente modificam habilidades em vez de servirem apenas como pontuação.
+
+ESCOLAS DE MAGIA
+Fogo — agressão/explosões.
+Raio — velocidade, teleporte curto, combos.
+Gelo — controle de espaço.
+Sangue — troca vida por poder.
+Void — manipulação do espaço.
+Luz — armas e escudos.
+Morte — almas.
+Tempo — repetição/restauração de ações e posição.
+Origin Magic — ligada diretamente a The First.
+
+DIREÇÃO DO TOM
+A história começa como fantasia medieval sombria, escala para fantasia divina, depois horror cósmico e finalmente conflitos conceituais envolvendo tempo, destino, existência e livre-arbítrio.
+
+REGRA DE DESENVOLVIMENTO
+Construir incrementalmente. Não tentar fazer o jogo inteiro em uma versão. Preservar sistemas e assets já aprovados.
