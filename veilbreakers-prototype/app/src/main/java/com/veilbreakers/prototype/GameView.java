@@ -505,10 +505,10 @@ public class GameView extends View {
         overlayPaint.setColor(Color.argb((int) (205 * a), 2, 3, 6));
         c.drawRect(0, 0, getWidth(), getHeight(), overlayPaint);
 
-        float finalW = getWidth() * 0.72f;
-        float finalH = getHeight() * 0.86f;
+        float finalW = getWidth() * 0.84f;
+        float finalH = getHeight() * 0.91f;
         float cx = getWidth() * 0.50f;
-        float cy = getHeight() * 0.505f + slideY;
+        float cy = getHeight() * 0.500f + slideY;
         float panelW = finalW * pop;
         float panelH = finalH * pop;
         RectF panel = new RectF(cx - panelW * 0.5f, cy - panelH * 0.5f,
@@ -536,7 +536,7 @@ public class GameView extends View {
         float attrReveal = revealWindow(a, 0.30f, 0.82f);
         float bottomReveal = revealWindow(a, 0.46f, 0.96f);
 
-        float headerW = panel.width() * 0.38f;
+        float headerW = panel.width() * 0.30f;
         float headerH = headerW * statusHeader.getHeight() / (float) statusHeader.getWidth();
         float headerOffsetY = (1f - headerReveal) * getHeight() * 0.035f;
         RectF header = new RectF(panel.centerX() - headerW * 0.5f,
@@ -553,14 +553,14 @@ public class GameView extends View {
                 closeStatusHit.centerY() + getHeight() * 0.017f,
                 getHeight() * 0.041f, Paint.Align.CENTER, rowsReveal, Color.rgb(245, 226, 218));
 
-        float innerTop = panel.top + panel.height() * 0.175f;
-        float leftX = panel.left + panel.width() * 0.055f;
-        float leftW = panel.width() * 0.275f;
-        float rightX = panel.left + panel.width() * 0.365f;
-        float rightW = panel.width() * 0.575f;
+        float innerTop = panel.top + panel.height() * 0.145f;
+        float leftX = panel.left + panel.width() * 0.050f;
+        float leftW = panel.width() * 0.235f;
+        float rightX = panel.left + panel.width() * 0.325f;
+        float rightW = panel.width() * 0.625f;
 
         // Portrait column enters from the left.
-        float portraitH = panel.height() * 0.27f;
+        float portraitH = panel.height() * 0.30f;
         float leftOffset = (1f - leftReveal) * panel.width() * 0.045f;
         RectF portrait = new RectF(leftX - leftOffset, innerTop,
                 leftX - leftOffset + leftW, innerTop + portraitH);
@@ -578,9 +578,9 @@ public class GameView extends View {
         pixelPaint.setAlpha(255);
 
         RectF desc = new RectF(leftX - leftOffset,
-                portrait.bottom + panel.height() * 0.020f,
+                portrait.bottom + panel.height() * 0.026f,
                 leftX - leftOffset + leftW,
-                portrait.bottom + panel.height() * 0.145f);
+                portrait.bottom + panel.height() * 0.165f);
         drawBitmapAlpha(c, statusDescFrame, desc, leftReveal);
         uiPaint.setTextAlign(Paint.Align.CENTER);
         uiPaint.setTextSize(getHeight() * 0.018f);
@@ -592,8 +592,8 @@ public class GameView extends View {
         uiPaint.setTextAlign(Paint.Align.LEFT);
 
         // Vital rows slide from the right in a short stagger.
-        float rowH = panel.height() * 0.073f;
-        float rowGap = panel.height() * 0.007f;
+        float rowH = panel.height() * 0.066f;
+        float rowGap = panel.height() * 0.014f;
         RectF[] rows = new RectF[4];
         Bitmap[] rowBmps = {statusHpRow, statusManaRow, statusLevelRow, statusXpRow};
         for (int i = 0; i < 4; i++) {
@@ -624,8 +624,8 @@ public class GameView extends View {
                 getHeight() * 0.019f, Paint.Align.CENTER, rowsReveal, Color.rgb(239,229,210));
 
         // Attribute block sits fully above the resources row.
-        float blockTop = rows[3].bottom + panel.height() * 0.018f;
-        float blockH = panel.height() * 0.265f;
+        float blockTop = rows[3].bottom + panel.height() * 0.028f;
+        float blockH = panel.height() * 0.245f;
         float attrOffset = (1f - attrReveal) * getHeight() * 0.020f;
         RectF block = new RectF(rightX, blockTop + attrOffset, rightX + rightW, blockTop + blockH + attrOffset);
         drawBitmapAlpha(c, statusAttrBlock, block, attrReveal);
@@ -655,19 +655,19 @@ public class GameView extends View {
         }
 
         // Resources are on their own row, with the upgrade button below them.
-        float upW = panel.width() * 0.30f;
+        float upW = panel.width() * 0.255f;
         float upH = upW * statusUpgrade.getHeight() / (float) statusUpgrade.getWidth();
-        float upBottom = panel.bottom - panel.height() * 0.025f;
+        float upBottom = panel.bottom - panel.height() * 0.035f;
         upgradeHit.set(panel.centerX() - upW * 0.5f, upBottom - upH,
                 panel.centerX() + upW * 0.5f, upBottom);
 
-        float resH = panel.height() * 0.070f;
-        float resBottom = upgradeHit.top - panel.height() * 0.014f;
+        float resH = panel.height() * 0.062f;
+        float resBottom = upgradeHit.top - panel.height() * 0.024f;
         float resTop = resBottom - resH;
-        RectF ap = new RectF(panel.left + panel.width() * 0.075f, resTop,
-                panel.left + panel.width() * 0.485f, resBottom);
-        RectF money = new RectF(panel.left + panel.width() * 0.515f, resTop,
-                panel.right - panel.width() * 0.075f, resBottom);
+        RectF ap = new RectF(panel.left + panel.width() * 0.070f, resTop,
+                panel.left + panel.width() * 0.470f, resBottom);
+        RectF money = new RectF(panel.left + panel.width() * 0.530f, resTop,
+                panel.right - panel.width() * 0.070f, resBottom);
 
         drawBitmapAlpha(c, statusAttrPoints, ap, bottomReveal);
         drawBitmapAlpha(c, statusMoney, money, bottomReveal);
