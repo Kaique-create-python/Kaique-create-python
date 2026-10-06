@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v12
+  group: veilbreakers-apk-v13
   cancel-in-progress: true
 
 jobs:
@@ -57,13 +57,29 @@ jobs:
           $raw = "veilbreakers-prototype/app/src/main/res/raw"
           New-Item -ItemType Directory -Force -Path $raw | Out-Null
           [IO.File]::WriteAllBytes("$raw\menu_background.mp4", [Convert]::FromBase64String($b64))
+      - name: Decode v1.3 gameplay and recovery assets
+        shell: pwsh
+        run: |
+          $dest = "veilbreakers-prototype/app/src/main/assets"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/v13_assets.zip.b64.part-*" | Sort-Object Name
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\v13_assets.zip", [Convert]::FromBase64String($b64))
+          Expand-Archive -Force "$env:RUNNER_TEMP\v13_assets.zip" $dest
+          if (!(Test-Path "$dest/kael_v13/side/run_left_0.png")) { throw "v1.3 side movement assets missing" }
+          if (!(Test-Path "$dest/ui_v13/joystick_base.png")) { throw "v1.3 joystick assets missing" }
+          if (!(Test-Path "$dest/ui_v13/attack_normal.png")) { throw "v1.3 attack button assets missing" }
+          if (!(Test-Path "$dest/enemy_v13/idle_front_0.png")) { throw "v1.3 enemy assets missing" }
+          if (!(Test-Path "$dest/project_archive/HISTORIA_COMPLETA.txt")) { throw "project archive story missing" }
+          if (!(Test-Path "$dest/project_archive/SPRITES_MANIFEST.json")) { throw "project archive manifest missing" }
+
       - name: Build debug APK
         working-directory: veilbreakers-prototype
         shell: pwsh
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.2-package
+          name: veilbreakers-v1.3-package
           path: |
             veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
             veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
