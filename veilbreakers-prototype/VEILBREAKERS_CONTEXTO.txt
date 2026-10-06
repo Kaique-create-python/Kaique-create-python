@@ -1,106 +1,65 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual alvo: v1.2.0
+Versão atual: v1.3.0
 
-Continue este projeto exatamente de onde parou. Não recomece do zero.
+Continue o projeto exatamente de onde parou. Não recomece do zero.
 
-JOGO
-Nome: VEILBREAKERS: Crown of the Hollow Sun
-Android APK 2D action RPG pixel-art, top-down/3/4.
-Protagonista: Kael Varyn, guerreiro de cabelo preto, armadura preta/prateada, capa escura com vermelho, espada e marca brilhante VIII no peito.
-Tema: dark fantasy que escala para fantasia divina/cósmica.
-
-REPOSITÓRIO / BUILD
+REPO/BUILD
 GitHub: Kaique-create-python/Kaique-create-python
-Branch de trabalho/build: veilbreakers-apk-build
-Projeto Android: veilbreakers-prototype
+Branch: veilbreakers-apk-build
+Projeto: veilbreakers-prototype
 Package: com.veilbreakers.prototype
 Build: GitHub Actions em .github/workflows/build-veilbreakers.yml
-Sempre que buildar uma nova versão:
-1. Gere o APK.
-2. Gere/atualize este TXT com o estado mais recente do projeto e próximos passos.
-3. Faça o artifact do GitHub conter os dois arquivos.
-4. Entregue ao usuário links separados para APK e TXT.
 
-ESTADO DO PROJETO
-- Menu principal funcional com fundo em vídeo looping.
-- New Game, Continue, Settings e Exit.
-- Menu possui fade, brilho, transições e botão crescendo ao toque.
-- Kael tem idle/run/attack em 4 direções.
-- Movimento com analógico virtual.
-- Botão ATTACK.
-- HUD com HP, Mana, XP, nível, dinheiro, ATK, DEF, CRIT, SPD.
-- Menu Status animado com portrait, HP/Mana/Nível/XP, atributos, pontos e dinheiro.
-- Upgrade de ATK/DEF/CRIT/SPD com prévia antes de confirmar.
-- Save persistente via SharedPreferences.
-- Assets do Status usam aspect ratio preservado para não achatar.
-- Versão v1.1 foi a última versão antes do combate real.
+REGRA FIXA DE ENTREGA
+Toda nova build deve entregar:
+1. APK.
+2. VEILBREAKERS_CONTEXTO.txt atualizado.
+Além disso, o próprio APK contém assets/project_archive/ com história, manifesto e spritesheets-fonte para recuperação de contexto.
 
-NOVO NA v1.2
-Primeiro inimigo funcional: Veilborn Wretch.
-Inicialmente ele é desenhado proceduralmente por Canvas para testar gameplay sem depender de nova spritesheet.
-Sistemas:
-- inimigo persegue Kael;
-- HP do inimigo;
-- IA de aproximação;
-- ataque do inimigo;
-- dano no jogador;
-- defesa reduz dano recebido;
-- invulnerabilidade curta após receber dano;
-- knockback no jogador e no inimigo;
-- ataque do Kael tem hit window real;
-- ATK afeta dano;
-- CRIT tem chance real e multiplicador;
-- morte do inimigo;
-- ganha 35 XP e 18 moedas ao derrotá-lo;
-- inimigo reaparece após alguns segundos para testes;
-- HP do HUD reage a dano;
-- feedback flutuante de dano/CRIT/XP;
-- derrota temporária do jogador e respawn de teste.
+ESTADO ATUAL
+- Menu principal funcional com fundo em vídeo loop.
+- New Game / Continue / Settings / Exit.
+- Fade, brilho e transições no menu.
+- Kael com movimento e ataque em 4 direções.
+- HUD: HP, Mana, XP, nível, dinheiro, ATK, DEF, CRIT, SPD.
+- Status animado, upgrades e save.
+- Primeiro inimigo: Veilborn Wretch.
+- Dano real, DEF, crítico, knockback, morte, XP e dinheiro.
 
-BALANCEAMENTO ATUAL
-Kael default:
-HP 120
-Mana 60
-ATK 12
-DEF 8
-CRIT 5%
-SPD 100
-Pontos de atributo 3
-Dinheiro 100
+NOVO NA v1.3
+- Novo joystick gótico usando sprites separados: base normal/ativa, knob normal/pressionado e glow.
+- Novo botão de ataque usando sprites separados: normal, pressionado, combo-ready, disabled e flash.
+- Sistema de combo de 3 golpes. Tocar durante o ataque enfileira o próximo golpe; também existe pequena janela depois do golpe para continuar o combo.
+- Golpe 2 causa mais dano; golpe 3 é finisher mais forte e dá mais knockback.
+- Animações laterais de Kael substituídas por frames corrigidos em que as duas pernas alternam de forma mais convincente.
+- Movimento lateral usa walk em velocidade menor e run em velocidade maior.
+- Veilborn deixa de ser apenas procedural e passa a usar sprites cortados da spritesheet criada.
+- O APK guarda dentro de assets/project_archive:
+  * HISTORIA_COMPLETA.txt
+  * CHAT_CONTEXTO_ATUAL.txt
+  * SPRITES_MANIFEST.json
+  * source_sheets/ com as spritesheets-fonte geradas.
+- O arquivo assets_b64/v13_assets.zip contém todos esses assets para o build.
 
-Veilborn Wretch:
-HP 55
-ATK 16
-DEF 4
-Recompensa: 35 XP + 18 dinheiro
-Respawn de teste: ~3s
-
-ARQUIVOS IMPORTANTES
-veilbreakers-prototype/app/src/main/java/com/veilbreakers/prototype/GameView.java
-veilbreakers-prototype/app/src/main/java/com/veilbreakers/prototype/PlayerStats.java
-veilbreakers-prototype/app/src/main/java/com/veilbreakers/prototype/MainActivity.java
-veilbreakers-prototype/app/src/main/java/com/veilbreakers/prototype/MainMenuView.java
-veilbreakers-prototype/app/src/main/java/com/veilbreakers/prototype/MenuVideoView.java
-veilbreakers-prototype/app/src/main/assets_b64/
-veilbreakers-prototype/app/build.gradle
-
-DIREÇÃO DE ARTE
-UI gótica dark fantasy com metal escuro, gemas/vermelho, detalhes dourados e azul/violeta para mana.
-Não distorcer PNGs: preservar aspect ratio.
-Sprites precisam ser separados/recortáveis, com bastante transparência entre frames.
-Animações precisam ter pés alinhados e corpo consistente.
+ASSETS-FONTE IMPORTANTES PRESERVADOS
+- Veilborn Wretch source sheet.
+- Joystick source sheet.
+- Attack button source sheet.
+- Kael corrected side movement source sheet.
+- Kael combo source sheet.
+- Kael original movement/combat/magic source sheets.
 
 PRÓXIMOS PASSOS RECOMENDADOS
-1. Testar e polir o primeiro combate no celular.
-2. Trocar o Veilborn procedural por sprites próprios de idle/run/attack/hurt/death.
-3. Primeira magia do Kael usando Mana.
-4. Inventário funcional.
-5. Equipamentos e loot.
-6. Primeiro mapa real: Ruínas de Varyn.
-7. Primeira missão: Cinzas do Oitavo.
-8. NPCs e diálogos.
-9. Primeiro mini-boss.
-10. Save mais completo para missão/inventário/mundo.
+1. Testar v1.3 no celular e ajustar escala/posição dos novos controles.
+2. Refinar combo visual em cima da spritesheet específica de combos.
+3. Melhorar direção/ataque do Veilborn com sprites em 4 direções.
+4. Primeira magia usando Mana.
+5. Inventário e equipamentos.
+6. Loot.
+7. Primeiro mapa real: Ruínas de Varyn.
+8. Missão Cinzas do Oitavo.
+9. NPCs/diálogo.
+10. Mini-boss.
 
 IMPORTANTE
-O usuário quer evolução incremental. Não tente construir o jogo inteiro numa única versão. Sempre preserve o que já funciona.
+Preserve o que já funciona. Evite quebrar menus, save, HUD e combate ao adicionar sistemas.
