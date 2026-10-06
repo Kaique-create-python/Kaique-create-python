@@ -30,6 +30,7 @@ NOVO NA v1.3
 - Novo joystick gótico usando sprites separados: base normal/ativa, knob normal/pressionado e glow.
 - Novo botão de ataque usando sprites separados: normal, pressionado, combo-ready, disabled e flash.
 - Sistema de combo de 3 golpes. Tocar durante o ataque enfileira o próximo golpe; também existe pequena janela depois do golpe para continuar o combo.
+- Combo 1/2/3 usam sprites próprios nas direções esquerda e direita; golpes verticais continuam usando a animação vertical original por enquanto.
 - Golpe 2 causa mais dano; golpe 3 é finisher mais forte e dá mais knockback.
 - Animações laterais de Kael substituídas por frames corrigidos em que as duas pernas alternam de forma mais convincente.
 - Movimento lateral usa walk em velocidade menor e run em velocidade maior.
@@ -51,7 +52,7 @@ ASSETS-FONTE IMPORTANTES PRESERVADOS
 
 PRÓXIMOS PASSOS RECOMENDADOS
 1. Testar v1.3 no celular e ajustar escala/posição dos novos controles.
-2. Refinar combo visual em cima da spritesheet específica de combos.
+2. Criar também sprites próprios de Combo 1/2/3 para as direções cima e baixo.
 3. Melhorar direção/ataque do Veilborn com sprites em 4 direções.
 4. Primeira magia usando Mana.
 5. Inventário e equipamentos.
