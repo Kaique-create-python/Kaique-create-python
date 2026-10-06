@@ -58,7 +58,30 @@ public class GameView extends View {
     private float runClock = 0f;
     private boolean attacking = false;
     private float attackClock = 0f;
+    private boolean attackHitApplied = false;
     private long lastNs = System.nanoTime();
+
+    // v1.2 combat prototype: first Veilborn enemy.
+    private float enemyX = -1f, enemyY = -1f;
+    private float enemyVx = 0f, enemyVy = 0f;
+    private float enemyKnockX = 0f, enemyKnockY = 0f;
+    private int enemyMaxHp = 55, enemyHp = 55;
+    private int enemyAttack = 16, enemyDefense = 4;
+    private boolean enemyAlive = true;
+    private float enemyAttackCooldown = 0.75f;
+    private float enemyHurtTimer = 0f;
+    private float enemyDeathTimer = 0f;
+    private float enemyRespawnTimer = 0f;
+    private float enemyAnimClock = 0f;
+    private float playerInvuln = 0f;
+    private float playerHurtFlash = 0f;
+    private float playerKnockX = 0f, playerKnockY = 0f;
+    private boolean playerDown = false;
+    private float playerDownTimer = 0f;
+    private String combatText = "";
+    private float combatTextTimer = 0f;
+    private float combatTextX = 0f, combatTextY = 0f;
+    private boolean combatTextCrit = false;
 
     private final float[] attackDurations = {0.075f, 0.060f, 0.055f, 0.060f, 0.075f, 0.100f};
     private final SharedPreferences prefs;
@@ -180,6 +203,10 @@ public class GameView extends View {
                 py = h * 0.52f;
             }
         }
+        if (enemyX < 0f) {
+            enemyX = w * 0.69f;
+            enemyY = h * 0.53f;
+        }
     }
 
     @Override
@@ -191,7 +218,18 @@ public class GameView extends View {
 
         update(dt);
         drawArena(c);
-        drawPlayer(c);
+        if (enemyAlive || enemyDeathTimer > 0f) {
+            if (enemyY < py) {
+                drawEnemy(c);
+                drawPlayer(c);
+            } else {
+                drawPlayer(c);
+                drawEnemy(c);
+            }
+        } else {
+            drawPlayer(c);
+        }
+        drawCombatFeedback(c);
         drawHud(c);
         if (!statusOpen && statusAnim < 0.02f) drawControls(c);
         drawStatusOverlay(c);
@@ -204,6 +242,17 @@ public class GameView extends View {
         float targetStatus = statusOpen ? 1f : 0f;
         statusAnim += (targetStatus - statusAnim) * (1f - (float) Math.exp(-12f * dt));
         if (levelUpFlash > 0f) levelUpFlash = Math.max(0f, levelUpFlash - dt);
+        if (playerInvuln > 0f) playerInvuln = Math.max(0f, playerInvuln - dt);
+        if (playerHurtFlash > 0f) playerHurtFlash = Math.max(0f, playerHurtFlash - dt);
+        if (combatTextTimer > 0f) combatTextTimer = Math.max(0f, combatTextTimer - dt);
+
+        if (playerDown) {
+            playerDownTimer -= dt;
+            vx *= Math.max(0f, 1f - dt * 12f);
+            vy *= Math.max(0f, 1f - dt * 12f);
+            if (playerDownTimer <= 0f) resetAfterDefeat();
+            return;
+        }
 
         if (statusOpen) {
             vx *= Math.max(0f, 1f - dt * 10f);
@@ -225,6 +274,10 @@ public class GameView extends View {
 
         if (attacking) {
             attackClock += dt;
+            int attackFrame = currentAttackFrame();
+            if (!attackHitApplied && attackFrame >= 2 && attackFrame <= 4) {
+                checkPlayerAttackHit();
+            }
             float attackDrag = 1f - (float) Math.exp(-9.5f * dt);
             vx += (0f - vx) * attackDrag;
             vy += (0f - vy) * attackDrag;
@@ -236,6 +289,7 @@ public class GameView extends View {
             if (attackClock >= total) {
                 attacking = false;
                 attackClock = 0f;
+                attackHitApplied = false;
             }
         } else {
             float response = inputLen > 0.14f ? 13.5f : 9.5f;
@@ -253,6 +307,13 @@ public class GameView extends View {
                 idleClock += dt * 3.1f;
             }
         }
+
+        px += playerKnockX * dt;
+        py += playerKnockY * dt;
+        playerKnockX *= (float) Math.exp(-10f * dt);
+        playerKnockY *= (float) Math.exp(-10f * dt);
+
+        updateEnemy(dt);
 
         float xMargin = getHeight() * 0.10f;
         float yTop = getHeight() * 0.14f;
@@ -277,6 +338,7 @@ public class GameView extends View {
         if (attacking || statusOpen) return;
         attacking = true;
         attackClock = 0f;
+        attackHitApplied = false;
         attackFacing = facing;
         if (prefs.getBoolean("vibration", true)) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
     }
@@ -329,7 +391,219 @@ public class GameView extends View {
         float shadowW = getHeight() * 0.085f;
         float shadowH = getHeight() * 0.020f;
         c.drawOval(new RectF(px - shadowW, py - shadowH * 0.3f, px + shadowW, py + shadowH), shadowPaint);
+        if (playerHurtFlash > 0f && ((int)(playerHurtFlash * 35f) % 2 == 0)) {
+            pixelPaint.setAlpha(105);
+        }
         c.drawBitmap(frame, null, dst, pixelPaint);
+        pixelPaint.setAlpha(255);
+    }
+
+    // ---------------- Combat prototype ----------------
+    private void updateEnemy(float dt) {
+        enemyAnimClock += dt;
+        if (enemyHurtTimer > 0f) enemyHurtTimer = Math.max(0f, enemyHurtTimer - dt);
+
+        if (!enemyAlive) {
+            if (enemyDeathTimer > 0f) {
+                enemyDeathTimer = Math.max(0f, enemyDeathTimer - dt);
+            } else {
+                enemyRespawnTimer -= dt;
+                if (enemyRespawnTimer <= 0f) respawnEnemy();
+            }
+            return;
+        }
+
+        enemyAttackCooldown -= dt;
+
+        enemyX += enemyKnockX * dt;
+        enemyY += enemyKnockY * dt;
+        enemyKnockX *= (float) Math.exp(-8.5f * dt);
+        enemyKnockY *= (float) Math.exp(-8.5f * dt);
+
+        float dx = px - enemyX;
+        float dy = py - enemyY;
+        float dist = Math.max(1f, (float) Math.hypot(dx, dy));
+        float nx = dx / dist;
+        float ny = dy / dist;
+        float attackRange = getHeight() * 0.115f;
+        float chaseSpeed = getHeight() * 0.175f;
+
+        if (enemyHurtTimer <= 0f && dist > attackRange) {
+            float blend = 1f - (float) Math.exp(-8f * dt);
+            enemyVx += (nx * chaseSpeed - enemyVx) * blend;
+            enemyVy += (ny * chaseSpeed - enemyVy) * blend;
+            enemyX += enemyVx * dt;
+            enemyY += enemyVy * dt;
+        } else {
+            enemyVx *= Math.max(0f, 1f - dt * 9f);
+            enemyVy *= Math.max(0f, 1f - dt * 9f);
+            if (enemyHurtTimer <= 0f && dist <= attackRange && enemyAttackCooldown <= 0f) {
+                enemyAttackPlayer(nx, ny);
+                enemyAttackCooldown = 1.10f;
+            }
+        }
+
+        float margin = getHeight() * 0.09f;
+        enemyX = clamp(enemyX, margin, getWidth() - margin);
+        enemyY = clamp(enemyY, getHeight() * 0.16f, getHeight() * 0.86f);
+    }
+
+    private void enemyAttackPlayer(float nx, float ny) {
+        if (playerInvuln > 0f || playerDown) return;
+        int damage = Math.max(1, enemyAttack - Math.max(0, stats.defense / 2));
+        stats.hp = Math.max(0, stats.hp - damage);
+        playerInvuln = 0.72f;
+        playerHurtFlash = 0.24f;
+        playerKnockX = nx * getHeight() * 0.42f;
+        playerKnockY = ny * getHeight() * 0.42f;
+        showCombatText("-" + damage + " HP", px, py - getHeight() * 0.08f, false);
+        haptic();
+        if (stats.hp <= 0) {
+            playerDown = true;
+            playerDownTimer = 1.35f;
+        }
+        saveState();
+    }
+
+    private void checkPlayerAttackHit() {
+        if (!enemyAlive) return;
+        float dx = enemyX - px;
+        float dy = enemyY - py;
+        float range = getHeight() * 0.19f;
+        boolean inFront = false;
+        if (attackFacing == DOWN) inFront = dy > -range * 0.15f && dy < range && Math.abs(dx) < range * 0.72f;
+        else if (attackFacing == UP) inFront = dy < range * 0.15f && dy > -range && Math.abs(dx) < range * 0.72f;
+        else if (attackFacing == LEFT) inFront = dx < range * 0.15f && dx > -range && Math.abs(dy) < range * 0.72f;
+        else if (attackFacing == RIGHT) inFront = dx > -range * 0.15f && dx < range && Math.abs(dy) < range * 0.72f;
+
+        if (!inFront) return;
+        attackHitApplied = true;
+
+        int damage = Math.max(1, stats.attack - enemyDefense / 2);
+        boolean crit = Math.random() * 100.0 < stats.crit;
+        if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.75f));
+
+        enemyHp = Math.max(0, enemyHp - damage);
+        enemyHurtTimer = 0.20f;
+        float dist = Math.max(1f, (float)Math.hypot(dx, dy));
+        enemyKnockX = (dx / dist) * getHeight() * 0.55f;
+        enemyKnockY = (dy / dist) * getHeight() * 0.55f;
+        showCombatText((crit ? "CRIT " : "") + damage, enemyX, enemyY - getHeight() * 0.12f, crit);
+        haptic();
+
+        if (enemyHp <= 0) {
+            enemyAlive = false;
+            enemyDeathTimer = 0.62f;
+            enemyRespawnTimer = 3.0f;
+            stats.money += 18;
+            grantXp(35);
+            showCombatText("+35 XP   +18", enemyX, enemyY - getHeight() * 0.15f, true);
+        }
+    }
+
+    private void respawnEnemy() {
+        enemyAlive = true;
+        enemyHp = enemyMaxHp;
+        enemyX = getWidth() * 0.70f;
+        enemyY = getHeight() * 0.54f;
+        enemyVx = enemyVy = enemyKnockX = enemyKnockY = 0f;
+        enemyAttackCooldown = 0.85f;
+        enemyHurtTimer = 0f;
+        enemyDeathTimer = 0f;
+    }
+
+    private void resetAfterDefeat() {
+        playerDown = false;
+        stats.hp = stats.maxHp;
+        stats.mana = stats.maxMana;
+        px = getWidth() * 0.50f;
+        py = getHeight() * 0.52f;
+        vx = vy = playerKnockX = playerKnockY = 0f;
+        respawnEnemy();
+        showCombatText("RESPAWN", px, py - getHeight() * 0.12f, false);
+        saveState();
+    }
+
+    private void showCombatText(String text, float x, float y, boolean crit) {
+        combatText = text;
+        combatTextX = x;
+        combatTextY = y;
+        combatTextTimer = 0.95f;
+        combatTextCrit = crit;
+    }
+
+    private void drawEnemy(Canvas c) {
+        if (!enemyAlive && enemyDeathTimer <= 0f) return;
+        float h = getHeight();
+        float bob = (float)Math.sin(enemyAnimClock * 4.3f) * h * 0.006f;
+        float alpha = enemyAlive ? 1f : clamp(enemyDeathTimer / 0.62f, 0f, 1f);
+        float shrink = enemyAlive ? 1f : 0.72f + 0.28f * alpha;
+        float size = h * 0.105f * shrink;
+        float cx = enemyX;
+        float cy = enemyY + bob;
+
+        int hurt = enemyHurtTimer > 0f ? 1 : 0;
+        int bodyColor = hurt == 1 ? Color.rgb(112, 38, 52) : Color.rgb(28, 25, 38);
+        int edgeColor = hurt == 1 ? Color.rgb(230, 75, 86) : Color.rgb(70, 54, 82);
+
+        overlayPaint.setAlpha((int)(255 * alpha));
+        overlayPaint.setColor(Color.argb((int)(95 * alpha), 0, 0, 0));
+        c.drawOval(new RectF(cx - size * 0.62f, enemyY - h * 0.005f,
+                cx + size * 0.62f, enemyY + h * 0.025f), overlayPaint);
+
+        overlayPaint.setColor(bodyColor);
+        c.drawOval(new RectF(cx - size * 0.40f, cy - size * 0.90f,
+                cx + size * 0.40f, cy + size * 0.08f), overlayPaint);
+        overlayPaint.setColor(edgeColor);
+        c.drawOval(new RectF(cx - size * 0.30f, cy - size * 0.96f,
+                cx + size * 0.30f, cy - size * 0.42f), overlayPaint);
+
+        overlayPaint.setStrokeWidth(Math.max(3f, h * 0.006f));
+        overlayPaint.setColor(Color.argb((int)(220 * alpha), 63, 43, 73));
+        c.drawLine(cx - size * 0.28f, cy - size * 0.40f,
+                cx - size * 0.62f, cy - size * 0.02f, overlayPaint);
+        c.drawLine(cx + size * 0.28f, cy - size * 0.40f,
+                cx + size * 0.62f, cy - size * 0.02f, overlayPaint);
+
+        overlayPaint.setColor(Color.argb((int)(255 * alpha), 238, 36, 58));
+        c.drawCircle(cx + size * 0.10f, cy - size * 0.69f, size * 0.055f, overlayPaint);
+        overlayPaint.setAlpha(255);
+
+        if (enemyAlive) {
+            float bw = h * 0.19f;
+            float bh = h * 0.018f;
+            float top = cy - size * 1.18f;
+            RectF back = new RectF(cx - bw * 0.5f, top, cx + bw * 0.5f, top + bh);
+            overlayPaint.setColor(Color.argb(210, 14, 13, 18));
+            c.drawRoundRect(back, bh * 0.45f, bh * 0.45f, overlayPaint);
+            RectF fill = new RectF(back.left + 2f, back.top + 2f,
+                    back.left + 2f + (back.width() - 4f) * (enemyHp / (float)enemyMaxHp), back.bottom - 2f);
+            overlayPaint.setColor(Color.rgb(170, 34, 49));
+            c.drawRoundRect(fill, bh * 0.35f, bh * 0.35f, overlayPaint);
+            drawSmallValue(c, "VEILBORN WRETCH  " + enemyHp + "/" + enemyMaxHp,
+                    cx, top - h * 0.010f, h * 0.016f, Paint.Align.CENTER);
+        }
+    }
+
+    private void drawCombatFeedback(Canvas c) {
+        if (playerHurtFlash > 0f) {
+            overlayPaint.setColor(Color.argb((int)(80 * Math.min(1f, playerHurtFlash / 0.24f)), 150, 10, 22));
+            c.drawRect(0, 0, getWidth(), getHeight(), overlayPaint);
+        }
+        if (combatTextTimer > 0f && !combatText.isEmpty()) {
+            float rise = (1f - combatTextTimer / 0.95f) * getHeight() * 0.055f;
+            float alpha = clamp(combatTextTimer / 0.30f, 0f, 1f);
+            int color = combatTextCrit ? Color.rgb(255, 205, 92) : Color.rgb(244, 232, 218);
+            drawSmallValueAlpha(c, combatText, combatTextX, combatTextY - rise,
+                    getHeight() * (combatTextCrit ? 0.027f : 0.023f),
+                    Paint.Align.CENTER, alpha, color);
+        }
+        if (playerDown) {
+            overlayPaint.setColor(Color.argb(145, 8, 0, 3));
+            c.drawRect(0, 0, getWidth(), getHeight(), overlayPaint);
+            drawSmallValue(c, "DEFEATED", getWidth() * 0.5f, getHeight() * 0.48f,
+                    getHeight() * 0.060f, Paint.Align.CENTER);
+        }
     }
 
     // ---------------- HUD ----------------
