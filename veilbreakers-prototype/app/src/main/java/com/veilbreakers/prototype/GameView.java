@@ -33,6 +33,10 @@ public class GameView extends View {
     private final Bitmap[][] idle = new Bitmap[4][];
     private final Bitmap[][] run = new Bitmap[4][];
     private final Bitmap[][] attack = new Bitmap[4][];
+    private Bitmap[] sideWalkLeft, sideWalkRight;
+    private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
+    private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
+    private Bitmap attackBtnNormal, attackBtnPressed, attackBtnCombo, attackBtnDisabled, attackBtnFlash;
 
     // HUD / status assets
     private Bitmap hudHpFrame, hudHpFill, hudManaFrame, hudManaFill, hudXpFrame, hudXpFill;
@@ -59,6 +63,10 @@ public class GameView extends View {
     private boolean attacking = false;
     private float attackClock = 0f;
     private boolean attackHitApplied = false;
+    private int comboStage = 0;              // 0,1,2 = three-hit chain
+    private boolean comboQueued = false;
+    private float comboGrace = 0f;
+    private float attackButtonFlash = 0f;
     private long lastNs = System.nanoTime();
 
     // v1.2 combat prototype: first Veilborn enemy.
@@ -69,7 +77,9 @@ public class GameView extends View {
     private int enemyAttack = 16, enemyDefense = 4;
     private boolean enemyAlive = true;
     private float enemyAttackCooldown = 0.75f;
+    private float enemyAttackAnim = 0f;
     private float enemyHurtTimer = 0f;
+    private boolean enemyFacingLeft = true;
     private float enemyDeathTimer = 0f;
     private float enemyRespawnTimer = 0f;
     private float enemyAnimClock = 0f;
@@ -152,13 +162,24 @@ public class GameView extends View {
 
         run[DOWN] = loadSequence(c, "kael/move/move_r4_f", 6);
         run[UP] = loadSequence(c, "kael/move/move_r5_f", 6);
-        run[LEFT] = loadSequence(c, "kael/move/move_r6_f", 6);
-        run[RIGHT] = loadSequence(c, "kael/move/move_r7_f", 6);
+
+        // v1.3: corrected side locomotion. Both legs alternate naturally.
+        sideWalkLeft = loadSequence(c, "kael_v13/side/walk_left_", 6);
+        sideWalkRight = loadSequence(c, "kael_v13/side/walk_right_", 6);
+        run[LEFT] = loadSequence(c, "kael_v13/side/run_left_", 6);
+        run[RIGHT] = loadSequence(c, "kael_v13/side/run_right_", 6);
 
         attack[DOWN] = loadSequence(c, "kael/attack/attack_down_", 6);
         attack[UP] = loadSequence(c, "kael/attack/attack_up_", 6);
         attack[LEFT] = loadSequence(c, "kael/attack/attack_left_", 6);
         attack[RIGHT] = loadSequence(c, "kael/attack/attack_right_", 6);
+
+        // First proper Veilborn sprite set.
+        enemyIdleFrames = loadSequence(c, "enemy_v13/idle_front_", 4);
+        enemyChaseFrames = loadSequence(c, "enemy_v13/chase_side_", 6);
+        enemyAttackFrames = loadSequence(c, "enemy_v13/attack_side_", 6);
+        enemyHurtFrames = loadSequence(c, "enemy_v13/hurt_front_", 2);
+        enemyDeathFrames = loadSequence(c, "enemy_v13/death_front_", 4);
     }
 
     private void loadUiAssets(Context c) {
@@ -189,6 +210,17 @@ public class GameView extends View {
         statusMinus = load(c, "ui/status_minus.png");
         levelHeader = load(c, "ui/level_header.png");
         levelReward = load(c, "ui/level_reward.png");
+
+        joyBase = load(c, "ui_v13/joystick_base.png");
+        joyBaseActive = load(c, "ui_v13/joystick_base_active.png");
+        joyKnob = load(c, "ui_v13/joystick_knob.png");
+        joyKnobPressed = load(c, "ui_v13/joystick_knob_pressed.png");
+        joyGlow = load(c, "ui_v13/joystick_glow.png");
+        attackBtnNormal = load(c, "ui_v13/attack_normal.png");
+        attackBtnPressed = load(c, "ui_v13/attack_pressed.png");
+        attackBtnCombo = load(c, "ui_v13/attack_combo_ready.png");
+        attackBtnDisabled = load(c, "ui_v13/attack_disabled.png");
+        attackBtnFlash = load(c, "ui_v13/attack_flash.png");
     }
 
     @Override
@@ -245,6 +277,11 @@ public class GameView extends View {
         if (playerInvuln > 0f) playerInvuln = Math.max(0f, playerInvuln - dt);
         if (playerHurtFlash > 0f) playerHurtFlash = Math.max(0f, playerHurtFlash - dt);
         if (combatTextTimer > 0f) combatTextTimer = Math.max(0f, combatTextTimer - dt);
+        if (attackButtonFlash > 0f) attackButtonFlash = Math.max(0f, attackButtonFlash - dt);
+        if (!attacking && comboGrace > 0f) {
+            comboGrace = Math.max(0f, comboGrace - dt);
+            if (comboGrace <= 0f) comboStage = 0;
+        }
 
         if (playerDown) {
             playerDownTimer -= dt;
@@ -278,18 +315,37 @@ public class GameView extends View {
             if (!attackHitApplied && attackFrame >= 2 && attackFrame <= 4) {
                 checkPlayerAttackHit();
             }
-            float attackDrag = 1f - (float) Math.exp(-9.5f * dt);
+            float attackDrag = 1f - (float) Math.exp(-(9.5f + comboStage * 1.2f) * dt);
             vx += (0f - vx) * attackDrag;
             vy += (0f - vy) * attackDrag;
-            px += vx * dt * 0.45f;
-            py += vy * dt * 0.45f;
+
+            float lunge = getHeight() * (0.025f + comboStage * 0.012f) * dt;
+            if (attackFacing == LEFT) px -= lunge;
+            else if (attackFacing == RIGHT) px += lunge;
+            else if (attackFacing == UP) py -= lunge;
+            else py += lunge;
+
+            px += vx * dt * 0.32f;
+            py += vy * dt * 0.32f;
 
             float total = 0f;
-            for (float d : attackDurations) total += d;
+            float scale = comboDurationScale();
+            for (float d : attackDurations) total += d * scale;
             if (attackClock >= total) {
-                attacking = false;
-                attackClock = 0f;
-                attackHitApplied = false;
+                if (comboQueued && comboStage < 2) {
+                    comboStage++;
+                    comboQueued = false;
+                    attackClock = 0f;
+                    attackHitApplied = false;
+                    attackFacing = facing;
+                    attackButtonFlash = 0.16f;
+                } else {
+                    attacking = false;
+                    attackClock = 0f;
+                    attackHitApplied = false;
+                    comboQueued = false;
+                    comboGrace = comboStage < 2 ? 0.30f : 0.16f;
+                }
             }
         } else {
             float response = inputLen > 0.14f ? 13.5f : 9.5f;
@@ -335,18 +391,42 @@ public class GameView extends View {
     }
 
     private void startAttack() {
-        if (attacking || statusOpen) return;
+        if (statusOpen || playerDown) return;
+
+        // Tapping during a swing buffers the next hit instead of restarting the same slap.
+        if (attacking) {
+            if (comboStage < 2 && currentAttackFrame() >= 2) {
+                comboQueued = true;
+                attackButtonFlash = 0.12f;
+                haptic();
+            }
+            return;
+        }
+
+        if (comboGrace > 0f && comboStage < 2) comboStage++;
+        else comboStage = 0;
+
         attacking = true;
+        comboQueued = false;
+        comboGrace = 0f;
         attackClock = 0f;
         attackHitApplied = false;
         attackFacing = facing;
-        if (prefs.getBoolean("vibration", true)) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        attackButtonFlash = 0.10f;
+        haptic();
+    }
+
+    private float comboDurationScale() {
+        if (comboStage == 1) return 0.90f;
+        if (comboStage == 2) return 1.04f;
+        return 1.0f;
     }
 
     private int currentAttackFrame() {
         float t = attackClock, acc = 0f;
+        float scale = comboDurationScale();
         for (int i = 0; i < attackDurations.length; i++) {
-            acc += attackDurations[i];
+            acc += attackDurations[i] * scale;
             if (t < acc) return i;
         }
         return attackDurations.length - 1;
@@ -378,12 +458,24 @@ public class GameView extends View {
         } else {
             float maxSpeed = getHeight() * 0.39f * stats.moveMultiplier();
             float speedRatio = Math.min(1f, (float) Math.hypot(vx, vy) / Math.max(1f, maxSpeed));
-            if (speedRatio > 0.10f) frame = run[facing][((int) Math.floor(runClock)) % run[facing].length];
-            else frame = idle[facing][((int) Math.floor(idleClock)) % idle[facing].length];
+            if (speedRatio > 0.08f) {
+                int idx = ((int) Math.floor(runClock)) % 6;
+                if (facing == LEFT && speedRatio < 0.58f) frame = sideWalkLeft[idx];
+                else if (facing == RIGHT && speedRatio < 0.58f) frame = sideWalkRight[idx];
+                else frame = run[facing][idx % run[facing].length];
+            } else {
+                frame = idle[facing][((int) Math.floor(idleClock)) % idle[facing].length];
+            }
             bottomPad = 8;
         }
 
         float scale = (getHeight() / 720f) * 0.92f;
+        // New side frames have a larger transparent canvas, so normalize their visual height.
+        if (!attacking && (facing == LEFT || facing == RIGHT) &&
+                ((float) Math.hypot(vx, vy) > getHeight() * 0.02f)) {
+            scale *= 0.70f;
+        }
+
         float w = frame.getWidth() * scale;
         float h = frame.getHeight() * scale;
         RectF dst = new RectF(px - w * 0.5f, py - (frame.getHeight() - bottomPad) * scale,
@@ -399,9 +491,11 @@ public class GameView extends View {
     }
 
     // ---------------- Combat prototype ----------------
+    // ---------------- Combat prototype ----------------
     private void updateEnemy(float dt) {
         enemyAnimClock += dt;
         if (enemyHurtTimer > 0f) enemyHurtTimer = Math.max(0f, enemyHurtTimer - dt);
+        if (enemyAttackAnim > 0f) enemyAttackAnim = Math.max(0f, enemyAttackAnim - dt);
 
         if (!enemyAlive) {
             if (enemyDeathTimer > 0f) {
@@ -425,6 +519,7 @@ public class GameView extends View {
         float dist = Math.max(1f, (float) Math.hypot(dx, dy));
         float nx = dx / dist;
         float ny = dy / dist;
+        enemyFacingLeft = dx < 0f;
         float attackRange = getHeight() * 0.115f;
         float chaseSpeed = getHeight() * 0.175f;
 
@@ -449,6 +544,7 @@ public class GameView extends View {
     }
 
     private void enemyAttackPlayer(float nx, float ny) {
+        enemyAttackAnim = 0.38f;
         if (playerInvuln > 0f || playerDown) return;
         int damage = Math.max(1, enemyAttack - Math.max(0, stats.defense / 2));
         stats.hp = Math.max(0, stats.hp - damage);
@@ -469,7 +565,7 @@ public class GameView extends View {
         if (!enemyAlive) return;
         float dx = enemyX - px;
         float dy = enemyY - py;
-        float range = getHeight() * 0.19f;
+        float range = getHeight() * 0.19f * (1f + comboStage * 0.08f);
         boolean inFront = false;
         if (attackFacing == DOWN) inFront = dy > -range * 0.15f && dy < range && Math.abs(dx) < range * 0.72f;
         else if (attackFacing == UP) inFront = dy < range * 0.15f && dy > -range && Math.abs(dx) < range * 0.72f;
@@ -480,15 +576,19 @@ public class GameView extends View {
         attackHitApplied = true;
 
         int damage = Math.max(1, stats.attack - enemyDefense / 2);
+        float comboDamage = comboStage == 0 ? 1.00f : (comboStage == 1 ? 1.28f : 1.68f);
+        damage = Math.max(1, Math.round(damage * comboDamage));
         boolean crit = Math.random() * 100.0 < stats.crit;
         if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.75f));
 
         enemyHp = Math.max(0, enemyHp - damage);
         enemyHurtTimer = 0.20f;
         float dist = Math.max(1f, (float)Math.hypot(dx, dy));
-        enemyKnockX = (dx / dist) * getHeight() * 0.55f;
-        enemyKnockY = (dy / dist) * getHeight() * 0.55f;
-        showCombatText((crit ? "CRIT " : "") + damage, enemyX, enemyY - getHeight() * 0.12f, crit);
+        float knock = getHeight() * (0.52f + comboStage * 0.16f);
+        enemyKnockX = (dx / dist) * knock;
+        enemyKnockY = (dy / dist) * knock;
+        String hitLabel = comboStage == 0 ? "" : ("COMBO " + (comboStage + 1) + "  ");
+        showCombatText(hitLabel + (crit ? "CRIT " : "") + damage, enemyX, enemyY - getHeight() * 0.12f, crit || comboStage == 2);
         haptic();
 
         if (enemyHp <= 0) {
@@ -534,46 +634,54 @@ public class GameView extends View {
 
     private void drawEnemy(Canvas c) {
         if (!enemyAlive && enemyDeathTimer <= 0f) return;
-        float h = getHeight();
-        float bob = (float)Math.sin(enemyAnimClock * 4.3f) * h * 0.006f;
-        float alpha = enemyAlive ? 1f : clamp(enemyDeathTimer / 0.62f, 0f, 1f);
-        float shrink = enemyAlive ? 1f : 0.72f + 0.28f * alpha;
-        float size = h * 0.105f * shrink;
-        float cx = enemyX;
-        float cy = enemyY + bob;
 
-        int hurt = enemyHurtTimer > 0f ? 1 : 0;
-        int bodyColor = hurt == 1 ? Color.rgb(112, 38, 52) : Color.rgb(28, 25, 38);
-        int edgeColor = hurt == 1 ? Color.rgb(230, 75, 86) : Color.rgb(70, 54, 82);
+        Bitmap frame;
+        boolean sideFrame = false;
+        if (!enemyAlive) {
+            float p = 1f - clamp(enemyDeathTimer / 0.62f, 0f, 1f);
+            int idx = Math.min(enemyDeathFrames.length - 1, (int)(p * enemyDeathFrames.length));
+            frame = enemyDeathFrames[idx];
+        } else if (enemyHurtTimer > 0f) {
+            int idx = Math.min(enemyHurtFrames.length - 1,
+                    (int)((1f - enemyHurtTimer / 0.20f) * enemyHurtFrames.length));
+            frame = enemyHurtFrames[Math.max(0, idx)];
+        } else if (enemyAttackAnim > 0f) {
+            float p = 1f - clamp(enemyAttackAnim / 0.38f, 0f, 1f);
+            int idx = Math.min(enemyAttackFrames.length - 1, (int)(p * enemyAttackFrames.length));
+            frame = enemyAttackFrames[idx];
+            sideFrame = true;
+        } else if (Math.hypot(enemyVx, enemyVy) > getHeight() * 0.02f) {
+            frame = enemyChaseFrames[((int)(enemyAnimClock * 8.0f)) % enemyChaseFrames.length];
+            sideFrame = true;
+        } else {
+            frame = enemyIdleFrames[((int)(enemyAnimClock * 4.0f)) % enemyIdleFrames.length];
+        }
 
-        overlayPaint.setAlpha((int)(255 * alpha));
-        overlayPaint.setColor(Color.argb((int)(95 * alpha), 0, 0, 0));
-        c.drawOval(new RectF(cx - size * 0.62f, enemyY - h * 0.005f,
-                cx + size * 0.62f, enemyY + h * 0.025f), overlayPaint);
+        float targetH = getHeight() * (sideFrame ? 0.165f : 0.150f);
+        float scale = targetH / Math.max(1f, frame.getHeight());
+        float dw = frame.getWidth() * scale;
+        float dh = frame.getHeight() * scale;
+        RectF dst = new RectF(enemyX - dw * 0.5f, enemyY - dh, enemyX + dw * 0.5f, enemyY);
 
-        overlayPaint.setColor(bodyColor);
-        c.drawOval(new RectF(cx - size * 0.40f, cy - size * 0.90f,
-                cx + size * 0.40f, cy + size * 0.08f), overlayPaint);
-        overlayPaint.setColor(edgeColor);
-        c.drawOval(new RectF(cx - size * 0.30f, cy - size * 0.96f,
-                cx + size * 0.30f, cy - size * 0.42f), overlayPaint);
+        float shadowW = getHeight() * 0.070f;
+        float shadowH = getHeight() * 0.016f;
+        overlayPaint.setColor(Color.argb(105, 0, 0, 0));
+        c.drawOval(new RectF(enemyX - shadowW, enemyY - shadowH * 0.3f,
+                enemyX + shadowW, enemyY + shadowH), overlayPaint);
 
-        overlayPaint.setStrokeWidth(Math.max(3f, h * 0.006f));
-        overlayPaint.setColor(Color.argb((int)(220 * alpha), 63, 43, 73));
-        c.drawLine(cx - size * 0.28f, cy - size * 0.40f,
-                cx - size * 0.62f, cy - size * 0.02f, overlayPaint);
-        c.drawLine(cx + size * 0.28f, cy - size * 0.40f,
-                cx + size * 0.62f, cy - size * 0.02f, overlayPaint);
-
-        overlayPaint.setColor(Color.argb((int)(255 * alpha), 238, 36, 58));
-        c.drawCircle(cx + size * 0.10f, cy - size * 0.69f, size * 0.055f, overlayPaint);
-        overlayPaint.setAlpha(255);
+        c.save();
+        // Runtime uses one side animation and mirrors it so the Veilborn always faces Kael.
+        if (sideFrame && !enemyFacingLeft) c.scale(-1f, 1f, enemyX, enemyY);
+        if (enemyHurtTimer > 0f && ((int)(enemyHurtTimer * 45f) % 2 == 0)) imagePaint.setAlpha(150);
+        c.drawBitmap(frame, null, dst, imagePaint);
+        imagePaint.setAlpha(255);
+        c.restore();
 
         if (enemyAlive) {
-            float bw = h * 0.19f;
-            float bh = h * 0.018f;
-            float top = cy - size * 1.18f;
-            RectF back = new RectF(cx - bw * 0.5f, top, cx + bw * 0.5f, top + bh);
+            float bw = getHeight() * 0.19f;
+            float bh = getHeight() * 0.018f;
+            float top = dst.top - getHeight() * 0.025f;
+            RectF back = new RectF(enemyX - bw * 0.5f, top, enemyX + bw * 0.5f, top + bh);
             overlayPaint.setColor(Color.argb(210, 14, 13, 18));
             c.drawRoundRect(back, bh * 0.45f, bh * 0.45f, overlayPaint);
             RectF fill = new RectF(back.left + 2f, back.top + 2f,
@@ -581,7 +689,7 @@ public class GameView extends View {
             overlayPaint.setColor(Color.rgb(170, 34, 49));
             c.drawRoundRect(fill, bh * 0.35f, bh * 0.35f, overlayPaint);
             drawSmallValue(c, "VEILBORN WRETCH  " + enemyHp + "/" + enemyMaxHp,
-                    cx, top - h * 0.010f, h * 0.016f, Paint.Align.CENTER);
+                    enemyX, top - getHeight() * 0.010f, getHeight() * 0.016f, Paint.Align.CENTER);
         }
     }
 
@@ -1123,31 +1231,55 @@ public class GameView extends View {
 
     private void drawControls(Canvas c) {
         float jx = joyCx(), jy = joyCy(), jr = joyR();
-        uiPaint.setColor(Color.argb(72, 255, 255, 255));
-        c.drawCircle(jx, jy, jr, uiPaint);
-        uiPaint.setStyle(Paint.Style.STROKE);
-        uiPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.003f));
-        uiPaint.setColor(Color.argb(95, 255, 255, 255));
-        c.drawCircle(jx, jy, jr, uiPaint);
-        uiPaint.setStyle(Paint.Style.FILL);
-        uiPaint.setColor(Color.argb(150, 176, 52, 67));
-        c.drawCircle(jx + joyX * jr * 0.55f, jy + joyY * jr * 0.55f, jr * 0.42f, uiPaint);
+        boolean joyActive = joyPointer >= 0 || Math.hypot(joyX, joyY) > 0.08f;
 
-        uiPaint.setColor(Color.argb(attacking ? 205 : 145, 190, 42, 58));
-        c.drawCircle(atkCx(), atkCy(), atkR(), uiPaint);
-        uiPaint.setStyle(Paint.Style.STROKE);
-        uiPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.003f));
-        uiPaint.setColor(Color.argb(155, 255, 190, 195));
-        c.drawCircle(atkCx(), atkCy(), atkR(), uiPaint);
-        uiPaint.setStyle(Paint.Style.FILL);
-        uiPaint.setTextAlign(Paint.Align.CENTER);
-        uiPaint.setColor(Color.WHITE);
-        uiPaint.setTextSize(getHeight() * 0.030f);
-        c.drawText("ATTACK", atkCx(), atkCy() + getHeight() * 0.010f, uiPaint);
-        uiPaint.setTextAlign(Paint.Align.LEFT);
+        RectF joyBounds = new RectF(jx - jr * 1.08f, jy - jr * 1.08f, jx + jr * 1.08f, jy + jr * 1.08f);
+        RectF joyDst = fitBitmapRect(joyActive ? joyBaseActive : joyBase, joyBounds);
+        imagePaint.setAlpha(joyActive ? 235 : 205);
+        c.drawBitmap(joyActive ? joyBaseActive : joyBase, null, joyDst, imagePaint);
+
+        if (joyActive) {
+            RectF glowBounds = new RectF(jx - jr * 1.18f, jy - jr * 1.18f, jx + jr * 1.18f, jy + jr * 1.18f);
+            imagePaint.setAlpha(115);
+            c.drawBitmap(joyGlow, null, fitBitmapRect(joyGlow, glowBounds), imagePaint);
+        }
+
+        float knobCx = jx + joyX * jr * 0.48f;
+        float knobCy = jy + joyY * jr * 0.48f;
+        float knobR = jr * 0.48f;
+        Bitmap knob = joyPointer >= 0 ? joyKnobPressed : joyKnob;
+        RectF knobBounds = new RectF(knobCx - knobR, knobCy - knobR, knobCx + knobR, knobCy + knobR);
+        imagePaint.setAlpha(245);
+        c.drawBitmap(knob, null, fitBitmapRect(knob, knobBounds), imagePaint);
+        imagePaint.setAlpha(255);
+
+        boolean disabled = playerDown;
+        boolean pressed = attackPointer >= 0;
+        boolean comboReady = !disabled && (comboQueued || comboGrace > 0f || (attacking && comboStage < 2));
+        Bitmap atkButton = disabled ? attackBtnDisabled : (pressed ? attackBtnPressed : (comboReady ? attackBtnCombo : attackBtnNormal));
+        float ar = atkR() * 1.18f;
+        RectF atkBounds = new RectF(atkCx() - ar, atkCy() - ar, atkCx() + ar, atkCy() + ar);
+        imagePaint.setAlpha(disabled ? 150 : 245);
+        c.drawBitmap(atkButton, null, fitBitmapRect(atkButton, atkBounds), imagePaint);
+        imagePaint.setAlpha(255);
+
+        if (attackButtonFlash > 0f) {
+            float fr = ar * 1.28f;
+            RectF flashBounds = new RectF(atkCx() - fr, atkCy() - fr, atkCx() + fr, atkCy() + fr);
+            imagePaint.setAlpha((int)(190 * clamp(attackButtonFlash / 0.16f, 0f, 1f)));
+            c.drawBitmap(attackBtnFlash, null, fitBitmapRect(attackBtnFlash, flashBounds), imagePaint);
+            imagePaint.setAlpha(255);
+        }
+
+        if (comboStage > 0 || comboQueued) {
+            String label = comboQueued ? "NEXT" : ("x" + (comboStage + 1));
+            drawSmallValue(c, label, atkCx(), atkCy() - ar * 0.88f,
+                    getHeight() * 0.021f, Paint.Align.CENTER);
+        }
     }
 
     @Override
+    public boolean onTouchEvent(MotionEvent e) {    @Override
     public boolean onTouchEvent(MotionEvent e) {
         int action = e.getActionMasked();
         int actionIndex = e.getActionIndex();
