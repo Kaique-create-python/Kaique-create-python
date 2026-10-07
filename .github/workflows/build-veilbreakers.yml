@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v141
+  group: veilbreakers-apk-v142
   cancel-in-progress: true
 
 jobs:
@@ -87,24 +87,81 @@ jobs:
           if (!(Test-Path "$dest/enemy_v14/idle_front_0.png")) { throw "v1.4 enemy assets missing" }
           if (!(Test-Path "$dest/project_archive/source_sheets/kael_combo_v14_source.png")) { throw "v1.4 source sheets missing" }
 
+      - name: Re-cut v1.4 combo cells from clean source sheet
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $dest = "veilbreakers-prototype/app/src/main/assets/kael_v14/combo"
+          $source = "veilbreakers-prototype/app/src/main/assets/project_archive/source_sheets/kael_combo_v14_source.png"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          if (!(Test-Path $source)) { throw "Kael combo source sheet missing" }
+
+          $frames = @(
+            @{ Name="right_c1_0.png"; X=35;  Y=15;  W=280; H=185; AX=210;  AY=190 },
+            @{ Name="right_c1_1.png"; X=400; Y=20;  W=515; H=185; AX=625;  AY=190 },
+            @{ Name="right_c1_2.png"; X=925; Y=15;  W=485; H=190; AX=1145; AY=190 },
+            @{ Name="right_c2_0.png"; X=55;  Y=205; W=275; H=205; AX=205;  AY=398 },
+            @{ Name="right_c2_1.png"; X=455; Y=200; W=535; H=215; AX=655;  AY=398 },
+            @{ Name="right_c2_2.png"; X=960; Y=230; W=455; H=185; AX=1130; AY=398 },
+            @{ Name="right_c3_0.png"; X=0;   Y=420; W=380; H=172; AX=205;  AY=575 },
+            @{ Name="right_c3_1.png"; X=385; Y=420; W=610; H=172; AX=690;  AY=575 },
+            @{ Name="right_c3_2.png"; X=930; Y=420; W=505; H=172; AX=1190; AY=575 },
+            @{ Name="left_c1_0.png";  X=80;  Y=600; W=260; H=160; AX=200;  AY=725 },
+            @{ Name="left_c1_1.png";  X=420; Y=600; W=490; H=160; AX=650;  AY=725 },
+            @{ Name="left_c1_2.png";  X=920; Y=600; W=470; H=160; AX=1160; AY=725 },
+            @{ Name="left_c2_0.png";  X=80;  Y=760; W=255; H=165; AX=200;  AY=910 },
+            @{ Name="left_c2_1.png";  X=370; Y=760; W=550; H=165; AX=650;  AY=910 },
+            @{ Name="left_c2_2.png";  X=910; Y=760; W=465; H=165; AX=1145; AY=910 },
+            @{ Name="left_c3_0.png";  X=30;  Y=940; W=335; H=135; AX=205;  AY=1055 },
+            @{ Name="left_c3_1.png";  X=385; Y=940; W=530; H=135; AX=650;  AY=1055 },
+            @{ Name="left_c3_2.png";  X=915; Y=940; W=510; H=135; AX=1145; AY=1055 }
+          )
+
+          $src = [System.Drawing.Bitmap]::FromFile($source)
+          try {
+            foreach ($f in $frames) {
+              $canvas = [System.Drawing.Bitmap]::new(700, 240, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+              $g = [System.Drawing.Graphics]::FromImage($canvas)
+              try {
+                $g.Clear([System.Drawing.Color]::Transparent)
+                $srcRect = [System.Drawing.Rectangle]::new($f.X, $f.Y, $f.W, $f.H)
+                $dx = 350 - ($f.AX - $f.X)
+                $dy = 220 - ($f.AY - $f.Y)
+                $dstRect = [System.Drawing.Rectangle]::new($dx, $dy, $f.W, $f.H)
+                $g.DrawImage($src, $dstRect, $srcRect, [System.Drawing.GraphicsUnit]::Pixel)
+                $canvas.Save((Join-Path $dest $f.Name), [System.Drawing.Imaging.ImageFormat]::Png)
+              } finally {
+                $g.Dispose()
+                $canvas.Dispose()
+              }
+            }
+          } finally {
+            $src.Dispose()
+          }
+
+          $check = Get-ChildItem "$dest/*.png"
+          if ($check.Count -lt 18) { throw "Corrected combo frames were not generated" }
+
       - name: Refresh embedded recovery context
         shell: pwsh
         run: |
           $archive = "veilbreakers-prototype/app/src/main/assets/project_archive"
           New-Item -ItemType Directory -Force -Path $archive | Out-Null
           Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$archive/CHAT_CONTEXTO_ATUAL.txt" -Force
-          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.4.1"
+          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.4.2"
           @'
           {
-            "version": "1.4.1",
+            "version": "1.4.2",
             "hotfix": [
               "use kael_v14 combo frames",
               "map six attack timing slices to three visual frames",
               "normalize visible side-animation height and feet baseline",
-              "use separate walk/run side cycles"
+              "use separate walk/run side cycles",
+              "re-cut all 18 lateral combo frames from the clean v1.4 source sheet",
+              "anchor combo body to a fixed foot pivot instead of slash VFX bounds"
             ]
           }
-          '@ | Set-Content "$archive/SPRITES_MANIFEST_V141.json"
+          '@ | Set-Content "$archive/SPRITES_MANIFEST_V142.json"
           $sources = Get-ChildItem "$archive/source_sheets/*_v14_source.png"
           if ($sources.Count -gt 0) {
             Compress-Archive -Path $sources.FullName -DestinationPath "$archive/v14_source_sheets.zip" -Force
@@ -116,7 +173,7 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.4.1-package
+          name: veilbreakers-v1.4.2-package
           path: |
             veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
             veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
