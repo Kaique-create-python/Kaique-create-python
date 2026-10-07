@@ -81,10 +81,11 @@ jobs:
           $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\v14_assets.zip", [Convert]::FromBase64String($b64))
           Expand-Archive -Force "$env:RUNNER_TEMP\v14_assets.zip" $dest
-          if (!(Test-Path "$dest/kael_v14/side/left_0.png")) { throw "v1.4 side movement assets missing" }
+          if (!(Test-Path "$dest/kael_v14/side/walk_left_0.png")) { throw "v1.4 walk assets missing" }
+          if (!(Test-Path "$dest/kael_v14/side/run_left_0.png")) { throw "v1.4 run assets missing" }
           if (!(Test-Path "$dest/kael_v14/combo/left_c1_0.png")) { throw "v1.4 combo assets missing" }
           if (!(Test-Path "$dest/enemy_v14/idle_front_0.png")) { throw "v1.4 enemy assets missing" }
-          if (!(Test-Path "$dest/project_archive/v14_source_sheets.zip")) { throw "v1.4 source archive missing" }
+          if (!(Test-Path "$dest/project_archive/source_sheets/kael_combo_v14_source.png")) { throw "v1.4 source sheets missing" }
 
       - name: Refresh embedded recovery context
         shell: pwsh
@@ -93,6 +94,21 @@ jobs:
           New-Item -ItemType Directory -Force -Path $archive | Out-Null
           Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$archive/CHAT_CONTEXTO_ATUAL.txt" -Force
           Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.4.1"
+          @'
+          {
+            "version": "1.4.1",
+            "hotfix": [
+              "use kael_v14 combo frames",
+              "map six attack timing slices to three visual frames",
+              "normalize visible side-animation height and feet baseline",
+              "use separate walk/run side cycles"
+            ]
+          }
+          '@ | Set-Content "$archive/SPRITES_MANIFEST_V141.json"
+          $sources = Get-ChildItem "$archive/source_sheets/*_v14_source.png"
+          if ($sources.Count -gt 0) {
+            Compress-Archive -Path $sources.FullName -DestinationPath "$archive/v14_source_sheets.zip" -Force
+          }
 
       - name: Build debug APK
         working-directory: veilbreakers-prototype
