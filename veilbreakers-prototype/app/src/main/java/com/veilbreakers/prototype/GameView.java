@@ -37,6 +37,8 @@ public class GameView extends View {
     private final Bitmap[][] attack = new Bitmap[4][];
     private final Bitmap[][] comboLeft = new Bitmap[3][];
     private final Bitmap[][] comboRight = new Bitmap[3][];
+    private final Bitmap[][] comboDown = new Bitmap[3][];
+    private final Bitmap[][] comboUp = new Bitmap[3][];
     private Bitmap[] sideWalkLeft, sideWalkRight, sideRunLeft, sideRunRight;
     private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
@@ -283,9 +285,16 @@ public class GameView extends View {
             cacheVisibleBounds(comboRight[stage]);
         }
 
-        // v1.5: UP/DOWN now participate in the same three-hit combat chain.
-        // Vertical attacks reuse the proven six-frame sheets already packaged in the APK;
-        // comboStage still changes timing, damage, range, lunge and knockback.
+        // v1.5.1: dedicated generated Combo 1/2/3 art for DOWN and UP.
+        // Each stage has three visual poses on the same 700x240 canvas as lateral combo art.
+        for (int stage = 0; stage < 3; stage++) {
+            int n = stage + 1;
+            comboDown[stage] = loadSequence(c, "kael_v15/combo/down_c" + n + "_", 3);
+            comboUp[stage] = loadSequence(c, "kael_v15/combo/up_c" + n + "_", 3);
+            cacheVisibleBounds(comboDown[stage]);
+            cacheVisibleBounds(comboUp[stage]);
+        }
+
         // v1.4 refined Veilborn set.
         enemyIdleFrames = loadSequence(c, "enemy_v14/idle_front_", 4);
         enemyChaseFrames = loadSequence(c, "enemy_v14/chase_side_", 4);
@@ -584,8 +593,12 @@ public class GameView extends View {
             } else if (attackFacing == RIGHT) {
                 frame = comboRight[comboStage][comboFrame];
                 comboVisual = true;
+            } else if (attackFacing == DOWN) {
+                frame = comboDown[comboStage][comboFrame];
+                comboVisual = true;
             } else {
-                frame = attack[attackFacing][currentAttackFrame()];
+                frame = comboUp[comboStage][comboFrame];
+                comboVisual = true;
             }
             bottomPad = 12;
         } else {
@@ -610,8 +623,8 @@ public class GameView extends View {
 
         RectF dst;
         if (comboVisual) {
-            // Corrected v1.4.2 LEFT/RIGHT combo cells use a fixed 700x240 canvas.
-            // Anchor the body, not slash VFX bounds, so Kael stays planted through all three stages.
+            // All four combo directions use a fixed 700x240 canvas.
+            // Anchor the authored body pivot, not slash VFX bounds, so Kael stays planted through all stages.
             float desiredCanvasH = getHeight() * 0.255f;
             float footAnchorY = py + getHeight() * 0.012f;
             dst = rectWithCanvasAnchor(frame, px, footAnchorY, 220f, desiredCanvasH);
