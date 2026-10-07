@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.6.0
+Versão atual: v1.6.1
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -269,3 +269,59 @@ PRÓXIMO PASSO APÓS VALIDAR
 - Veilborn com direção e ataque próprios em quatro direções.
 - Depois primeiro mapa real: Ruínas de Varyn.
 - Depois missão Cinzas do Oitavo.
+
+
+==============================
+ATUALIZAÇÃO v1.6.1 — ANIMAÇÃO VISUAL DA ARCANA VIII
+==============================
+Objetivo:
+substituir o visual procedural provisório da primeira magia por arte animada dedicada, preservando o sistema de Mana, dano e cooldown da v1.6.0.
+
+NOVO NA v1.6.1
+- Kael agora possui animação própria de conjuração da ARCANA VIII em 4 direções.
+- Spritesheet de cast: 4 linhas x 3 colunas.
+  * DOWN: 3 poses.
+  * UP: 3 poses.
+  * LEFT: 3 poses.
+  * RIGHT: 3 poses.
+- O projétil não nasce mais imediatamente ao apertar o botão.
+- O lançamento é sincronizado com a pose de release do cast (~0,16 s).
+- Durante o cast, Kael desacelera fortemente para a animação ficar legível.
+- O ataque normal fica bloqueado durante a curta janela de conjuração.
+- A esfera de Mana agora usa sprites próprios.
+- Spritesheet do orbe: 2 linhas x 3 colunas = 6 fases.
+  * formação;
+  * carga;
+  * burst/release;
+  * viagem;
+  * pulso energizado;
+  * impacto/dissipação.
+- Em voo, os frames travel/pulse alternam para dar sensação de energia viva.
+- Ao acertar o Veilborn, o projétil para e mostra a arte de impacto.
+- O pequeno círculo procedural foi mantido apenas como brilho secundário discreto do cast.
+- Mana, custo 18, cooldown 1,10 s, dano, crítico, knockback e regeneração continuam funcionando como na v1.6.0.
+- versionCode 20 / versionName 1.6.1.
+
+ASSETS v1.6.1
+- assets/kael_v16/magic_cast_sheet.png
+- assets/fx_v16/arcana_orb_sheet.png
+- O repositório guarda os assets comprimidos em:
+  assets_b64/v161_magic_sheets.zip.b64.part-00..03
+- O APK arquiva as source sheets em project_archive/source_sheets:
+  * kael_arcana_cast_v161_source.png
+  * arcana_orb_v161_source.png
+- Também contém project_archive/v161_arcana_assets.zip.
+
+PRÓXIMO TESTE RECOMENDADO v1.6.1
+1. Lançar ARCANA VIII olhando para as quatro direções.
+2. Confirmar pose 1 -> pose 2/release -> pose 3/recovery.
+3. Ver se o projétil nasce no momento da pose de release.
+4. Observar formação/burst/travel/pulse do orbe.
+5. Acertar o Veilborn e verificar o frame de impacto.
+6. Conferir se o pé do Kael não muda de baseline durante o cast.
+7. Confirmar que Mana, cooldown, dano e regeneração não regrediram.
+8. Gravar vídeo curto para revisão quadro a quadro.
+
+PRÓXIMO PASSO APÓS VALIDAR
+- Veilborn com direção e ataque próprios em quatro direções.
+- Depois Ruínas de Varyn.
