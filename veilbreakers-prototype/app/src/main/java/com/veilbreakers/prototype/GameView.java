@@ -39,6 +39,8 @@ public class GameView extends View {
     private final Bitmap[][] comboRight = new Bitmap[3][];
     private final Bitmap[][] comboDown = new Bitmap[3][];
     private final Bitmap[][] comboUp = new Bitmap[3][];
+    private final Bitmap[][] magicCastFrames = new Bitmap[4][];
+    private Bitmap[] magicOrbFrames;
     private Bitmap[] sideWalkLeft, sideWalkRight, sideRunLeft, sideRunRight;
     private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
@@ -83,11 +85,17 @@ public class GameView extends View {
     private float magicCastFlash = 0f;
     private float manaRegenDelay = 0f;
     private float manaRegenBank = 0f;
+    private boolean magicCasting = false;
+    private boolean magicReleased = false;
+    private float magicCastClock = 0f;
     private boolean magicActive = false;
     private boolean magicHitApplied = false;
     private float magicX = 0f, magicY = 0f;
     private float magicVx = 0f, magicVy = 0f;
     private float magicLife = 0f;
+    private float magicAge = 0f;
+    private float magicImpactTimer = 0f;
+    private float magicImpactX = 0f, magicImpactY = 0f;
     private int magicFacing = DOWN;
 
     private long lastNs = System.nanoTime();
@@ -311,6 +319,33 @@ public class GameView extends View {
             cacheVisibleBounds(comboUp[stage]);
         }
 
+        // v1.6.1: generated Arcana VIII casting sheet, 4 directions x 3 poses.
+        Bitmap castSheet = load(c, "kael_v16/magic_cast_sheet.png");
+        int castW = castSheet.getWidth() / 3;
+        int castH = castSheet.getHeight() / 4;
+        for (int dir = 0; dir < 4; dir++) {
+            magicCastFrames[dir] = new Bitmap[3];
+            for (int pose = 0; pose < 3; pose++) {
+                magicCastFrames[dir][pose] = Bitmap.createBitmap(
+                        castSheet, pose * castW, dir * castH, castW, castH);
+            }
+            cacheVisibleBounds(magicCastFrames[dir]);
+        }
+        castSheet.recycle();
+
+        // v1.6.1: generated Arcana VIII orb lifecycle, 2 rows x 3 frames.
+        Bitmap orbSheet = load(c, "fx_v16/arcana_orb_sheet.png");
+        int orbW = orbSheet.getWidth() / 3;
+        int orbH = orbSheet.getHeight() / 2;
+        magicOrbFrames = new Bitmap[6];
+        for (int row = 0; row < 2; row++) {
+            for (int col = 0; col < 3; col++) {
+                magicOrbFrames[row * 3 + col] = Bitmap.createBitmap(
+                        orbSheet, col * orbW, row * orbH, orbW, orbH);
+            }
+        }
+        orbSheet.recycle();
+
         // v1.4 refined Veilborn set.
         enemyIdleFrames = loadSequence(c, "enemy_v14/idle_front_", 4);
         enemyChaseFrames = loadSequence(c, "enemy_v14/chase_side_", 4);
@@ -460,7 +495,13 @@ public class GameView extends View {
         float targetVx = ix * maxSpeed;
         float targetVy = iy * maxSpeed;
 
-        if (attacking) {
+        if (magicCasting) {
+            float castDrag = 1f - (float) Math.exp(-13f * dt);
+            vx += (0f - vx) * castDrag;
+            vy += (0f - vy) * castDrag;
+            px += vx * dt * 0.12f;
+            py += vy * dt * 0.12f;
+        } else if (attacking) {
             attackClock += dt;
             int attackFrame = currentAttackFrame();
             if (!attackHitApplied && attackFrame >= 2 && attackFrame <= 4) {
@@ -543,7 +584,7 @@ public class GameView extends View {
     }
 
     private void startAttack() {
-        if (statusOpen || playerDown) return;
+        if (statusOpen || playerDown || magicCasting) return;
 
         // Tapping during a swing buffers the next hit instead of restarting the same slap.
         if (attacking) {
@@ -615,7 +656,11 @@ public class GameView extends View {
         boolean comboVisual = false;
         boolean sideMoveVisual = false;
 
-        if (attacking) {
+        if (magicCasting) {
+            int castFrame = magicCastClock < 0.11f ? 0 : (magicCastClock < 0.23f ? 1 : 2);
+            frame = magicCastFrames[magicFacing][castFrame];
+            bottomPad = 0;
+        } else if (attacking) {
             int comboFrame = currentComboVisualFrame();
             if (attackFacing == LEFT) {
                 frame = comboLeft[comboStage][comboFrame];
@@ -652,7 +697,13 @@ public class GameView extends View {
         }
 
         RectF dst;
-        if (comboVisual) {
+        if (magicCasting) {
+            // Generated cast cells use a stable 300x300 production canvas.
+            // Keep the authored feet near Y=285 so the large aura does not move Kael's world position.
+            float desiredCanvasH = getHeight() * 0.330f;
+            float footAnchorY = py + getHeight() * 0.012f;
+            dst = rectWithCanvasAnchor(frame, px, footAnchorY, 285f, desiredCanvasH);
+        } else if (comboVisual) {
             // All four combo directions use a fixed 700x240 canvas.
             // Anchor the authored body pivot, not slash VFX bounds, so Kael stays planted through all stages.
             float desiredCanvasH = getHeight() * 0.255f;
@@ -793,7 +844,7 @@ public class GameView extends View {
     }
 
     private void startMagic() {
-        if (statusOpen || playerDown || magicActive || magicCooldown > 0f) return;
+        if (statusOpen || playerDown || magicCasting || magicActive || magicCooldown > 0f) return;
         if (stats.mana < MAGIC_COST) {
             showCombatText("MANA INSUFICIENTE", px, py - getHeight() * 0.12f, false);
             haptic();
@@ -804,31 +855,50 @@ public class GameView extends View {
         magicCooldown = MAGIC_COOLDOWN_MAX;
         manaRegenDelay = 1.40f;
         manaRegenBank = 0f;
-        magicCastFlash = 0.24f;
+        magicCastFlash = 0.36f;
         magicFacing = facing;
-        magicActive = true;
+        magicCasting = true;
+        magicReleased = false;
+        magicCastClock = 0f;
+        magicActive = false;
         magicHitApplied = false;
-        magicLife = 0.92f;
-
-        float speed = getHeight() * 0.86f;
-        float spawn = getHeight() * 0.070f;
-        magicX = px;
-        magicY = py - getHeight() * 0.055f;
-        magicVx = 0f;
-        magicVy = 0f;
-        if (magicFacing == LEFT) { magicX -= spawn; magicVx = -speed; }
-        else if (magicFacing == RIGHT) { magicX += spawn; magicVx = speed; }
-        else if (magicFacing == UP) { magicY -= spawn; magicVy = -speed; }
-        else { magicY += spawn * 0.55f; magicVy = speed; }
 
         showCombatText("ARCANA VIII", px, py - getHeight() * 0.14f, true);
         saveState();
         haptic();
     }
 
+    private void launchMagicProjectile() {
+        magicReleased = true;
+        magicActive = true;
+        magicHitApplied = false;
+        magicLife = 0.92f;
+        magicAge = 0f;
+
+        float speed = getHeight() * 0.86f;
+        float spawn = getHeight() * 0.080f;
+        magicX = px;
+        magicY = py - getHeight() * 0.070f;
+        magicVx = 0f;
+        magicVy = 0f;
+        if (magicFacing == LEFT) { magicX -= spawn; magicVx = -speed; }
+        else if (magicFacing == RIGHT) { magicX += spawn; magicVx = speed; }
+        else if (magicFacing == UP) { magicY -= spawn; magicVy = -speed; }
+        else { magicY += spawn * 0.55f; magicVy = speed; }
+    }
+
     private void updateMagic(float dt) {
+        if (magicImpactTimer > 0f) magicImpactTimer = Math.max(0f, magicImpactTimer - dt);
+
+        if (magicCasting) {
+            magicCastClock += dt;
+            if (!magicReleased && magicCastClock >= 0.16f) launchMagicProjectile();
+            if (magicCastClock >= 0.34f) magicCasting = false;
+        }
+
         if (!magicActive) return;
         magicLife -= dt;
+        magicAge += dt;
         magicX += magicVx * dt;
         magicY += magicVy * dt;
 
@@ -860,7 +930,10 @@ public class GameView extends View {
                     grantXp(35);
                     showCombatText("+35 XP   +18", enemyX, enemyY - getHeight() * 0.15f, true);
                 }
-                magicLife = Math.min(magicLife, 0.10f);
+                magicImpactX = magicX;
+                magicImpactY = magicY;
+                magicImpactTimer = 0.18f;
+                magicActive = false;
             }
         }
 
@@ -872,35 +945,47 @@ public class GameView extends View {
     }
 
     private void drawMagic(Canvas c) {
+        // Small procedural ring remains only as a supporting cast glow.
         if (magicCastFlash > 0f) {
-            float p = clamp(magicCastFlash / 0.24f, 0f, 1f);
-            float r = getHeight() * (0.055f + (1f - p) * 0.045f);
+            float p = clamp(magicCastFlash / 0.36f, 0f, 1f);
+            float r = getHeight() * (0.045f + (1f - p) * 0.035f);
             overlayPaint.setStyle(Paint.Style.STROKE);
-            overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.004f));
-            overlayPaint.setColor(Color.argb((int)(180 * p), 175, 45, 220));
+            overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.003f));
+            overlayPaint.setColor(Color.argb((int)(95 * p), 175, 45, 220));
             c.drawCircle(px, py - getHeight() * 0.055f, r, overlayPaint);
             overlayPaint.setStyle(Paint.Style.FILL);
         }
 
-        if (!magicActive) return;
-        float lifeP = clamp(magicLife / 0.92f, 0f, 1f);
-        float pulse = 0.65f + 0.35f * (float)Math.sin(System.nanoTime() / 1_000_000_000.0 * 24.0);
-        float r = getHeight() * (0.027f + 0.007f * pulse);
+        if (magicActive) {
+            int orbIndex;
+            if (magicAge < 0.055f) orbIndex = 0;
+            else if (magicAge < 0.105f) orbIndex = 1;
+            else if (magicAge < 0.165f) orbIndex = 2;
+            else orbIndex = 3 + (((int)(magicAge * 11f)) & 1);
 
-        overlayPaint.setColor(Color.argb((int)(90 * lifeP), 160, 35, 225));
-        c.drawCircle(magicX, magicY, r * 2.25f, overlayPaint);
-        overlayPaint.setColor(Color.argb((int)(220 * lifeP), 102, 28, 170));
-        c.drawCircle(magicX, magicY, r * 1.25f, overlayPaint);
-        overlayPaint.setColor(Color.argb((int)(245 * lifeP), 240, 76, 112));
-        c.drawCircle(magicX, magicY, r * 0.62f, overlayPaint);
+            Bitmap orb = magicOrbFrames[orbIndex];
+            float targetH = getHeight() * (orbIndex <= 2 ? 0.125f : 0.145f);
+            float scale = targetH / Math.max(1f, orb.getHeight());
+            float dw = orb.getWidth() * scale;
+            float dh = orb.getHeight() * scale;
+            RectF dst = new RectF(magicX - dw * 0.5f, magicY - dh * 0.5f,
+                    magicX + dw * 0.5f, magicY + dh * 0.5f);
+            c.drawBitmap(orb, null, dst, imagePaint);
+        }
 
-        overlayPaint.setStyle(Paint.Style.STROKE);
-        overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.003f));
-        overlayPaint.setColor(Color.argb((int)(220 * lifeP), 246, 160, 255));
-        RectF ring = new RectF(magicX - r * 1.6f, magicY - r * 1.6f,
-                magicX + r * 1.6f, magicY + r * 1.6f);
-        c.drawArc(ring, -35f, 250f, false, overlayPaint);
-        overlayPaint.setStyle(Paint.Style.FILL);
+        if (magicImpactTimer > 0f) {
+            Bitmap impact = magicOrbFrames[5];
+            float p = clamp(magicImpactTimer / 0.18f, 0f, 1f);
+            float targetH = getHeight() * (0.175f + (1f - p) * 0.045f);
+            float scale = targetH / Math.max(1f, impact.getHeight());
+            float dw = impact.getWidth() * scale;
+            float dh = impact.getHeight() * scale;
+            RectF dst = new RectF(magicImpactX - dw * 0.5f, magicImpactY - dh * 0.5f,
+                    magicImpactX + dw * 0.5f, magicImpactY + dh * 0.5f);
+            imagePaint.setAlpha((int)(255 * p));
+            c.drawBitmap(impact, null, dst, imagePaint);
+            imagePaint.setAlpha(255);
+        }
     }
 
     private void respawnEnemy() {
@@ -916,6 +1001,10 @@ public class GameView extends View {
 
     private void resetAfterDefeat() {
         playerDown = false;
+        magicCasting = false;
+        magicReleased = false;
+        magicActive = false;
+        magicImpactTimer = 0f;
         stats.hp = stats.maxHp;
         stats.mana = stats.maxMana;
         px = getWidth() * 0.50f;
@@ -1586,7 +1675,7 @@ public class GameView extends View {
 
         // Arcana VIII button: procedural so the first spell adds no fragile binary dependency.
         float mx = magicCx(), my = magicCy(), mr = magicR();
-        boolean magicDisabled = playerDown || stats.mana < MAGIC_COST || magicCooldown > 0f || magicActive;
+        boolean magicDisabled = playerDown || stats.mana < MAGIC_COST || magicCooldown > 0f || magicActive || magicCasting;
         boolean magicPressed = magicPointer >= 0;
         float pulse = 0.5f + 0.5f * (float)Math.sin(System.nanoTime() / 1_000_000_000.0 * 4.0);
 
