@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v160-final
+  group: veilbreakers-apk-v161-final
   cancel-in-progress: true
 
 jobs:
@@ -165,16 +165,36 @@ jobs:
           $count = (Get-ChildItem "$dest/kael_v15/combo/*.png").Count
           if ($count -ne 18) { throw "Expected exactly 18 v1.5 vertical combo frames, found $count" }
 
+      - name: Decode v1.6.1 Arcana cast and orb sheets
+        shell: pwsh
+        run: |
+          $assetRoot = "veilbreakers-prototype/app/src/main/assets"
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/v161_magic_sheets.zip.b64.part-*" | Sort-Object Name
+          if ($parts.Count -ne 4) { throw "Expected 4 v1.6.1 magic base64 parts, found $($parts.Count)" }
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          $zip = "$env:RUNNER_TEMP\v161_magic_sheets.zip"
+          $tmp = "$env:RUNNER_TEMP\v161_magic_sheets"
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          Expand-Archive -Force $zip $tmp
+
+          New-Item -ItemType Directory -Force -Path "$assetRoot/kael_v16" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$assetRoot/fx_v16" | Out-Null
+          Copy-Item "$tmp/kael_arcana_cast_v161.png" "$assetRoot/kael_v16/magic_cast_sheet.png" -Force
+          Copy-Item "$tmp/arcana_orb_v161.png" "$assetRoot/fx_v16/arcana_orb_sheet.png" -Force
+
+          if (!(Test-Path "$assetRoot/kael_v16/magic_cast_sheet.png")) { throw "Missing Kael Arcana cast sheet" }
+          if (!(Test-Path "$assetRoot/fx_v16/arcana_orb_sheet.png")) { throw "Missing Arcana orb sheet" }
+
       - name: Refresh embedded recovery context
         shell: pwsh
         run: |
           $archive = "veilbreakers-prototype/app/src/main/assets/project_archive"
           New-Item -ItemType Directory -Force -Path $archive | Out-Null
           Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$archive/CHAT_CONTEXTO_ATUAL.txt" -Force
-          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.6.0"
+          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.6.1"
           @'
           {
-            "version": "1.6.0",
+            "version": "1.6.1",
             "hotfix": [
               "use kael_v14 combo frames",
               "map six attack timing slices to three visual frames",
@@ -188,10 +208,14 @@ jobs:
               "preserve vertical combo assets inside the APK project archive",
               "add Arcana VIII as the first Mana-powered ranged ability",
               "add Mana cost, cooldown, projectile hit detection and gradual Mana regeneration",
-              "add a dedicated procedural Arcana button without new binary UI dependencies"
+              "add a dedicated procedural Arcana button without new binary UI dependencies",
+              "replace procedural cast/projectile visuals with generated Arcana VIII sprite animation",
+              "load 12 Kael cast poses from a 4x3 sheet and 6 orb lifecycle frames from a 2x3 sheet",
+              "delay projectile release until the cast release pose",
+              "show animated travel/pulse orb and dedicated impact frame"
             ]
           }
-          '@ | Set-Content "$archive/SPRITES_MANIFEST_V160.json"
+          '@ | Set-Content "$archive/SPRITES_MANIFEST_V161.json"
 
           $v15Archive = Join-Path $archive "v15_vertical_combo_frames"
           New-Item -ItemType Directory -Force -Path $v15Archive | Out-Null
@@ -224,6 +248,15 @@ jobs:
             }
           }
 
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/kael_v16/magic_cast_sheet.png" "$sheetDir/kael_arcana_cast_v161_source.png" -Force
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/fx_v16/arcana_orb_sheet.png" "$sheetDir/arcana_orb_v161_source.png" -Force
+
+          $magicArchive = Join-Path $archive "v161_arcana_assets"
+          New-Item -ItemType Directory -Force -Path $magicArchive | Out-Null
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/kael_v16/magic_cast_sheet.png" "$magicArchive/kael_arcana_cast_v161.png" -Force
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/fx_v16/arcana_orb_sheet.png" "$magicArchive/arcana_orb_v161.png" -Force
+          Compress-Archive -Path "$magicArchive/*.png" -DestinationPath "$archive/v161_arcana_assets.zip" -Force
+
           $sources = Get-ChildItem "$archive/source_sheets/*_v14_source.png"
           if ($sources.Count -gt 0) {
             Compress-Archive -Path $sources.FullName -DestinationPath "$archive/v14_source_sheets.zip" -Force
@@ -235,7 +268,7 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.6.0-package
+          name: veilbreakers-v1.6.1-package
           path: |
             veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
             veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
