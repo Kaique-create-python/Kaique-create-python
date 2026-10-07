@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v150-final
+  group: veilbreakers-apk-v151-final
   cancel-in-progress: true
 
 jobs:
@@ -142,16 +142,39 @@ jobs:
           $check = Get-ChildItem "$dest/*.png"
           if ($check.Count -lt 18) { throw "Corrected combo frames were not generated" }
 
+      - name: Decode v1.5 dedicated vertical combo assets
+        shell: pwsh
+        run: |
+          $dest = "veilbreakers-prototype/app/src/main/assets"
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/v15_combo_q256.zip.b64.part-*" | Sort-Object Name
+          if ($parts.Count -lt 6) { throw "v1.5 vertical combo base64 parts missing" }
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\v15_combo_q256.zip", [Convert]::FromBase64String($b64))
+          Expand-Archive -Force "$env:RUNNER_TEMP\v15_combo_q256.zip" $dest
+          $required = @(
+            "$dest/kael_v15/combo/down_c1_0.png",
+            "$dest/kael_v15/combo/down_c2_1.png",
+            "$dest/kael_v15/combo/down_c3_2.png",
+            "$dest/kael_v15/combo/up_c1_0.png",
+            "$dest/kael_v15/combo/up_c2_1.png",
+            "$dest/kael_v15/combo/up_c3_2.png"
+          )
+          foreach ($file in $required) {
+            if (!(Test-Path $file)) { throw "Missing v1.5 vertical combo frame: $file" }
+          }
+          $count = (Get-ChildItem "$dest/kael_v15/combo/*.png").Count
+          if ($count -ne 18) { throw "Expected exactly 18 v1.5 vertical combo frames, found $count" }
+
       - name: Refresh embedded recovery context
         shell: pwsh
         run: |
           $archive = "veilbreakers-prototype/app/src/main/assets/project_archive"
           New-Item -ItemType Directory -Force -Path $archive | Out-Null
           Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$archive/CHAT_CONTEXTO_ATUAL.txt" -Force
-          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.5.0"
+          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.5.1"
           @'
           {
-            "version": "1.5.0",
+            "version": "1.5.1",
             "hotfix": [
               "use kael_v14 combo frames",
               "map six attack timing slices to three visual frames",
@@ -160,10 +183,44 @@ jobs:
               "re-cut all 18 lateral combo frames from the clean v1.4 source sheet",
               "anchor lateral combo body to a fixed foot pivot instead of slash VFX bounds",
               "extend the three-hit combo combat chain to UP and DOWN",
-              "reuse the stable packaged vertical attack sheets for the v1.5 APK"
+              "load 18 dedicated generated vertical combo frames for UP and DOWN",
+              "use the same fixed 700x240 combo canvas and authored foot pivot in all four directions",
+              "preserve vertical combo assets inside the APK project archive"
             ]
           }
-          '@ | Set-Content "$archive/SPRITES_MANIFEST_V150.json"
+          '@ | Set-Content "$archive/SPRITES_MANIFEST_V151.json"
+
+          $v15Archive = Join-Path $archive "v15_vertical_combo_frames"
+          New-Item -ItemType Directory -Force -Path $v15Archive | Out-Null
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/kael_v15/combo/*.png" $v15Archive -Force
+          Compress-Archive -Path "$v15Archive/*.png" -DestinationPath "$archive/v15_vertical_combo_frames.zip" -Force
+
+          Add-Type -AssemblyName System.Drawing
+          $sheetDir = Join-Path $archive "source_sheets"
+          New-Item -ItemType Directory -Force -Path $sheetDir | Out-Null
+          foreach ($direction in @("down", "up")) {
+            $sheet = [System.Drawing.Bitmap]::new(2100, 720, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+            $g = [System.Drawing.Graphics]::FromImage($sheet)
+            try {
+              $g.Clear([System.Drawing.Color]::Transparent)
+              for ($stage = 1; $stage -le 3; $stage++) {
+                for ($pose = 0; $pose -lt 3; $pose++) {
+                  $path = "veilbreakers-prototype/app/src/main/assets/kael_v15/combo/${direction}_c${stage}_${pose}.png"
+                  $img = [System.Drawing.Bitmap]::FromFile($path)
+                  try {
+                    $g.DrawImageUnscaled($img, $pose * 700, ($stage - 1) * 240)
+                  } finally {
+                    $img.Dispose()
+                  }
+                }
+              }
+              $sheet.Save((Join-Path $sheetDir "kael_combo_${direction}_v15_source.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+            } finally {
+              $g.Dispose()
+              $sheet.Dispose()
+            }
+          }
+
           $sources = Get-ChildItem "$archive/source_sheets/*_v14_source.png"
           if ($sources.Count -gt 0) {
             Compress-Archive -Path $sources.FullName -DestinationPath "$archive/v14_source_sheets.zip" -Force
@@ -175,7 +232,7 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.5.0-package
+          name: veilbreakers-v1.5.1-package
           path: |
             veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
             veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
