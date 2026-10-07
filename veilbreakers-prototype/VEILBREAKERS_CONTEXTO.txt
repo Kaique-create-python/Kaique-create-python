@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.4.1
+Versão atual: v1.4.2
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -110,3 +110,30 @@ PRÓXIMO TESTE RECOMENDADO v1.4.1
 2. Executar Combo 1, 2 e 3 completos dos dois lados.
 3. Lutar até level-up para confirmar que o popup continua pequeno e curto.
 4. Gravar um vídeo curto desses três testes para nova comparação quadro a quadro.
+
+
+==============================
+ATUALIZAÇÃO v1.4.2 — REVISÃO DO VÍDEO 1000170556
+==============================
+O vídeo 1000170556.mp4 foi revisado quadro a quadro (468 frames, ~24,25 FPS, 19,3 s).
+
+Achados:
+- O movimento lateral do Kael ficou visualmente mais estável; não apareceu novamente o grande salto de baseline da v1.4.
+- O defeito grave estava nos sprites laterais de combo: vários PNGs cortados de kael_combo_v14_source.png carregavam pedaços da célula vizinha, criando botas, pernas e faixas de ataque duplicadas/desconectadas.
+- A spritesheet-fonte v1.4 estava íntegra. Não foi necessário gerar arte nova para corrigir esse defeito.
+- Os 18 frames de combo (LEFT/RIGHT, C1/C2/C3, 3 poses cada) agora são recortados novamente durante o build a partir da source sheet limpa.
+- Os frames corrigidos usam canvas 700x240 e pivô de pé autorado em Y=220.
+- GameView v1.4.2 ancora o corpo nesse pivô fixo; o limite inferior do efeito de espada não pode mais deslocar Kael verticalmente entre poses.
+- O vídeo não mostrou um level-up, então o popup de level-up não pôde ser reavaliado nesta gravação.
+
+Observação de assets:
+- walk_left/run_left e walk_right/run_right v1.4 são arquivos visualmente/idênticos por hash; por enquanto a diferença entre walk/run vem da velocidade de reprodução/movimento.
+- Para ter uma corrida realmente diferente visualmente, será necessário criar uma nova animação RUN.
+- Os combos próprios continuam existindo apenas para LEFT/RIGHT. Para Combo 1/2/3 exclusivos em UP/DOWN, será necessário gerar novos sprites verticais.
+
+PRÓXIMO TESTE RECOMENDADO v1.4.2
+1. Executar Combo 1 -> 2 -> 3 olhando para a direita.
+2. Executar Combo 1 -> 2 -> 3 olhando para a esquerda.
+3. Confirmar que nenhuma perna/bota/cópia do Kael aparece separada durante os golpes.
+4. Caminhar lateralmente alguns segundos.
+5. Se possível, lutar até level-up para revisar também o popup.
