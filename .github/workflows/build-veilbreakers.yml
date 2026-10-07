@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v14
+  group: veilbreakers-apk-v141
   cancel-in-progress: true
 
 jobs:
@@ -82,8 +82,17 @@ jobs:
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\v14_assets.zip", [Convert]::FromBase64String($b64))
           Expand-Archive -Force "$env:RUNNER_TEMP\v14_assets.zip" $dest
           if (!(Test-Path "$dest/kael_v14/side/left_0.png")) { throw "v1.4 side movement assets missing" }
+          if (!(Test-Path "$dest/kael_v14/combo/left_c1_0.png")) { throw "v1.4 combo assets missing" }
           if (!(Test-Path "$dest/enemy_v14/idle_front_0.png")) { throw "v1.4 enemy assets missing" }
           if (!(Test-Path "$dest/project_archive/v14_source_sheets.zip")) { throw "v1.4 source archive missing" }
+
+      - name: Refresh embedded recovery context
+        shell: pwsh
+        run: |
+          $archive = "veilbreakers-prototype/app/src/main/assets/project_archive"
+          New-Item -ItemType Directory -Force -Path $archive | Out-Null
+          Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$archive/CHAT_CONTEXTO_ATUAL.txt" -Force
+          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.4.1"
 
       - name: Build debug APK
         working-directory: veilbreakers-prototype
@@ -91,7 +100,7 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.4-package
+          name: veilbreakers-v1.4.1-package
           path: |
             veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
             veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
