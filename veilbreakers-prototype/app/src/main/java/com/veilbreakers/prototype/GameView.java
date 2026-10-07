@@ -220,6 +220,15 @@ public class GameView extends View {
                 centerX + fw * 0.5f, canvasBottom);
     }
 
+    private RectF rectWithCanvasAnchor(Bitmap frame, float centerX, float worldAnchorY,
+                                        float sourceAnchorY, float targetCanvasHeight) {
+        float scale = targetCanvasHeight / Math.max(1f, frame.getHeight());
+        float fw = frame.getWidth() * scale;
+        float fh = frame.getHeight() * scale;
+        float top = worldAnchorY - sourceAnchorY * scale;
+        return new RectF(centerX - fw * 0.5f, top, centerX + fw * 0.5f, top + fh);
+    }
+
     private void loadFrames(Context c) {
         idle[DOWN] = loadSequence(c, "kael/move/move_r0_f", 4);
         idle[UP] = loadSequence(c, "kael/move/move_r1_f", 4);
@@ -579,11 +588,11 @@ public class GameView extends View {
 
         RectF dst;
         if (comboVisual) {
-            // Keep one canvas scale for all combo stages, but align the visible artwork to the feet.
-            // This removes vertical popping caused by transparent padding without following the slash VFX horizontally.
+            // v1.4.2: the corrected combo cells use a fixed 700x240 canvas with Kael's foot anchor at y=220.
+            // Anchor the body, not the slash VFX, so ground arcs do not make Kael jump vertically between poses.
             float desiredCanvasH = getHeight() * 0.255f;
-            float visibleBottom = py + getHeight() * 0.035f;
-            dst = rectWithVisibleBottom(frame, px, visibleBottom, desiredCanvasH);
+            float footAnchorY = py + getHeight() * 0.012f;
+            dst = rectWithCanvasAnchor(frame, px, footAnchorY, 220f, desiredCanvasH);
         } else if (sideMoveVisual) {
             // v1.4 left/right cells have very different transparent padding and apparent sprite height.
             // Normalize by the visible alpha height and pin the visible feet to the same world-space baseline.
