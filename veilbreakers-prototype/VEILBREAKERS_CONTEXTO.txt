@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.4.2
+Versão atual: v1.5.0
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -137,3 +137,45 @@ PRÓXIMO TESTE RECOMENDADO v1.4.2
 3. Confirmar que nenhuma perna/bota/cópia do Kael aparece separada durante os golpes.
 4. Caminhar lateralmente alguns segundos.
 5. Se possível, lutar até level-up para revisar também o popup.
+
+
+==============================
+ATUALIZAÇÃO v1.5 — COMBO COMPLETO EM 4 DIREÇÕES
+==============================
+Objetivo desta versão:
+fechar o sistema básico de combo do Kael nas quatro direções antes de avançar para magia, mapa e inventário.
+
+NOVO NA v1.5
+- Combo 1/2/3 agora possui arte própria também para CIMA e BAIXO.
+- Foram geradas duas spritesheets verticais novas preservando a aparência do Kael:
+  * DOWN: visão frontal/para baixo.
+  * UP: visão traseira/para cima.
+- Cada spritesheet é organizada em grade 3x3:
+  * linha 1 = Combo 1, 3 poses;
+  * linha 2 = Combo 2, 3 poses;
+  * linha 3 = Combo 3, 3 poses.
+- GameView corta essas grades em memória no carregamento e normaliza cada pose para canvas 700x240.
+- LEFT/RIGHT continuam usando os 18 frames corrigidos da v1.4.2.
+- As quatro direções agora usam o mesmo sistema de timing, fila do próximo golpe, dano crescente e knockback.
+- O pivô visual do combo continua fixado nos pés para impedir que efeitos de espada desloquem o corpo do Kael.
+- As spritesheets-fonte UP/DOWN são preservadas dentro de assets/project_archive/source_sheets/.
+
+PRESERVADO
+- menu, save, HUD e tela de status;
+- movimento e caminhada lateral corrigidos;
+- Veilborn Wretch;
+- dano, DEF, crítico e knockback;
+- XP, dinheiro e level-up;
+- Combo 1 -> 2 -> 3 lateral da v1.4.2.
+
+PRÓXIMO TESTE RECOMENDADO v1.5
+1. Combo completo olhando para BAIXO.
+2. Combo completo olhando para CIMA.
+3. Combo completo olhando para ESQUERDA e DIREITA para garantir que nada regrediu.
+4. Verificar se Kael permanece no mesmo pivô/baseline durante cada golpe.
+5. Testar dano e alcance do ataque nas quatro direções.
+6. Gravar um vídeo curto para revisão quadro a quadro.
+
+PRÓXIMO PASSO APÓS VALIDAR A v1.5
+- melhorar o Veilborn para direção/ataque real em 4 direções;
+- depois implementar a primeira magia usando Mana.
