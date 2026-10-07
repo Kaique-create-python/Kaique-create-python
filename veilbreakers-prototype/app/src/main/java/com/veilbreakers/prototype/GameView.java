@@ -37,6 +37,8 @@ public class GameView extends View {
     private final Bitmap[][] attack = new Bitmap[4][];
     private final Bitmap[][] comboLeft = new Bitmap[3][];
     private final Bitmap[][] comboRight = new Bitmap[3][];
+    private final Bitmap[][] comboUp = new Bitmap[3][];
+    private final Bitmap[][] comboDown = new Bitmap[3][];
     private Bitmap[] sideWalkLeft, sideWalkRight, sideRunLeft, sideRunRight;
     private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
@@ -159,6 +161,24 @@ public class GameView extends View {
         return frames;
     }
 
+    private void loadComboGrid(Context c, String path, Bitmap[][] target) {
+        Bitmap sheet = load(c, path);
+        int cellW = sheet.getWidth() / 3;
+        int cellH = sheet.getHeight() / 3;
+        if (cellW <= 0 || cellH <= 0) throw new RuntimeException("Invalid combo sheet: " + path);
+
+        for (int stage = 0; stage < 3; stage++) {
+            target[stage] = new Bitmap[3];
+            for (int pose = 0; pose < 3; pose++) {
+                Bitmap cell = Bitmap.createBitmap(sheet, pose * cellW, stage * cellH, cellW, cellH);
+                Bitmap scaled = Bitmap.createScaledBitmap(cell, 700, 240, true);
+                target[stage][pose] = scaled;
+                if (scaled != cell) cell.recycle();
+            }
+        }
+        sheet.recycle();
+    }
+
     private void cacheVisibleBounds(Bitmap[] frames) {
         for (Bitmap frame : frames) {
             visibleBounds.put(frame, findVisibleBounds(frame));
@@ -256,7 +276,7 @@ public class GameView extends View {
         attack[LEFT] = loadSequence(c, "kael/attack/attack_left_", 6);
         attack[RIGHT] = loadSequence(c, "kael/attack/attack_right_", 6);
 
-        // v1.4.1 hotfix: actually use the refined three-frame combo sheets packed in v1.4.
+        // v1.4.2 lateral combo frames.
         for (int stage = 0; stage < 3; stage++) {
             int n = stage + 1;
             comboLeft[stage] = loadSequence(c, "kael_v14/combo/left_c" + n + "_", 3);
@@ -264,6 +284,11 @@ public class GameView extends View {
             cacheVisibleBounds(comboLeft[stage]);
             cacheVisibleBounds(comboRight[stage]);
         }
+
+        // v1.5: full three-hit combo for vertical directions.
+        // Each source sheet is a clean 3x3 grid: rows = combo stages, columns = visual poses.
+        loadComboGrid(c, "kael_v15/combo_down.webp", comboDown);
+        loadComboGrid(c, "kael_v15/combo_up.webp", comboUp);
 
         // v1.4 refined Veilborn set.
         enemyIdleFrames = loadSequence(c, "enemy_v14/idle_front_", 4);
@@ -556,15 +581,17 @@ public class GameView extends View {
         boolean sideMoveVisual = false;
 
         if (attacking) {
+            int comboFrame = currentComboVisualFrame();
             if (attackFacing == LEFT) {
-                frame = comboLeft[comboStage][currentComboVisualFrame()];
-                comboVisual = true;
+                frame = comboLeft[comboStage][comboFrame];
             } else if (attackFacing == RIGHT) {
-                frame = comboRight[comboStage][currentComboVisualFrame()];
-                comboVisual = true;
+                frame = comboRight[comboStage][comboFrame];
+            } else if (attackFacing == UP) {
+                frame = comboUp[comboStage][comboFrame];
             } else {
-                frame = attack[attackFacing][currentAttackFrame()];
+                frame = comboDown[comboStage][comboFrame];
             }
+            comboVisual = true;
             bottomPad = 12;
         } else {
             float maxSpeed = getHeight() * 0.39f * stats.moveMultiplier();
@@ -588,8 +615,8 @@ public class GameView extends View {
 
         RectF dst;
         if (comboVisual) {
-            // v1.4.2: the corrected combo cells use a fixed 700x240 canvas with Kael's foot anchor at y=220.
-            // Anchor the body, not the slash VFX, so ground arcs do not make Kael jump vertically between poses.
+            // v1.5: every combo direction is normalized to a fixed 700x240 canvas.
+            // Anchor the body, not slash VFX bounds, so Kael stays planted through all three stages.
             float desiredCanvasH = getHeight() * 0.255f;
             float footAnchorY = py + getHeight() * 0.012f;
             dst = rectWithCanvasAnchor(frame, px, footAnchorY, 220f, desiredCanvasH);
