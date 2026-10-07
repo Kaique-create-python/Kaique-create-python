@@ -37,7 +37,7 @@ public class GameView extends View {
     private final Bitmap[][] attack = new Bitmap[4][];
     private final Bitmap[][] comboLeft = new Bitmap[3][];
     private final Bitmap[][] comboRight = new Bitmap[3][];
-    private Bitmap[] sideWalkLeft, sideWalkRight;
+    private Bitmap[] sideWalkLeft, sideWalkRight, sideRunLeft, sideRunRight;
     private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
     private Bitmap attackBtnNormal, attackBtnPressed, attackBtnCombo, attackBtnDisabled, attackBtnFlash;
@@ -231,12 +231,16 @@ public class GameView extends View {
 
         // v1.4: rebuilt from frame-by-frame video review.
         // One stable six-frame side cycle is reused at different playback speeds.
-        sideWalkLeft = loadSequence(c, "kael_v14/side/left_", 6);
-        sideWalkRight = loadSequence(c, "kael_v14/side/right_", 6);
+        sideWalkLeft = loadSequence(c, "kael_v14/side/walk_left_", 6);
+        sideWalkRight = loadSequence(c, "kael_v14/side/walk_right_", 6);
+        sideRunLeft = loadSequence(c, "kael_v14/side/run_left_", 6);
+        sideRunRight = loadSequence(c, "kael_v14/side/run_right_", 6);
         cacheVisibleBounds(sideWalkLeft);
         cacheVisibleBounds(sideWalkRight);
-        run[LEFT] = sideWalkLeft;
-        run[RIGHT] = sideWalkRight;
+        cacheVisibleBounds(sideRunLeft);
+        cacheVisibleBounds(sideRunRight);
+        run[LEFT] = sideRunLeft;
+        run[RIGHT] = sideRunRight;
 
         attack[DOWN] = loadSequence(c, "kael/attack/attack_down_", 6);
         attack[UP] = loadSequence(c, "kael/attack/attack_up_", 6);
@@ -559,10 +563,10 @@ public class GameView extends View {
             if (speedRatio > 0.08f) {
                 int idx = ((int) Math.floor(runClock)) % 6;
                 if (facing == LEFT) {
-                    frame = speedRatio < 0.58f ? sideWalkLeft[idx] : run[LEFT][idx];
+                    frame = speedRatio < 0.58f ? sideWalkLeft[idx] : sideRunLeft[idx];
                     sideMoveVisual = true;
                 } else if (facing == RIGHT) {
-                    frame = speedRatio < 0.58f ? sideWalkRight[idx] : run[RIGHT][idx];
+                    frame = speedRatio < 0.58f ? sideWalkRight[idx] : sideRunRight[idx];
                     sideMoveVisual = true;
                 } else {
                     frame = run[facing][idx % run[facing].length];
