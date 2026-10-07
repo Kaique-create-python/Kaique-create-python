@@ -8,7 +8,7 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v151-final
+  group: veilbreakers-apk-v160-final
   cancel-in-progress: true
 
 jobs:
@@ -171,10 +171,10 @@ jobs:
           $archive = "veilbreakers-prototype/app/src/main/assets/project_archive"
           New-Item -ItemType Directory -Force -Path $archive | Out-Null
           Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$archive/CHAT_CONTEXTO_ATUAL.txt" -Force
-          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.5.1"
+          Set-Content "$archive/BUILD_VERSION.txt" "VEILBREAKERS v1.6.0"
           @'
           {
-            "version": "1.5.1",
+            "version": "1.6.0",
             "hotfix": [
               "use kael_v14 combo frames",
               "map six attack timing slices to three visual frames",
@@ -185,10 +185,13 @@ jobs:
               "extend the three-hit combo combat chain to UP and DOWN",
               "load 18 dedicated generated vertical combo frames for UP and DOWN",
               "use the same fixed 700x240 combo canvas and authored foot pivot in all four directions",
-              "preserve vertical combo assets inside the APK project archive"
+              "preserve vertical combo assets inside the APK project archive",
+              "add Arcana VIII as the first Mana-powered ranged ability",
+              "add Mana cost, cooldown, projectile hit detection and gradual Mana regeneration",
+              "add a dedicated procedural Arcana button without new binary UI dependencies"
             ]
           }
-          '@ | Set-Content "$archive/SPRITES_MANIFEST_V151.json"
+          '@ | Set-Content "$archive/SPRITES_MANIFEST_V160.json"
 
           $v15Archive = Join-Path $archive "v15_vertical_combo_frames"
           New-Item -ItemType Directory -Force -Path $v15Archive | Out-Null
@@ -232,7 +235,7 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.5.1-package
+          name: veilbreakers-v1.6.0-package
           path: |
             veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
             veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
