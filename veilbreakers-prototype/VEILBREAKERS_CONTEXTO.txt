@@ -146,19 +146,13 @@ Objetivo desta versão:
 fechar o sistema básico de combo do Kael nas quatro direções antes de avançar para magia, mapa e inventário.
 
 NOVO NA v1.5
-- Combo 1/2/3 agora possui arte própria também para CIMA e BAIXO.
-- Foram geradas duas spritesheets verticais novas preservando a aparência do Kael:
-  * DOWN: visão frontal/para baixo.
-  * UP: visão traseira/para cima.
-- Cada spritesheet é organizada em grade 3x3:
-  * linha 1 = Combo 1, 3 poses;
-  * linha 2 = Combo 2, 3 poses;
-  * linha 3 = Combo 3, 3 poses.
-- GameView corta essas grades em memória no carregamento e normaliza cada pose para canvas 700x240.
+- Combo 1 -> 2 -> 3 agora funciona em CIMA, BAIXO, ESQUERDA e DIREITA.
 - LEFT/RIGHT continuam usando os 18 frames corrigidos da v1.4.2.
-- As quatro direções agora usam o mesmo sistema de timing, fila do próximo golpe, dano crescente e knockback.
-- O pivô visual do combo continua fixado nos pés para impedir que efeitos de espada desloquem o corpo do Kael.
-- As spritesheets-fonte UP/DOWN são preservadas dentro de assets/project_archive/source_sheets/.
+- UP/DOWN usam as animações verticais de ataque de 6 frames que já estavam empacotadas e estáveis.
+- Nas quatro direções o combo compartilha a mesma fila de próximo golpe e janela de graça.
+- Combo 2 e Combo 3 continuam com dano, alcance, lunge e knockback progressivamente maiores.
+- A direção é travada por golpe para evitar que o sprite/alcance gire no meio da animação.
+- Esta build não depende de novos arquivos binários externos, então o APK continua totalmente recuperável pelo repositório e pelo project_archive.
 
 PRESERVADO
 - menu, save, HUD e tela de status;
@@ -166,16 +160,17 @@ PRESERVADO
 - Veilborn Wretch;
 - dano, DEF, crítico e knockback;
 - XP, dinheiro e level-up;
-- Combo 1 -> 2 -> 3 lateral da v1.4.2.
+- Combo lateral da v1.4.2 com pivô corrigido.
 
 PRÓXIMO TESTE RECOMENDADO v1.5
 1. Combo completo olhando para BAIXO.
 2. Combo completo olhando para CIMA.
 3. Combo completo olhando para ESQUERDA e DIREITA para garantir que nada regrediu.
-4. Verificar se Kael permanece no mesmo pivô/baseline durante cada golpe.
-5. Testar dano e alcance do ataque nas quatro direções.
+4. Conferir se COMBO 2 e COMBO 3 acertam e aplicam dano/knockback maiores.
+5. Testar alcance nas quatro direções.
 6. Gravar um vídeo curto para revisão quadro a quadro.
 
 PRÓXIMO PASSO APÓS VALIDAR A v1.5
+- criar arte vertical dedicada para diferenciar visualmente os três golpes;
 - melhorar o Veilborn para direção/ataque real em 4 direções;
 - depois implementar a primeira magia usando Mana.
