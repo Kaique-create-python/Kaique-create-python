@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.5.0
+Versão atual: v1.5.1
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -174,3 +174,46 @@ PRÓXIMO PASSO APÓS VALIDAR A v1.5
 - criar arte vertical dedicada para diferenciar visualmente os três golpes;
 - melhorar o Veilborn para direção/ataque real em 4 direções;
 - depois implementar a primeira magia usando Mana.
+
+
+==============================
+ATUALIZAÇÃO v1.5.1 — COMBOS VERTICAIS DEDICADOS
+==============================
+Esta versão substitui a solução provisória da v1.5.0, que ainda reutilizava as animações verticais antigas.
+
+NOVO NA v1.5.1
+- Foram geradas duas artes novas preservando a aparência do Kael: uma voltada para BAIXO e outra voltada para CIMA.
+- Cada direção possui Combo 1, Combo 2 e Combo 3.
+- Cada estágio possui 3 poses visuais: preparação/início, impacto e finalização.
+- Total novo: 18 frames verticais (9 DOWN + 9 UP).
+- Todos os frames foram normalizados para canvas 700x240, o mesmo padrão usado pelos combos laterais corrigidos.
+- GameView possui agora comboDown[3][] e comboUp[3][] além de comboLeft/comboRight.
+- drawPlayer usa arte própria de combo para DOWN, UP, LEFT e RIGHT.
+- As quatro direções usam o mesmo pivô autorado de pé em Y=220 para evitar que efeitos grandes de espada desloquem Kael na tela.
+- O sistema de timing continua com 6 fatias internas mapeadas para 3 poses visuais, preservando hit timing, fila do próximo golpe e janela de combo.
+- Dano, alcance, lunge e knockback continuam escalando entre C1, C2 e C3.
+- versionCode 18 / versionName 1.5.1.
+
+BUILD/RECUPERAÇÃO
+- Os 18 frames verticais ficam em assets/kael_v15/combo/.
+- O repositório guarda o pacote como Base64 em assets_b64/v15_combo_q256.zip.b64.part-*.
+- O workflow exige exatamente 18 PNGs antes de compilar.
+- O APK arquiva uma cópia dos frames em project_archive/v15_vertical_combo_frames.zip.
+- O workflow também reconstrói duas source sheets em project_archive/source_sheets:
+  * kael_combo_down_v15_source.png
+  * kael_combo_up_v15_source.png
+- project_archive/SPRITES_MANIFEST_V151.json registra a integração.
+
+PRÓXIMO TESTE RECOMENDADO v1.5.1
+1. Executar C1 -> C2 -> C3 olhando para BAIXO.
+2. Executar C1 -> C2 -> C3 olhando para CIMA.
+3. Repetir ESQUERDA/DIREITA para checar regressão.
+4. Observar se o pé do Kael permanece na mesma baseline durante efeitos grandes.
+5. Confirmar se nenhuma parte de outra célula aparece nos frames.
+6. Testar dano/alcance/knockback dos três estágios.
+7. Gravar vídeo curto para revisão quadro a quadro.
+
+PRÓXIMO PASSO DE GAMEPLAY APÓS VALIDAR
+- Veilborn com movimento/ataque próprios em quatro direções;
+- depois primeira magia consumindo Mana;
+- depois Ruínas de Varyn.
