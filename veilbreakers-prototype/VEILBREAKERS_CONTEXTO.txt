@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.3.0
+Versão atual: v1.4.1
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -85,3 +85,28 @@ Correções:
 
 Próximo teste recomendado:
 gravar novamente movimento lateral contínuo, três combos completos e luta até level-up para comparar quadro a quadro com a v1.3.
+
+
+==============================
+ATUALIZAÇÃO v1.4.1 — HOTFIX DE INTEGRAÇÃO
+==============================
+A revisão do APK v1.4 encontrou duas inconsistências que faziam parte das correções não aparecer de verdade no jogo:
+
+- Os sprites refinados de combo v1.4 estavam empacotados em assets/kael_v14/combo, mas GameView ainda carregava kael_v13/combo.
+- Os sprites laterais v1.4 tinham padding transparente muito diferente entre esquerda e direita; alinhar o canvas inteiro fazia os pés mudarem de baseline e gerava sensação de flutuação/deslizamento.
+- O Android package ainda declarava versionName 1.3.0.
+
+Correções da v1.4.1:
+- GameView agora carrega os combos reais v1.4, com 3 poses por estágio.
+- As 6 fatias de timing do ataque são mapeadas de forma segura para as 3 poses visuais do combo.
+- Movimento lateral normaliza a altura visível por alpha e fixa os pés na mesma baseline, compensando padding transparente sem redesenhar os sprites.
+- Combo mantém escala de canvas constante e corrige apenas o padding vertical para reduzir popping.
+- versionName atualizado para 1.4.1 e versionCode para 15.
+- O workflow volta a copiar VEILBREAKERS_CONTEXTO.txt para assets/project_archive/CHAT_CONTEXTO_ATUAL.txt antes do build.
+- Mantidos menu, save, HUD, status, dano, DEF, crítico, knockback, XP, dinheiro e combo de 3 golpes.
+
+PRÓXIMO TESTE RECOMENDADO v1.4.1
+1. Caminhar continuamente para a esquerda e para a direita e observar se os pés permanecem na mesma baseline.
+2. Executar Combo 1, 2 e 3 completos dos dois lados.
+3. Lutar até level-up para confirmar que o popup continua pequeno e curto.
+4. Gravar um vídeo curto desses três testes para nova comparação quadro a quadro.
