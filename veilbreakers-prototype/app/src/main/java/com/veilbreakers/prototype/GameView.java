@@ -62,6 +62,7 @@ public class GameView extends View {
     private float joyY = 0f;
     private int joyPointer = -1;
     private int attackPointer = -1;
+    private int magicPointer = -1;
 
     private int facing = DOWN;
     private int attackFacing = DOWN;
@@ -74,6 +75,21 @@ public class GameView extends View {
     private boolean comboQueued = false;
     private float comboGrace = 0f;
     private float attackButtonFlash = 0f;
+
+    // v1.6 Arcana VIII: first Mana-powered ranged ability.
+    private static final int MAGIC_COST = 18;
+    private static final float MAGIC_COOLDOWN_MAX = 1.10f;
+    private float magicCooldown = 0f;
+    private float magicCastFlash = 0f;
+    private float manaRegenDelay = 0f;
+    private float manaRegenBank = 0f;
+    private boolean magicActive = false;
+    private boolean magicHitApplied = false;
+    private float magicX = 0f, magicY = 0f;
+    private float magicVx = 0f, magicVy = 0f;
+    private float magicLife = 0f;
+    private int magicFacing = DOWN;
+
     private long lastNs = System.nanoTime();
 
     // v1.2 combat prototype: first Veilborn enemy.
@@ -382,6 +398,7 @@ public class GameView extends View {
         } else {
             drawPlayer(c);
         }
+        drawMagic(c);
         drawCombatFeedback(c);
         drawHud(c);
         if (!statusOpen && statusAnim < 0.02f) drawControls(c);
@@ -399,6 +416,19 @@ public class GameView extends View {
         if (playerHurtFlash > 0f) playerHurtFlash = Math.max(0f, playerHurtFlash - dt);
         if (combatTextTimer > 0f) combatTextTimer = Math.max(0f, combatTextTimer - dt);
         if (attackButtonFlash > 0f) attackButtonFlash = Math.max(0f, attackButtonFlash - dt);
+        if (magicCooldown > 0f) magicCooldown = Math.max(0f, magicCooldown - dt);
+        if (magicCastFlash > 0f) magicCastFlash = Math.max(0f, magicCastFlash - dt);
+        if (manaRegenDelay > 0f) {
+            manaRegenDelay = Math.max(0f, manaRegenDelay - dt);
+        } else if (!playerDown && stats.mana < stats.maxMana) {
+            manaRegenBank += dt * 6.0f;
+            int recovered = (int) manaRegenBank;
+            if (recovered > 0) {
+                manaRegenBank -= recovered;
+                stats.mana = Math.min(stats.maxMana, stats.mana + recovered);
+            }
+        }
+        updateMagic(dt);
         if (!attacking && comboGrace > 0f) {
             comboGrace = Math.max(0f, comboGrace - dt);
             if (comboGrace <= 0f) comboStage = 0;
@@ -762,6 +792,117 @@ public class GameView extends View {
         }
     }
 
+    private void startMagic() {
+        if (statusOpen || playerDown || magicActive || magicCooldown > 0f) return;
+        if (stats.mana < MAGIC_COST) {
+            showCombatText("MANA INSUFICIENTE", px, py - getHeight() * 0.12f, false);
+            haptic();
+            return;
+        }
+
+        stats.mana -= MAGIC_COST;
+        magicCooldown = MAGIC_COOLDOWN_MAX;
+        manaRegenDelay = 1.40f;
+        manaRegenBank = 0f;
+        magicCastFlash = 0.24f;
+        magicFacing = facing;
+        magicActive = true;
+        magicHitApplied = false;
+        magicLife = 0.92f;
+
+        float speed = getHeight() * 0.86f;
+        float spawn = getHeight() * 0.070f;
+        magicX = px;
+        magicY = py - getHeight() * 0.055f;
+        magicVx = 0f;
+        magicVy = 0f;
+        if (magicFacing == LEFT) { magicX -= spawn; magicVx = -speed; }
+        else if (magicFacing == RIGHT) { magicX += spawn; magicVx = speed; }
+        else if (magicFacing == UP) { magicY -= spawn; magicVy = -speed; }
+        else { magicY += spawn * 0.55f; magicVy = speed; }
+
+        showCombatText("ARCANA VIII", px, py - getHeight() * 0.14f, true);
+        saveState();
+        haptic();
+    }
+
+    private void updateMagic(float dt) {
+        if (!magicActive) return;
+        magicLife -= dt;
+        magicX += magicVx * dt;
+        magicY += magicVy * dt;
+
+        if (!magicHitApplied && enemyAlive) {
+            float hitR = getHeight() * 0.085f;
+            float dx = enemyX - magicX;
+            float dy = enemyY - magicY;
+            if (dx * dx + dy * dy <= hitR * hitR) {
+                magicHitApplied = true;
+                int damage = Math.max(8, Math.round(stats.attack * 1.55f) - enemyDefense / 2);
+                boolean crit = Math.random() * 100.0 < stats.crit;
+                if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.65f));
+
+                enemyHp = Math.max(0, enemyHp - damage);
+                enemyHurtTimer = 0.28f;
+                float speedLen = Math.max(1f, (float) Math.hypot(magicVx, magicVy));
+                float knock = getHeight() * 0.72f;
+                enemyKnockX = magicVx / speedLen * knock;
+                enemyKnockY = magicVy / speedLen * knock;
+                showCombatText((crit ? "ARCANA CRIT " : "ARCANA ") + damage,
+                        enemyX, enemyY - getHeight() * 0.13f, true);
+                haptic();
+
+                if (enemyHp <= 0) {
+                    enemyAlive = false;
+                    enemyDeathTimer = 0.62f;
+                    enemyRespawnTimer = 3.0f;
+                    stats.money += 18;
+                    grantXp(35);
+                    showCombatText("+35 XP   +18", enemyX, enemyY - getHeight() * 0.15f, true);
+                }
+                magicLife = Math.min(magicLife, 0.10f);
+            }
+        }
+
+        float margin = getHeight() * 0.05f;
+        if (magicLife <= 0f || magicX < -margin || magicX > getWidth() + margin
+                || magicY < -margin || magicY > getHeight() + margin) {
+            magicActive = false;
+        }
+    }
+
+    private void drawMagic(Canvas c) {
+        if (magicCastFlash > 0f) {
+            float p = clamp(magicCastFlash / 0.24f, 0f, 1f);
+            float r = getHeight() * (0.055f + (1f - p) * 0.045f);
+            overlayPaint.setStyle(Paint.Style.STROKE);
+            overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.004f));
+            overlayPaint.setColor(Color.argb((int)(180 * p), 175, 45, 220));
+            c.drawCircle(px, py - getHeight() * 0.055f, r, overlayPaint);
+            overlayPaint.setStyle(Paint.Style.FILL);
+        }
+
+        if (!magicActive) return;
+        float lifeP = clamp(magicLife / 0.92f, 0f, 1f);
+        float pulse = 0.65f + 0.35f * (float)Math.sin(System.nanoTime() / 1_000_000_000.0 * 24.0);
+        float r = getHeight() * (0.027f + 0.007f * pulse);
+
+        overlayPaint.setColor(Color.argb((int)(90 * lifeP), 160, 35, 225));
+        c.drawCircle(magicX, magicY, r * 2.25f, overlayPaint);
+        overlayPaint.setColor(Color.argb((int)(220 * lifeP), 102, 28, 170));
+        c.drawCircle(magicX, magicY, r * 1.25f, overlayPaint);
+        overlayPaint.setColor(Color.argb((int)(245 * lifeP), 240, 76, 112));
+        c.drawCircle(magicX, magicY, r * 0.62f, overlayPaint);
+
+        overlayPaint.setStyle(Paint.Style.STROKE);
+        overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.003f));
+        overlayPaint.setColor(Color.argb((int)(220 * lifeP), 246, 160, 255));
+        RectF ring = new RectF(magicX - r * 1.6f, magicY - r * 1.6f,
+                magicX + r * 1.6f, magicY + r * 1.6f);
+        c.drawArc(ring, -35f, 250f, false, overlayPaint);
+        overlayPaint.setStyle(Paint.Style.FILL);
+    }
+
     private void respawnEnemy() {
         enemyAlive = true;
         enemyHp = enemyMaxHp;
@@ -1016,7 +1157,7 @@ public class GameView extends View {
         statusAnim = 0f;
         for (int i = 0; i < pending.length; i++) pending[i] = 0;
         pendingPoints = stats.attributePoints;
-        joyPointer = attackPointer = -1;
+        joyPointer = attackPointer = magicPointer = -1;
         joyX = joyY = 0f;
         haptic();
     }
@@ -1391,6 +1532,9 @@ public class GameView extends View {
     private float atkCx() { return getWidth() * 0.865f; }
     private float atkCy() { return getHeight() * 0.78f; }
     private float atkR() { return getHeight() * 0.105f; }
+    private float magicCx() { return getWidth() * 0.755f; }
+    private float magicCy() { return getHeight() * 0.665f; }
+    private float magicR() { return getHeight() * 0.070f; }
 
     private void drawControls(Canvas c) {
         float jx = joyCx(), jy = joyCy(), jr = joyR();
@@ -1439,6 +1583,32 @@ public class GameView extends View {
             drawSmallValue(c, label, atkCx(), atkCy() - ar * 0.86f,
                     getHeight() * 0.016f, Paint.Align.CENTER);
         }
+
+        // Arcana VIII button: procedural so the first spell adds no fragile binary dependency.
+        float mx = magicCx(), my = magicCy(), mr = magicR();
+        boolean magicDisabled = playerDown || stats.mana < MAGIC_COST || magicCooldown > 0f || magicActive;
+        boolean magicPressed = magicPointer >= 0;
+        float pulse = 0.5f + 0.5f * (float)Math.sin(System.nanoTime() / 1_000_000_000.0 * 4.0);
+
+        overlayPaint.setColor(Color.argb(magicDisabled ? 95 : (magicPressed ? 220 : 175), 31, 8, 45));
+        c.drawCircle(mx, my, mr * 1.05f, overlayPaint);
+        overlayPaint.setStyle(Paint.Style.STROKE);
+        overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * (magicPressed ? 0.0050f : 0.0035f)));
+        overlayPaint.setColor(Color.argb(magicDisabled ? 90 : (int)(185 + 55 * pulse), 178, 40, 208));
+        c.drawCircle(mx, my, mr, overlayPaint);
+        overlayPaint.setStrokeWidth(Math.max(1f, getHeight() * 0.0020f));
+        overlayPaint.setColor(Color.argb(magicDisabled ? 65 : 190, 242, 73, 104));
+        c.drawArc(new RectF(mx - mr * 0.72f, my - mr * 0.72f, mx + mr * 0.72f, my + mr * 0.72f),
+                -68f, 276f, false, overlayPaint);
+        overlayPaint.setStyle(Paint.Style.FILL);
+
+        String magicLabel = magicCooldown > 0f
+                ? String.format(Locale.US, "%.1f", magicCooldown)
+                : "VIII";
+        drawSmallValue(c, magicLabel, mx, my + getHeight() * 0.010f,
+                getHeight() * 0.024f, Paint.Align.CENTER);
+        drawSmallValue(c, String.valueOf(MAGIC_COST), mx, my + mr * 1.35f,
+                getHeight() * 0.014f, Paint.Align.CENTER);
     }
 
     @Override
@@ -1467,6 +1637,11 @@ public class GameView extends View {
                 updateJoystick(x, y);
                 return true;
             }
+            if (magicPointer < 0 && distance(x, y, magicCx(), magicCy()) <= magicR() * 1.55f) {
+                magicPointer = pointerId;
+                startMagic();
+                return true;
+            }
             if (attackPointer < 0 && distance(x, y, atkCx(), atkCy()) <= atkR() * 1.50f) {
                 attackPointer = pointerId;
                 startAttack();
@@ -1486,6 +1661,7 @@ public class GameView extends View {
                 joyPointer = -1; joyX = 0f; joyY = 0f;
             }
             if (pointerId == attackPointer || action == MotionEvent.ACTION_CANCEL) attackPointer = -1;
+            if (pointerId == magicPointer || action == MotionEvent.ACTION_CANCEL) magicPointer = -1;
             return true;
         }
         return true;
