@@ -142,23 +142,16 @@ jobs:
           $check = Get-ChildItem "$dest/*.png"
           if ($check.Count -lt 18) { throw "Corrected combo frames were not generated" }
 
-      - name: Decode v1.5 vertical combo sheets
+      - name: Verify v1.5 vertical combo sheets
         shell: pwsh
         run: |
-          $dest = "veilbreakers-prototype/app/src/main/assets/kael_v15"
+          $down = "veilbreakers-prototype/app/src/main/assets/kael_v15/combo_down.png"
+          $up = "veilbreakers-prototype/app/src/main/assets/kael_v15/combo_up.png"
           $archive = "veilbreakers-prototype/app/src/main/assets/project_archive/source_sheets"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          New-Item -ItemType Directory -Force -Path $archive | Out-Null
-
-          $downB64 = Get-Content "veilbreakers-prototype/app/src/main/assets_b64/kael_combo_down_v15.webp.b64" -Raw
-          $upB64 = Get-Content "veilbreakers-prototype/app/src/main/assets_b64/kael_combo_up_v15.webp.b64" -Raw
-          [IO.File]::WriteAllBytes("$dest\combo_down.webp", [Convert]::FromBase64String($downB64))
-          [IO.File]::WriteAllBytes("$dest\combo_up.webp", [Convert]::FromBase64String($upB64))
-          Copy-Item "$dest\combo_down.webp" "$archive\kael_combo_down_v15_source.webp" -Force
-          Copy-Item "$dest\combo_up.webp" "$archive\kael_combo_up_v15_source.webp" -Force
-
-          if (!(Test-Path "$dest\combo_down.webp")) { throw "v1.5 down combo sheet missing" }
-          if (!(Test-Path "$dest\combo_up.webp")) { throw "v1.5 up combo sheet missing" }
+          if (!(Test-Path $down)) { throw "v1.5 down combo sheet missing" }
+          if (!(Test-Path $up)) { throw "v1.5 up combo sheet missing" }
+          if (!(Test-Path "$archive\kael_combo_down_v15_source.png")) { throw "v1.5 down source sheet missing from archive" }
+          if (!(Test-Path "$archive\kael_combo_up_v15_source.png")) { throw "v1.5 up source sheet missing from archive" }
 
       - name: Refresh embedded recovery context
         shell: pwsh
