@@ -287,8 +287,8 @@ public class GameView extends View {
 
         // v1.5: full three-hit combo for vertical directions.
         // Each source sheet is a clean 3x3 grid: rows = combo stages, columns = visual poses.
-        loadComboGrid(c, "kael_v15/combo_down.webp", comboDown);
-        loadComboGrid(c, "kael_v15/combo_up.webp", comboUp);
+        loadComboGrid(c, "kael_v15/combo_down.png", comboDown);
+        loadComboGrid(c, "kael_v15/combo_up.png", comboUp);
 
         // v1.4 refined Veilborn set.
         enemyIdleFrames = loadSequence(c, "enemy_v14/idle_front_", 4);
