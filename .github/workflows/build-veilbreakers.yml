@@ -142,17 +142,6 @@ jobs:
           $check = Get-ChildItem "$dest/*.png"
           if ($check.Count -lt 18) { throw "Corrected combo frames were not generated" }
 
-      - name: Verify v1.5 vertical combo sheets
-        shell: pwsh
-        run: |
-          $down = "veilbreakers-prototype/app/src/main/assets/kael_v15/combo_down.png"
-          $up = "veilbreakers-prototype/app/src/main/assets/kael_v15/combo_up.png"
-          $archive = "veilbreakers-prototype/app/src/main/assets/project_archive/source_sheets"
-          if (!(Test-Path $down)) { throw "v1.5 down combo sheet missing" }
-          if (!(Test-Path $up)) { throw "v1.5 up combo sheet missing" }
-          if (!(Test-Path "$archive\kael_combo_down_v15_source.png")) { throw "v1.5 down source sheet missing from archive" }
-          if (!(Test-Path "$archive\kael_combo_up_v15_source.png")) { throw "v1.5 up source sheet missing from archive" }
-
       - name: Refresh embedded recovery context
         shell: pwsh
         run: |
@@ -169,9 +158,9 @@ jobs:
               "normalize visible side-animation height and feet baseline",
               "use separate walk/run side cycles",
               "re-cut all 18 lateral combo frames from the clean v1.4 source sheet",
-              "anchor combo body to a fixed foot pivot instead of slash VFX bounds",
-              "add dedicated three-hit combo sheets for UP and DOWN",
-              "slice vertical combo sheets as 3x3 grids at runtime"
+              "anchor lateral combo body to a fixed foot pivot instead of slash VFX bounds",
+              "extend the three-hit combo combat chain to UP and DOWN",
+              "reuse the stable packaged vertical attack sheets for the v1.5 APK"
             ]
           }
           '@ | Set-Content "$archive/SPRITES_MANIFEST_V150.json"
