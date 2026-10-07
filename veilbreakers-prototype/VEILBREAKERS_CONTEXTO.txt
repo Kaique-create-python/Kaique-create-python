@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.5.1
+Versão atual: v1.6.0
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -217,3 +217,55 @@ PRÓXIMO PASSO DE GAMEPLAY APÓS VALIDAR
 - Veilborn com movimento/ataque próprios em quatro direções;
 - depois primeira magia consumindo Mana;
 - depois Ruínas de Varyn.
+
+
+==============================
+ATUALIZAÇÃO v1.6.0 — PRIMEIRA ARCANA USANDO MANA
+==============================
+Objetivo:
+dar uso real à barra de Mana antes de avançar para mapa/inventário, preservando o combate e os sprites aprovados da v1.5.1.
+
+NOVO NA v1.6.0
+- Primeira habilidade Arcana do Kael implementada: ARCANA VIII.
+- Botão próprio de magia, separado do botão de ataque.
+- Custo: 18 Mana.
+- Cooldown: 1,10 s.
+- Ao lançar, o projétil segue a direção atual do Kael: CIMA, BAIXO, ESQUERDA ou DIREITA.
+- Projétil usa efeito procedural vermelho-violeta inspirado visualmente na Marca VIII, sem depender de novo PNG frágil.
+- A magia aplica dano real ao Veilborn.
+- Dano-base da magia escala com ATK (aprox. 1,55x antes da DEF) e pode causar crítico.
+- Impacto aplica knockback maior que um ataque normal.
+- A magia pode matar o Veilborn e preserva recompensa de XP/dinheiro.
+- Mana começa a regenerar depois de 1,40 s sem novo lançamento.
+- Regeneração: aproximadamente 6 Mana por segundo até o máximo.
+- O botão mostra cooldown decimal enquanto a habilidade está indisponível.
+- Se Mana for insuficiente, o lançamento é bloqueado e aparece feedback de MANA INSUFICIENTE.
+- Estado de Mana é salvo após o lançamento.
+- versionCode 19 / versionName 1.6.0.
+
+CONTROLES
+- Joystick continua à esquerda.
+- Ataque/Combo continua à direita.
+- Novo botão ARCANA VIII fica acima e à esquerda do botão de ataque para não sobrepor o combo.
+
+PRESERVADO
+- Combos dedicados em quatro direções da v1.5.1.
+- Pivô/baseline estável dos combos.
+- Menu, save, HUD, status e level-up.
+- Veilborn Wretch atual.
+- Dano, DEF, crítico, knockback, XP e dinheiro.
+
+PRÓXIMO TESTE RECOMENDADO v1.6.0
+1. Gastar Mana lançando ARCANA VIII repetidamente e confirmar consumo de 18 por uso.
+2. Confirmar que o botão entra em cooldown e volta a habilitar.
+3. Lançar nas quatro direções.
+4. Acertar o Veilborn a curta e média distância.
+5. Confirmar dano, crítico e knockback.
+6. Esperar sem lançar magia e conferir regeneração gradual da Mana.
+7. Tentar lançar com menos de 18 Mana.
+8. Gravar vídeo curto para revisão quadro a quadro.
+
+PRÓXIMO PASSO APÓS VALIDAR
+- Veilborn com direção e ataque próprios em quatro direções.
+- Depois primeiro mapa real: Ruínas de Varyn.
+- Depois missão Cinzas do Oitavo.
