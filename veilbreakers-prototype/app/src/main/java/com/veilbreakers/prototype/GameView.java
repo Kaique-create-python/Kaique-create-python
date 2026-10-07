@@ -165,11 +165,12 @@ public class GameView extends View {
         run[DOWN] = loadSequence(c, "kael/move/move_r4_f", 6);
         run[UP] = loadSequence(c, "kael/move/move_r5_f", 6);
 
-        // v1.3: corrected side locomotion. Both legs alternate naturally.
-        sideWalkLeft = loadSequence(c, "kael_v13/side/walk_left_", 6);
-        sideWalkRight = loadSequence(c, "kael_v13/side/walk_right_", 6);
-        run[LEFT] = loadSequence(c, "kael_v13/side/run_left_", 6);
-        run[RIGHT] = loadSequence(c, "kael_v13/side/run_right_", 6);
+        // v1.4: rebuilt from frame-by-frame video review.
+        // One stable six-frame side cycle is reused at different playback speeds.
+        sideWalkLeft = loadSequence(c, "kael_v14/side/left_", 6);
+        sideWalkRight = loadSequence(c, "kael_v14/side/right_", 6);
+        run[LEFT] = sideWalkLeft;
+        run[RIGHT] = sideWalkRight;
 
         attack[DOWN] = loadSequence(c, "kael/attack/attack_down_", 6);
         attack[UP] = loadSequence(c, "kael/attack/attack_up_", 6);
@@ -183,12 +184,12 @@ public class GameView extends View {
             comboRight[stage] = loadSequence(c, "kael_v13/combo/right_c" + n + "_", 5);
         }
 
-        // First proper Veilborn sprite set.
-        enemyIdleFrames = loadSequence(c, "enemy_v13/idle_front_", 4);
-        enemyChaseFrames = loadSequence(c, "enemy_v13/chase_side_", 6);
-        enemyAttackFrames = loadSequence(c, "enemy_v13/attack_side_", 6);
-        enemyHurtFrames = loadSequence(c, "enemy_v13/hurt_front_", 2);
-        enemyDeathFrames = loadSequence(c, "enemy_v13/death_front_", 4);
+        // v1.4 refined Veilborn set.
+        enemyIdleFrames = loadSequence(c, "enemy_v14/idle_front_", 4);
+        enemyChaseFrames = loadSequence(c, "enemy_v14/chase_side_", 4);
+        enemyAttackFrames = loadSequence(c, "enemy_v14/attack_side_", 4);
+        enemyHurtFrames = loadSequence(c, "enemy_v14/hurt_front_", 2);
+        enemyDeathFrames = loadSequence(c, "enemy_v14/death_front_", 4);
     }
 
     private void loadUiAssets(Context c) {
@@ -328,7 +329,8 @@ public class GameView extends View {
             vx += (0f - vx) * attackDrag;
             vy += (0f - vy) * attackDrag;
 
-            float lunge = getHeight() * (0.025f + comboStage * 0.012f) * dt;
+            // Small controlled step instead of the sliding/teleport-like lunge seen in testing.
+            float lunge = getHeight() * (0.010f + comboStage * 0.004f) * dt;
             if (attackFacing == LEFT) px -= lunge;
             else if (attackFacing == RIGHT) px += lunge;
             else if (attackFacing == UP) py -= lunge;
@@ -471,6 +473,7 @@ public class GameView extends View {
         Bitmap frame;
         int bottomPad;
         boolean comboVisual = false;
+        boolean sideMoveVisual = false;
 
         if (attacking) {
             if (attackFacing == LEFT) {
@@ -488,9 +491,15 @@ public class GameView extends View {
             float speedRatio = Math.min(1f, (float) Math.hypot(vx, vy) / Math.max(1f, maxSpeed));
             if (speedRatio > 0.08f) {
                 int idx = ((int) Math.floor(runClock)) % 6;
-                if (facing == LEFT && speedRatio < 0.58f) frame = sideWalkLeft[idx];
-                else if (facing == RIGHT && speedRatio < 0.58f) frame = sideWalkRight[idx];
-                else frame = run[facing][idx % run[facing].length];
+                if (facing == LEFT) {
+                    frame = speedRatio < 0.58f ? sideWalkLeft[idx] : run[LEFT][idx];
+                    sideMoveVisual = true;
+                } else if (facing == RIGHT) {
+                    frame = speedRatio < 0.58f ? sideWalkRight[idx] : run[RIGHT][idx];
+                    sideMoveVisual = true;
+                } else {
+                    frame = run[facing][idx % run[facing].length];
+                }
             } else {
                 frame = idle[facing][((int) Math.floor(idleClock)) % idle[facing].length];
             }
@@ -501,18 +510,23 @@ public class GameView extends View {
         if (comboVisual) {
             // Combo source frames include large slash VFX. Fit by a controlled screen height
             // so Combo 2/3 do not suddenly make Kael gigantic.
-            float desiredH = getHeight() * (comboStage == 0 ? 0.255f : 0.315f);
+            // Constant visual height across all three combo stages prevents size popping.
+            float desiredH = getHeight() * 0.255f;
             float scale = desiredH / Math.max(1f, frame.getHeight());
             float fw = frame.getWidth() * scale;
             float fh = frame.getHeight() * scale;
             float bottom = py + getHeight() * 0.035f;
             dst = new RectF(px - fw * 0.5f, bottom - fh, px + fw * 0.5f, bottom);
+        } else if (sideMoveVisual) {
+            // New side sheet uses a fixed cell canvas; render by cell height to preserve scale/pivot.
+            float desiredH = getHeight() * 0.305f;
+            float scale = desiredH / Math.max(1f, frame.getHeight());
+            float fw = frame.getWidth() * scale;
+            float fh = frame.getHeight() * scale;
+            float bottom = py + getHeight() * 0.012f;
+            dst = new RectF(px - fw * 0.5f, bottom - fh, px + fw * 0.5f, bottom);
         } else {
             float scale = (getHeight() / 720f) * 0.92f;
-            if (!attacking && (facing == LEFT || facing == RIGHT) &&
-                    ((float) Math.hypot(vx, vy) > getHeight() * 0.02f)) {
-                scale *= 0.70f;
-            }
             float fw = frame.getWidth() * scale;
             float fh = frame.getHeight() * scale;
             dst = new RectF(px - fw * 0.5f, py - (frame.getHeight() - bottomPad) * scale,
@@ -529,7 +543,6 @@ public class GameView extends View {
         pixelPaint.setAlpha(255);
     }
 
-    // ---------------- Combat prototype ----------------
     // ---------------- Combat prototype ----------------
     private void updateEnemy(float dt) {
         enemyAnimClock += dt;
@@ -696,7 +709,7 @@ public class GameView extends View {
             frame = enemyIdleFrames[((int)(enemyAnimClock * 4.0f)) % enemyIdleFrames.length];
         }
 
-        float targetH = getHeight() * (sideFrame ? 0.165f : 0.150f);
+        float targetH = getHeight() * (sideFrame ? 0.172f : 0.160f);
         float scale = targetH / Math.max(1f, frame.getHeight());
         float dw = frame.getWidth() * scale;
         float dh = frame.getHeight() * scale;
@@ -1238,19 +1251,21 @@ public class GameView extends View {
         int levels = stats.addXp(amount);
         if (levels > 0) {
             pendingPoints = stats.attributePoints;
-            levelUpFlash = 2.0f;
+            levelUpFlash = 1.15f;
         }
         saveState();
     }
 
     private void drawLevelUpFlash(Canvas c) {
         if (levelUpFlash <= 0f) return;
-        float a = Math.min(1f, levelUpFlash * 2f);
-        float w = getWidth() * 0.34f;
+        float fadeOut = clamp(levelUpFlash / 0.22f, 0f, 1f);
+        float fadeIn = clamp((1.15f - levelUpFlash) / 0.14f, 0f, 1f);
+        float a = Math.min(fadeIn, fadeOut);
+        float w = getWidth() * 0.235f;
         float hh = w * levelHeader.getHeight() / (float) levelHeader.getWidth();
-        RectF header = new RectF(getWidth() * 0.5f - w * 0.5f, getHeight() * 0.20f,
-                getWidth() * 0.5f + w * 0.5f, getHeight() * 0.20f + hh);
-        float rw = getWidth() * 0.28f;
+        RectF header = new RectF(getWidth() * 0.5f - w * 0.5f, getHeight() * 0.115f,
+                getWidth() * 0.5f + w * 0.5f, getHeight() * 0.115f + hh);
+        float rw = getWidth() * 0.190f;
         float rh = rw * levelReward.getHeight() / (float) levelReward.getWidth();
         RectF reward = new RectF(getWidth() * 0.5f - rw * 0.5f, header.bottom - getHeight() * 0.02f,
                 getWidth() * 0.5f + rw * 0.5f, header.bottom - getHeight() * 0.02f + rh);
@@ -1279,7 +1294,7 @@ public class GameView extends View {
 
         if (joyActive) {
             RectF glowBounds = new RectF(jx - jr * 1.18f, jy - jr * 1.18f, jx + jr * 1.18f, jy + jr * 1.18f);
-            imagePaint.setAlpha(115);
+            imagePaint.setAlpha(72);
             c.drawBitmap(joyGlow, null, fitBitmapRect(joyGlow, glowBounds), imagePaint);
         }
 
@@ -1305,15 +1320,15 @@ public class GameView extends View {
         if (attackButtonFlash > 0f) {
             float fr = ar * 1.28f;
             RectF flashBounds = new RectF(atkCx() - fr, atkCy() - fr, atkCx() + fr, atkCy() + fr);
-            imagePaint.setAlpha((int)(190 * clamp(attackButtonFlash / 0.16f, 0f, 1f)));
+            imagePaint.setAlpha((int)(110 * clamp(attackButtonFlash / 0.16f, 0f, 1f)));
             c.drawBitmap(attackBtnFlash, null, fitBitmapRect(attackBtnFlash, flashBounds), imagePaint);
             imagePaint.setAlpha(255);
         }
 
         if (comboStage > 0 || comboQueued) {
-            String label = comboQueued ? "NEXT" : ("x" + (comboStage + 1));
-            drawSmallValue(c, label, atkCx(), atkCy() - ar * 0.88f,
-                    getHeight() * 0.021f, Paint.Align.CENTER);
+            String label = comboQueued ? ("x" + Math.min(3, comboStage + 2)) : ("x" + (comboStage + 1));
+            drawSmallValue(c, label, atkCx(), atkCy() - ar * 0.86f,
+                    getHeight() * 0.016f, Paint.Align.CENTER);
         }
     }
 

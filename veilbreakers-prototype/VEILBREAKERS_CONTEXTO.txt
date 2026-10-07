@@ -64,3 +64,24 @@ PRÓXIMOS PASSOS RECOMENDADOS
 
 IMPORTANTE
 Preserve o que já funciona. Evite quebrar menus, save, HUD e combate ao adicionar sistemas.
+
+
+==============================
+ATUALIZAÇÃO v1.4 — REVISÃO QUADRO A QUADRO
+==============================
+Foi analisado o vídeo de teste 1000170442.mp4 quadro a quadro.
+
+Correções:
+- novo ciclo lateral do Kael com os dois pés alternando;
+- pivô/escala lateral estabilizados para reduzir deslizamento;
+- combo de 3 golpes mantido, mas todos os golpes agora usam a mesma escala visual;
+- lunge reduzido para evitar sensação de teleporte;
+- Veilborn atualizado com novo conjunto refinado de sprites;
+- level-up menor, mais curto e deslocado para o topo;
+- brilho do analógico e flash do botão de ataque reduzidos;
+- indicador textual NEXT removido em favor de x2/x3 pequeno;
+- novos source sheets arquivados dentro do APK em project_archive/v14_source_sheets.zip;
+- manifesto v1.4 em project_archive/SPRITES_MANIFEST_V14.json.
+
+Próximo teste recomendado:
+gravar novamente movimento lateral contínuo, três combos completos e luta até level-up para comparar quadro a quadro com a v1.3.
