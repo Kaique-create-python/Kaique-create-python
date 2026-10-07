@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.HapticFeedbackConstants;
@@ -15,6 +16,7 @@ import android.view.View;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.IdentityHashMap;
 import java.util.Locale;
 
 public class GameView extends View {
@@ -39,6 +41,7 @@ public class GameView extends View {
     private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
     private Bitmap attackBtnNormal, attackBtnPressed, attackBtnCombo, attackBtnDisabled, attackBtnFlash;
+    private final IdentityHashMap<Bitmap, Rect> visibleBounds = new IdentityHashMap<>();
 
     // HUD / status assets
     private Bitmap hudHpFrame, hudHpFill, hudManaFrame, hudManaFill, hudXpFrame, hudXpFill;
@@ -156,6 +159,67 @@ public class GameView extends View {
         return frames;
     }
 
+    private void cacheVisibleBounds(Bitmap[] frames) {
+        for (Bitmap frame : frames) {
+            visibleBounds.put(frame, findVisibleBounds(frame));
+        }
+    }
+
+    private Rect findVisibleBounds(Bitmap bitmap) {
+        int w = bitmap.getWidth();
+        int h = bitmap.getHeight();
+        int[] pixels = new int[w * h];
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h);
+
+        int minX = w, minY = h, maxX = -1, maxY = -1;
+        for (int y = 0; y < h; y++) {
+            int row = y * w;
+            for (int x = 0; x < w; x++) {
+                int alpha = (pixels[row + x] >>> 24) & 0xFF;
+                if (alpha > 12) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (maxX < minX || maxY < minY) return new Rect(0, 0, w, h);
+        return new Rect(minX, minY, maxX + 1, maxY + 1);
+    }
+
+    private RectF rectWithVisibleBottom(Bitmap frame, float centerX, float visibleBottomY,
+                                        float targetCanvasHeight) {
+        Rect bounds = visibleBounds.get(frame);
+        if (bounds == null) {
+            bounds = findVisibleBounds(frame);
+            visibleBounds.put(frame, bounds);
+        }
+        float scale = targetCanvasHeight / Math.max(1f, frame.getHeight());
+        float fw = frame.getWidth() * scale;
+        float fh = frame.getHeight() * scale;
+        float transparentBottom = (frame.getHeight() - bounds.bottom) * scale;
+        float canvasBottom = visibleBottomY + transparentBottom;
+        return new RectF(centerX - fw * 0.5f, canvasBottom - fh,
+                centerX + fw * 0.5f, canvasBottom);
+    }
+
+    private RectF rectWithVisibleHeight(Bitmap frame, float centerX, float visibleBottomY,
+                                        float targetVisibleHeight) {
+        Rect bounds = visibleBounds.get(frame);
+        if (bounds == null) {
+            bounds = findVisibleBounds(frame);
+            visibleBounds.put(frame, bounds);
+        }
+        float scale = targetVisibleHeight / Math.max(1f, bounds.height());
+        float fw = frame.getWidth() * scale;
+        float fh = frame.getHeight() * scale;
+        float transparentBottom = (frame.getHeight() - bounds.bottom) * scale;
+        float canvasBottom = visibleBottomY + transparentBottom;
+        return new RectF(centerX - fw * 0.5f, canvasBottom - fh,
+                centerX + fw * 0.5f, canvasBottom);
+    }
+
     private void loadFrames(Context c) {
         idle[DOWN] = loadSequence(c, "kael/move/move_r0_f", 4);
         idle[UP] = loadSequence(c, "kael/move/move_r1_f", 4);
@@ -169,6 +233,8 @@ public class GameView extends View {
         // One stable six-frame side cycle is reused at different playback speeds.
         sideWalkLeft = loadSequence(c, "kael_v14/side/left_", 6);
         sideWalkRight = loadSequence(c, "kael_v14/side/right_", 6);
+        cacheVisibleBounds(sideWalkLeft);
+        cacheVisibleBounds(sideWalkRight);
         run[LEFT] = sideWalkLeft;
         run[RIGHT] = sideWalkRight;
 
@@ -177,11 +243,13 @@ public class GameView extends View {
         attack[LEFT] = loadSequence(c, "kael/attack/attack_left_", 6);
         attack[RIGHT] = loadSequence(c, "kael/attack/attack_right_", 6);
 
-        // v1.3: three visually distinct chained attacks for horizontal combat.
+        // v1.4.1 hotfix: actually use the refined three-frame combo sheets packed in v1.4.
         for (int stage = 0; stage < 3; stage++) {
             int n = stage + 1;
-            comboLeft[stage] = loadSequence(c, "kael_v13/combo/left_c" + n + "_", 5);
-            comboRight[stage] = loadSequence(c, "kael_v13/combo/right_c" + n + "_", 5);
+            comboLeft[stage] = loadSequence(c, "kael_v14/combo/left_c" + n + "_", 3);
+            comboRight[stage] = loadSequence(c, "kael_v14/combo/right_c" + n + "_", 3);
+            cacheVisibleBounds(comboLeft[stage]);
+            cacheVisibleBounds(comboRight[stage]);
         }
 
         // v1.4 refined Veilborn set.
@@ -444,12 +512,11 @@ public class GameView extends View {
     }
 
     private int currentComboVisualFrame() {
+        // Six timing slices drive combat, while the refined v1.4 art has three visual poses.
         int f = currentAttackFrame();
-        if (f <= 0) return 0;
-        if (f == 1) return 1;
-        if (f == 2) return 2;
-        if (f == 3) return 3;
-        return 4;
+        if (f <= 1) return 0;
+        if (f <= 3) return 1;
+        return 2;
     }
 
     private void drawArena(Canvas c) {
@@ -508,23 +575,17 @@ public class GameView extends View {
 
         RectF dst;
         if (comboVisual) {
-            // Combo source frames include large slash VFX. Fit by a controlled screen height
-            // so Combo 2/3 do not suddenly make Kael gigantic.
-            // Constant visual height across all three combo stages prevents size popping.
-            float desiredH = getHeight() * 0.255f;
-            float scale = desiredH / Math.max(1f, frame.getHeight());
-            float fw = frame.getWidth() * scale;
-            float fh = frame.getHeight() * scale;
-            float bottom = py + getHeight() * 0.035f;
-            dst = new RectF(px - fw * 0.5f, bottom - fh, px + fw * 0.5f, bottom);
+            // Keep one canvas scale for all combo stages, but align the visible artwork to the feet.
+            // This removes vertical popping caused by transparent padding without following the slash VFX horizontally.
+            float desiredCanvasH = getHeight() * 0.255f;
+            float visibleBottom = py + getHeight() * 0.035f;
+            dst = rectWithVisibleBottom(frame, px, visibleBottom, desiredCanvasH);
         } else if (sideMoveVisual) {
-            // New side sheet uses a fixed cell canvas; render by cell height to preserve scale/pivot.
-            float desiredH = getHeight() * 0.305f;
-            float scale = desiredH / Math.max(1f, frame.getHeight());
-            float fw = frame.getWidth() * scale;
-            float fh = frame.getHeight() * scale;
-            float bottom = py + getHeight() * 0.012f;
-            dst = new RectF(px - fw * 0.5f, bottom - fh, px + fw * 0.5f, bottom);
+            // v1.4 left/right cells have very different transparent padding and apparent sprite height.
+            // Normalize by the visible alpha height and pin the visible feet to the same world-space baseline.
+            float desiredVisibleH = getHeight() * 0.205f;
+            float visibleBottom = py + getHeight() * 0.012f;
+            dst = rectWithVisibleHeight(frame, px, visibleBottom, desiredVisibleH);
         } else {
             float scale = (getHeight() / 720f) * 0.92f;
             float fw = frame.getWidth() * scale;
