@@ -40,6 +40,12 @@ def review_frames():
 class Android:
     def __init__(self, serial):
         self.prefix = ["adb"] + (["-s", serial] if serial else [])
+        self.last_step = "initialize emulator review"
+        self.last_capture = None
+
+    def step(self, description):
+        self.last_step = description
+        print("STEP " + description, flush=True)
 
     def run(self, *args, timeout=45, check=True):
         result = subprocess.run(self.prefix + list(args), capture_output=True, text=True,
@@ -67,24 +73,37 @@ class Android:
             raise RuntimeError("Gameplay review launch failed: " + output)
 
     def screenshot(self, path):
-        result = subprocess.run(self.prefix + ["exec-out", "screencap", "-p"],
-                                check=True, capture_output=True, timeout=45)
-        image = Image.open(BytesIO(result.stdout)).convert("RGB")
-        image.load()
-        if image.width <= image.height or image.width < 640 or image.height < 360:
-            raise ValueError(f"Expected landscape Android rendering, received {image.size}")
-        if max(image.getextrema()[channel][1] for channel in range(3)) < 80:
-            raise ValueError("Screenshot is blank or the app failed to render")
-        # The API 29 fullscreen hint is a large flat teal overlay. It obscured
-        # the previous review despite producing nonblank, colorful captures.
-        sample = image.resize((160, 90), Image.Resampling.NEAREST)
-        teal = sum(r < 35 and 105 < g < 160 and 95 < b < 150 and abs(g - b) < 35
-                   for r, g, b in sample.getdata())
-        if teal / (160 * 90) > .03:
-            raise ValueError("Android fullscreen hint or a large teal system overlay obscures the screenshot")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(result.stdout)
-        return image
+        self.step("capture " + path.name)
+        self.last_capture = str(path)
+        error = None
+        for attempt in range(1, 4):
+            result = subprocess.run(self.prefix + ["exec-out", "screencap", "-p"],
+                                    check=True, capture_output=True, timeout=45)
+            image = Image.open(BytesIO(result.stdout)).convert("RGB")
+            image.load()
+            if image.width <= image.height or image.width < 640 or image.height < 360:
+                error = f"Expected landscape Android rendering, received {image.size}"
+            elif max(image.getextrema()[channel][1] for channel in range(3)) < 80:
+                error = "Screenshot is blank or the app failed to render"
+            else:
+                # Large flat teal is the API 29 fullscreen system hint. This
+                # rejection remains strict; retries only handle resume/layout.
+                sample = image.resize((160, 90), Image.Resampling.NEAREST)
+                teal = sum(r < 35 and 105 < g < 160 and 95 < b < 150 and abs(g - b) < 35
+                           for r, g, b in sample.getdata())
+                if teal / (160 * 90) > .03:
+                    diagnostic = path.with_name(path.stem + "_failed.png")
+                    diagnostic.write_bytes(result.stdout)
+                    raise ValueError(f"{path.name}: Android fullscreen hint obscures the screenshot; diagnostic {diagnostic.name}")
+                path.write_bytes(result.stdout)
+                return image
+            if attempt < 3:
+                print(f"STEP wait for emulator frame: {path.name}, attempt {attempt}/3", flush=True)
+                time.sleep(.45)
+        diagnostic = path.with_name(path.stem + "_failed.png")
+        diagnostic.write_bytes(result.stdout)
+        raise ValueError(f"{path.name}: {error} after 3 emulator captures; diagnostic {diagnostic.name}")
 
     def reject_fullscreen_hint(self):
         path = "/sdcard/veilbreakers_review_ui.xml"
@@ -195,10 +214,13 @@ def capture_normal_combat(android, output, dimensions, record_video=True):
 
     def checkpoint():
         # Home invokes the real Activity pause/save path in the isolated emulator.
+        android.step("pause real gameplay and read saved campaign")
         android.run('shell', 'input', 'keyevent', '3')
         time.sleep(.18)
         values = android.saved_game()
+        android.step("resume real gameplay and wait for its window to render")
         android.start()
+        time.sleep(.65)
         return values
 
     def walk_to(target):
@@ -227,12 +249,13 @@ def capture_normal_combat(android, output, dimensions, record_video=True):
         if not values.get('story_sword_found') or not values.get('story_intro_seen'):
             raise ValueError('Real controls did not complete the opening and recover the sword')
         snap('sword_recovered')
+        android.step("restart process and select Continue")
         android.run('shell', 'am', 'force-stop', PACKAGE)
         android.start(fresh=True)
-        time.sleep(.45)
+        time.sleep(.8)
         android.run('shell', 'input', 'keyevent', '20')
         android.run('shell', 'input', 'keyevent', '66')
-        time.sleep(.45)
+        time.sleep(.8)
         restored = checkpoint()
         if not restored.get('story_sword_found') or not restored.get('story_intro_seen') or restored.get('world_zone') != 0:
             raise ValueError('Continue did not restore the real campaign save after process restart')
@@ -406,7 +429,8 @@ def main():
         if "FATAL EXCEPTION" in final_log:
             raise ValueError("Android crashed during animated playback review")
     except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as error:
-        summary.update(passed=False, error=str(error), capturedFrames=len(records), records=records)
+        summary.update(passed=False, error=str(error), lastStep=android.last_step,
+                       lastCapture=android.last_capture, capturedFrames=len(records), records=records)
         try:
             (output / "logcat.txt").write_text(android.run("logcat", "-d", "-v", "threadtime"), encoding="utf-8")
         except (OSError, subprocess.SubprocessError):
