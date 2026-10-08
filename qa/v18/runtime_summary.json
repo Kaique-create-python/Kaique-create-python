@@ -1,0 +1,12 @@
+{
+  "version": "1.8.0",
+  "versionCode": 22,
+  "package": "com.veilbreakers.prototype",
+  "expectedReviewFrames": 180,
+  "capturedFrames": 0,
+  "passed": false,
+  "manualVisualReviewRequired": true,
+  "scope": "Actual Android GameView rendering at fixed frame indices; menu and normal gameplay also captured",
+  "error": "Screenshot is blank or the app failed to render",
+  "records": []
+}
