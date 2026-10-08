@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.6.1
+Versão atual: v1.7.0
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -325,3 +325,46 @@ PRÓXIMO TESTE RECOMENDADO v1.6.1
 PRÓXIMO PASSO APÓS VALIDAR
 - Veilborn com direção e ataque próprios em quatro direções.
 - Depois Ruínas de Varyn.
+
+
+==============================
+ATUALIZAÇÃO v1.7.0 — ARTE CONSISTENTE EM QUATRO DIREÇÕES
+==============================
+Fonte: branch veilbreakers-apk-build, commit de origem bc70c03b0ee04e46b4b04abea6726ba9e06ffa9f.
+Package com.veilbreakers.prototype; versionCode 21; versionName 1.7.0.
+
+ARTE NOVA GERADA E REVISADA
+- Model sheet oficial do Kael: cabelo preto curto, rosto pálido, armadura carvão/aço, capa escura/carmesim, marca VIII e uma espada.
+- Idle: 4 frames x 4 direções; walk: 6 x 4; run: 6 x 4. Walk e run possuem poses distintas.
+- Combo: 3 golpes x 3 poses x 4 direções = 36 frames.
+- Cast Arcana VIII: 5 poses x 4 direções = 20 frames.
+- Veilborn: idle 3 x 4; chase 4 x 4; attack 4 x 4; hurt 3; death 5.
+- Esfera: 8 fases distintas, núcleo escuro/carmesim, violeta restrito à energia.
+- Total: 180 PNGs efetivamente carregados por GameView em kael_v17/, enemy_v17/ e fx_v17/.
+- Fontes selecionadas, recortes autorados e previews preservados em project_archive/source_sheets/v17/ e previews/v17/.
+
+PADRÃO E TIMING
+- Personagens: RGBA 256x256, pivot (128,232); combos RGBA 512x256, pivot (256,232) para preservar espada e corpo sem recorte. Baseline 232; corpo neutro Kael 174px, Veilborn 168px.
+- Esfera: RGBA 160x160, pivot central (80,80).
+- Escala constante durante animação; nenhum enquadramento por bounds de VFX.
+- Idle 5FPS; walk 9FPS; run 12FPS.
+- Combos .38/.44/.54s; antecipação 30%, impacto 28%, recovery 42%. Dano consumido no início da pose de impacto 1.
+- Cast .50s com fronteiras .00/.09/.18/.28/.38/.50; projétil nasce no socket da mão da pose 3 em .28s.
+- Veilborn trava a direção do ataque, aplica dano na pose 2 (.22s) e revalida alcance/direção.
+- Status pausa combate, projéteis, Mana e cooldowns.
+
+RECUPERAÇÃO
+- Workflow reconstrói primeiro os pacotes históricos, depois v17_reviewed_art.zip.b64.part-*; v17 prevalece.
+- SPRITES_MANIFEST_V170.json relaciona TODOS os frames, dimensões, direção, ordem, timing, pivô e SHA256.
+- V17_ASSET_QA.json é produzido pelo validador; o APK é conferido contra esses hashes.
+- project_archive/ART_REVIEW_V170.md registra substituições, comparação, critérios e limitações.
+- O APK final é renomeado VEILBREAKERS_v1.7.0_Codex.apk.
+
+REVISÃO DEBUG
+- MainActivity aceita art_review=true, review_state, review_direction (0 Down/1 Up/2 Left/3 Right), review_frame.
+- review_frame >=0 fixa uma pose; -1 reproduz o ciclo. Revisão reutiliza renderizadores reais e não altera o save.
+- GitHub Actions captura cada pose, contact sheets, vídeo de ciclos e log de carregamento para revisão visual.
+- A presença de arquivos ou um parser Java não demonstra execução Android: consulte a conclusão do workflow e os registros de runtime.
+
+PRESERVADO
+Menu/vídeo, HUD, save, status, dano, crítico, knockback, XP, dinheiro e progressão. História original em HISTORIA_COMPLETA.txt.

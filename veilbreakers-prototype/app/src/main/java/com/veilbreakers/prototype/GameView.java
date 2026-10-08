@@ -2,21 +2,21 @@ package com.veilbreakers.prototype;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.util.Log;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.IdentityHashMap;
 import java.util.Locale;
 
 public class GameView extends View {
@@ -33,19 +33,20 @@ public class GameView extends View {
     private final Paint overlayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final Bitmap[][] idle = new Bitmap[4][];
+    private final Bitmap[][] walk = new Bitmap[4][];
     private final Bitmap[][] run = new Bitmap[4][];
-    private final Bitmap[][] attack = new Bitmap[4][];
     private final Bitmap[][] comboLeft = new Bitmap[3][];
     private final Bitmap[][] comboRight = new Bitmap[3][];
     private final Bitmap[][] comboDown = new Bitmap[3][];
     private final Bitmap[][] comboUp = new Bitmap[3][];
     private final Bitmap[][] magicCastFrames = new Bitmap[4][];
     private Bitmap[] magicOrbFrames;
-    private Bitmap[] sideWalkLeft, sideWalkRight, sideRunLeft, sideRunRight;
-    private Bitmap[] enemyIdleFrames, enemyChaseFrames, enemyAttackFrames, enemyHurtFrames, enemyDeathFrames;
+    private final Bitmap[][] enemyIdleFrames = new Bitmap[4][];
+    private final Bitmap[][] enemyChaseFrames = new Bitmap[4][];
+    private final Bitmap[][] enemyAttackFrames = new Bitmap[4][];
+    private Bitmap[] enemyHurtFrames, enemyDeathFrames;
     private Bitmap joyBase, joyBaseActive, joyKnob, joyKnobPressed, joyGlow;
     private Bitmap attackBtnNormal, attackBtnPressed, attackBtnCombo, attackBtnDisabled, attackBtnFlash;
-    private final IdentityHashMap<Bitmap, Rect> visibleBounds = new IdentityHashMap<>();
 
     // HUD / status assets
     private Bitmap hudHpFrame, hudHpFill, hudManaFrame, hudManaFill, hudXpFrame, hudXpFill;
@@ -82,7 +83,6 @@ public class GameView extends View {
     private static final int MAGIC_COST = 18;
     private static final float MAGIC_COOLDOWN_MAX = 1.10f;
     private float magicCooldown = 0f;
-    private float magicCastFlash = 0f;
     private float manaRegenDelay = 0f;
     private float manaRegenBank = 0f;
     private boolean magicCasting = false;
@@ -96,9 +96,15 @@ public class GameView extends View {
     private float magicAge = 0f;
     private float magicImpactTimer = 0f;
     private float magicImpactX = 0f, magicImpactY = 0f;
+    private boolean magicImpactIsHit = true;
     private int magicFacing = DOWN;
 
     private long lastNs = System.nanoTime();
+    private boolean artReviewMode = false;
+    private String artReviewState = "idle";
+    private int artReviewDirection = DOWN;
+    private int artReviewFrame = 0;
+    private long artReviewStartNs = 0L;
 
     // v1.2 combat prototype: first Veilborn enemy.
     private float enemyX = -1f, enemyY = -1f;
@@ -110,7 +116,9 @@ public class GameView extends View {
     private float enemyAttackCooldown = 0.75f;
     private float enemyAttackAnim = 0f;
     private float enemyHurtTimer = 0f;
-    private boolean enemyFacingLeft = true;
+    private int enemyFacing = DOWN;
+    private int enemyAttackFacing = DOWN;
+    private boolean enemyAttackHitApplied = false;
     private float enemyDeathTimer = 0f;
     private float enemyRespawnTimer = 0f;
     private float enemyAnimClock = 0f;
@@ -124,7 +132,35 @@ public class GameView extends View {
     private float combatTextX = 0f, combatTextY = 0f;
     private boolean combatTextCrit = false;
 
-    private final float[] attackDurations = {0.075f, 0.060f, 0.055f, 0.060f, 0.075f, 0.100f};
+    // v1.7 authored contract: 256x256 cells, wider 512x256 combo cells; feet at (width/2,232).
+    private static final String[] DIRECTIONS = {"down", "up", "left", "right"};
+    private static final int CHARACTER_CELL = 256;
+    private static final float CHARACTER_PIVOT_X = 128f;
+    private static final float CHARACTER_PIVOT_Y = 232f;
+    private static final float PLAYER_BODY_PIXELS = 174f;
+    private static final float ENEMY_BODY_PIXELS = 168f;
+    private static final float WALK_RUN_THRESHOLD = 0.65f;
+    private static final float[] COMBO_DURATIONS = {0.38f, 0.44f, 0.54f};
+    private static final float COMBO_IMPACT_START = 0.30f;
+    private static final float COMBO_RECOVERY_START = 0.58f;
+    private static final float[] CAST_PHASE_STARTS = {0f, 0.09f, 0.18f, 0.28f, 0.38f};
+    private static final float CAST_DURATION = 0.50f;
+    // Authored glove/energy sockets in each 256px cast cell: DOWN, UP, LEFT, RIGHT.
+    private static final float[][][] CAST_HAND_SOCKETS = {
+            {{167.39f, 174.28f}, {172.46f, 128.26f}, {148.28f, 138.40f},
+                    {159.98f, 178.18f}, {167.00f, 174.28f}},
+            {{166.22f, 153.22f}, {172.07f, 109.54f}, {173.24f, 69.76f},
+                    {159.59f, 76.78f}, {172.46f, 153.22f}},
+            {{110.06f, 175.06f}, {97.58f, 120.46f}, {71.45f, 117.34f},
+                    {80.03f, 125.14f}, {106.16f, 175.06f}},
+            {{159.98f, 173.50f}, {164.27f, 133.72f}, {184.16f, 123.58f},
+                    {187.28f, 132.16f}, {159.98f, 172.72f}}
+    };
+    private static final float ENEMY_ATTACK_DURATION = 0.44f;
+    private static final float ENEMY_ATTACK_HIT_TIME = 0.22f;
+    private static final float ENEMY_HURT_DURATION = 0.28f;
+    private static final float ENEMY_DEATH_DURATION = 0.70f;
+    private static final float ORB_IMPACT_DURATION = 0.24f;
     private final SharedPreferences prefs;
     private final boolean loadExisting;
     private final PlayerStats stats = new PlayerStats();
@@ -155,7 +191,8 @@ public class GameView extends View {
         setKeepScreenOn(true);
 
         pixelPaint.setAntiAlias(false);
-        pixelPaint.setFilterBitmap(false);
+        // v1.7 uses painterly RGBA artwork; filtered scaling matches the enemy renderer.
+        pixelPaint.setFilterBitmap(true);
         pixelPaint.setDither(false);
         uiPaint.setTypeface(Typeface.create(Typeface.SERIF, Typeface.BOLD));
         shadowPaint.setColor(Color.argb(105, 0, 0, 0));
@@ -185,173 +222,52 @@ public class GameView extends View {
         return frames;
     }
 
-    private void loadComboGrid(Context c, String path, Bitmap[][] target) {
-        Bitmap sheet = load(c, path);
-        int cellW = sheet.getWidth() / 3;
-        int cellH = sheet.getHeight() / 3;
-        if (cellW <= 0 || cellH <= 0) throw new RuntimeException("Invalid combo sheet: " + path);
-
-        for (int stage = 0; stage < 3; stage++) {
-            target[stage] = new Bitmap[3];
-            for (int pose = 0; pose < 3; pose++) {
-                Bitmap cell = Bitmap.createBitmap(sheet, pose * cellW, stage * cellH, cellW, cellH);
-                Bitmap scaled = Bitmap.createScaledBitmap(cell, 700, 240, true);
-                target[stage][pose] = scaled;
-                if (scaled != cell) cell.recycle();
-            }
-        }
-        sheet.recycle();
-    }
-
-    private void cacheVisibleBounds(Bitmap[] frames) {
+    private Bitmap[] loadCharacterSequence(Context c, String prefix, int count) {
+        Bitmap[] frames = loadSequence(c, prefix, count);
+        int expectedWidth = prefix.startsWith("kael_v17/combo/") ? 512 : CHARACTER_CELL;
         for (Bitmap frame : frames) {
-            visibleBounds.put(frame, findVisibleBounds(frame));
-        }
-    }
-
-    private Rect findVisibleBounds(Bitmap bitmap) {
-        int w = bitmap.getWidth();
-        int h = bitmap.getHeight();
-        int[] pixels = new int[w * h];
-        bitmap.getPixels(pixels, 0, w, 0, 0, w, h);
-
-        int minX = w, minY = h, maxX = -1, maxY = -1;
-        for (int y = 0; y < h; y++) {
-            int row = y * w;
-            for (int x = 0; x < w; x++) {
-                int alpha = (pixels[row + x] >>> 24) & 0xFF;
-                if (alpha > 12) {
-                    if (x < minX) minX = x;
-                    if (x > maxX) maxX = x;
-                    if (y < minY) minY = y;
-                    if (y > maxY) maxY = y;
-                }
+            if (frame.getWidth() != expectedWidth || frame.getHeight() != CHARACTER_CELL) {
+                throw new IllegalStateException("Invalid " + expectedWidth + "x256 animation cell: " + prefix);
             }
         }
-        if (maxX < minX || maxY < minY) return new Rect(0, 0, w, h);
-        return new Rect(minX, minY, maxX + 1, maxY + 1);
+        return frames;
     }
 
-    private RectF rectWithVisibleBottom(Bitmap frame, float centerX, float visibleBottomY,
-                                        float targetCanvasHeight) {
-        Rect bounds = visibleBounds.get(frame);
-        if (bounds == null) {
-            bounds = findVisibleBounds(frame);
-            visibleBounds.put(frame, bounds);
-        }
-        float scale = targetCanvasHeight / Math.max(1f, frame.getHeight());
-        float fw = frame.getWidth() * scale;
-        float fh = frame.getHeight() * scale;
-        float transparentBottom = (frame.getHeight() - bounds.bottom) * scale;
-        float canvasBottom = visibleBottomY + transparentBottom;
-        return new RectF(centerX - fw * 0.5f, canvasBottom - fh,
-                centerX + fw * 0.5f, canvasBottom);
-    }
-
-    private RectF rectWithVisibleHeight(Bitmap frame, float centerX, float visibleBottomY,
-                                        float targetVisibleHeight) {
-        Rect bounds = visibleBounds.get(frame);
-        if (bounds == null) {
-            bounds = findVisibleBounds(frame);
-            visibleBounds.put(frame, bounds);
-        }
-        float scale = targetVisibleHeight / Math.max(1f, bounds.height());
-        float fw = frame.getWidth() * scale;
-        float fh = frame.getHeight() * scale;
-        float transparentBottom = (frame.getHeight() - bounds.bottom) * scale;
-        float canvasBottom = visibleBottomY + transparentBottom;
-        return new RectF(centerX - fw * 0.5f, canvasBottom - fh,
-                centerX + fw * 0.5f, canvasBottom);
-    }
-
-    private RectF rectWithCanvasAnchor(Bitmap frame, float centerX, float worldAnchorY,
-                                        float sourceAnchorY, float targetCanvasHeight) {
-        float scale = targetCanvasHeight / Math.max(1f, frame.getHeight());
-        float fw = frame.getWidth() * scale;
-        float fh = frame.getHeight() * scale;
-        float top = worldAnchorY - sourceAnchorY * scale;
-        return new RectF(centerX - fw * 0.5f, top, centerX + fw * 0.5f, top + fh);
+    private RectF rectWithAuthoredPivot(Bitmap frame, float worldX, float worldY, float scale) {
+        float left = worldX - frame.getWidth() * 0.5f * scale;
+        float top = worldY - CHARACTER_PIVOT_Y * scale;
+        return new RectF(left, top, left + frame.getWidth() * scale,
+                top + frame.getHeight() * scale);
     }
 
     private void loadFrames(Context c) {
-        idle[DOWN] = loadSequence(c, "kael/move/move_r0_f", 4);
-        idle[UP] = loadSequence(c, "kael/move/move_r1_f", 4);
-        idle[LEFT] = loadSequence(c, "kael/move/move_r2_f", 4);
-        idle[RIGHT] = loadSequence(c, "kael/move/move_r3_f", 4);
-
-        run[DOWN] = loadSequence(c, "kael/move/move_r4_f", 6);
-        run[UP] = loadSequence(c, "kael/move/move_r5_f", 6);
-
-        // v1.4: rebuilt from frame-by-frame video review.
-        // One stable six-frame side cycle is reused at different playback speeds.
-        sideWalkLeft = loadSequence(c, "kael_v14/side/walk_left_", 6);
-        sideWalkRight = loadSequence(c, "kael_v14/side/walk_right_", 6);
-        sideRunLeft = loadSequence(c, "kael_v14/side/run_left_", 6);
-        sideRunRight = loadSequence(c, "kael_v14/side/run_right_", 6);
-        cacheVisibleBounds(sideWalkLeft);
-        cacheVisibleBounds(sideWalkRight);
-        cacheVisibleBounds(sideRunLeft);
-        cacheVisibleBounds(sideRunRight);
-        run[LEFT] = sideRunLeft;
-        run[RIGHT] = sideRunRight;
-
-        attack[DOWN] = loadSequence(c, "kael/attack/attack_down_", 6);
-        attack[UP] = loadSequence(c, "kael/attack/attack_up_", 6);
-        attack[LEFT] = loadSequence(c, "kael/attack/attack_left_", 6);
-        attack[RIGHT] = loadSequence(c, "kael/attack/attack_right_", 6);
-
-        // v1.4.2 lateral combo frames.
-        for (int stage = 0; stage < 3; stage++) {
-            int n = stage + 1;
-            comboLeft[stage] = loadSequence(c, "kael_v14/combo/left_c" + n + "_", 3);
-            comboRight[stage] = loadSequence(c, "kael_v14/combo/right_c" + n + "_", 3);
-            cacheVisibleBounds(comboLeft[stage]);
-            cacheVisibleBounds(comboRight[stage]);
+        for (int dir = 0; dir < DIRECTIONS.length; dir++) {
+            String direction = DIRECTIONS[dir];
+            idle[dir] = loadCharacterSequence(c, "kael_v17/idle/" + direction + "_", 4);
+            walk[dir] = loadCharacterSequence(c, "kael_v17/walk/" + direction + "_", 6);
+            run[dir] = loadCharacterSequence(c, "kael_v17/run/" + direction + "_", 6);
+            magicCastFrames[dir] = loadCharacterSequence(c, "kael_v17/cast/" + direction + "_", 5);
+            enemyIdleFrames[dir] = loadCharacterSequence(c, "enemy_v17/idle/" + direction + "_", 3);
+            enemyChaseFrames[dir] = loadCharacterSequence(c, "enemy_v17/chase/" + direction + "_", 4);
+            enemyAttackFrames[dir] = loadCharacterSequence(c, "enemy_v17/attack/" + direction + "_", 4);
         }
-
-        // v1.5.1: dedicated generated Combo 1/2/3 art for DOWN and UP.
-        // Each stage has three visual poses on the same 700x240 canvas as lateral combo art.
-        for (int stage = 0; stage < 3; stage++) {
-            int n = stage + 1;
-            comboDown[stage] = loadSequence(c, "kael_v15/combo/down_c" + n + "_", 3);
-            comboUp[stage] = loadSequence(c, "kael_v15/combo/up_c" + n + "_", 3);
-            cacheVisibleBounds(comboDown[stage]);
-            cacheVisibleBounds(comboUp[stage]);
-        }
-
-        // v1.6.1: generated Arcana VIII casting sheet, 4 directions x 3 poses.
-        Bitmap castSheet = load(c, "kael_v16/magic_cast_sheet.png");
-        int castW = castSheet.getWidth() / 3;
-        int castH = castSheet.getHeight() / 4;
-        for (int dir = 0; dir < 4; dir++) {
-            magicCastFrames[dir] = new Bitmap[3];
-            for (int pose = 0; pose < 3; pose++) {
-                magicCastFrames[dir][pose] = Bitmap.createBitmap(
-                        castSheet, pose * castW, dir * castH, castW, castH);
-            }
-            cacheVisibleBounds(magicCastFrames[dir]);
-        }
-        castSheet.recycle();
-
-        // v1.6.1: generated Arcana VIII orb lifecycle, 2 rows x 3 frames.
-        Bitmap orbSheet = load(c, "fx_v16/arcana_orb_sheet.png");
-        int orbW = orbSheet.getWidth() / 3;
-        int orbH = orbSheet.getHeight() / 2;
-        magicOrbFrames = new Bitmap[6];
-        for (int row = 0; row < 2; row++) {
-            for (int col = 0; col < 3; col++) {
-                magicOrbFrames[row * 3 + col] = Bitmap.createBitmap(
-                        orbSheet, col * orbW, row * orbH, orbW, orbH);
+        Bitmap[][][] combos = {comboDown, comboUp, comboLeft, comboRight};
+        for (int dir = 0; dir < DIRECTIONS.length; dir++) {
+            for (int stage = 0; stage < 3; stage++) {
+                combos[dir][stage] = loadCharacterSequence(c,
+                        "kael_v17/combo/" + DIRECTIONS[dir] + "_c" + (stage + 1) + "_", 3);
             }
         }
-        orbSheet.recycle();
-
-        // v1.4 refined Veilborn set.
-        enemyIdleFrames = loadSequence(c, "enemy_v14/idle_front_", 4);
-        enemyChaseFrames = loadSequence(c, "enemy_v14/chase_side_", 4);
-        enemyAttackFrames = loadSequence(c, "enemy_v14/attack_side_", 4);
-        enemyHurtFrames = loadSequence(c, "enemy_v14/hurt_front_", 2);
-        enemyDeathFrames = loadSequence(c, "enemy_v14/death_front_", 4);
+        enemyHurtFrames = loadCharacterSequence(c, "enemy_v17/hurt_", 3);
+        enemyDeathFrames = loadCharacterSequence(c, "enemy_v17/death_", 5);
+        magicOrbFrames = loadSequence(c, "fx_v17/orb_", 8);
+        for (Bitmap frame : magicOrbFrames) {
+            if (frame.getWidth() != 160 || frame.getHeight() != 160) {
+                throw new IllegalStateException("Invalid 160x160 Arcana orb cell");
+            }
+        }
+        Log.i("VEILBREAKERS_ASSETS", "v1.7 loaded: kael_v17=120 enemy_v17=52 fx_v17=8; "
+                + "character cells=256x256/512x256 pivot=width/2,232; orb cells=160 pivot=80,80");
     }
 
     private void loadUiAssets(Context c) {
@@ -416,6 +332,11 @@ public class GameView extends View {
     @Override
     protected void onDraw(Canvas c) {
         super.onDraw(c);
+        if (artReviewMode) {
+            drawArtReview(c);
+            if (artReviewFrame < 0) postInvalidateOnAnimation();
+            return;
+        }
         long now = System.nanoTime();
         float dt = Math.min(0.032f, (now - lastNs) / 1_000_000_000f);
         lastNs = now;
@@ -443,16 +364,132 @@ public class GameView extends View {
         postInvalidateOnAnimation();
     }
 
+    /** Fixed-frame renderer for adb captures; never runs combat or writes a save. */
+    public void setArtReview(String state, int direction, int frame) {
+        if ((getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            throw new IllegalStateException("Art review requires a debug APK");
+        }
+        artReviewMode = true;
+        artReviewState = state == null ? "idle" : state;
+        artReviewDirection = Math.max(DOWN, Math.min(RIGHT, direction));
+        artReviewFrame = frame;
+        artReviewStartNs = System.nanoTime();
+        Log.i("VEILBREAKERS_REVIEW", artReviewState + " direction=" + artReviewDirection
+                + " frame=" + artReviewFrame);
+        invalidate();
+    }
+
+    private int currentArtReviewFrame() {
+        if (artReviewFrame >= 0) return artReviewFrame;
+        float elapsed = (System.nanoTime() - artReviewStartNs) / 1_000_000_000f;
+        if (artReviewState.startsWith("combo")) {
+            int stage = "combo2".equals(artReviewState) ? 1 : ("combo3".equals(artReviewState) ? 2 : 0);
+            float progress = (elapsed % COMBO_DURATIONS[stage]) / COMBO_DURATIONS[stage];
+            return progress < COMBO_IMPACT_START ? 0 : (progress < COMBO_RECOVERY_START ? 1 : 2);
+        }
+        if ("cast".equals(artReviewState)) {
+            float phaseTime = elapsed % CAST_DURATION;
+            for (int phase = 4; phase >= 0; phase--) {
+                if (phaseTime >= CAST_PHASE_STARTS[phase]) return phase;
+            }
+        }
+        if ("orb".equals(artReviewState)) {
+            float[] durations = {0.05f, 0.04f, 0.10f, 0.08f, 0.10f, 0.10f, 0.11f, 0.13f};
+            float time = elapsed % 0.71f;
+            for (int phase = 0; phase < durations.length; phase++) {
+                if (time < durations[phase]) return phase;
+                time -= durations[phase];
+            }
+            return 7;
+        }
+        float fps = "walk".equals(artReviewState) ? 9f : ("run".equals(artReviewState) ? 12f : 5f);
+        int count = "walk".equals(artReviewState) || "run".equals(artReviewState) ? 6 : 4;
+        if ("enemy_idle".equals(artReviewState)) { fps = 4f; count = 3; }
+        else if ("enemy_chase".equals(artReviewState)) { fps = 8f; count = 4; }
+        else if ("enemy_attack".equals(artReviewState)) { fps = 4f / ENEMY_ATTACK_DURATION; count = 4; }
+        else if ("hurt".equals(artReviewState)) { fps = 3f / ENEMY_HURT_DURATION; count = 3; }
+        else if ("death".equals(artReviewState)) { fps = 5f / ENEMY_DEATH_DURATION; count = 5; }
+        return ((int)(elapsed * fps)) % count;
+    }
+
+    private void drawArtReview(Canvas c) {
+        int frame = currentArtReviewFrame();
+        facing = attackFacing = magicFacing = artReviewDirection;
+        enemyFacing = enemyAttackFacing = artReviewDirection;
+        px = getWidth() * 0.33f;
+        py = getHeight() * 0.68f;
+        enemyX = getWidth() * 0.67f;
+        enemyY = py;
+        vx = vy = enemyVx = enemyVy = 0f;
+        idleClock = runClock = enemyAnimClock = 0f;
+        attacking = magicCasting = magicActive = magicReleased = false;
+        enemyAlive = true;
+        enemyHurtTimer = enemyDeathTimer = enemyAttackAnim = magicImpactTimer = 0f;
+        playerHurtFlash = 0f;
+
+        if ("idle".equals(artReviewState)) {
+            idleClock = frame % 4 + 0.01f;
+        } else if ("walk".equals(artReviewState) || "run".equals(artReviewState)) {
+            float speedRatio = "walk".equals(artReviewState) ? 0.40f : 0.90f;
+            vx = getHeight() * 0.39f * stats.moveMultiplier() * speedRatio;
+            runClock = frame % 6 + 0.01f;
+        } else if (artReviewState.startsWith("combo")) {
+            comboStage = "combo2".equals(artReviewState) ? 1 : ("combo3".equals(artReviewState) ? 2 : 0);
+            float[] poseCenters = {0.15f, 0.44f, 0.79f};
+            attackClock = COMBO_DURATIONS[comboStage] * poseCenters[frame % 3];
+            attacking = true;
+        } else if ("cast".equals(artReviewState)) {
+            int pose = frame % 5;
+            float end = pose == 4 ? CAST_DURATION : CAST_PHASE_STARTS[pose + 1];
+            magicCastClock = (CAST_PHASE_STARTS[pose] + end) * 0.5f;
+            magicCasting = true;
+            magicReleased = pose >= 3;
+        } else if ("enemy_idle".equals(artReviewState)) {
+            enemyAnimClock = (frame % 3 + 0.01f) / 4f;
+        } else if ("enemy_chase".equals(artReviewState)) {
+            enemyVx = getHeight() * 0.175f;
+            enemyAnimClock = (frame % 4 + 0.01f) / 8f;
+        } else if ("enemy_attack".equals(artReviewState)) {
+            enemyAttackAnim = ENEMY_ATTACK_DURATION * (1f - (frame % 4 + 0.5f) / 4f);
+        } else if ("hurt".equals(artReviewState)) {
+            enemyHurtTimer = ENEMY_HURT_DURATION * (1f - (frame % 3 + 0.5f) / 3f);
+        } else if ("death".equals(artReviewState)) {
+            enemyAlive = false;
+            enemyDeathTimer = ENEMY_DEATH_DURATION * (1f - (frame % 5 + 0.5f) / 5f);
+        }
+        drawArena(c);
+        overlayPaint.setColor(Color.argb(140, 126, 47, 58));
+        c.drawLine(getWidth() * 0.15f, py, getWidth() * 0.85f, py, overlayPaint);
+        drawPlayer(c);
+        drawEnemy(c);
+        if ("orb".equals(artReviewState)) {
+            drawOrb(c, frame % 8, getWidth() * 0.5f, py - getHeight() * 0.10f,
+                    getHeight() * 0.105f, 255);
+        } else {
+            drawMagic(c);
+        }
+        drawSmallValue(c, "ART REVIEW  " + artReviewState + "  "
+                        + DIRECTIONS[artReviewDirection] + "  frame " + frame,
+                getWidth() * 0.5f, getHeight() * 0.10f, getHeight() * 0.030f, Paint.Align.CENTER);
+        drawSmallValue(c, "v1.7  |  fixed pivot centerX,232  |  scale preserved across states",
+                getWidth() * 0.5f, getHeight() * 0.15f, getHeight() * 0.022f, Paint.Align.CENTER);
+    }
+
     private void update(float dt) {
         float targetStatus = statusOpen ? 1f : 0f;
         statusAnim += (targetStatus - statusAnim) * (1f - (float) Math.exp(-12f * dt));
         if (levelUpFlash > 0f) levelUpFlash = Math.max(0f, levelUpFlash - dt);
+        // Opening status pauses combat, cooldowns, Mana and every spell lifecycle clock.
+        if (statusOpen) {
+            vx *= Math.max(0f, 1f - dt * 10f);
+            vy *= Math.max(0f, 1f - dt * 10f);
+            return;
+        }
         if (playerInvuln > 0f) playerInvuln = Math.max(0f, playerInvuln - dt);
         if (playerHurtFlash > 0f) playerHurtFlash = Math.max(0f, playerHurtFlash - dt);
         if (combatTextTimer > 0f) combatTextTimer = Math.max(0f, combatTextTimer - dt);
         if (attackButtonFlash > 0f) attackButtonFlash = Math.max(0f, attackButtonFlash - dt);
         if (magicCooldown > 0f) magicCooldown = Math.max(0f, magicCooldown - dt);
-        if (magicCastFlash > 0f) magicCastFlash = Math.max(0f, magicCastFlash - dt);
         if (manaRegenDelay > 0f) {
             manaRegenDelay = Math.max(0f, manaRegenDelay - dt);
         } else if (!playerDown && stats.mana < stats.maxMana) {
@@ -477,12 +514,6 @@ public class GameView extends View {
             return;
         }
 
-        if (statusOpen) {
-            vx *= Math.max(0f, 1f - dt * 10f);
-            vy *= Math.max(0f, 1f - dt * 10f);
-            return;
-        }
-
         float inputLen = (float) Math.hypot(joyX, joyY);
         float ix = 0f;
         float iy = 0f;
@@ -503,8 +534,7 @@ public class GameView extends View {
             py += vy * dt * 0.12f;
         } else if (attacking) {
             attackClock += dt;
-            int attackFrame = currentAttackFrame();
-            if (!attackHitApplied && attackFrame >= 2 && attackFrame <= 4) {
+            if (!attackHitApplied && currentComboVisualFrame() == 1) {
                 checkPlayerAttackHit();
             }
             float attackDrag = 1f - (float) Math.exp(-(9.5f + comboStage * 1.2f) * dt);
@@ -521,10 +551,7 @@ public class GameView extends View {
             px += vx * dt * 0.32f;
             py += vy * dt * 0.32f;
 
-            float total = 0f;
-            float scale = comboDurationScale();
-            for (float d : attackDurations) total += d * scale;
-            if (attackClock >= total) {
+            if (attackClock >= COMBO_DURATIONS[comboStage]) {
                 if (comboQueued && comboStage < 2) {
                     comboStage++;
                     comboQueued = false;
@@ -551,9 +578,9 @@ public class GameView extends View {
             float speedRatio = Math.min(1f, (float) Math.hypot(vx, vy) / Math.max(1f, maxSpeed));
             if (speedRatio > 0.08f) {
                 updateFacingWithHysteresis(vx, vy);
-                runClock += dt * (5.6f + 5.0f * speedRatio);
+                runClock += dt * (speedRatio < WALK_RUN_THRESHOLD ? 9f : 12f);
             } else {
-                idleClock += dt * 3.1f;
+                idleClock += dt * 5f;
             }
         }
 
@@ -588,7 +615,7 @@ public class GameView extends View {
 
         // Tapping during a swing buffers the next hit instead of restarting the same slap.
         if (attacking) {
-            if (comboStage < 2 && currentAttackFrame() >= 2) {
+            if (comboStage < 2 && currentComboVisualFrame() >= 1) {
                 comboQueued = true;
                 attackButtonFlash = 0.12f;
                 haptic();
@@ -609,28 +636,18 @@ public class GameView extends View {
         haptic();
     }
 
-    private float comboDurationScale() {
-        if (comboStage == 1) return 0.90f;
-        if (comboStage == 2) return 1.04f;
-        return 1.0f;
-    }
-
-    private int currentAttackFrame() {
-        float t = attackClock, acc = 0f;
-        float scale = comboDurationScale();
-        for (int i = 0; i < attackDurations.length; i++) {
-            acc += attackDurations[i] * scale;
-            if (t < acc) return i;
-        }
-        return attackDurations.length - 1;
-    }
-
     private int currentComboVisualFrame() {
-        // Six timing slices drive combat, while the refined v1.4 art has three visual poses.
-        int f = currentAttackFrame();
-        if (f <= 1) return 0;
-        if (f <= 3) return 1;
+        float progress = attackClock / COMBO_DURATIONS[comboStage];
+        if (progress < COMBO_IMPACT_START) return 0;
+        if (progress < COMBO_RECOVERY_START) return 1;
         return 2;
+    }
+
+    private int currentCastFrame() {
+        for (int phase = CAST_PHASE_STARTS.length - 1; phase >= 0; phase--) {
+            if (magicCastClock >= CAST_PHASE_STARTS[phase]) return phase;
+        }
+        return 0;
     }
 
     private void drawArena(Canvas c) {
@@ -652,76 +669,24 @@ public class GameView extends View {
 
     private void drawPlayer(Canvas c) {
         Bitmap frame;
-        int bottomPad;
-        boolean comboVisual = false;
-        boolean sideMoveVisual = false;
-
         if (magicCasting) {
-            int castFrame = magicCastClock < 0.11f ? 0 : (magicCastClock < 0.23f ? 1 : 2);
-            frame = magicCastFrames[magicFacing][castFrame];
-            bottomPad = 0;
+            frame = magicCastFrames[magicFacing][currentCastFrame()];
         } else if (attacking) {
-            int comboFrame = currentComboVisualFrame();
-            if (attackFacing == LEFT) {
-                frame = comboLeft[comboStage][comboFrame];
-                comboVisual = true;
-            } else if (attackFacing == RIGHT) {
-                frame = comboRight[comboStage][comboFrame];
-                comboVisual = true;
-            } else if (attackFacing == DOWN) {
-                frame = comboDown[comboStage][comboFrame];
-                comboVisual = true;
-            } else {
-                frame = comboUp[comboStage][comboFrame];
-                comboVisual = true;
-            }
-            bottomPad = 12;
+            Bitmap[][][] combos = {comboDown, comboUp, comboLeft, comboRight};
+            frame = combos[attackFacing][comboStage][currentComboVisualFrame()];
         } else {
             float maxSpeed = getHeight() * 0.39f * stats.moveMultiplier();
             float speedRatio = Math.min(1f, (float) Math.hypot(vx, vy) / Math.max(1f, maxSpeed));
             if (speedRatio > 0.08f) {
-                int idx = ((int) Math.floor(runClock)) % 6;
-                if (facing == LEFT) {
-                    frame = speedRatio < 0.58f ? sideWalkLeft[idx] : sideRunLeft[idx];
-                    sideMoveVisual = true;
-                } else if (facing == RIGHT) {
-                    frame = speedRatio < 0.58f ? sideWalkRight[idx] : sideRunRight[idx];
-                    sideMoveVisual = true;
-                } else {
-                    frame = run[facing][idx % run[facing].length];
-                }
+                Bitmap[] cycle = speedRatio < WALK_RUN_THRESHOLD ? walk[facing] : run[facing];
+                frame = cycle[((int) Math.floor(runClock)) % cycle.length];
             } else {
                 frame = idle[facing][((int) Math.floor(idleClock)) % idle[facing].length];
             }
-            bottomPad = 8;
         }
-
-        RectF dst;
-        if (magicCasting) {
-            // Generated cast cells use a stable 300x300 production canvas.
-            // Keep the authored feet near Y=285 so the large aura does not move Kael's world position.
-            float desiredCanvasH = getHeight() * 0.330f;
-            float footAnchorY = py + getHeight() * 0.012f;
-            dst = rectWithCanvasAnchor(frame, px, footAnchorY, 285f, desiredCanvasH);
-        } else if (comboVisual) {
-            // All four combo directions use a fixed 700x240 canvas.
-            // Anchor the authored body pivot, not slash VFX bounds, so Kael stays planted through all stages.
-            float desiredCanvasH = getHeight() * 0.255f;
-            float footAnchorY = py + getHeight() * 0.012f;
-            dst = rectWithCanvasAnchor(frame, px, footAnchorY, 220f, desiredCanvasH);
-        } else if (sideMoveVisual) {
-            // v1.4 left/right cells have very different transparent padding and apparent sprite height.
-            // Normalize by the visible alpha height and pin the visible feet to the same world-space baseline.
-            float desiredVisibleH = getHeight() * 0.205f;
-            float visibleBottom = py + getHeight() * 0.012f;
-            dst = rectWithVisibleHeight(frame, px, visibleBottom, desiredVisibleH);
-        } else {
-            float scale = (getHeight() / 720f) * 0.92f;
-            float fw = frame.getWidth() * scale;
-            float fh = frame.getHeight() * scale;
-            dst = new RectF(px - fw * 0.5f, py - (frame.getHeight() - bottomPad) * scale,
-                    px - fw * 0.5f + fw, py - (frame.getHeight() - bottomPad) * scale + fh);
-        }
+        // Constant body scale and authored pivot: VFX bounds never move or resize Kael.
+        float scale = getHeight() * 0.205f / PLAYER_BODY_PIXELS;
+        RectF dst = rectWithAuthoredPivot(frame, px, py, scale);
 
         float shadowW = getHeight() * 0.085f;
         float shadowH = getHeight() * 0.020f;
@@ -737,7 +702,6 @@ public class GameView extends View {
     private void updateEnemy(float dt) {
         enemyAnimClock += dt;
         if (enemyHurtTimer > 0f) enemyHurtTimer = Math.max(0f, enemyHurtTimer - dt);
-        if (enemyAttackAnim > 0f) enemyAttackAnim = Math.max(0f, enemyAttackAnim - dt);
 
         if (!enemyAlive) {
             if (enemyDeathTimer > 0f) {
@@ -750,7 +714,6 @@ public class GameView extends View {
         }
 
         enemyAttackCooldown -= dt;
-
         enemyX += enemyKnockX * dt;
         enemyY += enemyKnockY * dt;
         enemyKnockX *= (float) Math.exp(-8.5f * dt);
@@ -759,23 +722,35 @@ public class GameView extends View {
         float dx = px - enemyX;
         float dy = py - enemyY;
         float dist = Math.max(1f, (float) Math.hypot(dx, dy));
-        float nx = dx / dist;
-        float ny = dy / dist;
-        enemyFacingLeft = dx < 0f;
-        float attackRange = getHeight() * 0.115f;
-        float chaseSpeed = getHeight() * 0.175f;
+        if (enemyAttackAnim <= 0f) {
+            enemyFacing = Math.abs(dx) > Math.abs(dy)
+                    ? (dx < 0f ? LEFT : RIGHT) : (dy < 0f ? UP : DOWN);
+        }
 
-        if (enemyHurtTimer <= 0f && dist > attackRange) {
+        if (enemyAttackAnim > 0f) {
+            enemyAttackAnim = Math.max(0f, enemyAttackAnim - dt);
+            float elapsed = ENEMY_ATTACK_DURATION - enemyAttackAnim;
+            if (!enemyAttackHitApplied && elapsed >= ENEMY_ATTACK_HIT_TIME) {
+                enemyAttackHitApplied = true;
+                if (enemyHurtTimer <= 0f) applyEnemyAttackHit();
+            }
+            enemyVx *= Math.max(0f, 1f - dt * 9f);
+            enemyVy *= Math.max(0f, 1f - dt * 9f);
+        } else if (enemyHurtTimer <= 0f && dist > getHeight() * 0.115f) {
+            float chaseSpeed = getHeight() * 0.175f;
             float blend = 1f - (float) Math.exp(-8f * dt);
-            enemyVx += (nx * chaseSpeed - enemyVx) * blend;
-            enemyVy += (ny * chaseSpeed - enemyVy) * blend;
+            enemyVx += (dx / dist * chaseSpeed - enemyVx) * blend;
+            enemyVy += (dy / dist * chaseSpeed - enemyVy) * blend;
             enemyX += enemyVx * dt;
             enemyY += enemyVy * dt;
         } else {
             enemyVx *= Math.max(0f, 1f - dt * 9f);
             enemyVy *= Math.max(0f, 1f - dt * 9f);
-            if (enemyHurtTimer <= 0f && dist <= attackRange && enemyAttackCooldown <= 0f) {
-                enemyAttackPlayer(nx, ny);
+            if (enemyHurtTimer <= 0f && dist <= getHeight() * 0.115f
+                    && enemyAttackCooldown <= 0f) {
+                enemyAttackFacing = enemyFacing;
+                enemyAttackAnim = ENEMY_ATTACK_DURATION;
+                enemyAttackHitApplied = false;
                 enemyAttackCooldown = 1.10f;
             }
         }
@@ -785,25 +760,47 @@ public class GameView extends View {
         enemyY = clamp(enemyY, getHeight() * 0.16f, getHeight() * 0.86f);
     }
 
-    private void enemyAttackPlayer(float nx, float ny) {
-        enemyAttackAnim = 0.38f;
+    private void applyEnemyAttackHit() {
         if (playerInvuln > 0f || playerDown) return;
+        float dx = px - enemyX;
+        float dy = py - enemyY;
+        float range = getHeight() * 0.145f;
+        float dist = (float) Math.hypot(dx, dy);
+        float forward, sideways;
+        if (enemyAttackFacing == LEFT || enemyAttackFacing == RIGHT) {
+            forward = dx * (enemyAttackFacing == LEFT ? -1f : 1f);
+            sideways = Math.abs(dy);
+        } else {
+            forward = dy * (enemyAttackFacing == UP ? -1f : 1f);
+            sideways = Math.abs(dx);
+        }
+        // Recheck the locked attack direction at impact; moving away can evade the strike.
+        if (dist > range || forward < 0f || sideways > forward * 1.35f + range * 0.15f) return;
+
         int damage = Math.max(1, enemyAttack - Math.max(0, stats.defense / 2));
         stats.hp = Math.max(0, stats.hp - damage);
         playerInvuln = 0.72f;
         playerHurtFlash = 0.24f;
-        playerKnockX = nx * getHeight() * 0.42f;
-        playerKnockY = ny * getHeight() * 0.42f;
+        float safeDist = Math.max(1f, dist);
+        playerKnockX = dx / safeDist * getHeight() * 0.42f;
+        playerKnockY = dy / safeDist * getHeight() * 0.42f;
         showCombatText("-" + damage + " HP", px, py - getHeight() * 0.08f, false);
         haptic();
         if (stats.hp <= 0) {
             playerDown = true;
             playerDownTimer = 1.35f;
+            attacking = false;
+            comboQueued = false;
+            comboGrace = 0f;
+            magicCasting = false;
+            magicActive = false;
         }
         saveState();
     }
 
     private void checkPlayerAttackHit() {
+        // Consume this strike when its authored impact pose begins, even when it misses.
+        attackHitApplied = true;
         if (!enemyAlive) return;
         float dx = enemyX - px;
         float dy = enemyY - py;
@@ -815,8 +812,6 @@ public class GameView extends View {
         else if (attackFacing == RIGHT) inFront = dx > -range * 0.15f && dx < range && Math.abs(dy) < range * 0.72f;
 
         if (!inFront) return;
-        attackHitApplied = true;
-
         int damage = Math.max(1, stats.attack - enemyDefense / 2);
         float comboDamage = comboStage == 0 ? 1.00f : (comboStage == 1 ? 1.28f : 1.68f);
         damage = Math.max(1, Math.round(damage * comboDamage));
@@ -824,7 +819,9 @@ public class GameView extends View {
         if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.75f));
 
         enemyHp = Math.max(0, enemyHp - damage);
-        enemyHurtTimer = 0.20f;
+        enemyHurtTimer = ENEMY_HURT_DURATION;
+        enemyAttackAnim = 0f;
+        enemyAttackHitApplied = true;
         float dist = Math.max(1f, (float)Math.hypot(dx, dy));
         float knock = getHeight() * (0.52f + comboStage * 0.16f);
         enemyKnockX = (dx / dist) * knock;
@@ -835,7 +832,7 @@ public class GameView extends View {
 
         if (enemyHp <= 0) {
             enemyAlive = false;
-            enemyDeathTimer = 0.62f;
+            enemyDeathTimer = ENEMY_DEATH_DURATION;
             enemyRespawnTimer = 3.0f;
             stats.money += 18;
             grantXp(35);
@@ -844,7 +841,8 @@ public class GameView extends View {
     }
 
     private void startMagic() {
-        if (statusOpen || playerDown || magicCasting || magicActive || magicCooldown > 0f) return;
+        if (statusOpen || playerDown || attacking || playerHurtFlash > 0f
+                || magicCasting || magicActive || magicCooldown > 0f) return;
         if (stats.mana < MAGIC_COST) {
             showCombatText("MANA INSUFICIENTE", px, py - getHeight() * 0.12f, false);
             haptic();
@@ -855,7 +853,6 @@ public class GameView extends View {
         magicCooldown = MAGIC_COOLDOWN_MAX;
         manaRegenDelay = 1.40f;
         manaRegenBank = 0f;
-        magicCastFlash = 0.36f;
         magicFacing = facing;
         magicCasting = true;
         magicReleased = false;
@@ -876,36 +873,51 @@ public class GameView extends View {
         magicAge = 0f;
 
         float speed = getHeight() * 0.86f;
-        float spawn = getHeight() * 0.080f;
-        magicX = px;
-        magicY = py - getHeight() * 0.070f;
+        magicX = castSocketWorldX(3);
+        magicY = castSocketWorldY(3);
         magicVx = 0f;
         magicVy = 0f;
-        if (magicFacing == LEFT) { magicX -= spawn; magicVx = -speed; }
-        else if (magicFacing == RIGHT) { magicX += spawn; magicVx = speed; }
-        else if (magicFacing == UP) { magicY -= spawn; magicVy = -speed; }
-        else { magicY += spawn * 0.55f; magicVy = speed; }
+        if (magicFacing == LEFT) magicVx = -speed;
+        else if (magicFacing == RIGHT) magicVx = speed;
+        else if (magicFacing == UP) magicVy = -speed;
+        else magicVy = speed;
+    }
+
+    private float castSocketWorldX(int phase) {
+        float scale = getHeight() * 0.205f / PLAYER_BODY_PIXELS;
+        return px + (CAST_HAND_SOCKETS[magicFacing][phase][0] - CHARACTER_PIVOT_X) * scale;
+    }
+
+    private float castSocketWorldY(int phase) {
+        float scale = getHeight() * 0.205f / PLAYER_BODY_PIXELS;
+        return py + (CAST_HAND_SOCKETS[magicFacing][phase][1] - CHARACTER_PIVOT_Y) * scale;
     }
 
     private void updateMagic(float dt) {
         if (magicImpactTimer > 0f) magicImpactTimer = Math.max(0f, magicImpactTimer - dt);
+        float projectileDt = dt;
 
         if (magicCasting) {
             magicCastClock += dt;
-            if (!magicReleased && magicCastClock >= 0.16f) launchMagicProjectile();
-            if (magicCastClock >= 0.34f) magicCasting = false;
+            if (!magicReleased && magicCastClock >= CAST_PHASE_STARTS[3]) {
+                launchMagicProjectile();
+                // The projectile only moves for the time elapsed since the release boundary.
+                projectileDt = Math.max(0f, magicCastClock - CAST_PHASE_STARTS[3]);
+            }
+            if (magicCastClock >= CAST_DURATION) magicCasting = false;
         }
 
         if (!magicActive) return;
-        magicLife -= dt;
-        magicAge += dt;
-        magicX += magicVx * dt;
-        magicY += magicVy * dt;
+        magicLife -= projectileDt;
+        magicAge += projectileDt;
+        magicX += magicVx * projectileDt;
+        magicY += magicVy * projectileDt;
 
         if (!magicHitApplied && enemyAlive) {
             float hitR = getHeight() * 0.085f;
             float dx = enemyX - magicX;
-            float dy = enemyY - magicY;
+            // Aim collision at the visible torso, using the same authored body scale as rendering.
+            float dy = enemyY - getHeight() * 0.095f - magicY;
             if (dx * dx + dy * dy <= hitR * hitR) {
                 magicHitApplied = true;
                 int damage = Math.max(8, Math.round(stats.attack * 1.55f) - enemyDefense / 2);
@@ -913,7 +925,9 @@ public class GameView extends View {
                 if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.65f));
 
                 enemyHp = Math.max(0, enemyHp - damage);
-                enemyHurtTimer = 0.28f;
+                enemyHurtTimer = ENEMY_HURT_DURATION;
+                enemyAttackAnim = 0f;
+                enemyAttackHitApplied = true;
                 float speedLen = Math.max(1f, (float) Math.hypot(magicVx, magicVy));
                 float knock = getHeight() * 0.72f;
                 enemyKnockX = magicVx / speedLen * knock;
@@ -924,7 +938,7 @@ public class GameView extends View {
 
                 if (enemyHp <= 0) {
                     enemyAlive = false;
-                    enemyDeathTimer = 0.62f;
+                    enemyDeathTimer = ENEMY_DEATH_DURATION;
                     enemyRespawnTimer = 3.0f;
                     stats.money += 18;
                     grantXp(35);
@@ -932,59 +946,52 @@ public class GameView extends View {
                 }
                 magicImpactX = magicX;
                 magicImpactY = magicY;
-                magicImpactTimer = 0.18f;
+                magicImpactTimer = ORB_IMPACT_DURATION;
+                magicImpactIsHit = true;
                 magicActive = false;
             }
         }
 
         float margin = getHeight() * 0.05f;
-        if (magicLife <= 0f || magicX < -margin || magicX > getWidth() + margin
-                || magicY < -margin || magicY > getHeight() + margin) {
+        if (magicActive && (magicLife <= 0f || magicX < -margin || magicX > getWidth() + margin
+                || magicY < -margin || magicY > getHeight() + margin)) {
             magicActive = false;
+            magicImpactX = magicX;
+            magicImpactY = magicY;
+            magicImpactTimer = 0.13f;
+            magicImpactIsHit = false;
         }
     }
 
+    private void drawOrb(Canvas c, int index, float x, float y, float canvasHeight, int alpha) {
+        Bitmap orb = magicOrbFrames[index];
+        float scale = canvasHeight / 160f;
+        RectF dst = new RectF(x - 80f * scale, y - 80f * scale,
+                x + 80f * scale, y + 80f * scale);
+        imagePaint.setAlpha(alpha);
+        c.drawBitmap(orb, null, dst, imagePaint);
+        imagePaint.setAlpha(255);
+    }
+
     private void drawMagic(Canvas c) {
-        // Small procedural ring remains only as a supporting cast glow.
-        if (magicCastFlash > 0f) {
-            float p = clamp(magicCastFlash / 0.36f, 0f, 1f);
-            float r = getHeight() * (0.045f + (1f - p) * 0.035f);
-            overlayPaint.setStyle(Paint.Style.STROKE);
-            overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * 0.003f));
-            overlayPaint.setColor(Color.argb((int)(95 * p), 175, 45, 220));
-            c.drawCircle(px, py - getHeight() * 0.055f, r, overlayPaint);
-            overlayPaint.setStyle(Paint.Style.FILL);
+        // Birth, formation and concentration happen beside the casting hand before release.
+        if (magicCasting && !magicReleased && magicCastClock >= CAST_PHASE_STARTS[1]) {
+            int orbIndex = magicCastClock < 0.14f ? 0
+                    : (magicCastClock < CAST_PHASE_STARTS[2] ? 1 : 2);
+            int phase = currentCastFrame();
+            float x = castSocketWorldX(phase);
+            float y = castSocketWorldY(phase);
+            drawOrb(c, orbIndex, x, y, getHeight() * 0.090f, 255);
         }
-
         if (magicActive) {
-            int orbIndex;
-            if (magicAge < 0.055f) orbIndex = 0;
-            else if (magicAge < 0.105f) orbIndex = 1;
-            else if (magicAge < 0.165f) orbIndex = 2;
-            else orbIndex = 3 + (((int)(magicAge * 11f)) & 1);
-
-            Bitmap orb = magicOrbFrames[orbIndex];
-            float targetH = getHeight() * (orbIndex <= 2 ? 0.125f : 0.145f);
-            float scale = targetH / Math.max(1f, orb.getHeight());
-            float dw = orb.getWidth() * scale;
-            float dh = orb.getHeight() * scale;
-            RectF dst = new RectF(magicX - dw * 0.5f, magicY - dh * 0.5f,
-                    magicX + dw * 0.5f, magicY + dh * 0.5f);
-            c.drawBitmap(orb, null, dst, imagePaint);
+            int orbIndex = magicAge < 0.08f ? 3 : (4 + (((int)(magicAge * 10f)) & 1));
+            drawOrb(c, orbIndex, magicX, magicY, getHeight() * 0.105f, 255);
         }
-
         if (magicImpactTimer > 0f) {
-            Bitmap impact = magicOrbFrames[5];
-            float p = clamp(magicImpactTimer / 0.18f, 0f, 1f);
-            float targetH = getHeight() * (0.175f + (1f - p) * 0.045f);
-            float scale = targetH / Math.max(1f, impact.getHeight());
-            float dw = impact.getWidth() * scale;
-            float dh = impact.getHeight() * scale;
-            RectF dst = new RectF(magicImpactX - dw * 0.5f, magicImpactY - dh * 0.5f,
-                    magicImpactX + dw * 0.5f, magicImpactY + dh * 0.5f);
-            imagePaint.setAlpha((int)(255 * p));
-            c.drawBitmap(impact, null, dst, imagePaint);
-            imagePaint.setAlpha(255);
+            boolean impact = magicImpactIsHit && magicImpactTimer > 0.13f;
+            int alpha = impact ? 255 : Math.round(255f * clamp(magicImpactTimer / 0.13f, 0f, 1f));
+            drawOrb(c, impact ? 6 : 7, magicImpactX, magicImpactY,
+                    getHeight() * 0.140f, alpha);
         }
     }
 
@@ -997,6 +1004,10 @@ public class GameView extends View {
         enemyAttackCooldown = 0.85f;
         enemyHurtTimer = 0f;
         enemyDeathTimer = 0f;
+        enemyAttackAnim = 0f;
+        enemyAttackHitApplied = false;
+        enemyFacing = DOWN;
+        enemyAttackFacing = DOWN;
     }
 
     private void resetAfterDefeat() {
@@ -1027,32 +1038,27 @@ public class GameView extends View {
         if (!enemyAlive && enemyDeathTimer <= 0f) return;
 
         Bitmap frame;
-        boolean sideFrame = false;
         if (!enemyAlive) {
-            float p = 1f - clamp(enemyDeathTimer / 0.62f, 0f, 1f);
+            float p = 1f - clamp(enemyDeathTimer / ENEMY_DEATH_DURATION, 0f, 1f);
             int idx = Math.min(enemyDeathFrames.length - 1, (int)(p * enemyDeathFrames.length));
             frame = enemyDeathFrames[idx];
         } else if (enemyHurtTimer > 0f) {
-            int idx = Math.min(enemyHurtFrames.length - 1,
-                    (int)((1f - enemyHurtTimer / 0.20f) * enemyHurtFrames.length));
-            frame = enemyHurtFrames[Math.max(0, idx)];
+            float p = 1f - clamp(enemyHurtTimer / ENEMY_HURT_DURATION, 0f, 1f);
+            int idx = Math.min(enemyHurtFrames.length - 1, (int)(p * enemyHurtFrames.length));
+            frame = enemyHurtFrames[idx];
         } else if (enemyAttackAnim > 0f) {
-            float p = 1f - clamp(enemyAttackAnim / 0.38f, 0f, 1f);
-            int idx = Math.min(enemyAttackFrames.length - 1, (int)(p * enemyAttackFrames.length));
-            frame = enemyAttackFrames[idx];
-            sideFrame = true;
+            float p = 1f - clamp(enemyAttackAnim / ENEMY_ATTACK_DURATION, 0f, 1f);
+            Bitmap[] cycle = enemyAttackFrames[enemyAttackFacing];
+            frame = cycle[Math.min(cycle.length - 1, (int)(p * cycle.length))];
         } else if (Math.hypot(enemyVx, enemyVy) > getHeight() * 0.02f) {
-            frame = enemyChaseFrames[((int)(enemyAnimClock * 8.0f)) % enemyChaseFrames.length];
-            sideFrame = true;
+            Bitmap[] cycle = enemyChaseFrames[enemyFacing];
+            frame = cycle[((int)(enemyAnimClock * 8.0f)) % cycle.length];
         } else {
-            frame = enemyIdleFrames[((int)(enemyAnimClock * 4.0f)) % enemyIdleFrames.length];
+            Bitmap[] cycle = enemyIdleFrames[enemyFacing];
+            frame = cycle[((int)(enemyAnimClock * 4.0f)) % cycle.length];
         }
-
-        float targetH = getHeight() * (sideFrame ? 0.172f : 0.160f);
-        float scale = targetH / Math.max(1f, frame.getHeight());
-        float dw = frame.getWidth() * scale;
-        float dh = frame.getHeight() * scale;
-        RectF dst = new RectF(enemyX - dw * 0.5f, enemyY - dh, enemyX + dw * 0.5f, enemyY);
+        float scale = getHeight() * 0.190f / ENEMY_BODY_PIXELS;
+        RectF dst = rectWithAuthoredPivot(frame, enemyX, enemyY, scale);
 
         float shadowW = getHeight() * 0.070f;
         float shadowH = getHeight() * 0.016f;
@@ -1060,18 +1066,13 @@ public class GameView extends View {
         c.drawOval(new RectF(enemyX - shadowW, enemyY - shadowH * 0.3f,
                 enemyX + shadowW, enemyY + shadowH), overlayPaint);
 
-        c.save();
-        // Runtime uses one side animation and mirrors it so the Veilborn always faces Kael.
-        if (sideFrame && !enemyFacingLeft) c.scale(-1f, 1f, enemyX, enemyY);
         if (enemyHurtTimer > 0f && ((int)(enemyHurtTimer * 45f) % 2 == 0)) imagePaint.setAlpha(150);
         c.drawBitmap(frame, null, dst, imagePaint);
         imagePaint.setAlpha(255);
-        c.restore();
-
         if (enemyAlive) {
             float bw = getHeight() * 0.19f;
             float bh = getHeight() * 0.018f;
-            float top = dst.top - getHeight() * 0.025f;
+            float top = enemyY - getHeight() * 0.215f;
             RectF back = new RectF(enemyX - bw * 0.5f, top, enemyX + bw * 0.5f, top + bh);
             overlayPaint.setColor(Color.argb(210, 14, 13, 18));
             c.drawRoundRect(back, bh * 0.45f, bh * 0.45f, overlayPaint);
@@ -1341,13 +1342,9 @@ public class GameView extends View {
         drawBitmapAlpha(c, statusPortraitFrame, portrait, leftReveal);
 
         Bitmap kael = idle[DOWN][1];
-        float spriteH = portrait.height() * 0.70f;
-        float spriteW = spriteH * kael.getWidth() / (float) kael.getHeight();
-        RectF kaelDst = new RectF(
-                portrait.centerX() - spriteW * 0.5f,
-                portrait.bottom - spriteH * 0.91f,
-                portrait.centerX() + spriteW * 0.5f,
-                portrait.bottom + spriteH * 0.09f);
+        float portraitScale = portrait.height() * 0.70f / PLAYER_BODY_PIXELS;
+        RectF kaelDst = rectWithAuthoredPivot(kael, portrait.centerX(),
+                portrait.bottom - portrait.height() * 0.055f, portraitScale);
         pixelPaint.setAlpha((int) (255 * leftReveal));
         c.drawBitmap(kael, null, kaelDst, pixelPaint);
         pixelPaint.setAlpha(255);
@@ -1649,7 +1646,7 @@ public class GameView extends View {
         c.drawBitmap(knob, null, fitBitmapRect(knob, knobBounds), imagePaint);
         imagePaint.setAlpha(255);
 
-        boolean disabled = playerDown;
+        boolean disabled = playerDown || magicCasting;
         boolean pressed = attackPointer >= 0;
         boolean comboReady = !disabled && (comboQueued || comboGrace > 0f || (attacking && comboStage < 2));
         Bitmap atkButton = disabled ? attackBtnDisabled : (pressed ? attackBtnPressed : (comboReady ? attackBtnCombo : attackBtnNormal));
@@ -1675,7 +1672,8 @@ public class GameView extends View {
 
         // Arcana VIII button: procedural so the first spell adds no fragile binary dependency.
         float mx = magicCx(), my = magicCy(), mr = magicR();
-        boolean magicDisabled = playerDown || stats.mana < MAGIC_COST || magicCooldown > 0f || magicActive || magicCasting;
+        boolean magicDisabled = playerDown || attacking || playerHurtFlash > 0f
+                || stats.mana < MAGIC_COST || magicCooldown > 0f || magicActive || magicCasting;
         boolean magicPressed = magicPointer >= 0;
         float pulse = 0.5f + 0.5f * (float)Math.sin(System.nanoTime() / 1_000_000_000.0 * 4.0);
 
@@ -1702,6 +1700,7 @@ public class GameView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
+        if (artReviewMode) return true;
         int action = e.getActionMasked();
         int actionIndex = e.getActionIndex();
         int pointerId = e.getPointerId(actionIndex);
@@ -1765,6 +1764,7 @@ public class GameView extends View {
     }
 
     public void saveState() {
+        if (artReviewMode) return;
         if (getWidth() <= 0 || getHeight() <= 0 || px < 0f || py < 0f) return;
         SharedPreferences.Editor editor = prefs.edit()
                 .putBoolean("has_save", true)

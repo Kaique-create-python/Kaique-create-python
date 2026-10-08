@@ -2,6 +2,7 @@ package com.veilbreakers.prototype;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
@@ -11,12 +12,49 @@ public class MainActivity extends Activity {
     private static final String PREFS = "veilbreakers_save";
     private View currentView;
     private MenuVideoView menuVideo;
+    private String reviewState = "idle";
+    private int reviewDirection = 0;
+    private int reviewFrame = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         applyImmersive();
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("art_review", false)) {
+            showArtReview(getIntent());
+            return;
+        }
         showMenu();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (BuildConfig.DEBUG && intent.getBooleanExtra("art_review", false)) {
+            showArtReview(intent);
+        }
+    }
+
+    private void showArtReview(Intent intent) {
+        if (!BuildConfig.DEBUG) return;
+        if (intent.hasExtra("review_state")) reviewState = intent.getStringExtra("review_state");
+        if (intent.hasExtra("review_direction")) reviewDirection = intent.getIntExtra("review_direction", 0);
+        if (intent.hasExtra("review_frame")) reviewFrame = intent.getIntExtra("review_frame", 0);
+        GameView review;
+        if (currentView instanceof GameView) {
+            review = (GameView) currentView;
+        } else {
+            if (menuVideo != null) {
+                menuVideo.releasePlayer();
+                menuVideo = null;
+            }
+            review = new GameView(this, false);
+            currentView = review;
+            setContentView(review);
+        }
+        review.setArtReview(reviewState, reviewDirection, reviewFrame);
+        applyImmersive();
     }
 
     private void applyImmersive() {

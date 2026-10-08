@@ -1,6 +1,7 @@
 name: Build VEILBREAKERS APK
 
 on:
+  workflow_dispatch:
   push:
     branches: [ veilbreakers-apk-build ]
     paths:
@@ -8,14 +9,23 @@ on:
       - '.github/workflows/build-veilbreakers.yml'
 
 concurrency:
-  group: veilbreakers-apk-v161-final
+  group: veilbreakers-apk-v170-reviewed
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    if: github.ref_name == 'veilbreakers-apk-build'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install sprite validation tools
+        run: python -m pip install Pillow==11.3.0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -262,14 +272,147 @@ jobs:
             Compress-Archive -Path $sources.FullName -DestinationPath "$archive/v14_source_sheets.zip" -Force
           }
 
+      # Overlay after the legacy recovery step: it writes the old version and
+      # archive files, which must never replace the final reviewed v1.7 set.
+      - name: Decode v1.7 reviewed sprites and recovery archive
+        shell: pwsh
+        run: |
+          $dest = "veilbreakers-prototype/app/src/main/assets"
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/v17_reviewed_art.zip.b64.part-*" | Sort-Object Name
+          if ($parts.Count -lt 1) { throw "v1.7 reviewed art base64 parts missing" }
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          $zip = "$env:RUNNER_TEMP\v17_reviewed_art.zip"
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          Expand-Archive -Force $zip $dest
+          if (!(Test-Path "$dest/project_archive/SPRITES_MANIFEST_V170.json")) { throw "v1.7 sprite manifest missing" }
+          if (!(Select-String -Path "$dest/project_archive/BUILD_VERSION.txt" -Pattern "1.7.0" -Quiet)) { throw "v1.7 recovery archive version missing" }
+
+      - name: Validate all 180 authored runtime frames
+        run: python veilbreakers-prototype/tools/validate_v17_assets.py
+
       - name: Build debug APK
         working-directory: veilbreakers-prototype
         shell: pwsh
         run: gradle --no-daemon assembleDebug
+
+      - name: Verify and package the APK and visual sources
+        shell: pwsh
+        run: |
+          $release = "veilbreakers-prototype/release"
+          New-Item -ItemType Directory -Force -Path $release | Out-Null
+          Copy-Item "veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk" "$release/VEILBREAKERS_v1.7.0_Codex.apk" -Force
+          Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$release/VEILBREAKERS_CONTEXTO.txt" -Force
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/project_archive/V17_ASSET_QA.json" "$release/V17_ASSET_QA.json" -Force
+          python veilbreakers-prototype/tools/verify_apk_v17.py "$release/VEILBREAKERS_v1.7.0_Codex.apk" --output "$release/V17_APK_QA.json"
+          if ($LASTEXITCODE -ne 0) { throw "APK asset/version verification failed" }
+          @'
+          from pathlib import Path
+          import zipfile
+          assets = Path("veilbreakers-prototype/app/src/main/assets")
+          output = Path("veilbreakers-prototype/release/VEILBREAKERS_v1.7.0_Arte.zip")
+          roots = [assets / name for name in (
+              "kael_v17", "enemy_v17", "fx_v17", "project_archive/source_sheets/v17",
+              "project_archive/previews/v17", "project_archive/baseline_v161_audit")]
+          files = {path for root in roots for path in root.rglob("*") if path.is_file()}
+          archive = assets / "project_archive"
+          files.update(path for path in archive.iterdir() if path.is_file() and path.suffix in (".json", ".txt", ".md"))
+          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as package:
+              for path in sorted(files):
+                  package.write(path, path.relative_to(assets).as_posix())
+          print(f"Archived {len(files)} files with reconstructible asset-relative paths: {output}")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw "Visual archive packaging failed" }
+
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.6.1-package
-          path: |
-            veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk
-            veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt
+          name: veilbreakers-v1.7.0-package
+          path: veilbreakers-prototype/release/
           if-no-files-found: error
+
+  runtime_visual:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime review tools
+        run: python -m pip install Pillow==11.3.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: veilbreakers-v1.7.0-package
+          path: release
+      # GitHub's Linux runners expose /dev/kvm. These permissions are the
+      # emulator-runner project's documented setup for hardware acceleration.
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Capture every authored frame in the Android renderer
+        id: runtime
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          target: default
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: python veilbreakers-prototype/tools/capture_android_review.py --apk release/VEILBREAKERS_v1.7.0_Codex.apk --output runtime-review
+      - name: Upload Android screenshots, contact sheets and animation video
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: veilbreakers-v1.7.0-runtime-review
+          path: runtime-review/
+          if-no-files-found: warn
+      # Compact review evidence is also preserved on the mandatory branch so
+      # it can be inspected through GitHub without downloading a large APK.
+      # qa/** is outside this workflow's push paths and cannot trigger a loop.
+      - name: Archive runtime contact sheets on the build branch
+        if: always() && github.ref_name == 'veilbreakers-apk-build'
+        env:
+          BUILD_BRANCH: ${{ github.ref_name }}
+          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_RUN: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          import shutil
+          source = Path("runtime-review")
+          target = Path("qa/v17")
+          target.mkdir(parents=True, exist_ok=True)
+          for old in target.glob("runtime_*.jpg"):
+              old.unlink()
+          for path in (source / "contacts").glob("*.jpg"):
+              if path.stat().st_size > 2_000_000:
+                  raise ValueError(f"Contact sheet exceeds review-file size limit: {path}")
+              shutil.copy2(path, target / path.name)
+          for name in ("runtime_summary.json", "logcat.txt"):
+              if (source / name).is_file():
+                  shutil.copy2(source / name, target / name)
+          (target / "runtime_origin.json").write_text(json.dumps({
+              "branch": os.environ["BUILD_BRANCH"], "buildCommit": os.environ["BUILD_COMMIT"],
+              "runId": os.environ["BUILD_RUN"], "source": "Actual Android API 29 emulator screenshots"
+          }, indent=2) + "\n", encoding="utf-8")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa/v17
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Archive VEILBREAKERS v1.7 Android visual review"
+          git pull --rebase origin "$BUILD_BRANCH"
+          git push origin "HEAD:$BUILD_BRANCH"
