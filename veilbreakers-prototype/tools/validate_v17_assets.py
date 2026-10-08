@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the authored v1.7 runtime frames and produce a reproducible hash report.
+"""Validate the current 180 runtime frames and preserve the v1.7 art contract.
 
 This validates technical properties, not anatomical or artistic quality. The
 contact sheets and Android captures remain the evidence for visual review.
@@ -13,16 +13,23 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 DIRECTIONS = ("down", "up", "left", "right")
-MANIFEST = "project_archive/SPRITES_MANIFEST_V170.json"
-REPORT = "project_archive/V17_ASSET_QA.json"
+CURRENT_VERSION = "1.8.0"
+MANIFESTS = {"1.7.0": "project_archive/SPRITES_MANIFEST_V170.json",
+             "1.8.0": "project_archive/SPRITES_MANIFEST_V180.json"}
+REPORTS = {"1.7.0": "project_archive/V17_ASSET_QA.json",
+           "1.8.0": "project_archive/V18_ASSET_QA.json"}
+VERSION_CODES = {"1.7.0": 21, "1.8.0": 22}
+MANIFEST = MANIFESTS[CURRENT_VERSION]
+REPORT = REPORTS[CURRENT_VERSION]
 
 
-def expected_frames():
+def expected_frames(version=CURRENT_VERSION):
     result = {}
     for direction in DIRECTIONS:
         for state, count in (("idle", 4), ("walk", 6), ("run", 6), ("cast", 5)):
             for index in range(count):
-                result[f"kael_v17/{state}/{direction}_{index}.png"] = (256, 256, 128, 232)
+                root = "kael_v18" if version == "1.8.0" and state == "run" else "kael_v17"
+                result[f"{root}/{state}/{direction}_{index}.png"] = (256, 256, 128, 232)
         for stage in range(1, 4):
             for index in range(3):
                 result[f"kael_v17/combo/{direction}_c{stage}_{index}.png"] = (512, 256, 256, 232)
@@ -61,18 +68,24 @@ def manifest_records(document):
     return records, errors
 
 
-def validate(assets):
-    expected = expected_frames()
+def validate(assets, version=CURRENT_VERSION):
+    expected = expected_frames(version)
     errors = []
     warnings = []
-    manifest_path = assets / MANIFEST
+    manifest_path = assets / MANIFESTS[version]
     if not manifest_path.is_file():
         raise ValueError(f"Missing authoritative manifest: {manifest_path}")
     document = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
     records, manifest_errors = manifest_records(document)
     errors.extend(manifest_errors)
-    if str(document.get("version")) != "1.7.0":
-        errors.append("Main manifest version must be 1.7.0")
+    if str(document.get("version")) != version:
+        errors.append(f"Main manifest version must be {version}")
+    if document.get("versionCode") != VERSION_CODES[version]:
+        errors.append(f"Main manifest versionCode must be {VERSION_CODES[version]}")
+    historical_records = {}
+    if version == "1.8.0":
+        historical = json.loads((assets / MANIFESTS["1.7.0"]).read_text(encoding="utf-8-sig"))
+        historical_records, _ = manifest_records(historical)
     missing_metadata = set(expected) - set(records)
     unexpected_metadata = set(records) - set(expected)
     if missing_metadata:
@@ -105,6 +118,12 @@ def validate(assets):
             pixel_hashes[file] = pixel_digest
             transparent_count = alpha.histogram()[0]
         record = records.get(file, {})
+        file_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if record.get("sha256") != file_digest:
+            errors.append(f"Frame differs from its authored manifest hash: {file}")
+        if version == "1.8.0" and file in historical_records:
+            if historical_records[file].get("sha256") != file_digest:
+                errors.append(f"Preserved v1.7 frame was modified: {file}")
         for name, value in zip(("cellWidth", "cellHeight", "pivotX", "pivotY"), shape):
             if record.get(name) != value:
                 errors.append(f"Metadata {name} must be {value}: {file} (found {record.get(name)})")
@@ -115,12 +134,13 @@ def validate(assets):
         # required above; characters always carry the authored foot baseline.
         if not file.startswith("fx_v17/") and record.get("baseline") != shape[3]:
             errors.append(f"Missing authored baseline {shape[3]}: {file}")
-        frames.append({"file": file, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        frames.append({"file": file, "sha256": file_digest,
                        "pixelSha256": pixel_digest, "cellWidth": shape[0], "cellHeight": shape[1],
                        "pivotX": shape[2], "pivotY": shape[3], "visibleBounds": list(bbox) if bbox else None,
                        "transparentPixels": transparent_count, "recommendedFPS": fps})
     walk_hashes = {digest for file, digest in pixel_hashes.items() if file.startswith("kael_v17/walk/")}
-    run_hashes = {digest for file, digest in pixel_hashes.items() if file.startswith("kael_v17/run/")}
+    run_prefix = "kael_v18/run/" if version == "1.8.0" else "kael_v17/run/"
+    run_hashes = {digest for file, digest in pixel_hashes.items() if file.startswith(run_prefix)}
     duplicates = walk_hashes & run_hashes
     if duplicates:
         errors.append(f"Walk and run reuse {len(duplicates)} identical RGBA frames")
@@ -131,15 +151,16 @@ def validate(assets):
         if len(identical) > 1:
             warnings.append({"identicalPixels": identical})
     report = {
-        "version": "1.7.0", "package": "com.veilbreakers.prototype", "versionCode": 21,
+        "version": version, "package": "com.veilbreakers.prototype", "versionCode": VERSION_CODES[version],
         "frameCount": len(frames), "expectedFrameCount": 180,
-        "counts": {"kael": sum(f["file"].startswith("kael_v17/") for f in frames),
+        "counts": {"kael": sum(f["file"].startswith("kael_v") for f in frames),
                    "veilborn": sum(f["file"].startswith("enemy_v17/") for f in frames),
                    "arcanaOrb": sum(f["file"].startswith("fx_v17/") for f in frames)},
-        "manifest": MANIFEST,
+        "manifest": MANIFESTS[version],
         "manifestSha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         "checks": {"RGBA": True, "cellDimensions": True, "transparentBoundary": True,
                    "documentedPivotAndBaseline": True, "walkRunPixelHashesDisjoint": not duplicates},
+        "preservedV17Frames": sum(f["file"] in historical_records for f in frames) if version == "1.8.0" else 180,
         "visualReview": "Technical validation only. Consult contact sheets and Android runtime captures.",
         "frames": frames, "warnings": warnings, "errors": errors, "passed": not errors,
     }
@@ -148,14 +169,16 @@ def validate(assets):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", choices=tuple(MANIFESTS), default=CURRENT_VERSION,
+                        help="Use 1.7.0 to reproduce historical artwork validation")
     parser.add_argument("--assets", type=Path, default=ROOT / "app/src/main/assets")
     parser.add_argument("--report", type=Path, help="Defaults to project_archive/V17_ASSET_QA.json inside assets")
     args = parser.parse_args()
     try:
-        report = validate(args.assets)
+        report = validate(args.assets, args.version)
     except (ValueError, OSError, KeyError) as error:
         parser.exit(1, f"Asset validation failed: {error}\n")
-    output = args.report or args.assets / REPORT
+    output = args.report or args.assets / REPORTS[args.version]
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({"passed": report["passed"], "frameCount": report["frameCount"],

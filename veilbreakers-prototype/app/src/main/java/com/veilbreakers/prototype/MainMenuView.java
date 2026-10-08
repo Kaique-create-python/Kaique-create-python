@@ -186,7 +186,7 @@ public class MainMenuView extends View {
     }
 
     private void drawMainMenu(Canvas c, float globalAlpha) {
-        String[] labels = {"New Game", "Continue", "Settings", "Exit"};
+        String[] labels = {"Novo jogo", "Continuar", "Configurações", "Sair"};
         float x = getWidth() * 0.055f;
         float w = getWidth() * 0.31f;
         float h = getHeight() * 0.096f;
@@ -247,12 +247,12 @@ public class MainMenuView extends View {
         textPaint.setTextSize(getHeight() * 0.052f);
         textPaint.setColor(Color.rgb(232, 226, 218));
         textPaint.setAlpha((int) (255 * a));
-        c.drawText("Settings", panelLeft + getWidth() * 0.025f,
+        c.drawText("Configurações", panelLeft + getWidth() * 0.025f,
                 panelTop + getHeight() * 0.075f, textPaint);
         textPaint.setAlpha(255);
 
         boolean vibration = prefs.getBoolean("vibration", true);
-        String[] labels = {"Vibration: " + (vibration ? "ON" : "OFF"), "Back"};
+        String[] labels = {"Vibração: " + (vibration ? "SIM" : "NÃO"), "Voltar"};
         float x = panelLeft + getWidth() * 0.018f;
         float w = panelRight - panelLeft - getWidth() * 0.036f;
         float h = getHeight() * 0.10f;
@@ -304,14 +304,12 @@ public class MainMenuView extends View {
     }
 
     private void drawFooter(Canvas c, float a) {
-        if (a <= 0f) return;
-        float w = getWidth() * 0.90f;
-        float h = w * footer.getHeight() / (float) footer.getWidth();
-        float x = (getWidth() - w) * 0.5f;
-        float y = getHeight() - h - getHeight() * 0.026f + getHeight() * 0.015f * (1f - a);
-        imagePaint.setAlpha((int) (255 * a));
-        c.drawBitmap(footer, null, new RectF(x, y, x + w, y + h), imagePaint);
-        imagePaint.setAlpha(255);
+        textPaint.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL));
+        textPaint.setTextAlign(Paint.Align.LEFT);
+        textPaint.setTextSize(getHeight() * .019f);
+        textPaint.setColor(Color.argb((int)(190 * a), 201, 184, 167));
+        c.drawText("v1.8.0  ·  RUÍNAS DE VARYN", getWidth() * .055f, getHeight() * .956f, textPaint);
+        textPaint.setTypeface(Typeface.create(Typeface.SERIF, Typeface.BOLD));
     }
 
     private void drawStatus(Canvas c) {
@@ -349,7 +347,7 @@ public class MainMenuView extends View {
     private void activateMain(int index) {
         selected = index;
         if (index == 1 && !prefs.getBoolean("has_save", false)) {
-            showStatus("No save data yet — start a New Game first.");
+            showStatus("Comece um novo jogo para criar seu primeiro save.");
             return;
         }
         if (index == 2) {

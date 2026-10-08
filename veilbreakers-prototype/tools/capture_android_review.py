@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture all 180 authored frames from the installed Android debug renderer.
+"""Review v1.8 gameplay scenes and all 180 authored frames in a CI emulator.
 
 The debug review reuses GameView's normal player, enemy and magic render paths.
 Captures and contact sheets support manual visual review; pixel statistics are
@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 
 from PIL import Image, ImageDraw
 
@@ -23,6 +24,7 @@ DIRECTIONS = ("down", "up", "left", "right")
 DIRECTED = (("idle", 4), ("walk", 6), ("run", 6), ("combo1", 3), ("combo2", 3),
             ("combo3", 3), ("cast", 5), ("enemy_idle", 3), ("enemy_chase", 4), ("enemy_attack", 4))
 UNDIRECTED = (("hurt", 3), ("death", 5), ("orb", 8))
+GAMEPLAY_SCENES = ("map", "map1", "map2", "map3", "map4", "map5", "status", "journal", "dialogue")
 
 
 def review_frames():
@@ -58,6 +60,12 @@ class Android:
         if "Error:" in output or "Exception" in output:
             raise RuntimeError("Activity launch failed: " + output)
 
+    def start_scene(self, scene):
+        output = self.run("shell", "am", "start", "-W", "--activity-single-top", "-n", ACTIVITY,
+                          "--ez", "gameplay_review", "true", "--es", "review_scene", scene)
+        if "Error:" in output or "Exception" in output:
+            raise RuntimeError("Gameplay review launch failed: " + output)
+
     def screenshot(self, path):
         result = subprocess.run(self.prefix + ["exec-out", "screencap", "-p"],
                                 check=True, capture_output=True, timeout=45)
@@ -67,9 +75,34 @@ class Android:
             raise ValueError(f"Expected landscape Android rendering, received {image.size}")
         if max(image.getextrema()[channel][1] for channel in range(3)) < 80:
             raise ValueError("Screenshot is blank or the app failed to render")
+        # The API 29 fullscreen hint is a large flat teal overlay. It obscured
+        # the previous review despite producing nonblank, colorful captures.
+        sample = image.resize((160, 90), Image.Resampling.NEAREST)
+        teal = sum(r < 35 and 105 < g < 160 and 95 < b < 150 and abs(g - b) < 35
+                   for r, g, b in sample.getdata())
+        if teal / (160 * 90) > .03:
+            raise ValueError("Android fullscreen hint or a large teal system overlay obscures the screenshot")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(result.stdout)
         return image
+
+    def reject_fullscreen_hint(self):
+        path = "/sdcard/veilbreakers_review_ui.xml"
+        self.run("shell", "uiautomator", "dump", path, timeout=25, check=False)
+        document = self.run("shell", "cat", path, check=False)
+        if "viewing full screen" in document.lower() or "to exit, swipe down" in document.lower():
+            raise ValueError("The Android immersive confirmation is still visible; review screenshots are invalid")
+
+    def saved_game(self):
+        document = self.run("shell", "run-as", PACKAGE, "cat", "shared_prefs/veilbreakers_save.xml")
+        values = {}
+        for element in ET.fromstring(document):
+            value = element.get("value", element.text or "")
+            if element.tag == "boolean": value = value == "true"
+            elif element.tag in ("int", "long"): value = int(value)
+            elif element.tag == "float": value = float(value)
+            values[element.get("name")] = value
+        return values
 
 
 def subject_crop(image, state):
@@ -120,7 +153,7 @@ def contact_sheets(output, records, screenshots):
 
 
 def capture_video(android, output):
-    remote = "/sdcard/veilbreakers_v17_review.mp4"
+    remote = "/sdcard/veilbreakers_v18_review.mp4"
     process = subprocess.Popen(android.prefix + ["shell", "screenrecord", "--time-limit", "40",
                                "--bit-rate", "3000000", remote], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     states = [(state, direction) for state in ("idle", "walk", "run", "combo1", "combo2", "combo3", "cast")
@@ -147,17 +180,70 @@ def capture_video(android, output):
         return str(error)
 
 
-def capture_normal_combat(android, output, dimensions):
-    """Exercise real touch controls and preserve a video of actual update()."""
+def capture_normal_combat(android, output, dimensions, record_video=True):
+    """Collect the sword, reload the save, enter the square and use real combat controls."""
     width, height = dimensions
-    remote = '/sdcard/veilbreakers_v17_combat.mp4'
-    process = subprocess.Popen(android.prefix + ['shell', 'screenrecord', '--time-limit', '18',
-                               '--bit-rate', '3000000', remote], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    remote = '/sdcard/veilbreakers_v18_combat.mp4'
+    process = None
+    if record_video:
+        process = subprocess.Popen(android.prefix + ['shell', 'screenrecord', '--time-limit', '35',
+                                   '--bit-rate', '3000000', remote], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     images = []
     def snap(name):
         path = output / 'screenshots' / ('normal_' + name + '.png')
         images.append((name, android.screenshot(path)))
+
+    def checkpoint():
+        # Home invokes the real Activity pause/save path in the isolated emulator.
+        android.run('shell', 'input', 'keyevent', '3')
+        time.sleep(.18)
+        values = android.saved_game()
+        android.start()
+        return values
+
+    def walk_to(target):
+        values = checkpoint()
+        x = float(values.get('player_x_norm', .20))
+        delta = (target - x) * width
+        if abs(delta) < height * .06:
+            return
+        direction = 1 if delta > 0 else -1
+        joyx, joyy, radius = width * .13, height * .79, height * .14
+        duration = min(6000, max(100, round(abs(delta) / (height * .39) * 1000 + 110)))
+        android.run('shell', 'input', 'swipe', str(round(joyx + direction * radius * .96)), str(round(joyy)),
+                    str(round(joyx + direction * radius)), str(round(joyy)), str(duration))
+
+    def tap(x, y):
+        android.run('shell', 'input', 'tap', str(round(width*x)), str(round(height*y)))
+
     try:
+        walk_to(.43)
+        snap('approach_sword')
+        tap(.515, .875)
+        for _ in range(4):
+            tap(.5, .8)
+            time.sleep(.12)
+        values = checkpoint()
+        if not values.get('story_sword_found') or not values.get('story_intro_seen'):
+            raise ValueError('Real controls did not complete the opening and recover the sword')
+        snap('sword_recovered')
+        android.run('shell', 'am', 'force-stop', PACKAGE)
+        android.start(fresh=True)
+        time.sleep(.45)
+        android.run('shell', 'input', 'keyevent', '20')
+        android.run('shell', 'input', 'keyevent', '66')
+        time.sleep(.45)
+        restored = checkpoint()
+        if not restored.get('story_sword_found') or not restored.get('story_intro_seen') or restored.get('world_zone') != 0:
+            raise ValueError('Continue did not restore the real campaign save after process restart')
+        snap('continued_campaign')
+        walk_to(.92)
+        tap(.515, .875)
+        time.sleep(.30)
+        entered = checkpoint()
+        if entered.get('world_zone') != 1:
+            raise ValueError('The recovered sword did not unlock the real route into the central square')
+        snap('entered_central_square')
         joyx, joyy = round(width*.13), round(height*.79)
         android.run('shell', 'input', 'swipe', str(joyx), str(joyy),
                     str(joyx+round(height*.14)), str(joyy), '650')
@@ -179,8 +265,9 @@ def capture_normal_combat(android, output, dimensions):
         android.run('shell', 'input', 'tap', str(round(width*.755)), str(round(height*.665)))
         time.sleep(.30)
         snap('cast_left')
-        process.communicate(timeout=25)
-        android.run('pull', remote, str(output/'normal_combat_smoke.mp4'))
+        if process is not None:
+            process.communicate(timeout=45)
+            android.run('pull', remote, str(output/'normal_combat_smoke.mp4'))
         sheet = Image.new('RGB', (960, 290*len(images)), (20,18,23))
         draw = ImageDraw.Draw(sheet)
         for row, (name, screenshot) in enumerate(images):
@@ -188,11 +275,29 @@ def capture_normal_combat(android, output, dimensions):
             draw.text((20,row*290+8), 'Normal touch controls: '+name, fill=(241,217,222))
             sheet.paste(screenshot,(20,row*290+30))
         sheet.save(output/'contacts/runtime_normal_combat.jpg',quality=90,optimize=True)
-        return {'video':'normal_combat_smoke.mp4','touchInputsExecuted':True,
+        return {'video':'normal_combat_smoke.mp4' if record_video else None,'touchInputsExecuted':True,
+                'openingCompleted':True,'swordRecovered':True,'saveReloadChecked':True,'centralSquareEntered':True,
                 'note':'Actual gameplay capture for manual review; inputs alone do not prove every attempted strike hit.'}
-    except (OSError,subprocess.SubprocessError,RuntimeError) as error:
-        if process.poll() is None: process.terminate()
-        return {'warning':str(error),'touchInputsExecuted':bool(images)}
+    finally:
+        if process is not None and process.poll() is None: process.terminate()
+
+
+def capture_gameplay_scenes(android, output):
+    scenes = []
+    sheet = Image.new("RGB", (960, 290 * len(GAMEPLAY_SCENES)), (20, 18, 23))
+    draw = ImageDraw.Draw(sheet)
+    for row, scene in enumerate(GAMEPLAY_SCENES):
+        android.start_scene(scene)
+        time.sleep(0.45)
+        name = f"gameplay_{scene}.png"
+        screenshot = android.screenshot(output / "screenshots" / name)
+        scenes.append({"scene": scene, "screenshot": name, "dimensions": list(screenshot.size)})
+        preview = screenshot.copy()
+        preview.thumbnail((900, 255), Image.Resampling.LANCZOS)
+        draw.text((20, row * 290 + 8), "Actual gameplay renderer: " + scene, fill=(241, 217, 222))
+        sheet.paste(preview, (20, row * 290 + 30))
+    sheet.save(output / "contacts/runtime_gameplay_scenes.jpg", quality=92, optimize=True)
+    return scenes
 
 
 def main():
@@ -208,35 +313,50 @@ def main():
     screenshots.mkdir(exist_ok=True)
     android = Android(args.serial)
     records = []
-    summary = {"version": "1.7.0", "package": PACKAGE, "expectedReviewFrames": 180,
+    summary = {"version": "1.8.0", "versionCode": 22, "package": PACKAGE, "expectedReviewFrames": 180,
                "capturedFrames": 0, "passed": False, "manualVisualReviewRequired": True,
                "scope": "Actual Android GameView rendering at fixed frame indices; menu and normal gameplay also captured"}
     try:
         android.run("wait-for-device")
+        if android.run("shell", "getprop", "ro.kernel.qemu").strip() != "1":
+            raise ValueError("This automated review is restricted to an Android emulator")
         android.run("shell", "wm", "size", "720x1280")
         android.run("shell", "settings", "put", "system", "accelerometer_rotation", "0")
         android.run("shell", "settings", "put", "system", "user_rotation", "1")
+        # Android CTS uses this setting to prevent the first-fullscreen system
+        # hint from covering application screenshots. Only the CI emulator is changed.
+        android.run("shell", "settings", "put", "secure", "immersive_mode_confirmations", "confirmed")
         android.run("shell", "input", "keyevent", "82")
         android.run("install", "-r", str(args.apk), timeout=180)
         android.run("logcat", "-c")
         android.start(fresh=True)
         time.sleep(1.6)
         menu = android.screenshot(screenshots / "normal_menu.png")
+        android.reject_fullscreen_hint()
         # New Game is initially selected; the real menu transition loads the
         # real gameplay view instead of a debug-only alternate scene.
         android.run("shell", "input", "keyevent", "66")
         time.sleep(1.0)
+        opening = android.screenshot(screenshots / "normal_initial_dialogue.png")
+        for _ in range(8):
+            android.run("shell", "input", "tap", str(round(opening.width * .5)),
+                        str(round(opening.height * .8)))
+            time.sleep(.12)
         gameplay = android.screenshot(screenshots / "normal_gameplay.png")
+        landscape_dimensions = gameplay.size
         overview = Image.new("RGB", (960, 580), (20, 18, 23))
         draw = ImageDraw.Draw(overview)
         for row, (label, image) in enumerate((("Normal menu", menu), ("Normal gameplay", gameplay))):
-            image.thumbnail((900, 255), Image.Resampling.LANCZOS)
+            preview = image.copy()
+            preview.thumbnail((900, 255), Image.Resampling.LANCZOS)
             draw.text((20, row * 290 + 8), label, fill=(241, 217, 222))
-            overview.paste(image, (20, row * 290 + 30))
+            overview.paste(preview, (20, row * 290 + 30))
         (output / "contacts").mkdir(exist_ok=True)
         overview.save(output / "contacts/runtime_menu_gameplay.jpg", quality=92, optimize=True)
-        if not args.no_video:
-            summary['normalCombatSmoke'] = capture_normal_combat(android, output, gameplay.size)
+        summary['normalCombatSmoke'] = capture_normal_combat(android, output, landscape_dimensions, not args.no_video)
+        summary["gameplayScenes"] = capture_gameplay_scenes(android, output)
+        android.start_scene("selftest")
+        time.sleep(.6)
         for index, (state, direction, frame) in enumerate(review_frames()):
             android.start(state, direction, frame, fresh=index == 0)
             time.sleep(0.18)
@@ -255,8 +375,13 @@ def main():
         summary["contacts"] = contact_sheets(output, records, screenshots)
         logcat = android.run("logcat", "-d", "-v", "threadtime", timeout=45)
         (output / "logcat.txt").write_text(logcat, encoding="utf-8")
-        if not re.search(r"VEILBREAKERS_ASSETS.*v1\.7 loaded: kael_v17=120 enemy_v17=52 fx_v17=8", logcat):
-            raise ValueError("Runtime did not confirm loading all 180 v1.7 sprites")
+        if not re.search(r"VEILBREAKERS_ASSETS.*v1\.8 loaded: kael_v17=96 kael_v18_run=24 enemy_v17=52 fx_v17=8", logcat):
+            raise ValueError("Runtime did not confirm loading all 180 v1.8 sprites")
+        for scene in GAMEPLAY_SCENES:
+            if not re.search(r"VEILBREAKERS_SCENE.*scene=" + scene + r"\b", logcat):
+                raise ValueError("Android did not acknowledge gameplay review scene: " + scene)
+        if not re.search(r"VEILBREAKERS_GAMEPLAY_TEST.*passed:", logcat):
+            raise ValueError("The real GameView reward/pause/combat regression checks did not pass")
         for record in records:
             expected = f"{record['state']} direction={record['direction']} frame={record['frame']}"
             if not any("VEILBREAKERS_REVIEW" in line and expected in line for line in logcat.splitlines()):
@@ -271,7 +396,8 @@ def main():
                 warnings.append({"sameRenderedSubject": [hashes[key], record["screenshot"]]})
             hashes[key] = record["screenshot"]
         summary.update(passed=True, capturedFrames=len(records), androidLoadedRuntimeFrames=180,
-                       records=records, warnings=warnings, landscapeDimensions=list(gameplay.size),
+                       realGameplayRegressionChecksPassed=True,
+                       records=records, warnings=warnings, landscapeDimensions=list(landscape_dimensions),
                        apkSha256=hashlib.sha256(args.apk.read_bytes()).hexdigest())
         if not args.no_video:
             summary["videoWarning"] = capture_video(android, output)

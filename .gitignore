@@ -1,0 +1,10 @@
+# Reconstructed assets are reproduced from the versioned Base64 overlays.
+veilbreakers-prototype/app/src/main/assets/**
+veilbreakers-prototype/.gradle/
+veilbreakers-prototype/build/
+veilbreakers-prototype/app/build/
+veilbreakers-prototype/release/
+**/__pycache__/
+*.pyc
+local.properties
+veilbreakers-prototype/RUN_v1.8.0_Assets.zip

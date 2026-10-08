@@ -14,13 +14,18 @@ android {
         applicationId 'com.veilbreakers.prototype'
         minSdk 24
         targetSdk 35
-        versionCode 21
-        versionName '1.7.0'
+        versionCode 22
+        versionName '1.8.0'
     }
 
     buildTypes {
         release {
             minifyEnabled false
         }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }

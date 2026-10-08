@@ -24,6 +24,10 @@ public class MainActivity extends Activity {
             showArtReview(getIntent());
             return;
         }
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("gameplay_review", false)) {
+            showGameplayReview(getIntent());
+            return;
+        }
         showMenu();
     }
 
@@ -33,7 +37,22 @@ public class MainActivity extends Activity {
         setIntent(intent);
         if (BuildConfig.DEBUG && intent.getBooleanExtra("art_review", false)) {
             showArtReview(intent);
+        } else if (BuildConfig.DEBUG && intent.getBooleanExtra("gameplay_review", false)) {
+            showGameplayReview(intent);
         }
+    }
+
+    private void showGameplayReview(Intent intent) {
+        if (!BuildConfig.DEBUG) return;
+        if (menuVideo != null) {
+            menuVideo.releasePlayer();
+            menuVideo = null;
+        }
+        GameView review = new GameView(this, false);
+        currentView = review;
+        setContentView(review);
+        review.setGameplayReview(intent.getStringExtra("review_scene"));
+        applyImmersive();
     }
 
     private void showArtReview(Intent intent) {
@@ -89,7 +108,8 @@ public class MainActivity extends Activity {
     public void startGame(boolean continueGame) {
         SharedPreferences prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         if (!continueGame) {
-            prefs.edit().clear().putBoolean("has_save", true).putBoolean("vibration", true).apply();
+            prefs.edit().clear().putInt("world_version", StoryState.WORLD_VERSION)
+                    .putBoolean("has_save", true).putBoolean("vibration", true).apply();
         }
 
         if (menuVideo != null) {
@@ -113,7 +133,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
-        if (currentView instanceof GameView) ((GameView) currentView).saveState();
+        if (currentView instanceof GameView) ((GameView) currentView).pauseGame();
         if (menuVideo != null) menuVideo.pauseVideo();
         super.onPause();
     }
@@ -122,6 +142,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         applyImmersive();
+        if (currentView instanceof GameView) ((GameView) currentView).resumeGame();
         if (menuVideo != null) menuVideo.resumeVideo();
     }
 

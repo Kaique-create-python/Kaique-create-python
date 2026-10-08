@@ -99,3 +99,14 @@ if list(B64.glob('v17_reviewed_art.zip.b64.part-*')):
         assert z.testzip() is None
         z.extractall(ASSETS)
     print('Applied reviewed v1.7 artwork and recovery context last')
+
+# The running override and current story must be applied after the archived v1.7
+# context; historical recovery archives are intentionally left unchanged.
+if list(B64.glob('run_v18_assets.zip.b64.part-*')):
+    decode('run_v18_assets.zip')
+    with zipfile.ZipFile(ZIPS / 'run_v18_assets.zip') as z:
+        assert z.testzip() is None
+        z.extractall(ASSETS)
+    print('Applied v1.8 authored running override')
+    from refresh_release_context import refresh
+    refresh(ASSETS)

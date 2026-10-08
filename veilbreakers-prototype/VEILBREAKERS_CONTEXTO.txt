@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.7.0
+Versão atual: v1.8.0
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -368,3 +368,94 @@ REVISÃO DEBUG
 
 PRESERVADO
 Menu/vídeo, HUD, save, status, dano, crítico, knockback, XP, dinheiro e progressão. História original em HISTORIA_COMPLETA.txt.
+
+
+==============================
+ATUALIZAÇÃO v1.8.0 — RUÍNAS DE VARYN / CINZAS DO OITAVO
+==============================
+Base auditada: c25a15c86064d45a7613503aeaddd29f6774591a.
+Branch obrigatório preservado: veilbreakers-apk-build.
+Package com.veilbreakers.prototype; versionCode 22; versionName 1.8.0.
+
+AUDITORIA DE CONTINUIDADE
+- Checkout v1.7.0 sincronizado e limpo antes das edições.
+- v1.7 efetivamente carrega 180 frames direcionais e possui combos, Arcana VIII,
+  combate, atributos, save e menu/vídeo funcionais.
+- As contact sheets Android qa/v17 estão em grande parte encobertas pela confirmação
+  de modo imersivo. O workflow terminou com sucesso, mas isso não comprova a
+  qualidade visual das poses que ficaram ocultas. qa/v17 foi preservado como histórico.
+- O ciclo RUN v17 repetia a mesma meia passada nas direções laterais. Hashes diferentes
+  não significavam que os apoios/duas pernas realmente alternavam.
+
+MAPA E MISSÃO
+- VarynMap desenha seis áreas autoradas em Canvas, conectadas por interações nas saídas:
+  Distrito Destruído -> Praça Central -> Casas Queimadas -> Aqueduto ->
+  Portão Norte -> Santuário Abandonado.
+- Chão de pedra, casas queimadas, ruínas, aqueduto, portão, altar, brasas e Hollow Sun.
+- Colisão pelo ponto dos pés contra sólidos; fundo estático em bitmap cacheado por área.
+- Botão INTERAGIR aparece por proximidade. Rotas têm objetivos e bloqueios explícitos.
+- Espada, baú de provisões, NPC Mara, NPC Ivo, vestígio de desaparecimentos,
+  Veilborn da praça e Veilborn fortalecido do aqueduto.
+- Mara e Ivo são novos sobreviventes locais; não revelam segredos divinos nem alteram
+  a identidade canônica de Kael/The First. História completa original preservada.
+- Concluir o diálogo do Portão Norte finaliza Cinzas do Oitavo e mostra o céu
+  escurecendo, VIII reagindo e um olho fugaz atrás do Hollow Sun.
+- Santuário é um ponto de descanso explorável. A campanha além dele ainda não foi criada.
+- Recompensas de descoberta/combate são concedidas uma vez, com flags persistentes.
+- Inimigos derrotados nessas áreas permanecem derrotados. Morte do jogador reinicia
+  somente o encontro ainda não concluído e preserva objetivos/atributos.
+
+DIÁLOGOS / INTERFACE
+- Caixa de diálogo escura com borda clara, nome do interlocutor e texto gradual.
+- Primeiro toque revela a fala; segundo avança. Última página confirma eventos/recompensas.
+- Diálogo e status pausam inimigo, projétil, Mana, cooldown, combos e timers de combate.
+- Status redesenhado em interface nativa: retrato, HP/Mana/XP, nível, moedas,
+  distribuição ATK/DEF/CRIT/SPD com +/-, prévia, Desfazer e Confirmar pontos.
+- Aba MISSÃO mostra checklist e objetivo atual; HUD mostra local/objetivo.
+- Menu principal em português, preservando vídeo, Novo jogo/Continuar/Configurações/Sair.
+- Voltar durante diálogo mostra/avança fala; no status fecha sem aplicar prévias.
+- App em segundo plano congela gameplay e salva; retomar reinicia relógio de frame.
+
+CORRIDA
+- Apenas 24 frames RUN substituídos; quatro direções x seis poses em kael_v18/run/.
+- Mantidos 156 frames v17 para idle/walk/combo/cast/Veilborn/orbe, pivôs e escala corporal.
+- Ciclo completo pretende alternar contato/compressão/impulso das duas pernas.
+- LocomotionCycle avança a fase pela distância real APÓS colisão, com histerese
+  corrida >=68% da velocidade; volta a andar abaixo de58%. Contra parede para no idle.
+- Cadência base equivalente ~12FPS na corrida padrão, proporcional ao deslocamento;
+  não há bob/tilt de bitmap para disfarçar apoios ausentes.
+- Conferir RUN_REVIEW_V180.md, fontes, prompt e contact sheet v18 para avaliação visual.
+
+SAVE / MIGRAÇÃO
+- SharedPreferences mantém package/chaves de atributos v17.
+- StoryState salva world_version, área, objetivos e encontros derrotados.
+- Save v17 migra atributos/nível/moedas/HP/Mana intactos, começa no Distrito com
+  a espada já recuperada e introdução vista; posição antiga de arena não vira posição inválida.
+- Save v18 retoma a área e posição normalizada; não repete prêmios de baú/NPC/boss/portão.
+- Novo jogo continua criando um save novo, conforme fluxo já existente.
+
+BUILD / RECUPERAÇÃO / QA
+- Os pacotes históricos/v17 continuam preservados. Overlay run_v18_assets.zip.b64.part-*
+  é aplicado depois de v17. Não sobrescrever esse overlay por pacotes antigos.
+- SPRITES_MANIFEST_V180.json relaciona os 180 frames realmente usados (24 v18+156v17).
+  SPRITES_MANIFEST_V170.json permanece como documentação histórica da arte anterior.
+- O build atualiza contexto/HISTORIA_COMPLETA/BUILD_VERSION após TODOS os overlays.
+- BUILD_METADATA.json separa a versão de gameplay e origem dos conjuntos de arte.
+- validate_v17_assets.py agora suporta --version1.7.0 ou1.8.0; default1.8.0.
+- verify_apk_v17.py verifica os180 PNGs reais, hashes, manifest e metadados22/1.8.0.
+- Revisão DEBUG art_review permanece; novo gameplay_review true / review_scene
+  map|status|journal|dialogue usa os mesmos renderizadores sem salvar.
+- CI rejeita evidência coberta pelo aviso imersivo, corrige coordenadas de toque que
+  antes eram calculadas após redimensionar thumbnail e arquiva evidência nova emqa/v18.
+- Teste de lógica cobre progressão/save/migração e ciclo de movimento real.
+- Selftest DEBUG no Android verifica recompensas idempotentes, pausa status/diálogo,
+  release Arcana em .28s, pose de impacto do combo e parada na borda.
+- Entrega: VEILBREAKERS_v1.8.0_Codex.apk + este contexto, com project_archive preservado.
+
+LIMITES DESTE MARCO
+- Seis salas conectadas, sem câmera de mundo aberto. Uma missão principal completa.
+- Inventário, equipamentos intercambiáveis, outras missões e SFX não foram incluídos.
+- NPCs/cenário são ilustrações Canvas próprias; sprites aprovados de combate preservados.
+- APK é debug como as versões anteriores; assinatura Android precisa ser compatível
+  para atualizar uma instalação antiga sem perda de save. Não desinstalar para contornar.
+- Só declarar teste Android aprovado após consultar run e capturas v18 reais.
