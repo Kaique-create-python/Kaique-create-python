@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Review v1.8 gameplay scenes and all 180 authored frames in a CI emulator.
+"""Review v1.9 generated gameplay art and all 188 authored frames in a CI emulator.
 
 The debug review reuses GameView's normal player, enemy and magic render paths.
 Captures and contact sheets support manual visual review; pixel statistics are
@@ -22,9 +22,11 @@ PACKAGE = "com.veilbreakers.prototype"
 ACTIVITY = PACKAGE + "/.MainActivity"
 DIRECTIONS = ("down", "up", "left", "right")
 DIRECTED = (("idle", 4), ("walk", 6), ("run", 6), ("combo1", 3), ("combo2", 3),
-            ("combo3", 3), ("cast", 5), ("enemy_idle", 3), ("enemy_chase", 4), ("enemy_attack", 4))
-UNDIRECTED = (("hurt", 3), ("death", 5), ("orb", 8))
-GAMEPLAY_SCENES = ("map", "map1", "map2", "map3", "map4", "map5", "status", "journal", "dialogue")
+            ("combo3", 3), ("cast", 6), ("enemy_idle", 3), ("enemy_chase", 4), ("enemy_attack", 4))
+UNDIRECTED = (("hurt", 3), ("death", 5), ("orb", 12))
+GAMEPLAY_SCENES = ("map", "map1", "map2", "map3", "map4", "map5", "status", "journal", "inventory",
+                   "dialogue_mara", "dialogue_ivo", "dialogue_kael", "cast")
+EXPECTED_REVIEW_FRAMES = 188
 
 
 def review_frames():
@@ -90,7 +92,7 @@ class Android:
                 # Large flat teal is the API 29 fullscreen system hint. This
                 # rejection remains strict; retries only handle resume/layout.
                 sample = image.resize((160, 90), Image.Resampling.NEAREST)
-                teal = sum(r < 35 and 105 < g < 160 and 95 < b < 150 and abs(g - b) < 35
+                teal = sum(r < 10 and 125 <= g <= 140 and 110 <= b <= 130 and 7 <= g-b <= 20
                            for r, g, b in sample.getdata())
                 if teal / (160 * 90) > .03:
                     diagnostic = path.with_name(path.stem + "_failed.png")
@@ -172,7 +174,7 @@ def contact_sheets(output, records, screenshots):
 
 
 def capture_video(android, output):
-    remote = "/sdcard/veilbreakers_v18_review.mp4"
+    remote = "/sdcard/veilbreakers_v19_review.mp4"
     process = subprocess.Popen(android.prefix + ["shell", "screenrecord", "--time-limit", "40",
                                "--bit-rate", "3000000", remote], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     states = [(state, direction) for state in ("idle", "walk", "run", "combo1", "combo2", "combo3", "cast")
@@ -202,7 +204,7 @@ def capture_video(android, output):
 def capture_normal_combat(android, output, dimensions, record_video=True):
     """Collect the sword, reload the save, enter the square and use real combat controls."""
     width, height = dimensions
-    remote = '/sdcard/veilbreakers_v18_combat.mp4'
+    remote = '/sdcard/veilbreakers_v19_combat.mp4'
     process = None
     if record_video:
         process = subprocess.Popen(android.prefix + ['shell', 'screenrecord', '--time-limit', '35',
@@ -260,6 +262,29 @@ def capture_normal_combat(android, output, dimensions, record_video=True):
         if not restored.get('story_sword_found') or not restored.get('story_intro_seen') or restored.get('world_zone') != 0:
             raise ValueError('Continue did not restore the real campaign save after process restart')
         snap('continued_campaign')
+        if (restored.get('inventory_count_sword'), restored.get('inventory_sword_equipped'),
+                restored.get('stat_weapon_attack_bonus')) != (1, True, 4):
+            raise ValueError('Continue did not restore the collected, equipped sword and its exact attack bonus')
+        android.step('open real inventory and toggle sword equipment with touch controls')
+        tap(.337, .874)
+        time.sleep(.25)
+        snap('inventory_real')
+        # GameUi's details-column midpoint is .746625W; action bounds are
+        # .781-.847H. The fixed coordinates lie inside the actual drawn button.
+        tap(.747, .814)
+        unequipped = checkpoint()
+        if (unequipped.get('inventory_count_sword'), unequipped.get('inventory_sword_equipped'),
+                unequipped.get('stat_weapon_attack_bonus')) != (1, False, 0):
+            raise ValueError('Real inventory touch did not unequip/save the sword without deleting or stacking it')
+        snap('inventory_sword_unequipped')
+        tap(.747, .814)
+        equipped = checkpoint()
+        if (equipped.get('inventory_count_sword'), equipped.get('inventory_sword_equipped'),
+                equipped.get('stat_weapon_attack_bonus')) != (1, True, 4):
+            raise ValueError('Real inventory touch did not re-equip/save the sword with one exact bonus')
+        snap('inventory_sword_equipped')
+        tap(.870, .099)
+        time.sleep(.25)
         walk_to(.92)
         tap(.515, .875)
         time.sleep(.30)
@@ -273,9 +298,9 @@ def capture_normal_combat(android, output, dimensions, record_video=True):
         snap('movement_right')
         android.run('shell', 'input', 'tap', str(round(width*.755)), str(round(height*.665)))
         time.sleep(.15)
-        snap('cast_charge')
-        time.sleep(.17)
-        snap('cast_release')
+        snap('arcana_after_tap')
+        time.sleep(.23)
+        snap('arcana_follow_through')
         time.sleep(.80)
         for index in range(5):
             android.run('shell', 'input', 'tap', str(round(width*.865)), str(round(height*.78)))
@@ -300,6 +325,8 @@ def capture_normal_combat(android, output, dimensions, record_video=True):
         sheet.save(output/'contacts/runtime_normal_combat.jpg',quality=90,optimize=True)
         return {'video':'normal_combat_smoke.mp4' if record_video else None,'touchInputsExecuted':True,
                 'openingCompleted':True,'swordRecovered':True,'saveReloadChecked':True,'centralSquareEntered':True,
+                'actualInventoryTouched':True,'equipmentToggledAndSaved':True,
+                'videoCoverage':'First 35 seconds of the real touch flow; later steps are preserved as screenshots.' if record_video else None,
                 'note':'Actual gameplay capture for manual review; inputs alone do not prove every attempted strike hit.'}
     finally:
         if process is not None and process.poll() is None: process.terminate()
@@ -336,7 +363,7 @@ def main():
     screenshots.mkdir(exist_ok=True)
     android = Android(args.serial)
     records = []
-    summary = {"version": "1.8.0", "versionCode": 22, "package": PACKAGE, "expectedReviewFrames": 180,
+    summary = {"version": "1.9.0", "versionCode": 23, "package": PACKAGE, "expectedReviewFrames": EXPECTED_REVIEW_FRAMES,
                "capturedFrames": 0, "passed": False, "manualVisualReviewRequired": True,
                "scope": "Actual Android GameView rendering at fixed frame indices; menu and normal gameplay also captured"}
     try:
@@ -392,14 +419,16 @@ def main():
             records.append({"state": state, "direction": direction, "frame": frame, "screenshot": name,
                             "dimensions": list(image.size), "subjectRGBColors": len(colors),
                             "subjectPixelSha256": hashlib.sha256(crop.tobytes()).hexdigest()})
-            print(f"Captured {index + 1}/180: {name}", flush=True)
-        if len(records) != 180:
-            raise ValueError(f"Expected 180 runtime captures, received {len(records)}")
+            print(f"Captured {index + 1}/{EXPECTED_REVIEW_FRAMES}: {name}", flush=True)
+        if len(records) != EXPECTED_REVIEW_FRAMES:
+            raise ValueError(f"Expected {EXPECTED_REVIEW_FRAMES} runtime captures, received {len(records)}")
         summary["contacts"] = contact_sheets(output, records, screenshots)
         logcat = android.run("logcat", "-d", "-v", "threadtime", timeout=45)
         (output / "logcat.txt").write_text(logcat, encoding="utf-8")
-        if not re.search(r"VEILBREAKERS_ASSETS.*v1\.8 loaded: kael_v17=96 kael_v18_run=24 enemy_v17=52 fx_v17=8", logcat):
-            raise ValueError("Runtime did not confirm loading all 180 v1.8 sprites")
+        if not re.search(r"VEILBREAKERS_ASSETS.*v1\.9 loaded: kael_v17=76 kael_v18_run=24 kael_v19_cast=24 enemy_v17=52 fx_v19=12", logcat):
+            raise ValueError("Runtime did not confirm loading all 188 v1.9 sprites")
+        if not re.search(r"VEILBREAKERS_GAME_ART.*v1\.9 loaded: scenes=6 npc=6 portraits=3 ui=4 items=4 props=5", logcat):
+            raise ValueError("Runtime did not confirm loading all 28 mandatory generated game-art assets")
         for scene in GAMEPLAY_SCENES:
             if not re.search(r"VEILBREAKERS_SCENE.*scene=" + scene + r"\b", logcat):
                 raise ValueError("Android did not acknowledge gameplay review scene: " + scene)
@@ -418,7 +447,8 @@ def main():
             if key in hashes:
                 warnings.append({"sameRenderedSubject": [hashes[key], record["screenshot"]]})
             hashes[key] = record["screenshot"]
-        summary.update(passed=True, capturedFrames=len(records), androidLoadedRuntimeFrames=180,
+        summary.update(passed=True, capturedFrames=len(records), androidLoadedRuntimeFrames=EXPECTED_REVIEW_FRAMES,
+                       androidLoadedGameArtFiles=28,
                        realGameplayRegressionChecksPassed=True,
                        records=records, warnings=warnings, landscapeDimensions=list(landscape_dimensions),
                        apkSha256=hashlib.sha256(args.apk.read_bytes()).hexdigest())

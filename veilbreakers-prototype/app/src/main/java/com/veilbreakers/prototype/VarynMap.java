@@ -13,7 +13,7 @@ import android.graphics.Typeface;
 
 import java.util.Random;
 
-/** Six authored rooms of Varyn. Static scenery is painted once per room/size. */
+/** Six rooms of Varyn with authored image scenery and matching ground footprints. */
 public final class VarynMap {
     public static final String SWORD = "sword";
     public static final String CHEST = "chest";
@@ -29,12 +29,12 @@ public final class VarynMap {
     // Collision covers the footprint of scenery, rather than the height of its silhouette.
     // The central .45-.72H corridor and authored character/object positions stay clear.
     private static final RectF[][] SOLIDS = {
-            {box(.10f,.29f,.29f,.41f), box(.71f,.29f,.88f,.41f), box(.48f,.79f,.62f,.89f)},
-            {box(.35f,.31f,.44f,.41f), box(.60f,.31f,.72f,.41f), box(.35f,.80f,.46f,.90f)},
-            {box(.13f,.28f,.35f,.41f), box(.63f,.28f,.83f,.41f), box(.27f,.80f,.40f,.91f)},
-            {box(.22f,.34f,.81f,.42f), box(.22f,.79f,.81f,.87f)},
-            {box(.12f,.28f,.35f,.42f), box(.51f,.28f,.81f,.42f), box(.46f,.82f,.57f,.91f)},
-            {box(.22f,.28f,.28f,.42f), box(.73f,.28f,.79f,.42f), box(.29f,.81f,.38f,.91f)}
+            {box(.10f,.38f,.36f,.50f), box(.66f,.38f,.88f,.50f), box(.42f,.79f,.67f,.91f)},
+            {box(.03f,.31f,.26f,.46f), box(.74f,.31f,.99f,.46f), box(.36f,.40f,.63f,.54f)},
+            {box(.11f,.38f,.36f,.50f), box(.69f,.38f,.88f,.50f), box(.27f,.80f,.40f,.91f)},
+            {box(.13f,.39f,.86f,.50f), box(.11f,.77f,.91f,.87f)},
+            {box(.10f,.36f,.35f,.50f), box(.56f,.38f,.82f,.50f), box(.46f,.82f,.57f,.91f)},
+            {box(.17f,.35f,.29f,.50f), box(.71f,.35f,.83f,.50f), box(.29f,.81f,.38f,.91f)}
     };
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -43,11 +43,14 @@ public final class VarynMap {
     private final RectF r = new RectF();
     private final Path path = new Path();
     private Bitmap backdrop;
+    private GameArt art;
     private int backdropZone = -1;
     private int width;
     private int height;
     private float w;
     private float h;
+
+    void setArt(GameArt art) { this.art = art; discardBackdrop(); }
 
     public void resize(int width, int height) {
         int nextWidth = Math.max(1, width);
@@ -147,7 +150,8 @@ public final class VarynMap {
     public float interactionX(String id) {
         if (SWORD.equals(id)) return w * .43f;
         if (CHEST.equals(id)) return w * .62f;
-        if (MARA.equals(id) || IVO.equals(id)) return w * .48f;
+        if (MARA.equals(id)) return w * .30f;
+        if (IVO.equals(id)) return w * .48f;
         if (TRACE.equals(id)) return w * .64f;
         if (NEXT.equals(id)) return w * .92f;
         if (PREVIOUS.equals(id)) return w * .08f;
@@ -158,8 +162,9 @@ public final class VarynMap {
     public float interactionY(String id) {
         if (SWORD.equals(id) || TRACE.equals(id)) return h * .60f;
         if (CHEST.equals(id)) return h * .62f;
-        if (MARA.equals(id)) return h * .48f;
-        if (IVO.equals(id) || ALTAR.equals(id)) return h * .50f;
+        if (MARA.equals(id)) return h * .57f;
+        if (IVO.equals(id)) return h * .55f;
+        if (ALTAR.equals(id)) return h * .56f;
         if (NEXT.equals(id) || PREVIOUS.equals(id)) return h * .57f;
         return h * .60f;
     }
@@ -191,6 +196,11 @@ public final class VarynMap {
     }
 
     private void paintBackdrop(Canvas c, int zone) {
+        if (art != null) {
+            r.set(0, 0, w, h);
+            art.draw(c, "scenes/zone_" + zone + ".png", r);
+            return;
+        }
         p.setStyle(Paint.Style.FILL);
         p.setShader(new LinearGradient(0, 0, 0, h * .60f,
                 new int[] {Color.rgb(13,19,24), Color.rgb(32,37,39), Color.rgb(52,48,43)},
@@ -492,7 +502,18 @@ public final class VarynMap {
         }
     }
 
+    private void worldProp(Canvas c, String name, float x, float y, float size) {
+        oval(c, x, y, size * .40f, size * .06f, Color.argb(90,0,0,0));
+        r.set(x - size * .5f, y - size * .9375f, x + size * .5f, y + size * .0625f);
+        art.draw(c, "props/" + name + ".png", r);
+    }
+
     private void drawSword(Canvas c, float x, float y, float clock) {
+        if (art != null) {
+            worldProp(c, "sword_ground", x, y, h * .16f);
+            marker(c, x, y - h * .11f, clock);
+            return;
+        }
         oval(c,x,y,h * .052f,h * .009f,Color.argb(100,0,0,0));
         linePixels(c,x - h * .033f,y + h * .003f,x + h * .044f,y - h * .046f,
                 Color.rgb(156,165,162),h * .007f);
@@ -504,6 +525,10 @@ public final class VarynMap {
     }
 
     private void drawChest(Canvas c, float x, float y, boolean opened) {
+        if (art != null) {
+            worldProp(c, opened ? "chest_open" : "chest_closed", x, y, h * .15f);
+            return;
+        }
         oval(c,x,y,h * .048f,h * .012f,Color.argb(120,0,0,0));
         r.set(x - h * .047f,y - h * .049f,x + h * .047f,y);
         p.setColor(Color.rgb(68,48,32));
@@ -521,6 +546,16 @@ public final class VarynMap {
     }
 
     private void drawSurvivor(Canvas c, float x, float y, boolean ivo, float clock) {
+        if (art != null) {
+            oval(c, x, y, h * .052f, h * .012f, Color.argb(105,0,0,0));
+            float scale = h * .205f / 174f;
+            r.set(x - 128f * scale, y - 232f * scale, x + 128f * scale, y + 24f * scale);
+            art.draw(c, "npc/" + (ivo ? "ivo_" : "mara_") + ((int)(clock * .5f) % 3) + ".png", r);
+            p.setTypeface(serif); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(h * .024f);
+            p.setColor(Color.rgb(235,226,210));
+            c.drawText(ivo ? "Ivo" : "Mara", x, y - h * .222f, p);
+            return;
+        }
         float size = h * .17f;
         float sway = (float) Math.sin(clock * 1.6f) * h * .001f;
         oval(c,x,y,h * .033f,h * .010f,Color.argb(105,0,0,0));
@@ -562,6 +597,12 @@ public final class VarynMap {
     }
 
     private void drawTrace(Canvas c, float x, float y, boolean examined, float clock) {
+        if (art != null) {
+            r.set(x - h * .10f, y - h * .06f, x + h * .10f, y + h * .06f);
+            art.draw(c, "props/trace.png", r);
+            if (!examined) marker(c, x, y - h * .085f, clock);
+            return;
+        }
         oval(c,x,y,h * .055f,h * .025f,Color.argb(110,107,106,94));
         for (int i = 0; i < 5; i++) {
             float fx = x - h * .043f + i * h * .016f;
@@ -572,6 +613,11 @@ public final class VarynMap {
     }
 
     private void drawAltar(Canvas c, float x, float y, boolean used, float clock) {
+        if (art != null) {
+            worldProp(c, "altar", x, y, h * .23f);
+            if (!used) marker(c, x, y - h * .21f, clock);
+            return;
+        }
         oval(c,x,y,h * .080f,h * .017f,Color.argb(95,0,0,0));
         r.set(x - h * .058f,y - h * .059f,x + h * .058f,y);
         p.setColor(Color.rgb(69,80,74));

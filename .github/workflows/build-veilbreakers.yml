@@ -301,13 +301,29 @@ jobs:
           $count = (Get-ChildItem "$dest/kael_v18/run/*.png").Count
           if ($count -ne 24) { throw "Expected 24 v1.8 running frames, found $count" }
 
+      - name: Decode v1.9 generated world UI and cast FX assets
+        shell: pwsh
+        run: |
+          $dest = "veilbreakers-prototype/app/src/main/assets"
+          $parts = Get-ChildItem "veilbreakers-prototype/app/src/main/assets_b64/v19_assets.zip.b64.part-*" | Sort-Object Name
+          if ($parts.Count -lt 1) { throw "v1.9 generated art base64 parts missing" }
+          $b64 = (($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join "")
+          $zip = "$env:RUNNER_TEMP\v19_assets.zip"
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          Expand-Archive -Force $zip $dest
+          if (!(Test-Path "$dest/project_archive/SPRITES_MANIFEST_V190.json")) { throw "v1.9 runtime sprite manifest missing" }
+          if (!(Test-Path "$dest/project_archive/GAME_ART_MANIFEST_V190.json")) { throw "v1.9 mandatory world/UI art manifest missing" }
+          if ((Get-ChildItem "$dest/kael_v19/cast/*.png").Count -ne 24) { throw "Expected 24 v1.9 cast frames" }
+          if ((Get-ChildItem "$dest/fx_v19/*.png").Count -ne 12) { throw "Expected 12 v1.9 Arcana frames" }
+          if ((Get-ChildItem "$dest/art_v19/scenes/*.png").Count -ne 6) { throw "Expected 6 generated Varyn backgrounds" }
+
       - name: Refresh current gameplay story and release metadata after artwork overlays
         run: python veilbreakers-prototype/tools/refresh_release_context.py
 
-      - name: Validate all 180 current runtime frames and preserved v1.7 artwork
+      - name: Validate all 188 runtime frames and 28 mandatory generated world UI assets
         run: python veilbreakers-prototype/tools/validate_v17_assets.py
 
-      - name: Verify quest progression and world collisions without Android
+      - name: Verify campaign inventory collisions and locomotion without Android
         run: python veilbreakers-prototype/tools/test_gameplay_logic.py
 
       - name: Build debug APK
@@ -320,21 +336,22 @@ jobs:
         run: |
           $release = "veilbreakers-prototype/release"
           New-Item -ItemType Directory -Force -Path $release | Out-Null
-          Copy-Item "veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk" "$release/VEILBREAKERS_v1.8.0_Codex.apk" -Force
+          Copy-Item "veilbreakers-prototype/app/build/outputs/apk/debug/app-debug.apk" "$release/VEILBREAKERS_v1.9.0_Codex.apk" -Force
           Copy-Item "veilbreakers-prototype/VEILBREAKERS_CONTEXTO.txt" "$release/VEILBREAKERS_CONTEXTO.txt" -Force
           Copy-Item "veilbreakers-prototype/HISTORIA_COMPLETA.txt" "$release/HISTORIA_COMPLETA.txt" -Force
           Copy-Item "veilbreakers-prototype/app/src/main/assets/project_archive/BUILD_METADATA.json" "$release/BUILD_METADATA.json" -Force
-          Copy-Item "veilbreakers-prototype/app/src/main/assets/project_archive/V18_ASSET_QA.json" "$release/V18_ASSET_QA.json" -Force
-          python veilbreakers-prototype/tools/verify_apk_v17.py "$release/VEILBREAKERS_v1.8.0_Codex.apk" --output "$release/V18_APK_QA.json"
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/project_archive/V19_ASSET_QA.json" "$release/V19_ASSET_QA.json" -Force
+          Copy-Item "veilbreakers-prototype/app/src/main/assets/project_archive/GAME_ART_MANIFEST_V190.json" "$release/GAME_ART_MANIFEST_V190.json" -Force
+          python veilbreakers-prototype/tools/verify_apk_v17.py "$release/VEILBREAKERS_v1.9.0_Codex.apk" --output "$release/V19_APK_QA.json"
           if ($LASTEXITCODE -ne 0) { throw "APK asset/version verification failed" }
           @'
           from pathlib import Path
           import zipfile
           assets = Path("veilbreakers-prototype/app/src/main/assets")
-          output = Path("veilbreakers-prototype/release/VEILBREAKERS_v1.8.0_Arte.zip")
+          output = Path("veilbreakers-prototype/release/VEILBREAKERS_v1.9.0_Arte.zip")
           roots = [assets / name for name in (
-              "kael_v17", "kael_v18", "enemy_v17", "fx_v17", "project_archive/source_sheets/v17",
-              "project_archive/source_sheets/v18", "project_archive/previews/v17", "project_archive/previews/v18",
+              "kael_v17", "kael_v18", "kael_v19", "enemy_v17", "fx_v17", "fx_v19", "art_v19", "project_archive/source_sheets/v17",
+              "project_archive/source_sheets/v18", "project_archive/source_sheets/v19", "project_archive/previews/v17", "project_archive/previews/v18", "project_archive/previews/v19",
               "project_archive/baseline_v161_audit")]
           files = {path for root in roots for path in root.rglob("*") if path.is_file()}
           archive = assets / "project_archive"
@@ -348,7 +365,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.8.0-package
+          name: veilbreakers-v1.9.0-package
           path: veilbreakers-prototype/release/
           if-no-files-found: error
 
@@ -373,7 +390,7 @@ jobs:
         run: python -m pip install Pillow==11.3.0
       - uses: actions/download-artifact@v4
         with:
-          name: veilbreakers-v1.8.0-package
+          name: veilbreakers-v1.9.0-package
           path: release
       # GitHub's Linux runners expose /dev/kvm. These permissions are the
       # emulator-runner project's documented setup for hardware acceleration.
@@ -392,12 +409,12 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: python veilbreakers-prototype/tools/capture_android_review.py --apk release/VEILBREAKERS_v1.8.0_Codex.apk --output runtime-review
+          script: python veilbreakers-prototype/tools/capture_android_review.py --apk release/VEILBREAKERS_v1.9.0_Codex.apk --output runtime-review
       - name: Upload Android screenshots, contact sheets and animation video
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: veilbreakers-v1.8.0-runtime-review
+          name: veilbreakers-v1.9.0-runtime-review
           path: runtime-review/
           if-no-files-found: warn
       # Compact review evidence is also preserved on the mandatory branch so
@@ -416,7 +433,7 @@ jobs:
           import os
           import shutil
           source = Path("runtime-review")
-          target = Path("qa/v18")
+          target = Path("qa/v19")
           target.mkdir(parents=True, exist_ok=True)
           for old in target.glob("runtime_*.jpg"):
               old.unlink()
@@ -435,8 +452,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BUILD_BRANCH" "$BUILD_COMMIT"
-          git add qa/v18
+          git add qa/v19
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Archive VEILBREAKERS v1.8 Android visual review"
+          git commit -m "Archive VEILBREAKERS v1.9 Android visual review"
           git pull --rebase origin "$BUILD_BRANCH"
           git push origin "HEAD:$BUILD_BRANCH"

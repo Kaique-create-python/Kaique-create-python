@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove the APK contains the exact 180 reviewed runtime frames and release metadata."""
+"""Prove the APK contains exact reviewed sprite/game-art bytes and release metadata."""
 import argparse
 import hashlib
 import json
@@ -30,14 +30,15 @@ def find_aapt():
 def verify(apk, report_path, aapt, skip_package=False):
     report_bytes = report_path.read_bytes()
     report = json.loads(report_bytes)
-    if not report.get("passed") or report.get("frameCount") != 180:
-        raise ValueError("Source asset report must pass with exactly 180 runtime frames")
     version_name = report.get("version")
     if version_name not in MANIFESTS:
         raise ValueError("Unknown artwork/release version in source asset report")
     version_code = VERSION_CODES[version_name]
+    expected = expected_frames(version_name)
+    if not report.get("passed") or report.get("frameCount") != len(expected):
+        raise ValueError(f"Source asset report must pass with exactly {len(expected)} runtime frames")
     records = {record["file"]: record for record in report["frames"]}
-    if set(records) != set(expected_frames(version_name)):
+    if set(records) != set(expected):
         raise ValueError("Source report has an unexpected set of runtime frames")
     with zipfile.ZipFile(apk) as package:
         names = set(package.namelist())
@@ -51,6 +52,20 @@ def verify(apk, report_path, aapt, skip_package=False):
             raise ValueError("APK main sprite manifest differs from validation report")
         if package.read("assets/" + REPORTS[version_name]) != report_bytes:
             raise ValueError("APK embedded QA report differs from source report")
+        if version_name == "1.9.0":
+            if not report.get("runtimeMetadata"):
+                raise ValueError("Source report must validate the runtime cast timing/socket JSON")
+            for record in report["runtimeMetadata"]:
+                if hashlib.sha256(package.read("assets/" + record["file"])).hexdigest() != record["sha256"]:
+                    raise ValueError("APK runtime timing/socket metadata differs from reviewed source")
+            if report.get("gameArtCount") != 28 or len(report.get("gameArt", [])) != 28:
+                raise ValueError("Source asset report must validate all 28 mandatory generated game-art files")
+            for record in report["gameArt"]:
+                name = "assets/" + record["file"]
+                if name not in names or hashlib.sha256(package.read(name)).hexdigest() != record["sha256"]:
+                    raise ValueError("APK game art differs from reviewed source: " + record["file"])
+            if hashlib.sha256(package.read("assets/" + report["gameArtManifest"])).hexdigest() != report["gameArtManifestSha256"]:
+                raise ValueError("APK GameArt manifest differs from validation report")
         for required in ("assets/project_archive/CHAT_CONTEXTO_ATUAL.txt", "assets/project_archive/BUILD_VERSION.txt",
                          "assets/project_archive/HISTORIA_COMPLETA.txt"):
             if required not in names:
@@ -58,16 +73,23 @@ def verify(apk, report_path, aapt, skip_package=False):
         version = package.read("assets/project_archive/BUILD_VERSION.txt").decode("utf-8-sig").strip()
         if f"v{version_name}" not in version:
             raise ValueError(f"Stale embedded build version: {version}")
-        if version_name == "1.8.0":
+        if version_name in ("1.8.0", "1.9.0"):
             metadata = json.loads(package.read("assets/project_archive/BUILD_METADATA.json"))
             if (metadata.get("package"), metadata.get("version"), metadata.get("versionCode")) != (
                     "com.veilbreakers.prototype", version_name, version_code):
                 raise ValueError("Embedded release metadata differs from current build")
-            if metadata.get("preservedV17Frames") != 156 or metadata.get("newRunFrames") != 24:
-                raise ValueError("Release metadata must describe 156 preserved and 24 new frames")
+            if version_name == "1.8.0" and (metadata.get("preservedV17Frames") != 156 or metadata.get("newRunFrames") != 24):
+                raise ValueError("Release metadata must describe 156 preserved and 24 new running frames")
+            if version_name == "1.9.0" and (metadata.get("preservedBaseFrames"), metadata.get("newCastFrames"),
+                    metadata.get("newFxFrames"), metadata.get("gameArtFiles")) != (152, 24, 12, 28):
+                raise ValueError("Release metadata must describe 152 preserved sprites, 36 new cast/FX and 28 world/UI assets")
             for folder in ("source_sheets/v18/", "previews/v18/"):
                 if not any(n.startswith("assets/project_archive/" + folder) for n in names):
                     raise ValueError("APK must preserve v1.8 running review artifacts: " + folder)
+            if version_name == "1.9.0":
+                for folder in ("source_sheets/v19/", "previews/v19/"):
+                    if not any(n.startswith("assets/project_archive/" + folder) for n in names):
+                        raise ValueError("APK must preserve generated v1.9 sources/previews: " + folder)
         sources = [n for n in names if n.startswith("assets/project_archive/source_sheets/v17/") and n.endswith(".png")]
         previews = [n for n in names if n.startswith("assets/project_archive/previews/v17/")]
         if not sources or not previews:
@@ -84,6 +106,7 @@ def verify(apk, report_path, aapt, skip_package=False):
     return {"passed": True, "apk": apk.name, "apkSha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
             "apkBytes": apk.stat().st_size, "verifiedRuntimeFrames": len(records),
             "sourceSheets": len(sources), "previewFiles": len(previews),
+            "verifiedGameArtFiles": report.get("gameArtCount", 0),
             "metadata": package_metadata, "packageMetadataChecked": not skip_package}
 
 

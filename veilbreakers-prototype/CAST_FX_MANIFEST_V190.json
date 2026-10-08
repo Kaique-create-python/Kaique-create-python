@@ -1,0 +1,1370 @@
+{
+  "version": "1.9.0",
+  "versionCode": 23,
+  "package": "com.veilbreakers.prototype",
+  "runtimeFrameCount": 36,
+  "generationTool": "built-in image_gen.imagegen",
+  "sources": [
+    {
+      "file": "project_archive/source_sheets/v19/kael_cast_generated.png",
+      "sha256": "c2ab7fbe5450447f2a752cb7b0458ec119230512f6389b215426bcdca49a3374"
+    },
+    {
+      "file": "project_archive/source_sheets/v19/arcana_fx_generated.png",
+      "sha256": "2ce0f63403dc4f86978a6bc3732728306852e73478486963b0b85281a7daf263"
+    }
+  ],
+  "animations": [
+    {
+      "name": "kael_arcana_cast",
+      "direction": "down",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/down_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            167.39,
+            174.28
+          ],
+          "orbSocketPx": [
+            167.39,
+            182.28
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/down_0.png",
+          "sourceSha256": "61c71fe31076134cf3c4c5e35339fcf6cb8ba57e9d49fee839988cf4994dbcb3",
+          "sha256": "61c71fe31076134cf3c4c5e35339fcf6cb8ba57e9d49fee839988cf4994dbcb3",
+          "visibleBounds": [
+            58,
+            58,
+            204,
+            234
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/down_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            83.23,
+            129.2
+          ],
+          "orbSocketPx": [
+            83.23,
+            137.2
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            34,
+            54,
+            288,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            79,
+            157
+          ],
+          "pelvisSourceX": 145,
+          "sha256": "099337175b229ea3d3c27c070e3b3714b73e7cb9de49f722ef640fecedf37dfe",
+          "visibleBounds": [
+            53,
+            60,
+            224,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/down_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            85.75,
+            81.54
+          ],
+          "orbSocketPx": [
+            85.75,
+            89.54
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            323,
+            45,
+            613,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            403,
+            86
+          ],
+          "pelvisSourceX": 466,
+          "sha256": "a504cee1812e0579e9771ddafe238a14c3ff7d8f1ecb1c2f7a698c9352522e1c",
+          "visibleBounds": [
+            32,
+            54,
+            227,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/down_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            81.78,
+            121.84
+          ],
+          "orbSocketPx": [
+            81.78,
+            129.84
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            633,
+            48,
+            905,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            719,
+            146
+          ],
+          "pelvisSourceX": 788,
+          "sha256": "3e02fe13b986bff2bffc464ab1114456a3a5ce396fd21035db13e2b4a193f1b6",
+          "visibleBounds": [
+            24,
+            56,
+            207,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/down_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            74.84,
+            162.44
+          ],
+          "orbSocketPx": [
+            74.84,
+            170.44
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            952,
+            56,
+            1240,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            1050,
+            207
+          ],
+          "pelvisSourceX": 1129,
+          "sha256": "2f3da608fdb717d9120f9a737a980b0fe4c72da26d5ddcdb5e142b6ea947ce8a",
+          "visibleBounds": [
+            9,
+            61,
+            202,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/down_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            167.39,
+            174.28
+          ],
+          "orbSocketPx": [
+            167.39,
+            182.28
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/down_4.png",
+          "sourceSha256": "9462efe3f939c67d38b04a05cb7b527c6783e4e737c6c6aa1000c2aee316ef14",
+          "sha256": "9462efe3f939c67d38b04a05cb7b527c6783e4e737c6c6aa1000c2aee316ef14",
+          "visibleBounds": [
+            57,
+            58,
+            204,
+            234
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "up",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/up_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            166.22,
+            153.22
+          ],
+          "orbSocketPx": [
+            166.22,
+            145.22
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/up_0.png",
+          "sourceSha256": "36fd3b7c87422044cf9ec643acdce5f0adfdcc71f846ac9a31bf46d2a472f597",
+          "sha256": "36fd3b7c87422044cf9ec643acdce5f0adfdcc71f846ac9a31bf46d2a472f597",
+          "visibleBounds": [
+            52,
+            58,
+            213,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/up_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            185.74,
+            116.0
+          ],
+          "orbSocketPx": [
+            185.74,
+            108.0
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            40,
+            368,
+            312,
+            614
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            232,
+            442
+          ],
+          "pelvisSourceX": 146,
+          "sha256": "5c12d1aa0bfc239ea83d0893d7e21c8c1fdd11c8be7629f3bc34e071e8519233",
+          "visibleBounds": [
+            56,
+            66,
+            240,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/up_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            149.25,
+            53.14
+          ],
+          "orbSocketPx": [
+            149.25,
+            45.14
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            339,
+            337,
+            637,
+            617
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            514,
+            352
+          ],
+          "pelvisSourceX": 483,
+          "sha256": "619fe5fd72f63c6325e6b99a480fc780c9a0f7b96786e849aad9095435306127",
+          "visibleBounds": [
+            31,
+            43,
+            232,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/up_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            170.12,
+            53.16
+          ],
+          "orbSocketPx": [
+            170.12,
+            45.16
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            659,
+            336,
+            931,
+            618
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            856,
+            354
+          ],
+          "pelvisSourceX": 794,
+          "sha256": "f20cf8f81439ca900ad825494d65b1a9a57df3d65b6f3235f33a6dc2ede17230",
+          "visibleBounds": [
+            37,
+            41,
+            221,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/up_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            183.55,
+            85.35
+          ],
+          "orbSocketPx": [
+            183.55,
+            77.35
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            955,
+            361,
+            1239,
+            617
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            1200,
+            400
+          ],
+          "pelvisSourceX": 1118,
+          "sha256": "a8d223b5a5dbd6e65e0e2d350e9e79de1d7cd0bc6286106823d0bd5bbf871cbf",
+          "visibleBounds": [
+            18,
+            59,
+            210,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/up_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            166.22,
+            153.22
+          ],
+          "orbSocketPx": [
+            166.22,
+            145.22
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/up_4.png",
+          "sourceSha256": "b9c2a86bba1a604de7b79280d599f0fc3a772877b819d0f21b4413c33ab7ee73",
+          "sha256": "b9c2a86bba1a604de7b79280d599f0fc3a772877b819d0f21b4413c33ab7ee73",
+          "visibleBounds": [
+            50,
+            58,
+            211,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "left",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/left_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            110.06,
+            175.06
+          ],
+          "orbSocketPx": [
+            102.06,
+            175.06
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/left_0.png",
+          "sourceSha256": "cd9dcb98eb55564faa1713d8ad0ff7ff2a9da7eec8ab1aaa63b240efad695f4e",
+          "sha256": "cd9dcb98eb55564faa1713d8ad0ff7ff2a9da7eec8ab1aaa63b240efad695f4e",
+          "visibleBounds": [
+            87,
+            62,
+            221,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/left_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            171.92,
+            126.46
+          ],
+          "orbSocketPx": [
+            163.92,
+            126.46
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            32,
+            971,
+            316,
+            1218
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            218,
+            1064
+          ],
+          "pelvisSourceX": 153,
+          "sha256": "87803897f89a6ef112752b9785035ed80a88a10c979ab8fb41f343b0be0f34de",
+          "visibleBounds": [
+            45,
+            63,
+            239,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/left_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            167.68,
+            67.52
+          ],
+          "orbSocketPx": [
+            159.68,
+            67.52
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            354,
+            946,
+            612,
+            1220
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            525,
+            979
+          ],
+          "pelvisSourceX": 467,
+          "sha256": "0a1c6e34a3a7e85ba72122fd18125600cb99a8d37782374922c46dd7947d8a8d",
+          "visibleBounds": [
+            51,
+            45,
+            227,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/left_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            45.06,
+            100.08
+          ],
+          "orbSocketPx": [
+            37.06,
+            100.08
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            636,
+            957,
+            944,
+            1219
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            661,
+            1026
+          ],
+          "pelvisSourceX": 782,
+          "sha256": "bd59801f4ffd291cb9163ff019a4cbb593d1e14370b5974512d2512c7295d9aa",
+          "visibleBounds": [
+            28,
+            53,
+            238,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/left_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            29.38,
+            137.38
+          ],
+          "orbSocketPx": [
+            21.38,
+            137.38
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            962,
+            967,
+            1242,
+            1215
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            986,
+            1076
+          ],
+          "pelvisSourceX": 1130,
+          "sha256": "28d9a44fce463271fe28747445bc0a2cccdc4a6a6106c4b97073cba0021707ad",
+          "visibleBounds": [
+            13,
+            63,
+            204,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/left_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            110.06,
+            175.06
+          ],
+          "orbSocketPx": [
+            102.06,
+            175.06
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/left_4.png",
+          "sourceSha256": "69e6aa989339ba08d20bfaefee550c25ad82c3ebe0fa932b37713e90f453908f",
+          "sha256": "69e6aa989339ba08d20bfaefee550c25ad82c3ebe0fa932b37713e90f453908f",
+          "visibleBounds": [
+            87,
+            62,
+            220,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "right",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/right_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            159.98,
+            173.5
+          ],
+          "orbSocketPx": [
+            167.98,
+            173.5
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/right_0.png",
+          "sourceSha256": "1eef6fa57ecb05f39e952258a03f12a1d4560fad8479c199ee2bc394aaf6e970",
+          "sha256": "1eef6fa57ecb05f39e952258a03f12a1d4560fad8479c199ee2bc394aaf6e970",
+          "visibleBounds": [
+            44,
+            64,
+            171,
+            234
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/right_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            91.31,
+            130.48
+          ],
+          "orbSocketPx": [
+            99.31,
+            130.48
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            14,
+            666,
+            287,
+            922
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            84,
+            768
+          ],
+          "pelvisSourceX": 140,
+          "sha256": "4727d0f6296fbef8bfe3a95d4cc178eb29e2e68e7661bb2e5962a2a003ec6ad1",
+          "visibleBounds": [
+            45,
+            63,
+            226,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/right_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            86.14,
+            66.2
+          ],
+          "orbSocketPx": [
+            94.14,
+            66.2
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            309,
+            643,
+            597,
+            920
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            412,
+            669
+          ],
+          "pelvisSourceX": 476,
+          "sha256": "06477680e7564b2239494ac01bdd7b575e85ebabe3f82692e87f44d1d6fb9925",
+          "visibleBounds": [
+            18,
+            49,
+            209,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/right_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            204.52,
+            110.57
+          ],
+          "orbSocketPx": [
+            212.52,
+            110.57
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            616,
+            652,
+            935,
+            919
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            907,
+            736
+          ],
+          "pelvisSourceX": 791,
+          "sha256": "488df9b4d99de1a4bffa9d6dfeb93b55f8451caad1c1743bd543f984f1fd83fb",
+          "visibleBounds": [
+            12,
+            55,
+            223,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/right_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            210.91,
+            127.16
+          ],
+          "orbSocketPx": [
+            218.91,
+            127.16
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            945,
+            663,
+            1249,
+            922
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            1226,
+            763
+          ],
+          "pelvisSourceX": 1100,
+          "sha256": "0a781e50bafe9fec9747b429c8cfe2af7be53f4dd2d502a9e1b5401b83f4056f",
+          "visibleBounds": [
+            25,
+            61,
+            226,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/right_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            159.98,
+            173.5
+          ],
+          "orbSocketPx": [
+            167.98,
+            173.5
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/right_4.png",
+          "sourceSha256": "e3b17daa3e802fe3c45aa9b2677946bb01063085fb03f7d0f818f424151d1172",
+          "sha256": "e3b17daa3e802fe3c45aa9b2677946bb01063085fb03f7d0f818f424151d1172",
+          "visibleBounds": [
+            36,
+            62,
+            167,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "arcana_orb",
+      "direction": "radial / authored travel right; runtime rotates by facing",
+      "frameCount": 12,
+      "fps": 24,
+      "recommendedFPS": 24,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 128,
+      "baseline": null,
+      "neutralBodyHeight": null,
+      "scale": "screenHeight*0.18/256 travel; charge0.16; impact0.27",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameDurationsSeconds": [
+        0.05,
+        0.07,
+        0.12,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.045,
+        0.07,
+        0.1,
+        0.12
+      ],
+      "phaseNames": [
+        "birth",
+        "gather",
+        "charged",
+        "release_shock",
+        "flight_a",
+        "flight_b",
+        "flight_c",
+        "flight_d",
+        "impact_flash",
+        "impact_burst",
+        "impact_ring",
+        "dissipation"
+      ],
+      "impactDurationSeconds": 0.335,
+      "frames": [
+        {
+          "index": 0,
+          "file": "fx_v19/arcana_0.png",
+          "phase": "birth",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            101,
+            135,
+            278,
+            326
+          ],
+          "sourceCorePx": [
+            193,
+            233
+          ],
+          "sharedScale": 0.49,
+          "sha256": "270ba48d2686291d526eb81d5b3816762dd034e4867563f60a98b53463d67cba",
+          "visibleBounds": [
+            83,
+            80,
+            170,
+            174
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 1,
+          "file": "fx_v19/arcana_1.png",
+          "phase": "gather",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            435,
+            98,
+            675,
+            339
+          ],
+          "sourceCorePx": [
+            557,
+            232
+          ],
+          "sharedScale": 0.49,
+          "sha256": "cd292e72b606c3474815c2e9d63f146d63e758ace63d7958d6a6b48fb6454555",
+          "visibleBounds": [
+            68,
+            62,
+            186,
+            180
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 2,
+          "file": "fx_v19/arcana_2.png",
+          "phase": "charged",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            778,
+            89,
+            1043,
+            346
+          ],
+          "sourceCorePx": [
+            904,
+            229
+          ],
+          "sharedScale": 0.49,
+          "sha256": "823994a82522553a0a3f052a07739528b3247858c2b8bb68fd003f62cf5f86e6",
+          "visibleBounds": [
+            66,
+            59,
+            196,
+            185
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 3,
+          "file": "fx_v19/arcana_3.png",
+          "phase": "release_shock",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            1128,
+            78,
+            1409,
+            362
+          ],
+          "sourceCorePx": [
+            1269,
+            225
+          ],
+          "sharedScale": 0.49,
+          "sha256": "c0438a4840611ca753d21355144ef7768e94821817be6456b42bbe0d811b40dc",
+          "visibleBounds": [
+            59,
+            56,
+            197,
+            195
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 4,
+          "file": "fx_v19/arcana_4.png",
+          "phase": "flight_a",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            49,
+            465,
+            357,
+            659
+          ],
+          "sourceCorePx": [
+            275,
+            558
+          ],
+          "sharedScale": 0.49,
+          "sha256": "6114e7649841bbab314b0838757d67430f639774bede33008fbeb685d4e0bcf8",
+          "visibleBounds": [
+            17,
+            82,
+            168,
+            177
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 5,
+          "file": "fx_v19/arcana_5.png",
+          "phase": "flight_b",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            412,
+            459,
+            707,
+            662
+          ],
+          "sourceCorePx": [
+            617,
+            562
+          ],
+          "sharedScale": 0.49,
+          "sha256": "ffd0f3cde47e23a67458943a2242497da9d6a7360efca5320fcc61a25dc6d287",
+          "visibleBounds": [
+            28,
+            78,
+            173,
+            177
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 6,
+          "file": "fx_v19/arcana_6.png",
+          "phase": "flight_c",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            761,
+            459,
+            1062,
+            666
+          ],
+          "sourceCorePx": [
+            974,
+            557
+          ],
+          "sharedScale": 0.49,
+          "sha256": "956a088b2a01b347eb8d6b6fc6fe85b6e304260e22327250f99405bdceb668d3",
+          "visibleBounds": [
+            24,
+            80,
+            171,
+            181
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 7,
+          "file": "fx_v19/arcana_7.png",
+          "phase": "flight_d",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            1109,
+            452,
+            1420,
+            663
+          ],
+          "sourceCorePx": [
+            1333,
+            554
+          ],
+          "sharedScale": 0.49,
+          "sha256": "71ac4d29c1322c78b661f646122f74139e1cf849613d08d7ce7ff2147f41270f",
+          "visibleBounds": [
+            18,
+            78,
+            170,
+            181
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 8,
+          "file": "fx_v19/arcana_8.png",
+          "phase": "impact_flash",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            50,
+            738,
+            332,
+            1018
+          ],
+          "sourceCorePx": [
+            191,
+            882
+          ],
+          "sharedScale": 0.49,
+          "sha256": "3ef521a8100061789b8e5a59d36b70b15e2b2f18fd5fc8d5ff7f9e3ec20801ba",
+          "visibleBounds": [
+            59,
+            57,
+            197,
+            194
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 9,
+          "file": "fx_v19/arcana_9.png",
+          "phase": "impact_burst",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            409,
+            736,
+            719,
+            1031
+          ],
+          "sourceCorePx": [
+            560,
+            880
+          ],
+          "sharedScale": 0.49,
+          "sha256": "07251986172694e45e67bc78b91593bbd15854893596c96fcd2284a825e09b32",
+          "visibleBounds": [
+            54,
+            57,
+            206,
+            202
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 10,
+          "file": "fx_v19/arcana_10.png",
+          "phase": "impact_ring",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            761,
+            756,
+            1052,
+            1025
+          ],
+          "sourceCorePx": [
+            905,
+            887
+          ],
+          "sharedScale": 0.49,
+          "sha256": "81cc58b5004942e16562cf3479eb0003029f8dd7e8dc03d241a6dc2565d31aa4",
+          "visibleBounds": [
+            57,
+            64,
+            200,
+            196
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 11,
+          "file": "fx_v19/arcana_11.png",
+          "phase": "dissipation",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            1122,
+            762,
+            1393,
+            1005
+          ],
+          "sourceCorePx": [
+            1259,
+            880
+          ],
+          "sharedScale": 0.49,
+          "sha256": "30a715ae26b6dfb7b4a9d908fe3f72bc6bfb563fdd56723f0a3a9aa3208cebd4",
+          "visibleBounds": [
+            61,
+            70,
+            194,
+            189
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        }
+      ]
+    }
+  ]
+}

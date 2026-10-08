@@ -1,0 +1,16 @@
+"""Shared v1.9 world/UI asset contract, independent of Android rendering."""
+GAME_ART_MANIFEST = "project_archive/GAME_ART_MANIFEST_V190.json"
+
+
+def game_art_files():
+    files = [f"art_v19/scenes/zone_{index}.png" for index in range(6)]
+    files += [f"art_v19/npc/{name}_{index}.png" for name in ("mara", "ivo") for index in range(3)]
+    for folder, names in (
+        ("portraits", ("kael", "mara", "ivo")),
+        ("ui", ("status_panel", "dialogue_frame", "item_slot", "button")),
+        ("items", ("sword_varyn", "bandage", "mana_draught", "ivo_note")),
+        ("props", ("chest_closed", "chest_open", "sword_ground", "trace", "altar")),
+    ):
+        files += [f"art_v19/{folder}/{name}.png" for name in names]
+    assert len(files) == 28
+    return tuple(files)

@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.8.0
+Versão atual: v1.9.0
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -459,3 +459,57 @@ LIMITES DESTE MARCO
 - APK é debug como as versões anteriores; assinatura Android precisa ser compatível
   para atualizar uma instalação antiga sem perda de save. Não desinstalar para contornar.
 - Só declarar teste Android aprovado após consultar run e capturas v18 reais.
+
+
+==============================
+ATUALIZAÇÃO v1.9.0 — ARTE DE VARYN / INVENTÁRIO / ARCANA
+==============================
+Base de continuidade: v1.8.0, commit a6bd2fd, branch veilbreakers-apk-build.
+Package com.veilbreakers.prototype; versionCode 23; versionName 1.9.0.
+
+NOVO VISUAL REAL NO JOGO
+- Seis imagens de cenário geradas para Distrito, Praça, Casas, Aqueduto, Portão e Santuário.
+- Casas/fonte/canais têm colisões por pés ajustadas às posições da arte, com corredor livre.
+- Mara e Ivo possuem três sprites cada, com pivô (128,232) e corpo 174 px.
+- Três retratos meio-corpo em pixel art anime aparecem ACIMA da caixa de diálogo,
+  conforme Kael/Mara/Ivo fala. Narrador não recebe um personagem aleatório.
+- Molduras de status/diálogo/botão/slot são imagens geradas, com nove recortes nos
+  cantos para telas largas. Textos, números e áreas de toque permanecem legíveis.
+- Espada, ataduras, tônico e relato possuem ícones; baú fechado/aberto, espada caída,
+  vestígio de cinzas e altar possuem sprites próprios.
+- GameArt carrega apenas o cenário atual para limitar memória. Os PNGs são obrigatórios:
+  o workflow valida hashes de 28 assets, impedindo aprovar uma build sem a arte nova.
+
+INVENTÁRIO FUNCIONAL
+- Botão MOCHILA nos controles e aba INVENTÁRIO no status.
+- Espada de Varyn é equipada ao recuperar; +4 ATK por equipamento sem acumular bonus.
+- Desequipar remove o bonus e bloqueia ataques de espada até equipar novamente.
+- Baú guarda 3 ataduras (+45 HP) e 2 tônicos (+25 Mana), em lugar da cura imediata.
+- Conversa de Ivo concede seu relato como item de missão.
+- Quantidades, descobertas e equipamento salvam junto de stats/story. Consumíveis
+  não gastam unidades com recurso cheio; recompensas repetidas não renovam provisões.
+- Migração de save v18 usa flags da história para conceder os itens descobertos uma vez.
+
+MAGIA REVISADA
+- Cast tem 24 frames (6 por direção), pivô constante, joelhos/torso/gesto autorados.
+- Luva vazia evita esfera embutida duplicada; uma esfera runtime usa socket próprio.
+- Release .34 s, fim da recuperação .72 s; 12 frames FX de formação/carga/lançamento,
+  voo/cauda e impacto. Cauda e projétil giram para a direção efetiva do disparo.
+- Dano/knockback/critical/Mana/cooldown/pausa seguem as regras existentes.
+- Arte de corrida v18 e combos já funcionais foram auditados e preservados; há pequenas
+  variações de desenho entre poses. Não declarar anatomia perfeita com base em hashes.
+
+FONTES / BUILD / VERIFICAÇÃO
+- Fontes selecionadas e prompts de image_gen builtin em project_archive/source_sheets/v19;
+  recortes/importação em tools/import_v19_art.py e fontes de cast/FX preservadas.
+- Runtime: 188 frames de combate + 28 assets de arte/interface.
+- Manifestos SPRITES_MANIFEST_V190 e GAME_ART_MANIFEST_V190 verificam PNGs consumidos.
+- Overlay v19_assets aplicado depois de v17/v18; contexto/metadados atualizados por último.
+- JDK21/AAPT2 ARM e SDK35 foram preparados no Termux. Compilação Java funciona,
+  mas o AAPT2 ARM do Termux não lê a tabela ARSC do SDK35 (illegal map type string22).
+  A build APK permanece no GitHub; SDK/target não foram reduzidos para mascarar o erro.
+- Revisão Android usa renderizadores reais, cenas de inventário/retratos/cast e controles
+  reais no emulador. Consulte run e qa/v19 antes de afirmar aprovação visual.
+- A ponte física informou timeout ao listar apps e não abriu o jogo na tentativa inicial.
+  Nenhum APK foi instalado nem aplicativo desinstalado nesta etapa.
+- Entrega prevista: VEILBREAKERS_v1.9.0_Codex.apk + este contexto + projeto/arte/QA.

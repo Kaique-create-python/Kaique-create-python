@@ -42,7 +42,7 @@ public class GameView extends View {
     private final Bitmap[][] comboDown = new Bitmap[3][];
     private final Bitmap[][] comboUp = new Bitmap[3][];
     private final Bitmap[][] magicCastFrames = new Bitmap[4][];
-    private Bitmap[] magicOrbFrames;
+    private final ArcanaVisuals arcana;
     private final Bitmap[][] enemyIdleFrames = new Bitmap[4][];
     private final Bitmap[][] enemyChaseFrames = new Bitmap[4][];
     private final Bitmap[][] enemyAttackFrames = new Bitmap[4][];
@@ -145,30 +145,21 @@ public class GameView extends View {
     private static final float[] COMBO_DURATIONS = {0.38f, 0.44f, 0.54f};
     private static final float COMBO_IMPACT_START = 0.30f;
     private static final float COMBO_RECOVERY_START = 0.58f;
-    private static final float[] CAST_PHASE_STARTS = {0f, 0.09f, 0.18f, 0.28f, 0.38f};
-    private static final float CAST_DURATION = 0.50f;
-    // Authored glove/energy sockets in each 256px cast cell: DOWN, UP, LEFT, RIGHT.
-    private static final float[][][] CAST_HAND_SOCKETS = {
-            {{167.39f, 174.28f}, {172.46f, 128.26f}, {148.28f, 138.40f},
-                    {159.98f, 178.18f}, {167.00f, 174.28f}},
-            {{166.22f, 153.22f}, {172.07f, 109.54f}, {173.24f, 69.76f},
-                    {159.59f, 76.78f}, {172.46f, 153.22f}},
-            {{110.06f, 175.06f}, {97.58f, 120.46f}, {71.45f, 117.34f},
-                    {80.03f, 125.14f}, {106.16f, 175.06f}},
-            {{159.98f, 173.50f}, {164.27f, 133.72f}, {184.16f, 123.58f},
-                    {187.28f, 132.16f}, {159.98f, 172.72f}}
-    };
+    private static final float[] CAST_PHASE_STARTS = ArcanaVisuals.CAST_STARTS;
+    private static final float CAST_DURATION = ArcanaVisuals.CAST_DURATION;
     private static final float ENEMY_ATTACK_DURATION = 0.44f;
     private static final float ENEMY_ATTACK_HIT_TIME = 0.22f;
     private static final float ENEMY_HURT_DURATION = 0.28f;
     private static final float ENEMY_DEATH_DURATION = 0.70f;
-    private static final float ORB_IMPACT_DURATION = 0.24f;
+    private static final float ORB_IMPACT_DURATION = ArcanaVisuals.IMPACT_DURATION;
     private final SharedPreferences prefs;
     private final boolean loadExisting;
     private final PlayerStats stats = new PlayerStats();
     private final StoryState story = new StoryState();
+    private final InventoryState inventory = new InventoryState();
     private final VarynMap world = new VarynMap();
     private final GameUi gameUi = new GameUi();
+    private final GameArt gameArt;
     private final LocomotionCycle locomotion = new LocomotionCycle();
     private boolean gameplayReviewMode = false;
     private boolean gameplaySelfTestPending = false;
@@ -180,6 +171,7 @@ public class GameView extends View {
     private String dialogueAction = "";
     private String nearbyInteraction = "";
     private final RectF interactHit = new RectF();
+    private final RectF bagHit = new RectF();
     private float worldClock = 0f;
     private float zoneFade = 0f;
     private float visionTimer = 0f;
@@ -207,6 +199,9 @@ public class GameView extends View {
         super(context);
         this.loadExisting = loadExisting;
         this.prefs = context.getSharedPreferences("veilbreakers_save", Context.MODE_PRIVATE);
+        this.gameArt = new GameArt(context);
+        world.setArt(gameArt);
+        gameUi.setArt(gameArt);
         setFocusable(true);
         setKeepScreenOn(true);
 
@@ -217,11 +212,13 @@ public class GameView extends View {
         uiPaint.setTypeface(UI_FONT);
         shadowPaint.setColor(Color.argb(105, 0, 0, 0));
 
+        arcana = new ArcanaVisuals(context);
         loadFrames(context);
         loadUiAssets(context);
         if (loadExisting && prefs.getBoolean("has_save", false)) stats.load(prefs);
         else stats.resetDefaults();
         if (loadExisting && prefs.getBoolean("has_save", false)) story.load(prefs);
+        if (loadExisting && prefs.getBoolean("has_save", false)) inventory.load(prefs, story, stats);
         if (stats.hp <= 0) { playerDown = true; playerDownTimer = 0f; }
         introPending = !story.introSeen;
         pendingPoints = stats.attributePoints;
@@ -269,7 +266,7 @@ public class GameView extends View {
             idle[dir] = loadCharacterSequence(c, "kael_v17/idle/" + direction + "_", 4);
             walk[dir] = loadCharacterSequence(c, "kael_v17/walk/" + direction + "_", 6);
             run[dir] = loadCharacterSequence(c, "kael_v18/run/" + direction + "_", 6);
-            magicCastFrames[dir] = loadCharacterSequence(c, "kael_v17/cast/" + direction + "_", 5);
+            magicCastFrames[dir] = loadCharacterSequence(c, "kael_v19/cast/" + direction + "_", 6);
             enemyIdleFrames[dir] = loadCharacterSequence(c, "enemy_v17/idle/" + direction + "_", 3);
             enemyChaseFrames[dir] = loadCharacterSequence(c, "enemy_v17/chase/" + direction + "_", 4);
             enemyAttackFrames[dir] = loadCharacterSequence(c, "enemy_v17/attack/" + direction + "_", 4);
@@ -283,14 +280,8 @@ public class GameView extends View {
         }
         enemyHurtFrames = loadCharacterSequence(c, "enemy_v17/hurt_", 3);
         enemyDeathFrames = loadCharacterSequence(c, "enemy_v17/death_", 5);
-        magicOrbFrames = loadSequence(c, "fx_v17/orb_", 8);
-        for (Bitmap frame : magicOrbFrames) {
-            if (frame.getWidth() != 160 || frame.getHeight() != 160) {
-                throw new IllegalStateException("Invalid 160x160 Arcana orb cell");
-            }
-        }
-        Log.i("VEILBREAKERS_ASSETS", "v1.8 loaded: kael_v17=96 kael_v18_run=24 enemy_v17=52 fx_v17=8; "
-                + "character cells=256x256/512x256 pivot=width/2,232; orb cells=160 pivot=80,80");
+        Log.i("VEILBREAKERS_ASSETS", "v1.9 loaded: kael_v17=76 kael_v18_run=24 kael_v19_cast=24 enemy_v17=52 fx_v19=12; "
+                + "character cells=256x256/512x256 pivot=width/2,232; orb cells=256 pivot=128,128");
     }
 
     private void loadUiAssets(Context c) {
@@ -430,18 +421,12 @@ public class GameView extends View {
         }
         if ("cast".equals(artReviewState)) {
             float phaseTime = elapsed % CAST_DURATION;
-            for (int phase = 4; phase >= 0; phase--) {
+            for (int phase = CAST_PHASE_STARTS.length - 1; phase >= 0; phase--) {
                 if (phaseTime >= CAST_PHASE_STARTS[phase]) return phase;
             }
         }
         if ("orb".equals(artReviewState)) {
-            float[] durations = {0.05f, 0.04f, 0.10f, 0.08f, 0.10f, 0.10f, 0.11f, 0.13f};
-            float time = elapsed % 0.71f;
-            for (int phase = 0; phase < durations.length; phase++) {
-                if (time < durations[phase]) return phase;
-                time -= durations[phase];
-            }
-            return 7;
+            return ArcanaVisuals.reviewFrame(elapsed);
         }
         float fps = "walk".equals(artReviewState) ? 9f : ("run".equals(artReviewState) ? 12f : 5f);
         int count = "walk".equals(artReviewState) || "run".equals(artReviewState) ? 6 : 4;
@@ -480,11 +465,20 @@ public class GameView extends View {
             attackClock = COMBO_DURATIONS[comboStage] * poseCenters[frame % 3];
             attacking = true;
         } else if ("cast".equals(artReviewState)) {
-            int pose = frame % 5;
-            float end = pose == 4 ? CAST_DURATION : CAST_PHASE_STARTS[pose + 1];
+            int pose = frame % CAST_PHASE_STARTS.length;
+            float end = pose == CAST_PHASE_STARTS.length - 1 ? CAST_DURATION : CAST_PHASE_STARTS[pose + 1];
             magicCastClock = (CAST_PHASE_STARTS[pose] + end) * 0.5f;
             magicCasting = true;
             magicReleased = pose >= 3;
+            if (pose == 3) {
+                // Snapshot the actual outgoing projectile while the release
+                // pose is visible, rather than reviewing only its bare glove.
+                magicCastClock = CAST_PHASE_STARTS[3] + .025f;
+                launchMagicProjectile();
+                magicAge = .025f;
+                magicX += magicVx * magicAge;
+                magicY += magicVy * magicAge;
+            }
         } else if ("enemy_idle".equals(artReviewState)) {
             enemyAnimClock = (frame % 3 + 0.01f) / 4f;
         } else if ("enemy_chase".equals(artReviewState)) {
@@ -504,8 +498,8 @@ public class GameView extends View {
         drawPlayer(c);
         drawEnemy(c);
         if ("orb".equals(artReviewState)) {
-            drawOrb(c, frame % 8, getWidth() * 0.5f, py - getHeight() * 0.10f,
-                    getHeight() * 0.105f, 255);
+            drawOrb(c, frame % ArcanaVisuals.FRAME_COUNT, getWidth() * 0.5f, py - getHeight() * 0.10f,
+                    getHeight() * 0.22f, 255);
         } else {
             drawMagic(c);
         }
@@ -658,6 +652,10 @@ public class GameView extends View {
     private void startAttack() {
         if (statusOpen || dialogueLines != null || playerDown || magicCasting) return;
         if (!story.swordFound) { beginDialogue("need_sword"); return; }
+        if (!inventory.swordEquipped) {
+            showCombatText("EQUIPE A ESPADA NA MOCHILA", px, py - getHeight() * .15f, false);
+            return;
+        }
 
         // Tapping during a swing buffers the next hit instead of restarting the same slap.
         if (attacking) {
@@ -690,10 +688,7 @@ public class GameView extends View {
     }
 
     private int currentCastFrame() {
-        for (int phase = CAST_PHASE_STARTS.length - 1; phase >= 0; phase--) {
-            if (magicCastClock >= CAST_PHASE_STARTS[phase]) return phase;
-        }
-        return 0;
+        return ArcanaVisuals.castFrame(magicCastClock);
     }
 
     private void drawArena(Canvas c) {
@@ -929,12 +924,12 @@ public class GameView extends View {
 
     private float castSocketWorldX(int phase) {
         float scale = getHeight() * 0.205f / PLAYER_BODY_PIXELS;
-        return px + (CAST_HAND_SOCKETS[magicFacing][phase][0] - CHARACTER_PIVOT_X) * scale;
+        return px + (arcana.socketX(magicFacing, phase) - CHARACTER_PIVOT_X) * scale;
     }
 
     private float castSocketWorldY(int phase) {
         float scale = getHeight() * 0.205f / PLAYER_BODY_PIXELS;
-        return py + (CAST_HAND_SOCKETS[magicFacing][phase][1] - CHARACTER_PIVOT_Y) * scale;
+        return py + (arcana.socketY(magicFacing, phase) - CHARACTER_PIVOT_Y) * scale;
     }
 
     private void updateMagic(float dt) {
@@ -1003,34 +998,26 @@ public class GameView extends View {
     }
 
     private void drawOrb(Canvas c, int index, float x, float y, float canvasHeight, int alpha) {
-        Bitmap orb = magicOrbFrames[index];
-        float scale = canvasHeight / 160f;
-        RectF dst = new RectF(x - 80f * scale, y - 80f * scale,
-                x + 80f * scale, y + 80f * scale);
-        imagePaint.setAlpha(alpha);
-        c.drawBitmap(orb, null, dst, imagePaint);
-        imagePaint.setAlpha(255);
+        arcana.drawFrame(c, index, x, y, canvasHeight, alpha, magicFacing);
     }
 
     private void drawMagic(Canvas c) {
-        // Birth, formation and concentration happen beside the casting hand before release.
-        if (magicCasting && !magicReleased && magicCastClock >= CAST_PHASE_STARTS[1]) {
-            int orbIndex = magicCastClock < 0.14f ? 0
-                    : (magicCastClock < CAST_PHASE_STARTS[2] ? 1 : 2);
+        // Empty authored gloves avoid a second sphere painted into the body.
+        if (magicCasting && !magicReleased) {
             int phase = currentCastFrame();
-            float x = castSocketWorldX(phase);
-            float y = castSocketWorldY(phase);
-            drawOrb(c, orbIndex, x, y, getHeight() * 0.090f, 255);
+            arcana.drawCharge(c, magicCastClock, castSocketWorldX(phase), castSocketWorldY(phase),
+                    getHeight(), magicFacing);
+        }
+        if (magicCasting && magicReleased) {
+            arcana.drawRelease(c, magicCastClock, castSocketWorldX(3), castSocketWorldY(3),
+                    getHeight(), magicFacing);
         }
         if (magicActive) {
-            int orbIndex = magicAge < 0.08f ? 3 : (4 + (((int)(magicAge * 10f)) & 1));
-            drawOrb(c, orbIndex, magicX, magicY, getHeight() * 0.105f, 255);
+            arcana.drawFlight(c, magicAge, magicX, magicY, getHeight(), magicFacing);
         }
         if (magicImpactTimer > 0f) {
-            boolean impact = magicImpactIsHit && magicImpactTimer > 0.13f;
-            int alpha = impact ? 255 : Math.round(255f * clamp(magicImpactTimer / 0.13f, 0f, 1f));
-            drawOrb(c, impact ? 6 : 7, magicImpactX, magicImpactY,
-                    getHeight() * 0.140f, alpha);
+            arcana.drawImpact(c, magicImpactTimer, magicImpactIsHit, magicImpactX, magicImpactY,
+                    getHeight(), magicFacing);
         }
     }
 
@@ -1311,7 +1298,7 @@ public class GameView extends View {
     private void drawStatusOverlay(Canvas c) {
         if (statusAnim < .008f) return;
         gameUi.status(c, getWidth(), getHeight(), smooth(statusAnim), stats, pending, pendingPoints,
-                idle[DOWN][1], story, statusTab, closeStatusHit, upgradeHit, plusHits, minusHits);
+                idle[DOWN][1], story, inventory, statusTab, closeStatusHit, upgradeHit, plusHits, minusHits);
     }
 
     private RectF fitBitmapRect(Bitmap bitmap, RectF bounds) {
@@ -1551,20 +1538,32 @@ public class GameView extends View {
         if (statusOpen) {
             if (action == MotionEvent.ACTION_DOWN) {
                 if (gameUi.statusTab.contains(x, y)) { statusTab = 0; return true; }
+                if (gameUi.inventoryTab.contains(x, y)) { statusTab = 2; return true; }
                 if (gameUi.journalTab.contains(x, y)) { statusTab = 1; return true; }
-                if (gameUi.cancelHit.contains(x, y)) { clearPending(); return true; }
                 if (closeStatusHit.contains(x, y)) { closeStatus(true); return true; }
-                for (int i = 0; i < 4; i++) {
-                    if (plusHits[i].contains(x, y)) { addPending(i); return true; }
-                    if (minusHits[i].contains(x, y)) { removePending(i); return true; }
+                if (statusTab == 2) {
+                    for (int i = 0; i < InventoryState.ITEM_COUNT; i++) {
+                        if (gameUi.inventoryItemHits[i].contains(x, y)) { gameUi.selectInventoryItem(i); return true; }
+                    }
+                    if (gameUi.inventoryActionHit.contains(x, y)) {
+                        gameUi.setInventoryFeedback(inventory.activate(gameUi.selectedInventoryItem(), stats));
+                        saveState(); haptic(); return true;
+                    }
+                } else if (statusTab == 0) {
+                    if (gameUi.cancelHit.contains(x, y)) { clearPending(); return true; }
+                    for (int i = 0; i < 4; i++) {
+                        if (plusHits[i].contains(x, y)) { addPending(i); return true; }
+                        if (minusHits[i].contains(x, y)) { removePending(i); return true; }
+                    }
+                    if (upgradeHit.contains(x, y)) { commitPending(); return true; }
                 }
-                if (upgradeHit.contains(x, y)) { commitPending(); return true; }
             }
             return true;
         }
 
         if (statusAnim > .02f || visionTimer > 0f) return true;
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
+            if (bagHit.contains(x, y)) { openStatus(); statusTab = 2; gameUi.setInventoryFeedback(""); return true; }
             if (!nearbyInteraction.isEmpty() && interactHit.contains(x, y)) { interact(nearbyInteraction); return true; }
             if (menuHit.contains(x, y)) { openStatus(); return true; }
             if (joyPointer < 0 && distance(x, y, joyCx(), joyCy()) <= joyR() * 1.40f) {
@@ -1620,6 +1619,7 @@ public class GameView extends View {
                 .putInt("player_facing", facing);
         stats.save(editor);
         story.save(editor);
+        inventory.save(editor);
         editor.apply();
     }
 
@@ -1627,6 +1627,7 @@ public class GameView extends View {
     protected void onDetachedFromWindow() {
         saveState();
         world.release();
+        gameArt.release();
         super.onDetachedFromWindow();
     }
 
@@ -1710,13 +1711,16 @@ public class GameView extends View {
     private void applyDialogueAction(String action) {
         int xp = 0;
         if ("intro".equals(action)) story.introSeen = true;
-        else if (VarynMap.SWORD.equals(action) && !story.swordFound) { story.swordFound = true; xp = 10; }
+        else if (VarynMap.SWORD.equals(action) && !story.swordFound) {
+            story.swordFound = true; inventory.grantSword(stats); xp = 10;
+        }
         else if (VarynMap.CHEST.equals(action) && !story.chestOpened) {
             story.chestOpened = true; stats.money += 40;
-            stats.hp = Math.min(stats.maxHp, stats.hp + 50);
-            stats.mana = Math.min(stats.maxMana, stats.mana + 30); xp = 20;
+            inventory.grantChestSupplies(); xp = 20;
         } else if (VarynMap.MARA.equals(action) && !story.metMara) { story.metMara = true; xp = 15; }
-        else if (VarynMap.IVO.equals(action) && !story.metIvo) { story.metIvo = true; xp = 15; }
+        else if (VarynMap.IVO.equals(action) && !story.metIvo) {
+            story.metIvo = true; inventory.grantIvoNote(); xp = 15;
+        }
         else if (VarynMap.TRACE.equals(action) && !story.traceFound && story.metIvo) { story.traceFound = true; xp = 25; }
         else if ("gate".equals(action) && !story.questComplete && story.bossDefeated) {
             story.questComplete = true; visionTimer = 3.2f; stats.money += 20; xp = 40;
@@ -1770,9 +1774,11 @@ public class GameView extends View {
     }
 
     private void drawInteract(Canvas c) {
+        float w = getWidth(), h = getHeight();
+        bagHit.set(w * .285f, h * .832f, w * .389f, h * .916f);
+        gameUi.button(c, bagHit, "MOCHILA", true, h);
         interactHit.setEmpty();
         if (nearbyInteraction.isEmpty() || playerDown) return;
-        float w = getWidth(), h = getHeight();
         interactHit.set(w * .40f, h * .824f, w * .63f, h * .926f);
         gameUi.button(c, interactHit, world.interactionLabel(nearbyInteraction), true, h);
         drawSmallValue(c, "INTERAGIR", interactHit.centerX(), interactHit.top - h * .012f,
@@ -1784,7 +1790,7 @@ public class GameView extends View {
         float strength = Math.min(clamp(visionTimer / .6f, 0f, 1f), clamp((3.2f - visionTimer) / .4f, 0f, 1f));
         overlayPaint.setColor(Color.argb((int)(155 * strength), 6, 1, 12));
         c.drawRect(0, 0, getWidth(), getHeight(), overlayPaint);
-        float x = getWidth() * .56f, y = getHeight() * .145f, r = getHeight() * .061f;
+        float x = getWidth() * .588f, y = getHeight() * .067f, r = getHeight() * .053f;
         overlayPaint.setColor(Color.argb((int)(205 * strength), 176, 83, 90));
         c.drawOval(new RectF(x - r * 1.45f, y - r * .40f, x + r * 1.45f, y + r * .40f), overlayPaint);
         overlayPaint.setColor(Color.argb((int)(250 * strength), 9, 2, 16));
@@ -1797,18 +1803,33 @@ public class GameView extends View {
     public void setGameplayReview(String scene) {
         if ((getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0)
             throw new IllegalStateException("Gameplay review requires a debug APK");
+        if (scene == null || !scene.matches("map[0-5]?|status|journal|inventory|dialogue(?:_mara|_ivo|_kael)?|cast|selftest"))
+            throw new IllegalArgumentException("Unknown gameplay review scene: " + scene);
         gameplayReviewMode = true;
         gameplaySelfTestPending = "selftest".equals(scene);
         introPending = false;
         story.introSeen = true;
         story.swordFound = true;
-        story.zone = "dialogue".equals(scene) ? 1 : 0;
+        inventory.synchronizeStory(story, stats);
+        story.zone = "dialogue_ivo".equals(scene) ? 2
+                : ("dialogue".equals(scene) || "dialogue_mara".equals(scene)) ? 1 : 0;
         if (scene != null && scene.matches("map[0-5]")) story.zone = scene.charAt(3) - '0';
-        if ("status".equals(scene) || "journal".equals(scene)) {
-            statusOpen = true; statusAnim = 1f; statusTab = "journal".equals(scene) ? 1 : 0;
-        } else if ("dialogue".equals(scene)) {
-            beginDialogue(VarynMap.MARA);
+        if ("status".equals(scene) || "journal".equals(scene) || "inventory".equals(scene)) {
+            statusOpen = true; statusAnim = 1f; statusTab = "journal".equals(scene) ? 1 : "inventory".equals(scene) ? 2 : 0;
+            if ("inventory".equals(scene)) {
+                inventory.grantChestSupplies(); inventory.grantIvoNote();
+            }
+        } else if ("dialogue".equals(scene) || "dialogue_mara".equals(scene)
+                || "dialogue_kael".equals(scene) || "dialogue_ivo".equals(scene)) {
+            beginDialogue("dialogue_ivo".equals(scene) ? VarynMap.IVO
+                    : "dialogue_kael".equals(scene) ? VarynMap.SWORD : VarynMap.MARA);
             dialogueClock = 10f;
+        } else if ("cast".equals(scene)) {
+            magicCasting = true;
+            magicReleased = false;
+            magicFacing = RIGHT;
+            facing = RIGHT;
+            magicCastClock = .24f;
         }
         px = -1f;
         Log.i("VEILBREAKERS_SCENE", "scene=" + scene);
@@ -1860,14 +1881,30 @@ public class GameView extends View {
                 && magicCooldown == .9f && attackClock == .11f, "Dialogue does not freeze combat");
         dialogueLines = null;
 
-        enemyAlive = false; attacking = false; magicActive = false;
-        magicCasting = true; magicReleased = false; magicCastClock = .27f;
-        magicFacing = RIGHT; magicImpactTimer = 0f;
-        updateMagic(.005f);
-        requireTest(!magicReleased && !magicActive, "Arcana releases before its authored pose");
-        updateMagic(.01f);
-        requireTest(magicReleased && magicActive && magicCastClock >= .28f,
-                "Arcana does not release at the authored boundary");
+        enemyAlive = false; attacking = false;
+        for (int direction = DOWN; direction <= RIGHT; direction++) {
+            magicActive = false; magicCasting = true; magicReleased = false;
+            magicCastClock = CAST_PHASE_STARTS[3] - .01f;
+            magicFacing = direction; magicImpactTimer = 0f;
+            float socketX = castSocketWorldX(3), socketY = castSocketWorldY(3);
+            updateMagic(.005f);
+            requireTest(!magicReleased && !magicActive, "Arcana releases before its authored pose");
+            updateMagic(.01f);
+            requireTest(magicReleased && magicActive && currentCastFrame() == 3,
+                    "Arcana does not release at the authored boundary");
+            requireTest(distance(magicX, magicY, socketX + magicVx * .005f,
+                    socketY + magicVy * .005f) < .5f, "Arcana detaches from its release hand socket");
+        }
+        enemyAlive = true; enemyHp = 999;
+        int oldDefense = enemyDefense;
+        enemyDefense = 0; enemyX = magicX; enemyY = magicY + getHeight() * .095f;
+        updateMagic(0f);
+        int hitHp = enemyHp;
+        requireTest(hitHp < 999 && magicHitApplied && !magicActive
+                && magicImpactTimer == ORB_IMPACT_DURATION, "Arcana visual impact is not tied to its hit");
+        updateMagic(.02f);
+        requireTest(enemyHp == hitHp, "Arcana applies the same impact damage twice");
+        enemyDefense = oldDefense;
         comboStage = 0; attackClock = COMBO_DURATIONS[0] * .299f;
         requireTest(currentComboVisualFrame() == 0, "Combo anticipation timing changed");
         attackClock = COMBO_DURATIONS[0] * .301f;

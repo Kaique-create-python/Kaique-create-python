@@ -14,6 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT / "app/src/main/java/com/veilbreakers/prototype"
 
 STUBS = {
+    "com/veilbreakers/prototype/GameArt.java": """package com.veilbreakers.prototype;
+import android.graphics.Canvas; import android.graphics.RectF;
+final class GameArt { void draw(Canvas canvas,String file,RectF target) {} }
+""",
     "android/content/SharedPreferences.java": """package android.content;
 public interface SharedPreferences {
  boolean contains(String key); boolean getBoolean(String key, boolean fallback);
@@ -49,6 +53,7 @@ public class Color { public static final int TRANSPARENT=0;
     "android/graphics/Bitmap.java": """package android.graphics;
 public class Bitmap { public enum Config {ARGB_8888} private boolean recycled;
  public static Bitmap createBitmap(int w,int h,Config config) { return new Bitmap(); }
+ public int getWidth() {return 256;} public int getHeight() {return 256;}
  public boolean isRecycled() {return recycled;} public void recycle() {recycled=true;} }""",
     "android/graphics/Path.java": """package android.graphics;
 public class Path { public void reset() {} public void close() {}
@@ -75,7 +80,8 @@ def main():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
             sources.append(path)
-        sources.extend(JAVA / name for name in ("StoryState.java", "VarynMap.java", "LocomotionCycle.java"))
+        sources.extend(JAVA / name for name in ("StoryState.java", "VarynMap.java", "LocomotionCycle.java",
+                                                "InventoryState.java", "PlayerStats.java"))
         sources.append(ROOT / "tools/GameplayLogicTest.java")
         classes = work / "classes"
         classes.mkdir()

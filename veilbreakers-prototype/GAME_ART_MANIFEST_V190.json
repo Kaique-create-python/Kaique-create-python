@@ -1,0 +1,229 @@
+{
+  "version": "1.9.0",
+  "versionCode": 23,
+  "assetCount": 28,
+  "sourceSheets": "project_archive/source_sheets/v19",
+  "previews": "project_archive/previews/v19",
+  "assets": [
+    {
+      "file": "art_v19/scenes/zone_0.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "sha256": "3e320c0db90227131b6a2aef683ca1da8b1ec34585de93e580a7dd3f787e22b4"
+    },
+    {
+      "file": "art_v19/scenes/zone_1.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "sha256": "d25c94cd0a820736d6cbc88bd2c0aeee0933e85262cbc9a89100398b65e42f89"
+    },
+    {
+      "file": "art_v19/scenes/zone_2.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "sha256": "f7818cb3d630fe295766ab7b2870f2b50c58e966c04345be508ec751e9dde463"
+    },
+    {
+      "file": "art_v19/scenes/zone_3.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "sha256": "eb1fa9a0cb8431d5b00e31c6e90ca1e9de0ad40769899166fd9f1df77aebe7d5"
+    },
+    {
+      "file": "art_v19/scenes/zone_4.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "sha256": "bb8e497433400a8148e353dfec466f62853d634b51c7803408769e3149d45a60"
+    },
+    {
+      "file": "art_v19/scenes/zone_5.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "sha256": "7f93cc9cc8cbfa0be950077474a0717381a6788be785743f66dde1d72b592dcb"
+    },
+    {
+      "file": "art_v19/npc/mara_0.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "b4625ae851961ad97acdc33aff6fef233c3d5c740410a4747ba749c4c0371217",
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "runtimeFPS": 0.5
+    },
+    {
+      "file": "art_v19/npc/mara_1.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "39d5714c3d7970f68e035802af51546215dc99390526344e7a6b03be2b1d444f",
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "runtimeFPS": 0.5
+    },
+    {
+      "file": "art_v19/npc/mara_2.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "e29bdd1e39b3f0a9aa60956df39dd50cb73e084d25ca94196ffda05f444069aa",
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "runtimeFPS": 0.5
+    },
+    {
+      "file": "art_v19/npc/ivo_0.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "d5a37380f53d699488c73eeede576932391a87bb1bdaa507732e9d22cf7d4adf",
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "runtimeFPS": 0.5
+    },
+    {
+      "file": "art_v19/npc/ivo_1.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "177a5e2344e8704c4bd3cc322c761646918d3930caf181529c90e37a64ee0f16",
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "runtimeFPS": 0.5
+    },
+    {
+      "file": "art_v19/npc/ivo_2.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "f5fa0de8e45f93f4c53301f630d4ec2d0ff7451c28ab7385e6d5e6dc099d80d6",
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "runtimeFPS": 0.5
+    },
+    {
+      "file": "art_v19/portraits/kael.png",
+      "width": 718,
+      "height": 721,
+      "mode": "RGBA",
+      "sha256": "5007a85dd9269cbfca50837e3a552a2bf1271546ce576aee2336f545655028da"
+    },
+    {
+      "file": "art_v19/portraits/mara.png",
+      "width": 689,
+      "height": 706,
+      "mode": "RGBA",
+      "sha256": "cf25d720cafb09bb3af6e1c5fe97dee19a85759aa1a95bf58f59fd440a00588e"
+    },
+    {
+      "file": "art_v19/portraits/ivo.png",
+      "width": 715,
+      "height": 721,
+      "mode": "RGBA",
+      "sha256": "a1b46db38c792cf3abcddae322b727697fda061e983a967e42608988ab59484f"
+    },
+    {
+      "file": "art_v19/ui/status_panel.png",
+      "width": 721,
+      "height": 408,
+      "mode": "RGBA",
+      "sha256": "4ce25092db281ee43f51dc17852168ab3b76cbdabbbfa1373e70f00cb7818e56"
+    },
+    {
+      "file": "art_v19/ui/dialogue_frame.png",
+      "width": 745,
+      "height": 280,
+      "mode": "RGBA",
+      "sha256": "9bb0db8b0e0c4119e583042c566766ccae4f3f3a7c5e4c7e9b2b8ce7628524f6"
+    },
+    {
+      "file": "art_v19/ui/item_slot.png",
+      "width": 414,
+      "height": 397,
+      "mode": "RGBA",
+      "sha256": "458a71a86396632dd2663147b182c1270270e9d2618cee499a0960caeb36b82a"
+    },
+    {
+      "file": "art_v19/ui/button.png",
+      "width": 729,
+      "height": 203,
+      "mode": "RGBA",
+      "sha256": "2a049d4cc0f85b59ebeb38407cbb816c9d25b7cb2088b07692f2a66a53d5c486"
+    },
+    {
+      "file": "art_v19/items/sword_varyn.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "20bdfd26ca150dc4690fa277623a22e16bb952b3a4f42ec72b32e67972375bdc"
+    },
+    {
+      "file": "art_v19/items/bandage.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "5939f36e0d282c4c53b48e9790a77676a85efc55d70644c313a43fec92e64f59"
+    },
+    {
+      "file": "art_v19/items/mana_draught.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "5c683dd1a116f8be89f5678ae6e60d0941ae96d603af1d19f0df075c195b6569"
+    },
+    {
+      "file": "art_v19/items/ivo_note.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "fdc52f3a80c8da967f3b0c8413ef2f16705b611e57169516e6c5370b7528b266"
+    },
+    {
+      "file": "art_v19/props/chest_closed.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "90079c9e800f3f6efbe3ed76119840461b9040d47356bfac61cc0659a1d11fdf"
+    },
+    {
+      "file": "art_v19/props/chest_open.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "74a217c41635f352e47db1659f1fd9d758d1a795b64e8bf528c9281dea9c9aa4"
+    },
+    {
+      "file": "art_v19/props/sword_ground.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "0e8601fffc3a864acff3d21d9bf259e6e96e41002ace17820d741a89eba112c2"
+    },
+    {
+      "file": "art_v19/props/trace.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "a0a70f653330c5e692d735df3eb79579eacedc91103de572d1cb0fb7001257b6"
+    },
+    {
+      "file": "art_v19/props/altar.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "sha256": "8a0d1f7c7fd379526c1a5c7a9a9ec9e79f02afcc8939047b5200ade64dc05e1c"
+    }
+  ]
+}

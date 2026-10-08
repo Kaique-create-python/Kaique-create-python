@@ -103,6 +103,7 @@ public final class StoryState {
                 {"Kael", "Só restaram madeira queimada e o cheiro de fumaça."}
         } : new String[][] {
                 {"Kael", "Provisões. Quem deixou isto talvez esperasse voltar."},
+                {"Kael", "Três ataduras e dois tônicos. Vou guardar na mochila."},
                 {"Kael", "Vou levar o que ainda serve. E procurar essa pessoa."}
         };
         if (VarynMap.MARA.equals(interaction)) return metMara ? new String[][] {

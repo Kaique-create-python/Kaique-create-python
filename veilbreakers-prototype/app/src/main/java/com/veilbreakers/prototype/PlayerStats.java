@@ -11,6 +11,7 @@ public class PlayerStats {
     public int mana;
     public int maxMana;
     public int attack;
+    public int weaponAttackBonus;
     public int defense;
     public int crit;
     public int speed;
@@ -30,6 +31,7 @@ public class PlayerStats {
         maxMana = 60;
         mana = maxMana;
         attack = 12;
+        weaponAttackBonus = 0;
         defense = 8;
         crit = 5;
         speed = 100;
@@ -46,6 +48,7 @@ public class PlayerStats {
         maxMana = prefs.getInt("stat_max_mana", 60);
         mana = prefs.getInt("stat_mana", maxMana);
         attack = prefs.getInt("stat_attack", 12);
+        weaponAttackBonus = Math.max(0, prefs.getInt("stat_weapon_attack_bonus", 0));
         defense = prefs.getInt("stat_defense", 8);
         crit = prefs.getInt("stat_crit", 5);
         speed = prefs.getInt("stat_speed", 100);
@@ -64,6 +67,7 @@ public class PlayerStats {
                 .putInt("stat_mana", mana)
                 .putInt("stat_max_mana", maxMana)
                 .putInt("stat_attack", attack)
+                .putInt("stat_weapon_attack_bonus", weaponAttackBonus)
                 .putInt("stat_defense", defense)
                 .putInt("stat_crit", crit)
                 .putInt("stat_speed", speed)
@@ -90,6 +94,13 @@ public class PlayerStats {
 
     public int xpRequirement(int lvl) {
         return 100 + Math.max(0, lvl - 1) * 45;
+    }
+
+    /** The public attack value includes equipment. Switching replaces its previous contribution. */
+    public void setWeaponAttackBonus(int bonus) {
+        int nextBonus = Math.max(0, bonus);
+        attack = Math.max(1, attack - weaponAttackBonus + nextBonus);
+        weaponAttackBonus = nextBonus;
     }
 
     public float hpRatio() {

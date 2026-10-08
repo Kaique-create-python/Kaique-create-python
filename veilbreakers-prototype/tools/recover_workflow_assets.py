@@ -108,5 +108,12 @@ if list(B64.glob('run_v18_assets.zip.b64.part-*')):
         assert z.testzip() is None
         z.extractall(ASSETS)
     print('Applied v1.8 authored running override')
+if list(B64.glob('v19_assets.zip.b64.part-*')):
+    decode('v19_assets.zip')
+    with zipfile.ZipFile(ZIPS / 'v19_assets.zip') as z:
+        assert z.testzip() is None
+        z.extractall(ASSETS)
+    print('Applied v1.9 generated world/UI and cast/FX assets')
+if list(B64.glob('run_v18_assets.zip.b64.part-*')):
     from refresh_release_context import refresh
     refresh(ASSETS)

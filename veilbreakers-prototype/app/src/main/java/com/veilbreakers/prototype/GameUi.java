@@ -24,13 +24,41 @@ final class GameUi {
     static final int MUTED = Color.rgb(151, 151, 160);
     private String wrappedSource = "";
     private float wrappedWidth = -1f;
+    private float wrappedSize = -1f;
     private String[] wrappedLines = new String[0];
     private String proseSource = "";
     private float proseWidth, proseSize;
     private String[] proseLines = new String[0];
     final RectF statusTab = new RectF();
     final RectF journalTab = new RectF();
+    final RectF inventoryTab = new RectF();
     final RectF cancelHit = new RectF();
+    final RectF inventoryActionHit = new RectF();
+    final RectF[] inventoryItemHits = {new RectF(), new RectF(), new RectF(), new RectF()};
+    private GameArt art;
+    private int selectedItem = InventoryState.SWORD;
+    private String inventoryFeedback = "";
+
+    void setArt(GameArt art) { this.art = art; }
+    int selectedInventoryItem() { return selectedItem; }
+    void selectInventoryItem(int item) {
+        selectedItem = Math.max(0, Math.min(InventoryState.ITEM_COUNT - 1, item));
+        inventoryFeedback = "";
+    }
+    void setInventoryFeedback(String message) { inventoryFeedback = message == null ? "" : message; }
+
+    private boolean skin(Canvas c, String name, RectF destination) {
+        if (art == null || art.bitmap(name) == null) return false;
+        art.draw(c, name, destination);
+        return true;
+    }
+
+    private RectF fit(Bitmap image, RectF bounds) {
+        float scale = Math.min(bounds.width() / image.getWidth(), bounds.height() / image.getHeight());
+        float iw = image.getWidth() * scale, ih = image.getHeight() * scale;
+        return new RectF(bounds.centerX() - iw * .5f, bounds.centerY() - ih * .5f,
+                bounds.centerX() + iw * .5f, bounds.centerY() + ih * .5f);
+    }
 
     private void rect(Canvas c, float l, float t, float r, float b, int color) {
         ink.setColor(color); ink.setStyle(Paint.Style.FILL); c.drawRect(l,t,r,b,ink);
@@ -50,8 +78,11 @@ final class GameUi {
         text.setTextAlign(Paint.Align.LEFT);
     }
     void button(Canvas c, RectF r, String s, boolean enabled, float h) {
-        rect(c,r.left,r.top,r.right,r.bottom,enabled?Color.rgb(85,31,40):Color.rgb(25,26,33));
-        outline(c,r,enabled?GOLD:Color.rgb(66,65,72),Math.max(1,h*.002f));
+        boolean painted = skin(c,"ui/button.png",r);
+        rect(c,r.left,r.top,r.right,r.bottom,painted
+                ? Color.argb(enabled?85:175,enabled?63:13,enabled?19:15,enabled?26:22)
+                : enabled?Color.rgb(85,31,40):Color.rgb(25,26,33));
+        if (!painted) outline(c,r,enabled?GOLD:Color.rgb(66,65,72),Math.max(1,h*.002f));
         center(c,s,r,h*.027f,enabled?IVORY:MUTED);
     }
     private void meter(Canvas c,float x,float y,float w,float h,String name,String value,float ratio,int color) {
@@ -64,23 +95,30 @@ final class GameUi {
         rect(c,x,top,x+w*PlayerStats.clamp01(ratio),top+Math.max(1,h*.002f),Color.argb(95,255,235,214));
     }
     void status(Canvas c,float w,float h,float alpha,PlayerStats stats,int[] pending,int points,
-                Bitmap portrait,StoryState story,int tab,RectF close,RectF confirm,
+                Bitmap portrait,StoryState story,InventoryState inventory,int tab,RectF close,RectF confirm,
                 RectF[] plus,RectF[] minus) {
         rect(c,0,0,w,h,Color.argb((int)(220*alpha),2,3,7));
         int layer=c.saveLayerAlpha(0,0,w,h,(int)(255*alpha));
         RectF panel=new RectF(w*.095f,h*.045f,w*.905f,h*.955f);
-        ink.setShader(new LinearGradient(0,panel.top,0,panel.bottom,
-                Color.rgb(23,22,31),Color.rgb(9,12,18),Shader.TileMode.CLAMP));
-        c.drawRect(panel,ink);ink.setShader(null);outline(c,panel,GOLD,h*.002f);
+        boolean panelPainted = skin(c,"ui/status_panel.png",panel);
+        if (!panelPainted) {
+            ink.setShader(new LinearGradient(0,panel.top,0,panel.bottom,
+                    Color.rgb(23,22,31),Color.rgb(9,12,18),Shader.TileMode.CLAMP));
+            c.drawRect(panel,ink);ink.setShader(null);
+        } else rect(c,panel.left+h*.012f,panel.top+h*.012f,panel.right-h*.012f,panel.bottom-h*.012f,
+                Color.argb(80,5,7,15));
+        if (!panelPainted) outline(c,panel,GOLD,h*.002f);
         rect(c,panel.left+h*.012f,panel.top+h*.012f,panel.left+h*.09f,panel.top+h*.016f,GOLD);
         rect(c,panel.right-h*.09f,panel.bottom-h*.016f,panel.right-h*.012f,panel.bottom-h*.012f,GOLD);
         label(c,"VEILBREAKERS",panel.left+w*.024f,panel.top+h*.047f,h*.024f,GOLD,true);
         label(c,"CINZAS DO OITAVO",panel.left+w*.024f,panel.top+h*.079f,h*.016f,MUTED,false);
-        statusTab.set(w*.39f,h*.069f,w*.51f,h*.143f);
-        journalTab.set(w*.52f,h*.069f,w*.66f,h*.143f);
+        statusTab.set(w*.355f,h*.069f,w*.49f,h*.143f);
+        inventoryTab.set(w*.50f,h*.069f,w*.68f,h*.143f);
+        journalTab.set(w*.69f,h*.069f,w*.815f,h*.143f);
         center(c,"ATRIBUTOS",statusTab,h*.027f,tab==0?IVORY:MUTED);
+        center(c,"INVENTÁRIO",inventoryTab,h*.027f,tab==2?IVORY:MUTED);
         center(c,"MISSÃO",journalTab,h*.027f,tab==1?IVORY:MUTED);
-        RectF selected=tab==0?statusTab:journalTab;
+        RectF selected=tab==0?statusTab:tab==2?inventoryTab:journalTab;
         rect(c,selected.left,selected.bottom-h*.007f,selected.right,selected.bottom-h*.004f,GOLD);
         close.set(panel.right-h*.102f,panel.top+h*.014f,panel.right-h*.022f,panel.top+h*.094f);
         button(c,close,"×",true,h);
@@ -93,14 +131,19 @@ final class GameUi {
         float scale=h*.31f/174f;
         RectF dst=new RectF(portraitBox.centerX()-128*scale,h*.554f-232*scale,
                 portraitBox.centerX()+128*scale,h*.554f+24*scale);
-        c.drawBitmap(portrait,null,dst,sprite);
+        Bitmap illustratedPortrait = art == null ? null : art.bitmap("portraits/kael.png");
+        if (illustratedPortrait != null) c.drawBitmap(illustratedPortrait,null,fit(illustratedPortrait,portraitBox),sprite);
+        else c.drawBitmap(portrait,null,dst,sprite);
         label(c,"KAEL VARYN",lx,h*.620f,h*.035f,IVORY,true);
         label(c,"Portador da Marca VIII",lx,h*.653f,h*.022f,MUTED,false);
         label(c,"Nível "+stats.level+"   ·   "+stats.money+" moedas",lx,h*.708f,h*.025f,GOLD,false);
         label(c,VarynMap.zoneName(story.zone),lx,h*.753f,h*.021f,MUTED,false);
-        label(c,"Espada: "+(story.swordFound?"Varyn desgastada":"não recuperada"),lx,h*.790f,h*.021f,MUTED,false);
+        label(c,"Arma: "+(inventory.swordEquipped?"Espada de Varyn":"nenhuma equipada"),lx,h*.790f,h*.021f,MUTED,false);
+        label(c,"Bônus de arma: +"+stats.weaponAttackBonus+" ATK",lx,h*.826f,h*.021f,GOLD,false);
         label(c,"JOGO PAUSADO",lx,h*.899f,h*.020f,GOLD,false);
         float rx=w*.371f,rw=panel.right-rx-w*.029f;
+        inventoryActionHit.setEmpty();
+        for (RectF hit : inventoryItemHits) hit.setEmpty();
         if(tab==0) {
             float mw=(rw-w*.023f)*.5f;
             meter(c,rx,h*.218f,mw,h,"VIDA",stats.hp+" / "+stats.maxHp,stats.hpRatio(),Color.rgb(170,43,57));
@@ -127,6 +170,9 @@ final class GameUi {
             confirm.set(rx+rw*.40f,h*.854f,rx+rw,h*.921f);
             cancelHit.set(rx,h*.854f,rx+rw*.35f,h*.921f);
             button(c,cancelHit,"Desfazer",changed,h);button(c,confirm,"Confirmar pontos",changed,h);
+        } else if (tab==2) {
+            for(RectF hit:plus)hit.setEmpty();for(RectF hit:minus)hit.setEmpty();confirm.setEmpty();cancelHit.setEmpty();
+            inventory(c,w,h,rx,rw,inventory,stats);
         } else {
             for(RectF r:plus)r.setEmpty();for(RectF r:minus)r.setEmpty();confirm.setEmpty();cancelHit.setEmpty();
             label(c,"Cinzas do Oitavo",rx,h*.223f,h*.037f,IVORY,true);
@@ -148,17 +194,83 @@ final class GameUi {
         }
         c.restoreToCount(layer);
     }
+
+    private void inventory(Canvas c,float w,float h,float x,float width,InventoryState inventory,PlayerStats stats) {
+        label(c,"MOCHILA",x,h*.223f,h*.037f,IVORY,true);
+        label(c,inventory.occupiedSlots()+" / "+InventoryState.ITEM_COUNT+" espaços ocupados",x,h*.261f,h*.024f,MUTED,false);
+        float gridWidth=width*.45f,gap=w*.016f;
+        float side=Math.min((gridWidth-gap)*.5f,h*.185f);
+        float top=h*.295f;
+        for(int i=0;i<InventoryState.ITEM_COUNT;i++) {
+            float left=x+(i%2)*(gridWidth-side);
+            float rowTop=top+(i/2)*(side+h*.026f);
+            RectF slot=inventoryItemHits[i];slot.set(left,rowTop,left+side,rowTop+side);
+            if(!skin(c,"ui/item_slot.png",slot)) rect(c,slot.left,slot.top,slot.right,slot.bottom,Color.rgb(27,28,34));
+            boolean owned=inventory.count(i)>0;
+            boolean discovered=inventory.discovered(i);
+            if(!owned)rect(c,slot.left,slot.top,slot.right,slot.bottom,Color.argb(115,4,7,12));
+            outline(c,slot,i==selectedItem?GOLD:Color.rgb(69,64,59),h*(i==selectedItem?.003f:.0014f));
+            Bitmap icon=art==null?null:art.bitmap(InventoryState.iconPath(i));
+            if(icon!=null&&discovered) {
+                float inset=side*.17f;
+                RectF iconBox=new RectF(slot.left+inset,slot.top+side*.08f,slot.right-inset,slot.top+side*.73f);
+                sprite.setAlpha(owned?255:70);c.drawBitmap(icon,null,fit(icon,iconBox),sprite);sprite.setAlpha(255);
+            }
+            text.setTypeface(bodyFace);text.setTextSize(h*.023f);text.setTextAlign(Paint.Align.RIGHT);
+            text.setColor(owned?IVORY:MUTED);
+            c.drawText(discovered?"×"+inventory.count(i):"—",slot.right-h*.013f,slot.top+h*.030f,text);
+            text.setTextAlign(Paint.Align.LEFT);
+            label(c,discovered?InventoryState.name(i):"Espaço vazio",slot.left+h*.009f,slot.bottom-h*.018f,h*.0175f,owned?IVORY:MUTED,false);
+            if(i==InventoryState.SWORD&&inventory.swordEquipped) {
+                label(c,"EQUIPADA",slot.left+h*.009f,slot.top+h*.026f,h*.014f,GOLD,false);
+            }
+        }
+        meter(c,x,h*.758f,gridWidth,h,"VIDA",stats.hp+" / "+stats.maxHp,stats.hpRatio(),Color.rgb(170,43,57));
+        meter(c,x,h*.853f,gridWidth,h,"MANA",stats.mana+" / "+stats.maxMana,stats.manaRatio(),Color.rgb(57,102,176));
+
+        float detailX=x+gridWidth+w*.019f,detailWidth=width-gridWidth-w*.019f;
+        RectF details=new RectF(detailX,h*.291f,detailX+detailWidth,h*.923f);
+        rect(c,details.left,details.top,details.right,details.bottom,Color.argb(140,10,13,20));
+        outline(c,details,Color.rgb(82,72,58),h*.0015f);
+        float inner=detailX+h*.022f,innerWidth=detailWidth-h*.044f;
+        Bitmap selectedIcon=art==null?null:art.bitmap(InventoryState.iconPath(selectedItem));
+        boolean selectedDiscovered=inventory.discovered(selectedItem);
+        if(selectedIcon!=null&&selectedDiscovered) {
+            RectF iconBox=new RectF(details.centerX()-h*.063f,h*.310f,details.centerX()+h*.063f,h*.436f);
+            c.drawBitmap(selectedIcon,null,fit(selectedIcon,iconBox),sprite);
+        }
+        drawWrapped(c,selectedDiscovered?InventoryState.name(selectedItem):"Espaço vazio",inner,h*.478f,innerWidth,h*.031f,h*.036f,IVORY,2);
+        label(c,selectedDiscovered?InventoryState.kind(selectedItem):"MOCHILA · ESPAÇO LIVRE",inner,h*.548f,h*.018f,GOLD,false);
+        drawWrapped(c,selectedDiscovered?InventoryState.description(selectedItem):"Itens coletados nas Ruínas de Varyn aparecerão aqui.",
+                inner,h*.591f,innerWidth,h*.022f,h*.030f,MUTED,4);
+        drawWrapped(c,selectedDiscovered?InventoryState.effect(selectedItem):"Explore, converse e abra baús.",inner,h*.729f,innerWidth,h*.022f,h*.029f,GOLD,2);
+        inventoryActionHit.set(inner,h*.781f,inner+innerWidth,h*.847f);
+        button(c,inventoryActionHit,selectedDiscovered?inventory.actionLabel(selectedItem):"SEM ITEM",inventory.canActivate(selectedItem,stats),h);
+        String feedback=inventoryFeedback.isEmpty()?inventory.unavailableReason(selectedItem,stats):inventoryFeedback;
+        drawWrapped(c,feedback,inner,h*.884f,innerWidth,h*.021f,h*.027f,IVORY,2);
+    }
     void dialogue(Canvas c,float w,float h,String speaker,String line,int visible,Bitmap kael) {
         RectF box=new RectF(w*.075f,h*.665f,w*.925f,h*.962f);
+        String portraitPath="Kael".equalsIgnoreCase(speaker)?"portraits/kael.png"
+                :"Mara".equalsIgnoreCase(speaker)?"portraits/mara.png"
+                :"Ivo".equalsIgnoreCase(speaker)?"portraits/ivo.png":"";
+        Bitmap figure=art==null||portraitPath.isEmpty()?null:art.bitmap(portraitPath);
+        if(figure!=null) {
+            rect(c,0,h*.16f,w,box.top,Color.argb(55,2,3,7));
+            RectF figureBox=new RectF(w*.60f,h*.140f,w*.92f,box.top-h*.005f);
+            c.drawBitmap(figure,null,fit(figure,figureBox),sprite);
+        }
         rect(c,box.left-h*.01f,box.top-h*.01f,box.right+h*.01f,box.bottom+h*.01f,Color.argb(150,0,0,0));
-        rect(c,box.left,box.top,box.right,box.bottom,Color.rgb(6,7,12));
-        outline(c,box,IVORY,h*.004f);
+        boolean boxPainted = skin(c,"ui/dialogue_frame.png",box);
+        if(!boxPainted)rect(c,box.left,box.top,box.right,box.bottom,Color.rgb(6,7,12));
+        else rect(c,box.left+h*.013f,box.top+h*.013f,box.right-h*.013f,box.bottom-h*.013f,Color.argb(130,3,4,9));
+        if (!boxPainted) outline(c,box,IVORY,h*.004f);
         label(c,speaker.toUpperCase(java.util.Locale.ROOT),box.left+w*.021f,box.top+h*.045f,h*.027f,GOLD,true);
         float tx=box.left+w*.026f;
         text.setTypeface(dialogueFace);text.setTextSize(h*.031f);text.setColor(IVORY);
         float available=box.width()-w*.054f;
-        if(!line.equals(wrappedSource)||available!=wrappedWidth) {
-            wrappedSource=line;wrappedWidth=available;wrappedLines=wrap(line,available,text);
+        if(!line.equals(wrappedSource)||available!=wrappedWidth||text.getTextSize()!=wrappedSize) {
+            wrappedSource=line;wrappedWidth=available;wrappedSize=text.getTextSize();wrappedLines=wrap(line,available,text);
         }
         int remaining=Math.min(visible,line.length());
         float y=box.top+h*.101f;
