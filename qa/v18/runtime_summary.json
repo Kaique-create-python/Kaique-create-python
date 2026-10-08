@@ -3,10 +3,2277 @@
   "versionCode": 22,
   "package": "com.veilbreakers.prototype",
   "expectedReviewFrames": 180,
-  "capturedFrames": 0,
-  "passed": false,
+  "capturedFrames": 180,
+  "passed": true,
   "manualVisualReviewRequired": true,
   "scope": "Actual Android GameView rendering at fixed frame indices; menu and normal gameplay also captured",
-  "error": "Screenshot is blank or the app failed to render",
-  "records": []
+  "normalCombatSmoke": {
+    "video": "normal_combat_smoke.mp4",
+    "touchInputsExecuted": true,
+    "openingCompleted": true,
+    "swordRecovered": true,
+    "saveReloadChecked": true,
+    "centralSquareEntered": true,
+    "note": "Actual gameplay capture for manual review; inputs alone do not prove every attempted strike hit."
+  },
+  "gameplayScenes": [
+    {
+      "scene": "map",
+      "screenshot": "gameplay_map.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "map1",
+      "screenshot": "gameplay_map1.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "map2",
+      "screenshot": "gameplay_map2.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "map3",
+      "screenshot": "gameplay_map3.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "map4",
+      "screenshot": "gameplay_map4.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "map5",
+      "screenshot": "gameplay_map5.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "status",
+      "screenshot": "gameplay_status.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "journal",
+      "screenshot": "gameplay_journal.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "scene": "dialogue",
+      "screenshot": "gameplay_dialogue.png",
+      "dimensions": [
+        1280,
+        720
+      ]
+    }
+  ],
+  "contacts": [
+    "contacts/runtime_idle.jpg",
+    "contacts/runtime_walk.jpg",
+    "contacts/runtime_run.jpg",
+    "contacts/runtime_combo1.jpg",
+    "contacts/runtime_combo2.jpg",
+    "contacts/runtime_combo3.jpg",
+    "contacts/runtime_cast.jpg",
+    "contacts/runtime_enemy_idle.jpg",
+    "contacts/runtime_enemy_chase.jpg",
+    "contacts/runtime_enemy_attack.jpg",
+    "contacts/runtime_hurt.jpg",
+    "contacts/runtime_death.jpg",
+    "contacts/runtime_orb.jpg"
+  ],
+  "androidLoadedRuntimeFrames": 180,
+  "realGameplayRegressionChecksPassed": true,
+  "records": [
+    {
+      "state": "idle",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "idle_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7422,
+      "subjectPixelSha256": "707dceb16574670b9a12722730e8197d9e128195eaac86436b984c993be0f70c"
+    },
+    {
+      "state": "idle",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "idle_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7724,
+      "subjectPixelSha256": "750ad2b80fc90e0312b8d2481e064733c87826c9fbe8348325c8529a387eabf8"
+    },
+    {
+      "state": "idle",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "idle_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7563,
+      "subjectPixelSha256": "969d8bb81724855933b7fb7b3d739678c1052739f1285e56367904dfdcac10d4"
+    },
+    {
+      "state": "idle",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "idle_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7587,
+      "subjectPixelSha256": "589322d00c841db27d823f1baf5ab4ef7daad71178afd9c88ddbdb9ad336f860"
+    },
+    {
+      "state": "idle",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "idle_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6914,
+      "subjectPixelSha256": "29fd60b45461c81a0f2c11b61512ed9ad468e5895c86f61600718d040a3bd4f5"
+    },
+    {
+      "state": "idle",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "idle_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7033,
+      "subjectPixelSha256": "29d47612f4a60ca21d9be46db30929f09c891be4fe3e7e76a0e1a928a8661f8c"
+    },
+    {
+      "state": "idle",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "idle_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6788,
+      "subjectPixelSha256": "9c195194aee029d5eb5e2b2fec01f82e825140ca123f07bb9c5da73cbe15663c"
+    },
+    {
+      "state": "idle",
+      "direction": 1,
+      "frame": 3,
+      "screenshot": "idle_up_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6890,
+      "subjectPixelSha256": "a7de68c68928376ba4bcea72a037291508cb08c6935b3f3a12150918c6afa360"
+    },
+    {
+      "state": "idle",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "idle_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6226,
+      "subjectPixelSha256": "5e106920e1580b364b6de2a5acf301426d5395b611035258dba615f6d3b072db"
+    },
+    {
+      "state": "idle",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "idle_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6228,
+      "subjectPixelSha256": "e66d0fc4d27f43a0f7256220f4ab5be7a86583e3d32eae02966521537f2656ad"
+    },
+    {
+      "state": "idle",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "idle_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6114,
+      "subjectPixelSha256": "44037cd1ae58e217ccf9ffb6cb0eac8f36b8766756abef3d2b9b8249b70d00ae"
+    },
+    {
+      "state": "idle",
+      "direction": 2,
+      "frame": 3,
+      "screenshot": "idle_left_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5919,
+      "subjectPixelSha256": "9cceabb1941935c3c053d5a020ac1f2ef782dc18c611e82e77c8714565ac5532"
+    },
+    {
+      "state": "idle",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "idle_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6133,
+      "subjectPixelSha256": "510eeb08e45b30845717dba058825b8b6484681e0debeab867b51a57be98439c"
+    },
+    {
+      "state": "idle",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "idle_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6146,
+      "subjectPixelSha256": "3a276adbaf45e9876d2ac7d04f0cb02c4d01c80a534927edc365e33b8eabe0ab"
+    },
+    {
+      "state": "idle",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "idle_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6146,
+      "subjectPixelSha256": "6141285e9529cb8d01f926341f1127788d728674800b4764d356338eb6c6079b"
+    },
+    {
+      "state": "idle",
+      "direction": 3,
+      "frame": 3,
+      "screenshot": "idle_right_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6160,
+      "subjectPixelSha256": "e460b45bf7852106a761d25fe9e6d95d318a692739e8cd800d7db1cb5a159377"
+    },
+    {
+      "state": "walk",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "walk_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6443,
+      "subjectPixelSha256": "b980d94836d043b19feaf314b33eb888d059b6a9bffac7d12431c5c768155faf"
+    },
+    {
+      "state": "walk",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "walk_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6409,
+      "subjectPixelSha256": "a0064bd9cc80fe02850a991f065abfa2dd19448a4ec55a29a0b29bb54e5adc54"
+    },
+    {
+      "state": "walk",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "walk_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6369,
+      "subjectPixelSha256": "effa62ba3f391acaaf8228bcf20621db81708c37110acdfa09f63cb37cc385c5"
+    },
+    {
+      "state": "walk",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "walk_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6464,
+      "subjectPixelSha256": "0d877c00efdc57deeb89a79c925a5f602733dced16313f2cc8723cb443f05426"
+    },
+    {
+      "state": "walk",
+      "direction": 0,
+      "frame": 4,
+      "screenshot": "walk_down_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6381,
+      "subjectPixelSha256": "99f5dbf11b2de87c3ac85d6198f98eac5c22940791517974955ea5d4f40a536a"
+    },
+    {
+      "state": "walk",
+      "direction": 0,
+      "frame": 5,
+      "screenshot": "walk_down_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6318,
+      "subjectPixelSha256": "2b9b0fda6f0397b6ca3c963b9cc77191efa76d4d2708872c7b84a4e331c10fdc"
+    },
+    {
+      "state": "walk",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "walk_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4997,
+      "subjectPixelSha256": "6a11f14d6a98b914f0b1f023155889371dab793da4af067895b5fb7fc8e426ae"
+    },
+    {
+      "state": "walk",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "walk_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4640,
+      "subjectPixelSha256": "7f58bff996bc011a8f78a2eed963f79e315c7f3f1fbf942728db63411991185b"
+    },
+    {
+      "state": "walk",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "walk_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4536,
+      "subjectPixelSha256": "a90dc3643dc1587041a087792d98365b5a6fb6e32df8534b8627cfeea464fe57"
+    },
+    {
+      "state": "walk",
+      "direction": 1,
+      "frame": 3,
+      "screenshot": "walk_up_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4915,
+      "subjectPixelSha256": "e8d9507ba0c2c872640cfd4d657833285e11a0c322fb91209552d4600208e9b9"
+    },
+    {
+      "state": "walk",
+      "direction": 1,
+      "frame": 4,
+      "screenshot": "walk_up_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4503,
+      "subjectPixelSha256": "5cf6218b413e8bbf62f9d22d4f339d49e79461567e95ce165a63499fba8c9903"
+    },
+    {
+      "state": "walk",
+      "direction": 1,
+      "frame": 5,
+      "screenshot": "walk_up_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4540,
+      "subjectPixelSha256": "241f29349a3ace49e2a0efe01f0d1333dfbc3cfed333f355c53f4cc22530420f"
+    },
+    {
+      "state": "walk",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "walk_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4834,
+      "subjectPixelSha256": "eb1db52a2ac74e12f228ffa7b9ec7dd24603a50df95601a086d3c3b48c094f18"
+    },
+    {
+      "state": "walk",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "walk_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4569,
+      "subjectPixelSha256": "30cf7e4b8ee8f76cf08a0940c5c4cbbca31a826674501268454f394417ffa5a4"
+    },
+    {
+      "state": "walk",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "walk_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4823,
+      "subjectPixelSha256": "25a0d25ef8d9ea5a7ab8b1ced5f86c3df0d3c4e2b6f7fbb67558ae94571c2c0e"
+    },
+    {
+      "state": "walk",
+      "direction": 2,
+      "frame": 3,
+      "screenshot": "walk_left_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4851,
+      "subjectPixelSha256": "0ab97d40eec7f612b226526183264ae939a0a38e925bc9fbaca9eee14b2fb391"
+    },
+    {
+      "state": "walk",
+      "direction": 2,
+      "frame": 4,
+      "screenshot": "walk_left_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4648,
+      "subjectPixelSha256": "a400d48646bbf11625ff1407ad65c940d96daae56aa5a97a66a769f95fd97dde"
+    },
+    {
+      "state": "walk",
+      "direction": 2,
+      "frame": 5,
+      "screenshot": "walk_left_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4649,
+      "subjectPixelSha256": "c3d7d6c532fe1b93eddd60ad62f101ee6fe069894ac7fdf9452daa995e740f12"
+    },
+    {
+      "state": "walk",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "walk_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5453,
+      "subjectPixelSha256": "3ab8829646fd91642e2d05b8b9bbfd9ce74b665c2933ecd96869a91a47594b39"
+    },
+    {
+      "state": "walk",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "walk_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5005,
+      "subjectPixelSha256": "49ad36490c130bf4de9d6f42990967b0f6ed3c538027f2c39bee4911d0412a02"
+    },
+    {
+      "state": "walk",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "walk_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5300,
+      "subjectPixelSha256": "3fb71d62f3dda220d00b549ec53b6632ab7cbeefefbe2b2f72ebfab73ebcfa20"
+    },
+    {
+      "state": "walk",
+      "direction": 3,
+      "frame": 3,
+      "screenshot": "walk_right_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5223,
+      "subjectPixelSha256": "7d469bc488b0db7f4a9df8f4e2555fee11ce41e06c4a7ec16668be6cf7fe43e4"
+    },
+    {
+      "state": "walk",
+      "direction": 3,
+      "frame": 4,
+      "screenshot": "walk_right_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4859,
+      "subjectPixelSha256": "4f83518754c87546deda2a90eb669732dcef5eceb6aee141dabba0262751a00a"
+    },
+    {
+      "state": "walk",
+      "direction": 3,
+      "frame": 5,
+      "screenshot": "walk_right_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5160,
+      "subjectPixelSha256": "de79c960a0fb44f057393c7863ff4872df9af82ff8cb057b2b7452a8aca4349b"
+    },
+    {
+      "state": "run",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "run_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8457,
+      "subjectPixelSha256": "af2287eadf273e6de2001dc392345df6935c2392d39168f72068a759a2dd827c"
+    },
+    {
+      "state": "run",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "run_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8386,
+      "subjectPixelSha256": "ac4ec4f3b8ad6c44896befdc2f8e2d605a0560cd4ce1f30cff6f2dbd19d89a22"
+    },
+    {
+      "state": "run",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "run_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8732,
+      "subjectPixelSha256": "29b2979a70534e1712da468ffc27c8a57fc698c8120077ccc35af7726ff10e87"
+    },
+    {
+      "state": "run",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "run_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8556,
+      "subjectPixelSha256": "307197fd0561eb94a573bd8f223fdb54afd2ce086fa3a94b30b176f3e85487f1"
+    },
+    {
+      "state": "run",
+      "direction": 0,
+      "frame": 4,
+      "screenshot": "run_down_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8989,
+      "subjectPixelSha256": "9a614d751e7560cad7cc78cb4e52ae07743dedc1cb8cc782867bf351983059a2"
+    },
+    {
+      "state": "run",
+      "direction": 0,
+      "frame": 5,
+      "screenshot": "run_down_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8610,
+      "subjectPixelSha256": "81a94b6d77bd58067d27f31867a095947fdbd89e9e11cfe8563937e4aca359be"
+    },
+    {
+      "state": "run",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "run_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7974,
+      "subjectPixelSha256": "69158fca09ee0cf7d260e0a4010b441c3a2ce03dbd090059aefdab4dd422167d"
+    },
+    {
+      "state": "run",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "run_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7813,
+      "subjectPixelSha256": "bdc252df8165235c4f2228173549376b1ad97abed6311fbe6d1d0ed42b8ce197"
+    },
+    {
+      "state": "run",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "run_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7561,
+      "subjectPixelSha256": "0161d79e2498e0c1e5ad77ac75ac481d2cec7caa1503b8b8e9e12a8cf92302cc"
+    },
+    {
+      "state": "run",
+      "direction": 1,
+      "frame": 3,
+      "screenshot": "run_up_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7630,
+      "subjectPixelSha256": "f9f977b78f2b45987f8a607faa7dfa3b3bcd3dadfb6fa8760f1ed47f8bb04d68"
+    },
+    {
+      "state": "run",
+      "direction": 1,
+      "frame": 4,
+      "screenshot": "run_up_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7844,
+      "subjectPixelSha256": "b78584c39b9632fc57b298a43a938f946bb18e61b68bee4ccfc4dd14ffebb516"
+    },
+    {
+      "state": "run",
+      "direction": 1,
+      "frame": 5,
+      "screenshot": "run_up_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7602,
+      "subjectPixelSha256": "54453750a752040d53c86443f3a4084eb33ce44bda6d307ad9a7237673f005b5"
+    },
+    {
+      "state": "run",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "run_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9437,
+      "subjectPixelSha256": "93ec23afcdffc127c3ddd6b9e530a39cb655e24fb311e688a8810343df400aab"
+    },
+    {
+      "state": "run",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "run_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8953,
+      "subjectPixelSha256": "79bfc443936548eb5806eabf346f42daedfaa058ef2cda548bf3213f3b1ab643"
+    },
+    {
+      "state": "run",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "run_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8827,
+      "subjectPixelSha256": "d91f37c2490e2f4d71be0072956bab5cd903dd899e7fd9839227d00ba4b280db"
+    },
+    {
+      "state": "run",
+      "direction": 2,
+      "frame": 3,
+      "screenshot": "run_left_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8456,
+      "subjectPixelSha256": "d31dac83e53f60c9235fdd5b0e9f24a894f3f7db6b7ba4f92c3a1bea2f1d3b29"
+    },
+    {
+      "state": "run",
+      "direction": 2,
+      "frame": 4,
+      "screenshot": "run_left_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8069,
+      "subjectPixelSha256": "1353db587d8e2a7a3b1e501b9381b2d0fb697d457845631f6388191bb0da68f9"
+    },
+    {
+      "state": "run",
+      "direction": 2,
+      "frame": 5,
+      "screenshot": "run_left_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8508,
+      "subjectPixelSha256": "8693907539bf8df74beca6c3e13c3174c25f82f44704b47e3227c0d671461790"
+    },
+    {
+      "state": "run",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "run_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8506,
+      "subjectPixelSha256": "9b80a47c17111e9badbd957516371750cb4b4dde161d36c59e9efec7c86bc69a"
+    },
+    {
+      "state": "run",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "run_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8675,
+      "subjectPixelSha256": "9d9874321d33bcf764831310636a93acd5ec952c9a6aafce5f763802c8353408"
+    },
+    {
+      "state": "run",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "run_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8592,
+      "subjectPixelSha256": "6fc7647a9016111592f446d3928570becdc84eb9377d993ee0e33b672c71536a"
+    },
+    {
+      "state": "run",
+      "direction": 3,
+      "frame": 3,
+      "screenshot": "run_right_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8211,
+      "subjectPixelSha256": "e983b96de4a9f6e29e89681a299082d457b5bc957452fe5d59b5fcd58a80b3b0"
+    },
+    {
+      "state": "run",
+      "direction": 3,
+      "frame": 4,
+      "screenshot": "run_right_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7937,
+      "subjectPixelSha256": "6f4d5450d94873352092bf739c08597305507e21a0334a0e8c6a1e939693e9d6"
+    },
+    {
+      "state": "run",
+      "direction": 3,
+      "frame": 5,
+      "screenshot": "run_right_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8074,
+      "subjectPixelSha256": "e579875418dfbb1b9d1211de18b8d05f6a6dc1f3a36a7bac57319354768792d5"
+    },
+    {
+      "state": "combo1",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "combo1_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10992,
+      "subjectPixelSha256": "430de0492e6d139df77cca46046ccfe1873313f7a652aa3928729de58d952968"
+    },
+    {
+      "state": "combo1",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "combo1_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11337,
+      "subjectPixelSha256": "1cd02d47d75aab596762e62328b26f119e6e93ba863cd8faed88b63c2ca80bef"
+    },
+    {
+      "state": "combo1",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "combo1_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11481,
+      "subjectPixelSha256": "4e239bbacfd9600462b09fe0c2eb9a8a6b1cf08e21946ddf10eb726b52b6e047"
+    },
+    {
+      "state": "combo1",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "combo1_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11480,
+      "subjectPixelSha256": "cb99b353bafc587262868222de13142d0045a1692951f534c208618f5a763825"
+    },
+    {
+      "state": "combo1",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "combo1_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11376,
+      "subjectPixelSha256": "9a43072ac5a2c7016b02ea55ab5aaa91b6033390dab6684cc970775bc1757522"
+    },
+    {
+      "state": "combo1",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "combo1_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10457,
+      "subjectPixelSha256": "0e0ca46998ed4bdc88572175f47789e78fb0f87f02445e93d42c3cc85f7fff01"
+    },
+    {
+      "state": "combo1",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "combo1_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9732,
+      "subjectPixelSha256": "5c53368e73e1ad020849e32211b294aa50a5f87a177f52fd10368080d340d455"
+    },
+    {
+      "state": "combo1",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "combo1_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11508,
+      "subjectPixelSha256": "0355e0752bc857cc2c42bf3d83100f4b2b824cdbffad4e999188bfdda1198b60"
+    },
+    {
+      "state": "combo1",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "combo1_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9905,
+      "subjectPixelSha256": "b72b0c25b958783fd17e52caae0383de8adfe2481f602e39adddf252afe575eb"
+    },
+    {
+      "state": "combo1",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "combo1_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9798,
+      "subjectPixelSha256": "5c6261076bc96dc5603a4458a86b45370a6707495b667ecf1e1a36be07c63f56"
+    },
+    {
+      "state": "combo1",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "combo1_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11175,
+      "subjectPixelSha256": "5a8af5c52c1eb737bb43062a7c21d8fe547f29408710be3f311efc3e4f00046b"
+    },
+    {
+      "state": "combo1",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "combo1_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10053,
+      "subjectPixelSha256": "527d2b15e2e793b9698894fc235621a1cff4fb94adc2888fe9ece7fbc43738c6"
+    },
+    {
+      "state": "combo2",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "combo2_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11245,
+      "subjectPixelSha256": "5ad58a98fa451fd54ae831bbc255a010aa6964532912536758910f48fc33c9ef"
+    },
+    {
+      "state": "combo2",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "combo2_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 12507,
+      "subjectPixelSha256": "4d1da809e366261dc68d5f8a1510068c232c0bf5f556fefabafdb5757d22667b"
+    },
+    {
+      "state": "combo2",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "combo2_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 12749,
+      "subjectPixelSha256": "a04a789b2a7f3fc09361e61a2b9628bccb856cb1dfef910b2072bd55bfa60186"
+    },
+    {
+      "state": "combo2",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "combo2_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9348,
+      "subjectPixelSha256": "39d416f6837930ebd548c8d57f97a0c164baaf91d06cd228fd3a061a1fe877f7"
+    },
+    {
+      "state": "combo2",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "combo2_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11128,
+      "subjectPixelSha256": "3ac34a4ae80882124cbd3a11074bc884b7c46bdc52acc4482d8e68e1570f7147"
+    },
+    {
+      "state": "combo2",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "combo2_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10741,
+      "subjectPixelSha256": "91c71077a45c6abd4bc8a40ceb0498f10eb4f7dcc726507bac53d795afe0b693"
+    },
+    {
+      "state": "combo2",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "combo2_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11400,
+      "subjectPixelSha256": "e4de0694309c5111dc907ab7adacd9341eb2e17daedb4fafe846d6d334f00791"
+    },
+    {
+      "state": "combo2",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "combo2_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11143,
+      "subjectPixelSha256": "2ae41a268a7efcb85dbe66a24fb2a50411653204d042958a8b782aa261711bce"
+    },
+    {
+      "state": "combo2",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "combo2_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9748,
+      "subjectPixelSha256": "3768f43a534e429f594bb3a2296b62cf31c23b0ed7539232345037e2f34fc5aa"
+    },
+    {
+      "state": "combo2",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "combo2_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9617,
+      "subjectPixelSha256": "62b68c769410cbeb822223a69183f73b546fed380390b63eda5056d021443211"
+    },
+    {
+      "state": "combo2",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "combo2_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10741,
+      "subjectPixelSha256": "33024e5246c893215325ba742774631edc25f7aeb74e47513506bd01f0522c4c"
+    },
+    {
+      "state": "combo2",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "combo2_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10459,
+      "subjectPixelSha256": "1ddfc7cb7469998c0272cb6f8205bccd5b48dc9ea9fa2fdbb0a9043cc714265b"
+    },
+    {
+      "state": "combo3",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "combo3_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 13126,
+      "subjectPixelSha256": "70c0b2b8016edc59d7835bec713bc21560844c06a2794f087f3600fde82aae18"
+    },
+    {
+      "state": "combo3",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "combo3_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 12567,
+      "subjectPixelSha256": "31fd6c4c78113e3c070338752d91c08773382d87a2d7d40df5761e679caf7c21"
+    },
+    {
+      "state": "combo3",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "combo3_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10829,
+      "subjectPixelSha256": "6cb019f2b7314da6f38c7bf6a84a06d82d7c28638ac0c7efa2487861fd076d16"
+    },
+    {
+      "state": "combo3",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "combo3_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 12228,
+      "subjectPixelSha256": "b4007ca62d1dc933a8dfc0714aecede65b5270a25ead17d3707eb7c27890680c"
+    },
+    {
+      "state": "combo3",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "combo3_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11712,
+      "subjectPixelSha256": "5531311c368a3c15a1ee84b2a8d49fdc8131000e912a7313a153a4fcc889fc60"
+    },
+    {
+      "state": "combo3",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "combo3_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10279,
+      "subjectPixelSha256": "1d469f2c30e95f70971e8893ecd85414d3782c2189435d3eb35ea9ce1f81f5a3"
+    },
+    {
+      "state": "combo3",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "combo3_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11554,
+      "subjectPixelSha256": "3c924fa9b847f5c3102feeb545686b075e529630f42b6f73d57cbfb4b094b8b4"
+    },
+    {
+      "state": "combo3",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "combo3_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 14079,
+      "subjectPixelSha256": "096eebd080541665bd0f8eeabdea43a6dceb0086b2f34cefb661073691e5ac90"
+    },
+    {
+      "state": "combo3",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "combo3_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10318,
+      "subjectPixelSha256": "759edbea0e8be6f1019720fc379adfdb9765e5968764c2a07afed72716c2c89a"
+    },
+    {
+      "state": "combo3",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "combo3_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11393,
+      "subjectPixelSha256": "d507615cacd38b622144d4048f488fa9956873e3db27346bc8d48e6287d418dc"
+    },
+    {
+      "state": "combo3",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "combo3_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 13658,
+      "subjectPixelSha256": "ca136f54f076fc300b7797cf79d512b3b19c4a2bfe40eede2671aa4f58b19062"
+    },
+    {
+      "state": "combo3",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "combo3_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10631,
+      "subjectPixelSha256": "0da9c74117ecf525d9a581300d958080fd1cbf6f64daa93539ade1291edde2e3"
+    },
+    {
+      "state": "cast",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "cast_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7933,
+      "subjectPixelSha256": "e5efd0c32d4e40941c90f15ada7c1cb8ad10f232aeb4ca6e4042438f6b57b742"
+    },
+    {
+      "state": "cast",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "cast_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8305,
+      "subjectPixelSha256": "ffa66228e0bc2f7c5cfe502f443d1658b919ea51f7950f484806e4374a5e07e1"
+    },
+    {
+      "state": "cast",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "cast_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7914,
+      "subjectPixelSha256": "6523b4aa7f20db791abd022dc9dcc99ac5133cf8c2eab2a29f0947195f13294a"
+    },
+    {
+      "state": "cast",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "cast_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8600,
+      "subjectPixelSha256": "83ffa32827b56fdec3b72d5af74543456df99015c0b5dda0a941e0a430665e24"
+    },
+    {
+      "state": "cast",
+      "direction": 0,
+      "frame": 4,
+      "screenshot": "cast_down_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7943,
+      "subjectPixelSha256": "b286803c9db8410ab5a6c1ef87f0a540a1ca1c6d773e3c30a3301ef58cdda983"
+    },
+    {
+      "state": "cast",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "cast_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7606,
+      "subjectPixelSha256": "76b05cab5572721ab3ee6959d54c8fc9bb15ed467141574f60bd36566f232bf8"
+    },
+    {
+      "state": "cast",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "cast_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8039,
+      "subjectPixelSha256": "2f2ec5e3664402e195558d9f16bda988e5c25559ac1d1b17301d8e4afa1a473b"
+    },
+    {
+      "state": "cast",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "cast_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8177,
+      "subjectPixelSha256": "2e37614dc7ddd170ed0b12dac064bef86cbfa5814a198b9108089935f602c74a"
+    },
+    {
+      "state": "cast",
+      "direction": 1,
+      "frame": 3,
+      "screenshot": "cast_up_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8058,
+      "subjectPixelSha256": "73f7ad823ca1ca8f1fc345af31244e860b8fff63130b2eeea322f28506db5893"
+    },
+    {
+      "state": "cast",
+      "direction": 1,
+      "frame": 4,
+      "screenshot": "cast_up_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7628,
+      "subjectPixelSha256": "24df95221c8627b0599ce6fe96f6cbdf4ed11fe32a301b853200bf1218cb0e91"
+    },
+    {
+      "state": "cast",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "cast_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6618,
+      "subjectPixelSha256": "3357e1a0b96d08dd9aeb858e13c5e11e27e827c1fd53ea98fbb0d27287c7a793"
+    },
+    {
+      "state": "cast",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "cast_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7208,
+      "subjectPixelSha256": "eaa42657cef50cf1d552a1a4a0244bf5d0b86909898c1db50f59a267fe7902d3"
+    },
+    {
+      "state": "cast",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "cast_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7295,
+      "subjectPixelSha256": "cb5b4b67a7459f2c6e283991b8a6b7acc15f967507562b93f073fd56122b0794"
+    },
+    {
+      "state": "cast",
+      "direction": 2,
+      "frame": 3,
+      "screenshot": "cast_left_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7607,
+      "subjectPixelSha256": "e54893ca2dc9e8adfb5cdaa82789849a2ed42aa0470818b151ae0f4fab344eb7"
+    },
+    {
+      "state": "cast",
+      "direction": 2,
+      "frame": 4,
+      "screenshot": "cast_left_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6653,
+      "subjectPixelSha256": "74285f6a7e3bd4b828b5aa631b9c3f2b1ddafe1629c13e1cd0da9c1e7aff5844"
+    },
+    {
+      "state": "cast",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "cast_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6465,
+      "subjectPixelSha256": "dc9fa1dfffee49d2bf2f2dd0549080daadb9f40c81614882de6a28f4eacdf5fc"
+    },
+    {
+      "state": "cast",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "cast_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6835,
+      "subjectPixelSha256": "f90d691321716996fbee2cbd388225b3216a586cd86b96d840144ccad5040bda"
+    },
+    {
+      "state": "cast",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "cast_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7138,
+      "subjectPixelSha256": "f8929c4e2d821df6b7991ad769b9178105b58b1835589293748cdd923358de7a"
+    },
+    {
+      "state": "cast",
+      "direction": 3,
+      "frame": 3,
+      "screenshot": "cast_right_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7226,
+      "subjectPixelSha256": "41e1aceabc0a4301fcccf4e240cfe4d2f1c956c338c5cb3c446e40ca4f9efac2"
+    },
+    {
+      "state": "cast",
+      "direction": 3,
+      "frame": 4,
+      "screenshot": "cast_right_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6692,
+      "subjectPixelSha256": "979479eabba7e62f4ac591658b3d30bd47dfb3cabfeefd9e3a9f27bd24bc31d7"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "enemy_idle_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9837,
+      "subjectPixelSha256": "1459dbf3ee2cefae95ae0195dab518c136754f7021408c0ac05e82565e30508c"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "enemy_idle_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10143,
+      "subjectPixelSha256": "3ac0e7cc8139a337812aca0a775b61e6b80792cb4911d5cfd7ebc47f3ae4da87"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "enemy_idle_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9927,
+      "subjectPixelSha256": "7dff8a93fe20a6bae36829591be4e181137d6e3f0c65996e7fc376345b21015e"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "enemy_idle_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10193,
+      "subjectPixelSha256": "96ad3e187876c35fbb0be506bec23cb3bd709a0162ff04b9a1adc54b91bc313d"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "enemy_idle_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10414,
+      "subjectPixelSha256": "0961096caceee1e4ca19f0440f6129ef6dc9050dbd78a5f5d8938cbf34e5099a"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "enemy_idle_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10310,
+      "subjectPixelSha256": "ae35319ec246d2319aba9422a7075e61b7e7a7c280a5b1d26da77ffbe5da9a9e"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "enemy_idle_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9688,
+      "subjectPixelSha256": "19ef58becc6dd1dfb6c632b404533b8032c1b6535a825ad7e664e9c2e21b78f4"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "enemy_idle_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9775,
+      "subjectPixelSha256": "7f36a17585066a39e65c645f938081dd3277a56d297b949ce6dd5d5a69a2398c"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "enemy_idle_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9790,
+      "subjectPixelSha256": "af727a98995fa9368c430fd86c222dcb9765869a6c59ac07df3c4ed2ff7ba14d"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "enemy_idle_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8925,
+      "subjectPixelSha256": "35854fe6c24d954a893b6e0375a2c9635eb9f27f2b2b7acc79b19e40cde9c31f"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "enemy_idle_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9275,
+      "subjectPixelSha256": "ab77f3b22324d983c34c452e3bebdc0a76abadcd706ff1d4848f9ca977d6751d"
+    },
+    {
+      "state": "enemy_idle",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "enemy_idle_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9214,
+      "subjectPixelSha256": "ed6cb12df22144a4769f1b4b5f210f0c32805a0f3e48a9ead9e7cc59dbefbb6a"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "enemy_chase_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10704,
+      "subjectPixelSha256": "43fa22e54b0b0f58b7e068a2d0717acc89c95b65021eecb97a44aae1a2c0ff7b"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "enemy_chase_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10558,
+      "subjectPixelSha256": "9bb8bd9d6dd031e5e74c4b0ede6a9d6abe21e8ebe4ef58f242b47a041603c6aa"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "enemy_chase_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10574,
+      "subjectPixelSha256": "d89ed2e1eb150d7d2b8dc4815197af284a726f62923cc1f94400d03f4df30b8c"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "enemy_chase_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10659,
+      "subjectPixelSha256": "07e99f7e82ead91b2b96b4cba36c911a6097dba1e1e37e4fa0124af9e0b200dd"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "enemy_chase_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9791,
+      "subjectPixelSha256": "d004266aed551c1158033498a2997444a9fc6be000f3eabdc0f097bc5b05ee2c"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "enemy_chase_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10146,
+      "subjectPixelSha256": "98e69634f317126b78f0bc1b01311d17f3181b71140958ae6cf246b8fc8e2126"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "enemy_chase_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10420,
+      "subjectPixelSha256": "dbfdfaf83599711bacf3c5e205a14514e4f16ea499ae06cd2ebc201abdaceeb1"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 1,
+      "frame": 3,
+      "screenshot": "enemy_chase_up_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10262,
+      "subjectPixelSha256": "59cba66a8e2b185be3b4b4f681b3d479529b5d062e06736682dd405e3285d333"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "enemy_chase_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11252,
+      "subjectPixelSha256": "4b4e14f39e82d4ac993823d4bb82eb02b9132c25a37706df1dcde6c5915b1350"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "enemy_chase_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10983,
+      "subjectPixelSha256": "f819431092498ea63b5cf79de93a60c4c41c05ae6bba3acea65a6af02cdbe4cf"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "enemy_chase_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11665,
+      "subjectPixelSha256": "222822cac027364a8071eafc076dba71dc038f6788664753472ec954ea20c421"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 2,
+      "frame": 3,
+      "screenshot": "enemy_chase_left_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10455,
+      "subjectPixelSha256": "a685f9572460d1d463c5c93dae6815cf1275ea20f58bea758944be1fc089345d"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "enemy_chase_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11175,
+      "subjectPixelSha256": "c9ef748eaf5dfb4279b468abf98a59a55c91fb3d1736c38cf9637e33f8a569b0"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "enemy_chase_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10946,
+      "subjectPixelSha256": "6326d1b5840041db2b44252881294ab5c2de3a4dbdf66e6cf5f1f6b35c325c7d"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "enemy_chase_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 11155,
+      "subjectPixelSha256": "fa798daf5d9b0e9c23654fb4d1365062afc97b628f8588810082389bd20efe2e"
+    },
+    {
+      "state": "enemy_chase",
+      "direction": 3,
+      "frame": 3,
+      "screenshot": "enemy_chase_right_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 10826,
+      "subjectPixelSha256": "aed1400dfd2baac4790f83785655c3cd8473767e06150ee8459a4f3bcb62e426"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "enemy_attack_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8772,
+      "subjectPixelSha256": "3cac93c731a6129461a97642a8390070dc2b28cdfe7e8997fa192e1af01f388a"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "enemy_attack_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8777,
+      "subjectPixelSha256": "84dd5ae740789ce628acbf5ae3eae220efa5284ea604644a60bd66a143da1e10"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "enemy_attack_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8839,
+      "subjectPixelSha256": "4d276d4bd6de41027cb2a543bd35843c41635b59252ce718bf3f7bc5e9225953"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "enemy_attack_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8610,
+      "subjectPixelSha256": "14f2ebfd8f27c3cea59ad26cc25633a95ff71f5407e0b355d2e31de1c3dff9e0"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 1,
+      "frame": 0,
+      "screenshot": "enemy_attack_up_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8600,
+      "subjectPixelSha256": "bb1e79d0ea90178f3b324f876d6ad7ba3117576679ecb49ee22a45a7c38bcc5b"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 1,
+      "frame": 1,
+      "screenshot": "enemy_attack_up_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8672,
+      "subjectPixelSha256": "8aaccdba3491e3d49b800a54225cf46e0601e84386bf0fe25c0f6da7679a13fc"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 1,
+      "frame": 2,
+      "screenshot": "enemy_attack_up_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9062,
+      "subjectPixelSha256": "7abd5c3e19d31de7903cdceb3136cbcfed708b9a644820c4902df47a416332b5"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 1,
+      "frame": 3,
+      "screenshot": "enemy_attack_up_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8641,
+      "subjectPixelSha256": "5fa321f58cc26f556ec6ac56d72efd7a29b0f0e7f42e9585e6d85e2c5b78cd33"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 2,
+      "frame": 0,
+      "screenshot": "enemy_attack_left_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7867,
+      "subjectPixelSha256": "2d054a2a23f67be6a0ca444f86d562606b86932d61e24b480f0edd1e76369302"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 2,
+      "frame": 1,
+      "screenshot": "enemy_attack_left_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7955,
+      "subjectPixelSha256": "b8c4863e085489ab0754f1b1872632c7f5da13656bc0c49f132446c6b550ec44"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 2,
+      "frame": 2,
+      "screenshot": "enemy_attack_left_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8071,
+      "subjectPixelSha256": "e2e7992e47b911f20bd937443b72373cbe3303a0b25a9615b306f972a8790f9f"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 2,
+      "frame": 3,
+      "screenshot": "enemy_attack_left_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7678,
+      "subjectPixelSha256": "3261d002a9a8e070f29a50e4fff19755dda4b7815c400db063a81b6d8d5e689d"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 3,
+      "frame": 0,
+      "screenshot": "enemy_attack_right_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7710,
+      "subjectPixelSha256": "b28afa104944c1f7b39b9fae16b47c036031297d2874c84729ca492f181691b2"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 3,
+      "frame": 1,
+      "screenshot": "enemy_attack_right_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7931,
+      "subjectPixelSha256": "f9c2302aa1883cf55f3a976e363aff8466769c3fe6749d8c7135d13c428b580a"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 3,
+      "frame": 2,
+      "screenshot": "enemy_attack_right_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8140,
+      "subjectPixelSha256": "d71896fd1da057417691d6ae7ff37e6ce1797b7c56f9d1d3f107ab6b8150aea5"
+    },
+    {
+      "state": "enemy_attack",
+      "direction": 3,
+      "frame": 3,
+      "screenshot": "enemy_attack_right_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7697,
+      "subjectPixelSha256": "3be74c3533b3f0f36e41ad6c37e5191bfb461c062feac179cd391f809860c099"
+    },
+    {
+      "state": "hurt",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "hurt_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 9421,
+      "subjectPixelSha256": "8ce2fbc5f2576aacd330e60d46b389b03b06145a40ee6e05581cd11e73c20b10"
+    },
+    {
+      "state": "hurt",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "hurt_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7764,
+      "subjectPixelSha256": "f6db8904826ef8cc1e1edfcde7a7427b9bbd4fe3e2c1097581f25fa67236bbda"
+    },
+    {
+      "state": "hurt",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "hurt_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 8449,
+      "subjectPixelSha256": "521296550269c695cefce63d7d7621a5d1cd9d355b493fbea4fa2c97fd7c0a1a"
+    },
+    {
+      "state": "death",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "death_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 7817,
+      "subjectPixelSha256": "a049e6d8ce1906d7f120fb202bad152280ee4d18786110b440ff09a03e13c12e"
+    },
+    {
+      "state": "death",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "death_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 6392,
+      "subjectPixelSha256": "1900bbd9d6aedf5bc3f1f76b8c1b0f71a2eb046c3d8162f4bc181b4ba220e3aa"
+    },
+    {
+      "state": "death",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "death_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 5571,
+      "subjectPixelSha256": "110cd79f165c585d6a3659b924cfa51999beb623854c2bcff67e36b7a6b84fa2"
+    },
+    {
+      "state": "death",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "death_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 4144,
+      "subjectPixelSha256": "c08bf5098b8e1231ea1adf8bd0ada8396c455ce0e9965698c750679f82c87bb9"
+    },
+    {
+      "state": "death",
+      "direction": 0,
+      "frame": 4,
+      "screenshot": "death_down_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 2453,
+      "subjectPixelSha256": "cb45f86a359cefc2c553f5f089e46e94eb5add569cc52e239a4ed32b5ee2cdb5"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 0,
+      "screenshot": "orb_down_00.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 83,
+      "subjectPixelSha256": "25756f488afc48f9903f24a30aaaaa826e9346b7f8748df691ded1435a5c25c2"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 1,
+      "screenshot": "orb_down_01.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 419,
+      "subjectPixelSha256": "be7401980959d45e70168f61119ad6653e9618d0dae14672f5454cda125b2dbe"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 2,
+      "screenshot": "orb_down_02.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 533,
+      "subjectPixelSha256": "775dc41ecc0b2b04dc6aba6ad34201ebc72dbe9827b87e0aaf2fe32d4adf5117"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 3,
+      "screenshot": "orb_down_03.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 535,
+      "subjectPixelSha256": "e14ceebf330466eacfd90c35f47b43f2dbf66481f44bbb249f89d6ef894414fa"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 4,
+      "screenshot": "orb_down_04.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 426,
+      "subjectPixelSha256": "0d317eed1d03fbe23ea606655a62184029085b3b729fccd672695414154b5f1e"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 5,
+      "screenshot": "orb_down_05.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 802,
+      "subjectPixelSha256": "815138fc90032ab8d35f1b6385b2682777fdda3f342eb7ca3f7cffbc3afff763"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 6,
+      "screenshot": "orb_down_06.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 851,
+      "subjectPixelSha256": "df4bce132322883de048046feb273c77b464a676838c800a10246996f3e7f4ac"
+    },
+    {
+      "state": "orb",
+      "direction": 0,
+      "frame": 7,
+      "screenshot": "orb_down_07.png",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "subjectRGBColors": 214,
+      "subjectPixelSha256": "4f812c8d92ca093a3f537d4c05fb5d5461c113b8f9fc8e05581e4d3ebceb9e06"
+    }
+  ],
+  "warnings": [],
+  "landscapeDimensions": [
+    1280,
+    720
+  ],
+  "apkSha256": "f550143d325d5b1abf44645b000ea82a1362942954ca4fbc708664c05f22fb10",
+  "videoWarning": null
 }
