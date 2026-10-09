@@ -31,7 +31,7 @@ jobs:
       - name: Reconstruir projeto Android a partir do ZIP
         shell: bash
         run: |
-          base64 -d calc-build/source-v1.1.zip.b64 > /tmp/calculadora-source.zip
+          base64 -d calc-build/source-v1.2.zip.b64 > /tmp/calculadora-source.zip
           mkdir -p calculadora_build
           unzip -q /tmp/calculadora-source.zip -d calculadora_build
           test -f calculadora_build/settings.gradle
@@ -46,7 +46,7 @@ jobs:
       - name: Anexar APK instalável
         uses: actions/upload-artifact@v4
         with:
-          name: Calculadora-cientifica-v1.1-APK
+          name: Calculadora-cientifica-v1.2-APK
           path: calculadora_build/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
