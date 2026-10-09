@@ -26,9 +26,12 @@ final class GameArt {
         "items/sword_varyn.png", "items/bandage.png", "items/mana_draught.png", "items/ivo_note.png",
         "props/chest_closed.png", "props/chest_open.png", "props/sword_ground.png",
         "props/trace.png", "props/altar.png"
+        ,"scenes/zone_6.png", "scenes/zone_7.png", "scenes/zone_8.png",
+        "runes/arcana.png", "runes/ember.png", "runes/frost.png", "runes/mark.png"
     };
     private final Context context;
     private final Map<String, Bitmap> images = new HashMap<>();
+    private final Map<String, RectF> visible = new HashMap<>();
     private final Paint paint = new Paint();
     private final Rect source = new Rect();
     private final RectF tile = new RectF();
@@ -42,7 +45,7 @@ final class GameArt {
         for (String path : REQUIRED) {
             if (path.startsWith("scenes/")) {
                 // Verify headers without keeping all six backgrounds in the Java heap.
-                try (InputStream stream = context.getAssets().open(ROOT + path)) {
+                try (InputStream stream = context.getAssets().open(assetPath(path))) {
                     BitmapFactory.Options options = new BitmapFactory.Options();
                     options.inJustDecodeBounds = true;
                     BitmapFactory.decodeStream(stream, null, options);
@@ -50,13 +53,34 @@ final class GameArt {
                 } catch (IOException error) {
                     throw new IllegalStateException("Missing v1.9 artwork: " + path, error);
                 }
-            } else images.put(path, decode(path));
+            } else {
+                Bitmap image = decode(path);
+                images.put(path, image);
+                if (path.startsWith("props/")) {
+                    int[] pixels = new int[image.getWidth() * image.getHeight()];
+                    image.getPixels(pixels,0,image.getWidth(),0,0,image.getWidth(),image.getHeight());
+                    int left=image.getWidth(), top=image.getHeight(), right=0, bottom=0;
+                    for (int y=0; y<image.getHeight(); y++) for (int x=0; x<image.getWidth(); x++) {
+                        if ((pixels[y*image.getWidth()+x] >>> 24) < 128) continue;
+                        left=Math.min(left,x); top=Math.min(top,y);
+                        right=Math.max(right,x+1); bottom=Math.max(bottom,y+1);
+                    }
+                    visible.put(path, new RectF(left,top,right,bottom));
+                }
+            }
         }
-        Log.i("VEILBREAKERS_GAME_ART", "v1.9 loaded: scenes=6 npc=6 portraits=3 ui=4 items=4 props=5");
+        Log.i("VEILBREAKERS_GAME_ART", "v1.10 loaded: scenes=9 npc=6 portraits=3 ui=4 items=4 props=5 runes=4");
     }
 
+    private String assetPath(String name) {
+        boolean current = name.startsWith("runes/") || (name.startsWith("scenes/zone_") && name.charAt(12)>='6');
+        return (current ? "art_v20/" : ROOT) + name;
+    }
+
+    RectF visibleBounds(String name) { return visible.get(name); }
+
     private Bitmap decode(String name) {
-        try (InputStream stream = context.getAssets().open(ROOT + name)) {
+        try (InputStream stream = context.getAssets().open(assetPath(name))) {
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inScaled = false;
             Bitmap result = BitmapFactory.decodeStream(stream, null, options);

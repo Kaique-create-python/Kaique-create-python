@@ -1,0 +1,3860 @@
+{
+  "version": "1.10.0",
+  "versionCode": 24,
+  "package": "com.veilbreakers.prototype",
+  "sourceRepository": "Kaique-create-python/Kaique-create-python",
+  "sourceBranch": "veilbreakers-apk-build",
+  "runtimeFrameCount": 212,
+  "artMethod": "Generated with image_gen; inspected; recut and placed on fixed canvases using recorded source coordinates.",
+  "characterModel": "project_archive/source_sheets/v17/kael_model_sheet.png",
+  "sourceSheetsDirectory": "project_archive/source_sheets/v17",
+  "previewsDirectory": "project_archive/previews/v17",
+  "reconstruction": "Decode v17_reviewed_art, run_v18_assets, v19_assets, then v20_assets; source sheets/crop metadata preserved.",
+  "reconstructionScripts": [
+    "audit_baseline_art.py",
+    "capture_android_review.py",
+    "enemy_art.py",
+    "finalize_v17_archive.py",
+    "import_v20_art.py",
+    "kael_combo.py",
+    "kael_locomotion.py",
+    "pack_v20_assets.py",
+    "prepare_cast_v17.py",
+    "prepare_orb_v17.py",
+    "prepare_run_v18.py",
+    "prepare_spell_fx_v20.py",
+    "recover_workflow_assets.py",
+    "validate_v17_assets.py",
+    "verify_apk_v17.py"
+  ],
+  "animations": [
+    {
+      "name": "kael_idle",
+      "direction": "down",
+      "frameCount": 4,
+      "recommendedFPS": 5,
+      "fps": 5,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/idle/down_0.png",
+          "sha256": "33ed2b0830c69b0a322e53a1c9dbf737d6625cd6cdbf68d8f282b96794001db2"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/idle/down_1.png",
+          "sha256": "8cf6e6daf3f0334d8fb10ad2d555e553af28276e7e9a7fb13b3e986eadf83323"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/idle/down_2.png",
+          "sha256": "bdb07c7e4d9980412b0e9512b482ebca07d4d996639565a6e77eac4f6a845ddc"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/idle/down_3.png",
+          "sha256": "51f18d19aa8735d3fc8c056c2a6d2d30034b3265e94e8d8b7b80869fe2aeedc6"
+        }
+      ]
+    },
+    {
+      "name": "kael_walk",
+      "direction": "down",
+      "frameCount": 6,
+      "recommendedFPS": 9,
+      "fps": 9,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/walk/down_0.png",
+          "sha256": "be0f5052125bdbeb1a3df01929fa75b97db8b18f1e0ed410292dd6166b5c5f46"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/walk/down_1.png",
+          "sha256": "f3cd1eeb038ee6a24d34c2667e64f49c9c4f655720d1b8eccfc65c023b58c59c"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/walk/down_2.png",
+          "sha256": "ad9cef002cb276a42b4c66cc8245a2d0ac5fa33efe8cb45651d8ad031f5f1ab8"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/walk/down_3.png",
+          "sha256": "93fed6bc1828f212ea6f1dbedd3d72a7b663c0ab4b691db446f71d4e13493d7e"
+        },
+        {
+          "index": 4,
+          "file": "kael_v17/walk/down_4.png",
+          "sha256": "636662220688f07d5df86c609e0a2c3fe7292d315711221b1243426ce557408b"
+        },
+        {
+          "index": 5,
+          "file": "kael_v17/walk/down_5.png",
+          "sha256": "414020f59dcc99f6f1f32907f38072c0a043d348d549c325f93d8406ec58cd6c"
+        }
+      ]
+    },
+    {
+      "name": "kael_run",
+      "direction": "down",
+      "frameCount": 6,
+      "recommendedFPS": 12,
+      "fps": 12,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v18/run/down_0.png",
+          "sha256": "64dd6c4b8fbbf07ec90a424e26cf3a738081985b05894d484cfa3d5b73130c41",
+          "phase": "contact_A"
+        },
+        {
+          "index": 1,
+          "file": "kael_v18/run/down_1.png",
+          "sha256": "11a325a41067573b3e7d4789a9fe667ad72404c1c687d0766b0e1277b7f49602",
+          "phase": "compression_A"
+        },
+        {
+          "index": 2,
+          "file": "kael_v18/run/down_2.png",
+          "sha256": "1d09a3d5889676e95c3990b73c86d45bb55ca9d02a9debd08e44ad33db9b84e8",
+          "phase": "flight_A"
+        },
+        {
+          "index": 3,
+          "file": "kael_v18/run/down_3.png",
+          "sha256": "faff7f3b41b146e740e3e40a423a5437072c4a51f7ae6d0dcf7da01b8bdb00c3",
+          "phase": "contact_B"
+        },
+        {
+          "index": 4,
+          "file": "kael_v18/run/down_4.png",
+          "sha256": "31a63b50e643a5be837890249094a1eca028ef67e7ca40e28372088dd423c59a",
+          "phase": "compression_B"
+        },
+        {
+          "index": 5,
+          "file": "kael_v18/run/down_5.png",
+          "sha256": "519929722003d75cda93f745ca245d7692533d7676b75c0a421fdb0a356d3feb",
+          "phase": "flight_B"
+        }
+      ],
+      "runtimeCadence": "distance-driven; nominal 12 FPS"
+    },
+    {
+      "name": "kael_combo1",
+      "direction": "down",
+      "frameCount": 3,
+      "recommendedFPS": 7.894737,
+      "fps": 7.894737,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/down_c1_0.png",
+          "sha256": "c0da0eda3dfd499176085754580a61fac00df6191b5836b6fdd0c24447a287ae"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/down_c1_1.png",
+          "sha256": "79a30e66cb083be2e2adec3adf7eebafce827f7c0d46aed7ffcb93ed377fa129"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/down_c1_2.png",
+          "sha256": "8c83f8df4b0198de3af79a41ff115a53abd59220ad465c69ce4b29d8c07c8f59"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.114,
+        0.1064,
+        0.1596
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo2",
+      "direction": "down",
+      "frameCount": 3,
+      "recommendedFPS": 6.818182,
+      "fps": 6.818182,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/down_c2_0.png",
+          "sha256": "84cb780369c8c742fa1971950e36013ad6f8a4057621c84d35c2cf7462dd2872"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/down_c2_1.png",
+          "sha256": "a5478200764724d60a18315207bdc4741d7b8e1086cc616efe8e9cea664220d3"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/down_c2_2.png",
+          "sha256": "555788d1e88b976fbce3f0d24a3fe8ff91adfbb8f1d848719d9a23a7e2804f24"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.132,
+        0.1232,
+        0.1848
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo3",
+      "direction": "down",
+      "frameCount": 3,
+      "recommendedFPS": 5.555556,
+      "fps": 5.555556,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/down_c3_0.png",
+          "sha256": "1b6bc998da4b7024d2005c1f81f488449bcdb04f97220a7df9a5f67e27352a96"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/down_c3_1.png",
+          "sha256": "4eb9919972274a8e893f9f005213cc5dfa86b0346960c705c77e8fff9123b010"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/down_c3_2.png",
+          "sha256": "680cab8329765c7889820150a1917622dbc03b998fa65c74f09091b3034dcd67"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.162,
+        0.1512,
+        0.2268
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "veilborn_idle",
+      "direction": "down",
+      "frameCount": 3,
+      "recommendedFPS": 4,
+      "fps": 4,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/idle/down_0.png",
+          "sha256": "7efab25386271b2770db437bdfbfde66de43d962f2a027fd4e3b8294f92f9700"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/idle/down_1.png",
+          "sha256": "fd178117085401f0914634cd9695b6c5920b2fdf23d361b57e520d3daba31022"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/idle/down_2.png",
+          "sha256": "697daac30e286aeccca6ada79cc1d3774ba22a559d9ac15837c34b0f9078ab6b"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_chase",
+      "direction": "down",
+      "frameCount": 4,
+      "recommendedFPS": 8,
+      "fps": 8,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/chase/down_0.png",
+          "sha256": "c83232dc663eca2df9eafabfa53460dfbd1046d44c93fb2482cb23f666e17a8b"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/chase/down_1.png",
+          "sha256": "b9a512ae8b9c0199837a8b75829d18b010f93d7bf41f2a1682f8f1abf74daa88"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/chase/down_2.png",
+          "sha256": "34b02a7164917c159684800700072bf0e65eff27e115222564d242f1e2073514"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/chase/down_3.png",
+          "sha256": "9dd368d8a36cc497fb97fa72ad0d62c035ceb658055753918a4e0fc9747251c7"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_attack",
+      "direction": "down",
+      "frameCount": 4,
+      "recommendedFPS": 9.090909,
+      "fps": 9.090909,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/attack/down_0.png",
+          "sha256": "b763a2575f0aedc49e3cdf23ac3451c7a0fb99ff1217f83d12d11e499eb4775e"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/attack/down_1.png",
+          "sha256": "c7084f4e97befd573888f1bb9fd025e555555ba7b12438a92ba9625b6f0e6972"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/attack/down_2.png",
+          "sha256": "ee9a899131ac96c75f6855a586e9f4d54c014a30d6044f13fa1c180f8b2ff7a7"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/attack/down_3.png",
+          "sha256": "fa374d64de45c6fe6ae2bf8e51f4556fa5bb853d2be6d7e7bc1c25a0abd0838d"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.11,
+        0.11,
+        0.11,
+        0.11
+      ],
+      "hitFrame": 2
+    },
+    {
+      "name": "kael_idle",
+      "direction": "up",
+      "frameCount": 4,
+      "recommendedFPS": 5,
+      "fps": 5,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/idle/up_0.png",
+          "sha256": "90c8fc04c48931efec2ce9697ba4f6210304bfb6eb1d95e2c8fee134292a4d31"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/idle/up_1.png",
+          "sha256": "cda6782f8b0b03c1453bdfab7b72bc4990d266efb3041c468a2aaf8f0babe3c8"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/idle/up_2.png",
+          "sha256": "e535b20d072a272abbcee3a4c5160d9ebd3fda0df64c0e3773794d517e02c1c1"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/idle/up_3.png",
+          "sha256": "ba651dd635b2419f21d99c4f56210e7c7c1a29afad994d00f4b64c712356037c"
+        }
+      ]
+    },
+    {
+      "name": "kael_walk",
+      "direction": "up",
+      "frameCount": 6,
+      "recommendedFPS": 9,
+      "fps": 9,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/walk/up_0.png",
+          "sha256": "cfad3702fd3817bd2939c7b95d3a5c6ba6983e32ee0a229b9e10a3231e9e495f"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/walk/up_1.png",
+          "sha256": "7efa02df467dffa5a389b9a9de4ae6e81e5751c856fb5f7da94077b704749fad"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/walk/up_2.png",
+          "sha256": "7c5e2dd487baf42101cd26b62b4372284004bbabb281b745458644d4732a6e5d"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/walk/up_3.png",
+          "sha256": "60b05e8e38b07ea85c1f77593b068afcbdd33467c65e4f89883aa1e9cd35d2d9"
+        },
+        {
+          "index": 4,
+          "file": "kael_v17/walk/up_4.png",
+          "sha256": "2e2f5ac275e640e99955c4679749e9248b1aa1670a1adf0a29028aae16b7e41c"
+        },
+        {
+          "index": 5,
+          "file": "kael_v17/walk/up_5.png",
+          "sha256": "020c7794ba8ca0df5552702aec0f47d4c8f03d9a0a51695b6183b4b9dc10aa19"
+        }
+      ]
+    },
+    {
+      "name": "kael_run",
+      "direction": "up",
+      "frameCount": 6,
+      "recommendedFPS": 12,
+      "fps": 12,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v18/run/up_0.png",
+          "sha256": "09325e0e2d89d9f565269fd7218303440fcea7b8dac57bcd6d4ebe22163b8855",
+          "phase": "contact_A"
+        },
+        {
+          "index": 1,
+          "file": "kael_v18/run/up_1.png",
+          "sha256": "079518f49f90be21e6d30a41bb4b66de391b93377970348f3f513764822967f8",
+          "phase": "compression_A"
+        },
+        {
+          "index": 2,
+          "file": "kael_v18/run/up_2.png",
+          "sha256": "127ac7c07bc5ee2fe0d5d3b4ebc5e146b99cac7bc1b188f17ccfc3f394bbed11",
+          "phase": "flight_A"
+        },
+        {
+          "index": 3,
+          "file": "kael_v18/run/up_3.png",
+          "sha256": "5821e0f36ca37e3e33f573119cfb95518227f55f91dd8e53c4e32ea92202faf8",
+          "phase": "contact_B"
+        },
+        {
+          "index": 4,
+          "file": "kael_v18/run/up_4.png",
+          "sha256": "cd7144d2be44eba6da7d3e3a33d804fcbf6a1d98ce948e85c13f4058711c2030",
+          "phase": "compression_B"
+        },
+        {
+          "index": 5,
+          "file": "kael_v18/run/up_5.png",
+          "sha256": "50c1879da68594a6d4af19e3580d1e40ec26d81ed46a7cacb2ad5b15e89d0337",
+          "phase": "flight_B"
+        }
+      ],
+      "runtimeCadence": "distance-driven; nominal 12 FPS"
+    },
+    {
+      "name": "kael_combo1",
+      "direction": "up",
+      "frameCount": 3,
+      "recommendedFPS": 7.894737,
+      "fps": 7.894737,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/up_c1_0.png",
+          "sha256": "0d95f1323709c647d32dd9363753dcf40b05b9a32afcb45b30c8ff73e9959f31"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/up_c1_1.png",
+          "sha256": "54d5f26abf6f453995b4e4d242b178602cdd9623206fa50833dbf2022f7b1fc6"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/up_c1_2.png",
+          "sha256": "d7ecd4d31502aa9d1a60f09958ed7b81ea4d7c62865add3c36e485423a564894"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.114,
+        0.1064,
+        0.1596
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo2",
+      "direction": "up",
+      "frameCount": 3,
+      "recommendedFPS": 6.818182,
+      "fps": 6.818182,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/up_c2_0.png",
+          "sha256": "950bfd6907a87fc75c10084ec976bed8cfdcc9a18c5df5e4960bd2775463f50b"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/up_c2_1.png",
+          "sha256": "ef3636209ce1fe8ae71f57dc3105f01ded520c6dcd99f2a3a877f7e9823178fe"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/up_c2_2.png",
+          "sha256": "9e852595bbc30ff54d99d7d0035c0bbbaced1a5cd0fdab8ea546739a93a0d459"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.132,
+        0.1232,
+        0.1848
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo3",
+      "direction": "up",
+      "frameCount": 3,
+      "recommendedFPS": 5.555556,
+      "fps": 5.555556,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/up_c3_0.png",
+          "sha256": "e9ec9b01284af3761ac543228efe1de29e4a9111fc7e3a447f60c2d2663dd32e"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/up_c3_1.png",
+          "sha256": "ca69af60e278c6ef05915d9c0d78c69d7ba788aed466abfdf26879327bf3212a"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/up_c3_2.png",
+          "sha256": "a2a52a183e3b19b911d2f7b7c2dea4f26dd0fc1c3aee5612f5555c05f74cf07c"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.162,
+        0.1512,
+        0.2268
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "veilborn_idle",
+      "direction": "up",
+      "frameCount": 3,
+      "recommendedFPS": 4,
+      "fps": 4,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/idle/up_0.png",
+          "sha256": "4c467cdcfba396e8caa19d35444452cdfdb9a38ba167384476488200cd9f3ced"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/idle/up_1.png",
+          "sha256": "34cc24184ba986dd967e3a5fa26c739bb6ec1fb8dd6aa9c672c1cc95cd303df8"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/idle/up_2.png",
+          "sha256": "25caa385ca98e6151fb62c08fe42ad6d65697754761bb27e23f82d17e667af9f"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_chase",
+      "direction": "up",
+      "frameCount": 4,
+      "recommendedFPS": 8,
+      "fps": 8,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/chase/up_0.png",
+          "sha256": "c882b9c56db4498b60e0a5b7eea888e80568ea3d605414941d901ab7a31e54df"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/chase/up_1.png",
+          "sha256": "87f873403509a2f1f77c34e0af375e6cf565d63edc5ed2b0753854ed791fa844"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/chase/up_2.png",
+          "sha256": "13ab555c9403b34420f34bd6b4e0bb56fa66a928a91803226cf25a87f74bbdf5"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/chase/up_3.png",
+          "sha256": "84ae6c82eddc306f5b29ecf472ef11cf645151389f3fc8230b865e96e16d37c8"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_attack",
+      "direction": "up",
+      "frameCount": 4,
+      "recommendedFPS": 9.090909,
+      "fps": 9.090909,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/attack/up_0.png",
+          "sha256": "dd119d696ce185d0b3a27a9340e895f1ccffa5c70bf3d33588c5d5bac608182b"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/attack/up_1.png",
+          "sha256": "740c8bb8a8f6386ae7ff275eedea7cef31f40afb8a6743ea2812617c3215aaba"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/attack/up_2.png",
+          "sha256": "b48d714ec866ca490b73a6b92e41d27ef836edcf420338d019847400713ffb32"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/attack/up_3.png",
+          "sha256": "735d3bac309022d12858a0f8a13d69e43111879fd71030be3e9f75d4b99ffb8b"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.11,
+        0.11,
+        0.11,
+        0.11
+      ],
+      "hitFrame": 2
+    },
+    {
+      "name": "kael_idle",
+      "direction": "left",
+      "frameCount": 4,
+      "recommendedFPS": 5,
+      "fps": 5,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/idle/left_0.png",
+          "sha256": "798ecebb7a68b602a6757b7aabc77f13e4e75bf673002e9c7096725bbf06623e"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/idle/left_1.png",
+          "sha256": "da0e20b20c320baa815507ae4a1bdafbc645df7948f0f564f0c2a02b80807efc"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/idle/left_2.png",
+          "sha256": "ddb35578f1ae1c6855ce2fe9dae58b2f59a292ee39f603f9a8cc87848140adfc"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/idle/left_3.png",
+          "sha256": "f05445225597f03f1e5d4cf39e1a623d6c348db2f9c0a652d490de8a83b08e5a"
+        }
+      ]
+    },
+    {
+      "name": "kael_walk",
+      "direction": "left",
+      "frameCount": 6,
+      "recommendedFPS": 9,
+      "fps": 9,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/walk/left_0.png",
+          "sha256": "91d6f0d91b59ce60edbd6dc7f12794bd58a0e338baf50bb4bdd6344c29895d03"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/walk/left_1.png",
+          "sha256": "5ea521dd5e8df91dc38e4f8715fb073ce5f2bef53a1f8b6ca9a438ca09148a2d"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/walk/left_2.png",
+          "sha256": "1147ccc76a2633f1f91fdd358b28a7c23489634ede13dd0e56f272580c2bf445"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/walk/left_3.png",
+          "sha256": "e0602345ec30c1552f72e57ec07dbb4450350b7fc412842c95f4801eb1b41a74"
+        },
+        {
+          "index": 4,
+          "file": "kael_v17/walk/left_4.png",
+          "sha256": "68c631b67da9798b559ab32c8a00d722b7d7d86213917ea4b36837e5ea85d1de"
+        },
+        {
+          "index": 5,
+          "file": "kael_v17/walk/left_5.png",
+          "sha256": "58905cd5dbd6b423d4e89154b98ed00288c8e350cf4f94989e34da6a6b47d3b5"
+        }
+      ]
+    },
+    {
+      "name": "kael_run",
+      "direction": "left",
+      "frameCount": 6,
+      "recommendedFPS": 12,
+      "fps": 12,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v18/run/left_0.png",
+          "sha256": "9007ed1276d51af3dbe84c035a50681b6dc84dcbb730d1bafa51bc3040e7497a",
+          "phase": "contact_A"
+        },
+        {
+          "index": 1,
+          "file": "kael_v18/run/left_1.png",
+          "sha256": "acb28f76088540e7ce2458c23fe0d2a2d06d7d71301d65b65947d86079898b89",
+          "phase": "compression_A"
+        },
+        {
+          "index": 2,
+          "file": "kael_v18/run/left_2.png",
+          "sha256": "071533cc97eda14910b5d119a7da575ea70843a5363ad1ada5d1bf341d704dae",
+          "phase": "flight_A"
+        },
+        {
+          "index": 3,
+          "file": "kael_v18/run/left_3.png",
+          "sha256": "810949f03eb6b944346e32dbac83f6a5b4a6be435a5191968ab5b5c327056712",
+          "phase": "contact_B"
+        },
+        {
+          "index": 4,
+          "file": "kael_v18/run/left_4.png",
+          "sha256": "270d26c03dfa3ed604fcf98cfb4e69cc2958b7c11153eeb91e11cebfecb496c8",
+          "phase": "compression_B"
+        },
+        {
+          "index": 5,
+          "file": "kael_v18/run/left_5.png",
+          "sha256": "fbb5f06eaef16c51aad63d34578d1db2c2abf368141569752eab7f25652a897e",
+          "phase": "flight_B"
+        }
+      ],
+      "runtimeCadence": "distance-driven; nominal 12 FPS"
+    },
+    {
+      "name": "kael_combo1",
+      "direction": "left",
+      "frameCount": 3,
+      "recommendedFPS": 7.894737,
+      "fps": 7.894737,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/left_c1_0.png",
+          "sha256": "1ef8726c95fa592ada36bf1a6d3c5571a1b65dbdedb465d2fcf436d2857edf93"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/left_c1_1.png",
+          "sha256": "f9b028d6609859dee7e82b8a51f3ac02e1fb81b6c44356cc092e82d43ea2187a"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/left_c1_2.png",
+          "sha256": "a950c9cb9fc7ce3576596541a2a2fca104b53801a3488dc5c497b874fd476655"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.114,
+        0.1064,
+        0.1596
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo2",
+      "direction": "left",
+      "frameCount": 3,
+      "recommendedFPS": 6.818182,
+      "fps": 6.818182,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/left_c2_0.png",
+          "sha256": "7ebd93e0031f65b2ef7e74e4eeec9046cc668e5624096370e2772105ea223aaf"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/left_c2_1.png",
+          "sha256": "f2109803c4c3adbaaec92ffb12f2684d4c40224192b896bc7db497fb2cfffb4c"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/left_c2_2.png",
+          "sha256": "6c0ecb9da4f9f0f71f01a98b8aec9b886ae10cd7dbb039f6a260ffe7dd5f4aa3"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.132,
+        0.1232,
+        0.1848
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo3",
+      "direction": "left",
+      "frameCount": 3,
+      "recommendedFPS": 5.555556,
+      "fps": 5.555556,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/left_c3_0.png",
+          "sha256": "17ee6a559eda5b7505d22d69afd3741dbce74bb9a9f870a3c583169e36e07c60"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/left_c3_1.png",
+          "sha256": "eaa4ec744f7e7a74e5275b91d924f347fa32d7cc360c2a0a8b4ba4691edcaf84"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/left_c3_2.png",
+          "sha256": "a8ba54cda92237e05ea72c72a5bc6f72688e99592eaa2bce7b5389a9be631c3b"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.162,
+        0.1512,
+        0.2268
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "veilborn_idle",
+      "direction": "left",
+      "frameCount": 3,
+      "recommendedFPS": 4,
+      "fps": 4,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/idle/left_0.png",
+          "sha256": "9136fd3632e2d560ee94e262097c67c3d2a8a093a8537a30a8aedb9aa718353d"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/idle/left_1.png",
+          "sha256": "0c7903c83115095106f3ea48fcc02b36b5e1b8b2c7a6d2591eec06fd05c12f49"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/idle/left_2.png",
+          "sha256": "471fdbd41fb7d6c10ddb5039d9b0386d31abb8dd26ee5c6193087ecfaccdb873"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_chase",
+      "direction": "left",
+      "frameCount": 4,
+      "recommendedFPS": 8,
+      "fps": 8,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/chase/left_0.png",
+          "sha256": "4a0cbd517d264bb1869bcef6f7b7ac2e151003b567428a7f118c90e9fd0710e7"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/chase/left_1.png",
+          "sha256": "ca1647c0feba5e697270271a894a8410f878a4d6480412960377d04710281170"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/chase/left_2.png",
+          "sha256": "9286403fd4e8fe68ff9f9909b97d95e5ae7c88ac5a60fe4abf4782e5e7eef66f"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/chase/left_3.png",
+          "sha256": "17b3901cedffc1af317bee4a3f2ecabd2a006556024655fad62702a61f180795"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_attack",
+      "direction": "left",
+      "frameCount": 4,
+      "recommendedFPS": 9.090909,
+      "fps": 9.090909,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/attack/left_0.png",
+          "sha256": "061e36b47434f5b954bd8e8ac832f329da814069986d8d24b263711267993867"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/attack/left_1.png",
+          "sha256": "5e9fdcf5dcaf322560549659ecb18156814b05d838db77b16bf8966f740fda2c"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/attack/left_2.png",
+          "sha256": "cd5fdc579a23e9484331e9a7c388962597e288e73e3d0fc26fdd65bdfa11b859"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/attack/left_3.png",
+          "sha256": "3d9b868e9260199d6852ea9e0eba5b228d3ed6902eac4dce89e51563d9642a14"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.11,
+        0.11,
+        0.11,
+        0.11
+      ],
+      "hitFrame": 2
+    },
+    {
+      "name": "kael_idle",
+      "direction": "right",
+      "frameCount": 4,
+      "recommendedFPS": 5,
+      "fps": 5,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/idle/right_0.png",
+          "sha256": "ae810e557dd6ea2dcd9e6e528217c4de3d1f30946d65b86fba436654556311ea"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/idle/right_1.png",
+          "sha256": "cc21867bbc9dc3d11ae8badabc4e8e8e099ba48a6eecd3cacf0cbdc9af9e6d59"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/idle/right_2.png",
+          "sha256": "632535b0cbd2da7723c455d3bf4eaa728c6638e598425fcd9e6c3a1e4983fb48"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/idle/right_3.png",
+          "sha256": "6d6ebc19d4e9e3c1a55e68d539d438293e64607aa136190b88bf3234742e0503"
+        }
+      ]
+    },
+    {
+      "name": "kael_walk",
+      "direction": "right",
+      "frameCount": 6,
+      "recommendedFPS": 9,
+      "fps": 9,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/walk/right_0.png",
+          "sha256": "e93776b2357fc2eca1a35d619bc229234a96e3b51d0d86a07c3f20cf9a9e7cd5"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/walk/right_1.png",
+          "sha256": "a74a2ebd69040c68391eebeba9e9bdb52c170f9d1b9dd7e46937200f2db22379"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/walk/right_2.png",
+          "sha256": "2fdad8566e4af65cdca0269bcf87dfff140b96b84b85d18ce3d6ee5a8f098da4"
+        },
+        {
+          "index": 3,
+          "file": "kael_v17/walk/right_3.png",
+          "sha256": "bbf773583d0301f75ce1c652d7aaab6444f2d8a62defbef31d055508f9c7ff4b"
+        },
+        {
+          "index": 4,
+          "file": "kael_v17/walk/right_4.png",
+          "sha256": "0a9364a47a6008bb4605c9186cf569a2d488158b74d1859736a1c05088ce99e0"
+        },
+        {
+          "index": 5,
+          "file": "kael_v17/walk/right_5.png",
+          "sha256": "9ddcf65082d1fccda354a453042d21eb679b609d1240a8be60841b50dfbe6430"
+        }
+      ]
+    },
+    {
+      "name": "kael_run",
+      "direction": "right",
+      "frameCount": 6,
+      "recommendedFPS": 12,
+      "fps": 12,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v18/run/right_0.png",
+          "sha256": "847e0015d548b8b5f9dd89e0728176edacb8736a01e53283e23df7900eb25d02",
+          "phase": "contact_A"
+        },
+        {
+          "index": 1,
+          "file": "kael_v18/run/right_1.png",
+          "sha256": "404435193219587790ad68fa0fa707edd36dbc39d7aadccc689e51e2faa2f419",
+          "phase": "compression_A"
+        },
+        {
+          "index": 2,
+          "file": "kael_v18/run/right_2.png",
+          "sha256": "d665b99decaee5a85a55050c2ab6bdc5d16bac28dc45f819df811cc896f1b08e",
+          "phase": "flight_A"
+        },
+        {
+          "index": 3,
+          "file": "kael_v18/run/right_3.png",
+          "sha256": "7c151ec0cb1666719c758f9698deace0893bca10fc64bf290330de620de3931f",
+          "phase": "contact_B"
+        },
+        {
+          "index": 4,
+          "file": "kael_v18/run/right_4.png",
+          "sha256": "78147baa176e2fdc76834c3a7a919010ccbd8b549df50021342e1e13f33e5d89",
+          "phase": "compression_B"
+        },
+        {
+          "index": 5,
+          "file": "kael_v18/run/right_5.png",
+          "sha256": "b942bb36288e03e9570fe2c520167a36ba6f9a645943a8a386022c8dd6efb60c",
+          "phase": "flight_B"
+        }
+      ],
+      "runtimeCadence": "distance-driven; nominal 12 FPS"
+    },
+    {
+      "name": "kael_combo1",
+      "direction": "right",
+      "frameCount": 3,
+      "recommendedFPS": 7.894737,
+      "fps": 7.894737,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/right_c1_0.png",
+          "sha256": "aa6253c17dcceb268502938f5239e9c78f9f0f4b2c2bc1863c324fb2cf7e3ab5"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/right_c1_1.png",
+          "sha256": "dbedf62f1aa10d32bfb154012ddbca964471d8e113838bb3347aac7f24be648b"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/right_c1_2.png",
+          "sha256": "b66d64e9446082e8c7b349b8b33f4757430bf9f9b1ed9d6ede2c3e37eb66d165"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.114,
+        0.1064,
+        0.1596
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo2",
+      "direction": "right",
+      "frameCount": 3,
+      "recommendedFPS": 6.818182,
+      "fps": 6.818182,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/right_c2_0.png",
+          "sha256": "96f612ea9afd68f77112c40eca79dd96d8c97ac2f372509c866e01ebe0a4b5de"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/right_c2_1.png",
+          "sha256": "8309c3507caa27140384ff803bd9aa4547168421868148989915783c2480d14e"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/right_c2_2.png",
+          "sha256": "ae6ff4076b684d785e379542f54f01f2cd5e62ed0eeeb1e050fe8c1957bb3e6a"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.132,
+        0.1232,
+        0.1848
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "kael_combo3",
+      "direction": "right",
+      "frameCount": 3,
+      "recommendedFPS": 5.555556,
+      "fps": 5.555556,
+      "cellWidth": 512,
+      "cellHeight": 256,
+      "pivotX": 256,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v17/combo/right_c3_0.png",
+          "sha256": "4c5cd166e309b7526bfaf2b44b07c1095fdfaec42130bcd9327dd1d261a57d7d"
+        },
+        {
+          "index": 1,
+          "file": "kael_v17/combo/right_c3_1.png",
+          "sha256": "eda8af406a66d4ff522e622739ede4260f63a60060631e7cd760287b4c03b05f"
+        },
+        {
+          "index": 2,
+          "file": "kael_v17/combo/right_c3_2.png",
+          "sha256": "2e72ff9427a467bdc81c17488ad15950b6042edbfd3af57a3ee7d270ed6b7f9c"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.162,
+        0.1512,
+        0.2268
+      ],
+      "hitFrame": 1
+    },
+    {
+      "name": "veilborn_idle",
+      "direction": "right",
+      "frameCount": 3,
+      "recommendedFPS": 4,
+      "fps": 4,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/idle/right_0.png",
+          "sha256": "9b3a8637b32ff3c83407ed92f24e4a9aa799036b47c38b5c02ec6a5b7b8a150d"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/idle/right_1.png",
+          "sha256": "404df4e84f35bb2369244ee1aff8a6d8ffc0201b2253e4207426d3645c025e93"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/idle/right_2.png",
+          "sha256": "f85779b03fc6e68f72fc91d56fe1a69e851f0e222414188cd19c382403ab2bf5"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_chase",
+      "direction": "right",
+      "frameCount": 4,
+      "recommendedFPS": 8,
+      "fps": 8,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/chase/right_0.png",
+          "sha256": "56852295aa607c2ca5eafff10b98642332bc55f91f89bf132ed1a24e17f6dccd"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/chase/right_1.png",
+          "sha256": "c752dc35642861465f266fbdf60a46a784171397e76014b9437468a5eca70afc"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/chase/right_2.png",
+          "sha256": "c972be5457e5ae34b99b54940d8f3060017f80591c0b42dde81ed17460b4fcd5"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/chase/right_3.png",
+          "sha256": "e1536a01dfaef16722746f30b1fee93b358d0702b5e041f5e20d89508ed5dc60"
+        }
+      ]
+    },
+    {
+      "name": "veilborn_attack",
+      "direction": "right",
+      "frameCount": 4,
+      "recommendedFPS": 9.090909,
+      "fps": 9.090909,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/attack/right_0.png",
+          "sha256": "80178ac6720346770c91425edf96cb58124c097a9d8fef6483626d5115516eb8"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/attack/right_1.png",
+          "sha256": "586e87d69e232815e209e66ab070d439c065e49d6a49c3b968ade82c79419b1f"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/attack/right_2.png",
+          "sha256": "0ce74493d33a5fbe1e911ec7d6b5bf732fa6a810dca791524a3f0d842dbf7824"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/attack/right_3.png",
+          "sha256": "6c797c7b9d87c7a7bf38dcca6cd3e2c80a67d3076063e601da64013eaf91e320"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.11,
+        0.11,
+        0.11,
+        0.11
+      ],
+      "hitFrame": 2
+    },
+    {
+      "name": "veilborn_hurt",
+      "direction": "down",
+      "frameCount": 3,
+      "recommendedFPS": 10.714286,
+      "fps": 10.714286,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/hurt_0.png",
+          "sha256": "fbf2b8a8a9e959804dccddff1e9e5fcba5daf3e971e05672f36300136f22ab0d"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/hurt_1.png",
+          "sha256": "9b4c3fd1c136449520d8b3b12f8f25d1ff4ed894052ade84c36112dd91e049fb"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/hurt_2.png",
+          "sha256": "4ad3ed728393a27c7a6e12c29c2000762d46f160fd7feae8b5e0a4fa110c2225"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.09333333333333334,
+        0.09333333333333334,
+        0.09333333333333334
+      ]
+    },
+    {
+      "name": "veilborn_death",
+      "direction": "down",
+      "frameCount": 5,
+      "recommendedFPS": 7.142857,
+      "fps": 7.142857,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 168,
+      "scale": "screenHeight*0.19/168",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "enemy_v17/death_0.png",
+          "sha256": "dbac80c0a7273b80971d0dd2d8f48db44df3d396173afefaa0f52f8f8a6df7b5"
+        },
+        {
+          "index": 1,
+          "file": "enemy_v17/death_1.png",
+          "sha256": "c4fba940d76e9dabb33d1a19e5e5c36bf1e3ceea4f7e13ef1bb0a169ac5a60eb"
+        },
+        {
+          "index": 2,
+          "file": "enemy_v17/death_2.png",
+          "sha256": "443f15aec4b56a8ad9e3d2ed471041ae6342d4f3597a9ef63ce19ac594d56615"
+        },
+        {
+          "index": 3,
+          "file": "enemy_v17/death_3.png",
+          "sha256": "a1b0ec565c963d4fc86fc1c00240407775e6598d23186aadd7dcbb681ad74d3f"
+        },
+        {
+          "index": 4,
+          "file": "enemy_v17/death_4.png",
+          "sha256": "f65ae6d1143ac4ef284e2c7f2fcaa1ec8655367d867666853ee127b88dfffd7c"
+        }
+      ],
+      "frameDurationsSeconds": [
+        0.14,
+        0.14,
+        0.14,
+        0.14,
+        0.14
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "down",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/down_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            167.39,
+            174.28
+          ],
+          "orbSocketPx": [
+            167.39,
+            182.28
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/down_0.png",
+          "sourceSha256": "61c71fe31076134cf3c4c5e35339fcf6cb8ba57e9d49fee839988cf4994dbcb3",
+          "sha256": "61c71fe31076134cf3c4c5e35339fcf6cb8ba57e9d49fee839988cf4994dbcb3",
+          "visibleBounds": [
+            58,
+            58,
+            204,
+            234
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/down_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            83.23,
+            129.2
+          ],
+          "orbSocketPx": [
+            83.23,
+            137.2
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            34,
+            54,
+            288,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            79,
+            157
+          ],
+          "pelvisSourceX": 145,
+          "sha256": "099337175b229ea3d3c27c070e3b3714b73e7cb9de49f722ef640fecedf37dfe",
+          "visibleBounds": [
+            53,
+            60,
+            224,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/down_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            85.75,
+            81.54
+          ],
+          "orbSocketPx": [
+            85.75,
+            89.54
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            323,
+            45,
+            613,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            403,
+            86
+          ],
+          "pelvisSourceX": 466,
+          "sha256": "a504cee1812e0579e9771ddafe238a14c3ff7d8f1ecb1c2f7a698c9352522e1c",
+          "visibleBounds": [
+            32,
+            54,
+            227,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/down_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            81.78,
+            121.84
+          ],
+          "orbSocketPx": [
+            81.78,
+            129.84
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            633,
+            48,
+            905,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            719,
+            146
+          ],
+          "pelvisSourceX": 788,
+          "sha256": "3e02fe13b986bff2bffc464ab1114456a3a5ce396fd21035db13e2b4a193f1b6",
+          "visibleBounds": [
+            24,
+            56,
+            207,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/down_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            74.84,
+            162.44
+          ],
+          "orbSocketPx": [
+            74.84,
+            170.44
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 0,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            952,
+            56,
+            1240,
+            310
+          ],
+          "sharedDirectionScale": 0.67181467,
+          "sourceHandPx": [
+            1050,
+            207
+          ],
+          "pelvisSourceX": 1129,
+          "sha256": "2f3da608fdb717d9120f9a737a980b0fe4c72da26d5ddcdb5e142b6ea947ce8a",
+          "visibleBounds": [
+            9,
+            61,
+            202,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/down_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            167.39,
+            174.28
+          ],
+          "orbSocketPx": [
+            167.39,
+            182.28
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/down_4.png",
+          "sourceSha256": "9462efe3f939c67d38b04a05cb7b527c6783e4e737c6c6aa1000c2aee316ef14",
+          "sha256": "9462efe3f939c67d38b04a05cb7b527c6783e4e737c6c6aa1000c2aee316ef14",
+          "visibleBounds": [
+            57,
+            58,
+            204,
+            234
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "up",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/up_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            166.22,
+            153.22
+          ],
+          "orbSocketPx": [
+            166.22,
+            145.22
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/up_0.png",
+          "sourceSha256": "36fd3b7c87422044cf9ec643acdce5f0adfdcc71f846ac9a31bf46d2a472f597",
+          "sha256": "36fd3b7c87422044cf9ec643acdce5f0adfdcc71f846ac9a31bf46d2a472f597",
+          "visibleBounds": [
+            52,
+            58,
+            213,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/up_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            185.74,
+            116.0
+          ],
+          "orbSocketPx": [
+            185.74,
+            108.0
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            40,
+            368,
+            312,
+            614
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            232,
+            442
+          ],
+          "pelvisSourceX": 146,
+          "sha256": "5c12d1aa0bfc239ea83d0893d7e21c8c1fdd11c8be7629f3bc34e071e8519233",
+          "visibleBounds": [
+            56,
+            66,
+            240,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/up_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            149.25,
+            53.14
+          ],
+          "orbSocketPx": [
+            149.25,
+            45.14
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            339,
+            337,
+            637,
+            617
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            514,
+            352
+          ],
+          "pelvisSourceX": 483,
+          "sha256": "619fe5fd72f63c6325e6b99a480fc780c9a0f7b96786e849aad9095435306127",
+          "visibleBounds": [
+            31,
+            43,
+            232,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/up_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            170.12,
+            53.16
+          ],
+          "orbSocketPx": [
+            170.12,
+            45.16
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            659,
+            336,
+            931,
+            618
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            856,
+            354
+          ],
+          "pelvisSourceX": 794,
+          "sha256": "f20cf8f81439ca900ad825494d65b1a9a57df3d65b6f3235f33a6dc2ede17230",
+          "visibleBounds": [
+            37,
+            41,
+            221,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/up_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            183.55,
+            85.35
+          ],
+          "orbSocketPx": [
+            183.55,
+            77.35
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 1,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            955,
+            361,
+            1239,
+            617
+          ],
+          "sharedDirectionScale": 0.67572816,
+          "sourceHandPx": [
+            1200,
+            400
+          ],
+          "pelvisSourceX": 1118,
+          "sha256": "a8d223b5a5dbd6e65e0e2d350e9e79de1d7cd0bc6286106823d0bd5bbf871cbf",
+          "visibleBounds": [
+            18,
+            59,
+            210,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/up_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            166.22,
+            153.22
+          ],
+          "orbSocketPx": [
+            166.22,
+            145.22
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/up_4.png",
+          "sourceSha256": "b9c2a86bba1a604de7b79280d599f0fc3a772877b819d0f21b4413c33ab7ee73",
+          "sha256": "b9c2a86bba1a604de7b79280d599f0fc3a772877b819d0f21b4413c33ab7ee73",
+          "visibleBounds": [
+            50,
+            58,
+            211,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "left",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/left_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            110.06,
+            175.06
+          ],
+          "orbSocketPx": [
+            102.06,
+            175.06
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/left_0.png",
+          "sourceSha256": "cd9dcb98eb55564faa1713d8ad0ff7ff2a9da7eec8ab1aaa63b240efad695f4e",
+          "sha256": "cd9dcb98eb55564faa1713d8ad0ff7ff2a9da7eec8ab1aaa63b240efad695f4e",
+          "visibleBounds": [
+            87,
+            62,
+            221,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/left_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            171.92,
+            126.46
+          ],
+          "orbSocketPx": [
+            163.92,
+            126.46
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            32,
+            971,
+            316,
+            1218
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            218,
+            1064
+          ],
+          "pelvisSourceX": 153,
+          "sha256": "87803897f89a6ef112752b9785035ed80a88a10c979ab8fb41f343b0be0f34de",
+          "visibleBounds": [
+            45,
+            63,
+            239,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/left_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            167.68,
+            67.52
+          ],
+          "orbSocketPx": [
+            159.68,
+            67.52
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            354,
+            946,
+            612,
+            1220
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            525,
+            979
+          ],
+          "pelvisSourceX": 467,
+          "sha256": "0a1c6e34a3a7e85ba72122fd18125600cb99a8d37782374922c46dd7947d8a8d",
+          "visibleBounds": [
+            51,
+            45,
+            227,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/left_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            45.06,
+            100.08
+          ],
+          "orbSocketPx": [
+            37.06,
+            100.08
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            636,
+            957,
+            944,
+            1219
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            661,
+            1026
+          ],
+          "pelvisSourceX": 782,
+          "sha256": "bd59801f4ffd291cb9163ff019a4cbb593d1e14370b5974512d2512c7295d9aa",
+          "visibleBounds": [
+            28,
+            53,
+            238,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/left_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            29.38,
+            137.38
+          ],
+          "orbSocketPx": [
+            21.38,
+            137.38
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 3,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            962,
+            967,
+            1242,
+            1215
+          ],
+          "sharedDirectionScale": 0.68235294,
+          "sourceHandPx": [
+            986,
+            1076
+          ],
+          "pelvisSourceX": 1130,
+          "sha256": "28d9a44fce463271fe28747445bc0a2cccdc4a6a6106c4b97073cba0021707ad",
+          "visibleBounds": [
+            13,
+            63,
+            204,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/left_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            110.06,
+            175.06
+          ],
+          "orbSocketPx": [
+            102.06,
+            175.06
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/left_4.png",
+          "sourceSha256": "69e6aa989339ba08d20bfaefee550c25ad82c3ebe0fa932b37713e90f453908f",
+          "sha256": "69e6aa989339ba08d20bfaefee550c25ad82c3ebe0fa932b37713e90f453908f",
+          "visibleBounds": [
+            87,
+            62,
+            220,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "kael_arcana_cast",
+      "direction": "right",
+      "frameCount": 6,
+      "fps": 8.333333,
+      "recommendedFPS": 8.333333,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 232,
+      "baseline": 232,
+      "neutralBodyHeight": 174,
+      "scale": "screenHeight*0.205/174",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "frameDurationsSeconds": [
+        0.07,
+        0.11,
+        0.16,
+        0.1,
+        0.14,
+        0.14
+      ],
+      "phaseStartsSeconds": [
+        0,
+        0.07,
+        0.18,
+        0.34,
+        0.44,
+        0.58
+      ],
+      "releaseFrame": 3,
+      "releaseTimeSeconds": 0.34,
+      "durationSeconds": 0.72,
+      "frames": [
+        {
+          "index": 0,
+          "file": "kael_v19/cast/right_0.png",
+          "phase": "ready",
+          "handSocketPx": [
+            159.98,
+            173.5
+          ],
+          "orbSocketPx": [
+            167.98,
+            173.5
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/right_0.png",
+          "sourceSha256": "1eef6fa57ecb05f39e952258a03f12a1d4560fad8479c199ee2bc394aaf6e970",
+          "sha256": "1eef6fa57ecb05f39e952258a03f12a1d4560fad8479c199ee2bc394aaf6e970",
+          "visibleBounds": [
+            44,
+            64,
+            171,
+            234
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 1,
+          "file": "kael_v19/cast/right_1.png",
+          "phase": "chamber",
+          "handSocketPx": [
+            91.31,
+            130.48
+          ],
+          "orbSocketPx": [
+            99.31,
+            130.48
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 0,
+          "sourceCrop": [
+            14,
+            666,
+            287,
+            922
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            84,
+            768
+          ],
+          "pelvisSourceX": 140,
+          "sha256": "4727d0f6296fbef8bfe3a95d4cc178eb29e2e68e7661bb2e5962a2a003ec6ad1",
+          "visibleBounds": [
+            45,
+            63,
+            226,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 2,
+          "file": "kael_v19/cast/right_2.png",
+          "phase": "charge",
+          "handSocketPx": [
+            86.14,
+            66.2
+          ],
+          "orbSocketPx": [
+            94.14,
+            66.2
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 1,
+          "sourceCrop": [
+            309,
+            643,
+            597,
+            920
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            412,
+            669
+          ],
+          "pelvisSourceX": 476,
+          "sha256": "06477680e7564b2239494ac01bdd7b575e85ebabe3f82692e87f44d1d6fb9925",
+          "visibleBounds": [
+            18,
+            49,
+            209,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 3,
+          "file": "kael_v19/cast/right_3.png",
+          "phase": "release",
+          "handSocketPx": [
+            204.52,
+            110.57
+          ],
+          "orbSocketPx": [
+            212.52,
+            110.57
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 2,
+          "sourceCrop": [
+            616,
+            652,
+            935,
+            919
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            907,
+            736
+          ],
+          "pelvisSourceX": 791,
+          "sha256": "488df9b4d99de1a4bffa9d6dfeb93b55f8451caad1c1743bd543f984f1fd83fb",
+          "visibleBounds": [
+            12,
+            55,
+            223,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 4,
+          "file": "kael_v19/cast/right_4.png",
+          "phase": "follow_through",
+          "handSocketPx": [
+            210.91,
+            127.16
+          ],
+          "orbSocketPx": [
+            218.91,
+            127.16
+          ],
+          "baseline": 232,
+          "source": "kael_cast_generated.png",
+          "sourceRow": 2,
+          "sourceColumn": 3,
+          "sourceCrop": [
+            945,
+            663,
+            1249,
+            922
+          ],
+          "sharedDirectionScale": 0.66159696,
+          "sourceHandPx": [
+            1226,
+            763
+          ],
+          "pelvisSourceX": 1100,
+          "sha256": "0a781e50bafe9fec9747b429c8cfe2af7be53f4dd2d502a9e1b5401b83f4056f",
+          "visibleBounds": [
+            25,
+            61,
+            226,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        },
+        {
+          "index": 5,
+          "file": "kael_v19/cast/right_5.png",
+          "phase": "settle",
+          "handSocketPx": [
+            159.98,
+            173.5
+          ],
+          "orbSocketPx": [
+            167.98,
+            173.5
+          ],
+          "baseline": 232,
+          "preservedFrom": "kael_v17/cast/right_4.png",
+          "sourceSha256": "e3b17daa3e802fe3c45aa9b2677946bb01063085fb03f7d0f818f424151d1172",
+          "sha256": "e3b17daa3e802fe3c45aa9b2677946bb01063085fb03f7d0f818f424151d1172",
+          "visibleBounds": [
+            36,
+            62,
+            167,
+            232
+          ],
+          "pivotX": 128,
+          "pivotY": 232
+        }
+      ]
+    },
+    {
+      "name": "arcana_orb",
+      "direction": "radial / authored travel right; runtime rotates by facing",
+      "frameCount": 12,
+      "fps": 24,
+      "recommendedFPS": 24,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 128,
+      "baseline": null,
+      "neutralBodyHeight": null,
+      "scale": "screenHeight*0.18/256 travel; charge0.16; impact0.27",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameDurationsSeconds": [
+        0.05,
+        0.07,
+        0.12,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.045,
+        0.07,
+        0.1,
+        0.12
+      ],
+      "phaseNames": [
+        "birth",
+        "gather",
+        "charged",
+        "release_shock",
+        "flight_a",
+        "flight_b",
+        "flight_c",
+        "flight_d",
+        "impact_flash",
+        "impact_burst",
+        "impact_ring",
+        "dissipation"
+      ],
+      "impactDurationSeconds": 0.335,
+      "frames": [
+        {
+          "index": 0,
+          "file": "fx_v19/arcana_0.png",
+          "phase": "birth",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            101,
+            135,
+            278,
+            326
+          ],
+          "sourceCorePx": [
+            193,
+            233
+          ],
+          "sharedScale": 0.49,
+          "sha256": "270ba48d2686291d526eb81d5b3816762dd034e4867563f60a98b53463d67cba",
+          "visibleBounds": [
+            83,
+            80,
+            170,
+            174
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 1,
+          "file": "fx_v19/arcana_1.png",
+          "phase": "gather",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            435,
+            98,
+            675,
+            339
+          ],
+          "sourceCorePx": [
+            557,
+            232
+          ],
+          "sharedScale": 0.49,
+          "sha256": "cd292e72b606c3474815c2e9d63f146d63e758ace63d7958d6a6b48fb6454555",
+          "visibleBounds": [
+            68,
+            62,
+            186,
+            180
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 2,
+          "file": "fx_v19/arcana_2.png",
+          "phase": "charged",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            778,
+            89,
+            1043,
+            346
+          ],
+          "sourceCorePx": [
+            904,
+            229
+          ],
+          "sharedScale": 0.49,
+          "sha256": "823994a82522553a0a3f052a07739528b3247858c2b8bb68fd003f62cf5f86e6",
+          "visibleBounds": [
+            66,
+            59,
+            196,
+            185
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 3,
+          "file": "fx_v19/arcana_3.png",
+          "phase": "release_shock",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            1128,
+            78,
+            1409,
+            362
+          ],
+          "sourceCorePx": [
+            1269,
+            225
+          ],
+          "sharedScale": 0.49,
+          "sha256": "c0438a4840611ca753d21355144ef7768e94821817be6456b42bbe0d811b40dc",
+          "visibleBounds": [
+            59,
+            56,
+            197,
+            195
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 4,
+          "file": "fx_v19/arcana_4.png",
+          "phase": "flight_a",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            49,
+            465,
+            357,
+            659
+          ],
+          "sourceCorePx": [
+            275,
+            558
+          ],
+          "sharedScale": 0.49,
+          "sha256": "6114e7649841bbab314b0838757d67430f639774bede33008fbeb685d4e0bcf8",
+          "visibleBounds": [
+            17,
+            82,
+            168,
+            177
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 5,
+          "file": "fx_v19/arcana_5.png",
+          "phase": "flight_b",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            412,
+            459,
+            707,
+            662
+          ],
+          "sourceCorePx": [
+            617,
+            562
+          ],
+          "sharedScale": 0.49,
+          "sha256": "ffd0f3cde47e23a67458943a2242497da9d6a7360efca5320fcc61a25dc6d287",
+          "visibleBounds": [
+            28,
+            78,
+            173,
+            177
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 6,
+          "file": "fx_v19/arcana_6.png",
+          "phase": "flight_c",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            761,
+            459,
+            1062,
+            666
+          ],
+          "sourceCorePx": [
+            974,
+            557
+          ],
+          "sharedScale": 0.49,
+          "sha256": "956a088b2a01b347eb8d6b6fc6fe85b6e304260e22327250f99405bdceb668d3",
+          "visibleBounds": [
+            24,
+            80,
+            171,
+            181
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 7,
+          "file": "fx_v19/arcana_7.png",
+          "phase": "flight_d",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            1109,
+            452,
+            1420,
+            663
+          ],
+          "sourceCorePx": [
+            1333,
+            554
+          ],
+          "sharedScale": 0.49,
+          "sha256": "71ac4d29c1322c78b661f646122f74139e1cf849613d08d7ce7ff2147f41270f",
+          "visibleBounds": [
+            18,
+            78,
+            170,
+            181
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 8,
+          "file": "fx_v19/arcana_8.png",
+          "phase": "impact_flash",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            50,
+            738,
+            332,
+            1018
+          ],
+          "sourceCorePx": [
+            191,
+            882
+          ],
+          "sharedScale": 0.49,
+          "sha256": "3ef521a8100061789b8e5a59d36b70b15e2b2f18fd5fc8d5ff7f9e3ec20801ba",
+          "visibleBounds": [
+            59,
+            57,
+            197,
+            194
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 9,
+          "file": "fx_v19/arcana_9.png",
+          "phase": "impact_burst",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            409,
+            736,
+            719,
+            1031
+          ],
+          "sourceCorePx": [
+            560,
+            880
+          ],
+          "sharedScale": 0.49,
+          "sha256": "07251986172694e45e67bc78b91593bbd15854893596c96fcd2284a825e09b32",
+          "visibleBounds": [
+            54,
+            57,
+            206,
+            202
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 10,
+          "file": "fx_v19/arcana_10.png",
+          "phase": "impact_ring",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            761,
+            756,
+            1052,
+            1025
+          ],
+          "sourceCorePx": [
+            905,
+            887
+          ],
+          "sharedScale": 0.49,
+          "sha256": "81cc58b5004942e16562cf3479eb0003029f8dd7e8dc03d241a6dc2565d31aa4",
+          "visibleBounds": [
+            57,
+            64,
+            200,
+            196
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        },
+        {
+          "index": 11,
+          "file": "fx_v19/arcana_11.png",
+          "phase": "dissipation",
+          "source": "arcana_fx_generated.png",
+          "sourceCrop": [
+            1122,
+            762,
+            1393,
+            1005
+          ],
+          "sourceCorePx": [
+            1259,
+            880
+          ],
+          "sharedScale": 0.49,
+          "sha256": "30a715ae26b6dfb7b4a9d908fe3f72bc6bfb563fdd56723f0a3a9aa3208cebd4",
+          "visibleBounds": [
+            61,
+            70,
+            194,
+            189
+          ],
+          "pivotX": 128,
+          "pivotY": 128
+        }
+      ]
+    },
+    {
+      "name": "spell_fire",
+      "direction": "radial / authored travel right; rotate by facing",
+      "frameCount": 12,
+      "fps": 24,
+      "recommendedFPS": 24,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 128,
+      "baseline": null,
+      "neutralBodyHeight": null,
+      "scale": "screenHeight*0.18/256 travel; charge0.16; impact0.27",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameDurationsSeconds": [
+        0.05,
+        0.07,
+        0.12,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.045,
+        0.07,
+        0.1,
+        0.12
+      ],
+      "phaseNames": [
+        "birth",
+        "charge_a",
+        "charge_b",
+        "release_shock",
+        "flight_a",
+        "flight_b",
+        "flight_c",
+        "flight_d",
+        "impact_flash",
+        "impact_bloom",
+        "impact_fragments",
+        "dissipation"
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "fx_v20/fire_0.png",
+          "phase": "birth",
+          "sha256": "3360d6cb53d86490c36b404c969f404ddc01994560bfd63782e920a60da6aea0",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            113,
+            107,
+            281,
+            326
+          ],
+          "sourceCorePx": [
+            207,
+            271
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            89,
+            59,
+            160,
+            151
+          ]
+        },
+        {
+          "index": 1,
+          "file": "fx_v20/fire_1.png",
+          "phase": "charge_a",
+          "sha256": "cbf27d4ed0c4c74108d0b42d82cb2145f166cf72c2d0a27187353925a5b87ddd",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            423,
+            105,
+            684,
+            344
+          ],
+          "sourceCorePx": [
+            576,
+            242
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            64,
+            70,
+            174,
+            170
+          ]
+        },
+        {
+          "index": 2,
+          "file": "fx_v20/fire_2.png",
+          "phase": "charge_b",
+          "sha256": "eb01ab8e73c013f59d2bd8e49b8b8a2935fd4961a22cb25972c989a28b05714d",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            743,
+            93,
+            1023,
+            363
+          ],
+          "sourceCorePx": [
+            914,
+            236
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            56,
+            68,
+            174,
+            181
+          ]
+        },
+        {
+          "index": 3,
+          "file": "fx_v20/fire_3.png",
+          "phase": "release_shock",
+          "sha256": "34bd0c02ac25fc67f68ec2534be97ebc9c07e171f3a6df60ebeabae76de4af0f",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            1083,
+            62,
+            1426,
+            397
+          ],
+          "sourceCorePx": [
+            1260,
+            231
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            54,
+            57,
+            198,
+            198
+          ]
+        },
+        {
+          "index": 4,
+          "file": "fx_v20/fire_4.png",
+          "phase": "flight_a",
+          "sha256": "730ed57e9bea2a3f5bcc5bd4c2430d3290351771c68483750aee54363e159fd0",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            28,
+            460,
+            365,
+            720
+          ],
+          "sourceCorePx": [
+            294,
+            563
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            16,
+            85,
+            158,
+            194
+          ]
+        },
+        {
+          "index": 5,
+          "file": "fx_v20/fire_5.png",
+          "phase": "flight_b",
+          "sha256": "5e6b57f3709a9eb4a8648b3da3898247bc6b36b4023c9683e058f52d5e34cf1a",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            367,
+            453,
+            712,
+            676
+          ],
+          "sourceCorePx": [
+            628,
+            565
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            18,
+            81,
+            163,
+            175
+          ]
+        },
+        {
+          "index": 6,
+          "file": "fx_v20/fire_6.png",
+          "phase": "flight_c",
+          "sha256": "f8d75dea84c48b371b678be0a8b6dfd14024fa502dca21da6fada309d62206f7",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            726,
+            454,
+            1067,
+            672
+          ],
+          "sourceCorePx": [
+            993,
+            565
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            16,
+            81,
+            159,
+            173
+          ]
+        },
+        {
+          "index": 7,
+          "file": "fx_v20/fire_7.png",
+          "phase": "flight_d",
+          "sha256": "0ec7b34b5c2c75a4a285e6270fca765fa16f47d3d8acbfd76c00ad98ef54746d",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            1088,
+            443,
+            1434,
+            667
+          ],
+          "sourceCorePx": [
+            1353,
+            565
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            17,
+            77,
+            162,
+            171
+          ]
+        },
+        {
+          "index": 8,
+          "file": "fx_v20/fire_8.png",
+          "phase": "impact_flash",
+          "sha256": "88e5a08878d675882bb1bbeeedad0e4f85636997fd8f99904424b486b3174918",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            31,
+            711,
+            367,
+            1039
+          ],
+          "sourceCorePx": [
+            195,
+            875
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            59,
+            59,
+            200,
+            197
+          ]
+        },
+        {
+          "index": 9,
+          "file": "fx_v20/fire_9.png",
+          "phase": "impact_bloom",
+          "sha256": "790017086fdde11c199c0d44792344502e2ba5a4bb88a44a9b71d7720121aa01",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            386,
+            699,
+            725,
+            1039
+          ],
+          "sourceCorePx": [
+            559,
+            879
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            55,
+            52,
+            197,
+            195
+          ]
+        },
+        {
+          "index": 10,
+          "file": "fx_v20/fire_10.png",
+          "phase": "impact_fragments",
+          "sha256": "3f2c5c6a66c46cd2c550af392b810c476802d60587a30e625ae3d1bf078382cc",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            733,
+            726,
+            1068,
+            1026
+          ],
+          "sourceCorePx": [
+            902,
+            889
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 8,
+          "visibleBounds": [
+            57,
+            60,
+            198,
+            186
+          ]
+        },
+        {
+          "index": 11,
+          "file": "fx_v20/fire_11.png",
+          "phase": "dissipation",
+          "sha256": "352c83e4c3461e5675b0a44c9adccd8d2d90b084ca4bec50738558d8d492061a",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            1113,
+            729,
+            1415,
+            1021
+          ],
+          "sourceCorePx": [
+            1260,
+            883
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 9,
+          "visibleBounds": [
+            66,
+            63,
+            193,
+            186
+          ]
+        }
+      ]
+    },
+    {
+      "name": "spell_ice",
+      "direction": "radial / authored travel right; rotate by facing",
+      "frameCount": 12,
+      "fps": 24,
+      "recommendedFPS": 24,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 128,
+      "baseline": null,
+      "neutralBodyHeight": null,
+      "scale": "screenHeight*0.18/256 travel; charge0.16; impact0.27",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameDurationsSeconds": [
+        0.05,
+        0.07,
+        0.12,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.045,
+        0.07,
+        0.1,
+        0.12
+      ],
+      "phaseNames": [
+        "birth",
+        "charge_a",
+        "charge_b",
+        "release_shock",
+        "flight_a",
+        "flight_b",
+        "flight_c",
+        "flight_d",
+        "impact_flash",
+        "impact_bloom",
+        "impact_fragments",
+        "dissipation"
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "fx_v20/ice_0.png",
+          "phase": "birth",
+          "sha256": "45e35b315484445ea83eacdeed0bf1bb4fe9e7d26f0c3304a6c89662214bc533",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            127,
+            151,
+            289,
+            330
+          ],
+          "sourceCorePx": [
+            208,
+            257
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            94,
+            83,
+            162,
+            158
+          ]
+        },
+        {
+          "index": 1,
+          "file": "fx_v20/ice_1.png",
+          "phase": "charge_a",
+          "sha256": "dee0904f73870f849184ff4faf3b39850ba7190c239482589784664456d10d32",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            440,
+            111,
+            667,
+            356
+          ],
+          "sourceCorePx": [
+            568,
+            249
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            74,
+            70,
+            169,
+            173
+          ]
+        },
+        {
+          "index": 2,
+          "file": "fx_v20/ice_2.png",
+          "phase": "charge_b",
+          "sha256": "9ef8fc9f871c09a232f9fccb3fd7a7947efef01e6e3bb61f2b23dff74a0350e7",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            784,
+            95,
+            1044,
+            363
+          ],
+          "sourceCorePx": [
+            918,
+            242
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            72,
+            66,
+            181,
+            179
+          ]
+        },
+        {
+          "index": 3,
+          "file": "fx_v20/ice_3.png",
+          "phase": "release_shock",
+          "sha256": "5d3fdedfc474c89e692486ff3917baa8229559cda3c5101b3a78747c1f6f81be",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            1102,
+            87,
+            1411,
+            385
+          ],
+          "sourceCorePx": [
+            1286,
+            242
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            51,
+            63,
+            181,
+            188
+          ]
+        },
+        {
+          "index": 4,
+          "file": "fx_v20/ice_4.png",
+          "phase": "flight_a",
+          "sha256": "2fcf3618d7cb8fbe58b3d79d34751a5920fb8fd798c3e89c053436613cfd4408",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            23,
+            479,
+            361,
+            672
+          ],
+          "sourceCorePx": [
+            296,
+            576
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            13,
+            87,
+            155,
+            168
+          ]
+        },
+        {
+          "index": 5,
+          "file": "fx_v20/ice_5.png",
+          "phase": "flight_b",
+          "sha256": "acc66e904ceb2d5451384e59a4de5a62d60a6c71ad565174a805042361da4fcd",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            412,
+            471,
+            708,
+            675
+          ],
+          "sourceCorePx": [
+            627,
+            581
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            38,
+            82,
+            162,
+            168
+          ]
+        },
+        {
+          "index": 6,
+          "file": "fx_v20/ice_6.png",
+          "phase": "flight_c",
+          "sha256": "e80701b82ac44ee5dc6e06f6ace176ec0a8dd7a683afcf81fa2c357fcf4c0597",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            740,
+            446,
+            1046,
+            682
+          ],
+          "sourceCorePx": [
+            986,
+            580
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            25,
+            72,
+            154,
+            171
+          ]
+        },
+        {
+          "index": 7,
+          "file": "fx_v20/ice_7.png",
+          "phase": "flight_d",
+          "sha256": "69e6613eb66e281bd5dfd23d3289be86fc31da1da2d11433bccb11df4f298344",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            1073,
+            471,
+            1429,
+            682
+          ],
+          "sourceCorePx": [
+            1357,
+            582
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            9,
+            81,
+            159,
+            170
+          ]
+        },
+        {
+          "index": 8,
+          "file": "fx_v20/ice_8.png",
+          "phase": "impact_flash",
+          "sha256": "6cacfcff8106db2a0fa8099082eedbe8d145ee218fbf3a96110a01911b681a5e",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            49,
+            734,
+            353,
+            1033
+          ],
+          "sourceCorePx": [
+            198,
+            891
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            65,
+            62,
+            193,
+            188
+          ]
+        },
+        {
+          "index": 9,
+          "file": "fx_v20/ice_9.png",
+          "phase": "impact_bloom",
+          "sha256": "98e8e430f0544500c45161de07f353e66bd03e078efc9ababc4a998bb462f0f0",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            403,
+            727,
+            716,
+            1038
+          ],
+          "sourceCorePx": [
+            559,
+            892
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            62,
+            59,
+            193,
+            190
+          ]
+        },
+        {
+          "index": 10,
+          "file": "fx_v20/ice_10.png",
+          "phase": "impact_fragments",
+          "sha256": "01df8023616b2c3f4159591e84c2ec6d0a4cab1094e8ebdb340d356e94246c2e",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            765,
+            754,
+            1057,
+            1037
+          ],
+          "sourceCorePx": [
+            907,
+            909
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 4,
+          "visibleBounds": [
+            68,
+            63,
+            191,
+            182
+          ]
+        },
+        {
+          "index": 11,
+          "file": "fx_v20/ice_11.png",
+          "phase": "dissipation",
+          "sha256": "f3c8daaffc0419b140d8966bf94c6a0edb504f9483be794915ea8ab0fd6907cf",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            1127,
+            746,
+            1410,
+            1029
+          ],
+          "sourceCorePx": [
+            1274,
+            900
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 5,
+          "visibleBounds": [
+            66,
+            63,
+            185,
+            182
+          ]
+        }
+      ]
+    }
+  ],
+  "runningOverlay": {
+    "source": "project_archive/source_sheets/v18/kael_run_generated.png",
+    "preview": "project_archive/previews/v18/kael_run_contact.png",
+    "manifest": "kael_v18/run_manifest.json",
+    "generationTool": "built-in image_gen.imagegen",
+    "frameCount": 24,
+    "contract": "6 alternating A/B phases in four directions; base 12 FPS, ground-distance cadence"
+  },
+  "artBaseVersion": "1.9.0",
+  "preservedBaseFrames": 188,
+  "generationBaseCommit": "1e7f3c33b4c3c70d716889cc017dc35b260fc02f",
+  "gameArtManifest": "project_archive/GAME_ART_MANIFEST_V200.json",
+  "castTimingManifest": "kael_v19/cast_manifest.json",
+  "sourceSheetsDirectories": [
+    "project_archive/source_sheets/v17",
+    "project_archive/source_sheets/v18",
+    "project_archive/source_sheets/v19",
+    "project_archive/source_sheets/v20"
+  ],
+  "previewsDirectories": [
+    "project_archive/previews/v17",
+    "project_archive/previews/v18",
+    "project_archive/previews/v19",
+    "project_archive/previews/v20"
+  ]
+}

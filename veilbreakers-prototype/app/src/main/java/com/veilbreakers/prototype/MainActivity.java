@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
         GameView review = new GameView(this, false);
         currentView = review;
         setContentView(review);
-        review.setGameplayReview(intent.getStringExtra("review_scene"));
+        review.setGameplayReview(intent.getStringExtra("review_scene"), intent.getStringExtra("review_token"));
         applyImmersive();
     }
 
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
             currentView = review;
             setContentView(review);
         }
-        review.setArtReview(reviewState, reviewDirection, reviewFrame);
+        review.setArtReview(reviewState, reviewDirection, reviewFrame, intent.getStringExtra("review_token"));
         applyImmersive();
     }
 

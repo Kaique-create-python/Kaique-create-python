@@ -43,6 +43,7 @@ public class GameView extends View {
     private final Bitmap[][] comboUp = new Bitmap[3][];
     private final Bitmap[][] magicCastFrames = new Bitmap[4][];
     private final ArcanaVisuals arcana;
+    private final SpellVisuals spellVisuals;
     private final Bitmap[][] enemyIdleFrames = new Bitmap[4][];
     private final Bitmap[][] enemyChaseFrames = new Bitmap[4][];
     private final Bitmap[][] enemyAttackFrames = new Bitmap[4][];
@@ -68,6 +69,7 @@ public class GameView extends View {
     private int joyPointer = -1;
     private int attackPointer = -1;
     private int magicPointer = -1;
+    private int powerPointer = -1;
 
     private int facing = DOWN;
     private int attackFacing = DOWN;
@@ -82,9 +84,13 @@ public class GameView extends View {
     private float attackButtonFlash = 0f;
 
     // v1.6 Arcana VIII: first Mana-powered ranged ability.
-    private static final int MAGIC_COST = 18;
-    private static final float MAGIC_COOLDOWN_MAX = 1.10f;
     private float magicCooldown = 0f;
+    private int castingSpell = SpellProfile.ARCANA;
+    private int projectileSpell = SpellProfile.ARCANA;
+    private int impactSpell = SpellProfile.ARCANA;
+    private int magicAttackSnapshot = 12;
+    private float magicPlaneOffset = 0f;
+    private float powerTimer = 0f, powerCooldown = 0f;
     private float manaRegenDelay = 0f;
     private float manaRegenBank = 0f;
     private boolean magicCasting = false;
@@ -112,9 +118,16 @@ public class GameView extends View {
     private float enemyX = -1f, enemyY = -1f;
     private float enemyVx = 0f, enemyVy = 0f;
     private float enemyKnockX = 0f, enemyKnockY = 0f;
-    private int enemyMaxHp = 55, enemyHp = 55;
-    private int enemyAttack = 16, enemyDefense = 4;
-    private boolean enemyAlive = true;
+    private int enemyMaxHp = 70, enemyHp = 70;
+    private int enemyAttack = 18, enemyDefense = 4;
+    private boolean enemyAlive = false;
+    private int enemyWaveIndex = 0;
+    private EncounterState.Profile enemyProfile;
+    private float enemySpawnX, enemySpawnY;
+    private int enemyBurnTicks = 0, enemyBurnDamage = 0;
+    private float enemyBurnClock = 0f, enemySlowTimer = 0f;
+    private float enemyNavTimer = 0f, enemyWaypointX, enemyWaypointY;
+    private final EnemyNavigator enemyNavigator = new EnemyNavigator();
     private float enemyAttackCooldown = 0.75f;
     private float enemyAttackAnim = 0f;
     private float enemyHurtTimer = 0f;
@@ -156,13 +169,19 @@ public class GameView extends View {
     private final boolean loadExisting;
     private final PlayerStats stats = new PlayerStats();
     private final StoryState story = new StoryState();
+    private final EncounterState encounters = new EncounterState();
     private final InventoryState inventory = new InventoryState();
+    private final RuneState runes = new RuneState();
     private final VarynMap world = new VarynMap();
     private final GameUi gameUi = new GameUi();
     private final GameArt gameArt;
     private final LocomotionCycle locomotion = new LocomotionCycle();
     private boolean gameplayReviewMode = false;
     private boolean gameplaySelfTestPending = false;
+    private String reviewScene = "", reviewToken = "";
+    private boolean sceneRenderPending = false;
+    private float reviewXNorm = .20f, reviewYNorm = .60f;
+    private boolean reviewPositionPending = false;
     private boolean lifecyclePaused = false;
     private int statusTab = 0;
     private String[][] dialogueLines;
@@ -201,6 +220,7 @@ public class GameView extends View {
         this.prefs = context.getSharedPreferences("veilbreakers_save", Context.MODE_PRIVATE);
         this.gameArt = new GameArt(context);
         world.setArt(gameArt);
+        world.setStory(story);
         gameUi.setArt(gameArt);
         setFocusable(true);
         setKeepScreenOn(true);
@@ -213,12 +233,19 @@ public class GameView extends View {
         shadowPaint.setColor(Color.argb(105, 0, 0, 0));
 
         arcana = new ArcanaVisuals(context);
+        spellVisuals = new SpellVisuals(context, arcana);
         loadFrames(context);
         loadUiAssets(context);
         if (loadExisting && prefs.getBoolean("has_save", false)) stats.load(prefs);
         else stats.resetDefaults();
         if (loadExisting && prefs.getBoolean("has_save", false)) story.load(prefs);
         if (loadExisting && prefs.getBoolean("has_save", false)) inventory.load(prefs, story, stats);
+        if (loadExisting && prefs.getBoolean("has_save", false)) {
+            encounters.load(prefs, story.clearedMask);
+            powerCooldown = clamp(prefs.getFloat("power_cooldown", 0f), 0f, SpellProfile.MARK_COOLDOWN);
+            powerTimer = clamp(prefs.getFloat("power_time", 0f), 0f, SpellProfile.MARK_DURATION);
+        }
+        if (loadExisting && prefs.getBoolean("has_save", false)) runes.load(prefs, story);
         if (stats.hp <= 0) { playerDown = true; playerDownTimer = 0f; }
         introPending = !story.introSeen;
         pendingPoints = stats.attributePoints;
@@ -280,7 +307,7 @@ public class GameView extends View {
         }
         enemyHurtFrames = loadCharacterSequence(c, "enemy_v17/hurt_", 3);
         enemyDeathFrames = loadCharacterSequence(c, "enemy_v17/death_", 5);
-        Log.i("VEILBREAKERS_ASSETS", "v1.9 loaded: kael_v17=76 kael_v18_run=24 kael_v19_cast=24 enemy_v17=52 fx_v19=12; "
+        Log.i("VEILBREAKERS_ASSETS", "v1.10 loaded: kael_v17=76 kael_v18_run=24 kael_v19_cast=24 enemy_v17=52 fx_v19=12 fx_v20=24; "
                 + "character cells=256x256/512x256 pivot=width/2,232; orb cells=256 pivot=128,128");
     }
 
@@ -332,6 +359,7 @@ public class GameView extends View {
         super.onDraw(c);
         if (artReviewMode) {
             drawArtReview(c);
+            drawReviewStamp(c);
             if (artReviewFrame < 0) postInvalidateOnAnimation();
             return;
         }
@@ -343,13 +371,17 @@ public class GameView extends View {
             if (introPending && getWidth() > 0) { introPending = false; beginDialogue("intro"); }
             update(dt);
         }
-        if (gameplayReviewMode && px < 0f) {
-            px = getWidth() * .33f; py = getHeight() * .60f;
+        if (gameplayReviewMode && reviewPositionPending) {
+            reviewPositionPending = false;
+            px = getWidth() * reviewXNorm; py = getHeight() * reviewYNorm;
             configureZoneEnemy();
+            if (!"selftest".equals(reviewScene) && encounters.total(story.zone)>0
+                    && !encounters.finished(story.zone)) respawnEnemy();
+            if (reviewScene.startsWith("depth_chest")) enemyAlive = false;
         }
         world.drawGround(c, story.zone, story);
         world.drawObjects(c, story.zone, story, worldClock);
-        if (enemyAlive || enemyDeathTimer > 0f) {
+        if (enemyAlive || enemyDeathTimer > 0f || enemyRespawnTimer > 0f) {
             if (enemyY < py) {
                 world.drawNpcs(c, story.zone, worldClock, Float.NEGATIVE_INFINITY, enemyY);
                 drawEnemy(c);
@@ -393,11 +425,40 @@ public class GameView extends View {
             gameplaySelfTestPending = false;
             runGameplaySelfTest();
         }
+        drawReviewStamp(c);
         postInvalidateOnAnimation();
+    }
+
+    private void drawReviewStamp(Canvas c) {
+        if ((gameplayReviewMode || artReviewMode) && BuildConfig.DEBUG && getWidth() > 0 && getHeight() > 0) {
+            // A tiny debug-only stamp proves the screenshot belongs to this request,
+            // including when Android is still presenting the preceding View's surface.
+            if (!reviewToken.isEmpty()) {
+                overlayPaint.setShader(null);
+                overlayPaint.setStyle(Paint.Style.FILL);
+                overlayPaint.setAlpha(255);
+                int bits = reviewToken.hashCode();
+                overlayPaint.setColor(Color.rgb(0,255,255));
+                c.drawRect(0,getHeight()-5,6,getHeight()-1,overlayPaint);
+                for (int bit=0; bit<32; bit++) {
+                    int value=((bits >>> (31-bit)) & 1)==1 ? 230 : 15;
+                    overlayPaint.setColor(Color.rgb(value,value,value));
+                    c.drawRect(8+bit*2,getHeight()-5,10+bit*2,getHeight()-1,overlayPaint);
+                }
+            }
+            if (sceneRenderPending) {
+                sceneRenderPending = false;
+                Log.i("VEILBREAKERS_SCENE_RENDERED", "scene=" + reviewScene + " token=" + reviewToken);
+            }
+        }
     }
 
     /** Fixed-frame renderer for adb captures; never runs combat or writes a save. */
     public void setArtReview(String state, int direction, int frame) {
+        setArtReview(state, direction, frame, "");
+    }
+
+    public void setArtReview(String state, int direction, int frame, String token) {
         if ((getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
             throw new IllegalStateException("Art review requires a debug APK");
         }
@@ -405,6 +466,9 @@ public class GameView extends View {
         artReviewState = state == null ? "idle" : state;
         artReviewDirection = Math.max(DOWN, Math.min(RIGHT, direction));
         artReviewFrame = frame;
+        reviewScene = "art_" + artReviewState + "_" + artReviewDirection + "_" + frame;
+        reviewToken = token == null ? "" : token;
+        sceneRenderPending = true;
         artReviewStartNs = System.nanoTime();
         Log.i("VEILBREAKERS_REVIEW", artReviewState + " direction=" + artReviewDirection
                 + " frame=" + artReviewFrame);
@@ -419,13 +483,13 @@ public class GameView extends View {
             float progress = (elapsed % COMBO_DURATIONS[stage]) / COMBO_DURATIONS[stage];
             return progress < COMBO_IMPACT_START ? 0 : (progress < COMBO_RECOVERY_START ? 1 : 2);
         }
-        if ("cast".equals(artReviewState)) {
+        if ("cast".equals(artReviewState) || artReviewState.endsWith("_cast")) {
             float phaseTime = elapsed % CAST_DURATION;
             for (int phase = CAST_PHASE_STARTS.length - 1; phase >= 0; phase--) {
                 if (phaseTime >= CAST_PHASE_STARTS[phase]) return phase;
             }
         }
-        if ("orb".equals(artReviewState)) {
+        if ("orb".equals(artReviewState) || "fire".equals(artReviewState) || "ice".equals(artReviewState)) {
             return ArcanaVisuals.reviewFrame(elapsed);
         }
         float fps = "walk".equals(artReviewState) ? 9f : ("run".equals(artReviewState) ? 12f : 5f);
@@ -441,6 +505,8 @@ public class GameView extends View {
     private void drawArtReview(Canvas c) {
         int frame = currentArtReviewFrame();
         facing = attackFacing = magicFacing = artReviewDirection;
+        castingSpell = artReviewState.startsWith("fire") ? SpellProfile.EMBER
+                : artReviewState.startsWith("ice") ? SpellProfile.FROST : SpellProfile.ARCANA;
         enemyFacing = enemyAttackFacing = artReviewDirection;
         px = getWidth() * 0.33f;
         py = getHeight() * 0.68f;
@@ -464,7 +530,7 @@ public class GameView extends View {
             float[] poseCenters = {0.15f, 0.44f, 0.79f};
             attackClock = COMBO_DURATIONS[comboStage] * poseCenters[frame % 3];
             attacking = true;
-        } else if ("cast".equals(artReviewState)) {
+        } else if ("cast".equals(artReviewState) || artReviewState.endsWith("_cast")) {
             int pose = frame % CAST_PHASE_STARTS.length;
             float end = pose == CAST_PHASE_STARTS.length - 1 ? CAST_DURATION : CAST_PHASE_STARTS[pose + 1];
             magicCastClock = (CAST_PHASE_STARTS[pose] + end) * 0.5f;
@@ -497,7 +563,7 @@ public class GameView extends View {
         c.drawLine(getWidth() * 0.15f, py, getWidth() * 0.85f, py, overlayPaint);
         drawPlayer(c);
         drawEnemy(c);
-        if ("orb".equals(artReviewState)) {
+        if ("orb".equals(artReviewState) || "fire".equals(artReviewState) || "ice".equals(artReviewState)) {
             drawOrb(c, frame % ArcanaVisuals.FRAME_COUNT, getWidth() * 0.5f, py - getHeight() * 0.10f,
                     getHeight() * 0.22f, 255);
         } else {
@@ -530,6 +596,8 @@ public class GameView extends View {
         if (combatTextTimer > 0f) combatTextTimer = Math.max(0f, combatTextTimer - dt);
         if (attackButtonFlash > 0f) attackButtonFlash = Math.max(0f, attackButtonFlash - dt);
         if (magicCooldown > 0f) magicCooldown = Math.max(0f, magicCooldown - dt);
+        if (powerCooldown > 0f) powerCooldown = Math.max(0f, powerCooldown - dt);
+        if (powerTimer > 0f) powerTimer = Math.max(0f, powerTimer - dt);
         if (manaRegenDelay > 0f) {
             manaRegenDelay = Math.max(0f, manaRegenDelay - dt);
         } else if (!playerDown && stats.mana < stats.maxMana) {
@@ -744,14 +812,38 @@ public class GameView extends View {
     private void updateEnemy(float dt) {
         enemyAnimClock += dt;
         if (enemyHurtTimer > 0f) enemyHurtTimer = Math.max(0f, enemyHurtTimer - dt);
+        if (enemySlowTimer > 0f) {
+            enemySlowTimer = Math.max(0f, enemySlowTimer - dt);
+            if (enemySlowTimer == 0f) { enemyVx *= 2f; enemyVy *= 2f; }
+        }
 
         if (!enemyAlive) {
-            if (enemyDeathTimer > 0f) {
-                enemyDeathTimer = Math.max(0f, enemyDeathTimer - dt);
-            } else {
-                // Authored encounters stay defeated; clearedMask persists across Continue.
+            enemyDeathTimer = Math.max(0f, enemyDeathTimer - dt);
+            if (enemyRespawnTimer > 0f && !encounters.finished(story.zone)) {
+                enemyRespawnTimer = Math.max(0f, enemyRespawnTimer - dt);
+                if (enemyRespawnTimer <= 0f) {
+                    // If the player moved into the warning, move the next
+                    // warning first instead of materializing on their feet.
+                    if (distance(px, py, enemySpawnX, enemySpawnY) < getHeight() * .24f
+                            || world.blocked(story.zone, enemySpawnX, enemySpawnY, getHeight() * .028f)) {
+                        prepareEnemySpawn(); enemyRespawnTimer = .65f;
+                    } else respawnEnemy();
+                }
             }
             return;
+        }
+
+        if (enemyBurnTicks > 0) {
+            enemyBurnClock -= dt;
+            while (enemyBurnClock <= 0f && enemyBurnTicks > 0 && enemyAlive) {
+                enemyBurnClock += .70f; enemyBurnTicks--;
+                enemyHp = Math.max(0, enemyHp - enemyBurnDamage);
+                encounters.damage(story.zone, enemyWaveIndex, enemyHp);
+                showCombatText("BRASAS -" + enemyBurnDamage, enemyX, enemyY - getHeight() * .13f, false);
+                if (enemyHp <= 0) defeatEnemy();
+                else saveState();
+            }
+            if (!enemyAlive) return;
         }
 
         enemyAttackCooldown -= dt;
@@ -778,30 +870,56 @@ public class GameView extends View {
             }
             enemyVx *= Math.max(0f, 1f - dt * 9f);
             enemyVy *= Math.max(0f, 1f - dt * 9f);
-        } else if (enemyHurtTimer <= 0f && dist > getHeight() * 0.115f) {
-            float chaseSpeed = getHeight() * 0.175f;
+        } else if (enemyHurtTimer <= 0f && (dist > getHeight() * 0.115f
+                || !combatLineClear(enemyX, enemyY, px, py))) {
+            enemyNavTimer -= dt;
+            if (enemyNavTimer <= 0f) {
+                final float radius = getHeight() * .028f;
+                if (world.clearLine(story.zone, enemyX, enemyY, px, py, radius)) {
+                    enemyWaypointX = px; enemyWaypointY = py;
+                } else {
+                    float[] next = enemyNavigator.next(enemyX, enemyY, px, py, getWidth(), getHeight(), radius,
+                            world.walkTop(story.zone) + radius, world.walkBottom(story.zone) - radius,
+                            (x, y, r) -> world.blocked(story.zone, x, y, r));
+                    enemyWaypointX = next[0]; enemyWaypointY = next[1];
+                }
+                enemyNavTimer = .30f;
+            }
+            float navX = enemyWaypointX - enemyX, navY = enemyWaypointY - enemyY;
+            float navDistance = Math.max(1f, (float) Math.hypot(navX, navY));
+            if (navDistance > 1f) enemyFacing = Math.abs(navX) > Math.abs(navY)
+                    ? (navX < 0f ? LEFT : RIGHT) : (navY < 0f ? UP : DOWN);
+            float chaseSpeed = getHeight() * (enemyProfile == null ? .18f : enemyProfile.speed)
+                    * (enemySlowTimer > 0f ? .5f : 1f);
+            float arrival = distance(enemyWaypointX, enemyWaypointY, px, py) < 1f
+                    ? Math.max(0f, navDistance - getHeight() * .105f) : navDistance;
+            chaseSpeed = Math.min(chaseSpeed, arrival / Math.max(.001f, dt));
             float blend = 1f - (float) Math.exp(-8f * dt);
-            enemyVx += (dx / dist * chaseSpeed - enemyVx) * blend;
-            enemyVy += (dy / dist * chaseSpeed - enemyVy) * blend;
+            enemyVx += (navX / navDistance * chaseSpeed - enemyVx) * blend;
+            enemyVy += (navY / navDistance * chaseSpeed - enemyVy) * blend;
             enemyX += enemyVx * dt;
             enemyY += enemyVy * dt;
         } else {
             enemyVx *= Math.max(0f, 1f - dt * 9f);
             enemyVy *= Math.max(0f, 1f - dt * 9f);
             if (enemyHurtTimer <= 0f && dist <= getHeight() * 0.115f
+                    && combatLineClear(enemyX, enemyY, px, py)
                     && enemyAttackCooldown <= 0f) {
                 enemyAttackFacing = enemyFacing;
                 enemyAttackAnim = ENEMY_ATTACK_DURATION;
                 enemyAttackHitApplied = false;
-                enemyAttackCooldown = 1.10f;
+                enemyAttackCooldown = enemyProfile == null ? 1.08f : enemyProfile.cooldown;
             }
         }
 
         float radius = getHeight() * .028f;
         if (world.blocked(story.zone, enemyX, oldEnemyY, radius)) enemyX = oldEnemyX;
         if (world.blocked(story.zone, enemyX, enemyY, radius)) enemyY = oldEnemyY;
-        enemyX = clamp(enemyX, getWidth() * .06f, getWidth() * .94f);
-        enemyY = clamp(enemyY, getHeight() * .39f, getHeight() * .79f);
+        enemyX = clamp(enemyX, getWidth() * .055f + radius, getWidth() * .945f - radius);
+        enemyY = clamp(enemyY, world.walkTop(story.zone) + radius, world.walkBottom(story.zone) - radius);
+        if (world.blocked(story.zone, enemyX, enemyY, radius)) {
+            enemyX = oldEnemyX; enemyY = oldEnemyY; enemyNavTimer = 0f;
+        }
     }
 
     private void applyEnemyAttackHit() {
@@ -819,7 +937,8 @@ public class GameView extends View {
             sideways = Math.abs(dx);
         }
         // Recheck the locked attack direction at impact; moving away can evade the strike.
-        if (dist > range || forward < 0f || sideways > forward * 1.35f + range * 0.15f) return;
+        if (dist > range || forward < 0f || sideways > forward * 1.35f + range * 0.15f
+                || !combatLineClear(enemyX, enemyY, px, py)) return;
 
         int damage = Math.max(1, enemyAttack - Math.max(0, stats.defense / 2));
         stats.hp = Math.max(0, stats.hp - damage);
@@ -838,6 +957,7 @@ public class GameView extends View {
             comboGrace = 0f;
             magicCasting = false;
             magicActive = false;
+            powerTimer = 0f;
         }
         saveState();
     }
@@ -855,19 +975,17 @@ public class GameView extends View {
         else if (attackFacing == LEFT) inFront = dx < range * 0.15f && dx > -range && Math.abs(dy) < range * 0.72f;
         else if (attackFacing == RIGHT) inFront = dx > -range * 0.15f && dx < range && Math.abs(dy) < range * 0.72f;
 
-        if (!inFront) return;
-        int damage = Math.max(1, stats.attack - enemyDefense / 2);
+        if (!inFront || !combatLineClear(px, py, enemyX, enemyY)) return;
+        int damage = Math.max(1, effectiveAttack() - enemyDefense / 2);
         float comboDamage = comboStage == 0 ? 1.00f : (comboStage == 1 ? 1.28f : 1.68f);
         damage = Math.max(1, Math.round(damage * comboDamage));
         boolean crit = Math.random() * 100.0 < stats.crit;
         if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.75f));
 
         enemyHp = Math.max(0, enemyHp - damage);
-        enemyHurtTimer = ENEMY_HURT_DURATION;
-        enemyAttackAnim = 0f;
-        enemyAttackHitApplied = true;
+        applyEnemyHitReaction();
         float dist = Math.max(1f, (float)Math.hypot(dx, dy));
-        float knock = getHeight() * (0.52f + comboStage * 0.16f);
+        float knock = getHeight() * (0.52f + comboStage * 0.16f) * (enemyProfile != null && enemyProfile.elite ? .45f : 1f);
         enemyKnockX = (dx / dist) * knock;
         enemyKnockY = (dy / dist) * knock;
         String hitLabel = comboStage == 0 ? "" : ("COMBO " + (comboStage + 1) + "  ");
@@ -876,20 +994,22 @@ public class GameView extends View {
 
         if (enemyHp <= 0) {
             defeatEnemy();
-        }
+        } else { encounters.damage(story.zone, enemyWaveIndex, enemyHp); saveState(); }
     }
 
     private void startMagic() {
         if (statusOpen || dialogueLines != null || playerDown || attacking || playerHurtFlash > 0f
                 || magicCasting || magicActive || magicCooldown > 0f) return;
-        if (stats.mana < MAGIC_COST) {
+        SpellProfile profile = SpellProfile.of(runes.getSelectedSpell());
+        if (stats.mana < profile.manaCost) {
             showCombatText("MANA INSUFICIENTE", px, py - getHeight() * 0.12f, false);
             haptic();
             return;
         }
 
-        stats.mana -= MAGIC_COST;
-        magicCooldown = MAGIC_COOLDOWN_MAX;
+        castingSpell = profile.id;
+        stats.mana -= profile.manaCost;
+        magicCooldown = profile.cooldown;
         manaRegenDelay = 1.40f;
         manaRegenBank = 0f;
         magicFacing = facing;
@@ -899,7 +1019,7 @@ public class GameView extends View {
         magicActive = false;
         magicHitApplied = false;
 
-        showCombatText("ARCANA VIII", px, py - getHeight() * 0.14f, true);
+        showCombatText(profile.name, px, py - getHeight() * 0.14f, true);
         saveState();
         haptic();
     }
@@ -910,10 +1030,13 @@ public class GameView extends View {
         magicHitApplied = false;
         magicLife = 0.92f;
         magicAge = 0f;
+        projectileSpell = castingSpell;
+        magicAttackSnapshot = effectiveAttack();
 
         float speed = getHeight() * 0.86f;
         magicX = castSocketWorldX(3);
         magicY = castSocketWorldY(3);
+        magicPlaneOffset = py - magicY;
         magicVx = 0f;
         magicVy = 0f;
         if (magicFacing == LEFT) magicVx = -speed;
@@ -952,36 +1075,51 @@ public class GameView extends View {
         magicX += magicVx * projectileDt;
         magicY += magicVy * projectileDt;
 
+        if (world.blocked(story.zone, magicX, magicY + magicPlaneOffset, getHeight() * .009f)) {
+            magicActive = false; magicImpactX = magicX; magicImpactY = magicY;
+            magicImpactTimer = .13f; magicImpactIsHit = false; impactSpell = projectileSpell;
+            return;
+        }
+
         if (!magicHitApplied && enemyAlive) {
-            float hitR = getHeight() * 0.085f;
+            float hitR = getHeight() * 0.075f;
             float dx = enemyX - magicX;
-            // Aim collision at the visible torso, using the same authored body scale as rendering.
-            float dy = enemyY - getHeight() * 0.095f - magicY;
-            if (dx * dx + dy * dy <= hitR * hitR) {
+            // Keep the authored hand height visually, while hit/collision use
+            // the same ground plane as the actors and room props.
+            float dy = enemyY - (magicY + magicPlaneOffset);
+            if (dx * dx + dy * dy <= hitR * hitR
+                    && combatLineClear(magicX, magicY + magicPlaneOffset, enemyX, enemyY)) {
                 magicHitApplied = true;
-                int damage = Math.max(8, Math.round(stats.attack * 1.55f) - enemyDefense / 2);
+                SpellProfile profile = SpellProfile.of(projectileSpell);
+                int damage = profile.damage(magicAttackSnapshot, enemyDefense);
                 boolean crit = Math.random() * 100.0 < stats.crit;
                 if (crit) damage = Math.max(damage + 1, Math.round(damage * 1.65f));
 
                 enemyHp = Math.max(0, enemyHp - damage);
-                enemyHurtTimer = ENEMY_HURT_DURATION;
-                enemyAttackAnim = 0f;
-                enemyAttackHitApplied = true;
+                applyEnemyHitReaction();
                 float speedLen = Math.max(1f, (float) Math.hypot(magicVx, magicVy));
-                float knock = getHeight() * 0.72f;
+                float knock = getHeight() * .72f * (enemyProfile != null && enemyProfile.elite ? .45f : 1f);
                 enemyKnockX = magicVx / speedLen * knock;
                 enemyKnockY = magicVy / speedLen * knock;
-                showCombatText((crit ? "ARCANA CRIT " : "ARCANA ") + damage,
+                showCombatText(profile.name + (crit ? " CRIT " : " ") + damage,
                         enemyX, enemyY - getHeight() * 0.13f, true);
                 haptic();
 
                 if (enemyHp <= 0) {
                     defeatEnemy();
+                } else {
+                    if (projectileSpell == SpellProfile.EMBER) {
+                        enemyBurnTicks = 3; enemyBurnClock = .70f;
+                        enemyBurnDamage = SpellProfile.burnDamage(magicAttackSnapshot);
+                    } else if (projectileSpell == SpellProfile.FROST) applyEnemySlow();
+                    encounters.damage(story.zone, enemyWaveIndex, enemyHp);
+                    saveState();
                 }
                 magicImpactX = magicX;
                 magicImpactY = magicY;
                 magicImpactTimer = ORB_IMPACT_DURATION;
                 magicImpactIsHit = true;
+                impactSpell = projectileSpell;
                 magicActive = false;
             }
         }
@@ -994,38 +1132,44 @@ public class GameView extends View {
             magicImpactY = magicY;
             magicImpactTimer = 0.13f;
             magicImpactIsHit = false;
+            impactSpell = projectileSpell;
         }
     }
 
     private void drawOrb(Canvas c, int index, float x, float y, float canvasHeight, int alpha) {
-        arcana.drawFrame(c, index, x, y, canvasHeight, alpha, magicFacing);
+        spellVisuals.drawFrame(c, castingSpell, index, x, y, canvasHeight, alpha, magicFacing);
     }
 
     private void drawMagic(Canvas c) {
+        if (powerTimer > 0f)
+            arcana.drawFrame(c, 10, px, py - getHeight() * .095f, getHeight() * .26f, 90, RIGHT);
         // Empty authored gloves avoid a second sphere painted into the body.
         if (magicCasting && !magicReleased) {
             int phase = currentCastFrame();
-            arcana.drawCharge(c, magicCastClock, castSocketWorldX(phase), castSocketWorldY(phase),
+            spellVisuals.drawCharge(c, castingSpell, magicCastClock, castSocketWorldX(phase), castSocketWorldY(phase),
                     getHeight(), magicFacing);
         }
         if (magicCasting && magicReleased) {
-            arcana.drawRelease(c, magicCastClock, castSocketWorldX(3), castSocketWorldY(3),
+            spellVisuals.drawRelease(c, castingSpell, magicCastClock, castSocketWorldX(3), castSocketWorldY(3),
                     getHeight(), magicFacing);
         }
         if (magicActive) {
-            arcana.drawFlight(c, magicAge, magicX, magicY, getHeight(), magicFacing);
+            spellVisuals.drawFlight(c, projectileSpell, magicAge, magicX, magicY, getHeight(), magicFacing);
         }
         if (magicImpactTimer > 0f) {
-            arcana.drawImpact(c, magicImpactTimer, magicImpactIsHit, magicImpactX, magicImpactY,
+            spellVisuals.drawImpact(c, impactSpell, magicImpactTimer, magicImpactIsHit, magicImpactX, magicImpactY,
                     getHeight(), magicFacing);
         }
     }
 
     private void respawnEnemy() {
+        if (encounters.finished(story.zone)) { enemyAlive = false; enemyRespawnTimer = 0f; return; }
+        enemyWaveIndex = encounters.wave(story.zone);
+        enemyProfile = encounters.profile(story.zone, enemyWaveIndex);
+        enemyMaxHp = enemyProfile.hp; enemyAttack = enemyProfile.attack; enemyDefense = enemyProfile.defense;
         enemyAlive = true;
-        enemyHp = enemyMaxHp;
-        enemyX = getWidth() * (story.zone == 3 ? .66f : .74f);
-        enemyY = getHeight() * .57f;
+        enemyHp = encounters.hp(story.zone);
+        enemyX = enemySpawnX; enemyY = enemySpawnY;
         enemyVx = enemyVy = enemyKnockX = enemyKnockY = 0f;
         enemyAttackCooldown = 0.85f;
         enemyHurtTimer = 0f;
@@ -1034,9 +1178,14 @@ public class GameView extends View {
         enemyAttackHitApplied = false;
         enemyFacing = DOWN;
         enemyAttackFacing = DOWN;
+        enemyRespawnTimer = 0f; enemyBurnTicks = 0; enemyBurnClock = enemySlowTimer = 0f;
+        enemyNavTimer = 0f; enemyWaypointX = enemyX; enemyWaypointY = enemyY;
+        showCombatText("ONDA " + (enemyWaveIndex + 1) + " / " + encounters.total(story.zone),
+                enemyX, enemyY - getHeight() * .12f, enemyProfile.elite);
     }
 
     private void resetAfterDefeat() {
+        encounters.resetUnfinishedHp(story.zone);
         playerDown = false;
         magicCasting = false;
         magicReleased = false;
@@ -1061,6 +1210,20 @@ public class GameView extends View {
     }
 
     private void drawEnemy(Canvas c) {
+        if (!enemyAlive && enemyRespawnTimer > 0f) {
+            float radius = getHeight() * .065f;
+            overlayPaint.setColor(Color.argb(65, 159, 44, 211));
+            c.drawOval(new RectF(enemySpawnX - radius, enemySpawnY - radius * .30f,
+                    enemySpawnX + radius, enemySpawnY + radius * .30f), overlayPaint);
+            overlayPaint.setStyle(Paint.Style.STROKE);
+            overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * .003f));
+            overlayPaint.setColor(Color.argb(210, 227, 113, 247));
+            c.drawOval(new RectF(enemySpawnX - radius, enemySpawnY - radius * .30f,
+                    enemySpawnX + radius, enemySpawnY + radius * .30f), overlayPaint);
+            overlayPaint.setStyle(Paint.Style.FILL);
+            drawSmallValue(c, "PRÓXIMA ONDA " + (encounters.wave(story.zone) + 1) + "/" + encounters.total(story.zone),
+                    enemySpawnX, enemySpawnY - getHeight() * .06f, getHeight() * .015f, Paint.Align.CENTER);
+        }
         if (!enemyAlive && enemyDeathTimer <= 0f) return;
 
         Bitmap frame;
@@ -1092,6 +1255,15 @@ public class GameView extends View {
         c.drawOval(new RectF(enemyX - shadowW, enemyY - shadowH * 0.3f,
                 enemyX + shadowW, enemyY + shadowH), overlayPaint);
 
+        if (enemyAlive && enemyProfile != null && enemyProfile.elite)
+            arcana.drawFrame(c, 10, enemyX, enemyY - getHeight() * .095f, getHeight() * .24f, 90, RIGHT);
+        if (enemyAlive && enemyBurnTicks > 0)
+            spellVisuals.drawFrame(c, SpellProfile.EMBER, 0, enemyX, enemyY - getHeight() * .07f,
+                    getHeight() * .17f, 155, RIGHT);
+        if (enemyAlive && enemySlowTimer > 0f)
+            spellVisuals.drawFrame(c, SpellProfile.FROST, 10, enemyX, enemyY - getHeight() * .02f,
+                    getHeight() * .18f, 115, RIGHT);
+
         if (enemyHurtTimer > 0f && ((int)(enemyHurtTimer * 45f) % 2 == 0)) imagePaint.setAlpha(150);
         c.drawBitmap(frame, null, dst, imagePaint);
         imagePaint.setAlpha(255);
@@ -1106,7 +1278,9 @@ public class GameView extends View {
                     back.left + 2f + (back.width() - 4f) * (enemyHp / (float)enemyMaxHp), back.bottom - 2f);
             overlayPaint.setColor(Color.rgb(170, 34, 49));
             c.drawRoundRect(fill, bh * 0.35f, bh * 0.35f, overlayPaint);
-            drawSmallValue(c, (story.zone == 3 ? "VEILBORN — GUARDA DAS CINZAS  " : "VEILBORN WRETCH  ") + enemyHp + "/" + enemyMaxHp,
+            String name = enemyProfile == null ? "VEILBORN WRETCH" : enemyProfile.name;
+            String status = enemySlowTimer > 0f ? " • LENTO" : enemyBurnTicks > 0 ? " • BRASAS" : "";
+            drawSmallValue(c, name + " " + enemyHp + "/" + enemyMaxHp + status,
                     enemyX, top - getHeight() * 0.010f, getHeight() * 0.016f, Paint.Align.CENTER);
         }
     }
@@ -1298,7 +1472,7 @@ public class GameView extends View {
     private void drawStatusOverlay(Canvas c) {
         if (statusAnim < .008f) return;
         gameUi.status(c, getWidth(), getHeight(), smooth(statusAnim), stats, pending, pendingPoints,
-                idle[DOWN][1], story, inventory, statusTab, closeStatusHit, upgradeHit, plusHits, minusHits);
+                idle[DOWN][1], story, inventory, runes, statusTab, closeStatusHit, upgradeHit, plusHits, minusHits);
     }
 
     private RectF fitBitmapRect(Bitmap bitmap, RectF bounds) {
@@ -1446,6 +1620,9 @@ public class GameView extends View {
     private float magicCx() { return getWidth() * 0.755f; }
     private float magicCy() { return getHeight() * 0.665f; }
     private float magicR() { return getHeight() * 0.070f; }
+    private float powerCx() { return getWidth() * .875f; }
+    private float powerCy() { return getHeight() * .48f; }
+    private float powerR() { return getHeight() * .055f; }
 
     private void drawControls(Canvas c) {
         float jx = joyCx(), jy = joyCy(), jr = joyR();
@@ -1497,8 +1674,9 @@ public class GameView extends View {
 
         // Arcana VIII button: procedural so the first spell adds no fragile binary dependency.
         float mx = magicCx(), my = magicCy(), mr = magicR();
+        SpellProfile prepared = SpellProfile.of(runes.getSelectedSpell());
         boolean magicDisabled = playerDown || attacking || playerHurtFlash > 0f
-                || stats.mana < MAGIC_COST || magicCooldown > 0f || magicActive || magicCasting;
+                || stats.mana < prepared.manaCost || magicCooldown > 0f || magicActive || magicCasting;
         boolean magicPressed = magicPointer >= 0;
         float pulse = 0.5f + 0.5f * (float)Math.sin(System.nanoTime() / 1_000_000_000.0 * 4.0);
 
@@ -1516,11 +1694,27 @@ public class GameView extends View {
 
         String magicLabel = magicCooldown > 0f
                 ? String.format(Locale.US, "%.1f", magicCooldown)
-                : "VIII";
+                : prepared.id == SpellProfile.ARCANA ? "VIII" : prepared.name;
         drawSmallValue(c, magicLabel, mx, my + getHeight() * 0.010f,
-                getHeight() * 0.024f, Paint.Align.CENTER);
-        drawSmallValue(c, String.valueOf(MAGIC_COST), mx, my + mr * 1.35f,
+                getHeight() * (prepared.id == SpellProfile.ARCANA || magicCooldown > 0f ? .024f : .017f), Paint.Align.CENTER);
+        drawSmallValue(c, String.valueOf(prepared.manaCost), mx, my + mr * 1.35f,
                 getHeight() * 0.014f, Paint.Align.CENTER);
+        if (runes.powerUnlocked) {
+            float bx = powerCx(), by = powerCy(), br = powerR();
+            boolean ready = !playerDown && powerCooldown <= 0f && stats.mana >= SpellProfile.MARK_MANA;
+            overlayPaint.setColor(Color.argb(powerTimer > 0f ? 220 : ready ? 160 : 90, 66, 15, 103));
+            c.drawCircle(bx, by, br, overlayPaint);
+            overlayPaint.setStyle(Paint.Style.STROKE);
+            overlayPaint.setStrokeWidth(Math.max(2f, getHeight() * .003f));
+            overlayPaint.setColor(Color.argb(ready || powerTimer > 0f ? 235 : 100, 235, 118, 254));
+            c.drawCircle(bx, by, br, overlayPaint);
+            overlayPaint.setStyle(Paint.Style.FILL);
+            String value = powerTimer > 0f ? String.format(Locale.US, "%.1f", powerTimer)
+                    : powerCooldown > 0f ? String.format(Locale.US, "%.1f", powerCooldown) : "VIII";
+            drawSmallValue(c, "MARCA", bx, by - br * 1.22f, getHeight() * .015f, Paint.Align.CENTER);
+            drawSmallValue(c, value, bx, by + getHeight() * .009f, getHeight() * .020f, Paint.Align.CENTER);
+            drawSmallValue(c, "30 MANA", bx, by + br * 1.38f, getHeight() * .014f, Paint.Align.CENTER);
+        }
     }
 
     @Override
@@ -1539,6 +1733,7 @@ public class GameView extends View {
             if (action == MotionEvent.ACTION_DOWN) {
                 if (gameUi.statusTab.contains(x, y)) { statusTab = 0; return true; }
                 if (gameUi.inventoryTab.contains(x, y)) { statusTab = 2; return true; }
+                if (gameUi.runeTab.contains(x, y)) { statusTab = 3; gameUi.selectRune(runes.getSelectedSpell()); return true; }
                 if (gameUi.journalTab.contains(x, y)) { statusTab = 1; return true; }
                 if (closeStatusHit.contains(x, y)) { closeStatus(true); return true; }
                 if (statusTab == 2) {
@@ -1548,6 +1743,20 @@ public class GameView extends View {
                     if (gameUi.inventoryActionHit.contains(x, y)) {
                         gameUi.setInventoryFeedback(inventory.activate(gameUi.selectedInventoryItem(), stats));
                         saveState(); haptic(); return true;
+                    }
+                } else if (statusTab == 3) {
+                    for (int rune = 0; rune < RuneState.RUNE_COUNT; rune++) {
+                        if (gameUi.runeItemHits[rune].contains(x, y)) { gameUi.selectRune(rune); return true; }
+                    }
+                    if (gameUi.runeActionHit.contains(x, y)) {
+                        int selected = gameUi.selectedRune();
+                        if (!runes.isUnlocked(selected)) gameUi.setRuneFeedback(RuneState.unlockHint(selected));
+                        else if (selected == RuneState.MARK) gameUi.setRuneFeedback("Ative MARCA durante a luta. 30 Mana; 4 segundos de força.");
+                        else if (runes.selectSpell(selected)) {
+                            gameUi.setRuneFeedback(RuneState.name(selected) + " preparada para conjuração.");
+                            saveState(); haptic();
+                        }
+                        return true;
                     }
                 } else if (statusTab == 0) {
                     if (gameUi.cancelHit.contains(x, y)) { clearPending(); return true; }
@@ -1576,6 +1785,9 @@ public class GameView extends View {
                 startMagic();
                 return true;
             }
+            if (runes.powerUnlocked && powerPointer < 0 && distance(x, y, powerCx(), powerCy()) <= powerR() * 1.45f) {
+                powerPointer = pointerId; startPower(); return true;
+            }
             if (attackPointer < 0 && distance(x, y, atkCx(), atkCy()) <= atkR() * 1.50f) {
                 attackPointer = pointerId;
                 startAttack();
@@ -1596,6 +1808,7 @@ public class GameView extends View {
             }
             if (pointerId == attackPointer || action == MotionEvent.ACTION_CANCEL) attackPointer = -1;
             if (pointerId == magicPointer || action == MotionEvent.ACTION_CANCEL) magicPointer = -1;
+            if (pointerId == powerPointer || action == MotionEvent.ACTION_CANCEL) powerPointer = -1;
             return true;
         }
         return true;
@@ -1619,7 +1832,11 @@ public class GameView extends View {
                 .putInt("player_facing", facing);
         stats.save(editor);
         story.save(editor);
+        if (enemyAlive) encounters.damage(story.zone, enemyWaveIndex, enemyHp);
+        encounters.save(editor);
+        editor.putFloat("power_cooldown", powerCooldown).putFloat("power_time", powerTimer);
         inventory.save(editor);
+        runes.save(editor);
         editor.apply();
     }
 
@@ -1632,7 +1849,7 @@ public class GameView extends View {
     }
 
     private void releaseControls() {
-        joyPointer = attackPointer = magicPointer = -1;
+        joyPointer = attackPointer = magicPointer = powerPointer = -1;
         joyX = joyY = vx = vy = 0f;
         locomotion.stop();
     }
@@ -1648,35 +1865,107 @@ public class GameView extends View {
 
     private void resolvePlayerMovement(float oldX, float oldY) {
         float nextX = clamp(px, getWidth() * .055f, getWidth() * .945f);
-        float nextY = clamp(py, getHeight() * .39f, getHeight() * .79f);
         float radius = getHeight() * .027f;
+        float nextY = clamp(py, world.walkTop(story.zone) + radius,
+                world.walkBottom(story.zone) - radius);
         px = world.blocked(story.zone, nextX, oldY, radius) ? oldX : nextX;
         py = world.blocked(story.zone, px, nextY, radius) ? oldY : nextY;
     }
 
     private void configureZoneEnemy() {
-        boolean encounter = story.zone == 1 || story.zone == 3;
-        boolean cleared = (story.clearedMask & (1 << story.zone)) != 0;
-        enemyMaxHp = story.zone == 3 ? 110 : 55;
-        enemyAttack = story.zone == 3 ? 21 : 16;
-        enemyDefense = story.zone == 3 ? 7 : 4;
-        respawnEnemy();
-        enemyAlive = encounter && !cleared;
+        enemyAlive = false; enemyDeathTimer = enemyRespawnTimer = 0f;
+        enemyBurnTicks = 0; enemyBurnClock = enemySlowTimer = 0f;
+        enemyVx = enemyVy = enemyKnockX = enemyKnockY = 0f;
+        enemyWaveIndex = encounters.wave(story.zone);
+        enemyProfile = encounters.profile(story.zone, enemyWaveIndex);
+        enemyMaxHp = enemyProfile.hp; enemyAttack = enemyProfile.attack; enemyDefense = enemyProfile.defense;
+        if (encounters.finished(story.zone)) {
+            if (encounters.total(story.zone) > 0) story.clearedMask |= 1 << story.zone;
+            return;
+        }
+        prepareEnemySpawn(); enemyRespawnTimer = 1.5f;
     }
 
     private void defeatEnemy() {
         if (!enemyAlive) return;
         enemyAlive = false;
         enemyDeathTimer = ENEMY_DEATH_DURATION;
-        enemyVx = enemyVy = 0f;
-        boolean firstClear = (story.clearedMask & (1 << story.zone)) == 0;
-        story.clearedMask |= 1 << story.zone;
-        if (story.zone == 3) story.bossDefeated = true;
-        int xp = story.zone == 3 ? 95 : 35;
-        int coins = story.zone == 3 ? 45 : 18;
-        if (firstClear) { stats.money += coins; grantXp(xp); }
-        showCombatText("+" + xp + " XP   +" + coins + " moedas", enemyX, enemyY - getHeight() * .15f, true);
+        enemyVx = enemyVy = 0f; enemyBurnTicks = 0; enemySlowTimer = 0f;
+        if (!encounters.claimDefeat(story.zone, enemyWaveIndex)) return;
+        EncounterState.Profile reward = encounters.profile(story.zone, enemyWaveIndex);
+        boolean finalWave = encounters.finished(story.zone);
+        if (finalWave) {
+            story.clearedMask |= 1 << story.zone;
+            if (story.zone == 3) story.bossDefeated = true;
+            enemyRespawnTimer = 0f;
+        } else { prepareEnemySpawn(); enemyRespawnTimer = 1.5f; }
+        stats.money += reward.coins;
+        String loot = "";
+        if ((enemyWaveIndex + 1) % 2 == 0) {
+            int bandages = inventory.addLoot(InventoryState.BANDAGE, 1);
+            int tonics = inventory.addLoot(InventoryState.MANA_DRAUGHT, 1);
+            if (bandages + tonics > 0) loot = " • provisões na mochila";
+        }
+        grantXp(reward.xp);
+        showCombatText("+" + reward.xp + " XP   +" + reward.coins + " moedas" + loot,
+                enemyX, enemyY - getHeight() * .15f, true);
         saveState();
+    }
+
+    private void prepareEnemySpawn() {
+        float radius = getHeight() * .028f;
+        float minY = world.walkTop(story.zone) + radius, maxY = world.walkBottom(story.zone) - radius;
+        float side = px < getWidth() * .35f ? 1f : px > getWidth() * .65f ? -1f
+                : (encounters.wave(story.zone) % 2 == 0 ? 1f : -1f);
+        float[] ys = {clamp(py, minY, maxY), minY + (maxY - minY) * .35f,
+                minY + (maxY - minY) * .75f};
+        for (float sign : new float[] {side, -side}) for (float y : ys) {
+            float x = clamp(px + sign * getHeight() * .34f, getWidth() * .075f, getWidth() * .925f);
+            if (distance(px, py, x, y) >= getHeight() * .24f && !world.blocked(story.zone, x, y, radius)) {
+                enemySpawnX = x; enemySpawnY = y; return;
+            }
+        }
+        float best = Float.POSITIVE_INFINITY;
+        for (int column = 1; column < 20; column++) for (int row = 0; row < 8; row++) {
+            float x = getWidth() * (.05f + column * .045f), y = minY + (maxY - minY) * row / 7f;
+            float distance = distance(px, py, x, y);
+            if (distance < getHeight() * .24f || world.blocked(story.zone, x, y, radius)) continue;
+            float score = Math.abs(distance - getHeight() * .34f) + ((x - px) * side < 0 ? getHeight() * .08f : 0f);
+            if (score < best) { best = score; enemySpawnX = x; enemySpawnY = y; }
+        }
+        if (best == Float.POSITIVE_INFINITY) { enemySpawnX = px; enemySpawnY = clamp(py, minY, maxY); }
+    }
+
+    private boolean combatLineClear(float ax, float ay, float bx, float by) {
+        return world.clearLine(story.zone, ax, ay, bx, by, getHeight() * .008f);
+    }
+
+    private int effectiveAttack() { return SpellProfile.effectiveAttack(stats.attack, powerTimer > 0f); }
+
+    private void applyEnemySlow() {
+        if (enemySlowTimer <= 0f) { enemyVx *= .5f; enemyVy *= .5f; }
+        enemySlowTimer = 3f;
+    }
+
+    private void applyEnemyHitReaction() {
+        boolean elite = enemyProfile != null && enemyProfile.elite;
+        boolean committed = elite && enemyAttackAnim > 0f
+                && ENEMY_ATTACK_DURATION - enemyAttackAnim >= .10f;
+        enemyHurtTimer = committed ? 0f : ENEMY_HURT_DURATION * (elite ? .5f : 1f);
+        if (!committed) { enemyAttackAnim = 0f; enemyAttackHitApplied = true; }
+    }
+
+    private void startPower() {
+        if (!runes.powerUnlocked || statusOpen || dialogueLines != null || playerDown
+                || powerCooldown > 0f || powerTimer > 0f) return;
+        if (stats.mana < SpellProfile.MARK_MANA) {
+            showCombatText("MARCA VIII: MANA INSUFICIENTE", px, py - getHeight() * .15f, false);
+            haptic(); return;
+        }
+        stats.mana -= SpellProfile.MARK_MANA; manaRegenDelay = 1.40f;
+        powerTimer = SpellProfile.MARK_DURATION; powerCooldown = SpellProfile.MARK_COOLDOWN;
+        showCombatText("MARCA VIII • ATAQUE +25%", px, py - getHeight() * .15f, true);
+        saveState(); haptic();
     }
 
     private void beginDialogue(String action) {
@@ -1724,11 +2013,24 @@ public class GameView extends View {
         else if (VarynMap.TRACE.equals(action) && !story.traceFound && story.metIvo) { story.traceFound = true; xp = 25; }
         else if ("gate".equals(action) && !story.questComplete && story.bossDefeated) {
             story.questComplete = true; visionTimer = 3.2f; stats.money += 20; xp = 40;
-        } else if (VarynMap.ALTAR.equals(action)) {
+        } else if (VarynMap.ALTAR.equals(action) || "ember_rune".equals(action)) {
             // Rest is repeatable; the discovery reward is granted only once.
             stats.hp = stats.maxHp; stats.mana = stats.maxMana;
             if (!story.altarUsed) { story.altarUsed = true; xp = 15; }
+            if (story.questComplete && !story.emberLearned) {
+                story.emberLearned = true; runes.unlock(RuneState.EMBER); xp += 20;
+            }
+        } else if ("echo_trace".equals(action) && story.questComplete && !story.echoTraceFound) {
+            story.echoTraceFound = true; xp = 20;
+        } else if ("frost_rune".equals(action) && story.echoTraceFound && !story.frostLearned) {
+            story.frostLearned = true; runes.unlock(RuneState.FROST); xp = 25;
+        } else if ("watcher".equals(action) && story.questComplete) {
+            if (!story.watcherMet) { story.watcherMet = true; xp = 15; }
+            if (!story.echoQuestComplete && story.canCompleteEchoQuest()) {
+                story.echoQuestComplete = true; runes.unlockPower(); stats.money += 45; xp += 60;
+            }
         }
+        runes.synchronizeStory(story);
         if (xp > 0) {
             grantXp(xp);
             showCombatText("+" + xp + " XP", px, py - getHeight() * .17f, true);
@@ -1747,7 +2049,7 @@ public class GameView extends View {
     }
 
     private void changeZone(int zone, boolean returning) {
-        story.zone = Math.max(0, Math.min(5, zone));
+        story.zone = Math.max(0, Math.min(8, zone));
         px = getWidth() * (returning ? .82f : .20f);
         py = getHeight() * .60f;
         facing = returning ? LEFT : RIGHT;
@@ -1801,11 +2103,19 @@ public class GameView extends View {
 
     /** Snapshot scenes reuse the actual renderers, freeze simulation, and never touch the save. */
     public void setGameplayReview(String scene) {
+        setGameplayReview(scene, "");
+    }
+
+    public void setGameplayReview(String scene, String token) {
         if ((getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0)
             throw new IllegalStateException("Gameplay review requires a debug APK");
-        if (scene == null || !scene.matches("map[0-5]?|status|journal|inventory|dialogue(?:_mara|_ivo|_kael)?|cast|selftest"))
+        if (scene == null || !scene.matches("map[0-8]?|status|journal|inventory|runes|brand|dialogue(?:_mara|_ivo|_kael)?|cast|fire_cast|ice_cast|waves|depth_chest_back|depth_chest_front|floor_limit|selftest"))
             throw new IllegalArgumentException("Unknown gameplay review scene: " + scene);
         gameplayReviewMode = true;
+        reviewScene = scene;
+        reviewToken = token == null ? "" : token;
+        sceneRenderPending = true;
+        reviewXNorm = .20f; reviewYNorm = .60f; reviewPositionPending = true;
         gameplaySelfTestPending = "selftest".equals(scene);
         introPending = false;
         story.introSeen = true;
@@ -1813,9 +2123,22 @@ public class GameView extends View {
         inventory.synchronizeStory(story, stats);
         story.zone = "dialogue_ivo".equals(scene) ? 2
                 : ("dialogue".equals(scene) || "dialogue_mara".equals(scene)) ? 1 : 0;
-        if (scene != null && scene.matches("map[0-5]")) story.zone = scene.charAt(3) - '0';
-        if ("status".equals(scene) || "journal".equals(scene) || "inventory".equals(scene)) {
-            statusOpen = true; statusAnim = 1f; statusTab = "journal".equals(scene) ? 1 : "inventory".equals(scene) ? 2 : 0;
+        if (scene.matches("map[0-8]")) story.zone = scene.charAt(3) - '0';
+        if (story.zone >= 5 || "runes".equals(scene) || "brand".equals(scene)
+                || "fire_cast".equals(scene) || "ice_cast".equals(scene) || "waves".equals(scene)) {
+            story.questComplete = story.altarUsed = story.emberLearned = story.frostLearned = true;
+            story.echoTraceFound = true;
+            runes.unlock(RuneState.EMBER); runes.unlock(RuneState.FROST); runes.unlockPower();
+        }
+        if ("waves".equals(scene)) story.zone = 6;
+        if ("depth_chest_back".equals(scene) || "depth_chest_front".equals(scene)) {
+            story.zone = 1; reviewXNorm = .62f;
+            reviewYNorm = "depth_chest_back".equals(scene) ? .58f : .715f;
+        }
+        if ("floor_limit".equals(scene)) { reviewXNorm=.50f; reviewYNorm=.552f; }
+        if ("status".equals(scene) || "journal".equals(scene) || "inventory".equals(scene) || "runes".equals(scene)) {
+            statusOpen = true; statusAnim = 1f; statusTab = "journal".equals(scene) ? 1
+                    : "inventory".equals(scene) ? 2 : "runes".equals(scene) ? 3 : 0;
             if ("inventory".equals(scene)) {
                 inventory.grantChestSupplies(); inventory.grantIvoNote();
             }
@@ -1824,12 +2147,16 @@ public class GameView extends View {
             beginDialogue("dialogue_ivo".equals(scene) ? VarynMap.IVO
                     : "dialogue_kael".equals(scene) ? VarynMap.SWORD : VarynMap.MARA);
             dialogueClock = 10f;
-        } else if ("cast".equals(scene)) {
+        } else if ("cast".equals(scene) || "fire_cast".equals(scene) || "ice_cast".equals(scene)) {
             magicCasting = true;
             magicReleased = false;
             magicFacing = RIGHT;
             facing = RIGHT;
             magicCastClock = .24f;
+            castingSpell = "fire_cast".equals(scene) ? SpellProfile.EMBER
+                    : "ice_cast".equals(scene) ? SpellProfile.FROST : SpellProfile.ARCANA;
+        } else if ("brand".equals(scene)) {
+            powerTimer = SpellProfile.MARK_DURATION; powerCooldown = SpellProfile.MARK_COOLDOWN;
         }
         px = -1f;
         Log.i("VEILBREAKERS_SCENE", "scene=" + scene);
@@ -1856,11 +2183,27 @@ public class GameView extends View {
         applyDialogueAction("gate");
         requireTest(stats.money == coins && stats.xp == xp, "Gate reward repeats");
         story.zone = 1; story.clearedMask = 0;
+        px = getWidth() * .10f; py = (world.walkTop(1) + world.walkBottom(1)) * .5f;
         configureZoneEnemy();
+        requireTest(!enemyAlive && enemyRespawnTimer == 1.5f, "Wave has no fair spawn warning");
+        updateEnemy(.75f);
+        requireTest(!enemyAlive, "Two waves overlap or enemy spawns before warning");
+        updateEnemy(.75f);
+        requireTest(enemyAlive && enemyMaxHp == 70 && enemyAttack == 18, "First wave profile/spawn incorrect");
         defeatEnemy(); coins = stats.money; xp = stats.xp;
         defeatEnemy();
-        requireTest(stats.money == coins && stats.xp == xp && (story.clearedMask & 2) != 0,
-                "Enemy reward repeats or clear is not saved");
+        requireTest(stats.money == coins && stats.xp == xp && encounters.wave(1) == 1
+                && (story.clearedMask & 2) == 0, "Wave repeats rewards or clears room too early");
+        for (int wave = 1; wave < 3; wave++) {
+            updateEnemy(1.5f);
+            requireTest(enemyAlive && enemyWaveIndex == wave && enemyRespawnTimer == 0f,
+                    "Sequential wave not resumed as a single opponent");
+            defeatEnemy();
+        }
+        requireTest(encounters.finished(1) && (story.clearedMask & 2) != 0,
+                "Final wave does not unlock room");
+        configureZoneEnemy();
+        requireTest(!enemyAlive && enemyRespawnTimer == 0f, "Cleared room farms another wave");
 
         visionTimer = 0f;
         statusOpen = true; statusAnim = 1f;
@@ -1897,7 +2240,7 @@ public class GameView extends View {
         }
         enemyAlive = true; enemyHp = 999;
         int oldDefense = enemyDefense;
-        enemyDefense = 0; enemyX = magicX; enemyY = magicY + getHeight() * .095f;
+        enemyDefense = 0; enemyX = magicX; enemyY = magicY + magicPlaneOffset;
         updateMagic(0f);
         int hitHp = enemyHp;
         requireTest(hitHp < 999 && magicHitApplied && !magicActive
@@ -1905,12 +2248,14 @@ public class GameView extends View {
         updateMagic(.02f);
         requireTest(enemyHp == hitHp, "Arcana applies the same impact damage twice");
         enemyDefense = oldDefense;
+        verifySpellCombatRules();
         comboStage = 0; attackClock = COMBO_DURATIONS[0] * .299f;
         requireTest(currentComboVisualFrame() == 0, "Combo anticipation timing changed");
         attackClock = COMBO_DURATIONS[0] * .301f;
         requireTest(currentComboVisualFrame() == 1, "Combo impact timing changed");
         story.zone = 0;
-        px = getWidth() * .945f; py = getHeight() * .57f;
+        px = getWidth() * .945f - getHeight() * .027f;
+        py = (world.walkTop(0) + world.walkBottom(0)) * .5f;
         float oldX = px, oldY = py;
         px = getWidth(); resolvePlayerMovement(oldX, oldY);
         locomotion.advance(distance(px, py, oldX, oldY), .016f, getHeight(), getHeight() * .39f);
@@ -1918,7 +2263,112 @@ public class GameView extends View {
         releaseControls();
         attacking = magicCasting = magicActive = magicReleased = false;
         story.zone = 0; configureZoneEnemy();
-        Log.i("VEILBREAKERS_GAMEPLAY_TEST", "passed: rewards_once, status_dialogue_pause, cast_release, combo_timing, collision_stop");
+        verifyWorldFootprintRules();
+        Log.i("VEILBREAKERS_GAMEPLAY_TEST", "passed: rewards_once, sequential_waves, status_dialogue_pause, cast_release, spell_cost_damage, burn_three_ticks, frost_half_speed, mark_temporary, combo_timing, collision_stop, floor_props");
+    }
+
+    private void verifySpellCombatRules() {
+        stats.crit = 0; stats.attack = 20; playerDown = false; playerHurtFlash = 0f;
+        attacking = false; dialogueLines = null; statusOpen = false; statusAnim = visionTimer = 0f;
+        runes.emberUnlocked = runes.frostUnlocked = true;
+        for (int id = 0; id <= 2; id++) {
+            runes.selectSpell(id); magicActive = magicCasting = false; magicCooldown = 0f;
+            stats.mana = 60; startMagic();
+            SpellProfile profile = SpellProfile.of(id);
+            requireTest(stats.mana == 60 - profile.manaCost && magicCooldown == profile.cooldown
+                    && castingSpell == id, "Prepared rune cost/cooldown not applied");
+            int chargedMana = stats.mana; startMagic();
+            requireTest(stats.mana == chargedMana, "Holding spell charges Mana twice");
+        }
+        story.zone = 6; configureZoneEnemy(); respawnEnemy();
+        enemyDefense = 0; enemyHp = 100; enemyHurtTimer = enemyAttackAnim = 0f;
+        magicCasting = false; magicActive = true; magicHitApplied = false;
+        projectileSpell = SpellProfile.EMBER; magicAttackSnapshot = 20;
+        magicX = enemyX; magicY = enemyY - getHeight() * .095f; magicPlaneOffset = getHeight() * .095f;
+        magicVx = magicVy = 0f; magicLife = 1f;
+        updateMagic(0f);
+        requireTest(enemyHp == 68 && enemyBurnTicks == 3 && enemyBurnDamage == 5,
+                "Brasas direct damage/burn snapshot incorrect");
+        updateEnemy(.70f); updateEnemy(.70f); updateEnemy(.70f);
+        requireTest(enemyHp == 53 && enemyBurnTicks == 0, "Burn does not deal exactly three ticks");
+        updateEnemy(.10f);
+        requireTest(enemyHp == 53, "Burn ticks continue indefinitely");
+
+        magicActive = true; magicHitApplied = false; projectileSpell = SpellProfile.FROST;
+        magicX = enemyX; magicY = enemyY - magicPlaneOffset; magicLife = 1f;
+        updateMagic(0f);
+        requireTest(enemyHp == 33 && enemySlowTimer == 3f, "Geada damage/three-second slow incorrect");
+        float startX = enemySpawnX, startY = enemySpawnY;
+        enemyX = startX; enemyY = startY; enemyKnockX = enemyKnockY = 0f;
+        enemySlowTimer = 0f; enemyHurtTimer = enemyAttackAnim = 0f;
+        enemyAttackCooldown = 9f; enemyVx = enemyVy = 0f; enemyNavTimer = 0f;
+        updateEnemy(.08f); float normalDistance = distance(startX, startY, enemyX, enemyY);
+        enemyX = startX; enemyY = startY; enemyVx = enemyVy = enemyKnockX = enemyKnockY = 0f;
+        enemyNavTimer = 0f; enemySlowTimer = 3f;
+        updateEnemy(.08f); float slowDistance = distance(startX, startY, enemyX, enemyY);
+        requireTest(normalDistance > 0f && Math.abs(slowDistance * 2f - normalDistance) < .2f,
+                "Frost does not halve actual enemy movement");
+        float movingVx = (px < startX ? -1f : 1f) * getHeight() * .12f;
+        enemyX = startX; enemyY = startY; enemyVx = movingVx; enemyVy = 0f;
+        enemySlowTimer = 0f; enemyNavTimer = 0f;
+        updateEnemy(.032f); float movingDistance = distance(startX, startY, enemyX, enemyY);
+        enemyX = startX; enemyY = startY; enemyVx = movingVx; enemyVy = 0f; enemyNavTimer = 0f;
+        applyEnemySlow(); float firstSlowVx = enemyVx; applyEnemySlow();
+        requireTest(enemyVx == firstSlowVx, "Frost refresh stacks velocity reductions");
+        updateEnemy(.032f);
+        requireTest(Math.abs(distance(startX, startY, enemyX, enemyY) * 2f - movingDistance) < .2f,
+                "Frost leaves full-speed momentum on a moving opponent");
+        updateEnemy(3f); requireTest(enemySlowTimer == 0f, "Frost slow is permanent");
+        enemyX = getWidth() * .055f + getHeight() * .028f + .01f;
+        enemyY = (world.walkTop(story.zone) + world.walkBottom(story.zone)) * .5f;
+        enemyKnockX = -getHeight() * 2f; enemyKnockY = 0f; updateEnemy(.032f);
+        requireTest(enemyX >= getWidth() * .055f + getHeight() * .028f, "Knockback sends enemy off left screen");
+        enemyX = getWidth() * .945f - getHeight() * .028f - .01f;
+        enemyKnockX = getHeight() * 2f; updateEnemy(.032f);
+        requireTest(enemyX <= getWidth() * .945f - getHeight() * .028f, "Knockback sends enemy off right screen");
+
+        story.zone = 1; enemyAlive = true; enemyHp = 70; enemyDefense = 0;
+        float chestX = world.interactionX(VarynMap.CHEST), chestY = world.interactionY(VarynMap.CHEST);
+        enemyX = chestX; enemyY = chestY + getHeight() * .0381f;
+        magicX = chestX; magicY = chestY - getHeight() * .036f - magicPlaneOffset;
+        magicActive = true; magicHitApplied = false; magicLife = 1f; magicVx = magicVy = 0f;
+        requireTest(!world.blocked(1, magicX, magicY + magicPlaneOffset, getHeight() * .009f)
+                && !world.blocked(1, enemyX, enemyY, getHeight() * .028f), "Chest occlusion fixture endpoints invalid");
+        updateMagic(0f);
+        requireTest(enemyHp == 70 && !magicHitApplied, "Spell hits through chest between clear endpoints");
+        enemyAlive = false; enemyRespawnTimer = 0f; magicActive = magicCasting = false;
+        runes.powerUnlocked = true; stats.mana = 60; powerTimer = powerCooldown = 0f;
+        startPower();
+        requireTest(stats.mana == 30 && powerTimer == 4f && powerCooldown == 12f
+                && effectiveAttack() == 25 && stats.attack == 20, "Mark mutates base attack or wrong cost/duration");
+        startPower(); requireTest(stats.mana == 30 && powerTimer == 4f, "Mark stacks or costs Mana twice");
+        statusOpen = true; statusAnim = 1f; update(.5f);
+        requireTest(powerTimer == 4f && powerCooldown == 12f, "Status does not pause power clocks");
+        statusOpen = false; statusAnim = 0f; releaseControls();
+        update(4.1f);
+        requireTest(powerTimer == 0f && effectiveAttack() == 20 && stats.attack == 20
+                && powerCooldown > 0f, "Mark bonus does not expire without permanent stacking");
+        powerTimer = powerCooldown = 0f; runes.selectSpell(SpellProfile.ARCANA);
+    }
+
+    private void verifyWorldFootprintRules() {
+        float radius=getHeight()*.027f;
+        for (int zone=0; zone<9; zone++) {
+            requireTest(world.blocked(zone,getWidth()*.50f,getHeight()*.30f,radius), "Sky remains walkable");
+            requireTest(world.blocked(zone,getWidth()*.50f,getHeight()*.94f,radius), "Foreground remains walkable");
+        }
+        int originalZone=story.zone;
+        float originalX=px, originalY=py;
+        story.zone=0;
+        float oldX=getWidth()*.50f, oldY=getHeight()*.60f;
+        px=oldX; py=getHeight()*.25f;
+        resolvePlayerMovement(oldX,oldY);
+        requireTest(py>=world.walkTop(0)+radius-.1f, "Player movement enters the sky");
+        requireTest(world.blocked(1,world.interactionX(VarynMap.CHEST),world.interactionY(VarynMap.CHEST),radius), "Chest has no physical footprint");
+        requireTest(world.blocked(5,world.interactionX(VarynMap.ALTAR),world.interactionY(VarynMap.ALTAR),radius), "Altar has no physical footprint");
+        requireTest(!world.blocked(1,getWidth()*.54f,getHeight()*.65f,radius), "Chest approach is blocked");
+        requireTest(!world.blocked(5,getWidth()*.55f,getHeight()*.63f,radius), "Altar approach is blocked");
+        story.zone=originalZone; px=originalX; py=originalY;
     }
 
     private void requireTest(boolean passed, String message) {

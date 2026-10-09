@@ -1,5 +1,5 @@
 PROMPT DE CONTINUIDADE — VEILBREAKERS
-Versão atual: v1.9.0
+Versão atual: v1.10.0
 
 Continue o projeto exatamente de onde parou. Não recomece do zero.
 
@@ -513,3 +513,64 @@ FONTES / BUILD / VERIFICAÇÃO
 - A ponte física informou timeout ao listar apps e não abriu o jogo na tentativa inicial.
   Nenhum APK foi instalado nem aplicativo desinstalado nesta etapa.
 - Entrega prevista: VEILBREAKERS_v1.9.0_Codex.apk + este contexto + projeto/arte/QA.
+
+
+==============================
+ATUALIZAÇÃO v1.10.0 — CHÃO, ONDAS, ECOS E RUNAS
+==============================
+Base: 1e7f3c3; branch veilbreakers-apk-build; package com.veilbreakers.prototype.
+VersionCode 24 / versionName 1.10.0; schema de mundo e novos estados = 200.
+
+PROBLEMAS OBSERVADOS E CORRIGIDOS
+- As imagens v19 tinham piso abaixo de 50% da altura, mas o controlador ainda
+  permitia pés até 39%. Isso permitia caminhar no céu e na arquitetura distante.
+- VarynMap.walkTop/walkBottom definem o chão por área; a pegada inteira fica dentro.
+- Foreground, água, casas e fonte têm máscaras; baú, altar e NPCs têm colisão física.
+- Rotas e aproximações são verificadas em duas resoluções por busca de caminhos;
+  a posição de Ivo na Torre foi corrigida porque criava um gargalo contra a coluna.
+- Props e atores usam ordem pela altura dos pés. O baú abre visualmente e o altar
+  aparece à frente ou atrás de Kael corretamente. A base alpha real ancora objetos.
+- A esfera tem posição visual de luva e posição de colisão projetada no chão,
+  evitando errar alvos ou colidir imediatamente acima da cabeça. Golpes usam linha livre.
+
+CAMPANHA E ONDAS
+- Nove áreas: seis anteriores + Estrada das Cinzas, Cripta dos Ecos, Torre do Vigia.
+- Segunda missão Ecos sob as Cinzas: Brasas no Santuário, limpar a Estrada, investigar
+  ecos e Geada na Cripta, vencer as criaturas da Torre e conversar com Ivo.
+- Ivo sai de sua posição antiga depois de Brasas ser aprendida; retrato e sprite preservados.
+- Sem revelar The First ou confirmar a origem da Marca; história canônica permanece intacta.
+- 15 ondas no total (3/3/3/4/2 nas áreas1/3/6/7/8), um adversário ativo por vez.
+- Telegraph de1,5s antes de aparecer, spawn afastado do jogador, navegação por obstáculos.
+- Elites mais fortes impedem cancelamento infinito de ataques comprometidos; golpes são
+  sinalizados e podem ser esquivados. Primeiro inimigo70HP/18ATK, último160HP/28ATK.
+- EncounterState salva índice de onda/HP; claim por token impede duplicar XP, moedas e loot.
+- Salas já limpas no save v19 continuam limpas. Morte preserva ondas vencidas.
+
+RUNAS / INVENTÁRIO / PODER
+- RuneState salva magias aprendidas e selecionada; aba RUNAS com custos e requisitos.
+- Arcana VIII18Mana/1,1s, Brasas22Mana/1,6s +3pulsos de queimadura,
+  Geada25Mana/2s +velocidade do inimigo pela metade durante3s.
+- Marca VIII desbloqueada ao investigar os ecos e aprender Geada na Cripta,
+  antes das lutas finais:30Mana,recarga12s,duração4s,+25%ataque.
+  Multiplicador temporário não acumula nem muda stats.attack salvo.
+- Novas fontes reais de fogo/gelo possuem12frames cada; cast24frames aprovado preservado.
+- Inventário anterior preservado. addLoot permite consumíveis limitados a99 unidades;
+  provisões a cada segunda onda não se repetem ao reabrir Continue.
+
+ARTE / BUILD / QA
+- Art_v20: três novos cenários e quatro ícones de runa, fontes e prompts intactos.
+- FX_v20:24frames novos; total212frames/35GameArt. Preservados188frames/28assets v19.
+- As capturas v19 antigas foram auditadas manualmente: algumas estavam uma tela atrás.
+  Logs de setter e um tempo fixo não provavam qual superfície estava no PNG.
+- Agora cada cena E cada pose recebe token único, ACK após onDraw e stamp de pixels;
+  o capturador rejeita quadros antigos mesmo se não estiverem pretos. Isso só aparece
+  no modo debug de revisão; a campanha normal não desenha o stamp.
+- Nova evidência em qa/v20 inclui chão/depth,9mapas/runas/poder/fogo/gelo e212poses.
+- APK continua via GitHub; AAPT2 ARM do Termux incompatível com ARSC35 já documentado.
+- Só afirmar QA Android e entrega concluídas após run/capturas atuais serem conferidos.
+- Entrega final assina o conteúdo revisado com tools/sign_local_apk.py usando identidade
+  de desenvolvimento persistente no Termux. Verificar payload idêntico e apksigner antes
+  de entregar. Keystore privado em ~/.local/share/veilbreakers-signing/development.p12;
+  nunca imprimir, copiar para project_archive/Download/repositório ou exportar a chave.
+  Senha convencional debug Android; não é chave de produção. Builds GitHub antigas
+  têm outra assinatura, portanto não atualizar diretamente nem desinstalar sem pedido.

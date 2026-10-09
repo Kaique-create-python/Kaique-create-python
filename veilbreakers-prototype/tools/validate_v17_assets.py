@@ -10,18 +10,20 @@ import json
 from pathlib import Path
 
 from PIL import Image
-from v19_art_contract import GAME_ART_MANIFEST, game_art_files
+from v19_art_contract import GAME_ART_MANIFESTS, game_art_files
 
 ROOT = Path(__file__).resolve().parents[1]
 DIRECTIONS = ("down", "up", "left", "right")
-CURRENT_VERSION = "1.9.0"
+CURRENT_VERSION = "1.10.0"
 MANIFESTS = {"1.7.0": "project_archive/SPRITES_MANIFEST_V170.json",
              "1.8.0": "project_archive/SPRITES_MANIFEST_V180.json",
-             "1.9.0": "project_archive/SPRITES_MANIFEST_V190.json"}
+             "1.9.0": "project_archive/SPRITES_MANIFEST_V190.json",
+             "1.10.0": "project_archive/SPRITES_MANIFEST_V200.json"}
 REPORTS = {"1.7.0": "project_archive/V17_ASSET_QA.json",
            "1.8.0": "project_archive/V18_ASSET_QA.json",
-           "1.9.0": "project_archive/V19_ASSET_QA.json"}
-VERSION_CODES = {"1.7.0": 21, "1.8.0": 22, "1.9.0": 23}
+           "1.9.0": "project_archive/V19_ASSET_QA.json",
+           "1.10.0": "project_archive/V20_ASSET_QA.json"}
+VERSION_CODES = {"1.7.0": 21, "1.8.0": 22, "1.9.0": 23, "1.10.0": 24}
 MANIFEST = MANIFESTS[CURRENT_VERSION]
 REPORT = REPORTS[CURRENT_VERSION]
 
@@ -29,10 +31,11 @@ REPORT = REPORTS[CURRENT_VERSION]
 def expected_frames(version=CURRENT_VERSION):
     result = {}
     for direction in DIRECTIONS:
-        for state, count in (("idle", 4), ("walk", 6), ("run", 6), ("cast", 6 if version == "1.9.0" else 5)):
+        modern_magic = version in ("1.9.0", "1.10.0")
+        for state, count in (("idle", 4), ("walk", 6), ("run", 6), ("cast", 6 if modern_magic else 5)):
             for index in range(count):
                 root = "kael_v18" if version != "1.7.0" and state == "run" else "kael_v17"
-                if version == "1.9.0" and state == "cast": root = "kael_v19"
+                if modern_magic and state == "cast": root = "kael_v19"
                 result[f"{root}/{state}/{direction}_{index}.png"] = (256, 256, 128, 232)
         for stage in range(1, 4):
             for index in range(3):
@@ -43,10 +46,13 @@ def expected_frames(version=CURRENT_VERSION):
     for state, count in (("hurt", 3), ("death", 5)):
         for index in range(count):
             result[f"enemy_v17/{state}_{index}.png"] = (256, 256, 128, 232)
-    for index in range(12 if version == "1.9.0" else 8):
-        if version == "1.9.0": result[f"fx_v19/arcana_{index}.png"] = (256, 256, 128, 128)
+    for index in range(12 if modern_magic else 8):
+        if modern_magic: result[f"fx_v19/arcana_{index}.png"] = (256, 256, 128, 128)
         else: result[f"fx_v17/orb_{index}.png"] = (160, 160, 80, 80)
-    assert len(result) == (188 if version == "1.9.0" else 180)
+    if version == "1.10.0":
+        for spell in ("fire", "ice"):
+            for index in range(12): result[f"fx_v20/{spell}_{index}.png"] = (256, 256, 128, 128)
+    assert len(result) == (212 if version == "1.10.0" else 188 if version == "1.9.0" else 180)
     return result
 
 
@@ -88,7 +94,7 @@ def validate(assets, version=CURRENT_VERSION):
     if document.get("versionCode") != VERSION_CODES[version]:
         errors.append(f"Main manifest versionCode must be {VERSION_CODES[version]}")
     historical_records = {}
-    base_version = {"1.8.0": "1.7.0", "1.9.0": "1.8.0"}.get(version)
+    base_version = {"1.8.0": "1.7.0", "1.9.0": "1.8.0", "1.10.0": "1.9.0"}.get(version)
     if base_version:
         historical = json.loads((assets / MANIFESTS[base_version]).read_text(encoding="utf-8-sig"))
         historical_records, _ = manifest_records(historical)
@@ -161,7 +167,8 @@ def validate(assets, version=CURRENT_VERSION):
         "frameCount": len(frames), "expectedFrameCount": len(expected),
         "counts": {"kael": sum(f["file"].startswith("kael_v") for f in frames),
                    "veilborn": sum(f["file"].startswith("enemy_v17/") for f in frames),
-                   "arcanaOrb": sum(f["file"].startswith("fx_v") for f in frames)},
+                   "arcanaOrb": sum(f["file"].startswith(("fx_v17/", "fx_v19/")) for f in frames),
+                   "elementalFx": sum(f["file"].startswith("fx_v20/") for f in frames)},
         "manifest": MANIFESTS[version],
         "manifestSha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         "checks": {"RGBA": True, "cellDimensions": True, "transparentBoundary": True,
@@ -172,7 +179,7 @@ def validate(assets, version=CURRENT_VERSION):
         "frames": frames, "warnings": warnings, "errors": errors, "passed": not errors,
     }
     if version == "1.8.0": report["preservedV17Frames"] = report["preservedBaseFrames"]
-    if version == "1.9.0":
+    if version in ("1.9.0", "1.10.0"):
         cast_path = assets / "kael_v19/cast_manifest.json"
         cast = json.loads(cast_path.read_text(encoding="utf-8-sig"))
         cast_records, cast_errors = manifest_records(cast)
@@ -193,13 +200,20 @@ def validate(assets, version=CURRENT_VERSION):
             elif socket != records.get(file, {}).get("orbSocketPx"):
                 errors.append("Runtime cast/socket JSON differs from principal sprite metadata: " + file)
         report["runtimeMetadata"] = [{"file": "kael_v19/cast_manifest.json", "sha256": hashlib.sha256(cast_path.read_bytes()).hexdigest()}]
-        art_path = assets / GAME_ART_MANIFEST
+        art_path = assets / GAME_ART_MANIFESTS[version]
         art = json.loads(art_path.read_text(encoding="utf-8-sig"))
         art_records = {record["file"]: record for record in art.get("assets", [])}
-        if art.get("version") != version or set(art_records) != set(game_art_files()):
-            errors.append("GameArt manifest must contain exactly the 28 required v1.9 assets")
+        required_art = game_art_files(version)
+        historical_art = {}
+        if version == "1.10.0":
+            previous_art = json.loads((assets / GAME_ART_MANIFESTS["1.9.0"]).read_text(encoding="utf-8-sig"))
+            historical_art = {record["file"]: record for record in previous_art["assets"]}
+        if (art.get("version") != version or art.get("versionCode") != VERSION_CODES[version]
+                or art.get("assetCount") != len(required_art) or len(art.get("assets", [])) != len(required_art)
+                or set(art_records) != set(required_art)):
+            errors.append(f"GameArt manifest must contain exactly the {len(required_art)} required v{version} assets")
         verified_art = []
-        for file in game_art_files():
+        for file in required_art:
             path = assets / file
             if not path.is_file():
                 errors.append("Missing mandatory generated game art: " + file)
@@ -210,7 +224,7 @@ def validate(assets, version=CURRENT_VERSION):
                 image.load()
                 if image.format != "PNG" or image.size != (record.get("width"), record.get("height")):
                     errors.append("GameArt dimensions/format differ from manifest: " + file)
-                if file.startswith("art_v19/scenes/"):
+                if "/scenes/" in file:
                     if image.width < 640 or image.height < 360 or image.width <= image.height:
                         errors.append("Scene must be a landscape background of at least 640x360: " + file)
                 else:
@@ -222,11 +236,14 @@ def validate(assets, version=CURRENT_VERSION):
                     errors.append("NPC requires a fixed 256x256 canvas: " + file)
             if digest != record.get("sha256"):
                 errors.append("GameArt differs from authored manifest hash: " + file)
+            if file in historical_art and digest != historical_art[file].get("sha256"):
+                errors.append("Preserved v1.9 game art was modified: " + file)
             verified_art.append({"file": file, "sha256": digest})
         report["gameArt"] = verified_art
-        report["gameArtManifest"] = GAME_ART_MANIFEST
+        report["gameArtManifest"] = GAME_ART_MANIFESTS[version]
         report["gameArtManifestSha256"] = hashlib.sha256(art_path.read_bytes()).hexdigest()
         report["gameArtCount"] = len(verified_art)
+        report["preservedGameArtFiles"] = len(historical_art)
         report["passed"] = not errors
     return report
 

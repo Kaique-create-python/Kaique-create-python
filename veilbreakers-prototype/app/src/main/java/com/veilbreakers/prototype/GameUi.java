@@ -32,12 +32,17 @@ final class GameUi {
     final RectF statusTab = new RectF();
     final RectF journalTab = new RectF();
     final RectF inventoryTab = new RectF();
+    final RectF runeTab = new RectF();
     final RectF cancelHit = new RectF();
     final RectF inventoryActionHit = new RectF();
     final RectF[] inventoryItemHits = {new RectF(), new RectF(), new RectF(), new RectF()};
+    final RectF runeActionHit = new RectF();
+    final RectF[] runeItemHits = {new RectF(), new RectF(), new RectF(), new RectF()};
     private GameArt art;
     private int selectedItem = InventoryState.SWORD;
     private String inventoryFeedback = "";
+    private int selectedRune = RuneState.ARCANA;
+    private String runeFeedback = "";
 
     void setArt(GameArt art) { this.art = art; }
     int selectedInventoryItem() { return selectedItem; }
@@ -46,6 +51,12 @@ final class GameUi {
         inventoryFeedback = "";
     }
     void setInventoryFeedback(String message) { inventoryFeedback = message == null ? "" : message; }
+    int selectedRune() { return selectedRune; }
+    void selectRune(int rune) {
+        selectedRune = Math.max(RuneState.ARCANA, Math.min(RuneState.MARK, rune));
+        runeFeedback = "";
+    }
+    void setRuneFeedback(String message) { runeFeedback = message == null ? "" : message; }
 
     private boolean skin(Canvas c, String name, RectF destination) {
         if (art == null || art.bitmap(name) == null) return false;
@@ -95,7 +106,7 @@ final class GameUi {
         rect(c,x,top,x+w*PlayerStats.clamp01(ratio),top+Math.max(1,h*.002f),Color.argb(95,255,235,214));
     }
     void status(Canvas c,float w,float h,float alpha,PlayerStats stats,int[] pending,int points,
-                Bitmap portrait,StoryState story,InventoryState inventory,int tab,RectF close,RectF confirm,
+                Bitmap portrait,StoryState story,InventoryState inventory,RuneState runes,int tab,RectF close,RectF confirm,
                 RectF[] plus,RectF[] minus) {
         rect(c,0,0,w,h,Color.argb((int)(220*alpha),2,3,7));
         int layer=c.saveLayerAlpha(0,0,w,h,(int)(255*alpha));
@@ -111,14 +122,16 @@ final class GameUi {
         rect(c,panel.left+h*.012f,panel.top+h*.012f,panel.left+h*.09f,panel.top+h*.016f,GOLD);
         rect(c,panel.right-h*.09f,panel.bottom-h*.016f,panel.right-h*.012f,panel.bottom-h*.012f,GOLD);
         label(c,"VEILBREAKERS",panel.left+w*.024f,panel.top+h*.047f,h*.024f,GOLD,true);
-        label(c,"CINZAS DO OITAVO",panel.left+w*.024f,panel.top+h*.079f,h*.016f,MUTED,false);
-        statusTab.set(w*.355f,h*.069f,w*.49f,h*.143f);
-        inventoryTab.set(w*.50f,h*.069f,w*.68f,h*.143f);
-        journalTab.set(w*.69f,h*.069f,w*.815f,h*.143f);
+        label(c,story.questName().toUpperCase(java.util.Locale.ROOT),panel.left+w*.024f,panel.top+h*.079f,h*.016f,MUTED,false);
+        statusTab.set(w*.333f,h*.069f,w*.452f,h*.143f);
+        inventoryTab.set(w*.456f,h*.069f,w*.605f,h*.143f);
+        runeTab.set(w*.610f,h*.069f,w*.710f,h*.143f);
+        journalTab.set(w*.714f,h*.069f,w*.815f,h*.143f);
         center(c,"ATRIBUTOS",statusTab,h*.027f,tab==0?IVORY:MUTED);
         center(c,"INVENTÁRIO",inventoryTab,h*.027f,tab==2?IVORY:MUTED);
+        center(c,"RUNAS",runeTab,h*.027f,tab==3?IVORY:MUTED);
         center(c,"MISSÃO",journalTab,h*.027f,tab==1?IVORY:MUTED);
-        RectF selected=tab==0?statusTab:tab==2?inventoryTab:journalTab;
+        RectF selected=tab==0?statusTab:tab==2?inventoryTab:tab==3?runeTab:journalTab;
         rect(c,selected.left,selected.bottom-h*.007f,selected.right,selected.bottom-h*.004f,GOLD);
         close.set(panel.right-h*.102f,panel.top+h*.014f,panel.right-h*.022f,panel.top+h*.094f);
         button(c,close,"×",true,h);
@@ -140,10 +153,13 @@ final class GameUi {
         label(c,VarynMap.zoneName(story.zone),lx,h*.753f,h*.021f,MUTED,false);
         label(c,"Arma: "+(inventory.swordEquipped?"Espada de Varyn":"nenhuma equipada"),lx,h*.790f,h*.021f,MUTED,false);
         label(c,"Bônus de arma: +"+stats.weaponAttackBonus+" ATK",lx,h*.826f,h*.021f,GOLD,false);
+        label(c,"Magia: "+RuneState.name(runes.getSelectedSpell()),lx,h*.864f,h*.021f,MUTED,false);
         label(c,"JOGO PAUSADO",lx,h*.899f,h*.020f,GOLD,false);
         float rx=w*.371f,rw=panel.right-rx-w*.029f;
         inventoryActionHit.setEmpty();
         for (RectF hit : inventoryItemHits) hit.setEmpty();
+        runeActionHit.setEmpty();
+        for (RectF hit : runeItemHits) hit.setEmpty();
         if(tab==0) {
             float mw=(rw-w*.023f)*.5f;
             meter(c,rx,h*.218f,mw,h,"VIDA",stats.hp+" / "+stats.maxHp,stats.hpRatio(),Color.rgb(170,43,57));
@@ -173,14 +189,25 @@ final class GameUi {
         } else if (tab==2) {
             for(RectF hit:plus)hit.setEmpty();for(RectF hit:minus)hit.setEmpty();confirm.setEmpty();cancelHit.setEmpty();
             inventory(c,w,h,rx,rw,inventory,stats);
+        } else if (tab==3) {
+            for(RectF hit:plus)hit.setEmpty();for(RectF hit:minus)hit.setEmpty();confirm.setEmpty();cancelHit.setEmpty();
+            runes(c,w,h,rx,rw,runes,stats);
         } else {
             for(RectF r:plus)r.setEmpty();for(RectF r:minus)r.setEmpty();confirm.setEmpty();cancelHit.setEmpty();
-            label(c,"Cinzas do Oitavo",rx,h*.223f,h*.037f,IVORY,true);
-            label(c,"A cidade caiu. Sua história ainda não.",rx,h*.263f,h*.025f,MUTED,false);
-            String[] tasks={"Recuperar a espada de Kael","Abrir o baú da praça","Encontrar Mara e limpar a praça",
+            label(c,story.questName(),rx,h*.223f,h*.037f,IVORY,true);
+            label(c,story.questComplete?"O eco continua além do santuário.":"A cidade caiu. Sua história ainda não.",rx,h*.263f,h*.025f,MUTED,false);
+            String[] tasks=story.questComplete?new String[] {
+                    "Aprender Brasas no santuário", "Abrir caminho na Estrada das Cinzas",
+                    "Investigar o eco na cripta", "Decifrar a runa de Geada",
+                    "Vencer os guardiões da cripta", "Encontrar Ivo e proteger a torre", "Despertar a Marca VIII"
+            }:new String[] {"Recuperar a espada de Kael","Abrir o baú da praça","Encontrar Mara e limpar a praça",
                     "Falar com Ivo nas casas queimadas","Investigar os desaparecimentos","Vencer o Veilborn do aqueduto",
                     "Chegar ao Portão Norte"};
-            boolean[] done={story.swordFound,story.chestOpened,story.metMara&&(story.clearedMask&2)!=0,
+            boolean[] done=story.questComplete?new boolean[] {
+                    story.altarUsed&&story.emberLearned,(story.clearedMask&(1<<6))!=0,
+                    story.echoTraceFound,story.frostLearned,(story.clearedMask&(1<<7))!=0,
+                    story.watcherMet&&(story.clearedMask&(1<<8))!=0,story.echoQuestComplete
+            }:new boolean[] {story.swordFound,story.chestOpened,story.metMara&&(story.clearedMask&2)!=0,
                     story.metIvo,story.traceFound,story.bossDefeated,story.questComplete};
             for(int i=0;i<tasks.length;i++) {
                 float y=h*(.316f+i*.068f);
@@ -189,7 +216,7 @@ final class GameUi {
                 if(done[i])center(c,"✓",mark,h*.025f,GOLD);
                 label(c,tasks[i],rx+h*.043f,y+h*.005f,h*.025f,done[i]?MUTED:IVORY,false);
             }
-            label(c,story.questComplete?"MISSÃO CONCLUÍDA":"OBJETIVO ATUAL",rx,h*.845f,h*.022f,GOLD,true);
+            label(c,story.echoQuestComplete?"MISSÃO CONCLUÍDA":"OBJETIVO ATUAL",rx,h*.845f,h*.022f,GOLD,true);
             drawWrapped(c,story.objective(),rx,h*.885f,rw,h*.025f,h*.032f,IVORY,2);
         }
         c.restoreToCount(layer);
@@ -247,6 +274,56 @@ final class GameUi {
         inventoryActionHit.set(inner,h*.781f,inner+innerWidth,h*.847f);
         button(c,inventoryActionHit,selectedDiscovered?inventory.actionLabel(selectedItem):"SEM ITEM",inventory.canActivate(selectedItem,stats),h);
         String feedback=inventoryFeedback.isEmpty()?inventory.unavailableReason(selectedItem,stats):inventoryFeedback;
+        drawWrapped(c,feedback,inner,h*.884f,innerWidth,h*.021f,h*.027f,IVORY,2);
+    }
+
+    private void runes(Canvas c,float w,float h,float x,float width,RuneState runes,PlayerStats stats) {
+        label(c,"RUNAS & MARCA",x,h*.223f,h*.037f,IVORY,true);
+        label(c,"Prepare uma magia antes de voltar à luta",x,h*.261f,h*.024f,MUTED,false);
+        float gridWidth=width*.45f,gap=w*.016f;
+        float side=Math.min((gridWidth-gap)*.5f,h*.185f),top=h*.295f;
+        for(int rune=0;rune<RuneState.RUNE_COUNT;rune++) {
+            float left=x+(rune%2)*(gridWidth-side),rowTop=top+(rune/2)*(side+h*.026f);
+            RectF slot=runeItemHits[rune];slot.set(left,rowTop,left+side,rowTop+side);
+            if(!skin(c,"ui/item_slot.png",slot))rect(c,slot.left,slot.top,slot.right,slot.bottom,Color.rgb(27,28,34));
+            boolean learned=runes.isUnlocked(rune);
+            if(!learned)rect(c,slot.left,slot.top,slot.right,slot.bottom,Color.argb(130,4,7,12));
+            outline(c,slot,rune==selectedRune?GOLD:Color.rgb(69,64,59),h*(rune==selectedRune?.003f:.0014f));
+            Bitmap icon=art==null?null:art.bitmap(RuneState.iconPath(rune));
+            if(icon!=null) {
+                RectF iconBox=new RectF(slot.left+side*.17f,slot.top+side*.09f,slot.right-side*.17f,slot.top+side*.74f);
+                sprite.setAlpha(learned?255:55);c.drawBitmap(icon,null,fit(icon,iconBox),sprite);sprite.setAlpha(255);
+            }
+            label(c,RuneState.name(rune),slot.left+h*.009f,slot.bottom-h*.018f,h*.019f,learned?IVORY:MUTED,false);
+            if(rune==runes.getSelectedSpell())label(c,"PREPARADA",slot.left+h*.009f,slot.top+h*.025f,h*.014f,GOLD,false);
+            else if(rune==RuneState.MARK&&learned)label(c,"PODER",slot.left+h*.009f,slot.top+h*.025f,h*.014f,GOLD,false);
+        }
+        label(c,"MAGIA PREPARADA",x,h*.742f,h*.020f,MUTED,false);
+        label(c,RuneState.name(runes.getSelectedSpell()),x,h*.784f,h*.030f,GOLD,true);
+        meter(c,x,h*.853f,gridWidth,h,"MANA",stats.mana+" / "+stats.maxMana,stats.manaRatio(),Color.rgb(57,102,176));
+        float detailX=x+gridWidth+w*.019f,detailWidth=width-gridWidth-w*.019f;
+        RectF details=new RectF(detailX,h*.291f,detailX+detailWidth,h*.923f);
+        rect(c,details.left,details.top,details.right,details.bottom,Color.argb(140,10,13,20));
+        outline(c,details,Color.rgb(82,72,58),h*.0015f);
+        float inner=detailX+h*.022f,innerWidth=detailWidth-h*.044f;
+        Bitmap icon=art==null?null:art.bitmap(RuneState.iconPath(selectedRune));
+        if(icon!=null) {
+            RectF iconBox=new RectF(details.centerX()-h*.063f,h*.310f,details.centerX()+h*.063f,h*.436f);
+            c.drawBitmap(icon,null,fit(icon,iconBox),sprite);
+        }
+        boolean learned=runes.isUnlocked(selectedRune);
+        drawWrapped(c,RuneState.name(selectedRune),inner,h*.478f,innerWidth,h*.031f,h*.036f,IVORY,2);
+        label(c,selectedRune==RuneState.MARK?"PODER · MARCA VIII":learned?"RUNA APRENDIDA":"RUNA NÃO APRENDIDA",inner,h*.548f,h*.018f,GOLD,false);
+        drawWrapped(c,learned?RuneState.description(selectedRune):RuneState.unlockHint(selectedRune),inner,h*.591f,
+                innerWidth,h*.022f,h*.030f,MUTED,4);
+        String cost=RuneState.manaCost(selectedRune)+" Mana · "+String.format(java.util.Locale.ROOT,"%.1f",RuneState.cooldown(selectedRune))+" s de recarga";
+        drawWrapped(c,cost,inner,h*.729f,innerWidth,h*.022f,h*.029f,GOLD,2);
+        runeActionHit.set(inner,h*.781f,inner+innerWidth,h*.847f);
+        boolean prepared=selectedRune==runes.getSelectedSpell();
+        String action=!learned?"NÃO APRENDIDA":selectedRune==RuneState.MARK?"PODER APRENDIDO":prepared?"MAGIA PREPARADA":"PREPARAR MAGIA";
+        button(c,runeActionHit,action,learned&&selectedRune!=RuneState.MARK&&!prepared,h);
+        String feedback=!runeFeedback.isEmpty()?runeFeedback:!learned?RuneState.unlockHint(selectedRune)
+                :selectedRune==RuneState.MARK?"Ative com MARCA durante o combate.":prepared?"A magia está pronta para o botão de conjuração.":"";
         drawWrapped(c,feedback,inner,h*.884f,innerWidth,h*.021f,h*.027f,IVORY,2);
     }
     void dialogue(Canvas c,float w,float h,String speaker,String line,int visible,Bitmap kael) {

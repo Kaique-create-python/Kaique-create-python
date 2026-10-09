@@ -16,7 +16,8 @@ JAVA = ROOT / "app/src/main/java/com/veilbreakers/prototype"
 STUBS = {
     "com/veilbreakers/prototype/GameArt.java": """package com.veilbreakers.prototype;
 import android.graphics.Canvas; import android.graphics.RectF;
-final class GameArt { void draw(Canvas canvas,String file,RectF target) {} }
+final class GameArt { void draw(Canvas canvas,String file,RectF target) {}
+ RectF visibleBounds(String file) { return null; } }
 """,
     "android/content/SharedPreferences.java": """package android.content;
 public interface SharedPreferences {
@@ -81,7 +82,8 @@ def main():
             path.write_text(content, encoding="utf-8")
             sources.append(path)
         sources.extend(JAVA / name for name in ("StoryState.java", "VarynMap.java", "LocomotionCycle.java",
-                                                "InventoryState.java", "PlayerStats.java"))
+                                                "InventoryState.java", "PlayerStats.java", "RuneState.java",
+                                                "EncounterState.java", "SpellProfile.java"))
         sources.append(ROOT / "tools/GameplayLogicTest.java")
         classes = work / "classes"
         classes.mkdir()

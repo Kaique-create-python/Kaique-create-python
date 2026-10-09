@@ -93,7 +93,7 @@ public final class GameplayLogicTest {
         state.zone = 5;
         state.altarUsed = true;
         state.introSeen = true;
-        check(state.progressStep() == 9 && !state.canEnterNext(), "The altar concludes the playable chapter");
+        check(state.progressStep() == 9 && !state.canEnterNext(), "Resting alone does not skip learning the sanctuary rune");
         state.save(empty.edit());
         StoryState restored = new StoryState();
         restored.load(empty);
@@ -104,9 +104,107 @@ public final class GameplayLogicTest {
         repeated.load(empty);
         check(repeated.progressStep() == 9 && repeated.chestOpened && repeated.altarUsed,
                 "Repeated saves keep completed interactions completed");
-        empty.edit().putInt("world_zone", 999).putInt("world_cleared_mask", 255).apply();
+        empty.edit().putInt("world_zone", 999).putInt("world_cleared_mask", 1023).apply();
         restored.load(empty);
-        check(restored.zone == 5 && restored.clearedMask == 63, "Invalid save values are constrained");
+        check(restored.zone == 8 && restored.clearedMask == 511, "Invalid save values are constrained to the nine-room world");
+    }
+
+    private static void secondChapter() {
+        StoryState story = new StoryState();
+        story.introSeen = story.swordFound = story.chestOpened = story.metMara = story.metIvo = true;
+        story.traceFound = story.bossDefeated = story.questComplete = true;
+        story.clearedMask = (1 << 1) | (1 << 3);
+        story.zone = 5;
+        check(story.progressStep() == 8 && !story.canEnterNext(), "Chapter two starts with the sanctuary still required");
+        story.altarUsed = true;
+        check(!story.canEnterNext(), "Rest cannot bypass the Ember rune");
+        for (String id : new String[] {"ember_rune", "echo_trace", "frost_rune", "watcher"}) {
+            String[][] pages = story.dialogue(id);
+            check(pages.length > 0, "New chapter interactions have dialogue: " + id);
+            for (String[] page : pages) {
+                check(page.length == 2 && !page[0].isEmpty() && page[1].length() <= 105,
+                        "New speaker/text pages fit the dialogue presentation");
+            }
+        }
+        check(!story.emberLearned && !story.frostLearned && !story.echoTraceFound && !story.watcherMet,
+                "Reading the new dialogue cannot learn runes or complete discoveries");
+        story.emberLearned = true;
+        check(story.canEnterNext() && story.progressStep() == 10, "Learning Ember opens the road beyond the sanctuary");
+        story.zone = 6;
+        story.clearedMask |= 1 << 5;
+        check(!story.canEnterNext(), "A different room's clear cannot skip the road waves");
+        story.clearedMask |= 1 << 6;
+        check(story.canEnterNext() && story.progressStep() == 11, "Completing the road waves opens the crypt");
+        story.zone = 7;
+        check(!story.canEnterNext(), "The crypt cannot be crossed without its discoveries and encounters");
+        story.echoTraceFound = true;
+        check(!story.canEnterNext() && story.progressStep() == 12, "The echo alone does not unlock the crypt exit");
+        story.frostLearned = true;
+        check(!story.canEnterNext() && story.progressStep() == 13, "Learning Frost does not skip the crypt waves");
+        story.clearedMask |= 1 << 7;
+        check(story.canEnterNext() && story.progressStep() == 14, "The crypt's rune, clue and encounters unlock the tower");
+        story.zone = 8;
+        story.watcherMet = true;
+        check(!story.canCompleteEchoQuest() && story.progressStep() == 15, "Meeting Ivo cannot skip the tower encounters");
+        story.clearedMask |= 1 << 8;
+        check(story.canCompleteEchoQuest() && story.progressStep() == 16, "The last conversation becomes eligible after all chapter encounters");
+        story.echoQuestComplete = true;
+        check(story.progressStep() == 17 && !story.canEnterNext(), "Finishing the second chapter leaves no unimplemented forward exit");
+        MemoryPreferences prefs = new MemoryPreferences(); story.save(prefs.edit());
+        StoryState restored = new StoryState(); restored.load(prefs);
+        check(restored.zone == 8 && restored.emberLearned && restored.frostLearned && restored.echoTraceFound
+                && restored.watcherMet && restored.echoQuestComplete && restored.progressStep() == 17,
+                "All second-chapter discoveries survive Continue");
+        MemoryPreferences old = new MemoryPreferences();
+        old.edit().putInt("world_version", 180).putBoolean("story_quest_complete", true)
+                .putBoolean("story_altar_used", true).putInt("world_zone", 5).apply();
+        StoryState migrated = new StoryState(); migrated.load(old);
+        check(migrated.altarUsed && migrated.emberLearned && migrated.canEnterNext() && !migrated.echoQuestComplete,
+                "An existing v1.9 sanctuary save gains its altar rune without falsely finishing chapter two");
+    }
+
+    private static void runes() {
+        MemoryPreferences prefs = new MemoryPreferences();
+        StoryState story = new StoryState();
+        RuneState runes = new RuneState(); runes.load(prefs, story);
+        check(runes.getSelectedSpell() == RuneState.ARCANA && runes.isUnlocked(RuneState.ARCANA),
+                "Arcana VIII remains available on every new journey");
+        check(!runes.selectSpell(RuneState.EMBER) && !runes.selectSpell(RuneState.FROST)
+                && runes.getSelectedSpell() == RuneState.ARCANA, "Locked runes cannot replace the prepared spell");
+        check(runes.unlock(RuneState.EMBER) && !runes.unlock(RuneState.EMBER), "Rune learning reports a new discovery only once");
+        check(runes.selectSpell(RuneState.EMBER) && runes.getSelectedSpell() == RuneState.EMBER,
+                "A learned rune can be prepared for actual combat");
+        check(runes.unlockPower() && !runes.unlockPower() && runes.powerUnlocked,
+                "The Mark power is learned once");
+        check(!runes.selectSpell(RuneState.MARK) && runes.getSelectedSpell() == RuneState.EMBER,
+                "The separate Mark power cannot occupy the projectile spell slot");
+        runes.unlock(RuneState.FROST); runes.save(prefs.edit());
+        RuneState restored = new RuneState(); restored.load(prefs, story);
+        check(restored.getSelectedSpell() == RuneState.EMBER && restored.emberUnlocked && restored.frostUnlocked
+                && restored.powerUnlocked, "Continue preserves rune learning, power and prepared magic");
+        prefs.edit().putInt("rune_selected_spell", 999).apply(); restored.load(prefs, story);
+        check(restored.getSelectedSpell() == RuneState.ARCANA, "An invalid saved spell safely falls back to Arcana");
+        MemoryPreferences corrupted = new MemoryPreferences();
+        corrupted.edit().putInt("rune_selected_spell", RuneState.FROST).apply(); restored.load(corrupted, story);
+        check(restored.getSelectedSpell() == RuneState.ARCANA, "A saved selection cannot bypass its locked rune");
+        story.altarUsed = story.emberLearned = true; restored.load(new MemoryPreferences(), story);
+        check(restored.emberUnlocked && !restored.frostUnlocked && !restored.powerUnlocked,
+                "v1.9 migration grants only the already-discovered sanctuary rune");
+        story.frostLearned = story.echoTraceFound = true; restored.synchronizeStory(story);
+        check(restored.powerUnlocked && !story.echoQuestComplete,
+                "The Mark is available for crypt and tower fights before the last quest reward");
+        story.echoQuestComplete = true; restored.synchronizeStory(story);
+        check(restored.frostUnlocked && restored.powerUnlocked && restored.getSelectedSpell() == RuneState.ARCANA,
+                "Campaign discovery learns magic without unexpectedly replacing the player's selection");
+        check(RuneState.manaCost(RuneState.ARCANA) == 18 && RuneState.manaCost(RuneState.EMBER) == 22
+                && RuneState.manaCost(RuneState.FROST) == 25 && RuneState.manaCost(RuneState.MARK) == 30,
+                "Rune UI costs match the agreed combat balance");
+        close(RuneState.cooldown(RuneState.EMBER), 1.6f, "Ember cooldown");
+        close(RuneState.cooldown(RuneState.FROST), 2.0f, "Frost cooldown");
+        close(RuneState.cooldown(RuneState.MARK), 12f, "Mark cooldown");
+        prefs.edit().clear().apply(); restored.load(prefs, new StoryState());
+        check(!restored.emberUnlocked && !restored.frostUnlocked && !restored.powerUnlocked
+                && restored.getSelectedSpell() == RuneState.ARCANA, "New Game clears learned runes and power together");
     }
 
     private static void world() {
@@ -114,64 +212,140 @@ public final class GameplayLogicTest {
         for (int[] size : new int[][] {{1280, 720}, {1920, 1080}}) {
             map.resize(size[0], size[1]);
             float w = size[0], h = size[1], radius = h * .027f;
-            for (int zone = 0; zone < 6; zone++) {
-                for (int column = 1; column < 20; column++) {
-                    check(!map.blocked(zone, w * column / 20f, h * .57f, radius),
-                            "The central traversal corridor stays passable in room " + zone);
-                }
+            for (int zone = 0; zone < 9; zone++) {
+                StoryState story = new StoryState(); story.zone = zone;
+                if (zone >= 5) story.questComplete = true;
+                if (zone >= 6) story.altarUsed = story.emberLearned = true;
+                map.setStory(story);
                 check(VarynMap.zoneName(zone).length() > 0, "Every authored room has a visible name");
+                check(map.blocked(zone, w * .50f, h * .30f, 0f), "Sky and upper architecture cannot be walked on in room " + zone);
+                check(map.blocked(zone, w * .50f, map.walkTop(zone) + radius * .5f, radius),
+                        "The full foot radius must stay below the ground's top edge in room " + zone);
+                check(map.blocked(zone, w * .50f, map.walkBottom(zone) - radius * .5f, radius),
+                        "The full foot radius must stay above the ground's bottom edge in room " + zone);
                 check(!map.blocked(zone, w * .20f, h * .60f, radius),
                         "The forward room entry stays outside scenery in room " + zone);
                 check(!map.blocked(zone, w * .82f, h * .60f, radius),
                         "The returning room entry stays outside scenery in room " + zone);
-                check(!map.blocked(zone, map.interactionX(VarynMap.NEXT), map.interactionY(VarynMap.NEXT), radius),
-                        "The right exit remains physically accessible in room " + zone);
-                check(!map.blocked(zone, map.interactionX(VarynMap.PREVIOUS), map.interactionY(VarynMap.PREVIOUS), radius),
-                        "The left exit remains physically accessible in room " + zone);
+                ReachableFloor floor = new ReachableFloor(map, zone, w, h, radius);
+                check(floor.reaches(w * .82f, h * .60f), "Forward and return entries share a connected ground route in room " + zone);
+                if (zone < 8) check(floor.interacts(VarynMap.NEXT, story), "The forward exit has a reachable approach in room " + zone);
+                if (zone > 0) check(floor.interacts(VarynMap.PREVIOUS, story), "The returning exit has a reachable approach in room " + zone);
+                if (zone == 0) {
+                    check(floor.interacts(VarynMap.SWORD, story), "The missing sword is reachable without walking through scenery");
+                    story.swordFound = true;
+                    check(!floor.interacts(VarynMap.SWORD, story), "A recovered sword cannot be collected twice");
+                    check(map.blocked(zone, w * .85f, h * .70f, radius), "Visible foreground rubble blocks the player's feet");
+                } else if (zone == 1) {
+                    check(floor.interacts(VarynMap.CHEST, story) && floor.interacts(VarynMap.MARA, story),
+                            "Chest and Mara have reachable approaches around their solid footprints");
+                    float cx = map.interactionX(VarynMap.CHEST), cy = map.interactionY(VarynMap.CHEST);
+                    float mx = map.interactionX(VarynMap.MARA), my = map.interactionY(VarynMap.MARA);
+                    check(map.blocked(zone,cx,cy,radius) && map.blocked(zone,mx,my,radius),
+                            "Standing inside the chest or Mara is forbidden");
+                    check(!map.clearLine(zone,cx-h*.13f,cy,cx+h*.13f,cy,0f), "A line through the chest is obstructed");
+                    check(!map.clearLine(zone,mx-h*.12f,my,mx+h*.12f,my,0f), "A line through Mara is obstructed");
+                    check(map.clearLine(zone,w*.38f,h*.70f,w*.74f,h*.70f,radius), "The lower plaza route around props remains open");
+                    story.chestOpened = true;
+                    check(!floor.interacts(VarynMap.CHEST,story) && map.blocked(zone,cx,cy,radius),
+                            "Opening a chest removes repeated loot while preserving its physical footprint");
+                } else if (zone == 2) {
+                    check(floor.interacts(VarynMap.IVO,story), "Ivo can be approached without standing inside him");
+                    check(map.blocked(zone,map.interactionX(VarynMap.IVO),map.interactionY(VarynMap.IVO),0f),
+                            "Ivo occupies a solid physical footprint before leaving the houses");
+                    check(!floor.interacts(VarynMap.TRACE,story), "The trace remains unavailable before Ivo explains it");
+                    story.metIvo = true;
+                    check(floor.interacts(VarynMap.TRACE,story), "The trace can be approached after Ivo's conversation");
+                    story.traceFound = true;
+                    check(!floor.interacts(VarynMap.TRACE,story), "An examined trace cannot be collected repeatedly");
+                    story.emberLearned = true;
+                    check(!floor.interacts(VarynMap.IVO,story)
+                            && !map.blocked(zone,map.interactionX(VarynMap.IVO),map.interactionY(VarynMap.IVO),0f),
+                            "Ivo's old-room interaction and collider disappear when he moves to the tower");
+                } else if (zone == 5) {
+                    check(floor.interacts(VarynMap.ALTAR,story) && floor.interacts(VarynMap.EMBER_RUNE,story),
+                            "Rest and the Ember rune can be reached around the solid altar");
+                    float ax = map.interactionX(VarynMap.ALTAR), ay = map.interactionY(VarynMap.ALTAR);
+                    check(map.blocked(zone,ax,ay,radius), "The player cannot stand inside the altar");
+                    check(!map.clearLine(zone,ax-h*.15f,ay,ax+h*.15f,ay,0f), "A line through the altar is obstructed");
+                    story.emberLearned = true;
+                    check(!floor.interacts(VarynMap.EMBER_RUNE,story), "An already-learned Ember rune no longer offers repeated discovery");
+                } else if (zone == 7) {
+                    check(floor.interacts(VarynMap.ECHO_TRACE,story) && floor.interacts(VarynMap.FROST_RUNE,story),
+                            "The crypt's echo and Frost inscription both have reachable approaches");
+                    story.echoTraceFound = story.frostLearned = true;
+                    check(!floor.interacts(VarynMap.ECHO_TRACE,story) && !floor.interacts(VarynMap.FROST_RUNE,story),
+                            "The crypt's completed discoveries cannot repeat");
+                } else if (zone == 8) {
+                    check(floor.interacts(VarynMap.WATCHER,story), "Ivo at the tower has a reachable conversation approach");
+                    check(map.blocked(zone,map.interactionX(VarynMap.WATCHER),map.interactionY(VarynMap.WATCHER),radius),
+                            "The tower survivor has a solid footprint");
+                    check(!floor.interacts(VarynMap.NEXT,story), "The tower has no forward exit into an unimplemented room");
+                }
             }
-            check(map.blocked(0, w * .20f, h * .44f, radius), "The generated ruin's actual foundation blocks movement");
-            check(map.blocked(0, w * .55f, h * .84f, radius), "Lower rubble blocks movement");
-            check(!map.blocked(0, w * .20f, h * .55f, radius), "The floor beyond the foundation remains walkable");
-            check(!map.blocked(0, w * .20f, h * .35f, 0f), "The building's upper silhouette is not its collision footprint");
-            StoryState story = new StoryState();
-            float sx = map.interactionX(VarynMap.SWORD), sy = map.interactionY(VarynMap.SWORD);
-            check(VarynMap.SWORD.equals(map.nearestInteraction(0, story, sx, sy)),
-                    "The missing sword can be reached at its authored position");
-            check(!map.blocked(0, sx, sy, radius), "The sword interaction is outside scenery collisions");
-            story.swordFound = true;
-            check(map.nearestInteraction(0, story, sx, sy).isEmpty(), "A recovered sword cannot be collected twice");
-            float cx = map.interactionX(VarynMap.CHEST), cy = map.interactionY(VarynMap.CHEST);
-            check(VarynMap.CHEST.equals(map.nearestInteraction(1, story, cx, cy)), "The square chest is reachable");
-            story.chestOpened = true;
-            check(!VarynMap.CHEST.equals(map.nearestInteraction(1, story, cx, cy)), "An opened chest is removed from available loot");
-            check(!map.blocked(1, cx, cy, radius), "The plaza chest is outside the generated fountain's foundation");
-            float mx = map.interactionX(VarynMap.MARA), my = map.interactionY(VarynMap.MARA);
-            check(VarynMap.MARA.equals(map.nearestInteraction(1, story, mx, my)), "Mara can be spoken to beside the plaza fountain");
-            check(!map.blocked(1, mx, my, radius), "Mara's relocated feet remain on accessible floor");
-            float ix = map.interactionX(VarynMap.IVO), iy = map.interactionY(VarynMap.IVO);
-            check(VarynMap.IVO.equals(map.nearestInteraction(2, story, ix, iy)), "Ivo can be reached outside the burnt houses");
-            check(!map.blocked(2, ix, iy, radius), "Ivo's feet do not intersect the new house foundations");
-            float tx = map.interactionX(VarynMap.TRACE), ty = map.interactionY(VarynMap.TRACE);
-            check(!VarynMap.TRACE.equals(map.nearestInteraction(2, story, tx, ty)),
-                    "The disappearances clue remains unavailable until Ivo explains it");
-            story.metIvo = true;
-            check(VarynMap.TRACE.equals(map.nearestInteraction(2, story, tx, ty)), "Ivo's clue can then be investigated");
-            check(!map.blocked(2, tx, ty, radius), "The ash trace remains outside the new ruin foundations");
-            story.traceFound = true;
-            check(!VarynMap.TRACE.equals(map.nearestInteraction(2, story, tx, ty)), "An examined clue cannot be collected repeatedly");
-            float ax = map.interactionX(VarynMap.ALTAR), ay = map.interactionY(VarynMap.ALTAR);
-            check(VarynMap.ALTAR.equals(map.nearestInteraction(5, story, ax, ay)), "The sanctuary altar is reachable for rest");
-            check(!map.blocked(5, ax, ay, radius), "The altar's relocated feet stay outside sanctuary pillars");
-            check(!map.blocked(1, w * .74f, h * .57f, radius), "The plaza enemy spawns on reachable floor");
-            check(!map.blocked(3, w * .66f, h * .57f, radius), "The aqueduct boss spawns in the traverse corridor");
-            check(map.blocked(0, w * .20f, h * .44f, radius)
-                    && !map.blocked(0, w * .20f, h * .55f, radius),
-                    "Collecting items and changing quest flags cannot alter immutable scenery collision");
-            check(VarynMap.PREVIOUS.equals(map.nearestInteraction(5, story,
-                    map.interactionX(VarynMap.PREVIOUS), map.interactionY(VarynMap.PREVIOUS))),
-                    "The final room retains a route back through Varyn");
+            map.setStory(new StoryState());
+            check(!map.blocked(1,w*.74f,h*.57f,radius) && !map.blocked(3,w*.66f,h*.57f,radius),
+                    "The initial combat spawn positions remain on free ground");
         }
         map.release();
+    }
+
+    /** A reachable approach is a connected free-foot node, never the solid center of an object. */
+    private static final class ReachableFloor {
+        private static final int COLS=90, ROWS=26;
+        private final VarynMap map;
+        private final int zone;
+        private final float radius,xMin,xStep,yMin,yStep;
+        private final boolean[] reached=new boolean[COLS*ROWS];
+
+        ReachableFloor(VarynMap map,int zone,float w,float h,float radius) {
+            this.map=map;this.zone=zone;this.radius=radius;
+            xMin=w*.055f;xStep=w*.89f/(COLS-1);
+            yMin=map.walkTop(zone)+radius+h*.001f;
+            yStep=(map.walkBottom(zone)-radius-h*.001f-yMin)/(ROWS-1);
+            float startX=w*.20f,startY=h*.60f;
+            int[] queue=new int[reached.length];int head=0,tail=0;
+            for(int cell=0;cell<reached.length;cell++) {
+                float dx=x(cell)-startX,dy=y(cell)-startY;
+                if(dx*dx+dy*dy <= 2f*(xStep*xStep+yStep*yStep)
+                        && !map.blocked(zone,x(cell),y(cell),radius)
+                        && map.clearLine(zone,startX,startY,x(cell),y(cell),radius)) {
+                    reached[cell]=true;queue[tail++]=cell;
+                }
+            }
+            while(head<tail) {
+                int cell=queue[head++],col=cell%COLS,row=cell/COLS;
+                for(int direction=0;direction<4;direction++) {
+                    int nc=col+(direction==0?-1:direction==1?1:0);
+                    int nr=row+(direction==2?-1:direction==3?1:0);
+                    if(nc<0||nc>=COLS||nr<0||nr>=ROWS)continue;
+                    int next=nr*COLS+nc;
+                    if(!reached[next]&&!map.blocked(zone,x(next),y(next),radius)
+                            &&map.clearLine(zone,x(cell),y(cell),x(next),y(next),radius)) {
+                        reached[next]=true;queue[tail++]=next;
+                    }
+                }
+            }
+        }
+
+        private float x(int cell) { return xMin+(cell%COLS)*xStep; }
+        private float y(int cell) { return yMin+(cell/COLS)*yStep; }
+
+        boolean reaches(float targetX,float targetY) {
+            if(map.blocked(zone,targetX,targetY,radius))return false;
+            for(int cell=0;cell<reached.length;cell++)if(reached[cell]) {
+                float dx=x(cell)-targetX,dy=y(cell)-targetY;
+                if(dx*dx+dy*dy<=2f*(xStep*xStep+yStep*yStep)
+                        &&map.clearLine(zone,x(cell),y(cell),targetX,targetY,radius))return true;
+            }
+            return false;
+        }
+
+        boolean interacts(String id,StoryState story) {
+            for(int cell=0;cell<reached.length;cell++)if(reached[cell]
+                    &&id.equals(map.nearestInteraction(zone,story,x(cell),y(cell))))return true;
+            return false;
+        }
     }
 
     private static void inventory() {
@@ -272,14 +446,97 @@ public final class GameplayLogicTest {
         InventoryState newInventory = new InventoryState(); newInventory.load(oldSave, newStory, newStats);
         check(newInventory.occupiedSlots() == 0 && newStats.attack == 12 && !newInventory.swordEquipped,
                 "New Game clears items, equipment and migration rewards together");
+        check(newInventory.addLoot(InventoryState.BANDAGE, 1) == 1 && newInventory.discovered(InventoryState.BANDAGE),
+                "Encounter loot is visible before opening the story chest");
+        newStats.hp = newStats.maxHp - 50; newInventory.activate(InventoryState.BANDAGE, newStats);
+        editor = oldSave.edit(); newStats.save(editor); newStory.save(editor); newInventory.save(editor); editor.apply();
+        InventoryState looted = new InventoryState(); looted.load(oldSave, newStory, newStats);
+        check(looted.count(InventoryState.BANDAGE) == 0 && looted.discovered(InventoryState.BANDAGE),
+                "Consumed wave loot retains its discovered details after Continue");
+        check(looted.addLoot(InventoryState.MANA_DRAUGHT, Integer.MAX_VALUE) == 99
+                && looted.count(InventoryState.MANA_DRAUGHT) == 99,
+                "Large loot quantities clamp safely without integer overflow");
+        check(looted.addLoot(InventoryState.MANA_DRAUGHT, 1) == 0
+                && looted.addLoot(InventoryState.BANDAGE, -10) == 0
+                && looted.addLoot(InventoryState.SWORD, 1) == 0
+                && looted.addLoot(999, 1) == 0,
+                "Capacity, invalid quantities and key items cannot corrupt encounter loot");
+    }
+
+    private static void encounters() {
+        EncounterState state=new EncounterState();
+        int count=0;
+        for(int zone=0;zone<9;zone++)count+=state.total(zone);
+        check(count==15 && state.total(1)==3 && state.total(3)==3 && state.total(6)==3
+                && state.total(7)==4 && state.total(8)==2, "Five authored combat rooms provide fifteen sequential opponents");
+        check(state.finished(0)&&state.finished(2)&&state.finished(5), "Safe rooms do not invent encounters");
+        check(state.wave(1)==0 && state.hp(1)==70 && state.profile(1,0).attack==18,
+                "The first plaza encounter has the authored harder profile");
+        EncounterState.Profile finalEnemy=state.profile(8,1);
+        check(finalEnemy.hp==160 && finalEnemy.attack==28 && finalEnemy.elite,
+                "The tower finale uses its stronger elite profile");
+        MemoryPreferences prefs=new MemoryPreferences();
+        state.damage(1,0,45);state.save(prefs.edit());
+        EncounterState restored=new EncounterState();restored.load(prefs,0);
+        check(restored.wave(1)==0&&restored.hp(1)==45, "Continue preserves damage to the active unfinished opponent");
+        restored.resetUnfinishedHp(1);
+        check(restored.wave(1)==0&&restored.hp(1)==70, "Player defeat heals only the unfinished enemy");
+        check(restored.claimDefeat(1,0)&&restored.wave(1)==1&&!restored.finished(1),
+                "One kill advances exactly one plaza wave without clearing the room");
+        check(!restored.claimDefeat(1,0)&&restored.wave(1)==1, "A repeated death callback cannot claim the next wave's reward");
+        int secondHp=restored.hp(1);
+        restored.damage(1,0,1);
+        check(restored.hp(1)==secondHp, "A stale damage callback cannot affect a newly spawned opponent");
+        restored.damage(1,1,30);restored.resetUnfinishedHp(1);
+        check(restored.wave(1)==1&&restored.hp(1)==secondHp, "Defeat keeps every already-paid wave while healing the active one");
+        check(restored.claimDefeat(1,1)&&restored.claimDefeat(1,2)&&restored.finished(1)&&restored.hp(1)==0,
+                "Only the last authored wave clears the plaza encounter");
+        check(!restored.claimDefeat(1,2)&&!restored.claimDefeat(1,3), "A finished encounter cannot pay more kill rewards");
+        restored.save(prefs.edit());
+        EncounterState completed=new EncounterState();completed.load(prefs,0);
+        check(completed.finished(1)&&completed.wave(1)==3, "The completed wave ledger persists even before consulting a room mask");
+        EncounterState migrated=new EncounterState();migrated.load(new MemoryPreferences(),(1<<1)|(1<<3));
+        check(migrated.finished(1)&&migrated.finished(3)&&!migrated.finished(6)
+                && !migrated.claimDefeat(1,0), "v1.9 cleared rooms stay cleared without backfilling rewards or skipping chapter two");
+        for(int zone:new int[]{3,6,7,8}) {
+            EncounterState fresh=new EncounterState();
+            for(int wave=0;wave<fresh.total(zone);wave++) {
+                check(fresh.claimDefeat(zone,wave), "Each authored wave can be claimed once in room "+zone);
+                check(fresh.finished(zone)==(wave+1==fresh.total(zone)), "Room clear follows its last wave in room "+zone);
+            }
+        }
+    }
+
+    private static void spells() {
+        check(SpellProfile.of(RuneState.ARCANA).damage(20,6)==28
+                &&SpellProfile.of(RuneState.EMBER).damage(20,6)==29
+                &&SpellProfile.of(RuneState.FROST).damage(20,6)==17,
+                "The three prepared spells use their distinct authored damage profiles");
+        PlayerStats stats=new PlayerStats();stats.attack=20;
+        check(SpellProfile.effectiveAttack(stats.attack,true)==25&&stats.attack==20,
+                "Mark VIII applies a temporary 25 percent bonus without mutating saved base attributes");
+        check(SpellProfile.effectiveAttack(stats.attack,false)==20&&SpellProfile.burnDamage(20)==5,
+                "Ending the Mark restores base attack and Ember burn has its own damage");
+        for(int spell=RuneState.ARCANA;spell<=RuneState.FROST;spell++) {
+            SpellProfile profile=SpellProfile.of(spell);
+            check(profile.manaCost==RuneState.manaCost(spell), "The rune UI and combat agree on Mana cost");
+            close(profile.cooldown,RuneState.cooldown(spell), "The rune UI and combat agree on cooldown");
+        }
+        check(SpellProfile.MARK_MANA==RuneState.manaCost(RuneState.MARK), "The Mark UI cost matches actual combat");
+        close(SpellProfile.MARK_COOLDOWN,RuneState.cooldown(RuneState.MARK), "The Mark UI cooldown matches actual combat");
+        close(SpellProfile.MARK_DURATION,4f, "The Mark buff lasts four gameplay seconds");
     }
 
     public static void main(String[] arguments) {
         locomotion();
         story();
+        secondChapter();
+        runes();
         world();
         inventory();
-        System.out.println("Gameplay logic passed: " + checks + " checks (story, save migration, world collisions, locomotion, inventory/equipment)");
+        encounters();
+        spells();
+        System.out.println("Gameplay logic passed: " + checks + " checks (two chapters, rune/save migration, connected ground, inventory, encounter waves, spells)");
     }
 
     private static final class MemoryPreferences implements SharedPreferences {

@@ -308,7 +308,7 @@ public class MainMenuView extends View {
         textPaint.setTextAlign(Paint.Align.LEFT);
         textPaint.setTextSize(getHeight() * .019f);
         textPaint.setColor(Color.argb((int)(190 * a), 201, 184, 167));
-        c.drawText("v1.8.0  ·  RUÍNAS DE VARYN", getWidth() * .055f, getHeight() * .956f, textPaint);
+        c.drawText("v" + BuildConfig.VERSION_NAME + "  ·  ECOS SOB AS CINZAS", getWidth() * .055f, getHeight() * .956f, textPaint);
         textPaint.setTypeface(Typeface.create(Typeface.SERIF, Typeface.BOLD));
     }
 

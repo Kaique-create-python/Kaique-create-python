@@ -23,18 +23,27 @@ public final class VarynMap {
     public static final String NEXT = "next";
     public static final String PREVIOUS = "previous";
     public static final String ALTAR = "altar";
+    public static final String EMBER_RUNE = "ember_rune", FROST_RUNE = "frost_rune";
+    public static final String ECHO_TRACE = "echo_trace", WATCHER = "watcher";
 
     private static final String[] NAMES = {"Distrito Destruído", "Praça Central",
-            "Casas Queimadas", "Aqueduto", "Portão Norte", "Santuário Abandonado"};
+            "Casas Queimadas", "Aqueduto", "Portão Norte", "Santuário Abandonado",
+            "Estrada das Cinzas", "Cripta dos Ecos", "Torre do Vigia"};
+    // Raster scenery above these floor limits is architecture or sky, never ground.
+    private static final float[] FLOOR_TOP = {.525f,.525f,.525f,.525f,.525f,.525f,.525f,.525f,.525f};
+    private static final float[] FLOOR_BOTTOM = {.765f,.765f,.765f,.745f,.765f,.765f,.765f,.765f,.765f};
     // Collision covers the footprint of scenery, rather than the height of its silhouette.
     // The central .45-.72H corridor and authored character/object positions stay clear.
     private static final RectF[][] SOLIDS = {
-            {box(.10f,.38f,.36f,.50f), box(.66f,.38f,.88f,.50f), box(.42f,.79f,.67f,.91f)},
-            {box(.03f,.31f,.26f,.46f), box(.74f,.31f,.99f,.46f), box(.36f,.40f,.63f,.54f)},
-            {box(.11f,.38f,.36f,.50f), box(.69f,.38f,.88f,.50f), box(.27f,.80f,.40f,.91f)},
-            {box(.13f,.39f,.86f,.50f), box(.11f,.77f,.91f,.87f)},
-            {box(.10f,.36f,.35f,.50f), box(.56f,.38f,.82f,.50f), box(.46f,.82f,.57f,.91f)},
-            {box(.17f,.35f,.29f,.50f), box(.71f,.35f,.83f,.50f), box(.29f,.81f,.38f,.91f)}
+            {box(.10f,.38f,.36f,.50f), box(.66f,.38f,.88f,.50f), box(0,.665f,.335f,1), box(.78f,.63f,1,1)},
+            {box(.03f,.31f,.26f,.46f), box(.74f,.31f,.99f,.46f), box(.36f,.40f,.63f,.54f), box(0,.68f,.335f,1), box(.79f,.65f,1,1)},
+            {box(.11f,.38f,.36f,.50f), box(.69f,.38f,.88f,.50f), box(0,.66f,.33f,1), box(.80f,.66f,1,1)},
+            {box(.13f,.39f,.86f,.50f), box(.11f,.745f,.91f,.87f), box(0,.64f,.12f,1), box(.88f,.64f,1,1)},
+            {box(.10f,.36f,.35f,.50f), box(.56f,.38f,.82f,.50f), box(0,.63f,.32f,1), box(.80f,.67f,1,1)},
+            {box(.17f,.35f,.29f,.50f), box(.71f,.35f,.83f,.50f), box(0,.65f,.37f,1), box(.73f,.66f,1,1)},
+            {box(0,.68f,.12f,1), box(.88f,.68f,1,1)},
+            {box(0,.64f,.32f,1),box(.80f,.67f,1,1)},
+            {box(0,.65f,.35f,1), box(.77f,.68f,1,1)}
     };
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -44,6 +53,7 @@ public final class VarynMap {
     private final Path path = new Path();
     private Bitmap backdrop;
     private GameArt art;
+    private StoryState frameStory;
     private int backdropZone = -1;
     private int width;
     private int height;
@@ -51,6 +61,9 @@ public final class VarynMap {
     private float h;
 
     void setArt(GameArt art) { this.art = art; discardBackdrop(); }
+    public void setStory(StoryState story) { frameStory = story; }
+    public float walkTop(int zone) { return h * FLOOR_TOP[clampZone(zone)]; }
+    public float walkBottom(int zone) { return h * FLOOR_BOTTOM[clampZone(zone)]; }
 
     public void resize(int width, int height) {
         int nextWidth = Math.max(1, width);
@@ -64,6 +77,7 @@ public final class VarynMap {
     }
 
     public void drawGround(Canvas canvas, int zone, StoryState story) {
+        frameStory = story;
         zone = clampZone(zone);
         if (width == 0 || height == 0) resize(canvas.getWidth(), canvas.getHeight());
         if (backdrop == null || backdropZone != zone) {
@@ -80,33 +94,49 @@ public final class VarynMap {
         zone = clampZone(zone);
         drawAmbient(canvas, zone, clock);
         if (zone == 0 && !story.swordFound) drawSword(canvas, interactionX(SWORD), interactionY(SWORD), clock);
-        if (zone == 1) {
-            drawChest(canvas, interactionX(CHEST), interactionY(CHEST), story.chestOpened);
-        }
         if (zone == 2) {
             drawTrace(canvas, interactionX(TRACE), interactionY(TRACE), story.traceFound || !story.metIvo, clock);
         }
-        if (zone == 5) drawAltar(canvas, interactionX(ALTAR), interactionY(ALTAR), story.altarUsed, clock);
+        if (zone == 5 && !story.emberLearned) drawRune(canvas, "ember", EMBER_RUNE, clock);
+        if (zone == 7) {
+            drawTrace(canvas, interactionX(ECHO_TRACE), interactionY(ECHO_TRACE), story.echoTraceFound, clock);
+            if (!story.frostLearned) drawRune(canvas, "frost", FROST_RUNE, clock);
+        }
         if (zone > 0) drawExit(canvas, false, true, zoneName(zone - 1), clock);
-        if (zone < 5) drawExit(canvas, true, story.canEnterNext(), zoneName(zone + 1), clock);
+        if (zone < 8) drawExit(canvas, true, story.canEnterNext(), zoneName(zone + 1), clock);
     }
 
     /** Draw NPCs once in the requested foot-baseline interval for world actor sorting. */
     public void drawNpcs(Canvas canvas, int zone, float clock, float minY, float maxY) {
         if (width == 0 || height == 0) resize(canvas.getWidth(), canvas.getHeight());
         zone = clampZone(zone);
+        if (zone == 1 && interactionY(CHEST) >= minY && interactionY(CHEST) < maxY)
+            drawChest(canvas, interactionX(CHEST), interactionY(CHEST), frameStory != null && frameStory.chestOpened);
+        if (zone == 5 && interactionY(ALTAR) >= minY && interactionY(ALTAR) < maxY)
+            drawAltar(canvas, interactionX(ALTAR), interactionY(ALTAR), frameStory != null && frameStory.altarUsed, clock);
         if (zone == 1) {
             float y = interactionY(MARA);
             if (y >= minY && y < maxY) drawSurvivor(canvas, interactionX(MARA), y, false, clock);
-        } else if (zone == 2) {
+        } else if (zone == 2 && (frameStory == null || !frameStory.emberLearned)) {
             float y = interactionY(IVO);
             if (y >= minY && y < maxY) drawSurvivor(canvas, interactionX(IVO), y, true, clock);
+        } else if (zone == 8) {
+            float y = interactionY(WATCHER);
+            if (y >= minY && y < maxY) drawSurvivor(canvas, interactionX(WATCHER), y, true, clock);
         }
     }
 
     public boolean blocked(int zone, float x, float y, float radius) {
         if (w <= 0f || h <= 0f) return false;
         radius = Math.max(0f, radius);
+        zone = clampZone(zone);
+        if (y - radius < walkTop(zone) - .01f || y + radius > walkBottom(zone) + .01f) return true;
+        if (zone == 1 && (propCollision(CHEST,x,y,radius,.058f,.026f,.01f)
+                || circleCollision(MARA,x,y,radius,h*.028f))) return true;
+        if (zone == 2 && (frameStory == null || !frameStory.emberLearned)
+                && circleCollision(IVO,x,y,radius,h*.028f)) return true;
+        if (zone == 5 && propCollision(ALTAR,x,y,radius,.085f,.035f,.01f)) return true;
+        if (zone == 8 && circleCollision(WATCHER,x,y,radius,h*.028f)) return true;
         for (RectF solid : SOLIDS[clampZone(zone)]) {
             float left = solid.left * w, right = solid.right * w;
             float top = solid.top * h, bottom = solid.bottom * h;
@@ -118,24 +148,50 @@ public final class VarynMap {
         return false;
     }
 
+    private boolean propCollision(String id, float x, float y, float radius,
+                                  float halfWidth, float back, float front) {
+        float cx=interactionX(id), cy=interactionY(id);
+        float closestX=Math.max(cx-h*halfWidth,Math.min(cx+h*halfWidth,x));
+        float closestY=Math.max(cy-h*back,Math.min(cy+h*front,y));
+        float dx=x-closestX, dy=y-closestY;
+        return dx*dx+dy*dy <= radius*radius;
+    }
+
+    private boolean circleCollision(String id, float x, float y, float radius, float objectRadius) {
+        float dx=x-interactionX(id), dy=y-interactionY(id), reach=radius+objectRadius;
+        return dx*dx+dy*dy <= reach*reach;
+    }
+
+    public boolean clearLine(int zone, float ax, float ay, float bx, float by, float radius) {
+        int steps=Math.max(1,(int)Math.ceil(Math.hypot(bx-ax,by-ay)/Math.max(1f,h*.014f)));
+        for (int i=1; i<=steps; i++) {
+            float t=(float)i/steps;
+            if (blocked(zone,ax+(bx-ax)*t,ay+(by-ay)*t,radius)) return false;
+        }
+        return true;
+    }
+
     public String nearestInteraction(int zone, StoryState story, float x, float y) {
         if (h <= 0f) return "";
         zone = clampZone(zone);
         String nearest = "";
         float best = h * .16f;
         best *= best;
-        // At most six candidates. No per-frame list or array allocations.
-        for (int candidate = 0; candidate < 8; candidate++) {
+        for (int candidate = 0; candidate < 12; candidate++) {
             String id;
             switch (candidate) {
                 case 0: if (zone != 0 || story.swordFound) continue; id = SWORD; break;
                 case 1: if (zone != 1 || story.chestOpened) continue; id = CHEST; break;
                 case 2: if (zone != 1) continue; id = MARA; break;
-                case 3: if (zone != 2) continue; id = IVO; break;
+                case 3: if (zone != 2 || story.emberLearned) continue; id = IVO; break;
                 case 4: if (zone != 2 || !story.metIvo || story.traceFound) continue; id = TRACE; break;
-                case 5: if (zone >= 5) continue; id = NEXT; break;
+                case 5: if (zone >= 8) continue; id = NEXT; break;
                 case 6: if (zone <= 0) continue; id = PREVIOUS; break;
-                default: if (zone != 5) continue; id = ALTAR; break;
+                case 7: if (zone != 5) continue; id = ALTAR; break;
+                case 8: if (zone != 5 || story.emberLearned) continue; id = EMBER_RUNE; break;
+                case 9: if (zone != 7 || story.frostLearned) continue; id = FROST_RUNE; break;
+                case 10: if (zone != 7 || story.echoTraceFound) continue; id = ECHO_TRACE; break;
+                default: if (zone != 8) continue; id = WATCHER; break;
             }
             float dx = x - interactionX(id), dy = y - interactionY(id);
             float distance = dx * dx + dy * dy;
@@ -152,6 +208,10 @@ public final class VarynMap {
         if (CHEST.equals(id)) return w * .62f;
         if (MARA.equals(id)) return w * .30f;
         if (IVO.equals(id)) return w * .48f;
+        if (WATCHER.equals(id)) return w * .43f;
+        if (EMBER_RUNE.equals(id)) return w * .65f;
+        if (FROST_RUNE.equals(id)) return w * .66f;
+        if (ECHO_TRACE.equals(id)) return w * .42f;
         if (TRACE.equals(id)) return w * .64f;
         if (NEXT.equals(id)) return w * .92f;
         if (PREVIOUS.equals(id)) return w * .08f;
@@ -161,10 +221,13 @@ public final class VarynMap {
 
     public float interactionY(String id) {
         if (SWORD.equals(id) || TRACE.equals(id)) return h * .60f;
-        if (CHEST.equals(id)) return h * .62f;
+        if (CHEST.equals(id)) return h * .65f;
         if (MARA.equals(id)) return h * .57f;
         if (IVO.equals(id)) return h * .55f;
         if (ALTAR.equals(id)) return h * .56f;
+        if (WATCHER.equals(id)) return h * .57f;
+        if (EMBER_RUNE.equals(id)) return h * .63f;
+        if (FROST_RUNE.equals(id) || ECHO_TRACE.equals(id)) return h * .62f;
         if (NEXT.equals(id) || PREVIOUS.equals(id)) return h * .57f;
         return h * .60f;
     }
@@ -178,6 +241,10 @@ public final class VarynMap {
         if (NEXT.equals(id)) return "SEGUIR";
         if (PREVIOUS.equals(id)) return "VOLTAR";
         if (ALTAR.equals(id)) return "DESCANSAR";
+        if (EMBER_RUNE.equals(id)) return "EXAMINAR RUNA";
+        if (FROST_RUNE.equals(id)) return "TOCAR A GEADA";
+        if (ECHO_TRACE.equals(id)) return "EXAMINAR OS ECOS";
+        if (WATCHER.equals(id)) return "FALAR COM IVO";
         return "INTERAGIR";
     }
 
@@ -504,8 +571,21 @@ public final class VarynMap {
 
     private void worldProp(Canvas c, String name, float x, float y, float size) {
         oval(c, x, y, size * .40f, size * .06f, Color.argb(90,0,0,0));
-        r.set(x - size * .5f, y - size * .9375f, x + size * .5f, y + size * .0625f);
-        art.draw(c, "props/" + name + ".png", r);
+        String path="props/"+name+".png";
+        RectF visible=art.visibleBounds(path);
+        float scale=size/256f;
+        float center=visible == null ? 128f : (visible.left+visible.right)*.5f;
+        float bottom=visible == null ? 240f : visible.bottom;
+        r.set(x-center*scale,y-bottom*scale,x+(256f-center)*scale,y+(256f-bottom)*scale);
+        art.draw(c, path, r);
+    }
+
+    private void drawRune(Canvas c, String rune, String id, float clock) {
+        if (art == null) return;
+        float x=interactionX(id), y=interactionY(id), size=h*.085f;
+        r.set(x-size*.5f,y-size*.5f,x+size*.5f,y+size*.5f);
+        art.draw(c,"runes/"+rune+".png",r);
+        marker(c,x,y-h*.075f,clock);
     }
 
     private void drawSword(Canvas c, float x, float y, float clock) {
@@ -695,6 +775,6 @@ public final class VarynMap {
     }
 
     private static int clampZone(int zone) {
-        return Math.max(0,Math.min(5,zone));
+        return Math.max(0,Math.min(NAMES.length-1,zone));
     }
 }

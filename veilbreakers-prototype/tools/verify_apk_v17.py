@@ -52,14 +52,15 @@ def verify(apk, report_path, aapt, skip_package=False):
             raise ValueError("APK main sprite manifest differs from validation report")
         if package.read("assets/" + REPORTS[version_name]) != report_bytes:
             raise ValueError("APK embedded QA report differs from source report")
-        if version_name == "1.9.0":
+        if version_name in ("1.9.0", "1.10.0"):
             if not report.get("runtimeMetadata"):
                 raise ValueError("Source report must validate the runtime cast timing/socket JSON")
             for record in report["runtimeMetadata"]:
                 if hashlib.sha256(package.read("assets/" + record["file"])).hexdigest() != record["sha256"]:
                     raise ValueError("APK runtime timing/socket metadata differs from reviewed source")
-            if report.get("gameArtCount") != 28 or len(report.get("gameArt", [])) != 28:
-                raise ValueError("Source asset report must validate all 28 mandatory generated game-art files")
+            required_art_count = 35 if version_name == "1.10.0" else 28
+            if report.get("gameArtCount") != required_art_count or len(report.get("gameArt", [])) != required_art_count:
+                raise ValueError(f"Source asset report must validate all {required_art_count} mandatory generated game-art files")
             for record in report["gameArt"]:
                 name = "assets/" + record["file"]
                 if name not in names or hashlib.sha256(package.read(name)).hexdigest() != record["sha256"]:
@@ -73,7 +74,7 @@ def verify(apk, report_path, aapt, skip_package=False):
         version = package.read("assets/project_archive/BUILD_VERSION.txt").decode("utf-8-sig").strip()
         if f"v{version_name}" not in version:
             raise ValueError(f"Stale embedded build version: {version}")
-        if version_name in ("1.8.0", "1.9.0"):
+        if version_name in ("1.8.0", "1.9.0", "1.10.0"):
             metadata = json.loads(package.read("assets/project_archive/BUILD_METADATA.json"))
             if (metadata.get("package"), metadata.get("version"), metadata.get("versionCode")) != (
                     "com.veilbreakers.prototype", version_name, version_code):
@@ -83,13 +84,20 @@ def verify(apk, report_path, aapt, skip_package=False):
             if version_name == "1.9.0" and (metadata.get("preservedBaseFrames"), metadata.get("newCastFrames"),
                     metadata.get("newFxFrames"), metadata.get("gameArtFiles")) != (152, 24, 12, 28):
                 raise ValueError("Release metadata must describe 152 preserved sprites, 36 new cast/FX and 28 world/UI assets")
+            if version_name == "1.10.0" and (metadata.get("preservedBaseFrames"), metadata.get("newSpellFxFrames"),
+                    metadata.get("preservedGameArtFiles"), metadata.get("gameArtFiles")) != (188, 24, 28, 35):
+                raise ValueError("Release metadata must describe 188 preserved sprites, 24 fire/ice frames, and 35 game-art files")
             for folder in ("source_sheets/v18/", "previews/v18/"):
                 if not any(n.startswith("assets/project_archive/" + folder) for n in names):
                     raise ValueError("APK must preserve v1.8 running review artifacts: " + folder)
-            if version_name == "1.9.0":
+            if version_name in ("1.9.0", "1.10.0"):
                 for folder in ("source_sheets/v19/", "previews/v19/"):
                     if not any(n.startswith("assets/project_archive/" + folder) for n in names):
                         raise ValueError("APK must preserve generated v1.9 sources/previews: " + folder)
+            if version_name == "1.10.0":
+                for folder in ("source_sheets/v20/", "previews/v20/"):
+                    if not any(n.startswith("assets/project_archive/" + folder) for n in names):
+                        raise ValueError("APK must preserve generated v1.10 sources/previews: " + folder)
         sources = [n for n in names if n.startswith("assets/project_archive/source_sheets/v17/") and n.endswith(".png")]
         previews = [n for n in names if n.startswith("assets/project_archive/previews/v17/")]
         if not sources or not previews:

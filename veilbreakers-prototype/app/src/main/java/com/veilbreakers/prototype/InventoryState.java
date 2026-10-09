@@ -4,7 +4,7 @@ import android.content.SharedPreferences;
 
 /** Owned items, equipment and one-time discoveries. Item actions never advance story flags. */
 public final class InventoryState {
-    public static final int VERSION = 190;
+    public static final int VERSION = 200;
     public static final int SWORD = 0;
     public static final int BANDAGE = 1;
     public static final int MANA_DRAUGHT = 2;
@@ -28,6 +28,8 @@ public final class InventoryState {
     private boolean swordGranted;
     private boolean chestGranted;
     private boolean ivoGranted;
+    private boolean bandageDiscovered;
+    private boolean manaDiscovered;
     public boolean swordEquipped;
 
     public int count(int item) {
@@ -42,7 +44,8 @@ public final class InventoryState {
 
     public boolean discovered(int item) {
         if (item == SWORD) return swordGranted;
-        if (item == BANDAGE || item == MANA_DRAUGHT) return chestGranted;
+        if (item == BANDAGE) return bandageDiscovered || chestGranted || count(item) > 0;
+        if (item == MANA_DRAUGHT) return manaDiscovered || chestGranted || count(item) > 0;
         if (item == IVO_NOTE) return ivoGranted;
         return false;
     }
@@ -58,6 +61,8 @@ public final class InventoryState {
         swordGranted = current && prefs.getBoolean("inventory_sword_granted", quantities[SWORD] > 0);
         chestGranted = current && prefs.getBoolean("inventory_chest_granted", false);
         ivoGranted = current && prefs.getBoolean("inventory_ivo_granted", quantities[IVO_NOTE] > 0);
+        bandageDiscovered = current && prefs.getBoolean("inventory_bandage_discovered", chestGranted || quantities[BANDAGE] > 0);
+        manaDiscovered = current && prefs.getBoolean("inventory_mana_discovered", chestGranted || quantities[MANA_DRAUGHT] > 0);
         swordEquipped = current && quantities[SWORD] > 0
                 && prefs.getBoolean("inventory_sword_equipped", true);
         stats.setWeaponAttackBonus(swordEquipped ? SWORD_ATTACK : 0);
@@ -69,6 +74,8 @@ public final class InventoryState {
                 .putBoolean("inventory_sword_granted", swordGranted)
                 .putBoolean("inventory_chest_granted", chestGranted)
                 .putBoolean("inventory_ivo_granted", ivoGranted)
+                .putBoolean("inventory_bandage_discovered", bandageDiscovered)
+                .putBoolean("inventory_mana_discovered", manaDiscovered)
                 .putBoolean("inventory_sword_equipped", swordEquipped);
         for (int i = 0; i < ITEM_COUNT; i++) editor.putInt("inventory_count_" + KEYS[i], quantities[i]);
     }
@@ -92,9 +99,20 @@ public final class InventoryState {
     public boolean grantChestSupplies() {
         if (chestGranted) return false;
         chestGranted = true;
+        bandageDiscovered = manaDiscovered = true;
         quantities[BANDAGE] = Math.min(99, quantities[BANDAGE] + 3);
         quantities[MANA_DRAUGHT] = Math.min(99, quantities[MANA_DRAUGHT] + 2);
         return true;
+    }
+
+    /** Encounter loot adds only consumables; key items remain one-time story discoveries. */
+    public int addLoot(int item, int quantity) {
+        if ((item != BANDAGE && item != MANA_DRAUGHT) || quantity <= 0) return 0;
+        int added = Math.min(quantity, 99 - quantities[item]);
+        quantities[item] += added;
+        if (item == BANDAGE) bandageDiscovered = true;
+        else manaDiscovered = true;
+        return added;
     }
 
     public boolean grantIvoNote() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Review v1.9 generated gameplay art and all 188 authored frames in a CI emulator.
+"""Review v1.10 generated gameplay art and 212 authored frames in a CI emulator.
 
 The debug review reuses GameView's normal player, enemy and magic render paths.
 Captures and contact sheets support manual visual review; pixel statistics are
@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import uuid
 import xml.etree.ElementTree as ET
 
 from PIL import Image, ImageDraw
@@ -23,10 +24,37 @@ ACTIVITY = PACKAGE + "/.MainActivity"
 DIRECTIONS = ("down", "up", "left", "right")
 DIRECTED = (("idle", 4), ("walk", 6), ("run", 6), ("combo1", 3), ("combo2", 3),
             ("combo3", 3), ("cast", 6), ("enemy_idle", 3), ("enemy_chase", 4), ("enemy_attack", 4))
-UNDIRECTED = (("hurt", 3), ("death", 5), ("orb", 12))
-GAMEPLAY_SCENES = ("map", "map1", "map2", "map3", "map4", "map5", "status", "journal", "inventory",
-                   "dialogue_mara", "dialogue_ivo", "dialogue_kael", "cast")
-EXPECTED_REVIEW_FRAMES = 188
+UNDIRECTED = (("hurt", 3), ("death", 5), ("orb", 12), ("fire", 12), ("ice", 12))
+GAMEPLAY_SCENES = ("map", "map1", "map2", "map3", "map4", "map5", "map6", "map7", "map8",
+                   "status", "journal", "inventory", "runes", "brand", "dialogue_mara", "dialogue_ivo",
+                   "dialogue_kael", "cast", "fire_cast", "ice_cast", "waves",
+                   "depth_chest_back", "depth_chest_front", "floor_limit")
+EXPECTED_REVIEW_FRAMES = 212
+FX_STATES = ("orb", "fire", "ice")
+
+
+def java_token_hash(token):
+    """Java String.hashCode as unsigned bits; review UUIDs contain only ASCII."""
+    result = 0
+    for character in token:
+        result = (31 * result + ord(character)) & 0xffffffff
+    return result
+
+
+def scene_stamp(image):
+    """Read the debug-only pixel stamp after the frame reaches the screen."""
+    if image.width < 74 or image.height < 5: return None
+    y = image.height - 3
+    red, green, blue = image.getpixel((2, y))
+    if red > 30 or green < 225 or blue < 225: return None
+    result = 0
+    for bit in range(32):
+        pixel = image.getpixel((9 + 2 * bit, y))
+        if all(abs(channel - 230) <= 15 for channel in pixel): value = 1
+        elif all(abs(channel - 15) <= 15 for channel in pixel): value = 0
+        else: return None
+        result = (result << 1) | value
+    return result
 
 
 def review_frames():
@@ -44,6 +72,7 @@ class Android:
         self.prefix = ["adb"] + (["-s", serial] if serial else [])
         self.last_step = "initialize emulator review"
         self.last_capture = None
+        self.scene_hashes = set()
 
     def step(self, description):
         self.last_step = description
@@ -61,20 +90,55 @@ class Android:
         else:
             command += ["--activity-single-top"]
         command += ["-n", ACTIVITY]
+        token = None
         if state is not None:
+            token = self.new_token()
             command += ["--ez", "art_review", "true", "--es", "review_state", state,
-                        "--ei", "review_direction", str(direction), "--ei", "review_frame", str(frame)]
+                        "--ei", "review_direction", str(direction), "--ei", "review_frame", str(frame),
+                        "--es", "review_token", token]
         output = self.run(*command)
         if "Error:" in output or "Exception" in output:
             raise RuntimeError("Activity launch failed: " + output)
+        if token is not None:
+            self.wait_rendered(f"art_{state}_{direction}_{frame}", token)
+        return token
+
+    def new_token(self):
+        token = str(uuid.uuid4())
+        while java_token_hash(token) in self.scene_hashes:
+            token = str(uuid.uuid4())
+        self.scene_hashes.add(java_token_hash(token))
+        return token
 
     def start_scene(self, scene):
+        token = self.new_token()
+        self.step(f"request rendered scene={scene} token={token}")
         output = self.run("shell", "am", "start", "-W", "--activity-single-top", "-n", ACTIVITY,
-                          "--ez", "gameplay_review", "true", "--es", "review_scene", scene)
+                          "--ez", "gameplay_review", "true", "--es", "review_scene", scene,
+                          "--es", "review_token", token)
         if "Error:" in output or "Exception" in output:
             raise RuntimeError("Gameplay review launch failed: " + output)
+        self.wait_rendered(scene, token)
+        return token
 
-    def screenshot(self, path):
+    def wait_rendered(self, scene, token):
+        pattern = re.compile(r"VEILBREAKERS_SCENE_RENDERED.*scene=" + re.escape(scene)
+                             + r"\s+token=" + re.escape(token) + r"\b")
+        deadline = time.monotonic() + 12
+        while time.monotonic() < deadline:
+            remaining = max(.1, deadline - time.monotonic())
+            log = self.run("logcat", "-d", "-v", "brief", "-s", "VEILBREAKERS_SCENE_RENDERED:I",
+                           "AndroidRuntime:E", "*:S", timeout=remaining)
+            if pattern.search(log):
+                self.step(f"render acknowledged scene={scene} token={token}")
+                time.sleep(.1)
+                return
+            if "FATAL EXCEPTION" in log:
+                raise RuntimeError(f"Android crashed before rendering scene={scene} token={token}")
+            time.sleep(.2)
+        raise RuntimeError(f"No onDraw acknowledgement within 12s for scene={scene} token={token}")
+
+    def screenshot(self, path, expected_token=None):
         path.parent.mkdir(parents=True, exist_ok=True)
         self.step("capture " + path.name)
         self.last_capture = str(path)
@@ -88,6 +152,9 @@ class Android:
                 error = f"Expected landscape Android rendering, received {image.size}"
             elif max(image.getextrema()[channel][1] for channel in range(3)) < 80:
                 error = "Screenshot is blank or the app failed to render"
+            elif expected_token is not None and scene_stamp(image) != java_token_hash(expected_token):
+                actual = scene_stamp(image)
+                error = f"Scene pixel stamp missing/mismatched: expected {java_token_hash(expected_token):08x}, received {actual}"
             else:
                 # Large flat teal is the API 29 fullscreen system hint. This
                 # rejection remains strict; retries only handle resume/layout.
@@ -130,14 +197,14 @@ def subject_crop(image, state):
     width, height = image.size
     x_fraction = 0.67 if state.startswith("enemy_") or state in ("hurt", "death") else 0.33
     y_fraction = 0.68
-    if state == "orb":
+    if state in FX_STATES:
         x_fraction, y_fraction = 0.50, 0.58
     # Preserve one screenshot-pixel scale in all character previews. This is a
     # common rectangle around the authored pivot, never a per-frame bbox fit.
-    crop_h = round(height * (0.38 if state != "orb" else 0.24))
+    crop_h = round(height * (0.24 if state in FX_STATES else 0.38))
     crop_w = round(height * 0.66) if state.startswith("combo") else crop_h
     left = round(width * x_fraction - crop_w / 2)
-    top = round(height * y_fraction - crop_h * (0.85 if state != "orb" else 0.5))
+    top = round(height * y_fraction - crop_h * (0.5 if state in FX_STATES else 0.85))
     return image.crop((left, top, left + crop_w, top + crop_h))
 
 
@@ -174,11 +241,11 @@ def contact_sheets(output, records, screenshots):
 
 
 def capture_video(android, output):
-    remote = "/sdcard/veilbreakers_v19_review.mp4"
+    remote = "/sdcard/veilbreakers_v20_review.mp4"
     process = subprocess.Popen(android.prefix + ["shell", "screenrecord", "--time-limit", "40",
                                "--bit-rate", "3000000", remote], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     states = [(state, direction) for state in ("idle", "walk", "run", "combo1", "combo2", "combo3", "cast")
-              for direction in range(4)] + [("enemy_attack", 0), ("death", 0), ("orb", 0)]
+              for direction in range(4)] + [("enemy_attack", 0), ("death", 0), ("fire", 0), ("ice", 0), ("orb", 0)]
     started = time.monotonic()
     try:
         for state, direction in states:
@@ -204,7 +271,7 @@ def capture_video(android, output):
 def capture_normal_combat(android, output, dimensions, record_video=True):
     """Collect the sword, reload the save, enter the square and use real combat controls."""
     width, height = dimensions
-    remote = '/sdcard/veilbreakers_v19_combat.mp4'
+    remote = '/sdcard/veilbreakers_v20_combat.mp4'
     process = None
     if record_video:
         process = subprocess.Popen(android.prefix + ['shell', 'screenrecord', '--time-limit', '35',
@@ -337,11 +404,12 @@ def capture_gameplay_scenes(android, output):
     sheet = Image.new("RGB", (960, 290 * len(GAMEPLAY_SCENES)), (20, 18, 23))
     draw = ImageDraw.Draw(sheet)
     for row, scene in enumerate(GAMEPLAY_SCENES):
-        android.start_scene(scene)
-        time.sleep(0.45)
+        token = android.start_scene(scene)
         name = f"gameplay_{scene}.png"
-        screenshot = android.screenshot(output / "screenshots" / name)
-        scenes.append({"scene": scene, "screenshot": name, "dimensions": list(screenshot.size)})
+        screenshot = android.screenshot(output / "screenshots" / name, expected_token=token)
+        scenes.append({"scene": scene, "screenshot": name, "dimensions": list(screenshot.size),
+                       "renderToken": token, "renderAcknowledged": True, "pixelStampVerified": True,
+                       "pixelStamp": f"{scene_stamp(screenshot):08x}"})
         preview = screenshot.copy()
         preview.thumbnail((900, 255), Image.Resampling.LANCZOS)
         draw.text((20, row * 290 + 8), "Actual gameplay renderer: " + scene, fill=(241, 217, 222))
@@ -363,7 +431,7 @@ def main():
     screenshots.mkdir(exist_ok=True)
     android = Android(args.serial)
     records = []
-    summary = {"version": "1.9.0", "versionCode": 23, "package": PACKAGE, "expectedReviewFrames": EXPECTED_REVIEW_FRAMES,
+    summary = {"version": "1.10.0", "versionCode": 24, "package": PACKAGE, "expectedReviewFrames": EXPECTED_REVIEW_FRAMES,
                "capturedFrames": 0, "passed": False, "manualVisualReviewRequired": True,
                "scope": "Actual Android GameView rendering at fixed frame indices; menu and normal gameplay also captured"}
     try:
@@ -378,6 +446,9 @@ def main():
         android.run("shell", "settings", "put", "secure", "immersive_mode_confirmations", "confirmed")
         android.run("shell", "input", "keyevent", "82")
         android.run("install", "-r", str(args.apk), timeout=180)
+        # Retain all render ACKs and fixed-frame records through the larger
+        # 21-scene/212-frame review; this changes only the guarded emulator.
+        android.run("logcat", "-G", "4M")
         android.run("logcat", "-c")
         android.start(fresh=True)
         time.sleep(1.6)
@@ -408,16 +479,17 @@ def main():
         android.start_scene("selftest")
         time.sleep(.6)
         for index, (state, direction, frame) in enumerate(review_frames()):
-            android.start(state, direction, frame, fresh=index == 0)
-            time.sleep(0.18)
+            token = android.start(state, direction, frame, fresh=index == 0)
             name = f"{state}_{DIRECTIONS[direction]}_{frame:02d}.png"
-            image = android.screenshot(screenshots / name)
+            image = android.screenshot(screenshots / name, expected_token=token)
             crop = subject_crop(image, state)
             colors = Counter(crop.getdata())
             if len(colors) < 20:
                 raise ValueError(f"No rendered sprite detail for {name}: only {len(colors)} RGB colors")
             records.append({"state": state, "direction": direction, "frame": frame, "screenshot": name,
                             "dimensions": list(image.size), "subjectRGBColors": len(colors),
+                            "renderToken": token, "renderAcknowledged": True,
+                            "pixelStampVerified": True, "pixelStamp": scene_stamp(image),
                             "subjectPixelSha256": hashlib.sha256(crop.tobytes()).hexdigest()})
             print(f"Captured {index + 1}/{EXPECTED_REVIEW_FRAMES}: {name}", flush=True)
         if len(records) != EXPECTED_REVIEW_FRAMES:
@@ -425,16 +497,21 @@ def main():
         summary["contacts"] = contact_sheets(output, records, screenshots)
         logcat = android.run("logcat", "-d", "-v", "threadtime", timeout=45)
         (output / "logcat.txt").write_text(logcat, encoding="utf-8")
-        if not re.search(r"VEILBREAKERS_ASSETS.*v1\.9 loaded: kael_v17=76 kael_v18_run=24 kael_v19_cast=24 enemy_v17=52 fx_v19=12", logcat):
-            raise ValueError("Runtime did not confirm loading all 188 v1.9 sprites")
-        if not re.search(r"VEILBREAKERS_GAME_ART.*v1\.9 loaded: scenes=6 npc=6 portraits=3 ui=4 items=4 props=5", logcat):
-            raise ValueError("Runtime did not confirm loading all 28 mandatory generated game-art assets")
-        for scene in GAMEPLAY_SCENES:
-            if not re.search(r"VEILBREAKERS_SCENE.*scene=" + scene + r"\b", logcat):
-                raise ValueError("Android did not acknowledge gameplay review scene: " + scene)
+        if not re.search(r"VEILBREAKERS_ASSETS.*v1\.10 loaded: kael_v17=76 kael_v18_run=24 kael_v19_cast=24 enemy_v17=52 fx_v19=12 fx_v20=24", logcat):
+            raise ValueError("Runtime did not confirm loading all 212 v1.10 sprites")
+        if not re.search(r"VEILBREAKERS_GAME_ART.*v1\.10 loaded: scenes=9 npc=6 portraits=3 ui=4 items=4 props=5 runes=4", logcat):
+            raise ValueError("Runtime did not confirm loading all 35 mandatory generated game-art assets")
+        for record in summary["gameplayScenes"]:
+            if not re.search(r"VEILBREAKERS_SCENE_RENDERED.*scene=" + re.escape(record["scene"])
+                             + r"\s+token=" + re.escape(record["renderToken"]) + r"\b", logcat):
+                raise ValueError("Android did not render the requested gameplay scene/token: " + record["scene"])
         if not re.search(r"VEILBREAKERS_GAMEPLAY_TEST.*passed:", logcat):
             raise ValueError("The real GameView reward/pause/combat regression checks did not pass")
         for record in records:
+            scene = f"art_{record['state']}_{record['direction']}_{record['frame']}"
+            if not re.search(r"VEILBREAKERS_SCENE_RENDERED.*scene=" + re.escape(scene)
+                             + r"\s+token=" + re.escape(record["renderToken"]) + r"\b", logcat):
+                raise ValueError("Android did not render the requested art frame/token: " + scene)
             expected = f"{record['state']} direction={record['direction']} frame={record['frame']}"
             if not any("VEILBREAKERS_REVIEW" in line and expected in line for line in logcat.splitlines()):
                 raise ValueError(f"Android did not acknowledge review state: {expected}")
@@ -448,7 +525,7 @@ def main():
                 warnings.append({"sameRenderedSubject": [hashes[key], record["screenshot"]]})
             hashes[key] = record["screenshot"]
         summary.update(passed=True, capturedFrames=len(records), androidLoadedRuntimeFrames=EXPECTED_REVIEW_FRAMES,
-                       androidLoadedGameArtFiles=28,
+                       androidLoadedGameArtFiles=35,
                        realGameplayRegressionChecksPassed=True,
                        records=records, warnings=warnings, landscapeDimensions=list(landscape_dimensions),
                        apkSha256=hashlib.sha256(args.apk.read_bytes()).hexdigest())

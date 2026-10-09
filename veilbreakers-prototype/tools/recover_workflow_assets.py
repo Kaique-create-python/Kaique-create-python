@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild historical assets, then overlay the reviewed v1.7 assets."""
+"""Rebuild historical assets, apply v1.7-v1.10 overlays, then refresh context."""
 from pathlib import Path
 import base64, json, re, shutil, zipfile
 from PIL import Image
@@ -98,7 +98,7 @@ if list(B64.glob('v17_reviewed_art.zip.b64.part-*')):
     with zipfile.ZipFile(ZIPS / 'v17_reviewed_art.zip') as z:
         assert z.testzip() is None
         z.extractall(ASSETS)
-    print('Applied reviewed v1.7 artwork and recovery context last')
+    print('Applied reviewed v1.7 artwork and historical recovery context')
 
 # The running override and current story must be applied after the archived v1.7
 # context; historical recovery archives are intentionally left unchanged.
@@ -114,6 +114,12 @@ if list(B64.glob('v19_assets.zip.b64.part-*')):
         assert z.testzip() is None
         z.extractall(ASSETS)
     print('Applied v1.9 generated world/UI and cast/FX assets')
+if list(B64.glob('v20_assets.zip.b64.part-*')):
+    decode('v20_assets.zip')
+    with zipfile.ZipFile(ZIPS / 'v20_assets.zip') as z:
+        assert z.testzip() is None
+        z.extractall(ASSETS)
+    print('Applied v1.10 generated areas/runes and fire/ice spell FX')
 if list(B64.glob('run_v18_assets.zip.b64.part-*')):
     from refresh_release_context import refresh
     refresh(ASSETS)

@@ -1,0 +1,735 @@
+{
+  "version": "1.10.0",
+  "versionCode": 24,
+  "package": "com.veilbreakers.prototype",
+  "runtimeFrameCount": 24,
+  "generationTool": "built-in image_gen.imagegen",
+  "sources": [
+    {
+      "file": "project_archive/source_sheets/v20/fire_generated.png",
+      "sha256": "d07a52f69da745651110acf41e94c54a44710bf32fbbd8ceae01bdd386d01b7d"
+    },
+    {
+      "file": "project_archive/source_sheets/v20/ice_generated.png",
+      "sha256": "0ca3f518ef768d903e1893474a7c3a15136f675f24af26c8bd59b53ebc954294"
+    }
+  ],
+  "animations": [
+    {
+      "name": "spell_fire",
+      "direction": "radial / authored travel right; rotate by facing",
+      "frameCount": 12,
+      "fps": 24,
+      "recommendedFPS": 24,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 128,
+      "baseline": null,
+      "neutralBodyHeight": null,
+      "scale": "screenHeight*0.18/256 travel; charge0.16; impact0.27",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameDurationsSeconds": [
+        0.05,
+        0.07,
+        0.12,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.045,
+        0.07,
+        0.1,
+        0.12
+      ],
+      "phaseNames": [
+        "birth",
+        "charge_a",
+        "charge_b",
+        "release_shock",
+        "flight_a",
+        "flight_b",
+        "flight_c",
+        "flight_d",
+        "impact_flash",
+        "impact_bloom",
+        "impact_fragments",
+        "dissipation"
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "fx_v20/fire_0.png",
+          "phase": "birth",
+          "sha256": "3360d6cb53d86490c36b404c969f404ddc01994560bfd63782e920a60da6aea0",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            113,
+            107,
+            281,
+            326
+          ],
+          "sourceCorePx": [
+            207,
+            271
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            89,
+            59,
+            160,
+            151
+          ]
+        },
+        {
+          "index": 1,
+          "file": "fx_v20/fire_1.png",
+          "phase": "charge_a",
+          "sha256": "cbf27d4ed0c4c74108d0b42d82cb2145f166cf72c2d0a27187353925a5b87ddd",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            423,
+            105,
+            684,
+            344
+          ],
+          "sourceCorePx": [
+            576,
+            242
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            64,
+            70,
+            174,
+            170
+          ]
+        },
+        {
+          "index": 2,
+          "file": "fx_v20/fire_2.png",
+          "phase": "charge_b",
+          "sha256": "eb01ab8e73c013f59d2bd8e49b8b8a2935fd4961a22cb25972c989a28b05714d",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            743,
+            93,
+            1023,
+            363
+          ],
+          "sourceCorePx": [
+            914,
+            236
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            56,
+            68,
+            174,
+            181
+          ]
+        },
+        {
+          "index": 3,
+          "file": "fx_v20/fire_3.png",
+          "phase": "release_shock",
+          "sha256": "34bd0c02ac25fc67f68ec2534be97ebc9c07e171f3a6df60ebeabae76de4af0f",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            1083,
+            62,
+            1426,
+            397
+          ],
+          "sourceCorePx": [
+            1260,
+            231
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            54,
+            57,
+            198,
+            198
+          ]
+        },
+        {
+          "index": 4,
+          "file": "fx_v20/fire_4.png",
+          "phase": "flight_a",
+          "sha256": "730ed57e9bea2a3f5bcc5bd4c2430d3290351771c68483750aee54363e159fd0",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            28,
+            460,
+            365,
+            720
+          ],
+          "sourceCorePx": [
+            294,
+            563
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            16,
+            85,
+            158,
+            194
+          ]
+        },
+        {
+          "index": 5,
+          "file": "fx_v20/fire_5.png",
+          "phase": "flight_b",
+          "sha256": "5e6b57f3709a9eb4a8648b3da3898247bc6b36b4023c9683e058f52d5e34cf1a",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            367,
+            453,
+            712,
+            676
+          ],
+          "sourceCorePx": [
+            628,
+            565
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            18,
+            81,
+            163,
+            175
+          ]
+        },
+        {
+          "index": 6,
+          "file": "fx_v20/fire_6.png",
+          "phase": "flight_c",
+          "sha256": "f8d75dea84c48b371b678be0a8b6dfd14024fa502dca21da6fada309d62206f7",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            726,
+            454,
+            1067,
+            672
+          ],
+          "sourceCorePx": [
+            993,
+            565
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            16,
+            81,
+            159,
+            173
+          ]
+        },
+        {
+          "index": 7,
+          "file": "fx_v20/fire_7.png",
+          "phase": "flight_d",
+          "sha256": "0ec7b34b5c2c75a4a285e6270fca765fa16f47d3d8acbfd76c00ad98ef54746d",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            1088,
+            443,
+            1434,
+            667
+          ],
+          "sourceCorePx": [
+            1353,
+            565
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            17,
+            77,
+            162,
+            171
+          ]
+        },
+        {
+          "index": 8,
+          "file": "fx_v20/fire_8.png",
+          "phase": "impact_flash",
+          "sha256": "88e5a08878d675882bb1bbeeedad0e4f85636997fd8f99904424b486b3174918",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            31,
+            711,
+            367,
+            1039
+          ],
+          "sourceCorePx": [
+            195,
+            875
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            59,
+            59,
+            200,
+            197
+          ]
+        },
+        {
+          "index": 9,
+          "file": "fx_v20/fire_9.png",
+          "phase": "impact_bloom",
+          "sha256": "790017086fdde11c199c0d44792344502e2ba5a4bb88a44a9b71d7720121aa01",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            386,
+            699,
+            725,
+            1039
+          ],
+          "sourceCorePx": [
+            559,
+            879
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            55,
+            52,
+            197,
+            195
+          ]
+        },
+        {
+          "index": 10,
+          "file": "fx_v20/fire_10.png",
+          "phase": "impact_fragments",
+          "sha256": "3f2c5c6a66c46cd2c550af392b810c476802d60587a30e625ae3d1bf078382cc",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            733,
+            726,
+            1068,
+            1026
+          ],
+          "sourceCorePx": [
+            902,
+            889
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 8,
+          "visibleBounds": [
+            57,
+            60,
+            198,
+            186
+          ]
+        },
+        {
+          "index": 11,
+          "file": "fx_v20/fire_11.png",
+          "phase": "dissipation",
+          "sha256": "352c83e4c3461e5675b0a44c9adccd8d2d90b084ca4bec50738558d8d492061a",
+          "source": "fire_generated.png",
+          "sourceCrop": [
+            1113,
+            729,
+            1415,
+            1021
+          ],
+          "sourceCorePx": [
+            1260,
+            883
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 9,
+          "visibleBounds": [
+            66,
+            63,
+            193,
+            186
+          ]
+        }
+      ]
+    },
+    {
+      "name": "spell_ice",
+      "direction": "radial / authored travel right; rotate by facing",
+      "frameCount": 12,
+      "fps": 24,
+      "recommendedFPS": 24,
+      "cellWidth": 256,
+      "cellHeight": 256,
+      "pivotX": 128,
+      "pivotY": 128,
+      "baseline": null,
+      "neutralBodyHeight": null,
+      "scale": "screenHeight*0.18/256 travel; charge0.16; impact0.27",
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "frameDurationsSeconds": [
+        0.05,
+        0.07,
+        0.12,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.08,
+        0.045,
+        0.07,
+        0.1,
+        0.12
+      ],
+      "phaseNames": [
+        "birth",
+        "charge_a",
+        "charge_b",
+        "release_shock",
+        "flight_a",
+        "flight_b",
+        "flight_c",
+        "flight_d",
+        "impact_flash",
+        "impact_bloom",
+        "impact_fragments",
+        "dissipation"
+      ],
+      "frames": [
+        {
+          "index": 0,
+          "file": "fx_v20/ice_0.png",
+          "phase": "birth",
+          "sha256": "45e35b315484445ea83eacdeed0bf1bb4fe9e7d26f0c3304a6c89662214bc533",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            127,
+            151,
+            289,
+            330
+          ],
+          "sourceCorePx": [
+            208,
+            257
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            94,
+            83,
+            162,
+            158
+          ]
+        },
+        {
+          "index": 1,
+          "file": "fx_v20/ice_1.png",
+          "phase": "charge_a",
+          "sha256": "dee0904f73870f849184ff4faf3b39850ba7190c239482589784664456d10d32",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            440,
+            111,
+            667,
+            356
+          ],
+          "sourceCorePx": [
+            568,
+            249
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            74,
+            70,
+            169,
+            173
+          ]
+        },
+        {
+          "index": 2,
+          "file": "fx_v20/ice_2.png",
+          "phase": "charge_b",
+          "sha256": "9ef8fc9f871c09a232f9fccb3fd7a7947efef01e6e3bb61f2b23dff74a0350e7",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            784,
+            95,
+            1044,
+            363
+          ],
+          "sourceCorePx": [
+            918,
+            242
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            72,
+            66,
+            181,
+            179
+          ]
+        },
+        {
+          "index": 3,
+          "file": "fx_v20/ice_3.png",
+          "phase": "release_shock",
+          "sha256": "5d3fdedfc474c89e692486ff3917baa8229559cda3c5101b3a78747c1f6f81be",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            1102,
+            87,
+            1411,
+            385
+          ],
+          "sourceCorePx": [
+            1286,
+            242
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 3,
+          "visibleBounds": [
+            51,
+            63,
+            181,
+            188
+          ]
+        },
+        {
+          "index": 4,
+          "file": "fx_v20/ice_4.png",
+          "phase": "flight_a",
+          "sha256": "2fcf3618d7cb8fbe58b3d79d34751a5920fb8fd798c3e89c053436613cfd4408",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            23,
+            479,
+            361,
+            672
+          ],
+          "sourceCorePx": [
+            296,
+            576
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            13,
+            87,
+            155,
+            168
+          ]
+        },
+        {
+          "index": 5,
+          "file": "fx_v20/ice_5.png",
+          "phase": "flight_b",
+          "sha256": "acc66e904ceb2d5451384e59a4de5a62d60a6c71ad565174a805042361da4fcd",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            412,
+            471,
+            708,
+            675
+          ],
+          "sourceCorePx": [
+            627,
+            581
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            38,
+            82,
+            162,
+            168
+          ]
+        },
+        {
+          "index": 6,
+          "file": "fx_v20/ice_6.png",
+          "phase": "flight_c",
+          "sha256": "e80701b82ac44ee5dc6e06f6ace176ec0a8dd7a683afcf81fa2c357fcf4c0597",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            740,
+            446,
+            1046,
+            682
+          ],
+          "sourceCorePx": [
+            986,
+            580
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 2,
+          "visibleBounds": [
+            25,
+            72,
+            154,
+            171
+          ]
+        },
+        {
+          "index": 7,
+          "file": "fx_v20/ice_7.png",
+          "phase": "flight_d",
+          "sha256": "69e6613eb66e281bd5dfd23d3289be86fc31da1da2d11433bccb11df4f298344",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            1073,
+            471,
+            1429,
+            682
+          ],
+          "sourceCorePx": [
+            1357,
+            582
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            9,
+            81,
+            159,
+            170
+          ]
+        },
+        {
+          "index": 8,
+          "file": "fx_v20/ice_8.png",
+          "phase": "impact_flash",
+          "sha256": "6cacfcff8106db2a0fa8099082eedbe8d145ee218fbf3a96110a01911b681a5e",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            49,
+            734,
+            353,
+            1033
+          ],
+          "sourceCorePx": [
+            198,
+            891
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            65,
+            62,
+            193,
+            188
+          ]
+        },
+        {
+          "index": 9,
+          "file": "fx_v20/ice_9.png",
+          "phase": "impact_bloom",
+          "sha256": "98e8e430f0544500c45161de07f353e66bd03e078efc9ababc4a998bb462f0f0",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            403,
+            727,
+            716,
+            1038
+          ],
+          "sourceCorePx": [
+            559,
+            892
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 1,
+          "visibleBounds": [
+            62,
+            59,
+            193,
+            190
+          ]
+        },
+        {
+          "index": 10,
+          "file": "fx_v20/ice_10.png",
+          "phase": "impact_fragments",
+          "sha256": "01df8023616b2c3f4159591e84c2ec6d0a4cab1094e8ebdb340d356e94246c2e",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            765,
+            754,
+            1057,
+            1037
+          ],
+          "sourceCorePx": [
+            907,
+            909
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 4,
+          "visibleBounds": [
+            68,
+            63,
+            191,
+            182
+          ]
+        },
+        {
+          "index": 11,
+          "file": "fx_v20/ice_11.png",
+          "phase": "dissipation",
+          "sha256": "f3c8daaffc0419b140d8966bf94c6a0edb504f9483be794915ea8ab0fd6907cf",
+          "source": "ice_generated.png",
+          "sourceCrop": [
+            1127,
+            746,
+            1410,
+            1029
+          ],
+          "sourceCorePx": [
+            1274,
+            900
+          ],
+          "sharedScale": 0.42,
+          "sourceComponents": 5,
+          "visibleBounds": [
+            66,
+            63,
+            185,
+            182
+          ]
+        }
+      ]
+    }
+  ]
+}
