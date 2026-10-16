@@ -24,11 +24,12 @@ import java.util.Map;
 
 public class MainActivity extends Activity {
     private static final int EXPORT_OBJ = 101;
-    private final int BG = Color.rgb(14, 19, 27);
-    private final int PANEL = Color.rgb(25, 33, 44);
-    private final int ACCENT = Color.rgb(72, 224, 183);
+    private final int BG = Color.rgb(11, 12, 16);
+    private final int PANEL = Color.rgb(29, 27, 32);
+    private final int ACCENT = Color.rgb(191, 48, 75);
     private SculptView editor;
     private LinearLayout brushPanel;
+    private LinearLayout sliderPanel;
     private TextView status;
     private TextView hint;
     private final Map<SculptView.Mode, TextView> modeButtons = new LinkedHashMap<>();
@@ -54,13 +55,14 @@ public class MainActivity extends Activity {
     }
 
     private TextView chip(String text, Runnable onClick) {
-        TextView v = label(text, 13, Color.WHITE, true);
+        TextView v = label(text, 12, Color.WHITE, true);
+        v.setMinHeight(dp(48));
         v.setGravity(Gravity.CENTER);
-        v.setPadding(dp(14), dp(10), dp(14), dp(10));
+        v.setPadding(dp(12), dp(10), dp(12), dp(10));
         v.setBackground(box(PANEL, 12));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, 0, dp(7), 0);
+        lp.setMargins(0, 0, dp(6), 0);
         v.setLayoutParams(lp);
         v.setOnClickListener(w -> onClick.run());
         return v;
@@ -97,15 +99,15 @@ public class MainActivity extends Activity {
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(dp(16), dp(12), dp(16), dp(5));
-        TextView title = label("ARGILA 3D    •    ESTÚDIO", 21, ACCENT, true);
-        TextView subtitle = label("Escultura e modelagem por toque  •  v0.1", 12, 0xFFA7B5C4, false);
+        header.setPadding(dp(14), dp(7), dp(14), dp(3));
+        TextView title = label("ARGILA 3D   /   ESTÚDIO", 18, ACCENT, true);
+        TextView subtitle = label("Modelagem e escultura por toque  •  v0.1", 11, 0xFFADB2BC, false);
         header.addView(title);
         header.addView(subtitle);
         root.addView(header);
 
-        hint = label("", 12, 0xFFCFDEE5, false);
-        hint.setPadding(dp(16), dp(5), dp(16), dp(6));
+        hint = label("", 12, 0xFFC7C9D0, false);
+        hint.setPadding(dp(14), dp(2), dp(14), dp(3));
         root.addView(hint);
 
         editor = new SculptView(this);
@@ -119,26 +121,28 @@ public class MainActivity extends Activity {
             catch (Exception ignored) { }
         }
 
-        TextView section = label("   FERRAMENTAS", 11, 0xFFA7B5C4, true);
-        section.setPadding(0, dp(7), 0, dp(4));
-        root.addView(section);
-
-        LinearLayout modes = hrow();
-        addMode(modes, "🖐 Esculpir", SculptView.Mode.SCULPT);
-        addMode(modes, "• Vértices", SculptView.Mode.VERTEX);
-        addMode(modes, "╱ Arestas", SculptView.Mode.EDGE);
-        addMode(modes, "▱ Faces", SculptView.Mode.FACE);
-        addMode(modes, "⟳ Orbitar", SculptView.Mode.ORBIT);
+                LinearLayout modes = hrow();
+        addMode(modes, "Esculpir", SculptView.Mode.SCULPT);
+        addMode(modes, "Vértices", SculptView.Mode.VERTEX);
+        addMode(modes, "Arestas", SculptView.Mode.EDGE);
+        addMode(modes, "Faces", SculptView.Mode.FACE);
+        addMode(modes, "Orbitar", SculptView.Mode.ORBIT);
         root.addView(scroller(modes));
 
         brushPanel = new LinearLayout(this);
         brushPanel.setOrientation(LinearLayout.VERTICAL);
         LinearLayout brushes = hrow();
-        addBrush(brushes, "↑ Puxar", SculptView.Brush.RAISE);
-        addBrush(brushes, "↓ Cavar", SculptView.Brush.LOWER);
-        addBrush(brushes, "+ Inflar", SculptView.Brush.INFLATE);
-        addBrush(brushes, "≈ Suavizar", SculptView.Brush.SMOOTH);
+        addBrush(brushes, "Puxar", SculptView.Brush.RAISE);
+        addBrush(brushes, "Cavar", SculptView.Brush.LOWER);
+        addBrush(brushes, "Inflar", SculptView.Brush.INFLATE);
+        addBrush(brushes, "Suavizar", SculptView.Brush.SMOOTH);
+        brushes.addView(chip("⚙ Ajustes", () -> {
+            sliderPanel.setVisibility(sliderPanel.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+        }));
         brushPanel.addView(scroller(brushes));
+        sliderPanel = new LinearLayout(this);
+        sliderPanel.setOrientation(LinearLayout.VERTICAL);
+        sliderPanel.setVisibility(View.GONE);
 
         LinearLayout sliders = new LinearLayout(this);
         sliders.setOrientation(LinearLayout.HORIZONTAL);
@@ -147,11 +151,10 @@ public class MainActivity extends Activity {
             editor.setRadiusDp(18 + p * 1.7f)), new LinearLayout.LayoutParams(0, dp(53), 1));
         sliders.addView(makeSlider("FORÇA", 35, p ->
             editor.setStrength(0.008f + p * 0.0015f)), new LinearLayout.LayoutParams(0, dp(53), 1));
-        brushPanel.addView(sliders);
+        sliderPanel.addView(sliders);
+        brushPanel.addView(sliderPanel);
         root.addView(brushPanel);
 
-        TextView section2 = label("   PROJETO", 11, 0xFFA7B5C4, true);
-        root.addView(section2);
         LinearLayout actions = hrow();
         actions.addView(chip("◯ Esfera", () -> newMesh(ClayMesh.sphere(20, 32))));
         actions.addView(chip("▣ Cubo", () -> newMesh(ClayMesh.cube())));
@@ -164,8 +167,8 @@ public class MainActivity extends Activity {
         actions.addView(chip("⇧ Exportar OBJ", () -> exportObj()));
         root.addView(scroller(actions));
 
-        status = label("", 11, 0xFFA7B5C4, false);
-        status.setPadding(dp(16), dp(6), dp(16), dp(9));
+        status = label("", 11, 0xFFAEB4BE, false);
+        status.setPadding(dp(14), dp(2), dp(14), dp(5));
         root.addView(status);
         editor.setMode(SculptView.Mode.SCULPT);
         editor.setBrush(SculptView.Brush.RAISE);
@@ -200,6 +203,12 @@ public class MainActivity extends Activity {
             refreshActive();
             updateStatus();
         });
+        int type = mode == SculptView.Mode.SCULPT ? ToolGlyph.SCULPT :
+                   mode == SculptView.Mode.VERTEX ? ToolGlyph.VERTEX :
+                   mode == SculptView.Mode.EDGE ? ToolGlyph.EDGE :
+                   mode == SculptView.Mode.FACE ? ToolGlyph.FACE : ToolGlyph.ORBIT;
+        v.setCompoundDrawablesWithIntrinsicBounds(new ToolGlyph(type, ACCENT, getResources().getDisplayMetrics().density), null, null, null);
+        v.setCompoundDrawablePadding(dp(7));
         modeButtons.put(mode, v);
         row.addView(v);
     }
@@ -209,15 +218,20 @@ public class MainActivity extends Activity {
             editor.setBrush(brush);
             refreshActive();
         });
+        int type = brush == SculptView.Brush.RAISE ? ToolGlyph.RAISE :
+                   brush == SculptView.Brush.LOWER ? ToolGlyph.LOWER :
+                   brush == SculptView.Brush.INFLATE ? ToolGlyph.INFLATE : ToolGlyph.SMOOTH;
+        v.setCompoundDrawablesWithIntrinsicBounds(new ToolGlyph(type, ACCENT, getResources().getDisplayMetrics().density), null, null, null);
+        v.setCompoundDrawablePadding(dp(7));
         brushButtons.put(brush, v);
         row.addView(v);
     }
 
     private void refreshActive() {
         for (Map.Entry<SculptView.Mode, TextView> item : modeButtons.entrySet())
-            item.getValue().setBackground(box(editor.mode == item.getKey() ? 0xFF1D715F : PANEL, 12));
+            item.getValue().setBackground(box(editor.mode == item.getKey() ? 0xFF692338 : PANEL, 12));
         for (Map.Entry<SculptView.Brush, TextView> item : brushButtons.entrySet())
-            item.getValue().setBackground(box(editor.brush == item.getKey() ? 0xFF1D715F : PANEL, 12));
+            item.getValue().setBackground(box(editor.brush == item.getKey() ? 0xFF692338 : PANEL, 12));
         brushPanel.setVisibility(editor.mode == SculptView.Mode.SCULPT ? View.VISIBLE : View.GONE);
         if (editor.mode == SculptView.Mode.SCULPT)
             hint.setText("Arraste na argila para esculpir. Dois dedos giram e dão zoom.");
