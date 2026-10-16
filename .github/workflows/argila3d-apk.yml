@@ -1,0 +1,46 @@
+name: Argila3D Android APK
+
+on:
+  push:
+    branches:
+      - argila3d-android
+    paths:
+      - 'argila3d/**'
+      - '.github/workflows/argila3d-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Gerar APK Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout do projeto
+        uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Instalar SDK Android 35
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Compilar APK de depuração
+        working-directory: argila3d
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Argila3D-APK
+          path: argila3d/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
