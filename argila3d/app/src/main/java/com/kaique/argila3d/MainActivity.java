@@ -158,6 +158,21 @@ public class MainActivity extends Activity {
         LinearLayout actions = hrow();
         actions.addView(chip("◯ Esfera", () -> newMesh(ClayMesh.sphere(20, 32))));
         actions.addView(chip("▣ Cubo", () -> newMesh(ClayMesh.cube())));
+        actions.addView(chip("↥ Extrudar", () -> {
+            if (editor.extrudeSelectedFace())
+                feedback("Face extrudada. Use Desfazer para voltar.");
+            else feedback("Selecione uma face no modo Faces antes de extrudar.");
+        }));
+        actions.addView(chip("◈ Subdividir", () -> {
+            if (editor.subdivideMesh())
+                feedback("Malha subdividida em quatro triângulos por face.");
+            else feedback("Limite de geometria atingido para esta operação.");
+        }));
+        actions.addView(chip("≈ Suavizar", () -> {
+            if (editor.smoothMesh())
+                feedback("Suavização aplicada à malha.");
+            else feedback("Não foi possível suavizar.");
+        }));
         actions.addView(chip("↶ Desfazer", () -> {
             if (editor.undo()) feedback("Última alteração desfeita");
             else feedback("Nada para desfazer");
