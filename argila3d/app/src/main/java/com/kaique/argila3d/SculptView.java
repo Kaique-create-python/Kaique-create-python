@@ -62,6 +62,31 @@ public final class SculptView extends View {
         catch(Exception ex){return false;}
     }
 
+    public boolean subdivideMesh() {
+        if (mesh == null || !MeshModifiers.canSubdivide(mesh)) return false;
+        remember();
+        boolean changed = MeshModifiers.subdivide(mesh);
+        if (changed) { selected = -1; notifyChanged(); }
+        return changed;
+    }
+
+    public boolean smoothMesh() {
+        if (mesh == null) return false;
+        remember();
+        boolean changed = MeshModifiers.smooth(mesh, 0.35f);
+        if (changed) notifyChanged();
+        return changed;
+    }
+
+    public boolean extrudeSelectedFace() {
+        if (mesh == null || mode != Mode.FACE || selected < 0 ||
+                selected >= mesh.faces.size()) return false;
+        remember();
+        boolean changed = MeshModifiers.extrudeFace(mesh, selected, 0.22f);
+        if (changed) { selected = -1; notifyChanged(); }
+        return changed;
+    }
+
     private float scale(){return Math.min(getWidth(),getHeight())*.38f*zoom;}
     private float[] rotate(float x,float y,float z){
         float a=(float)Math.cos(yaw),b=(float)Math.sin(yaw);
