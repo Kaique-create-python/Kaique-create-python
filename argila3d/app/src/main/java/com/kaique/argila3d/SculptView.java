@@ -109,8 +109,8 @@ public final class SculptView extends View {
 
     @Override protected void onDraw(Canvas canvas){
         super.onDraw(canvas);
-        canvas.drawColor(0xFF111C28);
-        ink.setColor(0xFF223443);ink.setStrokeWidth(density);ink.setStyle(Paint.Style.STROKE);
+        canvas.drawColor(0xFF101014);
+        ink.setColor(0xFF262229);ink.setStrokeWidth(density);ink.setStyle(Paint.Style.STROKE);
         float cx=getWidth()/2f,cy=getHeight()/2f;
         for(int n=-6;n<=6;n++){
             float pos=n*38*density;
@@ -127,15 +127,15 @@ public final class SculptView extends View {
             path.lineTo(screen[tri[1]][0],screen[tri[1]][1]);
             path.lineTo(screen[tri[2]][0],screen[tri[2]][1]);path.close();
             float l=.38f+.62f*f.light;
-            ink.setColor(Color.rgb((int)(18+100*l),(int)(20+169*l),(int)(20+177*l)));
+            ink.setColor(Color.rgb((int)(40+134*l),(int)(31+94*l),(int)(40+106*l)));
             canvas.drawPath(path,ink);
             if(mode==Mode.FACE && selected==f.index){
-                ink.setColor(0x99FFCF74);canvas.drawPath(path,ink);
+                ink.setColor(0x99CB7280);canvas.drawPath(path,ink);
             }
         }
         if(mode==Mode.VERTEX || mode==Mode.EDGE || mode==Mode.FACE){
             ink.setStyle(Paint.Style.STROKE);ink.setStrokeWidth(1.1f*density);
-            ink.setColor(0xB0183847);
+            ink.setColor(0xB04E3039);
             for(Face vf:drawFaces){
                 int[] tri=mesh.faces.get(vf.index);
                 path.reset();path.moveTo(screen[tri[0]][0],screen[tri[0]][1]);
@@ -146,21 +146,21 @@ public final class SculptView extends View {
             ink.setStyle(Paint.Style.FILL);
             if(mode==Mode.VERTEX){
                 for(int i=0;i<screen.length;i++)if(facing[i]){
-                    ink.setColor(i==selected?0xFFFFD57C:0xFFE9F5F4);
+                    ink.setColor(i==selected?0xFFFFA2B7:0xFFF4DAE0);
                     canvas.drawCircle(screen[i][0],screen[i][1],(i==selected?5:2.8f)*density,ink);
                 }
             }else if(mode==Mode.EDGE && selected>=0 && selected<mesh.edges.size()){
                 int[] edge=mesh.edges.get(selected);
-                ink.setColor(0xFFFFD57C);ink.setStrokeWidth(4*density);
+                ink.setColor(0xFFFFA2B7);ink.setStrokeWidth(4*density);
                 canvas.drawLine(screen[edge[0]][0],screen[edge[0]][1],
                                 screen[edge[1]][0],screen[edge[1]][1],ink);
             }
         }
         if(touching && !multi && mode==Mode.SCULPT){
             ink.setStyle(Paint.Style.STROKE);ink.setStrokeWidth(2*density);
-            ink.setColor(0xCC50E0B7);canvas.drawCircle(lastX,lastY,radiusPx,ink);
+            ink.setColor(0xCCDB5E7F);canvas.drawCircle(lastX,lastY,radiusPx,ink);
         }
-        ink.setStyle(Paint.Style.FILL);ink.setColor(0xFFB8CFD9);
+        ink.setStyle(Paint.Style.FILL);ink.setColor(0xFFE0D4D8);
         ink.setTextSize(12*density);
         canvas.drawText(mode==Mode.SCULPT?"PINCEL: "+brush.name():"MODO: "+mode.name(),
                         12*density,22*density,ink);
