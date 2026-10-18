@@ -30,11 +30,12 @@ jobs:
         run: python3 -m pip install --user "CairoSVG>=2.7,<3"
       - name: Apply Neon customization
         run: python3 neon-terminal/patch_termux.py termux-upstream neon-terminal/icon.svg
+          python3 neon-terminal/enhance_termux.py termux-upstream
       - name: Build APK
         working-directory: termux-upstream
         env:
           TERMUX_PACKAGE_VARIANT: apt-android-7
-          TERMUX_APK_VERSION_TAG: neon-terminal-v0.1.0-apt-android-7-debug
+          TERMUX_APK_VERSION_TAG: neon-terminal-v1.0.0-apt-android-7-debug
           TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS: '1'
         run: |
           chmod +x gradlew
@@ -42,11 +43,11 @@ jobs:
       - name: Validate APK
         run: |
           ls -lh termux-upstream/app/build/outputs/apk/debug/
-          test -s termux-upstream/app/build/outputs/apk/debug/termux-app_neon-terminal-v0.1.0-apt-android-7-debug_arm64-v8a.apk
+          test -s termux-upstream/app/build/outputs/apk/debug/termux-app_neon-terminal-v1.0.0-apt-android-7-debug_arm64-v8a.apk
           sha256sum termux-upstream/app/build/outputs/apk/debug/*_arm64-v8a.apk
       - name: Attach installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: Neon-Terminal-v0.1-ARM64-APK
+          name: Neon-Terminal-v1.0-ARM64-APK
           path: termux-upstream/app/build/outputs/apk/debug/*_arm64-v8a.apk
           if-no-files-found: error
