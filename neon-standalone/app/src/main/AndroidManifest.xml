@@ -10,11 +10,11 @@
         android:usesCleartextTraffic="false"
         android:icon="@drawable/neon_icon">
         <service
-            android:name=".TerminalService"
+            android:name="com.neonterminal.app.TerminalService"
             android:exported="false"
             android:stopWithTask="false" />
         <activity
-            android:name=".MainActivity"
+            android:name="com.neonterminal.app.MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
