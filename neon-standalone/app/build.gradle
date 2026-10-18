@@ -5,7 +5,7 @@ android {
     namespace 'com.neonterminal.app'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.neonterminal.app'
+        applicationId 'com.neonterminal.x'
         minSdk 26
         targetSdk 28
         versionCode 3
