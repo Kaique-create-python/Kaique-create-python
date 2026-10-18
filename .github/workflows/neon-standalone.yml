@@ -1,0 +1,53 @@
+name: Build Neon Terminal Independent APK
+
+on:
+  push:
+    branches: [neon-terminal-v01]
+    paths:
+      - 'neon-standalone/**'
+      - '.github/workflows/neon-standalone.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Independent Neon Terminal Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Generate original Neon launcher icon
+        run: |
+          python3 -m pip install --user 'CairoSVG>=2.7,<3'
+          mkdir -p neon-standalone/app/src/main/res/drawable-nodpi
+          python3 - <<'PY'
+          import cairosvg
+          cairosvg.svg2png(url="neon-terminal/icon.svg", write_to="neon-standalone/app/src/main/res/drawable-nodpi/neon_icon.png", output_width=256, output_height=256)
+          PY
+      - name: Build uniquely identified APK
+        working-directory: neon-standalone
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+      - name: Confirm package name and sign status
+        run: |
+          APK=neon-standalone/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 6
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          sha256sum "$APK"
+      - name: Attach installable independent APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Neon-Terminal-Independent-v1.1-APK
+          path: neon-standalone/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
