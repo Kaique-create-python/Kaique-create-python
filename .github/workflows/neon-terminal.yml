@@ -29,7 +29,8 @@ jobs:
       - name: Install SVG converter
         run: python3 -m pip install --user "CairoSVG>=2.7,<3"
       - name: Apply Neon customization
-        run: python3 neon-terminal/patch_termux.py termux-upstream neon-terminal/icon.svg
+        run: |
+          python3 neon-terminal/patch_termux.py termux-upstream neon-terminal/icon.svg
           python3 neon-terminal/enhance_termux.py termux-upstream
       - name: Build APK
         working-directory: termux-upstream
