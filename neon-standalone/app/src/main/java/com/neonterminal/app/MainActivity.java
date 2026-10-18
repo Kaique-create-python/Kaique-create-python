@@ -264,7 +264,7 @@ public class MainActivity extends Activity {
         String[] items = new String[sessions.size()];
         for (int i = 0; i < sessions.size(); i++) {
             Session s = sessions.get(i);
-            items[i] = "Sessão " + s.id + " | PID " + s.process.pid()
+            items[i] = "Sessão " + s.id
                 + " | " + (s.alive() ? "Executando" : "Encerrada")
                 + (s == activeSession ? " | ATUAL" : "");
         }
