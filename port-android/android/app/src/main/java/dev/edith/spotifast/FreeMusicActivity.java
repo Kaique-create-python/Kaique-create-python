@@ -36,6 +36,7 @@ public class FreeMusicActivity extends Activity {
     private final Handler main=new Handler(Looper.getMainLooper());
     private final TrackRepository repository=new TrackRepository();
     private ListenableFuture<MediaController> connection;private MediaController controller;
+    private List<Track> pendingPlayTracks;private int pendingPlayIndex;private boolean pendingPlayRandom;
     private LinearLayout root,body,mini;private TextView status,miniTitle;private Button miniPlay;
     private ImageView miniArt;private TrackAdapter adapter;private RecyclerView recycler;
     private String tab="Início",source="all",query="",genre="",library="recent",artKey="";
@@ -46,7 +47,21 @@ public class FreeMusicActivity extends Activity {
     private Button fullPlay,repeat,shuffle;private LinearLayout fullRoot;private boolean seeking=false;
     private String fullKey="";private CustomTarget<Bitmap> paletteTarget;
     private Uri exportUri;private MusicDatabase.Playlist coverPlaylist;private String pendingExport;
-    private final Player.Listener listener=new Player.Listener(){@Override public void onEvents(Player p,Player.Events e){updatePlayer();}};
+    private final Player.Listener listener=new Player.Listener(){
+        @Override public void onEvents(Player p,Player.Events e){
+            updatePlayer();
+            if(status!=null&&p.getCurrentMediaItem()!=null&&p.getPlayerError()==null){
+                if(p.getPlaybackState()==Player.STATE_BUFFERING)status.setText("Carregando áudio…");
+                else if(p.isPlaying())status.setText("Tocando agora");
+            }
+        }
+        @Override public void onPlayerError(PlaybackException error){
+            if(!visible)return;
+            String message="Não foi possível reproduzir esta faixa (erro "+error.errorCode+").";
+            if(status!=null)status.setText(message+" Verifique a rede ou tente outra música.");
+            toast(message);
+        }
+    };
     private final Runnable tick=new Runnable(){public void run(){if(visible){progress();main.postDelayed(this,500);}}};
     private final Runnable debounce=()->search(false);
 
@@ -112,10 +127,23 @@ public class FreeMusicActivity extends Activity {
     }
     private void loadLibrary(){int stamp=screenGeneration;task(()->db().library(library),tracks->{if(stamp==screenGeneration){allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText(tracks.isEmpty()?"Sua biblioteca começa com a primeira música.":tracks.size()+" músicas salvas neste celular");}});}
     private void playTracks(List<Track> tracks,int index,boolean random){
-        if(controller==null){toast("Conectando ao player… tente novamente em instantes.");return;}
+        if(controller==null){
+            pendingPlayTracks=new ArrayList<>(tracks);pendingPlayIndex=index;pendingPlayRandom=random;
+            if(status!=null)status.setText("Conectando ao player… a música começará após a conexão.");
+            return;
+        }
         if(index<0||index>=tracks.size())return;if(!tracks.get(index).playable()){toast(tracks.get(index).unavailable);return;}
         List<Track> allowed=new ArrayList<>();int start=0;for(int i=0;i<tracks.size();i++)if(tracks.get(i).playable()){if(i==index)start=allowed.size();allowed.add(tracks.get(i));}
-        controller.setMediaItems(MediaItems.of(allowed),start,0);controller.setShuffleModeEnabled(random);controller.prepare();controller.play();
+        if(status!=null)status.setText("Preparando "+tracks.get(index).title+"…");
+        try {
+            controller.setMediaItems(MediaItems.of(allowed),start,0);
+            controller.setShuffleModeEnabled(random);
+            controller.prepare();
+            controller.play();
+        }catch(RuntimeException e){
+            if(status!=null)status.setText("Falha ao iniciar player. Abra novamente ou escolha outra música.");
+            toast("Não foi possível iniciar a reprodução.");
+        }
     }
     private void toggle(){if(controller==null)return;if(controller.isPlaying())controller.pause();else if(controller.getMediaItemCount()>0){if(controller.getPlaybackState()==Player.STATE_IDLE)controller.prepare();if(controller.getPlaybackState()==Player.STATE_ENDED)controller.seekTo(0);controller.play();}}
     private void trackMenu(Track t,int position){
@@ -224,7 +252,13 @@ public class FreeMusicActivity extends Activity {
     private void toast(String message){Toast.makeText(this,message,Toast.LENGTH_LONG).show();}
     private void share(String value){startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value),"Compartilhar música"));}
     private void external(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){toast("Navegador indisponível");}}
-    @Override protected void onStart(){super.onStart();visible=true;if(searchInterrupted){searchInterrupted=false;search(false);}connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();final ListenableFuture<MediaController> pending=connection;pending.addListener(()->{if(!visible||connection!=pending)return;try{controller=pending.get();controller.addListener(listener);updatePlayer();}catch(Exception e){toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
+    @Override protected void onStart(){super.onStart();visible=true;if(searchInterrupted){searchInterrupted=false;search(false);}connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();final ListenableFuture<MediaController> pending=connection;pending.addListener(()->{if(!visible||connection!=pending)return;try{
+            controller=pending.get();controller.addListener(listener);updatePlayer();
+            if(pendingPlayTracks!=null){
+                List<Track> tracks=pendingPlayTracks;int index=pendingPlayIndex;boolean random=pendingPlayRandom;
+                pendingPlayTracks=null;playTracks(tracks,index,random);
+            }
+        }catch(Exception e){if(status!=null)status.setText("Falha ao conectar ao serviço de áudio.");toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
     @Override protected void onStop(){visible=false;searchInterrupted=loading&&!profileView;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);connection=null;controller=null;super.onStop();}
-    @Override protected void onDestroy(){repository.close();main.removeCallbacksAndMessages(null);super.onDestroy();}
+    @Override protected void onDestroy(){pendingPlayTracks=null;repository.close();main.removeCallbacksAndMessages(null);super.onDestroy();}
 }
