@@ -272,13 +272,20 @@ impl NativeStore {
         modifiers: Option<&std::collections::HashMap<&str, &str>>,
     ) -> Result<keyring_core::Entry, Error> {
         if self.store.is_none() {
-            #[cfg(target_os = "linux")]
-            let store = zbus_secret_service_keyring_store::Store::new();
-            #[cfg(target_os = "macos")]
-            let store = apple_native_keyring_store::keychain::Store::new();
-            #[cfg(windows)]
-            let store = windows_native_keyring_store::Store::new();
-            self.store = Some(store.map_err(|error| native_error("open", error))?);
+            // Android needs secure Keystore through JNI. Fail closed rather
+            // than ever write Spotify grants as plaintext.
+            #[cfg(target_os = "android")]
+            { return Err(Error::Unavailable); }
+            #[cfg(not(target_os = "android"))]
+            {
+                #[cfg(target_os = "linux")]
+                let store = zbus_secret_service_keyring_store::Store::new();
+                #[cfg(target_os = "macos")]
+                let store = apple_native_keyring_store::keychain::Store::new();
+                #[cfg(windows)]
+                let store = windows_native_keyring_store::Store::new();
+                self.store = Some(store.map_err(|error| native_error("open", error))?);
+            }
         }
         self.store
             .as_ref()
