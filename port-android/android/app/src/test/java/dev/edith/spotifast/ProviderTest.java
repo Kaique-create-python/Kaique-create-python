@@ -18,20 +18,20 @@ public class ProviderTest {
         assertTrue(t.playable());assertEquals(15000,t.duration);assertEquals("artist",t.artistId);assertTrue(t.artwork.endsWith("cover.jpg"));
     }
     @Test public void audiusDetailIsObjectNotArray() throws Exception {
-        JSONObject response=new JSONObject("{\\"data\\":{\\"id\\":\\"D7KyD\\",\\"title\\":\\"Song\\",\\"user\\":{\\"name\\":\\"Artist\\"},\\"is_streamable\\":true}}");
+        JSONObject response=new JSONObject("{\"data\":{\"id\":\"D7KyD\",\"title\":\"Song\",\"user\":{\"name\":\"Artist\"},\"is_streamable\":true}}");
         Track t=AudiusProvider.parseTrackDetail(response);
         assertEquals("D7KyD",t.id);
         assertTrue(t.playable());
     }
     @Test public void audiusDetailStillAcceptsLegacyArray() throws Exception {
-        Track t=AudiusProvider.parseTrackDetail(new JSONObject("{\\"data\\":[{\\"id\\":\\"abc123\\",\\"title\\":\\"Song\\"}]}"));
+        Track t=AudiusProvider.parseTrackDetail(new JSONObject("{\"data\":[{\"id\":\"abc123\",\"title\":\"Song\"}]}"));
         assertEquals("abc123",t.id);
     }
     @Test(expected=java.io.IOException.class) public void audiusRejectsAbsentTrackDetails() throws Exception {
-        AudiusProvider.parseTrackDetail(new JSONObject("{\\"data\\":null}"));
+        AudiusProvider.parseTrackDetail(new JSONObject("{\"data\":null}"));
     }
     @Test(expected=java.io.IOException.class) public void audiusRejectsGatedDetail() throws Exception {
-        AudiusProvider.parseTrackDetail(new JSONObject("{\\"data\\":{\\"id\\":\\"abc123\\",\\"is_stream_gated\\":true}}"));
+        AudiusProvider.parseTrackDetail(new JSONObject("{\"data\":{\"id\":\"abc123\",\"is_stream_gated\":true}}"));
     }
     @Test(expected=java.io.IOException.class) public void jamendoApiErrorIsNotAnEmptyResult() throws Exception {JamendoProvider.parseResponse(new JSONObject("{\"headers\":{\"code\":5},\"results\":[]}"));}
     @Test public void jamendoKeepsSingleAndLicenseWithoutDownload() throws Exception {
