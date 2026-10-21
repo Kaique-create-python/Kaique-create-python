@@ -13,6 +13,7 @@ categories = ["multimedia::audio"]
 [lib]
 name = "spotifast"
 path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
 
 [[bin]]
 name = "spotifast"
@@ -183,6 +184,11 @@ hmac = "0.12"
 pbkdf2 = "0.12"
 aes = "0.8"
 ctr = "0.9"
+
+# Android native activity uses the existing Rust egui/eframe UI.
+[target.'cfg(target_os = "android")'.dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["android-native-activity"] }
+android-activity = { version = "0.6", features = ["native-activity"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # The packaged Dock artwork also identifies unbundled Cargo runs.
