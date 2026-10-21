@@ -51,6 +51,19 @@ pub(crate) fn app_files_path() -> io::Result<String> {
     }).map_err(|_| io::Error::other("Android app data path unavailable"))
 }
 
+/// Open the supplementary Audius/Jamendo/YouTube music catalogue.
+pub(crate) fn open_free_music() -> io::Result<()> {
+    with_activity(|env, activity| {
+        env.call_method(
+            activity,
+            jni_str!("openFreeMusic"),
+            jni_sig!("()V"),
+            &[],
+        )?;
+        Ok(())
+    }).map_err(|_| io::Error::other("Could not open Android free-music screen"))
+}
+
 pub(crate) fn open_url(url: &str) -> io::Result<()> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "URL scheme not allowed"));
