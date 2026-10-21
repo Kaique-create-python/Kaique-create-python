@@ -33,6 +33,14 @@ public final class SpotiFastActivity extends NativeActivity {
         super.onCreate(state);
     }
 
+    /** Open legal streaming providers without requiring Spotify sign-in. */
+    public void openFreeMusic() {
+        runOnUiThread(() -> {
+            Intent intent = new Intent(this, FreeMusicActivity.class);
+            startActivity(intent);
+        });
+    }
+
     public String appFilesPath() {
         return getFilesDir().getAbsolutePath();
     }
