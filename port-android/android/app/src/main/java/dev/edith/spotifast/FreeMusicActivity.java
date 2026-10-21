@@ -451,7 +451,7 @@ public class FreeMusicActivity extends Activity {
             host = host.toLowerCase(java.util.Locale.ROOT);
             if (host.equals("youtu.be")) {
                 String path = uri.getPath();
-                if (path != null && path.length() == 12) return path.substring(1);
+                if (path != null && path.length() == 12 && path.substring(1).matches("[A-Za-z0-9_-]{11}")) return path.substring(1);
             }
             if (host.equals("youtube.com") || host.equals("www.youtube.com") || host.equals("m.youtube.com")) {
                 String id = uri.getQueryParameter("v");
@@ -539,7 +539,7 @@ public class FreeMusicActivity extends Activity {
     @Override protected void onStop() {
         super.onStop();
         // This Activity does not run as a background streaming service.
-        if (player != null && player.isPlaying()) player.pause();
+        if (player != null) { try { if (player.isPlaying()) player.pause(); } catch (IllegalStateException ignored) {} }
         if (youtube != null) youtube.loadUrl("about:blank");
     }
 
