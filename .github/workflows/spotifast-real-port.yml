@@ -1,0 +1,72 @@
+name: Import full SpotiFast source and Android port check
+on:
+  push:
+    branches: [spotifast-real-android-port]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import-real-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Import complete official v0.14.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f spotifast/Cargo.toml ]; then
+            git clone --depth 1 --branch v0.14.1 https://github.com/crmne/spotifast.git spotifast
+            git -C spotifast rev-parse HEAD | tee SPOTIFAST_UPSTREAM_COMMIT.txt
+            rm -rf spotifast/.git
+            git add -f spotifast SPOTIFAST_UPSTREAM_COMMIT.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Import official SpotiFast v0.14.1 source for real Android port"
+            git push origin HEAD:spotifast-real-android-port
+          fi
+          grep -q '^version = "0.14.1"' spotifast/Cargo.toml
+          find spotifast/src -type f | wc -l
+      - run: tar -czf spotifast-v0.14.1-original-source.tar.gz spotifast SPOTIFAST_UPSTREAM_COMMIT.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Complete-Spotifast-0141-Rust-Source
+          path: spotifast-v0.14.1-original-source.tar.gz
+          retention-days: 30
+  android-target-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - run: git clone --depth 1 --branch v0.14.1 https://github.com/crmne/spotifast.git original-src
+      - run: |
+          rustup toolchain install stable --profile minimal
+          rustup +stable target add aarch64-linux-android
+      - name: Cross-check original source for Android arm64
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "Rust version: $(rustc +stable --version)" | tee android-port-audit.log
+          echo "Official v0.14.1 desktop sources" | tee -a android-port-audit.log
+          ndkroot="${ANDROID_HOME:-/usr/local/lib/android/sdk}/ndk"
+          ndkdir=$(find "$ndkroot" -maxdepth 1 -type d -name '[0-9]*' 2>/dev/null | sort -V | tail -n1)
+          if [ -n "$ndkdir" ]; then
+            export PATH="$ndkdir/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android24-clang
+            export CC_aarch64_linux_android=aarch64-linux-android24-clang
+            export AR_aarch64_linux_android=llvm-ar
+          fi
+          export CARGO_BUILD_JOBS=4
+          set +e
+          (cd original-src && cargo +stable check --lib --target aarch64-linux-android --locked) 2>&1 | tee -a android-port-audit.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "Android cross-compilation exit code: $rc" | tee -a android-port-audit.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Real-SpotiFast-Android-Portability-Report
+          path: android-port-audit.log
+          retention-days: 30
