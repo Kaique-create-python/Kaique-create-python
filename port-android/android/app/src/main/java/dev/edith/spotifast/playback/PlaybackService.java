@@ -83,7 +83,7 @@ public final class PlaybackService extends MediaSessionService {
                         main.removeCallbacks(sleep);int minutes=args.getInt("minutes",0);
                         if(minutes>0&&minutes<=120)main.postDelayed(sleep,minutes*60000L);
                         return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
-                    }return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED));
+                    }return Futures.immediateFuture(new SessionResult(androidx.media3.session.SessionError.ERROR_NOT_SUPPORTED));
                 }
             }).build();
         MusicDatabase.IO.execute(()->{
