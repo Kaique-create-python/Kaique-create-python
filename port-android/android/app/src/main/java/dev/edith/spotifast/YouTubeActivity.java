@@ -39,9 +39,9 @@ public final class YouTubeActivity extends Activity {
         video.loadDataWithBaseURL("https://dev.edith.spotifast",html,"text/html","UTF-8",null);status.setText("Player oficial · toque no vídeo para assistir");
     }
     private void external(String url){if(!url.startsWith("https://"))return;try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){status.setText("Nenhum aplicativo disponível para abrir este link.");}}
-    @Override protected void onStart(){super.onStart();connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();connection.addListener(()->{try{audio=connection.get();audio.pause();audio.addListener(listener);}catch(Exception ignored){}},command->runOnUiThread(command));}
+    @Override protected void onStart(){super.onStart();connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();final ListenableFuture<MediaController> pending=connection;pending.addListener(()->{if(connection!=pending)return;try{audio=pending.get();audio.pause();audio.addListener(listener);}catch(Exception ignored){}},command->runOnUiThread(command));}
     @Override protected void onResume(){super.onResume();if(video!=null)video.onResume();}
     @Override protected void onPause(){if(video!=null){video.loadUrl("about:blank");video.onPause();status.setText("Vídeo interrompido. Toque em Abrir vídeo pelo link para continuar.");}super.onPause();}
-    @Override protected void onStop(){if(audio!=null)audio.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);audio=null;super.onStop();}
+    @Override protected void onStop(){if(audio!=null)audio.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);connection=null;audio=null;super.onStop();}
     @Override protected void onDestroy(){if(video!=null){((android.view.ViewGroup)video.getParent()).removeView(video);video.destroy();video=null;}super.onDestroy();}
 }

@@ -63,6 +63,7 @@ public class FreeMusicActivity extends Activity {
         mini=row(this);mini.setPadding(dp(this,8),dp(this,6),dp(this,6),dp(this,6));mini.setBackground(shape(this,PANEL,18));
         miniArt=new ImageView(this);mini.addView(miniArt,new LinearLayout.LayoutParams(dp(this,44),dp(this,44)));
         miniTitle=text(this,"Sua próxima descoberta",13,true);miniTitle.setMaxLines(2);miniTitle.setPadding(dp(this,10),0,dp(this,4),0);mini.addView(miniTitle,new LinearLayout.LayoutParams(0,-2,1));mini.setOnClickListener(v->expand());mini.setContentDescription("Expandir player");
+        final float[] miniDown={0};mini.setOnTouchListener((view,event)->{if(event.getAction()==MotionEvent.ACTION_DOWN)miniDown[0]=event.getY();if(event.getAction()==MotionEvent.ACTION_UP&&miniDown[0]-event.getY()>dp(this,32)){expand();return true;}return false;});
         miniPlay=button(this,"▶",true);miniPlay.setContentDescription("Reproduzir ou pausar");mini.addView(miniPlay,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));miniPlay.setOnClickListener(v->toggle());
         Button next=button(this,"›",false);next.setContentDescription("Próxima faixa");mini.addView(next,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));next.setOnClickListener(v->{if(controller!=null)controller.seekToNextMediaItem();});root.addView(mini);
         LinearLayout nav=row(this);for(String name:new String[]{"Início","Buscar","Biblioteca","Playlists"}){Button b=button(this,name,false);b.setTextSize(11);nav.addView(b,new LinearLayout.LayoutParams(0,dp(this,56),1));b.setOnClickListener(v->navigate(name));}root.addView(nav);
@@ -88,7 +89,7 @@ public class FreeMusicActivity extends Activity {
     private void makeList(){
         status=text(this,"",12,false);status.setTextColor(MUTED);status.setPadding(0,dp(this,6),0,dp(this,6));body.addView(status);
         recycler=new RecyclerView(this);recycler.setLayoutManager(new LinearLayoutManager(this));recycler.setClipToPadding(false);
-        adapter=new TrackAdapter(this,new TrackAdapter.Actions(){public void play(int position){playTracks(new ArrayList<>(adapter.tracks),position,false);}public void menu(int p){trackMenu(adapter.tracks.get(p),p);}});recycler.setAdapter(adapter);body.addView(recycler,new LinearLayout.LayoutParams(-1,0,1));
+        adapter=new TrackAdapter(this,new TrackAdapter.Actions(){public void play(int position){playTracks(new ArrayList<>(adapter.tracks),position,false);}public void menu(int p){trackMenu(adapter.tracks.get(p),p);}});adapter.setDragEnabled(reorder);recycler.setAdapter(adapter);body.addView(recycler,new LinearLayout.LayoutParams(-1,0,1));
         new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP|ItemTouchHelper.DOWN,0){
             boolean moved;
             @Override public boolean isLongPressDragEnabled(){return reorder&&selectedPlaylist!=null;}
@@ -102,8 +103,9 @@ public class FreeMusicActivity extends Activity {
     private void search(boolean more){
         if(profileView||!(tab.equals("Início")||tab.equals("Buscar")))return;if(more&&loading)return;
         if(!more){page=0;allTracks.clear();adapter.submit(allTracks);}else page++;
+        final boolean requestedMore=more;
         loading=true;status.setText("Buscando em "+(source.equals("all")?"fontes conectadas":source)+"…");String q=tab.equals("Início")?"":query;
-        repository.search(q,genre,source,client(),page*25,(tracks,error)->{loading=false;Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
+        repository.search(q,genre,source,client(),page*25,(tracks,error)->{loading=false;if(requestedMore&&tracks.isEmpty()&&!error.isEmpty())page=Math.max(0,page-1);Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
             adapter.submit(allTracks);status.setText(error.isEmpty()?(allTracks.isEmpty()?"Nenhum resultado. Tente outra busca.":allTracks.size()+" faixas · "+(source.equals("all")?"fontes conectadas":source)):error);
             List<Track> copy=new ArrayList<>(tracks);task(()->{for(Track t:copy)db().save(t);return true;},ok->{});
         });
@@ -148,7 +150,7 @@ public class FreeMusicActivity extends Activity {
         LinearLayout controls=row(this);String[] labels={"Tocar","Aleatório","Opções"};for(int i=0;i<3;i++){final int action=i;Button b=button(this,labels[i],i==0);controls.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{if(action<2)playTracks(new ArrayList<>(adapter.tracks),0,action==1);else playlistMenu(p);});}body.addView(controls);
         EditText filter=input(this,"Buscar nesta playlist");body.addView(filter);makeList();int stamp=screenGeneration;
         task(()->db().playlist(p.id),tracks->{if(stamp==screenGeneration){allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText(tracks.size()+" músicas · "+time(tracks.stream().mapToLong(t->t.duration).sum())+" · segure para reordenar");}});
-        filter.addTextChangedListener(watcher(value->{reorder=value.isEmpty();List<Track> filtered=new ArrayList<>();for(Track t:allTracks)if((t.title+" "+t.artist).toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT)))filtered.add(t);adapter.submit(filtered);}));
+        filter.addTextChangedListener(watcher(value->{reorder=value.isEmpty();adapter.setDragEnabled(reorder);List<Track> filtered=new ArrayList<>();for(Track t:allTracks)if((t.title+" "+t.artist).toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT)))filtered.add(t);adapter.submit(filtered);}));
     }
     private void playlistMenu(MusicDatabase.Playlist p){new AlertDialog.Builder(this).setTitle(p.name).setItems(new String[]{"Editar nome e descrição","Escolher capa","Duplicar","Adicionar à fila","Ordenar por nome","Ordenar por artista","Exportar","Excluir","Ordenar por inclusão"},(d,i)->{
         if(i==0){LinearLayout form=column(this);EditText name=input(this,"Nome"),description=input(this,"Descrição");name.setText(p.name);description.setText(p.description);form.addView(name);form.addView(description);new AlertDialog.Builder(this).setTitle("Editar playlist").setView(form).setPositiveButton("Salvar",(a,b)->{String n=name.getText().toString(),desc=description.getText().toString();task(()->{db().editPlaylist(p.id,n,desc,p.artwork);return true;},ok->navigate("Playlists"));}).setNegativeButton("Cancelar",null).show();}
@@ -222,7 +224,7 @@ public class FreeMusicActivity extends Activity {
     private void toast(String message){Toast.makeText(this,message,Toast.LENGTH_LONG).show();}
     private void share(String value){startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value),"Compartilhar música"));}
     private void external(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){toast("Navegador indisponível");}}
-    @Override protected void onStart(){super.onStart();visible=true;if(searchInterrupted){searchInterrupted=false;search(false);}connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();connection.addListener(()->{if(!visible)return;try{controller=connection.get();controller.addListener(listener);updatePlayer();}catch(Exception e){toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
-    @Override protected void onStop(){visible=false;searchInterrupted=loading&&!profileView;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);controller=null;super.onStop();}
+    @Override protected void onStart(){super.onStart();visible=true;if(searchInterrupted){searchInterrupted=false;search(false);}connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();final ListenableFuture<MediaController> pending=connection;pending.addListener(()->{if(!visible||connection!=pending)return;try{controller=pending.get();controller.addListener(listener);updatePlayer();}catch(Exception e){toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
+    @Override protected void onStop(){visible=false;searchInterrupted=loading&&!profileView;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);connection=null;controller=null;super.onStop();}
     @Override protected void onDestroy(){repository.close();main.removeCallbacksAndMessages(null);super.onDestroy();}
 }

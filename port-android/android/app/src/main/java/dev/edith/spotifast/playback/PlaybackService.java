@@ -67,6 +67,17 @@ public final class PlaybackService extends MediaSessionService {
                     try{List<MediaItem> validated=new ArrayList<>();for(MediaItem item:items)validated.add(MediaItems.of(MediaItems.track(item)));return Futures.immediateFuture(validated);}
                     catch(Exception e){return Futures.immediateFailedFuture(e);}
                 }
+                @Override public ListenableFuture<MediaSession.MediaItemsWithStartPosition> onPlaybackResumption(MediaSession s,MediaSession.ControllerInfo c) {
+                    SettableFuture<MediaSession.MediaItemsWithStartPosition> result=SettableFuture.create();
+                    MusicDatabase.IO.execute(()->{
+                        try {
+                            MusicDatabase.Snapshot saved=MusicDatabase.get(PlaybackService.this).restore();
+                            if(saved.tracks.isEmpty())throw new IOException("Nenhuma sessão anterior");
+                            result.set(new MediaSession.MediaItemsWithStartPosition(MediaItems.of(saved.tracks),Math.max(0,Math.min(saved.index,saved.tracks.size()-1)),Math.max(0,saved.position)));
+                        } catch(Exception e) {result.setException(e);}
+                    });
+                    return result;
+                }
                 @Override public ListenableFuture<SessionResult> onCustomCommand(MediaSession s,MediaSession.ControllerInfo c,SessionCommand command,Bundle args){
                     if(SLEEP.equals(command.customAction)&&c.getUid()==android.os.Process.myUid()){
                         main.removeCallbacks(sleep);int minutes=args.getInt("minutes",0);
