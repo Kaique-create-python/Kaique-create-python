@@ -32,7 +32,7 @@ keyring-core = "1"
 # The whole UI. glow keeps the binary and the dependency tree small; wgpu is
 # not needed for a 2D music client.
 # AccessKit connects egui's control names, states, and actions to native screen readers.
-eframe = { version = "0.36.2", default-features = false, features = ["accesskit", "glow", "default_fonts", "links", "wayland", "x11", "persistence"] }
+eframe = { version = "0.36.2", default-features = false, features = ["glow", "default_fonts", "links", "wayland", "x11", "persistence"] }
 egui = "0.36.2"
 egui_extras = { version = "0.36.2", features = ["image", "svg"] }
 # The shared foundation of Spotifast, ZapFast, RekordFlash and TonePush
@@ -186,6 +186,10 @@ aes = "0.8"
 ctr = "0.9"
 
 # Android native activity uses the existing Rust egui/eframe UI.
+# Keep AccessKit for native desktop builds. Android NativeActivity does not support it.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["accesskit"] }
+
 [target.'cfg(target_os = "android")'.dependencies]
 eframe = { version = "0.36.2", default-features = false, features = ["android-native-activity"] }
 android-activity = { version = "0.6", features = ["native-activity"] }
