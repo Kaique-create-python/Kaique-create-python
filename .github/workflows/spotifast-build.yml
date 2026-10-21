@@ -24,7 +24,29 @@ jobs:
           echo "f43e196757ce1b3bd2b6b8f0f2cb2824e4a0066f61a38e72a7cafb18a219e7bd  spotifast-source.txz" | sha256sum --check
           tar -xJf spotifast-source.txz
       - name: Install Android SDK
-        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SDKROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "SDK root: $SDKROOT"
+          ls -la "$SDKROOT" || true
+          if [ -d "$SDKROOT/platforms/android-35" ] && [ -d "$SDKROOT/build-tools/35.0.0" ]; then
+            echo "Platform and build-tools already installed"
+            exit 0
+          fi
+          SDKMANAGER="$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Fetching official Android command-line tools..."
+            mkdir -p "$SDKROOT/cmdline-tools/latest"
+            curl -fsSL --retry 3 'https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip' -o /tmp/android-tools.zip
+            mkdir -p /tmp/android-tools
+            unzip -q /tmp/android-tools.zip -d /tmp/android-tools
+            cp -a /tmp/android-tools/cmdline-tools/. "$SDKROOT/cmdline-tools/latest/"
+            SDKMANAGER="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_HOME=$SDKROOT" >> "$GITHUB_ENV"
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
