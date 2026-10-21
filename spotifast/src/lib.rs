@@ -3,6 +3,8 @@
 #[cfg(target_os = "android")]
 mod android;
 #[cfg(target_os = "android")]
+mod android_bridge;
+#[cfg(target_os = "android")]
 mod android_file_dialog;
 
 pub mod account_cache;
