@@ -20,8 +20,10 @@ fn with_activity<T>(
     let app = APP.get().ok_or_else(|| "Android Activity is not ready".to_owned())?;
     // SAFETY: android-activity owns this valid JVM reference for APP's lifetime.
     let vm = unsafe { jni::JavaVM::from_raw(app.vm_as_ptr().cast()) };
+    // Keep the JNI global-ref pointer storage alive for the entire
+    // attachment scope (and any borrow tied to Env's local frame).
+    let raw = app.activity_as_ptr() as jni::sys::jobject;
     vm.attach_current_thread(|env| {
-        let raw = app.activity_as_ptr() as jni::sys::jobject;
         // SAFETY: Borrowed global activity reference. Do not delete it.
         let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&raw)? };
         operation(env, activity.as_ref())
