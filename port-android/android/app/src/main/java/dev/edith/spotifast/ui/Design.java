@@ -11,7 +11,7 @@ public final class Design {
     public static final int BG=0xff0d1013,PANEL=0xff1c2226,GREEN=0xff51e0a3,WHITE=0xfff2f5f4,MUTED=0xffa8b5b2;
     public static int dp(Context c,float n){return (int)(n*c.getResources().getDisplayMetrics().density+.5f);}
     public static GradientDrawable shape(Context c,int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(c,radius));return d;}
-    public static LinearLayout column(Context c){LinearLayout v=new LinearLayout(c);v.setOrientation(1);return v;}
+    public static LinearLayout column(Context c){LinearLayout v=new LinearLayout(c);v.setOrientation(LinearLayout.VERTICAL);return v;}
     public static LinearLayout row(Context c){LinearLayout v=new LinearLayout(c);v.setGravity(Gravity.CENTER_VERTICAL);return v;}
     public static TextView text(Context c,String value,int size,boolean bold){TextView t=new TextView(c);t.setText(value);t.setTextSize(size);t.setTextColor(WHITE);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
     public static Button button(Context c,String label,boolean primary){Button b=new Button(c);b.setText(label);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(primary?BG:WHITE);b.setMinHeight(dp(c,48));b.setMinimumWidth(0);b.setMinWidth(0);b.setPadding(dp(c,10),dp(c,4),dp(c,10),dp(c,4));b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x4451e0a3),shape(c,primary?GREEN:PANEL,16),null));return b;}
