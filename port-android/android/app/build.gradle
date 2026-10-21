@@ -6,8 +6,8 @@ android {
         applicationId 'dev.edith.spotifast'
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName '0.14.1-android-dev'
+        versionCode 2
+        versionName '0.14.1-android-auth-fix-2'
     }
     buildTypes { release { minifyEnabled false } }
     sourceSets { main { jniLibs.srcDirs = ['src/main/jniLibs'] } }
