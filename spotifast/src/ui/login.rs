@@ -29,7 +29,10 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, connecting: bool) {
             fastframe_titlebar::drag(ui, drag_rect);
             let top = super::blend(palette.window, palette.accent, 0.10);
             super::widgets::paint_vertical_gradient(ui, rect, top, palette.window);
-            let card_width = 440.0;
+            // Mobile screens are often narrower than the desktop login card.
+            let card_width = if cfg!(target_os = "android") {
+                (rect.width() - 16.0).clamp(220.0, 440.0)
+            } else { 440.0 };
             let proxy_id = egui::Id::new("login-proxy-open");
             let proxy_open = ui
                 .ctx()
@@ -54,7 +57,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, connecting: bool) {
                 .fill(palette.panel)
                 .stroke(Stroke::new(1.0, palette.outline))
                 .corner_radius(CornerRadius::same(theme::RADIUS + 8))
-                .inner_margin(Margin::same(36))
+                .inner_margin(Margin::same(if cfg!(target_os = "android") { 16 } else { 36 }))
                 .shadow(egui::epaint::Shadow {
                     offset: [0, 16],
                     blur: 48,
@@ -64,17 +67,17 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, connecting: bool) {
                 .show(&mut card_ui, |ui| {
                     let scroll = egui::ScrollArea::vertical()
                         .id_salt("login-card-scroll")
-                        .max_height((card.height() - 72.0).max(0.0))
+                        .max_height((card.height() - if cfg!(target_os = "android") { 32.0 } else { 72.0 }).max(0.0))
                         .auto_shrink([false, true])
                         .show(ui, |ui| {
-                    ui.set_width(card_width - 72.0);
+                    ui.set_width(card_width - if cfg!(target_os = "android") { 32.0 } else { 72.0 });
                     ui.spacing_mut().item_spacing.y = 8.0;
-                    let (logo, _) = ui.allocate_exact_size(Vec2::splat(72.0), egui::Sense::hover());
-                    theme::logo(ui, logo.center(), 72.0);
+                    let (logo, _) = ui.allocate_exact_size(Vec2::splat(if cfg!(target_os = "android") { 56.0 } else { 72.0 }), egui::Sense::hover());
+                    theme::logo(ui, logo.center(), if cfg!(target_os = "android") { 56.0 } else { 72.0 });
                     ui.add_space(6.0);
                     theme::text(ui, "Spotifast", theme::bold(30.0), palette.text);
                     theme::text(ui, gettext(locale, "A native Spotify client."), theme::regular(14.5), palette.secondary);
-                    ui.add_space(22.0);
+                    ui.add_space(if cfg!(target_os = "android") { 12.0 } else { 22.0 });
                     match &app.auth {
                         AuthStatus::WaitingForBrowser { url } => {
                             let url = url.clone();
@@ -158,6 +161,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, connecting: bool) {
                                     app.actions.push(Action::ConfigurePersonalWebApp);
                                 }
                             }
+                        }
+                    }
+                    #[cfg(target_os = "android")]
+                    {
+                        ui.add_space(12.0);
+                        if big_button(ui, app, "🎵 Músicas grátis • Audius / Jamendo / YouTube") {
+                            let _ = crate::android_bridge::open_free_music();
                         }
                     }
                     let mut proxy_open = ui.data(|data| data.get_temp::<bool>(proxy_id)).unwrap_or(false);
