@@ -1,0 +1,36 @@
+name: SpotiFast Mobile Android APK
+on:
+  push:
+    branches:
+      - build-spotifast-mobile-20261021
+  workflow_dispatch:
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Restore Android source
+        run: |
+          base64 -d spotifast-source.txz.b64 > spotifast-source.txz
+          echo "f43e196757ce1b3bd2b6b8f0f2cb2824e4a0066f61a38e72a7cafb18a219e7bd  spotifast-source.txz" | sha256sum --check
+          tar -xJf spotifast-source.txz
+      - name: Install Android SDK
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build signed debug APK
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpotiFast-Mobile-Alpha-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
