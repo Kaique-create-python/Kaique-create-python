@@ -20,7 +20,7 @@ Os testes instrumentados verificam inicialização, persistência após reabrir 
 
 Não foram medidos startup, memória, frames, consumo de rede ou bateria em dispositivo físico. Busca Jamendo real depende de Client ID legítimo. Disponibilidade de Audius e restrições do YouTube variam; nenhum resultado ao vivo é presumido. Não há reprodução do catálogo Spotify Free, extração YouTube ou contorno de acesso.
 
-Pendentes: busca dedicada de entidades artista/álbum, fotos e perfis completos, playlists públicas Audius, paginação de perfis, recomendações por similaridade, artistas salvos, scanner MediaStore, edição da fila por arrastar, ordem por data original de inclusão, importação transacional integral, tema dinâmico selecionável, limites de cache ajustáveis/por fonte, equalizador, crossfade, normalização e letras autorizadas. Gapless depende do formato e do suporte padrão do ExoPlayer; não foi medido.
+Pendentes: busca dedicada de entidades artista/álbum, fotos e perfis completos, playlists públicas Audius, paginação de perfis, recomendações por similaridade, artistas salvos, scanner MediaStore, edição da fila por arrastar, ordem por data original de inclusão, tema dinâmico selecionável, limites de cache ajustáveis/por fonte, equalizador, crossfade, normalização e letras autorizadas. Gapless depende do formato e do suporte padrão do ExoPlayer; não foi medido.
 
 ## Instalação e assinatura
 Android 8+; engine nativo ARM64. Instale somente o APK acompanhado do SHA-256 desta release. A assinatura é verificada na CI e identificada nas notas da release. A assinatura estável exige secrets `SPOTIFAST_KEYSTORE_BASE64`, `SPOTIFAST_STORE_PASSWORD`, `SPOTIFAST_KEY_ALIAS` e `SPOTIFAST_KEY_PASSWORD`. A chave privada nunca é publicada.

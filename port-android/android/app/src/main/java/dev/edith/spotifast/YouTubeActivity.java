@@ -14,6 +14,7 @@ import dev.edith.spotifast.providers.YouTubeIds;
 import static dev.edith.spotifast.ui.Design.*;
 
 /** Visible official video only. No audio extraction, hidden playback, or PiP. */
+@androidx.annotation.OptIn(markerClass=androidx.media3.common.util.UnstableApi.class)
 public final class YouTubeActivity extends Activity {
     private WebView video;private TextView status;private String id="";private MediaController audio;
     private ListenableFuture<MediaController> connection;

@@ -30,6 +30,7 @@ import org.json.*;
 import static dev.edith.spotifast.ui.Design.*;
 
 /** Native Android shell for the existing app; Rust/egui remains available in Settings. */
+@androidx.annotation.OptIn(markerClass=androidx.media3.common.util.UnstableApi.class)
 public class FreeMusicActivity extends Activity {
     private final Handler main=new Handler(Looper.getMainLooper());
     private final TrackRepository repository=new TrackRepository();
@@ -37,7 +38,7 @@ public class FreeMusicActivity extends Activity {
     private LinearLayout root,body,mini;private TextView status,miniTitle;private Button miniPlay;
     private ImageView miniArt;private TrackAdapter adapter;private RecyclerView recycler;
     private String tab="Início",source="all",query="",genre="",library="recent",artKey="";
-    private int page=0,screenGeneration=0;private boolean visible=false,loading=false;
+    private int page=0,screenGeneration=0;private boolean visible=false,loading=false,profileView=false,searchInterrupted=false;
     private MusicDatabase.Playlist selectedPlaylist;private boolean reorder=false;
     private final List<Track> allTracks=new ArrayList<>();
     private Dialog expanded;private SeekBar seek;private TextView time,fullTitle,fullArtist;private ImageView fullArt;
@@ -66,7 +67,7 @@ public class FreeMusicActivity extends Activity {
         LinearLayout nav=row(this);for(String name:new String[]{"Início","Buscar","Biblioteca","Playlists"}){Button b=button(this,name,false);b.setTextSize(11);nav.addView(b,new LinearLayout.LayoutParams(0,dp(this,56),1));b.setOnClickListener(v->navigate(name));}root.addView(nav);
     }
     private void navigate(String destination){
-        tab=destination;selectedPlaylist=null;reorder=false;page=0;genre="";loading=false;screenGeneration++;repository.cancel();main.removeCallbacks(debounce);body.removeAllViews();
+        tab=destination;profileView=false;selectedPlaylist=null;reorder=false;page=0;genre="";loading=false;screenGeneration++;repository.cancel();main.removeCallbacks(debounce);body.removeAllViews();
         TextView title=text(this,tab.equals("Início")?"Encontre seu ritmo":tab,27,true);body.addView(title);gap(this,body,8);
         if(tab.equals("Buscar")){
             EditText input=input(this,"Música, artista ou álbum");input.setText(query);body.addView(input);input.addTextChangedListener(watcher(s->{query=s;main.removeCallbacks(debounce);main.postDelayed(debounce,350);}));
@@ -94,11 +95,11 @@ public class FreeMusicActivity extends Activity {
             @Override public void onSwiped(RecyclerView.ViewHolder h,int d){}
             @Override public void clearView(RecyclerView rv,RecyclerView.ViewHolder h){super.clearView(rv,h);if(moved&&selectedPlaylist!=null){moved=false;long id=selectedPlaylist.id;List<Track> values=new ArrayList<>(adapter.tracks);allTracks.clear();allTracks.addAll(values);task(()->{db().replace(id,values);return true;},ok->{});}}
         }).attachToRecyclerView(recycler);
-        if(tab.equals("Início")||tab.equals("Buscar")){Button more=button(this,"Carregar mais",false);body.addView(more);more.setOnClickListener(v->search(true));}
+        if(!profileView&&(tab.equals("Início")||tab.equals("Buscar"))){Button more=button(this,"Carregar mais",false);body.addView(more);more.setOnClickListener(v->search(true));}
     }
     private String client(){return getPreferences(MODE_PRIVATE).getString("jamendo_client_id","");}
     private void search(boolean more){
-        if(!(tab.equals("Início")||tab.equals("Buscar")))return;if(more&&loading)return;
+        if(profileView||!(tab.equals("Início")||tab.equals("Buscar")))return;if(more&&loading)return;
         if(!more){page=0;allTracks.clear();adapter.submit(allTracks);}else page++;
         loading=true;status.setText("Buscando em "+(source.equals("all")?"fontes conectadas":source)+"…");String q=tab.equals("Início")?"":query;
         repository.search(q,genre,source,client(),page*25,(tracks,error)->{loading=false;Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
@@ -128,7 +129,7 @@ public class FreeMusicActivity extends Activity {
     }
     private void artist(Track t,boolean album){
         if((album&&t.albumId.isEmpty())||(!album&&t.artistId.isEmpty())){toast("Esta fonte não forneceu esse perfil.");return;}
-        repository.cancel();screenGeneration++;selectedPlaylist=null;reorder=false;body.removeAllViews();body.addView(text(this,album?t.album:t.artist,26,true));makeList();status.setText("Carregando catálogo da fonte…");int stamp=screenGeneration;
+        repository.cancel();main.removeCallbacks(debounce);profileView=true;screenGeneration++;selectedPlaylist=null;reorder=false;body.removeAllViews();body.addView(text(this,album?t.album:t.artist,26,true));makeList();status.setText("Carregando catálogo da fonte…");int stamp=screenGeneration;
         // Provider work uses a dedicated short-lived task; UI stays responsive.
         java.util.concurrent.ExecutorService work=java.util.concurrent.Executors.newSingleThreadExecutor();work.execute(()->{try{List<Track> list=t.provider.equals("audius")?new AudiusProvider().artist(t.artistId,0,this):album?new JamendoProvider(client()).album(t.albumId,this):new JamendoProvider(client()).artist(t.artistId,0,this);main.post(()->{if(!isDestroyed()&&stamp==screenGeneration){allTracks.clear();allTracks.addAll(list);adapter.submit(list);status.setText("Catálogo · "+t.provider);}});}catch(Exception e){main.post(()->{if(!isDestroyed()&&stamp==screenGeneration)status.setText("Perfil indisponível. Tente novamente.");});}finally{work.shutdown();}});
     }
@@ -139,7 +140,7 @@ public class FreeMusicActivity extends Activity {
             LinearLayout item=row(this);item.setPadding(0,dp(this,8),0,dp(this,8));ImageView art=new ImageView(this);item.addView(art,new LinearLayout.LayoutParams(dp(this,64),dp(this,64)));ImageRepository.load(this,p.artwork,art,dp(this,64));Button b=button(this,p.name+"\n"+p.count+" músicas · "+time(p.duration),false);item.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->openPlaylist(p));b.setOnLongClickListener(v->{playlistMenu(p);return true;});Button menu=button(this,"⋮",false);item.addView(menu,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));menu.setContentDescription("Opções de "+p.name);menu.setOnClickListener(v->playlistMenu(p));list.addView(item);
         }});
     }
-    private void newPlaylist(Track add){EditText name=input(this,"Nome da playlist");new AlertDialog.Builder(this).setTitle("Nova playlist").setView(name).setPositiveButton("Criar",(d,w)->task(()->{long id=db().createPlaylist(name.getText().toString());if(add!=null)db().add(id,add);return id;},id->{toast("Playlist criada");if(tab.equals("Playlists"))navigate("Playlists");})).setNegativeButton("Cancelar",null).show();}
+    private void newPlaylist(Track add){EditText name=input(this,"Nome da playlist");new AlertDialog.Builder(this).setTitle("Nova playlist").setView(name).setPositiveButton("Criar",(d,w)->{String value=name.getText().toString();task(()->{long id=db().createPlaylist(value);if(add!=null)db().add(id,add);return id;},id->{toast("Playlist criada");if(tab.equals("Playlists"))navigate("Playlists");});}).setNegativeButton("Cancelar",null).show();}
     private void addToPlaylist(Track t){task(()->db().playlists(),playlists->{List<String> names=new ArrayList<>();names.add("+ Nova playlist");for(MusicDatabase.Playlist p:playlists)names.add(p.name);new AlertDialog.Builder(this).setTitle("Adicionar a…").setItems(names.toArray(new String[0]),(d,i)->{if(i==0)newPlaylist(t);else task(()->{db().add(playlists.get(i-1).id,t);return true;},ok->toast("Música adicionada"));}).show();});}
     private void openPlaylist(MusicDatabase.Playlist p){
         if(p==null)return;screenGeneration++;repository.cancel();selectedPlaylist=p;reorder=true;body.removeAllViews();body.addView(text(this,p.name,25,true));TextView desc=text(this,p.description,13,false);body.addView(desc);
@@ -206,7 +207,7 @@ public class FreeMusicActivity extends Activity {
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null)return;
         Uri uri=data.getData();
         if(request==101&&uri!=null&&pendingExport!=null){String json=pendingExport;pendingExport=null;task(()->{try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException();out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));}return true;},ok->toast("Playlist exportada"));}
-        else if(request==102&&uri!=null)task(()->{String json;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2_000_000)throw new IOException("Arquivo grande demais");out.write(buf,0,n);}json=out.toString("UTF-8");}JSONObject o=new JSONObject(json);if(!o.optString("format").equals("spotifast-playlist")||o.optInt("version")!=1)throw new IOException("Formato não suportado");JSONArray a=o.getJSONArray("tracks");if(a.length()>1000)throw new IOException("Limite de 1000 faixas por importação");List<Track> tracks=new ArrayList<>();for(int j=0;j<a.length();j++)tracks.add(Track.fromJson(a.getJSONObject(j)));long id=db().createPlaylist(o.optString("name","Playlist importada"));db().editPlaylist(id,o.optString("name","Playlist importada"),o.optString("description"),"");db().replace(id,tracks);return id;},id->navigate("Playlists"));
+        else if(request==102&&uri!=null)task(()->{String json;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2_000_000)throw new IOException("Arquivo grande demais");out.write(buf,0,n);}json=out.toString("UTF-8");}JSONObject o=new JSONObject(json);if(!o.optString("format").equals("spotifast-playlist")||o.optInt("version")!=1)throw new IOException("Formato não suportado");JSONArray a=o.getJSONArray("tracks");if(a.length()>1000)throw new IOException("Limite de 1000 faixas por importação");List<Track> tracks=new ArrayList<>();for(int j=0;j<a.length();j++)tracks.add(Track.fromJson(a.getJSONObject(j)));return db().importPlaylist(o.optString("name","Playlist importada"),o.optString("description"),tracks);},id->navigate("Playlists"));
         else if(request==103&&uri!=null&&coverPlaylist!=null){persist(uri,data);MusicDatabase.Playlist p=coverPlaylist;task(()->{db().editPlaylist(p.id,p.name,p.description,uri.toString());return true;},ok->navigate("Playlists"));}
         else if(request==104){List<Uri> uris=new ArrayList<>();if(uri!=null)uris.add(uri);if(data.getClipData()!=null)for(int j=0;j<data.getClipData().getItemCount();j++)uris.add(data.getClipData().getItemAt(j).getUri());for(Uri u:uris)persist(u,data);
             task(()->{List<Track> tracks=new ArrayList<>();for(Uri u:uris){MediaMetadataRetriever r=new MediaMetadataRetriever();try{r.setDataSource(this,u);String title=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE),artist=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);Track t=new Track("local",u.toString(),title==null?"Arquivo de áudio":title,artist==null?"No dispositivo":artist);String duration=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);t.duration=duration==null?0:Long.parseLong(duration);db().save(t);tracks.add(t);}finally{r.release();}}return tracks;},tracks->{allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText("Arquivos autorizados neste dispositivo");playTracks(tracks,0,false);});}
@@ -218,7 +219,7 @@ public class FreeMusicActivity extends Activity {
     private void toast(String message){Toast.makeText(this,message,Toast.LENGTH_LONG).show();}
     private void share(String value){startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value),"Compartilhar música"));}
     private void external(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){toast("Navegador indisponível");}}
-    @Override protected void onStart(){super.onStart();visible=true;connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();connection.addListener(()->{if(!visible)return;try{controller=connection.get();controller.addListener(listener);updatePlayer();}catch(Exception e){toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
-    @Override protected void onStop(){visible=false;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);controller=null;super.onStop();}
+    @Override protected void onStart(){super.onStart();visible=true;if(searchInterrupted){searchInterrupted=false;search(false);}connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();connection.addListener(()->{if(!visible)return;try{controller=connection.get();controller.addListener(listener);updatePlayer();}catch(Exception e){toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
+    @Override protected void onStop(){visible=false;searchInterrupted=loading&&!profileView;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);controller=null;super.onStop();}
     @Override protected void onDestroy(){repository.close();main.removeCallbacksAndMessages(null);super.onDestroy();}
 }

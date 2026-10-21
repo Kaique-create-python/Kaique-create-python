@@ -16,7 +16,8 @@ public final class MusicDatabase extends SQLiteOpenHelper {
         }
         return instance;
     }
-    public MusicDatabase(Context c) { super(c, "spotifast-library.db", null, 1); setWriteAheadLoggingEnabled(true); }
+    public MusicDatabase(Context c) { this(c, "spotifast-library.db"); }
+    public MusicDatabase(Context c, String name) { super(c, name, null, 1); setWriteAheadLoggingEnabled(true); }
     @Override public void onConfigure(SQLiteDatabase db) { db.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE tracks (key TEXT PRIMARY KEY, provider TEXT NOT NULL, track_id TEXT NOT NULL, title TEXT NOT NULL, artist TEXT NOT NULL, artwork TEXT NOT NULL, artist_id TEXT NOT NULL, album_id TEXT NOT NULL, album TEXT NOT NULL, genre TEXT NOT NULL, license TEXT NOT NULL, share_url TEXT NOT NULL, duration INTEGER NOT NULL, unavailable TEXT NOT NULL, discovered INTEGER NOT NULL, UNIQUE(provider,track_id))");
@@ -100,6 +101,12 @@ public final class MusicDatabase extends SQLiteOpenHelper {
         SQLiteDatabase db=getWritableDatabase(); db.beginTransaction();try {
             db.delete("entries","playlist=?",new String[]{""+id});for(Track t:tracks) add(id,t);db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
+    }
+    public long importPlaylist(String name, String description, List<Track> tracks) {
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try {
+            long id=createPlaylist(name);editPlaylist(id,name,description,"");replace(id,tracks);
+            db.setTransactionSuccessful();return id;
+        } finally {db.endTransaction();}
     }
     public long duplicate(Playlist p) {
         SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try {

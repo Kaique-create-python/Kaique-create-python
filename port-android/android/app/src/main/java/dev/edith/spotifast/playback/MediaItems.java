@@ -7,6 +7,7 @@ import dev.edith.spotifast.data.Track;
 import java.util.*;
 import org.json.JSONObject;
 
+@androidx.annotation.OptIn(markerClass=androidx.media3.common.util.UnstableApi.class)
 public final class MediaItems {
     public static MediaItem of(Track t) {
         Bundle extras=new Bundle();try {extras.putString("track",t.json().toString());}catch(Exception e){throw new IllegalArgumentException(e);}
