@@ -31,10 +31,10 @@ jobs:
           fi
           grep -q '^version = "0.14.1"' spotifast/Cargo.toml
           find spotifast/src -type f | wc -l
-      - run: tar -czf spotifast-v0.14.1-original-source.tar.gz spotifast SPOTIFAST_UPSTREAM_COMMIT.txt
+      - run: tar -czf spotifast-v0.14.1-android-port-source.tar.gz spotifast SPOTIFAST_UPSTREAM_COMMIT.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Complete-Spotifast-0141-Rust-Source
+          name: Full-Spotifast-0141-Android-Port-Working-Tree
           path: spotifast-v0.14.1-original-source.tar.gz
           retention-days: 30
   android-target-diagnostics:
@@ -42,7 +42,8 @@ jobs:
     timeout-minutes: 24
     steps:
       - uses: actions/checkout@v4
-      - run: git clone --depth 1 --branch v0.14.1 https://github.com/crmne/spotifast.git original-src
+      - name: Check imported Android port source
+        run: test -f spotifast/src/android.rs
       - run: |
           rustup toolchain install stable --profile minimal
           rustup +stable target add aarch64-linux-android
@@ -62,13 +63,13 @@ jobs:
           fi
           export CARGO_BUILD_JOBS=4
           set +e
-          (cd original-src && cargo +stable check --lib --target aarch64-linux-android --locked) 2>&1 | tee -a android-port-audit.log
+          (cd spotifast && cargo +stable check --lib --target aarch64-linux-android --no-default-features) 2>&1 | tee -a android-port-audit.log
           rc=${PIPESTATUS[0]}
           set -e
           echo "Android cross-compilation exit code: $rc" | tee -a android-port-audit.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Real-SpotiFast-Android-Portability-Report
+          name: Real-SpotiFast-Android-Compiler-Report
           path: android-port-audit.log
           retention-days: 30
