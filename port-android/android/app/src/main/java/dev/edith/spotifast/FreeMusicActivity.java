@@ -12,6 +12,7 @@ import android.view.*;
 import android.widget.*;
 import androidx.media3.common.*;
 import androidx.media3.session.*;
+import androidx.media3.session.MediaController;
 import androidx.recyclerview.widget.*;
 import androidx.palette.graphics.Palette;
 import com.bumptech.glide.Glide;
@@ -117,7 +118,7 @@ public class FreeMusicActivity extends Activity {
     private void toggle(){if(controller==null)return;if(controller.isPlaying())controller.pause();else if(controller.getMediaItemCount()>0){if(controller.getPlaybackState()==Player.STATE_IDLE)controller.prepare();if(controller.getPlaybackState()==Player.STATE_ENDED)controller.seekTo(0);controller.play();}}
     private void trackMenu(Track t,int position){
         List<String> choices=new ArrayList<>(Arrays.asList("Curtir / descurtir","Adicionar à playlist","Adicionar à fila","Compartilhar","Ver artista","Ver álbum","Licença e fonte"));
-        if(selectedPlaylist!=null)choices.add("Remover da playlist");
+        if(selectedPlaylist!=null&&position>=0)choices.add("Remover da playlist");
         new AlertDialog.Builder(this).setTitle(t.title).setItems(choices.toArray(new String[0]),(d,i)->{
             switch(i){case 0:task(()->db().favorite(t),liked->{toast(liked?"Adicionada às curtidas":"Removida das curtidas");if(tab.equals("Biblioteca"))loadLibrary();});break;
             case 1:addToPlaylist(t);break;case 2:if(controller!=null&&t.playable()){controller.addMediaItem(MediaItems.of(t));toast("Adicionada à fila");}else toast(t.unavailable);break;
@@ -149,21 +150,23 @@ public class FreeMusicActivity extends Activity {
         task(()->db().playlist(p.id),tracks->{if(stamp==screenGeneration){allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText(tracks.size()+" músicas · "+time(tracks.stream().mapToLong(t->t.duration).sum())+" · segure para reordenar");}});
         filter.addTextChangedListener(watcher(value->{reorder=value.isEmpty();List<Track> filtered=new ArrayList<>();for(Track t:allTracks)if((t.title+" "+t.artist).toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT)))filtered.add(t);adapter.submit(filtered);}));
     }
-    private void playlistMenu(MusicDatabase.Playlist p){new AlertDialog.Builder(this).setTitle(p.name).setItems(new String[]{"Editar nome e descrição","Escolher capa","Duplicar","Adicionar à fila","Ordenar por nome","Ordenar por artista","Exportar","Excluir"},(d,i)->{
+    private void playlistMenu(MusicDatabase.Playlist p){new AlertDialog.Builder(this).setTitle(p.name).setItems(new String[]{"Editar nome e descrição","Escolher capa","Duplicar","Adicionar à fila","Ordenar por nome","Ordenar por artista","Exportar","Excluir","Ordenar por inclusão"},(d,i)->{
         if(i==0){LinearLayout form=column(this);EditText name=input(this,"Nome"),description=input(this,"Descrição");name.setText(p.name);description.setText(p.description);form.addView(name);form.addView(description);new AlertDialog.Builder(this).setTitle("Editar playlist").setView(form).setPositiveButton("Salvar",(a,b)->{String n=name.getText().toString(),desc=description.getText().toString();task(()->{db().editPlaylist(p.id,n,desc,p.artwork);return true;},ok->navigate("Playlists"));}).setNegativeButton("Cancelar",null).show();}
         else if(i==1){coverPlaylist=p;openDocument("image/*",103,false);}
         else if(i==2)task(()->db().duplicate(p),id->navigate("Playlists"));
         else if(i==3)task(()->db().playlist(p.id),tracks->{if(controller!=null){List<Track> playable=new ArrayList<>();for(Track t:tracks)if(t.playable())playable.add(t);controller.addMediaItems(MediaItems.of(playable));toast("Playlist adicionada à fila");}});
         else if(i==4||i==5)task(()->{List<Track> tracks=db().playlist(p.id);tracks.sort(Comparator.comparing(t->(i==4?t.title:t.artist).toLowerCase(Locale.ROOT)));db().replace(p.id,tracks);return true;},ok->openPlaylist(p));
         else if(i==6)exportPlaylist(p);
+        else if(i==8)task(()->{db().replace(p.id,db().playlistByDate(p.id));return true;},ok->openPlaylist(p));
         else new AlertDialog.Builder(this).setTitle("Excluir “"+p.name+"”?").setMessage("A playlist será removida deste celular.").setNegativeButton("Cancelar",null).setPositiveButton("Excluir",(a,b)->task(()->{db().deletePlaylist(p.id);return true;},ok->navigate("Playlists"))).show();
     }).show();}
-    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V4 preview").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão"},(d,i)->{
+    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V4 preview").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão","Limite do cache de capas"},(d,i)->{
         if(i==0){EditText id=input(this,"Client ID legítimo");id.setText(client());new AlertDialog.Builder(this).setTitle("Jamendo Developer").setMessage("Insira o Client ID da sua aplicação no Jamendo. Nenhuma senha é necessária.").setView(id).setPositiveButton("Salvar",(a,b)->{getPreferences(MODE_PRIVATE).edit().putString("jamendo_client_id",id.getText().toString().trim()).apply();ApiClient.clear();navigate(tab);}).setNeutralButton("Portal",(a,b)->external("https://devportal.jamendo.com/")).setNegativeButton("Cancelar",null).show();}
         else if(i==1)new AlertDialog.Builder(this).setTitle("Parar reprodução após…").setItems(new String[]{"Desativar","15 minutos","30 minutos","60 minutos"},(a,b)->{if(controller!=null){Bundle args=new Bundle();args.putInt("minutes",new int[]{0,15,30,60}[b]);controller.sendCustomCommand(new SessionCommand(PlaybackService.SLEEP,Bundle.EMPTY),args);toast("Temporizador atualizado");}}).show();
         else if(i==2)((AudioManager)getSystemService(AUDIO_SERVICE)).adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_SAME,AudioManager.FLAG_SHOW_UI);
         else if(i==3){Glide.get(this).clearMemory();task(()->{Glide.get(getApplicationContext()).clearDiskCache();ApiClient.clear();return true;},ok->toast("Cache limpo"));}
         else if(i==4){if(controller!=null)controller.pause();startActivity(new Intent(this,SpotiFastActivity.class));}
+        else if(i==6)new AlertDialog.Builder(this).setTitle("Cache em disco").setItems(new String[]{"32 MB","64 MB","128 MB"},(a,b)->{getPreferences(MODE_PRIVATE).edit().putInt("image_cache_mb",new int[]{32,64,128}[b]).apply();toast("Limite aplicado na próxima inicialização do aplicativo");}).show();
         else new AlertDialog.Builder(this).setTitle("SpotiFast V4 preview 1").setMessage("Player Android com Media3 e biblioteca local SQLite.\n\nAudius e Jamendo seguem as permissões das fontes. YouTube usa vídeo oficial visível.\n\nA interface Rust original foi preservada. Não há acesso gratuito ao catálogo pago do Spotify. Não há download de áudio remoto.").setPositiveButton("Fechar",null).show();
     }).show();}
     private void expand(){

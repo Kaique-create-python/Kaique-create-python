@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.webkit.*;
 import android.widget.*;
 import androidx.media3.session.*;
+import androidx.media3.session.MediaController;
 import androidx.media3.common.Player;
 import com.google.common.util.concurrent.ListenableFuture;
 import dev.edith.spotifast.playback.PlaybackService;

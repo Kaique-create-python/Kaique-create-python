@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <application android:label="SpotiFast" android:hasCode="true"
+    <application android:name=".SpotiFastApplication" android:icon="@mipmap/ic_launcher" android:label="SpotiFast" android:hasCode="true"
         android:usesCleartextTraffic="false" android:allowBackup="false"
         android:theme="@style/SpotiFastTheme">
         <activity android:name=".FreeMusicActivity" android:exported="true" android:windowSoftInputMode="adjustResize">

@@ -92,6 +92,7 @@ public final class MusicDatabase extends SQLiteOpenHelper {
         } return out;
     }
     public List<Track> playlist(long id) { return query("SELECT t.* FROM entries e JOIN tracks t ON t.key=e.track WHERE e.playlist=? ORDER BY e.position,e.id",""+id); }
+    public List<Track> playlistByDate(long id) { return query("SELECT t.* FROM entries e JOIN tracks t ON t.key=e.track WHERE e.playlist=? ORDER BY e.added,e.id",""+id); }
     public void add(long id,Track t) {
         SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try {
             save(t);db.execSQL("INSERT INTO entries(playlist,track,position,added) SELECT ?,?,COALESCE(MAX(position),-1)+1,? FROM entries WHERE playlist=?",new Object[]{id,t.key(),System.currentTimeMillis(),id});db.setTransactionSuccessful();
@@ -99,7 +100,17 @@ public final class MusicDatabase extends SQLiteOpenHelper {
     }
     public void replace(long id,List<Track> tracks) {
         SQLiteDatabase db=getWritableDatabase(); db.beginTransaction();try {
-            db.delete("entries","playlist=?",new String[]{""+id});for(Track t:tracks) add(id,t);db.setTransactionSuccessful();
+            Map<String,ArrayDeque<Long>> existing=new HashMap<>();
+            try(Cursor c=db.rawQuery("SELECT id,track FROM entries WHERE playlist=? ORDER BY position,id",new String[]{""+id})) {
+                while(c.moveToNext())existing.computeIfAbsent(c.getString(1),key->new ArrayDeque<>()).add(c.getLong(0));
+            }
+            for(int position=0;position<tracks.size();position++) {
+                Track t=tracks.get(position);save(t);ArrayDeque<Long> ids=existing.get(t.key());
+                if(ids!=null&&!ids.isEmpty())db.execSQL("UPDATE entries SET position=? WHERE id=?",new Object[]{position,ids.removeFirst()});
+                else db.execSQL("INSERT INTO entries(playlist,track,position,added) VALUES(?,?,?,?)",new Object[]{id,t.key(),position,System.currentTimeMillis()});
+            }
+            for(ArrayDeque<Long> ids:existing.values())for(long entry:ids)db.delete("entries","id=?",new String[]{""+entry});
+            db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
     }
     public long importPlaylist(String name, String description, List<Track> tracks) {

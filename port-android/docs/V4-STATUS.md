@@ -5,7 +5,7 @@ Migração incremental do módulo Android na branch `spotifast-real-android-port
 ## Implementado
 - Media3/ExoPlayer em MediaSessionService, MediaController, notificação automática, foco de áudio, pausa ao desconectar fones, fila independente da busca, anterior/próxima, seek, shuffle, repeat, restauração pausada e sleep timer.
 - SQLite versionado com chaves estrangeiras e transações: playlists, descrição, capa por seletor do sistema, duplicação, remoção, ordenação, arrastar, filtro, favoritos, histórico, fila e posição. Exportação/importação de referências JSON via seletor do Android; sem download de músicas remotas.
-- Navegação Início/Buscar/Biblioteca/Playlists, mini-player, player expandido, capas Glide com cache, gradiente Palette, listas recicláveis, insets e controles acessíveis. Progresso não reconstrói a interface e para de atualizar em segundo plano.
+- Navegação Início/Buscar/Biblioteca/Playlists, mini-player, player expandido, capas Glide com memória limitada a 20 MB e cache em disco configurável (32/64/128 MB), gradiente Palette, listas recicláveis, insets e controles acessíveis. Progresso não reconstrói a interface e para de atualizar em segundo plano.
 - Audius e Jamendo em paralelo, debounce, cancelamento, paginação de faixas, cache temporário limitado, conexões compartilhadas, tentativas limitadas em 429/5xx, identidade por fonte e erros legíveis. Trending/popularidade, gêneros e faixas de artistas; álbuns Jamendo quando fornecidos nos metadados. Revalidação de acesso antes do streaming.
 - YouTube com IFrame visível e controles oficiais, validação de links, busca externa autorizada e parada ao sair. Vídeo não integra a fila de áudio.
 - Áudio local via seletor de documentos com permissão persistente.
@@ -20,7 +20,7 @@ Os testes instrumentados verificam inicialização, persistência após reabrir 
 
 Não foram medidos startup, memória, frames, consumo de rede ou bateria em dispositivo físico. Busca Jamendo real depende de Client ID legítimo. Disponibilidade de Audius e restrições do YouTube variam; nenhum resultado ao vivo é presumido. Não há reprodução do catálogo Spotify Free, extração YouTube ou contorno de acesso.
 
-Pendentes: busca dedicada de entidades artista/álbum, fotos e perfis completos, playlists públicas Audius, paginação de perfis, recomendações por similaridade, artistas salvos, scanner MediaStore, edição da fila por arrastar, ordem por data original de inclusão, tema dinâmico selecionável, limites de cache ajustáveis/por fonte, equalizador, crossfade, normalização e letras autorizadas. Gapless depende do formato e do suporte padrão do ExoPlayer; não foi medido.
+Pendentes: busca dedicada de entidades artista/álbum, fotos e perfis completos, playlists públicas Audius, paginação de perfis, recomendações por similaridade, artistas salvos, scanner MediaStore, edição da fila por arrastar, tema dinâmico selecionável, cache separado por fonte, equalizador, crossfade, normalização e letras autorizadas. Gapless depende do formato e do suporte padrão do ExoPlayer; não foi medido.
 
 ## Instalação e assinatura
 Android 8+; engine nativo ARM64. Instale somente o APK acompanhado do SHA-256 desta release. A assinatura é verificada na CI e identificada nas notas da release. A assinatura estável exige secrets `SPOTIFAST_KEYSTORE_BASE64`, `SPOTIFAST_STORE_PASSWORD`, `SPOTIFAST_KEY_ALIAS` e `SPOTIFAST_KEY_PASSWORD`. A chave privada nunca é publicada.

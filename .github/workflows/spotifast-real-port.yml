@@ -42,7 +42,13 @@ jobs:
           target: google_apis
           profile: pixel_2
           disable-animations: true
-          script: cd port-android/android && gradle :app:connectedDebugAndroidTest --stacktrace
+          script: |
+            cd port-android/android && gradle :app:connectedDebugAndroidTest --stacktrace
+            adb shell am force-stop dev.edith.spotifast
+            adb shell am start -W -n dev.edith.spotifast/.FreeMusicActivity > startup.txt
+            adb shell screencap -p /sdcard/spotifast-home.png
+            adb pull /sdcard/spotifast-home.png spotifast-home.png
+            adb logcat -d -s AndroidRuntime > runtime-errors.txt
       - name: Live provider checks
         env:
           JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
@@ -55,7 +61,11 @@ jobs:
             port-android/android/app/build/reports
             port-android/android/app/build/outputs/androidTest-results
             provider-checks.json
+            port-android/android/startup.txt
+            port-android/android/spotifast-home.png
+            port-android/android/runtime-errors.txt
   native-apk:
+    needs: android-tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
