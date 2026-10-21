@@ -48,11 +48,15 @@ jobs:
             adb shell wm size 720x1600
             adb shell wm density 320
             cd port-android/android && gradle :app:connectedDebugAndroidTest --stacktrace
+            # The Android Test Orchestrator can uninstall the target APK after
+            # tests. Install the just-built APK explicitly for smoke testing.
+            adb install -r port-android/android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm path dev.edith.spotifast
             adb shell am force-stop dev.edith.spotifast
-            adb shell am start -W -n dev.edith.spotifast/.FreeMusicActivity > startup.txt
+            adb shell am start -W -n dev.edith.spotifast/.FreeMusicActivity > port-android/android/startup.txt
             adb shell screencap -p /sdcard/spotifast-home.png
-            adb pull /sdcard/spotifast-home.png spotifast-home.png
-            adb logcat -d -s AndroidRuntime > runtime-errors.txt
+            adb pull /sdcard/spotifast-home.png port-android/android/spotifast-home.png
+            adb logcat -d -s AndroidRuntime > port-android/android/runtime-errors.txt
       - name: Live provider checks
         env:
           JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
