@@ -6,11 +6,12 @@
 //! Android Keystore credentials, app-private dirs, native audio stream,
 //! platform links/permissions, lifecycle and layout fitting.
 
-use crate::{app, backend, paths, settings};
+use crate::{app, backend, paths, settings, android_bridge};
 
 /// NativeActivity entrypoint. Must be exported from libspotifast.so.
 #[unsafe(no_mangle)]
 pub fn android_main(android_app: android_activity::AndroidApp) {
+    android_bridge::install(&android_app);
     let options = eframe::NativeOptions {
         android_app: Some(android_app),
         renderer: eframe::Renderer::Glow,
@@ -23,7 +24,17 @@ pub fn android_main(android_app: android_activity::AndroidApp) {
         options,
         Box::new(|cc| {
             let waker = backend::Waker::default();
-            let dirs = paths::AppDirs::discover().dirs;
+            let dirs = match android_bridge::app_files_path() {
+                Ok(root) => {
+                    let base = std::path::PathBuf::from(root);
+                    paths::AppDirs {
+                        config: base.join("config"),
+                        state: base.join("state"),
+                        cache: base.join("cache"),
+                    }
+                }
+                Err(_) => paths::AppDirs::discover().dirs,
+            };
             let _ = dirs.ensure();
             let settings = settings::Settings::load(&dirs.settings_file());
 
