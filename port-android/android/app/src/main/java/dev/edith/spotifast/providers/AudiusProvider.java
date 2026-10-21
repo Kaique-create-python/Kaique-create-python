@@ -32,10 +32,28 @@ public final class AudiusProvider {
         if((access!=null&&!access.optBoolean("stream",true))||(conditions!=null&&conditions.length()>0))t.unavailable="Esta faixa exige autorização na fonte";
         return t;
     }
+    /**
+     * GET /tracks/{id} returns {"data": {...}}, unlike track search where
+     * data is an array. Treat the detail shape correctly before streaming.
+     */
+    public static Track parseTrackDetail(JSONObject response) throws Exception {
+        Object data=response.opt("data");
+        JSONObject detail;
+        if(data instanceof JSONObject) detail=(JSONObject)data;
+        else if(data instanceof JSONArray && ((JSONArray)data).length()>0)
+            detail=((JSONArray)data).getJSONObject(0);
+        else throw new IOException("Detalhes da faixa indisponíveis no Audius");
+        Track track=parse(detail);
+        if(!track.id.matches("[A-Za-z0-9_-]{1,100}"))
+            throw new IOException("Identificador de faixa inválido");
+        if(!track.playable()) throw new IOException(track.unavailable);
+        return track;
+    }
     public String resolve(String id) throws Exception {
-        JSONArray a=ApiClient.get(ApiClient.url(BASE+"/tracks/"+id,"app_name","SpotiFastAndroid"),this,false).optJSONArray("data");
-        if(a==null||a.length()==0)throw new IOException("Faixa indisponível");
-        Track t=parse(a.getJSONObject(0));if(!t.playable())throw new IOException(t.unavailable);
+        if(!id.matches("[A-Za-z0-9_-]{1,100}"))throw new IOException("Identificador inválido");
+        JSONObject response=ApiClient.get(ApiClient.url(BASE+"/tracks/"+id,"app_name","SpotiFastAndroid"),this,false);
+        Track track=parseTrackDetail(response);
+        if(!id.equals(track.id)) throw new IOException("A faixa retornada não corresponde à selecionada");
         return ApiClient.url(BASE+"/tracks/"+id+"/stream","app_name","SpotiFastAndroid");
     }
 }
