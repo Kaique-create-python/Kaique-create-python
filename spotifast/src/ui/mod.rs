@@ -65,6 +65,15 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ),
         );
     }
+    // On narrow Android screens, the desktop panels would take nearly all
+    // usable width. Keep the original page and player but collapse the panes.
+    #[cfg(target_os = "android")]
+    {
+        app.settings.sidebar_visible = false;
+        app.show_queue_panel = false;
+        app.show_lyrics_panel = false;
+        app.show_friends_panel = false;
+    }
     player_bar::show(app, ui);
     if app.lyrics_fullscreen.is_some() {
         lyrics::fullscreen(app, ui);
@@ -82,6 +91,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             friends::side_panel(app, ui);
         }
         central(app, ui);
+        #[cfg(not(target_os = "android"))]
         keep_room_for_panels(app, ctx);
     }
     devices::popup(app, ctx);
@@ -91,6 +101,27 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     toasts(app, ctx, theme::PLAYER_BAR_HEIGHT + 16.0);
     caption_buttons(ui, &app.palette, app.locale);
     fastframe_titlebar::resize(ui);
+}
+
+#[cfg(target_os = "android")]
+fn mobile_topbar(app: &mut App, ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        if ui.add_sized([54.0, 42.0], egui::Button::new("Início")).clicked() {
+            app.actions.push(Action::Open(Page::Home));
+        }
+        if ui.add_sized([68.0, 42.0], egui::Button::new("Buscar")).clicked() {
+            app.actions.push(Action::Open(Page::Search));
+        }
+        if ui.add_sized([68.0, 42.0], egui::Button::new("Curtidas")).clicked() {
+            app.actions.push(Action::Open(Page::LikedSongs));
+        }
+        let free_width = (ui.available_width() - 4.0).max(76.0);
+        if ui.add_sized([free_width, 42.0], egui::Button::new("🎵 Grátis")).clicked() {
+            let _ = crate::android_bridge::open_free_music();
+        }
+    });
+    ui.add_space(4.0);
 }
 
 /// The main window's narrowest width with these panels open: their least
@@ -297,6 +328,9 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
             // colour, which shows as a pale band over a cover's tint; the
             // page casts a shadow under the header instead.
             ui.spacing_mut().scroll.fade.strength = 0.0;
+            #[cfg(target_os = "android")]
+            mobile_topbar(app, ui);
+            #[cfg(not(target_os = "android"))]
             topbar::show(app, ui);
             let scroll = crate::autoscroll::show(
                 ui,
