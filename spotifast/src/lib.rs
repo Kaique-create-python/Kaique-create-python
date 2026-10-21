@@ -1,5 +1,8 @@
 //! Spotifast's internals, exposed so diagnostics and tests can reach them.
 
+#[cfg(target_os = "android")]
+mod android;
+
 pub mod account_cache;
 pub mod api;
 pub mod app;
