@@ -6,7 +6,7 @@
 use std::{io, sync::OnceLock};
 use android_activity::AndroidApp;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use jni::{jni_sig, jni_str, JValue, objects::{JObject, JString}, refs::Global};
+use jni::{jni_sig, jni_str, JValue, objects::{JObject, JString}};
 
 static APP: OnceLock<AndroidApp> = OnceLock::new();
 
@@ -15,7 +15,7 @@ pub(crate) fn install(app: &AndroidApp) {
 }
 
 fn with_activity<T>(
-    operation: impl for<'a> FnOnce(&mut jni::Env<'a>, &JObject<'a>) -> jni::errors::Result<T>,
+    operation: impl FnOnce(&mut jni::Env<'_>, &JObject<'_>) -> jni::errors::Result<T>,
 ) -> Result<T, String> {
     let app = APP.get().ok_or_else(|| "Android Activity is not ready".to_owned())?;
     // SAFETY: android-activity owns this valid JVM reference for APP's lifetime.
@@ -25,7 +25,7 @@ fn with_activity<T>(
     let raw = app.activity_as_ptr() as jni::sys::jobject;
     vm.attach_current_thread(|env| {
         // SAFETY: Borrowed global activity reference. Do not delete it.
-        let activity = unsafe { env.as_cast_raw::<Global<JObject>>(&raw)? };
+        let activity = unsafe { env.as_cast_raw::<JObject>(&raw)? };
         operation(env, activity.as_ref())
     }).map_err(|e| e.to_string())
 }
