@@ -105,6 +105,18 @@ public final class SpotiFastActivity extends NativeActivity {
         }
     }
 
+    // Base64 is transport-only for the JNI boundary. Persistent bytes are
+    // encrypted by AndroidKeyStore in writeSecret(), never stored as Base64.
+    public synchronized String readSecretB64(String key) throws Exception {
+        byte[] data = readSecret(key);
+        return data == null ? null : Base64.encodeToString(data, Base64.NO_WRAP);
+    }
+
+    public synchronized void writeSecretB64(String key, String encoded) throws Exception {
+        byte[] data = Base64.decode(encoded, Base64.NO_WRAP);
+        writeSecret(key, data);
+    }
+
     public synchronized void deleteSecret(String key) throws Exception {
         if (!grants().edit().remove(key).commit()) {
             throw new IOException("Could not delete encrypted grant");
