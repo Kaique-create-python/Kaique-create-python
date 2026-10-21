@@ -1,118 +1,142 @@
-name: Import full SpotiFast source and Android port check
+name: SpotiFast Android V4
 on:
   push:
     branches: [spotifast-real-android-port]
-  pull_request:
-    branches: [main]
+    paths: ['port-android/**', 'spotifast/**', '.github/workflows/spotifast-real-port.yml']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: spotifast-v4-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  import-real-source:
+  android-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          persist-credentials: true
-      - name: Import complete official v0.14.1 source
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ ! -f spotifast/Cargo.toml ]; then
-            git clone --depth 1 --branch v0.14.1 https://github.com/crmne/spotifast.git spotifast
-            git -C spotifast rev-parse HEAD | tee SPOTIFAST_UPSTREAM_COMMIT.txt
-            rm -rf spotifast/.git
-            git add -f spotifast SPOTIFAST_UPSTREAM_COMMIT.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Import official SpotiFast v0.14.1 source for real Android port"
-            git push origin HEAD:spotifast-real-android-port
-          fi
-          grep -q '^version = "0.14.1"' spotifast/Cargo.toml
-          find spotifast/src -type f | wc -l
-      - run: tar -czf spotifast-v0.14.1-android-port-source.tar.gz spotifast SPOTIFAST_UPSTREAM_COMMIT.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Full-Spotifast-0141-Android-Port-Working-Tree
-          path: spotifast-v0.14.1-original-source.tar.gz
-          retention-days: 30
-  android-target-diagnostics:
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check imported Android port source
-        run: test -f spotifast/src/android.rs
-      - run: |
-          rustup toolchain install stable --profile minimal
-          rustup +stable target add aarch64-linux-android
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Android build prerequisites (full ARM64 source already checked)
-        shell: bash
+      - name: Unit tests and Android lint
+        working-directory: port-android/android
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Enable KVM for emulator
         run: |
-          set -uo pipefail
-          echo "Rust version: $(rustc +stable --version)" | tee android-port-audit.log
-          echo "Official v0.14.1 desktop sources" | tee -a android-port-audit.log
-          ndkroot="${ANDROID_HOME:-/usr/local/lib/android/sdk}/ndk"
-          ndkdir=$(find "$ndkroot" -maxdepth 1 -type d -name '[0-9]*' 2>/dev/null | sort -V | tail -n1)
-          if [ -n "$ndkdir" ]; then
-            export PATH="$ndkdir/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android26-clang
-            export CC_aarch64_linux_android=aarch64-linux-android26-clang
-            export AR_aarch64_linux_android=llvm-ar
-          fi
-          export CARGO_BUILD_JOBS=4
-          set +e
-          # cargo check passed for this exact Rust source in workflow run
-          # 39659598583. Compile and link directly here using NDK API 26,
-          # fixing AAudio's missing -laaudio on Android API 24.
-          echo "Original Rust library cargo check passed in run 39659598583." | tee -a android-port-audit.log
-          echo "Full native build and link follow with Android API 26." | tee -a android-port-audit.log
-          rc=0
-          set -e
-          echo "Android cross-compilation exit code: $rc" | tee -a android-port-audit.log
-          echo "$rc" > android-compile-exit-code.txt
-      - name: Build native Rust APK if compile check passed
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android 15 instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          disable-animations: true
+          script: cd port-android/android && gradle :app:connectedDebugAndroidTest --stacktrace
+      - name: Live provider checks
+        env:
+          JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
+        run: python3 port-android/scripts/check_providers.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SpotiFast-V4-test-reports
+          path: |
+            port-android/android/app/build/reports
+            port-android/android/app/build/outputs/androidTest-results
+            provider-checks.json
+  native-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - run: |
+          rustup toolchain install stable --profile minimal
+          rustup +stable target add aarch64-linux-android
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.0.13004108'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: spotifast
+          key: android-arm64-v4
+      - name: Build original Rust ARM64 engine
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$(cat android-compile-exit-code.txt)" != "0" ]; then
-            echo "Original Rust port does not yet pass ARM64 cargo check; no misleading APK will be produced."
-            exit 0
-          fi
-          ndkdir=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/ndk" -maxdepth 1 -type d -name '[0-9]*' 2>/dev/null | sort -V | tail -n1)
-          export PATH="$ndkdir/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export PATH="$ANDROID_HOME/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android26-clang
           export CC_aarch64_linux_android=aarch64-linux-android26-clang
           export AR_aarch64_linux_android=llvm-ar
           export CARGO_BUILD_JOBS=4
-          (cd spotifast && cargo +stable build --release --lib --target aarch64-linux-android --no-default-features)
-          LIB="spotifast/target/aarch64-linux-android/release/libspotifast.so"
-          test -s "$LIB"
+          cd spotifast
+          cargo +stable build --locked --release --lib --target aarch64-linux-android --no-default-features
+          cd ..
           mkdir -p port-android/android/app/src/main/jniLibs/arm64-v8a
-          cp "$LIB" port-android/android/app/src/main/jniLibs/arm64-v8a/libspotifast.so
-          echo "Native Rust engine $(du -h "$LIB")"
-          SDKROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMANAGER=$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n1 || true)
-          if [ -n "$SDKMANAGER" ]; then
-            "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+          cp spotifast/target/aarch64-linux-android/release/libspotifast.so port-android/android/app/src/main/jniLibs/arm64-v8a/
+          llvm-readelf -h port-android/android/app/src/main/jniLibs/arm64-v8a/libspotifast.so | grep AArch64
+      - name: Build signed APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SPOTIFAST_KEYSTORE_BASE64 }}
+          SPOTIFAST_STORE_PASSWORD: ${{ secrets.SPOTIFAST_STORE_PASSWORD }}
+          SPOTIFAST_KEY_ALIAS: ${{ secrets.SPOTIFAST_KEY_ALIAS }}
+          SPOTIFAST_KEY_PASSWORD: ${{ secrets.SPOTIFAST_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            export SPOTIFAST_KEYSTORE_PATH="$RUNNER_TEMP/spotifast-signing.jks"
+            trap 'rm -f "$SPOTIFAST_KEYSTORE_PATH"' EXIT
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$SPOTIFAST_KEYSTORE_PATH"
+            chmod 600 "$SPOTIFAST_KEYSTORE_PATH"
+            (cd port-android/android && gradle :app:assembleRelease)
+            cp port-android/android/app/build/outputs/apk/release/app-release.apk dist/SpotiFast-Android-V4-arm64.apk
+            echo 'Assinatura estável fornecida pelos secrets do repositório.' > dist/signature.txt
+          else
+            (cd port-android/android && gradle :app:assembleDebug)
+            cp port-android/android/app/build/outputs/apk/debug/app-debug.apk dist/SpotiFast-Android-V4-arm64.apk
+            echo 'PREVIEW DE TESTE: assinatura debug temporária do runner. Não garante atualização de APKs anteriores. Configure os secrets de assinatura para distribuição estável.' > dist/signature.txt
           fi
-          cd port-android/android
-          gradle --version
-          gradle :app:assembleDebug --no-daemon
-          test -s app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs dist/SpotiFast-Android-V4-arm64.apk > dist/signature-verification.txt
+          python3 port-android/scripts/verify_apk.py dist/SpotiFast-Android-V4-arm64.apk
+          (cd dist && sha256sum SpotiFast-Android-V4-arm64.apk > SpotiFast-Android-V4-arm64.apk.sha256)
+          cp port-android/docs/V4-STATUS.md dist/CHANGELOG-LIMITATIONS.md
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: SpotiFast-Rust-Android-APK
-          path: port-android/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        if: always()
+          name: SpotiFast-V4-arm64
+          path: dist/
+          if-no-files-found: error
+  publish-preview:
+    needs: [android-tests, native-apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          name: Real-SpotiFast-Android-Compiler-Report
-          path: android-port-audit.log
-          retention-days: 30
+          name: SpotiFast-V4-arm64
+          path: dist
+      - name: Publish tested preview with real APK and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          cat dist/CHANGELOG-LIMITATIONS.md dist/signature.txt > dist/release-notes.md
+          gh release create "spotifast-android-v4-preview1-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V4 preview 1 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V4-arm64.apk dist/SpotiFast-Android-V4-arm64.apk.sha256 dist/signature-verification.txt

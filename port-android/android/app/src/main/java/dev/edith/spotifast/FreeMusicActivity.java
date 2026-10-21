@@ -1,552 +1,224 @@
 package dev.edith.spotifast;
 
-import android.app.Activity;
-import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.media.AudioAttributes;
-import android.media.MediaPlayer;
+import android.app.*;
+import android.content.*;
+import android.graphics.Bitmap;
+import android.graphics.drawable.*;
+import android.media.*;
 import android.net.Uri;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.text.InputType;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import android.os.*;
+import android.text.*;
+import android.view.*;
+import android.widget.*;
+import androidx.media3.common.*;
+import androidx.media3.session.*;
+import androidx.recyclerview.widget.*;
+import androidx.palette.graphics.Palette;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
+import com.google.common.util.concurrent.ListenableFuture;
+import dev.edith.spotifast.data.*;
+import dev.edith.spotifast.providers.*;
+import dev.edith.spotifast.playback.*;
+import dev.edith.spotifast.ui.*;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.io.*;
+import org.json.*;
+import static dev.edith.spotifast.ui.Design.*;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-/**
- * Supplementary legal streaming sources in the ORIGINAL SpotiFast Android app.
- * Audius: official public search + MP3 stream endpoint.
- * Jamendo: official read-only tracks API, requires user's developer Client ID.
- * YouTube: VISIBLE official iframe player only; NEVER extract/hide its audio,
- * download videos, remove ads or continue YouTube playback in background.
- */
+/** Native Android shell for the existing app; Rust/egui remains available in Settings. */
 public class FreeMusicActivity extends Activity {
-    private static final int BG = Color.rgb(15, 18, 23);
-    private static final int PANEL = Color.rgb(26, 30, 37);
-    private static final int ACCENT = Color.rgb(25, 211, 101);
-    private static final int WHITE = Color.rgb(240, 243, 245);
-    private static final int MUTED = Color.rgb(155, 165, 175);
+    private final Handler main=new Handler(Looper.getMainLooper());
+    private final TrackRepository repository=new TrackRepository();
+    private ListenableFuture<MediaController> connection;private MediaController controller;
+    private LinearLayout root,body,mini;private TextView status,miniTitle;private Button miniPlay;
+    private ImageView miniArt;private TrackAdapter adapter;private RecyclerView recycler;
+    private String tab="Início",source="all",query="",genre="",library="recent",artKey="";
+    private int page=0,screenGeneration=0;private boolean visible=false,loading=false;
+    private MusicDatabase.Playlist selectedPlaylist;private boolean reorder=false;
+    private final List<Track> allTracks=new ArrayList<>();
+    private Dialog expanded;private SeekBar seek;private TextView time,fullTitle,fullArtist;private ImageView fullArt;
+    private Button fullPlay,repeat,shuffle;private LinearLayout fullRoot;private boolean seeking=false;
+    private String fullKey="";private CustomTarget<Bitmap> paletteTarget;
+    private Uri exportUri;private MusicDatabase.Playlist coverPlaylist;private String pendingExport;
+    private final Player.Listener listener=new Player.Listener(){@Override public void onEvents(Player p,Player.Events e){updatePlayer();}};
+    private final Runnable tick=new Runnable(){public void run(){if(visible){progress();main.postDelayed(this,500);}}};
+    private final Runnable debounce=()->search(false);
 
-    private final ExecutorService network = Executors.newSingleThreadExecutor();
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final ArrayList<Track> results = new ArrayList<>();
-    private LinearLayout root, list, playerBar;
-    private TextView status, playing;
-    private EditText searchBox, jamendoId, youtubeLink;
-    private Button playPause;
-    private MediaPlayer player;
-    private WebView youtube;
-    private int selected = -1;
-    private int source = 0; // 0 Audius, 1 Jamendo, 2 YouTube
-    private boolean loading = false;
-    private int requestId = 0;
-
-    private static class Track {
-        String title, artist, url, provider;
-        Track(String title, String artist, String url, String provider) {
-            this.title = title;
-            this.artist = artist;
-            this.url = url;
-            this.provider = provider;
-        }
+    @Override public void onCreate(Bundle saved){super.onCreate(saved);setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        if(saved!=null){tab=saved.getString("tab","Início");query=saved.getString("query","");source=saved.getString("source","all");}
+        build();navigate(tab);
     }
-
-    @Override public void onCreate(Bundle saved) {
-        super.onCreate(saved);
-        getWindow().setStatusBarColor(BG);
-        getWindow().setNavigationBarColor(BG);
-        getWindow().getDecorView().setSystemUiVisibility(0);
-        build();
+    @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putString("tab",tab);out.putString("query",query);out.putString("source",source);}
+    private void build(){
+        root=column(this);root.setBackgroundColor(BG);root.setPadding(dp(this,12),dp(this,8),dp(this,12),0);setContentView(root);
+        root.setOnApplyWindowInsetsListener((v,insets)->{int bottom=insets.getSystemWindowInsetBottom();v.setPadding(dp(this,12),insets.getSystemWindowInsetTop()+dp(this,8),dp(this,12),bottom);return insets;});root.requestApplyInsets();
+        LinearLayout header=row(this);TextView logo=text(this,"SpotiFast",25,true);logo.setTextColor(GREEN);header.addView(logo,new LinearLayout.LayoutParams(0,dp(this,52),1));Button settings=button(this,"Perfil",false);settings.setContentDescription("Perfil e configurações");header.addView(settings);settings.setOnClickListener(v->settings());root.addView(header);
+        body=column(this);root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
+        mini=row(this);mini.setPadding(dp(this,8),dp(this,6),dp(this,6),dp(this,6));mini.setBackground(shape(this,PANEL,18));
+        miniArt=new ImageView(this);mini.addView(miniArt,new LinearLayout.LayoutParams(dp(this,44),dp(this,44)));
+        miniTitle=text(this,"Sua próxima descoberta",13,true);miniTitle.setMaxLines(2);miniTitle.setPadding(dp(this,10),0,dp(this,4),0);mini.addView(miniTitle,new LinearLayout.LayoutParams(0,-2,1));mini.setOnClickListener(v->expand());mini.setContentDescription("Expandir player");
+        miniPlay=button(this,"▶",true);miniPlay.setContentDescription("Reproduzir ou pausar");mini.addView(miniPlay,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));miniPlay.setOnClickListener(v->toggle());
+        Button next=button(this,"›",false);next.setContentDescription("Próxima faixa");mini.addView(next,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));next.setOnClickListener(v->{if(controller!=null)controller.seekToNextMediaItem();});root.addView(mini);
+        LinearLayout nav=row(this);for(String name:new String[]{"Início","Buscar","Biblioteca","Playlists"}){Button b=button(this,name,false);b.setTextSize(11);nav.addView(b,new LinearLayout.LayoutParams(0,dp(this,56),1));b.setOnClickListener(v->navigate(name));}root.addView(nav);
     }
-
-    private int dp(float value) {
-        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    private void navigate(String destination){
+        tab=destination;selectedPlaylist=null;reorder=false;page=0;genre="";loading=false;screenGeneration++;repository.cancel();main.removeCallbacks(debounce);body.removeAllViews();
+        TextView title=text(this,tab.equals("Início")?"Encontre seu ritmo":tab,27,true);body.addView(title);gap(this,body,8);
+        if(tab.equals("Buscar")){
+            EditText input=input(this,"Música, artista ou álbum");input.setText(query);body.addView(input);input.addTextChangedListener(watcher(s->{query=s;main.removeCallbacks(debounce);main.postDelayed(debounce,350);}));
+            LinearLayout filters=row(this);for(String name:new String[]{"Todas","Audius","Jamendo"}){Button b=button(this,name,false);filters.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{source=name.equals("Todas")?"all":name.toLowerCase(Locale.ROOT);search(false);});}body.addView(filters);
+            Button youtube=button(this,"Vídeos no YouTube ↗",false);body.addView(youtube);youtube.setOnClickListener(v->openYouTube());
+        }else if(tab.equals("Início")){
+            TextView note=text(this,"Em alta nas fontes conectadas",13,false);note.setTextColor(MUTED);body.addView(note);
+            HorizontalScrollView scroll=new HorizontalScrollView(this);scroll.setHorizontalScrollBarEnabled(false);LinearLayout genres=row(this);
+            for(String g:new String[]{"Todos","Electronic","Hip-Hop/Rap","Pop","Rock","Jazz","Ambient"}){Button b=button(this,g,false);genres.addView(b);b.setOnClickListener(v->{genre=g.equals("Todos")?"":g;search(false);});}scroll.addView(genres);body.addView(scroll);
+        }else if(tab.equals("Biblioteca")){
+            LinearLayout options=row(this);String[] names={"Recentes","Curtidas","Mais ouvidas"},keys={"recent","favorites","most"};
+            for(int i=0;i<names.length;i++){String key=keys[i];Button b=button(this,names[i],false);options.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{library=key;loadLibrary();});}body.addView(options);
+            Button local=button(this,"Abrir músicas do celular",false);body.addView(local);local.setOnClickListener(v->openDocument("audio/*",104,true));
+        }else {showPlaylists();return;}
+        makeList();if(tab.equals("Biblioteca"))loadLibrary();else search(false);
     }
-
-    private GradientDrawable bg(int color, int radius) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(color);
-        drawable.setCornerRadius(dp(radius));
-        return drawable;
+    private void makeList(){
+        status=text(this,"",12,false);status.setTextColor(MUTED);status.setPadding(0,dp(this,6),0,dp(this,6));body.addView(status);
+        recycler=new RecyclerView(this);recycler.setLayoutManager(new LinearLayoutManager(this));recycler.setClipToPadding(false);
+        adapter=new TrackAdapter(this,new TrackAdapter.Actions(){public void play(int position){playTracks(new ArrayList<>(adapter.tracks),position,false);}public void menu(int p){trackMenu(adapter.tracks.get(p),p);}});recycler.setAdapter(adapter);body.addView(recycler,new LinearLayout.LayoutParams(-1,0,1));
+        new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP|ItemTouchHelper.DOWN,0){
+            boolean moved;
+            @Override public boolean isLongPressDragEnabled(){return reorder&&selectedPlaylist!=null;}
+            @Override public boolean onMove(RecyclerView rv,RecyclerView.ViewHolder a,RecyclerView.ViewHolder b){if(!reorder)return false;adapter.move(a.getBindingAdapterPosition(),b.getBindingAdapterPosition());moved=true;return true;}
+            @Override public void onSwiped(RecyclerView.ViewHolder h,int d){}
+            @Override public void clearView(RecyclerView rv,RecyclerView.ViewHolder h){super.clearView(rv,h);if(moved&&selectedPlaylist!=null){moved=false;long id=selectedPlaylist.id;List<Track> values=new ArrayList<>(adapter.tracks);allTracks.clear();allTracks.addAll(values);task(()->{db().replace(id,values);return true;},ok->{});}}
+        }).attachToRecyclerView(recycler);
+        if(tab.equals("Início")||tab.equals("Buscar")){Button more=button(this,"Carregar mais",false);body.addView(more);more.setOnClickListener(v->search(true));}
     }
-
-    private TextView text(String message, int sp, boolean bold, int color) {
-        TextView view = new TextView(this);
-        view.setText(message);
-        view.setTextSize(sp);
-        view.setTextColor(color);
-        if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        return view;
-    }
-
-    private Button button(String label, boolean primary) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setTextSize(13);
-        b.setAllCaps(false);
-        b.setTextColor(primary ? Color.BLACK : WHITE);
-        b.setBackground(bg(primary ? ACCENT : PANEL, 14));
-        b.setPadding(dp(9), dp(5), dp(9), dp(5));
-        b.setMinHeight(dp(44));
-        return b;
-    }
-
-    private EditText input(String hint) {
-        EditText edit = new EditText(this);
-        edit.setSingleLine(true);
-        edit.setTextSize(15);
-        edit.setTextColor(WHITE);
-        edit.setHintTextColor(MUTED);
-        edit.setHint(hint);
-        edit.setPadding(dp(14), dp(8), dp(14), dp(8));
-        edit.setBackground(bg(PANEL, 14));
-        return edit;
-    }
-
-    private LinearLayout column() {
-        LinearLayout ll = new LinearLayout(this);
-        ll.setOrientation(LinearLayout.VERTICAL);
-        return ll;
-    }
-
-    private LinearLayout row() {
-        LinearLayout ll = new LinearLayout(this);
-        ll.setOrientation(LinearLayout.HORIZONTAL);
-        ll.setGravity(Gravity.CENTER_VERTICAL);
-        return ll;
-    }
-
-    private void spacer(LinearLayout parent, int height) {
-        View v = new View(this);
-        parent.addView(v, new LinearLayout.LayoutParams(1, dp(height)));
-    }
-
-    private void build() {
-        root = column();
-        root.setBackgroundColor(BG);
-        root.setPadding(dp(14), dp(8), dp(14), dp(8));
-        setContentView(root);
-
-        LinearLayout heading = row();
-        Button back = button("‹", false);
-        heading.addView(back, new LinearLayout.LayoutParams(dp(48), dp(44)));
-        back.setOnClickListener(v -> finish());
-        TextView title = text("Músicas grátis", 22, true, WHITE);
-        LinearLayout.LayoutParams titleP = new LinearLayout.LayoutParams(0, -2, 1);
-        titleP.leftMargin = dp(12);
-        heading.addView(title, titleP);
-        root.addView(heading);
-        spacer(root, 14);
-
-        LinearLayout tabs = row();
-        String[] names = {"Audius", "Jamendo", "YouTube"};
-        for (int i=0; i<3; i++) {
-            final int tab = i;
-            Button b = button(names[i], i == source);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1);
-            if (i > 0) lp.leftMargin = dp(6);
-            tabs.addView(b, lp);
-            b.setOnClickListener(v -> {
-                stopYouTube();
-                stopAudio();
-                source = tab;
-                selected = -1;
-                build();
-            });
-        }
-        root.addView(tabs);
-        spacer(root, 12);
-
-        TextView note = text(
-            source == 0 ? "Audius • streaming gratuito de faixas públicas" :
-            source == 1 ? "Jamendo • músicas independentes e suas licenças" :
-            "YouTube • player de vídeo oficial e visível",
-            12, false, MUTED);
-        root.addView(note);
-        spacer(root, 12);
-
-        if (source == 2) {
-            addYouTube();
-        } else {
-            addAudioSearch();
-        }
-    }
-
-    private void addAudioSearch() {
-        if (source == 1) {
-            jamendoId = input("Seu Client ID do Jamendo Developer");
-            jamendoId.setInputType(InputType.TYPE_CLASS_TEXT);
-            jamendoId.setText(getPreferences(MODE_PRIVATE).getString("jamendo_client_id", ""));
-            root.addView(jamendoId, new LinearLayout.LayoutParams(-1, dp(48)));
-            spacer(root, 8);
-        }
-
-        LinearLayout query = row();
-        searchBox = input("Buscar música ou artista");
-        query.addView(searchBox, new LinearLayout.LayoutParams(0, dp(48), 1));
-        Button go = button("Buscar", true);
-        LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(dp(88), dp(48));
-        gp.leftMargin = dp(8);
-        query.addView(go, gp);
-        root.addView(query);
-        go.setOnClickListener(v -> search());
-        searchBox.setOnEditorActionListener((v, actionId, event) -> {
-            search();
-            return true;
-        });
-        spacer(root, 12);
-
-        status = text("Pesquise por músicas para começar.", 13, false, MUTED);
-        root.addView(status);
-        spacer(root, 8);
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        list = column();
-        scroll.addView(list);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-
-        playerBar = column();
-        playerBar.setBackground(bg(PANEL, 18));
-        playerBar.setPadding(dp(12), dp(10), dp(12), dp(10));
-        playing = text("Nenhuma faixa selecionada", 14, true, WHITE);
-        playing.setSingleLine(true);
-        playing.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        playerBar.addView(playing);
-        LinearLayout controls = row();
-        playPause = button("▶ / ❚❚", true);
-        controls.addView(playPause, new LinearLayout.LayoutParams(0, dp(45), 1));
-        Button next = button("Próxima ›", false);
-        LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(0, dp(45), 1);
-        np.leftMargin = dp(8);
-        controls.addView(next, np);
-        spacer(playerBar, 8);
-        playerBar.addView(controls);
-        root.addView(playerBar);
-        playPause.setOnClickListener(v -> toggle());
-        next.setOnClickListener(v -> {
-            if (results.isEmpty()) return;
-            playAt((selected + 1) % results.size());
+    private String client(){return getPreferences(MODE_PRIVATE).getString("jamendo_client_id","");}
+    private void search(boolean more){
+        if(!(tab.equals("Início")||tab.equals("Buscar")))return;if(more&&loading)return;
+        if(!more){page=0;allTracks.clear();adapter.submit(allTracks);}else page++;
+        loading=true;status.setText("Buscando em "+(source.equals("all")?"fontes conectadas":source)+"…");String q=tab.equals("Início")?"":query;
+        repository.search(q,genre,source,client(),page*25,(tracks,error)->{loading=false;Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
+            adapter.submit(allTracks);status.setText(error.isEmpty()?(allTracks.isEmpty()?"Nenhum resultado. Tente outra busca.":allTracks.size()+" faixas · "+(source.equals("all")?"fontes conectadas":source)):error);
+            List<Track> copy=new ArrayList<>(tracks);task(()->{for(Track t:copy)db().save(t);return true;},ok->{});
         });
     }
-
-    private void search() {
-        if (loading) return;
-        String query = searchBox.getText().toString().trim();
-        if (query.isEmpty()) {
-            status.setText("Digite o nome de uma música.");
-            return;
-        }
-        String client = "";
-        if (source == 1) {
-            client = jamendoId.getText().toString().trim();
-            if (client.isEmpty()) {
-                status.setText("Jamendo exige um Client ID gratuito do portal de desenvolvedores.");
-                return;
+    private void loadLibrary(){int stamp=screenGeneration;task(()->db().library(library),tracks->{if(stamp==screenGeneration){allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText(tracks.isEmpty()?"Sua biblioteca começa com a primeira música.":tracks.size()+" músicas salvas neste celular");}});}
+    private void playTracks(List<Track> tracks,int index,boolean random){
+        if(controller==null){toast("Conectando ao player… tente novamente em instantes.");return;}
+        if(index<0||index>=tracks.size())return;if(!tracks.get(index).playable()){toast(tracks.get(index).unavailable);return;}
+        List<Track> allowed=new ArrayList<>();int start=0;for(int i=0;i<tracks.size();i++)if(tracks.get(i).playable()){if(i==index)start=allowed.size();allowed.add(tracks.get(i));}
+        controller.setMediaItems(MediaItems.of(allowed),start,0);controller.setShuffleModeEnabled(random);controller.prepare();controller.play();
+    }
+    private void toggle(){if(controller==null)return;if(controller.isPlaying())controller.pause();else if(controller.getMediaItemCount()>0){if(controller.getPlaybackState()==Player.STATE_IDLE)controller.prepare();if(controller.getPlaybackState()==Player.STATE_ENDED)controller.seekTo(0);controller.play();}}
+    private void trackMenu(Track t,int position){
+        List<String> choices=new ArrayList<>(Arrays.asList("Curtir / descurtir","Adicionar à playlist","Adicionar à fila","Compartilhar","Ver artista","Ver álbum","Licença e fonte"));
+        if(selectedPlaylist!=null)choices.add("Remover da playlist");
+        new AlertDialog.Builder(this).setTitle(t.title).setItems(choices.toArray(new String[0]),(d,i)->{
+            switch(i){case 0:task(()->db().favorite(t),liked->{toast(liked?"Adicionada às curtidas":"Removida das curtidas");if(tab.equals("Biblioteca"))loadLibrary();});break;
+            case 1:addToPlaylist(t);break;case 2:if(controller!=null&&t.playable()){controller.addMediaItem(MediaItems.of(t));toast("Adicionada à fila");}else toast(t.unavailable);break;
+            case 3:share(t.title+" — "+t.artist+(t.shareUrl.isEmpty()?"":"\n"+t.shareUrl));break;
+            case 4:artist(t,false);break;case 5:artist(t,true);break;case 6:new AlertDialog.Builder(this).setTitle(t.provider).setMessage(t.license.isEmpty()?"Consulte as condições na página oficial da faixa.":t.license).setPositiveButton("Fechar",null).show();break;
+            case 7:if(selectedPlaylist!=null){long id=selectedPlaylist.id;List<Track> copy=new ArrayList<>(allTracks);int actual=copy.indexOf(t);if(actual>=0)copy.remove(actual);task(()->{db().replace(id,copy);return true;},ok->openPlaylist(selectedPlaylist));}break;
             }
-            getPreferences(MODE_PRIVATE).edit().putString("jamendo_client_id", client).apply();
-        }
-        final int kind = source, stamp = ++requestId;
-        final String finalClient = client;
-        status.setText("Pesquisando…");
-        list.removeAllViews();
-        loading = true;
-        network.execute(() -> {
-            try {
-                String endpoint = kind == 0
-                    ? "https://api.audius.co/v1/tracks/search?query=" + encode(query) + "&limit=25&app_name=SpotiFastAndroid"
-                    : "https://api.jamendo.com/v3.0/tracks/?client_id=" + encode(finalClient)
-                      + "&format=json&limit=25&search=" + encode(query) + "&audioformat=mp32";
-                JSONObject data = fetch(endpoint);
-                ArrayList<Track> found = new ArrayList<>();
-                JSONArray songs = kind == 0 ? data.optJSONArray("data") : data.optJSONArray("results");
-                if (songs == null) throw new Exception("Resposta da API inesperada");
-                for (int i=0; i<songs.length(); i++) {
-                    JSONObject song = songs.optJSONObject(i);
-                    if (song == null) continue;
-                    if (kind == 0) {
-                        if (song.optBoolean("is_stream_gated", false)
-                           || !song.optBoolean("streamable", true)) continue;
-                        String id = song.optString("id");
-                        if (!id.matches("[A-Za-z0-9_-]{1,100}")) continue;
-                        String artist = song.optJSONObject("user") != null
-                            ? song.optJSONObject("user").optString("name", "Audius") : "Audius";
-                        found.add(new Track(song.optString("title", "Sem título"),
-                            artist, "https://api.audius.co/v1/tracks/" + id
-                              + "/stream?app_name=SpotiFastAndroid", "Audius"));
-                    } else {
-                        String url = song.optString("audio");
-                        if (!url.startsWith("https://")) continue;
-                        found.add(new Track(song.optString("name", "Sem título"),
-                            song.optString("artist_name", "Jamendo"), url, "Jamendo"));
-                    }
-                }
-                main.post(() -> {
-                    loading = false;
-                    if (kind != source || stamp != requestId) return;
-                    results.clear();
-                    results.addAll(found);
-                    selected = -1;
-                    status.setText(found.isEmpty() ? "Nenhum resultado reproduzível encontrado." :
-                            found.size() + " faixas encontradas • toque para ouvir");
-                    renderResults();
-                });
-            } catch (Exception e) {
-                final String message = e.getMessage();
-                main.post(() -> {
-                    loading = false;
-                    if (kind == source && stamp == requestId)
-                        status.setText("Falha na busca: " + (message == null ? "sem conexão" : message));
-                });
+        }).show();
+    }
+    private void artist(Track t,boolean album){
+        if((album&&t.albumId.isEmpty())||(!album&&t.artistId.isEmpty())){toast("Esta fonte não forneceu esse perfil.");return;}
+        repository.cancel();screenGeneration++;selectedPlaylist=null;reorder=false;body.removeAllViews();body.addView(text(this,album?t.album:t.artist,26,true));makeList();status.setText("Carregando catálogo da fonte…");int stamp=screenGeneration;
+        // Provider work uses a dedicated short-lived task; UI stays responsive.
+        java.util.concurrent.ExecutorService work=java.util.concurrent.Executors.newSingleThreadExecutor();work.execute(()->{try{List<Track> list=t.provider.equals("audius")?new AudiusProvider().artist(t.artistId,0,this):album?new JamendoProvider(client()).album(t.albumId,this):new JamendoProvider(client()).artist(t.artistId,0,this);main.post(()->{if(!isDestroyed()&&stamp==screenGeneration){allTracks.clear();allTracks.addAll(list);adapter.submit(list);status.setText("Catálogo · "+t.provider);}});}catch(Exception e){main.post(()->{if(!isDestroyed()&&stamp==screenGeneration)status.setText("Perfil indisponível. Tente novamente.");});}finally{work.shutdown();}});
+    }
+    private void showPlaylists(){
+        LinearLayout actions=row(this);Button create=button(this,"Criar playlist",true),imp=button(this,"Importar",false);actions.addView(create,new LinearLayout.LayoutParams(0,dp(this,48),1));actions.addView(imp,new LinearLayout.LayoutParams(0,dp(this,48),1));body.addView(actions);create.setOnClickListener(v->newPlaylist(null));imp.setOnClickListener(v->openDocument("application/json",102,false));
+        ScrollView scroll=new ScrollView(this);LinearLayout list=column(this);scroll.addView(list);body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));int stamp=screenGeneration;
+        task(()->db().playlists(),playlists->{if(stamp!=screenGeneration)return;if(playlists.isEmpty())list.addView(text(this,"Crie uma playlist para guardar suas descobertas.",15,false));for(MusicDatabase.Playlist p:playlists){
+            LinearLayout item=row(this);item.setPadding(0,dp(this,8),0,dp(this,8));ImageView art=new ImageView(this);item.addView(art,new LinearLayout.LayoutParams(dp(this,64),dp(this,64)));ImageRepository.load(this,p.artwork,art,dp(this,64));Button b=button(this,p.name+"\n"+p.count+" músicas · "+time(p.duration),false);item.addView(b,new LinearLayout.LayoutParams(0,-2,1));b.setOnClickListener(v->openPlaylist(p));b.setOnLongClickListener(v->{playlistMenu(p);return true;});Button menu=button(this,"⋮",false);item.addView(menu,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));menu.setContentDescription("Opções de "+p.name);menu.setOnClickListener(v->playlistMenu(p));list.addView(item);
+        }});
+    }
+    private void newPlaylist(Track add){EditText name=input(this,"Nome da playlist");new AlertDialog.Builder(this).setTitle("Nova playlist").setView(name).setPositiveButton("Criar",(d,w)->task(()->{long id=db().createPlaylist(name.getText().toString());if(add!=null)db().add(id,add);return id;},id->{toast("Playlist criada");if(tab.equals("Playlists"))navigate("Playlists");})).setNegativeButton("Cancelar",null).show();}
+    private void addToPlaylist(Track t){task(()->db().playlists(),playlists->{List<String> names=new ArrayList<>();names.add("+ Nova playlist");for(MusicDatabase.Playlist p:playlists)names.add(p.name);new AlertDialog.Builder(this).setTitle("Adicionar a…").setItems(names.toArray(new String[0]),(d,i)->{if(i==0)newPlaylist(t);else task(()->{db().add(playlists.get(i-1).id,t);return true;},ok->toast("Música adicionada"));}).show();});}
+    private void openPlaylist(MusicDatabase.Playlist p){
+        if(p==null)return;screenGeneration++;repository.cancel();selectedPlaylist=p;reorder=true;body.removeAllViews();body.addView(text(this,p.name,25,true));TextView desc=text(this,p.description,13,false);body.addView(desc);
+        LinearLayout controls=row(this);String[] labels={"Tocar","Aleatório","Opções"};for(int i=0;i<3;i++){final int action=i;Button b=button(this,labels[i],i==0);controls.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{if(action<2)playTracks(new ArrayList<>(adapter.tracks),0,action==1);else playlistMenu(p);});}body.addView(controls);
+        EditText filter=input(this,"Buscar nesta playlist");body.addView(filter);makeList();int stamp=screenGeneration;
+        task(()->db().playlist(p.id),tracks->{if(stamp==screenGeneration){allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText(tracks.size()+" músicas · "+time(tracks.stream().mapToLong(t->t.duration).sum())+" · segure para reordenar");}});
+        filter.addTextChangedListener(watcher(value->{reorder=value.isEmpty();List<Track> filtered=new ArrayList<>();for(Track t:allTracks)if((t.title+" "+t.artist).toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT)))filtered.add(t);adapter.submit(filtered);}));
+    }
+    private void playlistMenu(MusicDatabase.Playlist p){new AlertDialog.Builder(this).setTitle(p.name).setItems(new String[]{"Editar nome e descrição","Escolher capa","Duplicar","Adicionar à fila","Ordenar por nome","Ordenar por artista","Exportar","Excluir"},(d,i)->{
+        if(i==0){LinearLayout form=column(this);EditText name=input(this,"Nome"),description=input(this,"Descrição");name.setText(p.name);description.setText(p.description);form.addView(name);form.addView(description);new AlertDialog.Builder(this).setTitle("Editar playlist").setView(form).setPositiveButton("Salvar",(a,b)->{String n=name.getText().toString(),desc=description.getText().toString();task(()->{db().editPlaylist(p.id,n,desc,p.artwork);return true;},ok->navigate("Playlists"));}).setNegativeButton("Cancelar",null).show();}
+        else if(i==1){coverPlaylist=p;openDocument("image/*",103,false);}
+        else if(i==2)task(()->db().duplicate(p),id->navigate("Playlists"));
+        else if(i==3)task(()->db().playlist(p.id),tracks->{if(controller!=null){List<Track> playable=new ArrayList<>();for(Track t:tracks)if(t.playable())playable.add(t);controller.addMediaItems(MediaItems.of(playable));toast("Playlist adicionada à fila");}});
+        else if(i==4||i==5)task(()->{List<Track> tracks=db().playlist(p.id);tracks.sort(Comparator.comparing(t->(i==4?t.title:t.artist).toLowerCase(Locale.ROOT)));db().replace(p.id,tracks);return true;},ok->openPlaylist(p));
+        else if(i==6)exportPlaylist(p);
+        else new AlertDialog.Builder(this).setTitle("Excluir “"+p.name+"”?").setMessage("A playlist será removida deste celular.").setNegativeButton("Cancelar",null).setPositiveButton("Excluir",(a,b)->task(()->{db().deletePlaylist(p.id);return true;},ok->navigate("Playlists"))).show();
+    }).show();}
+    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V4 preview").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão"},(d,i)->{
+        if(i==0){EditText id=input(this,"Client ID legítimo");id.setText(client());new AlertDialog.Builder(this).setTitle("Jamendo Developer").setMessage("Insira o Client ID da sua aplicação no Jamendo. Nenhuma senha é necessária.").setView(id).setPositiveButton("Salvar",(a,b)->{getPreferences(MODE_PRIVATE).edit().putString("jamendo_client_id",id.getText().toString().trim()).apply();ApiClient.clear();navigate(tab);}).setNeutralButton("Portal",(a,b)->external("https://devportal.jamendo.com/")).setNegativeButton("Cancelar",null).show();}
+        else if(i==1)new AlertDialog.Builder(this).setTitle("Parar reprodução após…").setItems(new String[]{"Desativar","15 minutos","30 minutos","60 minutos"},(a,b)->{if(controller!=null){Bundle args=new Bundle();args.putInt("minutes",new int[]{0,15,30,60}[b]);controller.sendCustomCommand(new SessionCommand(PlaybackService.SLEEP,Bundle.EMPTY),args);toast("Temporizador atualizado");}}).show();
+        else if(i==2)((AudioManager)getSystemService(AUDIO_SERVICE)).adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_SAME,AudioManager.FLAG_SHOW_UI);
+        else if(i==3){Glide.get(this).clearMemory();task(()->{Glide.get(getApplicationContext()).clearDiskCache();ApiClient.clear();return true;},ok->toast("Cache limpo"));}
+        else if(i==4){if(controller!=null)controller.pause();startActivity(new Intent(this,SpotiFastActivity.class));}
+        else new AlertDialog.Builder(this).setTitle("SpotiFast V4 preview 1").setMessage("Player Android com Media3 e biblioteca local SQLite.\n\nAudius e Jamendo seguem as permissões das fontes. YouTube usa vídeo oficial visível.\n\nA interface Rust original foi preservada. Não há acesso gratuito ao catálogo pago do Spotify. Não há download de áudio remoto.").setPositiveButton("Fechar",null).show();
+    }).show();}
+    private void expand(){
+        if(controller==null||controller.getCurrentMediaItem()==null){toast("Escolha uma música para começar");return;}if(expanded!=null&&expanded.isShowing())return;
+        expanded=new Dialog(this);ScrollView scroll=new ScrollView(this);fullRoot=column(this);fullRoot.setPadding(dp(this,24),dp(this,24),dp(this,24),dp(this,24));fullRoot.setBackgroundColor(BG);scroll.addView(fullRoot);expanded.setContentView(scroll);
+        Button down=button(this,"⌄  Tocando agora",false);fullRoot.addView(down);down.setOnClickListener(v->expanded.dismiss());gap(this,fullRoot,20);
+        fullArt=new ImageView(this);int size=Math.min(getResources().getDisplayMetrics().widthPixels-dp(this,48),dp(this,420));LinearLayout.LayoutParams artParams=new LinearLayout.LayoutParams(size,size);artParams.gravity=Gravity.CENTER_HORIZONTAL;fullRoot.addView(fullArt,artParams);gap(this,fullRoot,24);
+        fullTitle=text(this,"",25,true);fullArtist=text(this,"",16,false);fullArtist.setTextColor(MUTED);fullRoot.addView(fullTitle);fullRoot.addView(fullArtist);gap(this,fullRoot,16);
+        seek=new SeekBar(this);seek.setContentDescription("Posição na música");seek.setMax(1000);fullRoot.addView(seek);time=text(this,"0:00 / 0:00",12,false);fullRoot.addView(time);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onStartTrackingTouch(SeekBar s){seeking=true;}public void onProgressChanged(SeekBar s,int p,boolean user){}public void onStopTrackingTouch(SeekBar s){if(controller!=null&&controller.isCurrentMediaItemSeekable()&&controller.getDuration()>0)controller.seekTo(controller.getDuration()*s.getProgress()/1000);seeking=false;}});
+        LinearLayout controls=row(this);Button previous=button(this,"❮",false),next=button(this,"❯",false);fullPlay=button(this,"▶",true);previous.setContentDescription("Faixa anterior");next.setContentDescription("Próxima faixa");for(Button b:new Button[]{previous,fullPlay,next})controls.addView(b,new LinearLayout.LayoutParams(0,dp(this,64),1));fullRoot.addView(controls);previous.setOnClickListener(v->controller.seekToPrevious());next.setOnClickListener(v->controller.seekToNextMediaItem());fullPlay.setOnClickListener(v->toggle());
+        LinearLayout modes=row(this);shuffle=button(this,"Aleatório",false);repeat=button(this,"Repetir",false);modes.addView(shuffle,new LinearLayout.LayoutParams(0,dp(this,48),1));modes.addView(repeat,new LinearLayout.LayoutParams(0,dp(this,48),1));fullRoot.addView(modes);shuffle.setOnClickListener(v->controller.setShuffleModeEnabled(!controller.getShuffleModeEnabled()));repeat.setOnClickListener(v->controller.setRepeatMode((controller.getRepeatMode()+1)%3));
+        LinearLayout actions=row(this);for(String name:new String[]{"Curtir","Fila","Mais"}){Button b=button(this,name,false);actions.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{Track t=current();if(t==null)return;if(name.equals("Curtir"))task(()->db().favorite(t),liked->toast(liked?"Música curtida":"Curtida removida"));else if(name.equals("Fila"))queue();else trackMenu(t,-1);});}fullRoot.addView(actions);
+        final float[] y={0};down.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)y[0]=e.getY();if(e.getAction()==MotionEvent.ACTION_UP&&e.getY()-y[0]>dp(this,50)){expanded.dismiss();return true;}return false;});
+        fullKey="";expanded.setOnDismissListener(d->{if(paletteTarget!=null){Glide.with(this).clear(paletteTarget);paletteTarget=null;}seek=null;fullPlay=null;fullRoot=null;fullArt=null;fullTitle=null;});expanded.show();expanded.getWindow().setLayout(-1,-1);updatePlayer();
+    }
+    private Track current(){try{return controller==null||controller.getCurrentMediaItem()==null?null:MediaItems.track(controller.getCurrentMediaItem());}catch(Exception e){return null;}}
+    private void updatePlayer(){
+        if(controller==null)return;Track t=current();miniPlay.setText(controller.isPlaying()?"Ⅱ":"▶");
+        if(t!=null){miniTitle.setText(t.title+"\n"+t.artist);if(!artKey.equals(t.key()+t.artwork)){artKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,miniArt,dp(this,44));}}
+        if(status!=null&&controller.getPlayerError()!=null)status.setText("Não foi possível reproduzir. Verifique a conexão ou a disponibilidade na fonte. Toque em reproduzir para tentar novamente.");
+        if(fullPlay!=null&&t!=null){fullPlay.setText(controller.isPlaying()?"Ⅱ Pausar":"▶ Tocar");fullPlay.setContentDescription(controller.isPlaying()?"Pausar":"Reproduzir");fullTitle.setText(t.title);fullArtist.setText(t.artist+" · "+t.provider);repeat.setText(new String[]{"Repetir: não","Repetir: faixa","Repetir: fila"}[controller.getRepeatMode()]);shuffle.setText(controller.getShuffleModeEnabled()?"Aleatório: sim":"Aleatório: não");
+            if(!fullKey.equals(t.key()+t.artwork)){fullKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,fullArt,Math.min(1000,getResources().getDisplayMetrics().widthPixels));if(paletteTarget!=null)Glide.with(this).clear(paletteTarget);String key=fullKey;
+                paletteTarget=new CustomTarget<Bitmap>(){public void onResourceReady(Bitmap bitmap,Transition<? super Bitmap> transition){Palette.from(bitmap).maximumColorCount(8).generate(palette->{if(fullRoot!=null&&key.equals(fullKey)&&palette!=null){int color=palette.getDarkMutedColor(PANEL);fullRoot.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{color,BG}));}});}public void onLoadCleared(Drawable drawable){}};
+                Glide.with(this).asBitmap().load(t.artwork).override(64,64).into(paletteTarget);
             }
-        });
+        }progress();
     }
-
-    private static String encode(String s) throws Exception {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8.toString());
+    private void progress(){if(controller!=null&&seek!=null){long duration=controller.getDuration(),position=controller.getCurrentPosition();seek.setEnabled(duration>0&&controller.isCurrentMediaItemSeekable());if(!seeking)seek.setProgress(duration>0?(int)(position*1000/duration):0);time.setText(time(position)+" / "+(duration>0?time(duration):"—"));}}
+    private void queue(){
+        if(controller==null)return;List<String> names=new ArrayList<>();for(int i=0;i<controller.getMediaItemCount();i++)names.add((i==controller.getCurrentMediaItemIndex()?"▶ ":"")+controller.getMediaItemAt(i).mediaMetadata.title);
+        new AlertDialog.Builder(this).setTitle("Fila de reprodução").setItems(names.toArray(new String[0]),(d,index)->{
+            if(controller==null||index>=controller.getMediaItemCount())return;String id=controller.getMediaItemAt(index).mediaId;
+            new AlertDialog.Builder(this).setItems(new String[]{"Tocar agora","Remover","Mover para cima","Mover para baixo"},(a,action)->{if(controller==null||index>=controller.getMediaItemCount()||!id.equals(controller.getMediaItemAt(index).mediaId))return;
+                if(action==0){controller.seekToDefaultPosition(index);controller.prepare();controller.play();}
+                else if(action==1)controller.removeMediaItem(index);else if(action==2&&index>0)controller.moveMediaItem(index,index-1);else if(action==3&&index+1<controller.getMediaItemCount())controller.moveMediaItem(index,index+1);queue();}).show();
+        }).setNegativeButton("Fechar",null).show();
     }
-
-    private static JSONObject fetch(String url) throws Exception {
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(10000);
-        c.setReadTimeout(15000);
-        c.setRequestProperty("Accept", "application/json");
-        c.setRequestProperty("User-Agent", "SpotiFastAndroid/0.14.1");
-        try {
-            int response = c.getResponseCode();
-            if (response < 200 || response >= 300) throw new Exception("HTTP " + response);
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(
-                    c.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                int size = 0;
-                while ((line = r.readLine()) != null) {
-                    size += line.length();
-                    if (size > 1_000_000) throw new Exception("Resposta grande demais");
-                    sb.append(line);
-                }
-            }
-            return new JSONObject(sb.toString());
-        } finally {
-            c.disconnect();
-        }
+    private void openYouTube(){if(controller!=null)controller.pause();startActivity(new Intent(this,YouTubeActivity.class).putExtra("query",query));}
+    private void openDocument(String mime,int request,boolean multiple){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType(mime).addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,multiple);try{startActivityForResult(i,request);}catch(ActivityNotFoundException e){toast("Seletor de arquivos indisponível");}}
+    private void exportPlaylist(MusicDatabase.Playlist p){task(()->{JSONArray tracks=new JSONArray();for(Track t:db().playlist(p.id))tracks.put(t.json());return new JSONObject().put("format","spotifast-playlist").put("version",1).put("name",p.name).put("description",p.description).put("tracks",tracks).toString(2);},json->{pendingExport=json;Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"SpotiFast-playlist.json");startActivityForResult(intent,101);});}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null)return;
+        Uri uri=data.getData();
+        if(request==101&&uri!=null&&pendingExport!=null){String json=pendingExport;pendingExport=null;task(()->{try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException();out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));}return true;},ok->toast("Playlist exportada"));}
+        else if(request==102&&uri!=null)task(()->{String json;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2_000_000)throw new IOException("Arquivo grande demais");out.write(buf,0,n);}json=out.toString("UTF-8");}JSONObject o=new JSONObject(json);if(!o.optString("format").equals("spotifast-playlist")||o.optInt("version")!=1)throw new IOException("Formato não suportado");JSONArray a=o.getJSONArray("tracks");if(a.length()>1000)throw new IOException("Limite de 1000 faixas por importação");List<Track> tracks=new ArrayList<>();for(int j=0;j<a.length();j++)tracks.add(Track.fromJson(a.getJSONObject(j)));long id=db().createPlaylist(o.optString("name","Playlist importada"));db().editPlaylist(id,o.optString("name","Playlist importada"),o.optString("description"),"");db().replace(id,tracks);return id;},id->navigate("Playlists"));
+        else if(request==103&&uri!=null&&coverPlaylist!=null){persist(uri,data);MusicDatabase.Playlist p=coverPlaylist;task(()->{db().editPlaylist(p.id,p.name,p.description,uri.toString());return true;},ok->navigate("Playlists"));}
+        else if(request==104){List<Uri> uris=new ArrayList<>();if(uri!=null)uris.add(uri);if(data.getClipData()!=null)for(int j=0;j<data.getClipData().getItemCount();j++)uris.add(data.getClipData().getItemAt(j).getUri());for(Uri u:uris)persist(u,data);
+            task(()->{List<Track> tracks=new ArrayList<>();for(Uri u:uris){MediaMetadataRetriever r=new MediaMetadataRetriever();try{r.setDataSource(this,u);String title=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE),artist=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);Track t=new Track("local",u.toString(),title==null?"Arquivo de áudio":title,artist==null?"No dispositivo":artist);String duration=r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);t.duration=duration==null?0:Long.parseLong(duration);db().save(t);tracks.add(t);}finally{r.release();}}return tracks;},tracks->{allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText("Arquivos autorizados neste dispositivo");playTracks(tracks,0,false);});}
     }
-
-    private void renderResults() {
-        list.removeAllViews();
-        for (int i=0; i<results.size(); i++) {
-            final int index = i;
-            Track t = results.get(i);
-            LinearLayout item = row();
-            item.setPadding(dp(12), dp(12), dp(12), dp(12));
-            item.setBackground(bg(i == selected ? 0xff174c32 : PANEL, 12));
-            LinearLayout info = column();
-            TextView title = text(t.title, 15, true, WHITE);
-            title.setMaxLines(2);
-            info.addView(title);
-            info.addView(text(t.artist + " • " + t.provider, 12, false, MUTED));
-            item.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
-            TextView play = text("▶", 22, true, ACCENT);
-            play.setGravity(Gravity.CENTER);
-            item.addView(play, new LinearLayout.LayoutParams(dp(42), dp(48)));
-            item.setOnClickListener(v -> playAt(index));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-            lp.bottomMargin = dp(7);
-            list.addView(item, lp);
-        }
-    }
-
-    private void playAt(int index) {
-        if (index < 0 || index >= results.size()) return;
-        stopAudio();
-        selected = index;
-        Track t = results.get(index);
-        playing.setText(t.title + " — " + t.artist);
-        status.setText("Carregando reprodução de " + t.provider + "…");
-        renderResults();
-        try {
-            player = new MediaPlayer();
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
-            player.setOnPreparedListener(mp -> {
-                if (mp != player) return;
-                mp.start();
-                status.setText("Tocando • " + t.provider);
-                playPause.setText("❚❚ Pausar");
-            });
-            player.setOnCompletionListener(mp -> {
-                if (mp == player && !results.isEmpty()) playAt((selected + 1) % results.size());
-            });
-            player.setOnErrorListener((mp, what, extra) -> {
-                status.setText("Não foi possível tocar esta faixa. Pode exigir acesso/licença.");
-                playPause.setText("▶ Reproduzir");
-                return true;
-            });
-            player.setDataSource(t.url);
-            player.prepareAsync();
-        } catch (Exception error) {
-            status.setText("Erro ao preparar áudio: " + error.getClass().getSimpleName());
-        }
-    }
-
-    private void toggle() {
-        if (player == null) {
-            if (!results.isEmpty()) playAt(Math.max(0, selected));
-            return;
-        }
-        try {
-            if (player.isPlaying()) {
-                player.pause();
-                playPause.setText("▶ Continuar");
-            } else {
-                player.start();
-                playPause.setText("❚❚ Pausar");
-            }
-        } catch (IllegalStateException ex) {
-            status.setText("Reprodução ainda não está pronta.");
-        }
-    }
-
-    private void stopAudio() {
-        if (player != null) {
-            try { player.reset(); player.release(); } catch (Exception ignored) {}
-            player = null;
-        }
-    }
-
-    private String videoId(String input) {
-        input = input.trim();
-        if (input.matches("[A-Za-z0-9_-]{11}")) return input;
-        try {
-            Uri uri = Uri.parse(input);
-            if (!"https".equalsIgnoreCase(uri.getScheme())) return null;
-            String host = uri.getHost();
-            if (host == null) return null;
-            host = host.toLowerCase(java.util.Locale.ROOT);
-            if (host.equals("youtu.be")) {
-                String path = uri.getPath();
-                if (path != null && path.length() == 12 && path.substring(1).matches("[A-Za-z0-9_-]{11}")) return path.substring(1);
-            }
-            if (host.equals("youtube.com") || host.equals("www.youtube.com") || host.equals("m.youtube.com")) {
-                String id = uri.getQueryParameter("v");
-                if (id == null && uri.getPathSegments().size() >= 2
-                        && ("shorts".equals(uri.getPathSegments().get(0)) || "embed".equals(uri.getPathSegments().get(0)))) {
-                    id = uri.getPathSegments().get(1);
-                }
-                if (id != null && id.matches("[A-Za-z0-9_-]{11}")) return id;
-            }
-        } catch (Exception ignored) {}
-        return null;
-    }
-
-    private void addYouTube() {
-        youtubeLink = input("Cole o link de um vídeo do YouTube");
-        root.addView(youtubeLink, new LinearLayout.LayoutParams(-1, dp(50)));
-        spacer(root, 10);
-        LinearLayout controls = row();
-        Button openSearch = button("Buscar no YouTube", false);
-        Button embed = button("Reproduzir vídeo", true);
-        controls.addView(openSearch, new LinearLayout.LayoutParams(0, dp(46), 1));
-        LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(0, dp(46), 1);
-        ep.leftMargin = dp(8);
-        controls.addView(embed, ep);
-        root.addView(controls);
-        openSearch.setOnClickListener(v -> {
-            try {
-                String query = youtubeLink.getText().toString().trim();
-                String url = "https://www.youtube.com/results?search_query="
-                        + encode(query.isEmpty() ? "música" : query);
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-            } catch (Exception e) { showYouTubeStatus("Navegador indisponível"); }
-        });
-        embed.setOnClickListener(v -> {
-            String id = videoId(youtubeLink.getText().toString());
-            if (id == null) {
-                showYouTubeStatus("Cole um link válido ou um ID de vídeo de 11 caracteres.");
-                return;
-            }
-            startYouTube(id);
-        });
-        spacer(root, 12);
-        status = text("O player oficial precisa permanecer visível, sem extrair o áudio.", 13, false, MUTED);
-        root.addView(status);
-        spacer(root, 12);
-        FrameLayout container = new FrameLayout(this);
-        container.setBackground(bg(PANEL, 14));
-        root.addView(container, new LinearLayout.LayoutParams(-1, dp(256)));
-        youtube = new WebView(this);
-        youtube.setBackgroundColor(Color.BLACK);
-        youtube.getSettings().setJavaScriptEnabled(true);
-        youtube.getSettings().setDomStorageEnabled(true);
-        youtube.getSettings().setMediaPlaybackRequiresUserGesture(true);
-        youtube.setWebChromeClient(new WebChromeClient());
-        container.addView(youtube, new FrameLayout.LayoutParams(-1, -1));
-        spacer(root, 12);
-        TextView explanation = text("Você pode procurar músicas no YouTube, copiar o link e assisti-las aqui. Não há reprodução oculta, extração de MP3 ou modo somente áudio do YouTube.", 12, false, MUTED);
-        root.addView(explanation);
-    }
-
-    private void showYouTubeStatus(String msg) {
-        if (status != null) status.setText(msg);
-    }
-
-    private void startYouTube(String id) {
-        if (youtube == null) return;
-        String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
-            + "<style>html,body{margin:0;padding:0;height:100%;background:#000}iframe{width:100%;height:100%;border:0}</style></head>"
-            + "<body><iframe src='https://www.youtube.com/embed/" + id + "?playsinline=1&enablejsapi=1'"
-            + " title='YouTube video player' allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture'"
-            + " allowfullscreen></iframe></body></html>";
-        youtube.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null);
-        showYouTubeStatus("Player oficial incorporado • use os controles do vídeo");
-    }
-
-    private void stopYouTube() {
-        if (youtube != null) {
-            youtube.loadUrl("about:blank"); // no YouTube playback in the background
-            youtube.onPause();
-            youtube.destroy();
-            youtube = null;
-        }
-    }
-
-    @Override protected void onStop() {
-        super.onStop();
-        // This Activity does not run as a background streaming service.
-        if (player != null) { try { if (player.isPlaying()) player.pause(); } catch (IllegalStateException ignored) {} }
-        if (youtube != null) youtube.loadUrl("about:blank");
-    }
-
-    @Override protected void onDestroy() {
-        stopAudio();
-        stopYouTube();
-        network.shutdownNow();
-        super.onDestroy();
-    }
+    private void persist(Uri uri,Intent data){try{getContentResolver().takePersistableUriPermission(uri,data.getFlags()&Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException e){toast("Permissão temporária: selecione novamente após reiniciar.");}}
+    private TextWatcher watcher(Consumer<String> callback){return new TextWatcher(){public void beforeTextChanged(CharSequence s,int start,int count,int after){}public void onTextChanged(CharSequence s,int start,int before,int count){callback.accept(s.toString());}public void afterTextChanged(Editable e){}};}
+    private MusicDatabase db(){return MusicDatabase.get(this);}
+    private <T> void task(Callable<T> work,Consumer<T> done){MusicDatabase.IO.execute(()->{try{T result=work.call();main.post(()->{if(!isDestroyed())done.accept(result);});}catch(Exception e){main.post(()->{if(!isDestroyed())toast("Não foi possível concluir. Verifique os dados e o armazenamento.");});}});}
+    private void toast(String message){Toast.makeText(this,message,Toast.LENGTH_LONG).show();}
+    private void share(String value){startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value),"Compartilhar música"));}
+    private void external(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(ActivityNotFoundException e){toast("Navegador indisponível");}}
+    @Override protected void onStart(){super.onStart();visible=true;connection=new MediaController.Builder(this,new SessionToken(this,new ComponentName(this,PlaybackService.class))).buildAsync();connection.addListener(()->{if(!visible)return;try{controller=connection.get();controller.addListener(listener);updatePlayer();}catch(Exception e){toast("Não foi possível conectar ao player");}},command->main.post(command));main.post(tick);}
+    @Override protected void onStop(){visible=false;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);controller=null;super.onStop();}
+    @Override protected void onDestroy(){repository.close();main.removeCallbacksAndMessages(null);super.onDestroy();}
 }
