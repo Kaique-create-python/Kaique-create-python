@@ -335,6 +335,36 @@ impl ProtectedStore for NativeStore {
     }
 }
 
+// On Android, the original protected store delegates to our Java bridge.
+// The AndroidKeyStore key never leaves the operating system. The Java
+// implementation encrypts before persisting any grant or proxy secret.
+#[cfg(target_os = "android")]
+struct AndroidStore;
+
+#[cfg(target_os = "android")]
+impl ProtectedStore for AndroidStore {
+    fn read(&mut self, key: &str) -> Result<Option<Vec<u8>>, Error> {
+        crate::android_bridge::read_secret(key).map_err(|error| {
+            log::warn!("Android credential read failed (no secret logged): {error}");
+            Error::Unavailable
+        })
+    }
+
+    fn write(&mut self, key: &str, secret: &[u8]) -> Result<(), Error> {
+        crate::android_bridge::write_secret(key, secret).map_err(|error| {
+            log::warn!("Android credential write failed (no secret logged): {error}");
+            Error::Unavailable
+        })
+    }
+
+    fn delete(&mut self, key: &str) -> Result<(), Error> {
+        crate::android_bridge::delete_secret(key).map_err(|error| {
+            log::warn!("Android credential deletion failed (no secret logged): {error}");
+            Error::Unavailable
+        })
+    }
+}
+
 /// Credential Manager first, and a copy sealed for this Windows user in the
 /// state directory. On some machines Credential Manager refuses the write
 /// (#748) or drops the entries during a restart (#815); the sealed copy then
@@ -622,7 +652,9 @@ impl Store {
                 sealer: Dpapi,
             },
         });
-        #[cfg(not(windows))]
+        #[cfg(target_os = "android")]
+        let backend = Box::new(AndroidStore);
+        #[cfg(all(not(windows), not(target_os = "android")))]
         let backend = Box::new(NativeStore::default());
         Self::with_backend(dirs, backend)
     }
