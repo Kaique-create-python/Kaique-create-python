@@ -2,6 +2,8 @@ name: Import full SpotiFast source and Android port check
 on:
   push:
     branches: [spotifast-real-android-port]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: write
