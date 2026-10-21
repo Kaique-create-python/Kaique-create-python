@@ -172,9 +172,6 @@ rustls-webpki = { version = "0.103", default-features = false, features = ["ring
 ring = "0.17"
 base64 = "0.22"
 # Native asynchronous file selection on macOS, Windows and Linux desktop portals.
-# rfd only supports desktop file dialogs; Android placeholder is in android_file_dialog.rs.
-[target.'cfg(not(target_os = "android"))'.dependencies]
-rfd = "0.17.2"
 rand = "0.9"
 open = "5"
 percent-encoding = "2"
@@ -191,6 +188,7 @@ ctr = "0.9"
 # Keep AccessKit for native desktop builds. Android NativeActivity does not support it.
 [target.'cfg(not(target_os = "android"))'.dependencies]
 eframe = { version = "0.36.2", default-features = false, features = ["accesskit"] }
+rfd = "0.17.2"
 
 [target.'cfg(target_os = "android")'.dependencies]
 eframe = { version = "0.36.2", default-features = false, features = ["android-native-activity"] }
