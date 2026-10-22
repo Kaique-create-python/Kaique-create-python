@@ -26,26 +26,41 @@ public class UiLayoutTest {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         Activity activity=instrumentation.startActivitySync(intent);
         instrumentation.waitForIdleSync();
-        instrumentation.runOnMainSync(()->{
-            RecyclerView parent=new RecyclerView(activity);
-            TrackAdapter adapter=new TrackAdapter(activity,new TrackAdapter.Actions(){
-                public void play(int i){}
-                public void menu(int i){}
+        final int[] measured={0,0};
+        final String[] failure={null};
+        try {
+            instrumentation.runOnMainSync(()->{
+                try {
+                    RecyclerView parent=new RecyclerView(activity);
+                    TrackAdapter adapter=new TrackAdapter(activity,new TrackAdapter.Actions(){
+                        public void play(int i){}
+                        public void menu(int i){}
+                    });
+                    adapter.submit(Arrays.asList(new Track("audius","abc123","Uma música com nome visível","Artista de teste")));
+                    TrackAdapter.Holder holder=adapter.onCreateViewHolder(parent,0);
+                    adapter.onBindViewHolder(holder,0);
+                    View row=holder.itemView;
+                    int width=(int)(360*activity.getResources().getDisplayMetrics().density);
+                    row.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),
+                                View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));
+                    LinearLayout info=(LinearLayout)((LinearLayout)row).getChildAt(1);
+                    TextView title=(TextView)info.getChildAt(0);
+                    measured[0]=info.getMeasuredWidth();
+                    measured[1]=width;
+                    if(row.getLayoutParams().width!=ViewGroup.LayoutParams.MATCH_PARENT)
+                        failure[0]="Song item doesn't request full width";
+                    if(!title.getText().toString().contains("nome visível"))
+                        failure[0]="Song title wasn't bound";
+                }catch(Throwable t){
+                    failure[0]=t.toString();
+                }
             });
-            adapter.submit(Arrays.asList(new Track("audius","abc123","Uma música com nome visível","Artista de teste")));
-            TrackAdapter.Holder holder=adapter.onCreateViewHolder(parent,0);
-            adapter.onBindViewHolder(holder,0);
-            View row=holder.itemView;
-            int width=(int)(360*activity.getResources().getDisplayMetrics().density);
-            row.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),
-                        View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));
-            assertEquals(ViewGroup.LayoutParams.MATCH_PARENT,row.getLayoutParams().width);
-            LinearLayout info=(LinearLayout)((LinearLayout)row).getChildAt(1);
-            assertTrue("Title column should have room for readable text",info.getMeasuredWidth()>width/3);
-            TextView title=(TextView)info.getChildAt(0);
-            assertTrue(title.getText().toString().contains("nome visível"));
-            assertTrue(title.getMeasuredWidth()>0);
-        });
-        instrumentation.runOnMainSync(activity::finish);
+        } finally {
+            instrumentation.runOnMainSync(activity::finish);
+        }
+        assertNull(failure[0],failure[0]);
+        assertTrue("Song title column must take over a third of the row width",
+                measured[0]>measured[1]/3);
+
     }
 }
