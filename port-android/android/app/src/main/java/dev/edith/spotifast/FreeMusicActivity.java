@@ -209,7 +209,7 @@ public class FreeMusicActivity extends Activity {
             @Override public void filter(String provider,String category){
                 source=provider;
                 genre=category;
-                search(false);
+                FreeMusicActivity.this.search(false);
             }
             @Override public void playlists(){navigate("Playlists");}
             @Override public void library(){navigate("Biblioteca");}
