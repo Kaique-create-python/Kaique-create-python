@@ -1,4 +1,4 @@
-name: SpotiFast Android V4
+name: SpotiFast Android V5
 on:
   push:
     branches: [spotifast-real-android-port]
@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: spotifast-v4-${{ github.ref }}
+  group: spotifast-v5-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   android-tests:
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SpotiFast-V4-test-reports
+          name: SpotiFast-V5-test-reports
           path: |
             port-android/android/app/build/reports
             port-android/android/app/build/outputs/androidTest-results
@@ -97,7 +97,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: spotifast
-          key: android-arm64-v4
+          key: android-arm64-v5
       - name: Build original Rust ARM64 engine
         shell: bash
         run: |
@@ -129,20 +129,20 @@ jobs:
             printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$SPOTIFAST_KEYSTORE_PATH"
             chmod 600 "$SPOTIFAST_KEYSTORE_PATH"
             (cd port-android/android && gradle :app:assembleRelease)
-            cp port-android/android/app/build/outputs/apk/release/app-release.apk dist/SpotiFast-Android-V4-arm64.apk
+            cp port-android/android/app/build/outputs/apk/release/app-release.apk dist/SpotiFast-Android-V5-arm64.apk
             echo 'Assinatura estável fornecida pelos secrets do repositório.' > dist/signature.txt
           else
             (cd port-android/android && gradle :app:assembleDebug)
-            cp port-android/android/app/build/outputs/apk/debug/app-debug.apk dist/SpotiFast-Android-V4-arm64.apk
+            cp port-android/android/app/build/outputs/apk/debug/app-debug.apk dist/SpotiFast-Android-V5-arm64.apk
             echo 'PREVIEW DE TESTE: assinatura debug temporária do runner. Não garante atualização de APKs anteriores. Configure os secrets de assinatura para distribuição estável.' > dist/signature.txt
           fi
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs dist/SpotiFast-Android-V4-arm64.apk > dist/signature-verification.txt
-          python3 port-android/scripts/verify_apk.py dist/SpotiFast-Android-V4-arm64.apk
-          (cd dist && sha256sum SpotiFast-Android-V4-arm64.apk > SpotiFast-Android-V4-arm64.apk.sha256)
-          cp port-android/docs/V4-STATUS.md dist/CHANGELOG-LIMITATIONS.md
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs dist/SpotiFast-Android-V5-arm64.apk > dist/signature-verification.txt
+          python3 port-android/scripts/verify_apk.py dist/SpotiFast-Android-V5-arm64.apk
+          (cd dist && sha256sum SpotiFast-Android-V5-arm64.apk > SpotiFast-Android-V5-arm64.apk.sha256)
+          cp port-android/docs/V5-STATUS.md dist/CHANGELOG-LIMITATIONS.md
       - uses: actions/upload-artifact@v4
         with:
-          name: SpotiFast-V4-arm64
+          name: SpotiFast-V5-arm64
           path: dist/
           if-no-files-found: error
   publish-preview:
@@ -153,7 +153,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: SpotiFast-V4-arm64
+          name: SpotiFast-V5-arm64
           path: dist
       - name: Publish tested preview with real APK and checksum
         env:
@@ -164,4 +164,4 @@ jobs:
         run: |
           set -euo pipefail
           cat dist/CHANGELOG-LIMITATIONS.md dist/signature.txt > dist/release-notes.md
-          gh release create "spotifast-android-v4-preview1-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V4 preview 1 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V4-arm64.apk dist/SpotiFast-Android-V4-arm64.apk.sha256 dist/signature-verification.txt
+          gh release create "spotifast-android-v5-ui-preview1-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V5 preview 1 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V5-arm64.apk dist/SpotiFast-Android-V5-arm64.apk.sha256 dist/signature-verification.txt
