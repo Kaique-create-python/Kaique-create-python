@@ -21,6 +21,8 @@ public final class HomeFeed {
         void filter(String provider, String genre);
         void playlists();
         void library();
+        void search();
+        void playlist(MusicDatabase.Playlist playlist);
     }
 
     private final Activity activity;
@@ -107,7 +109,7 @@ public final class HomeFeed {
         content.addView(featured, width(-1, -2));
 
         LinearLayout trending = column(activity);
-        sectionTitle(trending, "Descobertas para você", "Explorar", actions::library);
+        sectionTitle(trending, "Descobertas para você", "Explorar", actions::search);
         addScroller(trending, trendingShelf);
         content.addView(trending, width(-1, -2));
         gap(activity, content, 16);
@@ -255,7 +257,7 @@ public final class HomeFeed {
             TextView subtitle = text(activity, p.count + " músicas", 12, false);
             subtitle.setTextColor(MUTED);
             card.addView(subtitle);
-            card.setOnClickListener(v -> actions.playlists());
+            card.setOnClickListener(v -> actions.playlist(p));
             playlistShelf.addView(card, width(TILE_WIDTH, -2));
         }
         playlistsSection.setVisibility(View.VISIBLE);
