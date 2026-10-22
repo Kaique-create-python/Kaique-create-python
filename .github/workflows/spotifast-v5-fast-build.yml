@@ -1,0 +1,84 @@
+name: SpotiFast Android V5 UI - APK Preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [spotifast-real-android-port]
+    paths:
+      - '.github/workflows/spotifast-v5-fast-build.yml'
+permissions:
+  contents: write
+concurrency:
+  group: spotifast-v5-ui-apk-preview
+  cancel-in-progress: true
+jobs:
+  apk-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Compile Java, run unit tests and validate Android Lint
+        working-directory: port-android/android
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --console=plain
+      - name: Install Rust ARM64 toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup +stable target add aarch64-linux-android
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.0.13004108'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: spotifast
+          key: android-arm64-v5
+      - name: Compile original SpotiFast Rust engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$ANDROID_HOME/ndk/28.0.13004108/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android26-clang
+          export CC_aarch64_linux_android=aarch64-linux-android26-clang
+          export AR_aarch64_linux_android=llvm-ar
+          export CARGO_BUILD_JOBS=4
+          (cd spotifast && cargo +stable build --release --lib --target aarch64-linux-android --no-default-features)
+          mkdir -p port-android/android/app/src/main/jniLibs/arm64-v8a
+          cp spotifast/target/aarch64-linux-android/release/libspotifast.so port-android/android/app/src/main/jniLibs/arm64-v8a/
+          llvm-readelf -h port-android/android/app/src/main/jniLibs/arm64-v8a/libspotifast.so | grep AArch64
+      - name: Package and validate signed debug preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd port-android/android && gradle :app:assembleDebug --no-daemon --console=plain)
+          mkdir -p dist
+          cp port-android/android/app/build/outputs/apk/debug/app-debug.apk dist/SpotiFast-Android-V5-UI-ARM64.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs dist/SpotiFast-Android-V5-UI-ARM64.apk > dist/signature-verification.txt
+          python3 port-android/scripts/verify_apk.py dist/SpotiFast-Android-V5-UI-ARM64.apk
+          (cd dist && sha256sum SpotiFast-Android-V5-UI-ARM64.apk > SpotiFast-Android-V5-UI-ARM64.apk.sha256)
+          cp port-android/docs/V5-STATUS.md dist/RELEASE-NOTES.md
+          printf '\nEsta e uma previa com assinatura debug temporaria. Os testes instrumentados Android 15 da outra rotina ainda devem ser revisados.\n' >> dist/RELEASE-NOTES.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SpotiFast-V5-UI-Preview-APK
+          path: dist/
+          if-no-files-found: error
+      - name: Publish V5 UI preview on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "spotifast-android-v5-ui-preview-build${{ github.run_number }}" \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --prerelease --title "SpotiFast Android V5 - Interface renovada (build ${{ github.run_number }})" \
+            --notes-file dist/RELEASE-NOTES.md \
+            dist/SpotiFast-Android-V5-UI-ARM64.apk \
+            dist/SpotiFast-Android-V5-UI-ARM64.apk.sha256 \
+            dist/signature-verification.txt
