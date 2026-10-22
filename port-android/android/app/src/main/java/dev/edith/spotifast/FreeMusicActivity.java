@@ -213,6 +213,8 @@ public class FreeMusicActivity extends Activity {
             }
             @Override public void playlists(){navigate("Playlists");}
             @Override public void library(){navigate("Biblioteca");}
+            @Override public void search(){navigate("Buscar");}
+            @Override public void playlist(MusicDatabase.Playlist playlist){navigate("Playlists");openPlaylist(playlist);}
         });
         int stamp=screenGeneration;
         task(()->db().library("recent"),tracks->{
