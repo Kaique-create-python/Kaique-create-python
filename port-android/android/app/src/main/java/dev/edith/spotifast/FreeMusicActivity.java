@@ -36,6 +36,12 @@ public class FreeMusicActivity extends Activity {
     private final Handler main=new Handler(Looper.getMainLooper());
     private final TrackRepository repository=new TrackRepository();
     private ListenableFuture<MediaController> connection;private MediaController controller;
+    private HomeFeed homeFeed;
+    private LinearLayout homeContent;
+    private TextView miniArtist;
+    private ProgressBar miniProgress;
+    private final Map<String,TextView> navigationItems=new LinkedHashMap<>();
+
     private List<Track> pendingPlayTracks;private int pendingPlayIndex;private boolean pendingPlayRandom;
     private LinearLayout root,body,mini;private TextView status,miniTitle;private Button miniPlay;
     private ImageView miniArt;private TrackAdapter adapter;private RecyclerView recycler;
@@ -71,21 +77,162 @@ public class FreeMusicActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putString("tab",tab);out.putString("query",query);out.putString("source",source);}
     private void build(){
-        root=column(this);root.setBackgroundColor(BG);root.setPadding(dp(this,12),dp(this,8),dp(this,12),0);setContentView(root);
-        root.setOnApplyWindowInsetsListener((v,insets)->{int bottom=insets.getSystemWindowInsetBottom();v.setPadding(dp(this,12),insets.getSystemWindowInsetTop()+dp(this,8),dp(this,12),bottom);return insets;});root.requestApplyInsets();
-        LinearLayout header=row(this);TextView logo=text(this,"SpotiFast",25,true);logo.setTextColor(GREEN);header.addView(logo,new LinearLayout.LayoutParams(0,dp(this,52),1));Button settings=button(this,"Perfil",false);settings.setContentDescription("Perfil e configurações");header.addView(settings);settings.setOnClickListener(v->settings());root.addView(header);
-        body=column(this);root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
-        mini=row(this);mini.setPadding(dp(this,8),dp(this,6),dp(this,6),dp(this,6));mini.setBackground(shape(this,PANEL,18));
-        miniArt=new ImageView(this);mini.addView(miniArt,new LinearLayout.LayoutParams(dp(this,44),dp(this,44)));
-        miniTitle=text(this,"Sua próxima descoberta",13,true);miniTitle.setMaxLines(2);miniTitle.setPadding(dp(this,10),0,dp(this,4),0);mini.addView(miniTitle,new LinearLayout.LayoutParams(0,-2,1));mini.setOnClickListener(v->expand());mini.setContentDescription("Expandir player");
-        final float[] miniDown={0};mini.setOnTouchListener((view,event)->{if(event.getAction()==MotionEvent.ACTION_DOWN)miniDown[0]=event.getY();if(event.getAction()==MotionEvent.ACTION_UP&&miniDown[0]-event.getY()>dp(this,32)){expand();return true;}return false;});
-        miniPlay=button(this,"▶",true);miniPlay.setContentDescription("Reproduzir ou pausar");mini.addView(miniPlay,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));miniPlay.setOnClickListener(v->toggle());
-        Button next=button(this,"›",false);next.setContentDescription("Próxima faixa");mini.addView(next,new LinearLayout.LayoutParams(dp(this,48),dp(this,48)));next.setOnClickListener(v->{if(controller!=null)controller.seekToNextMediaItem();});root.addView(mini);
-        LinearLayout nav=row(this);for(String name:new String[]{"Início","Buscar","Biblioteca","Playlists"}){Button b=button(this,name,false);b.setTextSize(11);nav.addView(b,new LinearLayout.LayoutParams(0,dp(this,56),1));b.setOnClickListener(v->navigate(name));}root.addView(nav);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
+        root=column(this);
+        root.setBackground(gradient(this,0xff101b19,BG,0));
+        root.setPadding(dp(this,14),dp(this,8),dp(this,14),0);
+        setContentView(root);
+        root.setOnApplyWindowInsetsListener((v,insets)->{
+            int bottom=insets.getSystemWindowInsetBottom();
+            v.setPadding(dp(this,14),insets.getSystemWindowInsetTop()+dp(this,8),dp(this,14),bottom);
+            return insets;
+        });
+        root.requestApplyInsets();
+
+        LinearLayout header=row(this);
+        TextView logo=text(this,"SpotiFast",27,true);
+        logo.setTextColor(GREEN);
+        header.addView(logo,new LinearLayout.LayoutParams(0,dp(this,52),1));
+        TextView profile=text(this,"♫",22,true);
+        profile.setGravity(Gravity.CENTER);
+        profile.setTextColor(GREEN);
+        profile.setContentDescription("Perfil e configurações");
+        profile.setBackground(shape(this,RAISED,50));
+        header.addView(profile,new LinearLayout.LayoutParams(dp(this,46),dp(this,46)));
+        profile.setOnClickListener(v->settings());
+        root.addView(header);
+        gap(this,root,2);
+
+        body=column(this);
+        root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
+
+        LinearLayout miniFrame=column(this);
+        miniFrame.setBackground(gradient(this,0xff293a32,0xff1a2623,16));
+        miniFrame.setPadding(dp(this,8),dp(this,7),dp(this,8),dp(this,4));
+        mini=row(this);
+        miniArt=new ImageView(this);
+        mini.addView(miniArt,new LinearLayout.LayoutParams(dp(this,46),dp(this,46)));
+        LinearLayout miniText=column(this);
+        miniText.setGravity(Gravity.CENTER_VERTICAL);
+        miniText.setPadding(dp(this,10),0,dp(this,2),0);
+        miniTitle=text(this,"Escolha uma música",14,true);
+        miniTitle.setSingleLine();
+        miniTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        miniText.addView(miniTitle);
+        miniArtist=text(this,"Audius • Jamendo • Música local",11,false);
+        miniArtist.setTextColor(MUTED);
+        miniArtist.setSingleLine();
+        miniArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        miniText.addView(miniArtist);
+        mini.addView(miniText,new LinearLayout.LayoutParams(0,dp(this,48),1));
+        mini.setOnClickListener(v->expand());
+        mini.setContentDescription("Expandir reprodução atual");
+        final float[] miniDown={0};
+        mini.setOnTouchListener((view,event)->{
+            if(event.getAction()==MotionEvent.ACTION_DOWN)miniDown[0]=event.getY();
+            if(event.getAction()==MotionEvent.ACTION_UP&&miniDown[0]-event.getY()>dp(this,32)){
+                expand();return true;
+            }
+            return false;
+        });
+        miniPlay=button(this,"▶",false);
+        miniPlay.setTextSize(22);
+        miniPlay.setContentDescription("Reproduzir ou pausar");
+        mini.addView(miniPlay,new LinearLayout.LayoutParams(dp(this,44),dp(this,46)));
+        miniPlay.setOnClickListener(v->toggle());
+        TextView next=text(this,"⏭",23,false);
+        next.setGravity(Gravity.CENTER);
+        next.setContentDescription("Próxima faixa");
+        mini.addView(next,new LinearLayout.LayoutParams(dp(this,39),dp(this,46)));
+        next.setOnClickListener(v->{if(controller!=null)controller.seekToNextMediaItem();});
+        miniFrame.addView(mini,new LinearLayout.LayoutParams(-1,dp(this,50)));
+        miniProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        miniProgress.setMax(1000);
+        miniProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(GREEN));
+        miniProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff33413c));
+        LinearLayout.LayoutParams progressParams=new LinearLayout.LayoutParams(-1,dp(this,3));
+        progressParams.topMargin=dp(this,3);
+        miniFrame.addView(miniProgress,progressParams);
+        root.addView(miniFrame,new LinearLayout.LayoutParams(-1,dp(this,72)));
+
+        LinearLayout nav=row(this);
+        nav.setGravity(Gravity.CENTER);
+        nav.setPadding(0,dp(this,7),0,0);
+        nav.setBackgroundColor(0xff0b0f10);
+        navigationItems.clear();
+        String[] names={"Início","Buscar","Biblioteca","Playlists"};
+        String[] icons={"⌂","⌕","▥","⊕"};
+        for(int i=0;i<names.length;i++){
+            final String destination=names[i];
+            LinearLayout item=column(this);
+            item.setGravity(Gravity.CENTER);
+            TextView icon=text(this,icons[i],28,false);
+            icon.setGravity(Gravity.CENTER);
+            item.addView(icon,new LinearLayout.LayoutParams(-1,dp(this,32)));
+            TextView label=text(this,names[i],11,false);
+            label.setGravity(Gravity.CENTER);
+            item.addView(label,new LinearLayout.LayoutParams(-1,dp(this,24)));
+            item.setContentDescription("Ir para "+names[i]);
+            item.setOnClickListener(v->navigate(destination));
+            nav.addView(item,new LinearLayout.LayoutParams(0,dp(this,60),1));
+            navigationItems.put(names[i],icon);
+        }
+        root.addView(nav,new LinearLayout.LayoutParams(-1,dp(this,63)));
     }
+
+    private void refreshNavigation(){
+        for(Map.Entry<String,TextView> entry:navigationItems.entrySet()){
+            boolean active=entry.getKey().equals(tab);
+            entry.getValue().setTextColor(active?GREEN:WHITE);
+            View parent=(View)entry.getValue().getParent();
+            if(parent instanceof LinearLayout){
+                LinearLayout item=(LinearLayout)parent;
+                for(int i=0;i<item.getChildCount();i++){
+                    View child=item.getChildAt(i);
+                    if(child instanceof TextView)((TextView)child).setTextColor(active?GREEN:MUTED);
+                }
+            }
+        }
+    }
+
+    private void setupHome(){
+        ScrollView scroll=new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setClipToPadding(false);
+        homeContent=column(this);
+        scroll.addView(homeContent,new ScrollView.LayoutParams(-1,-2));
+        body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        homeFeed=new HomeFeed(this,homeContent,new HomeFeed.Actions(){
+            @Override public void play(List<Track> tracks,int index){playTracks(tracks,index,false);}
+            @Override public void filter(String provider,String category){
+                source=provider;
+                genre=category;
+                search(false);
+            }
+            @Override public void playlists(){navigate("Playlists");}
+            @Override public void library(){navigate("Biblioteca");}
+        });
+        int stamp=screenGeneration;
+        task(()->db().library("recent"),tracks->{
+            if(stamp==screenGeneration&&homeFeed!=null&&tab.equals("Início"))homeFeed.showRecent(tracks);
+        });
+        task(()->db().playlists(),items->{
+            if(stamp==screenGeneration&&homeFeed!=null&&tab.equals("Início"))homeFeed.showPlaylists(items);
+        });
+    }
+
     private void navigate(String destination){
         tab=destination;profileView=false;selectedPlaylist=null;reorder=false;page=0;genre="";loading=false;screenGeneration++;repository.cancel();main.removeCallbacks(debounce);body.removeAllViews();
-        TextView title=text(this,tab.equals("Início")?"Encontre seu ritmo":tab,27,true);body.addView(title);gap(this,body,8);
+        homeFeed=null;homeContent=null;refreshNavigation();
+        if(tab.equals("Início")){
+            setupHome();
+            makeList();
+            search(false);
+            return;
+        }
+        TextView title=text(this,tab,25,true);body.addView(title);gap(this,body,12);
         if(tab.equals("Buscar")){
             EditText input=input(this,"Música, artista ou álbum");input.setText(query);body.addView(input);input.addTextChangedListener(watcher(s->{query=s;main.removeCallbacks(debounce);main.postDelayed(debounce,350);}));
             LinearLayout filters=row(this);for(String name:new String[]{"Todas","Audius","Jamendo"}){Button b=button(this,name,false);filters.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{source=name.equals("Todas")?"all":name.toLowerCase(Locale.ROOT);search(false);});}body.addView(filters);
@@ -102,9 +249,14 @@ public class FreeMusicActivity extends Activity {
         makeList();if(tab.equals("Biblioteca"))loadLibrary();else search(false);
     }
     private void makeList(){
-        status=text(this,"",12,false);status.setTextColor(MUTED);status.setPadding(0,dp(this,6),0,dp(this,6));body.addView(status);
+        boolean home=tab.equals("Início")&&!profileView&&selectedPlaylist==null&&homeContent!=null;
+        LinearLayout host=home?homeContent:body;
+        status=text(this,"",12,false);status.setTextColor(MUTED);status.setPadding(0,dp(this,6),0,dp(this,6));host.addView(status);
         recycler=new RecyclerView(this);recycler.setLayoutManager(new LinearLayoutManager(this));recycler.setClipToPadding(false);
-        adapter=new TrackAdapter(this,new TrackAdapter.Actions(){public void play(int position){playTracks(new ArrayList<>(adapter.tracks),position,false);}public void menu(int p){trackMenu(adapter.tracks.get(p),p);}});adapter.setDragEnabled(reorder);recycler.setAdapter(adapter);body.addView(recycler,new LinearLayout.LayoutParams(-1,0,1));
+        adapter=new TrackAdapter(this,new TrackAdapter.Actions(){public void play(int position){playTracks(new ArrayList<>(adapter.tracks),position,false);}public void menu(int p){trackMenu(adapter.tracks.get(p),p);}});adapter.setDragEnabled(reorder);recycler.setAdapter(adapter);
+        recycler.setNestedScrollingEnabled(!home);
+        recycler.setPadding(0,0,0,dp(this,8));
+        host.addView(recycler,new LinearLayout.LayoutParams(-1,home?-2:0,home?0:1));
         new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP|ItemTouchHelper.DOWN,0){
             boolean moved;
             @Override public boolean isLongPressDragEnabled(){return reorder&&selectedPlaylist!=null;}
@@ -112,16 +264,18 @@ public class FreeMusicActivity extends Activity {
             @Override public void onSwiped(RecyclerView.ViewHolder h,int d){}
             @Override public void clearView(RecyclerView rv,RecyclerView.ViewHolder h){super.clearView(rv,h);if(moved&&selectedPlaylist!=null){moved=false;long id=selectedPlaylist.id;List<Track> values=new ArrayList<>(adapter.tracks);allTracks.clear();allTracks.addAll(values);task(()->{db().replace(id,values);return true;},ok->{});}}
         }).attachToRecyclerView(recycler);
-        if(!profileView&&(tab.equals("Início")||tab.equals("Buscar"))){Button more=button(this,"Carregar mais",false);body.addView(more);more.setOnClickListener(v->search(true));}
+        if(!profileView&&(tab.equals("Início")||tab.equals("Buscar"))){Button more=button(this,"Carregar mais músicas",false);LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(this,48));mp.topMargin=dp(this,6);host.addView(more,mp);more.setOnClickListener(v->search(true));}
     }
     private String client(){return getPreferences(MODE_PRIVATE).getString("jamendo_client_id","");}
     private void search(boolean more){
         if(profileView||!(tab.equals("Início")||tab.equals("Buscar")))return;if(more&&loading)return;
-        if(!more){page=0;allTracks.clear();adapter.submit(allTracks);}else page++;
+        if(!more){page=0;allTracks.clear();adapter.submit(allTracks);if(tab.equals("Início")&&homeFeed!=null)homeFeed.showTrending(Collections.emptyList());}else page++;
         final boolean requestedMore=more;
         loading=true;status.setText("Buscando em "+(source.equals("all")?"fontes conectadas":source)+"…");String q=tab.equals("Início")?"":query;
         repository.search(q,genre,source,client(),page*25,(tracks,error)->{loading=false;if(requestedMore&&tracks.isEmpty()&&!error.isEmpty())page=Math.max(0,page-1);Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
-            adapter.submit(allTracks);status.setText(error.isEmpty()?(allTracks.isEmpty()?"Nenhum resultado. Tente outra busca.":allTracks.size()+" faixas · "+(source.equals("all")?"fontes conectadas":source)):error);
+            adapter.submit(allTracks);
+            if(tab.equals("Início")&&homeFeed!=null)homeFeed.showTrending(allTracks);
+            status.setText(error.isEmpty()?(allTracks.isEmpty()?"Nenhum resultado. Tente outra busca.":allTracks.size()+" faixas · "+(source.equals("all")?"fontes conectadas":source)):error);
             List<Track> copy=new ArrayList<>(tracks);task(()->{for(Track t:copy)db().save(t);return true;},ok->{});
         });
     }
@@ -215,7 +369,7 @@ public class FreeMusicActivity extends Activity {
     private Track current(){try{return controller==null||controller.getCurrentMediaItem()==null?null:MediaItems.track(controller.getCurrentMediaItem());}catch(Exception e){return null;}}
     private void updatePlayer(){
         if(controller==null)return;Track t=current();miniPlay.setText(controller.isPlaying()?"Ⅱ":"▶");
-        if(t!=null){miniTitle.setText(t.title+"\n"+t.artist);if(!artKey.equals(t.key()+t.artwork)){artKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,miniArt,dp(this,44));}}
+        if(t!=null){miniTitle.setText(t.title);if(miniArtist!=null)miniArtist.setText(t.artist+"  •  "+t.provider);if(!artKey.equals(t.key()+t.artwork)){artKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,miniArt,dp(this,46));}}
         if(status!=null&&controller.getPlayerError()!=null)status.setText("Não foi possível reproduzir. Verifique a conexão ou a disponibilidade na fonte. Toque em reproduzir para tentar novamente.");
         if(fullPlay!=null&&t!=null){fullPlay.setText(controller.isPlaying()?"Ⅱ Pausar":"▶ Tocar");fullPlay.setContentDescription(controller.isPlaying()?"Pausar":"Reproduzir");fullTitle.setText(t.title);fullArtist.setText(t.artist+" · "+t.provider);repeat.setText(new String[]{"Repetir: não","Repetir: faixa","Repetir: fila"}[controller.getRepeatMode()]);shuffle.setText(controller.getShuffleModeEnabled()?"Aleatório: sim":"Aleatório: não");
             if(!fullKey.equals(t.key()+t.artwork)){fullKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,fullArt,Math.min(1000,getResources().getDisplayMetrics().widthPixels));if(paletteTarget!=null)Glide.with(this).clear(paletteTarget);String key=fullKey;
@@ -224,7 +378,7 @@ public class FreeMusicActivity extends Activity {
             }
         }progress();
     }
-    private void progress(){if(controller!=null&&seek!=null){long duration=controller.getDuration(),position=controller.getCurrentPosition();seek.setEnabled(duration>0&&controller.isCurrentMediaItemSeekable());if(!seeking)seek.setProgress(duration>0?(int)(position*1000/duration):0);time.setText(time(position)+" / "+(duration>0?time(duration):"—"));}}
+    private void progress(){if(controller!=null){long duration=controller.getDuration(),position=controller.getCurrentPosition();int value=duration>0?(int)(Math.max(0,position)*1000/duration):0;if(miniProgress!=null)miniProgress.setProgress(Math.max(0,Math.min(1000,value)));if(seek!=null){seek.setEnabled(duration>0&&controller.isCurrentMediaItemSeekable());if(!seeking)seek.setProgress(value);if(time!=null)time.setText(time(position)+" / "+(duration>0?time(duration):"—"));}}}
     private void queue(){
         if(controller==null)return;List<String> names=new ArrayList<>();for(int i=0;i<controller.getMediaItemCount();i++)names.add((i==controller.getCurrentMediaItemIndex()?"▶ ":"")+controller.getMediaItemAt(i).mediaMetadata.title);
         new AlertDialog.Builder(this).setTitle("Fila de reprodução").setItems(names.toArray(new String[0]),(d,index)->{
