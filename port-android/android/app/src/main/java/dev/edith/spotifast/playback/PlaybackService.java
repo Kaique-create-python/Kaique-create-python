@@ -3,6 +3,8 @@ package dev.edith.spotifast.playback;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.*;
 import androidx.media3.common.*;
 import androidx.media3.datasource.*;
@@ -26,11 +28,20 @@ public final class PlaybackService extends MediaSessionService {
     private final Handler main=new Handler(Looper.getMainLooper());
     private boolean restoring=true,changed=false,destroyed=false;
     private String counted="";
+    private int retries;
+    private String retryItem="";
+    private ConnectivityManager connectivity;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private final Runnable retry=()->{
+        if(destroyed||player==null||!player.getPlayWhenReady())return;
+        MediaItem item=player.getCurrentMediaItem();
+        if(item!=null&&retryItem.equals(item.mediaId)&&player.getPlayerError()!=null)player.prepare();
+    };
     private final Runnable sleep=()->{if(player!=null)player.pause();};
     private final Runnable checkpoint=new Runnable(){public void run(){save();if(player!=null&&player.isPlaying())main.postDelayed(this,15000);}};
     @Override public void onCreate(){
         super.onCreate();
-        DefaultDataSource.Factory sources=new DefaultDataSource.Factory(this,new OkHttpDataSource.Factory(ApiClient.HTTP));
+        DefaultDataSource.Factory sources=new DefaultDataSource.Factory(this,new OkHttpDataSource.Factory(ApiClient.STREAM));
         ResolvingDataSource.Factory resolving=new ResolvingDataSource.Factory(sources,spec->{
             Uri uri=spec.uri;
             if(!"spotifast".equals(uri.getScheme()))return spec;
@@ -41,20 +52,40 @@ public final class PlaybackService extends MediaSessionService {
                 else if("jamendo".equals(uri.getHost()))url=new JamendoProvider(getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("jamendo_client_id","")).resolve(id);
                 else throw new IOException("Fonte não autorizada");
                 return spec.withUri(Uri.parse(url));
-            }catch(Exception e){throw new IOException("A fonte não autorizou ou não disponibilizou esta faixa");}
+            }catch(IOException e){throw HttpDataSource.HttpDataSourceException.createForIOException(e,spec,HttpDataSource.HttpDataSourceException.TYPE_OPEN);}catch(Exception e){throw new IOException("A fonte não autorizou ou não disponibilizou esta faixa");}
         });
         player=new ExoPlayer.Builder(this).setMediaSourceFactory(new DefaultMediaSourceFactory(resolving))
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         player.addListener(new Player.Listener(){
             @Override public void onTimelineChanged(Timeline timeline,int reason){changed=true;save();}
-            @Override public void onMediaItemTransition(MediaItem item,int reason){counted="";save();countPlay();}
+            @Override public void onMediaItemTransition(MediaItem item,int reason){counted="";retries=0;main.removeCallbacks(retry);save();countPlay();}
             @Override public void onIsPlayingChanged(boolean playing){main.removeCallbacks(checkpoint);save();if(playing){countPlay();main.postDelayed(checkpoint,15000);}}
             @Override public void onRepeatModeChanged(int repeat){save();}
             @Override public void onShuffleModeEnabledChanged(boolean shuffle){save();}
             @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo now,int reason){save();}
-            @Override public void onPlayerError(PlaybackException error){android.util.Log.w("SpotiFastPlayback","Playback failure code="+error.errorCode);save();}
+            @Override public void onPlaybackStateChanged(int state){if(state==Player.STATE_READY){retries=0;main.removeCallbacks(retry);}}
+            @Override public void onPlayWhenReadyChanged(boolean ready,int reason){if(!ready)main.removeCallbacks(retry);}
+            @Override public void onPlayerError(PlaybackException error){
+                android.util.Log.w("SpotiFastPlayback","Playback failure code="+error.errorCode);save();
+                long delay=RetryPolicy.delay(error.errorCode,retries);
+                MediaItem item=player.getCurrentMediaItem();
+                if(delay>=0&&item!=null&&player.getPlayWhenReady()){
+                    retryItem=item.mediaId;retries++;main.removeCallbacks(retry);main.postDelayed(retry,delay);
+                }
+            }
         });
+        connectivity=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        networkCallback=new ConnectivityManager.NetworkCallback(){
+            @Override public void onAvailable(Network network){main.post(()->{
+                if(destroyed||player==null||player.getPlayerError()==null)return;
+                if(RetryPolicy.delay(player.getPlayerError().errorCode,0)>=0&&player.getPlayWhenReady()){
+                    // One fresh bounded recovery window when a network becomes available.
+                    retries=0;main.removeCallbacks(retry);main.postDelayed(retry,500);
+                }
+            });}
+        };
+        try{connectivity.registerDefaultNetworkCallback(networkCallback);}catch(SecurityException e){networkCallback=null;}
         session=new MediaSession.Builder(this,player).setSessionActivity(PendingIntent.getActivity(this,0,new Intent(this,FreeMusicActivity.class),PendingIntent.FLAG_IMMUTABLE|PendingIntent.FLAG_UPDATE_CURRENT))
             .setCallback(new MediaSession.Callback(){
                 @Override public MediaSession.ConnectionResult onConnect(MediaSession s,MediaSession.ControllerInfo c){
@@ -101,7 +132,9 @@ public final class PlaybackService extends MediaSessionService {
     }
     private void countPlay(){
         MediaItem item=player.getCurrentMediaItem();if(!player.isPlaying()||item==null||item.mediaId.equals(counted))return;
-        counted=item.mediaId;Track t=MediaItems.track(item);MusicDatabase.IO.execute(()->MusicDatabase.get(this).played(t));
+        counted=item.mediaId;
+        if(!getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getBoolean("history_enabled",true))return;
+        Track t=MediaItems.track(item);MusicDatabase.IO.execute(()->MusicDatabase.get(this).played(t));
     }
     private void save(){
         if(player==null||restoring)return;
@@ -110,5 +143,6 @@ public final class PlaybackService extends MediaSessionService {
         MusicDatabase.IO.execute(()->{try{MusicDatabase.get(this).saveSession(tracks,index,position,repeat,shuffle);}catch(Exception e){android.util.Log.w("SpotiFastPlayback","Could not save session");}});
     }
     @Override public MediaSession onGetSession(MediaSession.ControllerInfo info){return session;}
-    @Override public void onDestroy(){destroyed=true;save();main.removeCallbacksAndMessages(null);if(session!=null)session.release();if(player!=null)player.release();player=null;super.onDestroy();}
+    @Override public void onDestroy(){destroyed=true;save();main.removeCallbacksAndMessages(null);if(networkCallback!=null)connectivity.unregisterNetworkCallback(networkCallback);if(session!=null)session.release();if(player!=null)player.release();player=null;super.onDestroy();}
 }
+

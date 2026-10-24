@@ -10,6 +10,9 @@ import java.util.concurrent.TimeUnit;
 public final class ApiClient {
     public static final OkHttpClient HTTP=new OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS)
             .readTimeout(15,TimeUnit.SECONDS).callTimeout(25,TimeUnit.SECONDS).build();
+    // A stream may stay open for the whole song. Keep bounded socket timeouts,
+    // but never apply the metadata request's total 25-second deadline to audio.
+    public static final OkHttpClient STREAM=HTTP.newBuilder().callTimeout(0,TimeUnit.MILLISECONDS).build();
     private static final LinkedHashMap<String,Entry> CACHE=new LinkedHashMap<>(32,.75f,true);
     private static int cacheChars;
     private static final class Entry { long time=System.currentTimeMillis();String body;Entry(String b){body=b;} }
@@ -22,7 +25,7 @@ public final class ApiClient {
         if(cache) synchronized(CACHE) { Entry e=CACHE.get(url);if(e!=null&&System.currentTimeMillis()-e.time<120000) return new JSONObject(e.body); }
         for(int attempt=0;attempt<3;attempt++) {
             if(Thread.currentThread().isInterrupted()) throw new InterruptedIOException();
-            Request request=new Request.Builder().url(url).tag(tag).header("Accept","application/json").header("User-Agent","SpotiFastAndroid/4").build();
+            Request request=new Request.Builder().url(url).tag(tag).header("Accept","application/json").header("User-Agent","SpotiFastAndroid/6").build();
             try(Response response=HTTP.newCall(request).execute()) {
                 int code=response.code();
                 if((code==429||code>=500)&&attempt<2) {
@@ -48,3 +51,4 @@ public final class ApiClient {
         for(int i=0;i<params.length;i+=2) b.addQueryParameter(params[i],params[i+1]);return b.build().toString();
     }
 }
+

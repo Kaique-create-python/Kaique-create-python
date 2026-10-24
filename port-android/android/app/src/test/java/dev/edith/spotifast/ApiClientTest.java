@@ -4,6 +4,12 @@ import okhttp3.mockwebserver.*;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class ApiClientTest {
+    @Test public void streamingHasNoSongLengthDeadlineAndSharesConnections(){
+        assertEquals(0,ApiClient.STREAM.callTimeoutMillis());
+        assertEquals(25000,ApiClient.HTTP.callTimeoutMillis());
+        assertTrue(ApiClient.STREAM.readTimeoutMillis()>0);
+        assertSame(ApiClient.HTTP.connectionPool(),ApiClient.STREAM.connectionPool());
+    }
     @Test public void retriesTemporaryFailureAndCachesOnlyMetadata() throws Exception {
         try(MockWebServer server=new MockWebServer()) {server.enqueue(new MockResponse().setResponseCode(503));server.enqueue(new MockResponse().setBody("{\"data\":[]}"));server.start();String url=server.url("/search").toString();assertTrue(ApiClient.get(url,this,true).has("data"));ApiClient.get(url,this,true);assertEquals(2,server.getRequestCount());}
     }
@@ -11,3 +17,4 @@ public class ApiClientTest {
         try(MockWebServer server=new MockWebServer()){server.enqueue(new MockResponse().setResponseCode(403));server.start();try{ApiClient.get(server.url("/stream").toString(),this,false);fail();}catch(java.io.IOException expected){}assertEquals(1,server.getRequestCount());}
     }
 }
+
