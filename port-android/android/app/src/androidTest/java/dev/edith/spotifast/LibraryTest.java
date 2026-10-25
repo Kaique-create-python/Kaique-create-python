@@ -42,5 +42,16 @@ public class LibraryTest {
         seed.artistId=match.artistId="artist-a";db.favorite(seed);db.played(seed);db.save(match);db.save(other);
         assertEquals(match.key(),db.recommendations().get(0).key());
     }
+    @Test public void backupRestoresPlaylistsFavoritesAndHistory() throws Exception {
+        Track a=new Track("audius","1","Backup song","Artist");long id=db.createPlaylist("Saved");db.add(id,a);db.favorite(a);db.played(a);
+        String json=db.exportBackup();db.close();context.deleteDatabase("spotifast-library-test.db");db=new MusicDatabase(context,"spotifast-library-test.db");db.importBackup(json);
+        assertEquals(a.key(),db.playlist(db.playlists().get(0).id).get(0).key());assertTrue(db.isFavorite(a));assertEquals(1,db.library("most").size());
+    }
+    @Test public void invalidBackupRollsBackPartialWrites() throws Exception {
+        Track a=new Track("audius","1","Keep","Artist");long id=db.createPlaylist("Keep");db.add(id,a);
+        org.json.JSONObject data=new org.json.JSONObject(db.exportBackup());data.getJSONArray("playlists").getJSONObject(0).getJSONArray("entries").put("audius:missing");
+        try{db.importBackup(data.toString());fail("Expected invalid reference");}catch(NullPointerException expected){}
+        assertEquals(1,db.playlists().size());assertEquals(1,db.playlist(id).size());
+    }
 }
 

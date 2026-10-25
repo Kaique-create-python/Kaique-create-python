@@ -24,6 +24,11 @@ import java.util.*;
 public final class PlaybackService extends MediaSessionService {
     public static final String SLEEP="dev.edith.spotifast.SLEEP";
     public static final String AUDIO_SESSION="dev.edith.spotifast.AUDIO_SESSION";
+    public static final String RADIO="dev.edith.spotifast.RADIO";
+    private final java.util.concurrent.ExecutorService radioIO=java.util.concurrent.Executors.newSingleThreadExecutor();
+    private final Object radioTag=new Object();
+    private boolean radioLoading;
+    private String radioSeed="";
     private ExoPlayer player;
     private MediaSession session;
     private final Handler main=new Handler(Looper.getMainLooper());
@@ -50,7 +55,7 @@ public final class PlaybackService extends MediaSessionService {
             try {
                 String url;
                 if("audius".equals(uri.getHost()))url=new AudiusProvider().resolve(id);
-                else if("jamendo".equals(uri.getHost()))url=new JamendoProvider(getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("jamendo_client_id","")).resolve(id);
+                else if("jamendo".equals(uri.getHost()))url=new JamendoProvider(getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("jamendo_client_id",""),getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("audio_quality","mp32")).resolve(id);
                 else throw new IOException("Fonte não autorizada");
                 return spec.withUri(Uri.parse(url));
             }catch(IOException e){throw HttpDataSource.HttpDataSourceException.createForIOException(e,spec,HttpDataSource.HttpDataSourceException.TYPE_OPEN);}catch(Exception e){throw new IOException("A fonte não autorizou ou não disponibilizou esta faixa");}
@@ -59,9 +64,13 @@ public final class PlaybackService extends MediaSessionService {
             .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
             .setHandleAudioBecomingNoisy(true).setWakeMode(C.WAKE_MODE_LOCAL).build();
         player.addListener(new Player.Listener(){
+            @Override public void onEvents(Player p,Player.Events events){
+                MediaItem item=p.getCurrentMediaItem();
+                PlayerWidget.render(PlaybackService.this,item==null?"SpotiFast":String.valueOf(item.mediaMetadata.title),item==null?"Escolha uma música":String.valueOf(item.mediaMetadata.artist),p.isPlaying());
+            }
             @Override public void onTimelineChanged(Timeline timeline,int reason){changed=true;save();}
-            @Override public void onMediaItemTransition(MediaItem item,int reason){counted="";retries=0;main.removeCallbacks(retry);save();countPlay();}
-            @Override public void onIsPlayingChanged(boolean playing){main.removeCallbacks(checkpoint);save();if(playing){countPlay();main.postDelayed(checkpoint,15000);}}
+            @Override public void onMediaItemTransition(MediaItem item,int reason){counted="";retries=0;main.removeCallbacks(retry);save();countPlay();extendRadio();}
+            @Override public void onIsPlayingChanged(boolean playing){main.removeCallbacks(checkpoint);save();if(playing){countPlay();extendRadio();main.postDelayed(checkpoint,15000);}}
             @Override public void onRepeatModeChanged(int repeat){save();}
             @Override public void onShuffleModeEnabledChanged(boolean shuffle){save();}
             @Override public void onPositionDiscontinuity(Player.PositionInfo old,Player.PositionInfo now,int reason){save();}
@@ -92,7 +101,7 @@ public final class PlaybackService extends MediaSessionService {
                 @Override public MediaSession.ConnectionResult onConnect(MediaSession s,MediaSession.ControllerInfo c){
                     if(c.getUid()!=android.os.Process.myUid()&&!c.isTrusted())return MediaSession.ConnectionResult.reject();
                     MediaSession.ConnectionResult base=MediaSession.Callback.super.onConnect(s,c);
-                    return new MediaSession.ConnectionResult.AcceptedResultBuilder(s).setAvailableSessionCommands(base.availableSessionCommands.buildUpon().add(new SessionCommand(SLEEP,Bundle.EMPTY)).add(new SessionCommand(AUDIO_SESSION,Bundle.EMPTY)).build()).build();
+                    return new MediaSession.ConnectionResult.AcceptedResultBuilder(s).setAvailableSessionCommands(base.availableSessionCommands.buildUpon().add(new SessionCommand(SLEEP,Bundle.EMPTY)).add(new SessionCommand(AUDIO_SESSION,Bundle.EMPTY)).add(new SessionCommand(RADIO,Bundle.EMPTY)).build()).build();
                 }
                 @Override public ListenableFuture<List<MediaItem>> onAddMediaItems(MediaSession s,MediaSession.ControllerInfo c,List<MediaItem> items){
                     if(c.getUid()!=android.os.Process.myUid())return Futures.immediateFailedFuture(new SecurityException("Only app library can add audio"));
@@ -111,6 +120,12 @@ public final class PlaybackService extends MediaSessionService {
                     return result;
                 }
                 @Override public ListenableFuture<SessionResult> onCustomCommand(MediaSession s,MediaSession.ControllerInfo c,SessionCommand command,Bundle args){
+                    if(RADIO.equals(command.customAction)&&c.getUid()==android.os.Process.myUid()){
+                        boolean enabled=args.getBoolean("enabled",false);
+                        getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).edit().putBoolean("radio_enabled",enabled).apply();
+                        radioSeed="";if(enabled)extendRadio();else ApiClient.cancel(radioTag);
+                        return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+                    }
                     if(AUDIO_SESSION.equals(command.customAction)&&c.getUid()==android.os.Process.myUid()){
                         Bundle data=new Bundle();data.putInt("audio_session_id",player.getAudioSessionId());
                         return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS,data));
@@ -141,6 +156,31 @@ public final class PlaybackService extends MediaSessionService {
         if(!getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getBoolean("history_enabled",true))return;
         Track t=MediaItems.track(item);MusicDatabase.IO.execute(()->MusicDatabase.get(this).played(t));
     }
+    private void extendRadio(){
+        if(destroyed||player==null||radioLoading||!player.getPlayWhenReady()||player.getRepeatMode()!=Player.REPEAT_MODE_OFF||!getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getBoolean("radio_enabled",false))return;
+        MediaItem item=player.getCurrentMediaItem();
+        if(item==null||player.getMediaItemCount()-player.getCurrentMediaItemIndex()>2||item.mediaId.equals(radioSeed))return;
+        Track seed=MediaItems.track(item);radioSeed=item.mediaId;radioLoading=true;
+        radioIO.execute(()->{
+            List<Track> candidates=new ArrayList<>();
+            try{
+                if(seed.provider.equals("local"))candidates=MusicDatabase.get(this).library("local");
+                else if(seed.provider.equals("audius"))candidates=new AudiusProvider().search("",seed.genre,0,radioTag);
+                else if(seed.provider.equals("jamendo"))candidates=new JamendoProvider(getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("jamendo_client_id","")).search("",seed.genre,0,radioTag);
+            }catch(Exception e){android.util.Log.w("SpotiFastRadio","Source unavailable");}
+            List<Track> found=candidates;main.post(()->{
+                radioLoading=false;if(destroyed||player==null||!getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getBoolean("radio_enabled",false))return;
+                MediaItem now=player.getCurrentMediaItem();if(now==null||!now.mediaId.equals(seed.key()))return;
+                Set<String> queued=new HashSet<>();for(int i=0;i<player.getMediaItemCount();i++)queued.add(player.getMediaItemAt(i).mediaId);
+                List<Track> next=RadioPlanner.select(found,queued,5);
+                if(!next.isEmpty()){
+                    if(player.getMediaItemCount()>200&&player.getCurrentMediaItemIndex()>100)player.removeMediaItems(0,player.getCurrentMediaItemIndex()-50);
+                    boolean ended=player.getPlaybackState()==Player.STATE_ENDED;int start=player.getMediaItemCount();player.addMediaItems(MediaItems.of(next));
+                    if(ended&&player.getPlayWhenReady()){player.seekToDefaultPosition(start);player.prepare();}
+                }
+            });
+        });
+    }
     private void save(){
         if(player==null||restoring)return;
         List<Track> tracks=new ArrayList<>();for(int i=0;i<player.getMediaItemCount();i++)tracks.add(MediaItems.track(player.getMediaItemAt(i)));
@@ -148,6 +188,6 @@ public final class PlaybackService extends MediaSessionService {
         MusicDatabase.IO.execute(()->{try{MusicDatabase.get(this).saveSession(tracks,index,position,repeat,shuffle);}catch(Exception e){android.util.Log.w("SpotiFastPlayback","Could not save session");}});
     }
     @Override public MediaSession onGetSession(MediaSession.ControllerInfo info){return session;}
-    @Override public void onDestroy(){destroyed=true;save();main.removeCallbacksAndMessages(null);if(networkCallback!=null)connectivity.unregisterNetworkCallback(networkCallback);if(session!=null)session.release();if(player!=null)player.release();player=null;super.onDestroy();}
+    @Override public void onDestroy(){destroyed=true;ApiClient.cancel(radioTag);radioIO.shutdownNow();save();main.removeCallbacksAndMessages(null);if(networkCallback!=null)connectivity.unregisterNetworkCallback(networkCallback);if(session!=null)session.release();if(player!=null)player.release();player=null;super.onDestroy();}
 }
 

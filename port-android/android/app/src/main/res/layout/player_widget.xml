@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:padding="12dp" android:background="@drawable/widget_background">
+    <LinearLayout android:id="@+id/widget_info" android:layout_width="0dp"
+        android:layout_height="match_parent" android:layout_weight="1" android:gravity="center_vertical" android:orientation="vertical">
+        <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#f4f6f5" android:textStyle="bold" android:textSize="15sp" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/widget_artist" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#a0acaf" android:textSize="12sp" android:maxLines="1" android:ellipsize="end" />
+    </LinearLayout>
+    <TextView android:id="@+id/widget_previous" android:layout_width="48dp" android:layout_height="48dp"
+        android:text="⏮" android:textColor="#f4f6f5" android:textSize="24sp" android:gravity="center" android:contentDescription="Faixa anterior" />
+    <TextView android:id="@+id/widget_toggle" android:layout_width="48dp" android:layout_height="48dp"
+        android:text="▶" android:textColor="#43df9b" android:textSize="26sp" android:gravity="center" android:contentDescription="Reproduzir" />
+    <TextView android:id="@+id/widget_next" android:layout_width="48dp" android:layout_height="48dp"
+        android:text="⏭" android:textColor="#f4f6f5" android:textSize="24sp" android:gravity="center" android:contentDescription="Próxima faixa" />
+</LinearLayout>

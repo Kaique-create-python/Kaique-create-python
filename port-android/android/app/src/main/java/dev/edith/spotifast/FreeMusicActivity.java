@@ -137,12 +137,12 @@ public class FreeMusicActivity extends Activity {
             return false;
         });
         miniPlay=button(this,"▶",false);
-        miniPlay.setTextSize(22);
+        miniPlay.setTextSize(22);MusicIcons.bind(miniPlay,"play",WHITE);
         miniPlay.setContentDescription("Reproduzir ou pausar");
         mini.addView(miniPlay,new LinearLayout.LayoutParams(dp(this,44),dp(this,46)));
         miniPlay.setOnClickListener(v->toggle());
         TextView next=text(this,"⏭",23,false);
-        next.setGravity(Gravity.CENTER);
+        next.setGravity(Gravity.CENTER);MusicIcons.bind(next,"next",WHITE);
         next.setContentDescription("Próxima faixa");
         mini.addView(next,new LinearLayout.LayoutParams(dp(this,39),dp(this,46)));
         next.setOnClickListener(v->{if(controller!=null)controller.seekToNextMediaItem();});
@@ -167,7 +167,7 @@ public class FreeMusicActivity extends Activity {
             final String destination=names[i];
             LinearLayout item=column(this);
             item.setGravity(Gravity.CENTER);
-            TextView icon=text(this,icons[i],28,false);
+            TextView icon=text(this,"",28,false);MusicIcons.bind(icon,MusicIcons.navigation(destination),MUTED);
             icon.setGravity(Gravity.CENTER);
             item.addView(icon,new LinearLayout.LayoutParams(-1,dp(this,32)));
             TextView label=text(this,names[i],11,false);
@@ -184,7 +184,7 @@ public class FreeMusicActivity extends Activity {
     private void refreshNavigation(){
         for(Map.Entry<String,TextView> entry:navigationItems.entrySet()){
             boolean active=entry.getKey().equals(tab);
-            entry.getValue().setTextColor(active?GREEN:WHITE);
+            entry.getValue().setTextColor(active?GREEN:WHITE);MusicIcons.bind(entry.getValue(),MusicIcons.navigation(entry.getKey()),active?GREEN:MUTED);
             View parent=(View)entry.getValue().getParent();
             if(parent instanceof LinearLayout){
                 LinearLayout item=(LinearLayout)parent;
@@ -356,7 +356,7 @@ public class FreeMusicActivity extends Activity {
         else if(i==8)task(()->{db().replace(p.id,db().playlistByDate(p.id));return true;},ok->openPlaylist(p));
         else new AlertDialog.Builder(this).setTitle("Excluir “"+p.name+"”?").setMessage("A playlist será removida deste celular.").setNegativeButton("Cancelar",null).setPositiveButton("Excluir",(a,b)->task(()->{db().deletePlaylist(p.id);return true;},ok->navigate("Playlists"))).show();
     }).show();}
-    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V6 experimental").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão","Limite do cache de capas","Privacidade e histórico","Equalizador do dispositivo","Efeitos visuais"},(d,i)->{
+    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V6 experimental").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão","Limite do cache de capas","Privacidade e histórico","Equalizador do dispositivo","Efeitos visuais","Rádio ao final da fila","Qualidade do Jamendo","Backup local da biblioteca"},(d,i)->{
         if(i==0){EditText id=input(this,"Client ID legítimo");id.setText(client());new AlertDialog.Builder(this).setTitle("Jamendo Developer").setMessage("Insira o Client ID da sua aplicação no Jamendo. Nenhuma senha é necessária.").setView(id).setPositiveButton("Salvar",(a,b)->{getPreferences(MODE_PRIVATE).edit().putString("jamendo_client_id",id.getText().toString().trim()).apply();ApiClient.clear();navigate(tab);}).setNeutralButton("Portal",(a,b)->external("https://devportal.jamendo.com/")).setNegativeButton("Cancelar",null).show();}
         else if(i==1)new AlertDialog.Builder(this).setTitle("Parar reprodução após…").setItems(new String[]{"Desativar","15 minutos","30 minutos","60 minutos"},(a,b)->{if(controller!=null){Bundle args=new Bundle();args.putInt("minutes",new int[]{0,15,30,60}[b]);controller.sendCustomCommand(new SessionCommand(PlaybackService.SLEEP,Bundle.EMPTY),args);toast("Temporizador atualizado");}}).show();
         else if(i==2)((AudioManager)getSystemService(AUDIO_SERVICE)).adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_SAME,AudioManager.FLAG_SHOW_UI);
@@ -370,6 +370,9 @@ public class FreeMusicActivity extends Activity {
         }
         else if(i==8)openEqualizer();
         else if(i==9){boolean enabled=getPreferences(MODE_PRIVATE).getBoolean("visual_effects",true);new AlertDialog.Builder(this).setTitle("Efeitos visuais").setMultiChoiceItems(new String[]{"Cores da capa e transições"},new boolean[]{enabled},(a,index,checked)->getPreferences(MODE_PRIVATE).edit().putBoolean("visual_effects",checked).apply()).setPositiveButton("Fechar",null).show();}
+        else if(i==10){boolean enabled=getPreferences(MODE_PRIVATE).getBoolean("radio_enabled",false);new AlertDialog.Builder(this).setTitle("Rádio da fonte").setMessage("Acrescenta faixas públicas do mesmo gênero quando disponível. A seleção depende do catálogo da fonte; pode terminar se não houver novas faixas.").setMultiChoiceItems(new String[]{"Continuar com novas músicas"},new boolean[]{enabled},(a,index,checked)->{if(controller!=null){Bundle args=new Bundle();args.putBoolean("enabled",checked);controller.sendCustomCommand(new SessionCommand(PlaybackService.RADIO,Bundle.EMPTY),args);}}).setPositiveButton("Fechar",null).show();}
+        else if(i==11)new AlertDialog.Builder(this).setTitle("Qualidade do Jamendo").setSingleChoiceItems(new String[]{"Econômica · MP3 96 kb/s","Padrão · MP3 192 kb/s"},getPreferences(MODE_PRIVATE).getString("audio_quality","mp32").equals("mp31")?0:1,(a,index)->{getPreferences(MODE_PRIVATE).edit().putString("audio_quality",index==0?"mp31":"mp32").apply();toast("Qualidade aplicada nas próximas conexões do Jamendo");a.dismiss();}).show();
+        else if(i==12)new AlertDialog.Builder(this).setTitle("Backup da biblioteca").setMessage("Exporta playlists, curtidas, histórico e metadados. Não inclui credenciais nem arquivos de áudio. Arquivos locais e capas escolhidas podem precisar de nova autorização em outro dispositivo.").setPositiveButton("Exportar",(a,b)->task(()->db().exportBackup(),json->{pendingExport=json;Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"SpotiFast-biblioteca.json");startActivityForResult(intent,101);})).setNeutralButton("Importar",(a,b)->openDocument("application/json",105,false)).setNegativeButton("Cancelar",null).show();
         else new AlertDialog.Builder(this).setTitle("SpotiFast V6 experimental").setMessage("Player Android com Media3 e biblioteca local SQLite.\n\nAudius e Jamendo seguem as permissões das fontes. YouTube usa vídeo oficial visível.\n\nA interface Rust original foi preservada. Não há acesso gratuito ao catálogo pago do Spotify. Não há download de áudio remoto.").setPositiveButton("Fechar",null).show();
     }).show();}
     private void expand(){
@@ -381,7 +384,7 @@ public class FreeMusicActivity extends Activity {
         fullArtist.setOnClickListener(v->{Track t=current();if(t!=null){expanded.dismiss();artist(t,false);}});
         fullArtist.setContentDescription("Artista e fonte. Toque para abrir perfil");gap(this,fullRoot,16);
         seek=new SeekBar(this);seek.setContentDescription("Posição na música");seek.setMax(1000);fullRoot.addView(seek);time=text(this,"0:00 / 0:00",12,false);fullRoot.addView(time);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onStartTrackingTouch(SeekBar s){seeking=true;}public void onProgressChanged(SeekBar s,int p,boolean user){}public void onStopTrackingTouch(SeekBar s){if(controller!=null&&controller.isCurrentMediaItemSeekable()&&controller.getDuration()>0)controller.seekTo(controller.getDuration()*s.getProgress()/1000);seeking=false;}});
-        LinearLayout controls=row(this);Button previous=button(this,"❮",false),next=button(this,"❯",false);fullPlay=button(this,"▶",true);previous.setContentDescription("Faixa anterior");next.setContentDescription("Próxima faixa");controls.setGravity(Gravity.CENTER);previous.setText("⏮");next.setText("⏭");fullPlay.setTextSize(26);
+        LinearLayout controls=row(this);Button previous=button(this,"❮",false),next=button(this,"❯",false);fullPlay=button(this,"▶",true);previous.setContentDescription("Faixa anterior");next.setContentDescription("Próxima faixa");controls.setGravity(Gravity.CENTER);MusicIcons.bind(previous,"previous",WHITE);MusicIcons.bind(next,"next",WHITE);fullPlay.setBackground(shape(this,GREEN,48));fullPlay.setTextSize(26);
         controls.addView(previous,new LinearLayout.LayoutParams(dp(this,64),dp(this,64)));
         LinearLayout.LayoutParams playSize=new LinearLayout.LayoutParams(dp(this,80),dp(this,80));playSize.setMargins(dp(this,22),0,dp(this,22),0);controls.addView(fullPlay,playSize);
         controls.addView(next,new LinearLayout.LayoutParams(dp(this,64),dp(this,64)));fullRoot.addView(controls);previous.setOnClickListener(v->controller.seekToPrevious());next.setOnClickListener(v->controller.seekToNextMediaItem());fullPlay.setOnClickListener(v->toggle());
@@ -409,10 +412,10 @@ public class FreeMusicActivity extends Activity {
     }
     private Track current(){try{return controller==null||controller.getCurrentMediaItem()==null?null:MediaItems.track(controller.getCurrentMediaItem());}catch(Exception e){return null;}}
     private void updatePlayer(){
-        if(controller==null)return;Track t=current();miniPlay.setText(controller.isPlaying()?"Ⅱ":"▶");
+        if(controller==null)return;Track t=current();MusicIcons.bind(miniPlay,controller.isPlaying()?"pause":"play",WHITE);
         if(t!=null){miniTitle.setText(t.title);if(miniArtist!=null)miniArtist.setText(t.artist+"  •  "+t.provider);if(!artKey.equals(t.key()+t.artwork)){artKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,miniArt,dp(this,46));}}
         if(status!=null&&controller.getPlayerError()!=null)status.setText("Não foi possível reproduzir. Verifique a conexão ou a disponibilidade na fonte. Toque em reproduzir para tentar novamente.");
-        if(fullPlay!=null&&t!=null){fullPlay.setText(controller.isPlaying()?"Ⅱ":"▶");fullPlay.setContentDescription(controller.isPlaying()?"Pausar":"Reproduzir");fullTitle.setText(t.title);fullArtist.setText(t.artist+" · "+t.provider);repeat.setText(new String[]{"Repetir: não","Repetir: faixa","Repetir: fila"}[controller.getRepeatMode()]);shuffle.setText(controller.getShuffleModeEnabled()?"Aleatório: sim":"Aleatório: não");
+        if(fullPlay!=null&&t!=null){MusicIcons.bind(fullPlay,controller.isPlaying()?"pause":"play",BG);fullPlay.setContentDescription(controller.isPlaying()?"Pausar":"Reproduzir");fullTitle.setText(t.title);fullArtist.setText(t.artist+" · "+t.provider);repeat.setText(new String[]{"Repetir: não","Repetir: faixa","Repetir: fila"}[controller.getRepeatMode()]);shuffle.setText(controller.getShuffleModeEnabled()?"Aleatório: sim":"Aleatório: não");
             if(!fullKey.equals(t.key()+t.artwork)){fullKey=t.key()+t.artwork;
                 String favoriteKey=t.key();task(()->db().isFavorite(t),liked->{Track now=current();if(fullLike!=null&&now!=null&&favoriteKey.equals(now.key()))fullLike.setText(liked?"♥ Curtida":"♡ Curtir");});
                 ImageRepository.load(this,t.artwork,fullArt,Math.min(1000,getResources().getDisplayMetrics().widthPixels));if(paletteTarget!=null)Glide.with(this).clear(paletteTarget);String key=fullKey;
@@ -437,6 +440,13 @@ public class FreeMusicActivity extends Activity {
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null)return;
         Uri uri=data.getData();
         if(request==101&&uri!=null&&pendingExport!=null){String json=pendingExport;pendingExport=null;task(()->{try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException();out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));}return true;},ok->toast("Playlist exportada"));}
+        else if(request==105&&uri!=null)task(()->{
+            String json;try(InputStream in=getContentResolver().openInputStream(uri)){
+                if(in==null)throw new IOException();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;
+                while((n=in.read(buf))!=-1){if(out.size()+n>16_000_000)throw new IOException("Backup grande demais");out.write(buf,0,n);}json=out.toString("UTF-8");
+            }
+            db().importBackup(json);return true;
+        },ok->{toast("Backup importado; playlists foram acrescentadas à biblioteca");navigate("Biblioteca");});
         else if(request==102&&uri!=null)task(()->{String json;try(InputStream in=getContentResolver().openInputStream(uri)){if(in==null)throw new IOException();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2_000_000)throw new IOException("Arquivo grande demais");out.write(buf,0,n);}json=out.toString("UTF-8");}JSONObject o=new JSONObject(json);if(!o.optString("format").equals("spotifast-playlist")||o.optInt("version")!=1)throw new IOException("Formato não suportado");JSONArray a=o.getJSONArray("tracks");if(a.length()>1000)throw new IOException("Limite de 1000 faixas por importação");List<Track> tracks=new ArrayList<>();for(int j=0;j<a.length();j++)tracks.add(Track.fromJson(a.getJSONObject(j)));return db().importPlaylist(o.optString("name","Playlist importada"),o.optString("description"),tracks);},id->navigate("Playlists"));
         else if(request==103&&uri!=null&&coverPlaylist!=null){persist(uri,data);MusicDatabase.Playlist p=coverPlaylist;task(()->{db().editPlaylist(p.id,p.name,p.description,uri.toString());return true;},ok->navigate("Playlists"));}
         else if(request==104){List<Uri> uris=new ArrayList<>();if(uri!=null)uris.add(uri);if(data.getClipData()!=null)for(int j=0;j<data.getClipData().getItemCount();j++)uris.add(data.getClipData().getItemAt(j).getUri());for(Uri u:uris)persist(u,data);

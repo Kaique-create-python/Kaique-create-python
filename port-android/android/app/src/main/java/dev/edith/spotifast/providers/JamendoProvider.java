@@ -7,10 +7,12 @@ import dev.edith.spotifast.data.Track;
 
 public final class JamendoProvider {
     private final String client;
-    public JamendoProvider(String client) {this.client=client;}
+    private final String quality;
+    public JamendoProvider(String client) {this(client,"mp32");}
+    public JamendoProvider(String client,String quality) {this.client=client;this.quality="mp31".equals(quality)?"mp31":"mp32";}
     private String base(int offset) throws IOException {
         if(client.trim().isEmpty())throw new IOException("Configure seu Client ID do Jamendo");
-        return ApiClient.url("https://api.jamendo.com/v3.0/tracks/","client_id",client,"format","json","limit","25","offset",""+offset,"audioformat","mp32","imagesize","500","include","musicinfo","type","single albumtrack");
+        return ApiClient.url("https://api.jamendo.com/v3.0/tracks/","client_id",client,"format","json","limit","25","offset",""+offset,"audioformat",quality,"imagesize","500","include","musicinfo","type","single albumtrack");
     }
     public List<Track> search(String query,String genre,int offset,Object tag) throws Exception {
         String url=ApiClient.url(base(offset),"order",query.isEmpty()?"popularity_week":"relevance");
@@ -39,3 +41,4 @@ public final class JamendoProvider {
         return data.getJSONArray("results").getJSONObject(0).getString("audio");
     }
 }
+

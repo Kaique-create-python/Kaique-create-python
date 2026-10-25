@@ -168,5 +168,5 @@ jobs:
         run: |
           set -euo pipefail
           cat dist/CHANGELOG-LIMITATIONS.md dist/signature.txt > dist/release-notes.md
-          gh release create "spotifast-android-v6-experimental1-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V6 experimental 1 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V6-arm64.apk dist/SpotiFast-Android-V6-arm64.apk.sha256 dist/signature-verification.txt
+          gh release create "spotifast-android-v6-experimental3-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V6 experimental 3 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V6-arm64.apk dist/SpotiFast-Android-V6-arm64.apk.sha256 dist/signature-verification.txt
 

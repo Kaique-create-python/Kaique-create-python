@@ -180,7 +180,42 @@ public final class MusicDatabase extends SQLiteOpenHelper {
     }
     /** Scores only saved, playable tracks using same-provider artists and explicit genres. */
     public List<Track> recommendations() {
-        return query("SELECT t.*, (SELECT COALESCE(SUM(CASE WHEN (s.provider=t.provider AND s.artist_id<>'' AND s.artist_id=t.artist_id) THEN 4 ELSE 0 END + CASE WHEN (s.genre<>'' AND s.genre=t.genre) THEN 2 ELSE 0 END),0) FROM tracks s WHERE s.key IN (SELECT track FROM favorites UNION SELECT track FROM history)) AS score FROM tracks t WHERE t.unavailable='' AND t.key NOT IN (SELECT track FROM history ORDER BY played DESC LIMIT 20) ORDER BY score DESC,t.discovered DESC LIMIT 50");
+        return query("SELECT t.*, (SELECT COALESCE(SUM(CASE WHEN (s.provider=t.provider AND s.artist_id<>'' AND s.artist_id=t.artist_id) THEN 4 ELSE 0 END + CASE WHEN (s.genre<>'' AND s.genre=t.genre) THEN 2 ELSE 0 END),0) FROM tracks s WHERE s.key IN (SELECT track FROM favorites ORDER BY added DESC LIMIT 50) OR s.key IN (SELECT track FROM history ORDER BY played DESC LIMIT 50)) AS score FROM (SELECT * FROM tracks WHERE unavailable='' ORDER BY discovered DESC LIMIT 500) t WHERE t.unavailable='' AND t.key NOT IN (SELECT track FROM history ORDER BY played DESC LIMIT 20) ORDER BY score DESC,t.discovered DESC LIMIT 50");
+    }
+    /** Portable metadata backup; contains no API credentials or remote audio. */
+    public String exportBackup() throws org.json.JSONException {
+        org.json.JSONArray tracks=new org.json.JSONArray(),lists=new org.json.JSONArray(),favorites=new org.json.JSONArray(),history=new org.json.JSONArray();
+        for(Track t:query("SELECT * FROM tracks ORDER BY discovered"))tracks.put(t.json());
+        for(Playlist p:playlists()){
+            org.json.JSONArray entries=new org.json.JSONArray();for(Track t:playlist(p.id))entries.put(t.key());
+            lists.put(new org.json.JSONObject().put("name",p.name).put("description",p.description).put("artwork",p.artwork).put("entries",entries));
+        }
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT track FROM favorites ORDER BY added",null)){while(c.moveToNext())favorites.put(c.getString(0));}
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT track,played,count FROM history",null)){while(c.moveToNext())history.put(new org.json.JSONObject().put("track",c.getString(0)).put("played",c.getLong(1)).put("count",c.getLong(2)));}
+        return new org.json.JSONObject().put("format","spotifast-library").put("version",1).put("tracks",tracks).put("playlists",lists).put("favorites",favorites).put("history",history).toString();
+    }
+    /** Merge atomically: never deletes the existing library if a backup is malformed. */
+    public void importBackup(String json) throws Exception {
+        org.json.JSONObject data=new org.json.JSONObject(json);
+        if(!data.optString("format").equals("spotifast-library")||data.optInt("version")!=1)throw new IllegalArgumentException("Backup incompatível");
+        org.json.JSONArray tracks=data.getJSONArray("tracks"),lists=data.getJSONArray("playlists"),favorites=data.getJSONArray("favorites"),history=data.getJSONArray("history");
+        if(tracks.length()>20000||lists.length()>2000||favorites.length()>20000||history.length()>20000)throw new IllegalArgumentException("Backup excede os limites desta versão");
+        Map<String,Track> catalog=new LinkedHashMap<>();for(int i=0;i<tracks.length();i++){Track t=Track.fromJson(tracks.getJSONObject(i));catalog.put(t.key(),t);}
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try {
+            for(Track t:catalog.values())save(t);
+            for(int i=0;i<lists.length();i++){
+                org.json.JSONObject p=lists.getJSONObject(i);org.json.JSONArray entries=p.getJSONArray("entries");
+                if(entries.length()>20000)throw new IllegalArgumentException("Playlist excede os limites");
+                List<Track> values=new ArrayList<>();for(int j=0;j<entries.length();j++)values.add(Objects.requireNonNull(catalog.get(entries.getString(j)),"Faixa ausente no backup"));
+                long id=createPlaylist(p.getString("name"));editPlaylist(id,p.getString("name"),p.optString("description"),Track.safeImage(p.optString("artwork")));replace(id,values);
+            }
+            for(int i=0;i<favorites.length();i++){String key=favorites.getString(i);if(!catalog.containsKey(key))throw new IllegalArgumentException("Curtida inválida");db.execSQL("INSERT OR IGNORE INTO favorites VALUES(?,?)",new Object[]{key,System.currentTimeMillis()});}
+            for(int i=0;i<history.length();i++){
+                org.json.JSONObject h=history.getJSONObject(i);String key=h.getString("track");if(!catalog.containsKey(key))throw new IllegalArgumentException("Histórico inválido");
+                db.execSQL("INSERT OR IGNORE INTO history VALUES(?,0,0)",new Object[]{key});db.execSQL("UPDATE history SET played=MAX(played,?),count=MAX(count,?) WHERE track=?",new Object[]{Math.max(0,h.getLong("played")),Math.max(0,h.getLong("count")),key});
+            }
+            db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
     }
     public static final class Snapshot { public List<Track> tracks=new ArrayList<>();public int index,repeat;public long position;public boolean shuffle; }
     public static final class Playlist {public long id,duration;public String name,description,artwork;public int count;}

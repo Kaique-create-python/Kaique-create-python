@@ -1,4 +1,4 @@
-# SpotiFast Android V6 — experimental 2
+# SpotiFast Android V6 — experimental 3
 
 Continuação direta da V5. Rust original e todas as fontes autorizadas preservados.
 
@@ -14,7 +14,7 @@ apksigner e o SHA-256 acompanha o APK. O relatório do Actions é a fonte dos re
 
 Bluetooth real, chamadas, troca Wi-Fi/dados, consumo de bateria e desempenho no
 POCO C65 exigem dispositivo físico. Sem credencial legítima, Jamendo não é testado.
-Não se afirma equivalência de desempenho ao Spotify. Crossfade, letras licenciadas,
+Não se afirma equivalência de desempenho ao Spotify. Crossfade, normalização de volume, letras licenciadas,
 Android Auto e visualizador ainda não estão implementados.
 
 Se não houver keystore estável nos secrets, o APK terá assinatura debug temporária:
@@ -40,3 +40,23 @@ Actions 40088572048: lint, unitários e 6 testes Android 15 passaram; Rust ARM64
 apksigner passaram. Audius retornou pesquisa, capa e amostra de 4096 bytes de áudio.
 Jamendo não executado por falta de Client ID legítimo. Isso não valida cada faixa,
 decodificação remota no aparelho ou uso de Bluetooth físico.
+
+## Recursos adicionais — terceira entrega
+- Rádio opcional acrescenta até 5 faixas públicas da fonte/gênero, exclui restrições
+  e itens da fila; o catálogo pode esgotar. Não existe promessa de rádio infinita.
+- Fila do rádio é podada após 200 itens, preservando as 50 faixas anteriores.
+- Qualidade econômica (MP3 96 kb/s) ou padrão (MP3 192 kb/s) para Jamendo.
+- Backup JSON de biblioteca com importação transacional e testes de rollback.
+  Limites da importação: 16 MB, 20 mil faixas e 2 mil playlists. Importar acrescenta
+  playlists; não apaga as existentes. Autorizações de arquivos não são portáveis.
+- Widget com título/artista e anterior/play-pause/próxima; atualiza por eventos do
+  Media3 e não usa polling. Validação de posicionamento depende do launcher.
+- Ícones vetoriais originais em grade consistente, independentes de fontes emoji.
+- Recomendações limitadas a 500 candidatas e 100 sementes para limitar o trabalho.
+
+## Recursos pendentes
+Compose/Material 3 e temas customizáveis permanecem como migração futura. A UI
+continua em Views para preservar os fluxos testados. Álbuns/perfis usam os dados
+que cada fonte fornece; pesquisa dedicada de entidades e playlists públicas de
+provedores, letras autorizadas e fotos de artistas ainda precisam de implementação.
+Não há benchmark físico nem afirmação de menor consumo que outros aplicativos.
