@@ -50,7 +50,7 @@ public class FreeMusicActivity extends Activity {
     private MusicDatabase.Playlist selectedPlaylist;private boolean reorder=false;
     private final List<Track> allTracks=new ArrayList<>();
     private Dialog expanded;private SeekBar seek;private TextView time,fullTitle,fullArtist;private ImageView fullArt;
-    private Button fullPlay,repeat,shuffle;private LinearLayout fullRoot;private boolean seeking=false;
+    private Button fullPlay,repeat,shuffle,fullLike;private LinearLayout fullRoot;private boolean seeking=false;
     private String fullKey="";private CustomTarget<Bitmap> paletteTarget;
     private Uri exportUri;private MusicDatabase.Playlist coverPlaylist;private String pendingExport;
     private final Player.Listener listener=new Player.Listener(){
@@ -220,6 +220,7 @@ public class FreeMusicActivity extends Activity {
         task(()->db().library("recent"),tracks->{
             if(stamp==screenGeneration&&homeFeed!=null&&tab.equals("Início"))homeFeed.showRecent(tracks);
         });
+        task(()->db().recommendations(),tracks->{if(stamp==screenGeneration&&homeFeed!=null&&tab.equals("Início"))homeFeed.showRecommendations(tracks);});
         task(()->db().playlists(),items->{
             if(stamp==screenGeneration&&homeFeed!=null&&tab.equals("Início"))homeFeed.showPlaylists(items);
         });
@@ -237,16 +238,25 @@ public class FreeMusicActivity extends Activity {
         TextView title=text(this,tab,25,true);body.addView(title);gap(this,body,12);
         if(tab.equals("Buscar")){
             EditText input=input(this,"Música, artista ou álbum");input.setText(query);body.addView(input);input.addTextChangedListener(watcher(s->{query=s;main.removeCallbacks(debounce);main.postDelayed(debounce,350);}));
-            LinearLayout filters=row(this);for(String name:new String[]{"Todas","Audius","Jamendo"}){Button b=button(this,name,false);filters.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{source=name.equals("Todas")?"all":name.toLowerCase(Locale.ROOT);search(false);});}body.addView(filters);
+            LinearLayout filters=row(this);for(String name:new String[]{"Todas","Audius","Jamendo","Local"}){Button b=button(this,name,false);filters.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{source=name.equals("Todas")?"all":name.toLowerCase(Locale.ROOT);search(false);});}body.addView(filters);
+            Button history=button(this,"Buscas recentes",false);body.addView(history);
+            history.setOnClickListener(v->task(()->db().searchHistory(),items->{
+                if(items.isEmpty()){toast("Nenhuma busca salva");return;}
+                new AlertDialog.Builder(this).setTitle("Buscas recentes").setItems(items.toArray(new String[0]),(d,i)->input.setText(items.get(i))).show();
+            }));
             Button youtube=button(this,"Vídeos no YouTube ↗",false);body.addView(youtube);youtube.setOnClickListener(v->openYouTube());
         }else if(tab.equals("Início")){
             TextView note=text(this,"Em alta nas fontes conectadas",13,false);note.setTextColor(MUTED);body.addView(note);
             HorizontalScrollView scroll=new HorizontalScrollView(this);scroll.setHorizontalScrollBarEnabled(false);LinearLayout genres=row(this);
             for(String g:new String[]{"Todos","Electronic","Hip-Hop/Rap","Pop","Rock","Jazz","Ambient"}){Button b=button(this,g,false);genres.addView(b);b.setOnClickListener(v->{genre=g.equals("Todos")?"":g;search(false);});}scroll.addView(genres);body.addView(scroll);
         }else if(tab.equals("Biblioteca")){
-            LinearLayout options=row(this);String[] names={"Recentes","Curtidas","Mais ouvidas"},keys={"recent","favorites","most"};
-            for(int i=0;i<names.length;i++){String key=keys[i];Button b=button(this,names[i],false);options.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{library=key;loadLibrary();});}body.addView(options);
-            Button local=button(this,"Abrir músicas do celular",false);body.addView(local);local.setOnClickListener(v->openDocument("audio/*",104,true));
+            HorizontalScrollView optionScroll=new HorizontalScrollView(this);optionScroll.setHorizontalScrollBarEnabled(false);LinearLayout options=row(this);String[] names={"Recentes","Curtidas","Mais ouvidas","Descobertas","Seu mix","Locais"},keys={"recent","favorites","most","discoveries","recommended","local"};
+            for(int i=0;i<names.length;i++){String key=keys[i];Button b=button(this,names[i],false);options.addView(b,new LinearLayout.LayoutParams(-2,dp(this,48)));b.setOnClickListener(v->{library=key;loadLibrary();});}optionScroll.addView(options);body.addView(optionScroll);
+            Button scan=button(this,"Consultar músicas do dispositivo",false);body.addView(scan);scan.setOnClickListener(v->{
+                if(LocalProvider.permitted(this)){source="local";navigate("Buscar");}
+                else requestPermissions(new String[]{LocalProvider.permission()},201);
+            });
+            Button local=button(this,"Escolher arquivos de áudio",false);body.addView(local);local.setOnClickListener(v->openDocument("audio/*",104,true));
         }else {showPlaylists();return;}
         makeList();if(tab.equals("Biblioteca"))loadLibrary();else search(false);
     }
@@ -266,7 +276,7 @@ public class FreeMusicActivity extends Activity {
             @Override public void onSwiped(RecyclerView.ViewHolder h,int d){}
             @Override public void clearView(RecyclerView rv,RecyclerView.ViewHolder h){super.clearView(rv,h);if(moved&&selectedPlaylist!=null){moved=false;long id=selectedPlaylist.id;List<Track> values=new ArrayList<>(adapter.tracks);allTracks.clear();allTracks.addAll(values);task(()->{db().replace(id,values);return true;},ok->{});}}
         }).attachToRecyclerView(recycler);
-        if(!profileView&&(tab.equals("Início")||tab.equals("Buscar"))){Button more=button(this,"Carregar mais músicas",false);LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(this,48));mp.topMargin=dp(this,6);host.addView(more,mp);more.setOnClickListener(v->search(true));}
+        if(!profileView&&(tab.equals("Início")||tab.equals("Buscar"))){Button more=button(this,"Carregar mais músicas",false);LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(this,48));mp.topMargin=dp(this,6);host.addView(more,mp);more.setOnClickListener(v->{if(home)navigate("Buscar");else search(true);});}
     }
     private String client(){return getPreferences(MODE_PRIVATE).getString("jamendo_client_id","");}
     private void search(boolean more){
@@ -274,11 +284,11 @@ public class FreeMusicActivity extends Activity {
         if(!more){page=0;allTracks.clear();adapter.submit(allTracks);if(tab.equals("Início")&&homeFeed!=null)homeFeed.showTrending(Collections.emptyList());}else page++;
         final boolean requestedMore=more;
         loading=true;status.setText("Buscando em "+(source.equals("all")?"fontes conectadas":source)+"…");String q=tab.equals("Início")?"":query;
-        repository.search(q,genre,source,client(),page*25,(tracks,error)->{loading=false;if(requestedMore&&tracks.isEmpty()&&!error.isEmpty())page=Math.max(0,page-1);Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
-            adapter.submit(allTracks);
+        repository.search(this,q,genre,source,client(),page*25,(tracks,error)->{loading=false;if(requestedMore&&tracks.isEmpty()&&!error.isEmpty())page=Math.max(0,page-1);Set<String> keys=new HashSet<>();for(Track t:allTracks)keys.add(t.key());for(Track t:tracks)if(keys.add(t.key()))allTracks.add(t);
+            adapter.submit(tab.equals("Início")?allTracks.subList(0,Math.min(12,allTracks.size())):allTracks);
             if(tab.equals("Início")&&homeFeed!=null)homeFeed.showTrending(allTracks);
             status.setText(error.isEmpty()?(allTracks.isEmpty()?"Nenhum resultado. Tente outra busca.":allTracks.size()+" faixas · "+(source.equals("all")?"fontes conectadas":source)):error);
-            List<Track> copy=new ArrayList<>(tracks);task(()->{for(Track t:copy)db().save(t);return true;},ok->{});
+            List<Track> copy=new ArrayList<>(tracks);task(()->{for(Track t:copy)db().save(t);if(!q.isEmpty()&&getPreferences(MODE_PRIVATE).getBoolean("history_enabled",true))db().rememberSearch(q);return true;},ok->{});
         });
     }
     private void loadLibrary(){int stamp=screenGeneration;task(()->db().library(library),tracks->{if(stamp==screenGeneration){allTracks.clear();allTracks.addAll(tracks);adapter.submit(tracks);status.setText(tracks.isEmpty()?"Sua biblioteca começa com a primeira música.":tracks.size()+" músicas salvas neste celular");}});}
@@ -346,37 +356,68 @@ public class FreeMusicActivity extends Activity {
         else if(i==8)task(()->{db().replace(p.id,db().playlistByDate(p.id));return true;},ok->openPlaylist(p));
         else new AlertDialog.Builder(this).setTitle("Excluir “"+p.name+"”?").setMessage("A playlist será removida deste celular.").setNegativeButton("Cancelar",null).setPositiveButton("Excluir",(a,b)->task(()->{db().deletePlaylist(p.id);return true;},ok->navigate("Playlists"))).show();
     }).show();}
-    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V4 preview").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão","Limite do cache de capas"},(d,i)->{
+    private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V6 experimental").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão","Limite do cache de capas","Privacidade e histórico","Equalizador do dispositivo","Efeitos visuais"},(d,i)->{
         if(i==0){EditText id=input(this,"Client ID legítimo");id.setText(client());new AlertDialog.Builder(this).setTitle("Jamendo Developer").setMessage("Insira o Client ID da sua aplicação no Jamendo. Nenhuma senha é necessária.").setView(id).setPositiveButton("Salvar",(a,b)->{getPreferences(MODE_PRIVATE).edit().putString("jamendo_client_id",id.getText().toString().trim()).apply();ApiClient.clear();navigate(tab);}).setNeutralButton("Portal",(a,b)->external("https://devportal.jamendo.com/")).setNegativeButton("Cancelar",null).show();}
         else if(i==1)new AlertDialog.Builder(this).setTitle("Parar reprodução após…").setItems(new String[]{"Desativar","15 minutos","30 minutos","60 minutos"},(a,b)->{if(controller!=null){Bundle args=new Bundle();args.putInt("minutes",new int[]{0,15,30,60}[b]);controller.sendCustomCommand(new SessionCommand(PlaybackService.SLEEP,Bundle.EMPTY),args);toast("Temporizador atualizado");}}).show();
         else if(i==2)((AudioManager)getSystemService(AUDIO_SERVICE)).adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_SAME,AudioManager.FLAG_SHOW_UI);
         else if(i==3){Glide.get(this).clearMemory();task(()->{Glide.get(getApplicationContext()).clearDiskCache();ApiClient.clear();return true;},ok->toast("Cache limpo"));}
         else if(i==4){if(controller!=null)controller.pause();startActivity(new Intent(this,SpotiFastActivity.class));}
         else if(i==6)new AlertDialog.Builder(this).setTitle("Cache em disco").setItems(new String[]{"32 MB","64 MB","128 MB"},(a,b)->{getPreferences(MODE_PRIVATE).edit().putInt("image_cache_mb",new int[]{32,64,128}[b]).apply();toast("Limite aplicado na próxima inicialização do aplicativo");}).show();
-        else new AlertDialog.Builder(this).setTitle("SpotiFast V4 preview 1").setMessage("Player Android com Media3 e biblioteca local SQLite.\n\nAudius e Jamendo seguem as permissões das fontes. YouTube usa vídeo oficial visível.\n\nA interface Rust original foi preservada. Não há acesso gratuito ao catálogo pago do Spotify. Não há download de áudio remoto.").setPositiveButton("Fechar",null).show();
+        else if(i==7){
+            boolean enabled=getPreferences(MODE_PRIVATE).getBoolean("history_enabled",true);
+            new AlertDialog.Builder(this).setTitle("Privacidade").setMultiChoiceItems(new String[]{"Salvar histórico de reprodução e busca"},new boolean[]{enabled},(a,index,checked)->getPreferences(MODE_PRIVATE).edit().putBoolean("history_enabled",checked).apply())
+                .setNeutralButton("Limpar histórico",(a,b)->task(()->{db().clearPersonalization();return true;},ok->toast("Histórico e buscas removidos; suas curtidas foram preservadas"))).setPositiveButton("Fechar",null).show();
+        }
+        else if(i==8)openEqualizer();
+        else if(i==9){boolean enabled=getPreferences(MODE_PRIVATE).getBoolean("visual_effects",true);new AlertDialog.Builder(this).setTitle("Efeitos visuais").setMultiChoiceItems(new String[]{"Cores da capa e transições"},new boolean[]{enabled},(a,index,checked)->getPreferences(MODE_PRIVATE).edit().putBoolean("visual_effects",checked).apply()).setPositiveButton("Fechar",null).show();}
+        else new AlertDialog.Builder(this).setTitle("SpotiFast V6 experimental").setMessage("Player Android com Media3 e biblioteca local SQLite.\n\nAudius e Jamendo seguem as permissões das fontes. YouTube usa vídeo oficial visível.\n\nA interface Rust original foi preservada. Não há acesso gratuito ao catálogo pago do Spotify. Não há download de áudio remoto.").setPositiveButton("Fechar",null).show();
     }).show();}
     private void expand(){
         if(controller==null||controller.getCurrentMediaItem()==null){toast("Escolha uma música para começar");return;}if(expanded!=null&&expanded.isShowing())return;
         expanded=new Dialog(this);ScrollView scroll=new ScrollView(this);fullRoot=column(this);fullRoot.setPadding(dp(this,24),dp(this,24),dp(this,24),dp(this,24));fullRoot.setBackgroundColor(BG);scroll.addView(fullRoot);expanded.setContentView(scroll);
         Button down=button(this,"⌄  Tocando agora",false);fullRoot.addView(down);down.setOnClickListener(v->expanded.dismiss());gap(this,fullRoot,20);
-        fullArt=new ImageView(this);int size=Math.min(getResources().getDisplayMetrics().widthPixels-dp(this,48),dp(this,420));LinearLayout.LayoutParams artParams=new LinearLayout.LayoutParams(size,size);artParams.gravity=Gravity.CENTER_HORIZONTAL;fullRoot.addView(fullArt,artParams);gap(this,fullRoot,24);
-        fullTitle=text(this,"",25,true);fullArtist=text(this,"",16,false);fullArtist.setTextColor(MUTED);fullRoot.addView(fullTitle);fullRoot.addView(fullArtist);gap(this,fullRoot,16);
+        fullArt=new ImageView(this);int size=Math.min(getResources().getDisplayMetrics().widthPixels-dp(this,48),Math.min(dp(this,420),(int)(getResources().getDisplayMetrics().heightPixels*.39)));LinearLayout.LayoutParams artParams=new LinearLayout.LayoutParams(size,size);artParams.gravity=Gravity.CENTER_HORIZONTAL;fullRoot.addView(fullArt,artParams);gap(this,fullRoot,24);
+        fullTitle=text(this,"",25,true);fullArtist=text(this,"",16,false);fullArtist.setTextColor(MUTED);fullRoot.addView(fullTitle);fullRoot.addView(fullArtist);
+        fullArtist.setOnClickListener(v->{Track t=current();if(t!=null){expanded.dismiss();artist(t,false);}});
+        fullArtist.setContentDescription("Artista e fonte. Toque para abrir perfil");gap(this,fullRoot,16);
         seek=new SeekBar(this);seek.setContentDescription("Posição na música");seek.setMax(1000);fullRoot.addView(seek);time=text(this,"0:00 / 0:00",12,false);fullRoot.addView(time);seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onStartTrackingTouch(SeekBar s){seeking=true;}public void onProgressChanged(SeekBar s,int p,boolean user){}public void onStopTrackingTouch(SeekBar s){if(controller!=null&&controller.isCurrentMediaItemSeekable()&&controller.getDuration()>0)controller.seekTo(controller.getDuration()*s.getProgress()/1000);seeking=false;}});
-        LinearLayout controls=row(this);Button previous=button(this,"❮",false),next=button(this,"❯",false);fullPlay=button(this,"▶",true);previous.setContentDescription("Faixa anterior");next.setContentDescription("Próxima faixa");for(Button b:new Button[]{previous,fullPlay,next})controls.addView(b,new LinearLayout.LayoutParams(0,dp(this,64),1));fullRoot.addView(controls);previous.setOnClickListener(v->controller.seekToPrevious());next.setOnClickListener(v->controller.seekToNextMediaItem());fullPlay.setOnClickListener(v->toggle());
+        LinearLayout controls=row(this);Button previous=button(this,"❮",false),next=button(this,"❯",false);fullPlay=button(this,"▶",true);previous.setContentDescription("Faixa anterior");next.setContentDescription("Próxima faixa");controls.setGravity(Gravity.CENTER);previous.setText("⏮");next.setText("⏭");fullPlay.setTextSize(26);
+        controls.addView(previous,new LinearLayout.LayoutParams(dp(this,64),dp(this,64)));
+        LinearLayout.LayoutParams playSize=new LinearLayout.LayoutParams(dp(this,80),dp(this,80));playSize.setMargins(dp(this,22),0,dp(this,22),0);controls.addView(fullPlay,playSize);
+        controls.addView(next,new LinearLayout.LayoutParams(dp(this,64),dp(this,64)));fullRoot.addView(controls);previous.setOnClickListener(v->controller.seekToPrevious());next.setOnClickListener(v->controller.seekToNextMediaItem());fullPlay.setOnClickListener(v->toggle());
         LinearLayout modes=row(this);shuffle=button(this,"Aleatório",false);repeat=button(this,"Repetir",false);modes.addView(shuffle,new LinearLayout.LayoutParams(0,dp(this,48),1));modes.addView(repeat,new LinearLayout.LayoutParams(0,dp(this,48),1));fullRoot.addView(modes);shuffle.setOnClickListener(v->controller.setShuffleModeEnabled(!controller.getShuffleModeEnabled()));repeat.setOnClickListener(v->controller.setRepeatMode((controller.getRepeatMode()+1)%3));
-        LinearLayout actions=row(this);for(String name:new String[]{"Curtir","Fila","Mais"}){Button b=button(this,name,false);actions.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{Track t=current();if(t==null)return;if(name.equals("Curtir"))task(()->db().favorite(t),liked->toast(liked?"Música curtida":"Curtida removida"));else if(name.equals("Fila"))queue();else trackMenu(t,-1);});}fullRoot.addView(actions);
+        LinearLayout actions=row(this);for(String name:new String[]{"Curtir","Fila","Mais"}){Button b=button(this,name,false);if(name.equals("Curtir"))fullLike=b;actions.addView(b,new LinearLayout.LayoutParams(0,dp(this,48),1));b.setOnClickListener(v->{Track t=current();if(t==null)return;if(name.equals("Curtir"))task(()->db().favorite(t),liked->{if(fullLike!=null)fullLike.setText(liked?"♥ Curtida":"♡ Curtir");toast(liked?"Música curtida":"Curtida removida");});else if(name.equals("Fila"))queue();else trackMenu(t,-1);});}fullRoot.addView(actions);
         final float[] y={0};down.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)y[0]=e.getY();if(e.getAction()==MotionEvent.ACTION_UP&&e.getY()-y[0]>dp(this,50)){expanded.dismiss();return true;}return false;});
-        fullKey="";expanded.setOnDismissListener(d->{if(paletteTarget!=null){Glide.with(this).clear(paletteTarget);paletteTarget=null;}seek=null;fullPlay=null;fullRoot=null;fullArt=null;fullTitle=null;});expanded.show();expanded.getWindow().setLayout(-1,-1);updatePlayer();
+        scroll.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(0,insets.getSystemWindowInsetTop(),0,insets.getSystemWindowInsetBottom());return insets;});
+        fullKey="";expanded.setOnDismissListener(d->{if(paletteTarget!=null){Glide.with(this).clear(paletteTarget);paletteTarget=null;}seek=null;fullPlay=null;fullRoot=null;fullArt=null;fullTitle=null;fullLike=null;});expanded.show();expanded.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(BG));expanded.getWindow().setStatusBarColor(BG);expanded.getWindow().setNavigationBarColor(BG);expanded.getWindow().setLayout(-1,-1);scroll.requestApplyInsets();updatePlayer();
+    }
+    private void openEqualizer(){
+        if(controller==null){toast("Conecte ao player primeiro");return;}
+        final ListenableFuture<SessionResult> result=controller.sendCustomCommand(new SessionCommand(PlaybackService.AUDIO_SESSION,Bundle.EMPTY),Bundle.EMPTY);
+        result.addListener(()->{try{
+            int id=result.get().extras.getInt("audio_session_id",0);if(id<=0){toast("Inicie uma música para abrir o equalizador");return;}
+            Intent intent=new Intent(android.media.audiofx.AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL)
+                .putExtra(android.media.audiofx.AudioEffect.EXTRA_AUDIO_SESSION,id)
+                .putExtra(android.media.audiofx.AudioEffect.EXTRA_PACKAGE_NAME,getPackageName())
+                .putExtra(android.media.audiofx.AudioEffect.EXTRA_CONTENT_TYPE,android.media.audiofx.AudioEffect.CONTENT_TYPE_MUSIC);
+            try{startActivity(intent);}catch(ActivityNotFoundException e){toast("Este dispositivo não oferece um painel de equalização");}
+        }catch(Exception e){toast("Equalizador indisponível");}},command->main.post(command));
+    }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(request,permissions,results);
+        if(request==201){if(LocalProvider.permitted(this)){source="local";navigate("Buscar");}else toast("Acesso a áudio não autorizado. Você ainda pode escolher arquivos individualmente.");}
     }
     private Track current(){try{return controller==null||controller.getCurrentMediaItem()==null?null:MediaItems.track(controller.getCurrentMediaItem());}catch(Exception e){return null;}}
     private void updatePlayer(){
         if(controller==null)return;Track t=current();miniPlay.setText(controller.isPlaying()?"Ⅱ":"▶");
         if(t!=null){miniTitle.setText(t.title);if(miniArtist!=null)miniArtist.setText(t.artist+"  •  "+t.provider);if(!artKey.equals(t.key()+t.artwork)){artKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,miniArt,dp(this,46));}}
         if(status!=null&&controller.getPlayerError()!=null)status.setText("Não foi possível reproduzir. Verifique a conexão ou a disponibilidade na fonte. Toque em reproduzir para tentar novamente.");
-        if(fullPlay!=null&&t!=null){fullPlay.setText(controller.isPlaying()?"Ⅱ Pausar":"▶ Tocar");fullPlay.setContentDescription(controller.isPlaying()?"Pausar":"Reproduzir");fullTitle.setText(t.title);fullArtist.setText(t.artist+" · "+t.provider);repeat.setText(new String[]{"Repetir: não","Repetir: faixa","Repetir: fila"}[controller.getRepeatMode()]);shuffle.setText(controller.getShuffleModeEnabled()?"Aleatório: sim":"Aleatório: não");
-            if(!fullKey.equals(t.key()+t.artwork)){fullKey=t.key()+t.artwork;ImageRepository.load(this,t.artwork,fullArt,Math.min(1000,getResources().getDisplayMetrics().widthPixels));if(paletteTarget!=null)Glide.with(this).clear(paletteTarget);String key=fullKey;
+        if(fullPlay!=null&&t!=null){fullPlay.setText(controller.isPlaying()?"Ⅱ":"▶");fullPlay.setContentDescription(controller.isPlaying()?"Pausar":"Reproduzir");fullTitle.setText(t.title);fullArtist.setText(t.artist+" · "+t.provider);repeat.setText(new String[]{"Repetir: não","Repetir: faixa","Repetir: fila"}[controller.getRepeatMode()]);shuffle.setText(controller.getShuffleModeEnabled()?"Aleatório: sim":"Aleatório: não");
+            if(!fullKey.equals(t.key()+t.artwork)){fullKey=t.key()+t.artwork;
+                String favoriteKey=t.key();task(()->db().isFavorite(t),liked->{Track now=current();if(fullLike!=null&&now!=null&&favoriteKey.equals(now.key()))fullLike.setText(liked?"♥ Curtida":"♡ Curtir");});
+                ImageRepository.load(this,t.artwork,fullArt,Math.min(1000,getResources().getDisplayMetrics().widthPixels));if(paletteTarget!=null)Glide.with(this).clear(paletteTarget);String key=fullKey;
                 paletteTarget=new CustomTarget<Bitmap>(){public void onResourceReady(Bitmap bitmap,Transition<? super Bitmap> transition){Palette.from(bitmap).maximumColorCount(8).generate(palette->{if(fullRoot!=null&&key.equals(fullKey)&&palette!=null){int color=palette.getDarkMutedColor(PANEL);fullRoot.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{color,BG}));}});}public void onLoadCleared(Drawable drawable){}};
-                Glide.with(this).asBitmap().load(t.artwork).override(64,64).into(paletteTarget);
+                if(getPreferences(MODE_PRIVATE).getBoolean("visual_effects",true))Glide.with(this).asBitmap().load(t.artwork).override(64,64).into(paletteTarget);else fullRoot.setBackgroundColor(BG);
             }
         }progress();
     }
@@ -418,3 +459,4 @@ public class FreeMusicActivity extends Activity {
     @Override protected void onStop(){visible=false;searchInterrupted=loading&&!profileView;main.removeCallbacks(tick);main.removeCallbacks(debounce);repository.cancel();ApiClient.cancel(this);if(expanded!=null)expanded.dismiss();if(controller!=null)controller.removeListener(listener);if(connection!=null)MediaController.releaseFuture(connection);connection=null;controller=null;super.onStop();}
     @Override protected void onDestroy(){pendingPlayTracks=null;repository.close();main.removeCallbacksAndMessages(null);super.onDestroy();}
 }
+

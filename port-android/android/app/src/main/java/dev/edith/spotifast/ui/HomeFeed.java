@@ -32,6 +32,7 @@ public final class HomeFeed {
     private final LinearLayout featured;
     private final LinearLayout recentSection, playlistsSection;
     private final TextView featuredLabel;
+    private final LinearLayout mixShelf,mixSection;
 
     private static final int TILE_WIDTH = 124;
     private static final int COVER = 118;
@@ -47,6 +48,7 @@ public final class HomeFeed {
         this.recentSection = column(activity);
         this.playlistsSection = column(activity);
         this.featuredLabel = text(activity, "", 16, true);
+        mixShelf=row(activity);mixSection=column(activity);
         build();
     }
 
@@ -109,10 +111,13 @@ public final class HomeFeed {
         content.addView(featured, width(-1, -2));
 
         LinearLayout trending = column(activity);
-        sectionTitle(trending, "Descobertas para você", "Explorar", actions::search);
+        sectionTitle(trending, "Em alta nas fontes", "Explorar", actions::search);
         addScroller(trending, trendingShelf);
         content.addView(trending, width(-1, -2));
         gap(activity, content, 16);
+
+        sectionTitle(mixSection,"Seu mix local","Biblioteca",actions::library);
+        addScroller(mixSection,mixShelf);mixSection.setVisibility(View.GONE);content.addView(mixSection,width(-1,-2));
 
         sectionTitle(playlistsSection, "Suas playlists", "Ver todas", actions::playlists);
         addScroller(playlistsSection, playlistShelf);
@@ -190,6 +195,9 @@ public final class HomeFeed {
         cards(recentShelf, tracks, 10);
         recentSection.setVisibility(recentShelf.getChildCount() > 0 ? View.VISIBLE : View.GONE);
     }
+    public void showRecommendations(List<Track> tracks){
+        cards(mixShelf,tracks,10);mixSection.setVisibility(mixShelf.getChildCount()>0?View.VISIBLE:View.GONE);
+    }
 
     public void showTrending(List<Track> tracks) {
         cards(trendingShelf, tracks, 12);
@@ -263,3 +271,4 @@ public final class HomeFeed {
         playlistsSection.setVisibility(View.VISIBLE);
     }
 }
+

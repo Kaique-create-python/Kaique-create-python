@@ -23,6 +23,7 @@ import java.util.*;
 @androidx.annotation.OptIn(markerClass=androidx.media3.common.util.UnstableApi.class)
 public final class PlaybackService extends MediaSessionService {
     public static final String SLEEP="dev.edith.spotifast.SLEEP";
+    public static final String AUDIO_SESSION="dev.edith.spotifast.AUDIO_SESSION";
     private ExoPlayer player;
     private MediaSession session;
     private final Handler main=new Handler(Looper.getMainLooper());
@@ -91,7 +92,7 @@ public final class PlaybackService extends MediaSessionService {
                 @Override public MediaSession.ConnectionResult onConnect(MediaSession s,MediaSession.ControllerInfo c){
                     if(c.getUid()!=android.os.Process.myUid()&&!c.isTrusted())return MediaSession.ConnectionResult.reject();
                     MediaSession.ConnectionResult base=MediaSession.Callback.super.onConnect(s,c);
-                    return new MediaSession.ConnectionResult.AcceptedResultBuilder(s).setAvailableSessionCommands(base.availableSessionCommands.buildUpon().add(new SessionCommand(SLEEP,Bundle.EMPTY)).build()).build();
+                    return new MediaSession.ConnectionResult.AcceptedResultBuilder(s).setAvailableSessionCommands(base.availableSessionCommands.buildUpon().add(new SessionCommand(SLEEP,Bundle.EMPTY)).add(new SessionCommand(AUDIO_SESSION,Bundle.EMPTY)).build()).build();
                 }
                 @Override public ListenableFuture<List<MediaItem>> onAddMediaItems(MediaSession s,MediaSession.ControllerInfo c,List<MediaItem> items){
                     if(c.getUid()!=android.os.Process.myUid())return Futures.immediateFailedFuture(new SecurityException("Only app library can add audio"));
@@ -110,6 +111,10 @@ public final class PlaybackService extends MediaSessionService {
                     return result;
                 }
                 @Override public ListenableFuture<SessionResult> onCustomCommand(MediaSession s,MediaSession.ControllerInfo c,SessionCommand command,Bundle args){
+                    if(AUDIO_SESSION.equals(command.customAction)&&c.getUid()==android.os.Process.myUid()){
+                        Bundle data=new Bundle();data.putInt("audio_session_id",player.getAudioSessionId());
+                        return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS,data));
+                    }
                     if(SLEEP.equals(command.customAction)&&c.getUid()==android.os.Process.myUid()){
                         main.removeCallbacks(sleep);int minutes=args.getInt("minutes",0);
                         if(minutes>0&&minutes<=120)main.postDelayed(sleep,minutes*60000L);

@@ -1,4 +1,4 @@
-# SpotiFast Android V6 — experimental 1
+# SpotiFast Android V6 — experimental 2
 
 Continuação direta da V5. Rust original e todas as fontes autorizadas preservados.
 
@@ -20,3 +20,23 @@ Android Auto e visualizador ainda não estão implementados.
 Se não houver keystore estável nos secrets, o APK terá assinatura debug temporária:
 a atualização sobre V5 pode ser recusada. Exporte playlists antes de qualquer remoção;
 desinstalar apaga os dados locais. Não remova a V5 sem backup.
+
+## Biblioteca, busca e player — segunda entrega
+- Migração SQLite v1→v2 preserva playlists/curtidas/histórico/sessão e mantém a primeira
+  ocorrência de faixas duplicadas; índice único impede novas duplicatas.
+- Checkpoints atualizam posição/modos sem regravar uma fila idêntica.
+- Busca unificada inclui MediaStore com permissão somente de áudio e cancelamento;
+  seletor de arquivos individuais continua disponível sem acesso à biblioteca completa.
+- Histórico de busca limitado, sugestões salvas e opção de desativar/limpar histórico.
+- Mix local baseado em artistas da mesma fonte e gêneros explícitos do catálogo salvo.
+- Biblioteca: recentes, curtidas, mais ouvidas, descobertas, mix e músicas locais salvas.
+- Prévia de faixas na home limitada a 12; paginação completa na busca virtualizada.
+- Player adaptado à altura, controle central circular, estado de curtida, perfil do
+  artista e opção de desligar cores/transições. Painel de equalização do Android
+  quando oferecido pelo dispositivo; não é um equalizador embutido.
+
+## Resultados confirmados da primeira entrega
+Actions 40088572048: lint, unitários e 6 testes Android 15 passaram; Rust ARM64 e
+apksigner passaram. Audius retornou pesquisa, capa e amostra de 4096 bytes de áudio.
+Jamendo não executado por falta de Client ID legítimo. Isso não valida cada faixa,
+decodificação remota no aparelho ou uso de Bluetooth físico.
