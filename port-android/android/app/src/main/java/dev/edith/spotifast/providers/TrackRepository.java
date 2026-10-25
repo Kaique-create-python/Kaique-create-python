@@ -16,7 +16,7 @@ public final class TrackRepository {
     public void close(){cancel();io.shutdownNow();main.removeCallbacksAndMessages(null);}
     public void search(android.content.Context context,String query,String genre,String source,String client,int offset,Callback cb){
         cancel();final int stamp=generation;final Object requestTag=tag;final CancellationSignal signal=localSignal;
-        List<String> sources=new ArrayList<>();if(source.equals("all")||source.equals("audius"))sources.add("audius");if((source.equals("all")||source.equals("jamendo"))&&!client.isEmpty())sources.add("jamendo");if((source.equals("all")||source.equals("local"))&&LocalProvider.permitted(context))sources.add("local");
+        List<String> sources=new ArrayList<>();if(source.equals("all")||source.equals("audius"))sources.add("audius");if((source.equals("all")||source.equals("jamendo"))&&!client.isEmpty())sources.add("jamendo");if(((source.equals("all")&&!query.trim().isEmpty())||source.equals("local"))&&LocalProvider.permitted(context))sources.add("local");
         if(sources.isEmpty()){cb.done(Collections.emptyList(),source.equals("local")?"Autorize o acesso a músicas na Biblioteca.":"Configure seu Client ID do Jamendo em Configurações.");return;}
         Map<String,List<Track>> results=new HashMap<>();List<String> errors=new ArrayList<>();int[] remaining={sources.size()};
         for(String provider:sources)pending.add(io.submit(()->{

@@ -116,7 +116,7 @@ public final class HomeFeed {
         content.addView(trending, width(-1, -2));
         gap(activity, content, 16);
 
-        sectionTitle(mixSection,"Seu mix local","Biblioteca",actions::library);
+        sectionTitle(mixSection,"Seu mix","Biblioteca",actions::library);
         addScroller(mixSection,mixShelf);mixSection.setVisibility(View.GONE);content.addView(mixSection,width(-1,-2));
 
         sectionTitle(playlistsSection, "Suas playlists", "Ver todas", actions::playlists);

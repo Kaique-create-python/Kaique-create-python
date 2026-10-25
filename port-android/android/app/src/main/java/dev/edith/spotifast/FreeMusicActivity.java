@@ -227,6 +227,7 @@ public class FreeMusicActivity extends Activity {
     }
 
     private void navigate(String destination){
+        if(destination.equals("Início")&&source.equals("local"))source="all";
         tab=destination;profileView=false;selectedPlaylist=null;reorder=false;page=0;genre="";loading=false;screenGeneration++;repository.cancel();main.removeCallbacks(debounce);body.removeAllViews();
         homeFeed=null;homeContent=null;refreshNavigation();
         if(tab.equals("Início")){
