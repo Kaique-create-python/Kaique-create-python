@@ -64,6 +64,9 @@ jobs:
         env:
           JAMENDO_CLIENT_ID: ${{ secrets.JAMENDO_CLIENT_ID }}
         run: python3 port-android/scripts/check_providers.py
+      - name: Summarize test and performance evidence
+        if: always()
+        run: python3 port-android/scripts/validation_report.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -72,6 +75,7 @@ jobs:
             port-android/android/app/build/reports
             port-android/android/app/build/outputs/androidTest-results
             provider-checks.json
+            validation-report.json
             port-android/android/memory.txt
             port-android/android/frames.txt
             port-android/android/startup.txt
@@ -159,6 +163,10 @@ jobs:
         with:
           name: SpotiFast-V6-arm64
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: SpotiFast-V6-test-reports
+          path: validation
       - name: Publish tested preview with real APK and checksum
         env:
           GH_TOKEN: ${{ github.token }}
@@ -168,5 +176,8 @@ jobs:
         run: |
           set -euo pipefail
           cat dist/CHANGELOG-LIMITATIONS.md dist/signature.txt > dist/release-notes.md
-          gh release create "spotifast-android-v6-experimental3-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V6 experimental 3 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V6-arm64.apk dist/SpotiFast-Android-V6-arm64.apk.sha256 dist/signature-verification.txt
+          REPORT_FILE=$(find validation -name validation-report.json -print -quit)
+          test -n "$REPORT_FILE"
+          cp "$REPORT_FILE" dist/validation-report.json
+          gh release create "spotifast-android-v6-experimental3-build${BUILD}" --repo "$REPOSITORY" --target "$COMMIT" --prerelease --title "SpotiFast Android V6 experimental 3 (build ${BUILD})" --notes-file dist/release-notes.md dist/SpotiFast-Android-V6-arm64.apk dist/SpotiFast-Android-V6-arm64.apk.sha256 dist/signature-verification.txt dist/validation-report.json
 
