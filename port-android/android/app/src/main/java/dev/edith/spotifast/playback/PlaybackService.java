@@ -55,7 +55,7 @@ public final class PlaybackService extends MediaSessionService {
             try {
                 String url;
                 if("audius".equals(uri.getHost()))url=new AudiusProvider().resolve(id);
-                else if("jamendo".equals(uri.getHost()))url=new JamendoProvider(getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("jamendo_client_id",""),getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("audio_quality","mp32")).resolve(id);
+                else if("jamendo".equals(uri.getHost()))url=new JamendoProvider(JamendoConfig.get(this),getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("audio_quality","mp32")).resolve(id);
                 else throw new IOException("Fonte não autorizada");
                 return spec.withUri(Uri.parse(url));
             }catch(IOException e){throw HttpDataSource.HttpDataSourceException.createForIOException(e,spec,HttpDataSource.HttpDataSourceException.TYPE_OPEN);}catch(Exception e){throw new IOException("A fonte não autorizou ou não disponibilizou esta faixa");}
@@ -166,7 +166,7 @@ public final class PlaybackService extends MediaSessionService {
             try{
                 if(seed.provider.equals("local"))candidates=MusicDatabase.get(this).library("local");
                 else if(seed.provider.equals("audius"))candidates=new AudiusProvider().search("",seed.genre,0,radioTag);
-                else if(seed.provider.equals("jamendo"))candidates=new JamendoProvider(getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getString("jamendo_client_id","")).search("",seed.genre,0,radioTag);
+                else if(seed.provider.equals("jamendo"))candidates=new JamendoProvider(JamendoConfig.get(this)).search("",seed.genre,0,radioTag);
             }catch(Exception e){android.util.Log.w("SpotiFastRadio","Source unavailable");}
             List<Track> found=candidates;main.post(()->{
                 radioLoading=false;if(destroyed||player==null||!getSharedPreferences("FreeMusicActivity",MODE_PRIVATE).getBoolean("radio_enabled",false))return;
