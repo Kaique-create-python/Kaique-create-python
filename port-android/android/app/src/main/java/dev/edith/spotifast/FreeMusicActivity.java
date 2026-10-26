@@ -279,7 +279,7 @@ public class FreeMusicActivity extends Activity {
         }).attachToRecyclerView(recycler);
         if(!profileView&&(tab.equals("Início")||tab.equals("Buscar"))){Button more=button(this,"Carregar mais músicas",false);LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(this,48));mp.topMargin=dp(this,6);host.addView(more,mp);more.setOnClickListener(v->{if(home)navigate("Buscar");else search(true);});}
     }
-    private String client(){return getPreferences(MODE_PRIVATE).getString("jamendo_client_id","");}
+    private String client(){return JamendoConfig.get(this);}
     private void search(boolean more){
         if(profileView||!(tab.equals("Início")||tab.equals("Buscar")))return;if(more&&loading)return;
         if(!more){page=0;allTracks.clear();adapter.submit(allTracks);if(tab.equals("Início")&&homeFeed!=null)homeFeed.showTrending(Collections.emptyList());}else page++;
@@ -358,7 +358,7 @@ public class FreeMusicActivity extends Activity {
         else new AlertDialog.Builder(this).setTitle("Excluir “"+p.name+"”?").setMessage("A playlist será removida deste celular.").setNegativeButton("Cancelar",null).setPositiveButton("Excluir",(a,b)->task(()->{db().deletePlaylist(p.id);return true;},ok->navigate("Playlists"))).show();
     }).show();}
     private void settings(){new AlertDialog.Builder(this).setTitle("Seu SpotiFast · V6 experimental").setItems(new String[]{"Configurar Jamendo","Sleep timer","Volume do sistema","Limpar cache de capas e buscas","Interface original Rust / Spotify","Sobre esta versão","Limite do cache de capas","Privacidade e histórico","Equalizador do dispositivo","Efeitos visuais","Rádio ao final da fila","Qualidade do Jamendo","Backup local da biblioteca"},(d,i)->{
-        if(i==0){EditText id=input(this,"Client ID legítimo");id.setText(client());new AlertDialog.Builder(this).setTitle("Jamendo Developer").setMessage("Insira o Client ID da sua aplicação no Jamendo. Nenhuma senha é necessária.").setView(id).setPositiveButton("Salvar",(a,b)->{getPreferences(MODE_PRIVATE).edit().putString("jamendo_client_id",id.getText().toString().trim()).apply();ApiClient.clear();navigate(tab);}).setNeutralButton("Portal",(a,b)->external("https://devportal.jamendo.com/")).setNegativeButton("Cancelar",null).show();}
+        if(i==0){EditText id=input(this,"Client ID legítimo");id.setText(client());new AlertDialog.Builder(this).setTitle("Jamendo Developer").setMessage("Jamendo já vem configurado com seu Client ID público. Você pode alterá-lo; deixar em branco restaura o padrão. Nenhuma senha é necessária.").setView(id).setPositiveButton("Salvar",(a,b)->{JamendoConfig.save(this,id.getText().toString());ApiClient.clear();navigate(tab);}).setNeutralButton("Portal",(a,b)->external("https://devportal.jamendo.com/")).setNegativeButton("Cancelar",null).show();}
         else if(i==1)new AlertDialog.Builder(this).setTitle("Parar reprodução após…").setItems(new String[]{"Desativar","15 minutos","30 minutos","60 minutos"},(a,b)->{if(controller!=null){Bundle args=new Bundle();args.putInt("minutes",new int[]{0,15,30,60}[b]);controller.sendCustomCommand(new SessionCommand(PlaybackService.SLEEP,Bundle.EMPTY),args);toast("Temporizador atualizado");}}).show();
         else if(i==2)((AudioManager)getSystemService(AUDIO_SERVICE)).adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_SAME,AudioManager.FLAG_SHOW_UI);
         else if(i==3){Glide.get(this).clearMemory();task(()->{Glide.get(getApplicationContext()).clearDiskCache();ApiClient.clear();return true;},ok->toast("Cache limpo"));}
