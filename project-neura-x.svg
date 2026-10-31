@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="174" viewBox="0 0 960 174" role="img" aria-label="Projeto em desenvolvimento">
+<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.index{font-size:30px;font-weight:800;fill:#00D9FF}.title{font-size:22px;font-weight:800;fill:#F0F6FC}.desc{font-size:13px;fill:#C9D1D9}.status{font-size:10px;font-weight:700;letter-spacing:1px;fill:#00D9FF}.chip{font-size:10px;font-weight:600;fill:#C9D1D9}.meta{font-size:9px;letter-spacing:1px;fill:#8B949E}</style>
+<rect width="960" height="174" rx="12" fill="#0D1117"/>
+<rect x="1" y="1" width="958" height="172" rx="11" fill="none" stroke="#00D9FF" stroke-opacity=".27"/>
+<rect x="0" y="22" width="5" height="130" rx="2" fill="#00D9FF"/>
+<text x="30" y="58" class="index">01</text>
+<text x="112" y="52" class="title">NEURA X</text>
+<text x="112" y="88" class="desc">Assistente de IA com Python, LLMs locais, APIs e automação.</text>
+<rect x="756" y="24" width="174" height="32" rx="6" fill="#161B22" stroke="#00D9FF" stroke-opacity=".42"/>
+<text x="843" y="44" text-anchor="middle" class="status">EM DESENVOLVIMENTO</text>
+<text x="812" y="153" class="meta">MODULE // 01</text>
+<rect x="112" y="118" width="76" height="28" rx="6" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="124" y="137" class="chip">PYTHON</text>
+<rect x="198" y="118" width="76" height="28" rx="6" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="210" y="137" class="chip">LLM</text>
+<rect x="284" y="118" width="76" height="28" rx="6" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="296" y="137" class="chip">API</text>
+<rect x="370" y="118" width="96" height="28" rx="6" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="382" y="137" class="chip">AUTOMAÇÃO</text>
+</svg>
