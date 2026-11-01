@@ -3,6 +3,8 @@ return {
 	arquivos = {
 		"sfx",
 		"vozes1",
+		"vozes2",
+		"musica",
 	},
 	itens = {
 		vento = { arquivo = "sfx", inicio = 0.1, dur = 14.0, loop = true },
@@ -33,5 +35,12 @@ return {
 		NI_2 = { arquivo = "vozes1", inicio = 16.62, dur = 1.56, loop = false },
 		NI_3 = { arquivo = "vozes1", inicio = 18.53, dur = 3.38, loop = false },
 		VO_1 = { arquivo = "vozes1", inicio = 22.26, dur = 3.53, loop = false },
+		KE_1 = { arquivo = "vozes2", inicio = 0.1, dur = 3.22, loop = false },
+		KE_2 = { arquivo = "vozes2", inicio = 3.67, dur = 3.06, loop = false },
+		KE_3 = { arquivo = "vozes2", inicio = 7.08, dur = 7.23, loop = false },
+		KE_4 = { arquivo = "vozes2", inicio = 14.66, dur = 1.18, loop = false },
+		KE_5 = { arquivo = "vozes2", inicio = 16.19, dur = 4.09, loop = false },
+		VO_2 = { arquivo = "vozes2", inicio = 20.63, dur = 2.97, loop = false },
+		musica_menu = { arquivo = "musica", inicio = 0.0, dur = 161.75, loop = true },
 	},
 }

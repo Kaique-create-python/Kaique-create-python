@@ -114,5 +114,37 @@
    "inicio": 22.26,
    "dur": 3.53
   }
+ },
+ "vozes2": {
+  "KE_1": {
+   "inicio": 0.1,
+   "dur": 3.22
+  },
+  "KE_2": {
+   "inicio": 3.67,
+   "dur": 3.06
+  },
+  "KE_3": {
+   "inicio": 7.08,
+   "dur": 7.23
+  },
+  "KE_4": {
+   "inicio": 14.66,
+   "dur": 1.18
+  },
+  "KE_5": {
+   "inicio": 16.19,
+   "dur": 4.09
+  },
+  "VO_2": {
+   "inicio": 20.63,
+   "dur": 2.97
+  }
+ },
+ "musica": {
+  "musica_menu": {
+   "inicio": 0.0,
+   "dur": 161.75
+  }
  }
 }

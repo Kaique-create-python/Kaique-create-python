@@ -135,8 +135,13 @@ irParaMenu = function(primeira: boolean)
 		grupo:habilitar(true)
 		grupo:mostrar(if primeira then 1.0 else 0.4)
 	end
-	Som.ambiente("drone", 0.7, 2)
-	Som.ambiente("relogio", 0.3, 2)
+	if Som.disponivel("musica_menu") then
+		-- música de fundo do menu ("Sombra no Corredor"), em loop
+		Som.ambiente("musica_menu", 0.85, 2)
+	else
+		Som.ambiente("drone", 0.7, 2)
+		Som.ambiente("relogio", 0.3, 2)
+	end
 	Cinema.escurecer(0, if primeira then 1.8 else 0.9)
 	if rotuloVersao then
 		rotuloVersao.Visible = true

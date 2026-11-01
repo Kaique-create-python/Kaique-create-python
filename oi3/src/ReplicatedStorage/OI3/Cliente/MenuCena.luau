@@ -70,7 +70,7 @@ function MenuCena.construirCenario(pasta: Instance)
 	refs.luzBotoesLuz = c:luz(chave, "SpotLight", { Brightness = 1.6, Range = 16, Angle = 70, Color = RGB(255, 214, 170), Face = Enum.NormalId.Front, Shadows = false })
 	refs.luzBotoes = chave
 	-- poeira no ar
-	local volume = c:caixa(P(1, 6, -3), V3(26, 10, 16), RGB(0, 0, 0), M.SmoothPlastic, { Transparency = 1, Name = "Poeira" })
+	local volume = c:caixa(P(1, 6, -3), V3(26, 10, 16), RGB(0, 0, 0), M.SmoothPlastic, { Transparency = 1, Name = "Poeira", colisao = false, CanQuery = false })
 	local pe = Instance.new("ParticleEmitter")
 	pe.Name = "Poeira"
 	pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"

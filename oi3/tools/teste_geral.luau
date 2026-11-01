@@ -133,6 +133,47 @@ checar("falas e mapa de áudio coerentes", function()
 	end
 end)
 
+checar("áreas de toque dos botões (projeção na tela)", function()
+	local B = H.modulo("ReplicatedStorage/OI3/Cliente/Botoes3D")
+	local MenuCena = H.modulo("ReplicatedStorage/OI3/Cliente/MenuCena")
+	local CF = roblox.CFrame
+	local RGB = roblox.Color3.fromRGB
+	for _, tela in { { 844, 390 }, { 1280, 720 }, { 2400, 1080 }, { 390, 844 } } do
+		local W, Hh = tela[1], tela[2]
+		local cam, fov = MenuCena.cameraBase(W, Hh)
+		local lay = B.calcularLayout(4, W, Hh, fov)
+		local tg = math.tan(math.rad(fov) / 2)
+		local function projetar(p)
+			local q = cam:PointToObjectSpace(p)
+			assert(q.Z < 0, "ponto atrás da câmera")
+			local x = (q.X / -q.Z) / (tg * W / Hh)
+			local y = (q.Y / -q.Z) / tg
+			return (x + 1) / 2 * W, (1 - y) / 2 * Hh
+		end
+		local rets = {}
+		for i = 1, 4 do
+			local pecas = B.montarPecas({ id = "t" .. i, texto = "T", cor = RGB(100, 30, 30), aoClicar = function() end }, lay.L, lay.A)
+			local cf = cam * lay.locais[i] * CF.new(0, 0, pecas.frente)
+			local mx, my = lay.L / 2 + lay.A * 0.08, lay.A / 2 + lay.A * 0.08
+			local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+			for _, c in { CF.new(-mx, 0, 0), CF.new(mx, 0, 0), CF.new(0, my, 0), CF.new(0, -my, 0) } do
+				local px, py = projetar((cf * c).Position)
+				x0, y0, x1, y1 = math.min(x0, px), math.min(y0, py), math.max(x1, px), math.max(y1, py)
+			end
+			assert(x0 >= -1 and y0 >= -1 and x1 <= W + 1 and y1 <= Hh + 1, "área fora da tela")
+			assert(y1 - y0 >= 44, "área de toque baixa demais: " .. (y1 - y0))
+			rets[i] = { x0, y0, x1, y1 }
+			pecas.modelo:Destroy()
+		end
+		for i = 1, 3 do
+			local a, b = rets[i], rets[i + 1]
+			local sobrepoe = math.max(0, math.min(a[4], b[4]) - math.max(a[2], b[2]))
+			assert(sobrepoe <= 2, string.format("botões %d e %d se sobrepõem %.0f px", i, i + 1, sobrepoe))
+		end
+		print(string.format("    %dx%d: JOGAR em x=%.0f..%.0f y=%.0f..%.0f", W, Hh, rets[1][1], rets[1][3], rets[1][2], rets[1][4]))
+	end
+end)
+
 print(if falhas == 0 then "\nTUDO OK" else ("\nFALHAS: " .. falhas))
 if falhas > 0 then
 	error("testes falharam")

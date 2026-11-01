@@ -120,11 +120,7 @@ function Botoes3D.montarPecas(def: Def, L: number, A: number)
 	placaTexto.Transparency = 1
 	soldar(tampaRaiz, placaTexto)
 
-	-- área de toque (invisível, na frente)
-	local alvo = novaParte(modelo, "Toque", V3(L + A * 0.26, A * 1.26, 0.04), RGB(0, 0, 0), Enum.Material.SmoothPlastic, raiz.CFrame * CF(0, 0, frente - 0.12))
-	alvo.Transparency = 1
-	soldar(raiz, alvo)
-	pecas.alvo = alvo
+	pecas.frente = frente
 	pecas.placaTexto = placaTexto
 	pecas.miolo = miolo
 	return pecas
@@ -134,7 +130,7 @@ local Botao = {}
 Botao.__index = Botao
 
 -- Cria um botão. L x A em studs (o grupo recalcula conforme a tela).
-function Botao.novo(pasta: Instance, def: Def, L: number, A: number)
+function Botao.novo(pasta: Instance, def: Def, L: number, A: number, tela: ScreenGui)
 	local self = setmetatable({}, Botao)
 	self.def = def
 	self.L, self.A = L, A
@@ -148,9 +144,8 @@ function Botao.novo(pasta: Instance, def: Def, L: number, A: number)
 	self.tampa = pecas.tampa
 	self.partesTampa = pecas.partesTampa
 	self.auraPartes = pecas.auraPartes
-	self.alvo = pecas.alvo
+	self.frente = pecas.frente
 	local placaTexto = pecas.placaTexto
-	local alvo = pecas.alvo
 
 	-- texto na tampa
 	local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -190,22 +185,16 @@ function Botao.novo(pasta: Instance, def: Def, L: number, A: number)
 	self.sgTexto = sgTexto
 	self.rotulo = rotulo
 
-	-- entrada (toque/clique)
-	local sgToque = Instance.new("SurfaceGui")
-	sgToque.Name = "OI3_Toque_" .. def.id
-	sgToque.Adornee = alvo
-	sgToque.Face = Enum.NormalId.Front
-	sgToque.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	sgToque.PixelsPerStud = 40
-	sgToque.ResetOnSpawn = false
-	sgToque.Parent = pg
+	-- entrada (toque/clique): botão 2D invisível que acompanha o botão 3D na tela.
+	-- (no celular, botões 2D recebem toque sempre; SurfaceGui não é confiável)
 	local botao = Instance.new("TextButton")
-	botao.Name = "Area"
+	botao.Name = "Toque_" .. def.id
 	botao.BackgroundTransparency = 1
 	botao.Text = ""
-	botao.Size = UDim2.fromScale(1, 1)
-	botao.Parent = sgToque
-	self.sgToque = sgToque
+	botao.AutoButtonColor = false
+	botao.Selectable = true
+	botao.Visible = false
+	botao.Parent = tela
 	self.botao = botao
 
 	botao.MouseEnter:Connect(function()
@@ -279,7 +268,9 @@ end
 function Botao:habilitar(sim: boolean)
 	self.habilitado = sim
 	self.botao.Active = sim
-	self.sgToque.Enabled = sim
+	if not sim then
+		self.botao.Visible = false
+	end
 	TweenService:Create(self.rotulo, TweenInfo.new(0.2), { TextTransparency = if sim then 0 else 0.55 }):Play()
 	if not sim then
 		self.hover = false
@@ -287,9 +278,44 @@ function Botao:habilitar(sim: boolean)
 	end
 end
 
+-- Posiciona o botão 2D invisível em cima do botão 3D (coordenadas da tela inteira)
+function Botao:atualizarToque(camera: Camera, pronto: boolean)
+	local b = self.botao
+	if not (pronto and self.habilitado) then
+		b.Visible = false
+		return
+	end
+	local cf = self.raiz.CFrame * CF(0, 0, self.frente)
+	local mx = self.L / 2 + self.A * 0.08
+	local my = self.A / 2 + self.A * 0.08
+	local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
+	-- pontos do meio de cada lado (o retângulo não cresce com a inclinação/perspectiva)
+	for _, c in { CF(-mx, 0, 0), CF(mx, 0, 0), CF(0, my, 0), CF(0, -my, 0) } do
+		local p = camera:WorldToViewportPoint((cf * c).Position)
+		if p.Z <= 0 then
+			b.Visible = false -- atrás da câmera
+			return
+		end
+		minX = math.min(minX, p.X)
+		minY = math.min(minY, p.Y)
+		maxX = math.max(maxX, p.X)
+		maxY = math.max(maxY, p.Y)
+	end
+	local vp = camera.ViewportSize
+	minX, minY = math.max(minX, 0), math.max(minY, 0)
+	maxX, maxY = math.min(maxX, vp.X), math.min(maxY, vp.Y)
+	if maxX - minX < 4 or maxY - minY < 4 then
+		b.Visible = false
+		return
+	end
+	b.Position = UDim2.fromOffset(minX, minY)
+	b.Size = UDim2.fromOffset(maxX - minX, maxY - minY)
+	b.Visible = true
+end
+
 function Botao:destruir()
 	self.sgTexto:Destroy()
-	self.sgToque:Destroy()
+	self.botao:Destroy()
 	self.modelo:Destroy()
 end
 
@@ -304,6 +330,16 @@ function Botoes3D.grupo(pasta: Instance, defs: { Def })
 	local self = setmetatable({}, Grupo)
 	self.pasta = pasta
 	self.defs = defs
+	local tela = Instance.new("ScreenGui")
+	tela.Name = "OI3_ToqueMenu"
+	tela.ResetOnSpawn = false
+	tela.IgnoreGuiInset = true
+	tela.DisplayOrder = 2
+	pcall(function()
+		tela.ScreenInsets = Enum.ScreenInsets.None
+	end)
+	tela.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	self.tela = tela
 	self.botoes = {}
 	self.locais = {}
 	self.entrada = {} -- 0 = fora da tela, 1 = no lugar
@@ -326,7 +362,7 @@ function Botoes3D.calcularLayout(n: number, vw: number, vh: number, fov: number)
 	else
 		L = math.min(L, meiaL * 1.5)
 	end
-	local esp = A * 0.36
+	local esp = A * 0.46
 	local total = n * A + (n - 1) * esp
 	local pos = {}
 	for i = 1, n do
@@ -362,7 +398,7 @@ function Grupo:recriar(vw: number, vh: number, fov: number)
 	end
 	self.botoes = {}
 	for i, def in self.defs do
-		local b = Botao.novo(self.pasta, def, lay.L, lay.A)
+		local b = Botao.novo(self.pasta, def, lay.L, lay.A, self.tela)
 		b.aoApertar = self.aoApertar
 		b:habilitar(habil)
 		self.botoes[i] = b
@@ -381,6 +417,7 @@ function Grupo:atualizar(cfCamera: CFrame, t: number)
 		local desloc = CF(-fora * (self.layout.meiaL * 1.4), 0, 0) * CFrame.Angles(0, -fora * 1.2, 0)
 		local balanco = CF(0, math.sin(t * 1.3 + i * 0.9) * 0.012, 0)
 		b.raiz.CFrame = cfCamera * desloc * local_ * balanco
+		b:atualizarToque(workspace.CurrentCamera, e > 0.85)
 		if b.auraPartes then
 			local tr = 0.62 + math.sin(t * 2.4) * 0.12
 			for _, p in b.auraPartes do

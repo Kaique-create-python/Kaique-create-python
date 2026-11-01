@@ -36,7 +36,9 @@ class H(BaseHTTPRequestHandler):
             if t["consultas"] < 2:
                 return self.responder(200, {"path": m.group(1), "state": "PROCESSING"})
             if "C.REVISAO" in t["script"]:
-                res = json.dumps({"revisao": "AJUSTE-1", "audio": {"sfx": 9001, "vozes1": 9002}})
+                rev = re.search(r'Config.REVISAO = "([^"]+)"', ESTADO.get("ultimo_place", ""))
+                ids = dict(re.findall(r"\t\t(\w+) = (\d+),", ESTADO.get("ultimo_place", "").split("--@@OI3_RECURSOS_INICIO@@")[-1].split("--@@OI3_RECURSOS_FIM@@")[0]))
+                res = json.dumps({"revisao": rev.group(1) if rev else "?", "audio": ids})
             elif ESTADO["falhar_teste"]:
                 res = json.dumps({"ok": False, "erros": ["mapa: erro simulado"], "info": {}})
             else:
@@ -64,7 +66,8 @@ class H(BaseHTTPRequestHandler):
         if m:
             assert self.headers.get("Content-Type") == "application/xml"
             txt = corpo.decode("utf-8")
-            assert "<roblox" in txt and "sfx = 9001" in txt and "vozes1 = 9002" in txt, "IDs não entraram no place"
+            assert "<roblox" in txt and "sfx = 90" in txt and "vozes1 = 90" in txt, "IDs não entraram no place"
+            ESTADO["ultimo_place"] = txt
             ESTADO["versao"] += 1
             ESTADO["places"].append(m.group(3))
             print("MOCK place", m.group(3), "versao", ESTADO["versao"], len(corpo), "bytes", flush=True)

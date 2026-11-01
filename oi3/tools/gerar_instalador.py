@@ -34,7 +34,8 @@ def main():
     ]
     with open(os.path.join(RAIZ, "src", "ReplicatedStorage", "OI3", "AudioMapa.luau"), encoding="utf-8") as f:
         mapa = f.read()
-    for chave, arq, rotulo in [("sfx", "oi3_sfx.ogg", "efeitos"), ("vozes1", "oi3_vozes1.ogg", "vozes1")]:
+    for chave, arq, rotulo in [("sfx", "oi3_sfx.ogg", "efeitos"), ("vozes1", "oi3_vozes1.ogg", "vozes1"),
+                               ("vozes2", "oi3_vozes2.ogg", "vozes2"), ("musica", "oi3_musica.ogg", "musica menu")]:
         caminho = os.path.join(RAIZ, "assets", arq)
         if os.path.exists(caminho) and ('"%s"' % chave) in mapa:
             entradas.append(("audio/" + arq, caminho, {"chave": chave, "rotulo": rotulo}))

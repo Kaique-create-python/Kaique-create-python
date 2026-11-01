@@ -430,6 +430,25 @@ def recortar(x, n_trechos):
     return [x[int(max(0, a - 0.06) * SR):int(min(dur, b + 0.08) * SR)] for a, b in trechos]
 
 
+def recortar_em(x, tempos_corte):
+    """recorta nas pausas mais próximas dos tempos indicados (segundos)."""
+    lacunas, dur = silencios(x, minimo=0.2)
+    internas = [g for g in lacunas if g[0] > 0.05 and g[1] < dur - 0.05]
+    escolhidas = []
+    for t in tempos_corte:
+        g = min(internas, key=lambda g: abs(g[0] - t))
+        escolhidas.append(g)
+    escolhidas = sorted(set(escolhidas))
+    ini = lacunas[0][1] if lacunas and lacunas[0][0] <= 0.05 else 0.0
+    trechos = []
+    for a, b in escolhidas:
+        trechos.append((ini, a))
+        ini = b
+    fim = lacunas[-1][0] if lacunas and lacunas[-1][1] >= dur - 0.05 else dur
+    trechos.append((ini, fim))
+    return [x[int(max(0, a - 0.06) * SR):int(min(dur, b + 0.08) * SR)] for a, b in trechos]
+
+
 def tratar_voz(x, tom=0.0, alvo_rms_db=-17.0):
     x = hp(x, 80, 2)
     x = ajustar_tom(x, tom)
@@ -560,5 +579,93 @@ def main():
         json.dump(resumo, f, ensure_ascii=False, indent=1)
 
 
+# ---------------------------------------------------------------- AJUSTE-2
+LOOPS = {"vento", "interior", "drone", "coracao", "relogio", "musica_menu"}
+
+
+def vozes2(pasta):
+    itens = []
+    ke = os.path.join(pasta, "KE_all_a.mp3")
+    if os.path.exists(ke):
+        # pausas longas reais desta gravação: ~3.1s, ~7.3s, ~15.7s e a curta antes da risada (~18.0s)
+        partes = recortar_em(ler_audio(ke), [3.14, 7.26, 15.68, 18.05])
+        for nome, x in zip(["KE_1", "KE_2", "KE_3", "KE_4", "KE_5"], partes):
+            itens.append((nome, tratar_voz(x, 4.0, -16.5 if nome == "KE_5" else -17.5)))
+    vo = os.path.join(pasta, "VO_2_a.mp3")
+    if os.path.exists(vo):
+        itens.append(("VO_2", tratar_voz(recortar(ler_audio(vo), 1)[0], 0.0)))
+    return itens
+
+
+def ler_estereo(caminho):
+    with tempfile.TemporaryDirectory() as tmp:
+        saida = os.path.join(tmp, "x.wav")
+        subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", caminho, "-vn", "-ac", "2", "-ar", str(SR), saida], check=True)
+        with wave.open(saida) as w:
+            return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float64).reshape(-1, 2) / 32768
+
+
+def musica_menu(video, nome_arquivo="oi3_musica"):
+    x = ler_estereo(video)
+    rms = np.sqrt(np.mean(x ** 2)) + 1e-9
+    x = x * (10 ** (-17.5 / 20) / rms)
+    pico = np.max(np.abs(x))
+    if pico > 0.89:
+        x = np.tanh(x / pico * 1.3) / np.tanh(1.3) * 0.89
+    # loop emendado: os últimos 3 s se misturam no começo
+    n = int(3.0 * SR)
+    y = x[:-n].copy()
+    ent = np.linspace(0, 1, n)[:, None]
+    y[:n] = y[:n] * np.sqrt(ent) + x[-n:] * np.sqrt(1 - ent)
+    os.makedirs(ASSETS, exist_ok=True)
+    wav = os.path.join(ASSETS, nome_arquivo + ".wav")
+    ogg = os.path.join(ASSETS, nome_arquivo + ".ogg")
+    with wave.open(wav, "w") as w:
+        w.setnchannels(2)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes((np.clip(y, -1, 1) * 32767).astype(np.int16).tobytes())
+    subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", wav, "-c:a", "libvorbis", "-q:a", "3", ogg], check=True)
+    os.remove(wav)
+    return {"musica_menu": {"inicio": 0.0, "dur": round(len(y) / SR - 0.05, 3)}}, ogg
+
+
+def escrever_mapa_json(resumo):
+    """reescreve AudioMapa.luau a partir do resumo {arquivo: {item: {inicio, dur}}}."""
+    linhas = ["-- OI3 :: mapa dos \"sprites\" de áudio (gerado por tools/audio.py). Não edite à mão.", "return {", "\tarquivos = {"]
+    for nome in resumo:
+        linhas.append(f'\t\t"{nome}",')
+    linhas.append("\t},")
+    linhas.append("\titens = {")
+    for nome, mapa in resumo.items():
+        for item, info in mapa.items():
+            loop = "true" if item in LOOPS else "false"
+            linhas.append(f'\t\t{item} = {{ arquivo = "{nome}", inicio = {info["inicio"]}, dur = {info["dur"]}, loop = {loop} }},')
+    linhas.append("\t},")
+    linhas.append("}")
+    with open(MAPA_LUAU, "w", encoding="utf-8") as f:
+        f.write("\n".join(linhas) + "\n")
+
+
+def ajuste2(pasta_vozes, video):
+    caminho_json = os.path.join(ASSETS, "audio_mapa.json")
+    with open(caminho_json, encoding="utf-8") as f:
+        resumo = json.load(f)
+    vz = vozes2(pasta_vozes)
+    mapa_v, dur_v, ogg_v = montar_sprite(vz, "oi3_vozes2")
+    resumo["vozes2"] = mapa_v
+    print(f"vozes2: {len(vz)} falas ({', '.join(n for n, _ in vz)}), {dur_v:.1f}s, {os.path.getsize(ogg_v) // 1024} KB")
+    if video:
+        mapa_m, ogg_m = musica_menu(video)
+        resumo["musica"] = mapa_m
+        print(f"musica: {mapa_m['musica_menu']['dur']:.1f}s, {os.path.getsize(ogg_m) // 1024} KB")
+    escrever_mapa_json(resumo)
+    with open(caminho_json, "w", encoding="utf-8") as f:
+        json.dump(resumo, f, ensure_ascii=False, indent=1)
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste2":
+        ajuste2(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "")
+    else:
+        main()
