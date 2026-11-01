@@ -1,0 +1,118 @@
+{
+ "sfx": {
+  "vento": {
+   "inicio": 0.1,
+   "dur": 14.0
+  },
+  "interior": {
+   "inicio": 14.45,
+   "dur": 12.0
+  },
+  "drone": {
+   "inicio": 26.8,
+   "dur": 16.0
+  },
+  "coracao": {
+   "inicio": 43.15,
+   "dur": 1.334
+  },
+  "relogio": {
+   "inicio": 44.834,
+   "dur": 2.0
+  },
+  "passo1": {
+   "inicio": 47.184,
+   "dur": 0.32
+  },
+  "passo2": {
+   "inicio": 47.854,
+   "dur": 0.32
+  },
+  "passo3": {
+   "inicio": 48.524,
+   "dur": 0.32
+  },
+  "rangido": {
+   "inicio": 49.194,
+   "dur": 2.4
+  },
+  "susto": {
+   "inicio": 51.944,
+   "dur": 3.6
+  },
+  "impacto": {
+   "inicio": 55.894,
+   "dur": 4.6
+  },
+  "clique": {
+   "inicio": 60.844,
+   "dur": 0.16
+  },
+  "estatica": {
+   "inicio": 61.354,
+   "dur": 1.2
+  },
+  "sussurro": {
+   "inicio": 62.904,
+   "dur": 1.7
+  },
+  "respiracao": {
+   "inicio": 64.954,
+   "dur": 2.7
+  },
+  "whoosh": {
+   "inicio": 68.004,
+   "dur": 1.4
+  },
+  "tensao": {
+   "inicio": 69.754,
+   "dur": 6.0
+  }
+ },
+ "vozes1": {
+  "ME_1": {
+   "inicio": 0.1,
+   "dur": 2.52
+  },
+  "ME_2": {
+   "inicio": 2.97,
+   "dur": 2.96
+  },
+  "ME_3": {
+   "inicio": 6.28,
+   "dur": 1.42
+  },
+  "ME_4A": {
+   "inicio": 8.05,
+   "dur": 1.29
+  },
+  "ME_4B": {
+   "inicio": 9.69,
+   "dur": 1.29
+  },
+  "ME_4C": {
+   "inicio": 11.33,
+   "dur": 1.29
+  },
+  "ME_5": {
+   "inicio": 12.97,
+   "dur": 1.58
+  },
+  "NI_1": {
+   "inicio": 14.9,
+   "dur": 1.37
+  },
+  "NI_2": {
+   "inicio": 16.62,
+   "dur": 1.56
+  },
+  "NI_3": {
+   "inicio": 18.53,
+   "dur": 3.38
+  },
+  "VO_1": {
+   "inicio": 22.26,
+   "dur": 3.53
+  }
+ }
+}
