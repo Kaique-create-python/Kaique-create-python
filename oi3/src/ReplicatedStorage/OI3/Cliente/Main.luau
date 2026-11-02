@@ -45,6 +45,19 @@ end
 
 local irParaMenu: (boolean) -> ()
 
+-- música do menu ("Sombra no Corredor") em loop; se ela não carregar, volta o clima antigo
+local function tocarClimaMenu()
+	if Som.disponivel("musica_menu") then
+		Som.ambiente("drone", 0, 1)
+		Som.ambiente("relogio", 0, 1)
+		Som.ambiente("musica_menu", 0.85, 2)
+	else
+		Som.ambiente("musica_menu", 0, 1)
+		Som.ambiente("drone", 0.7, 2)
+		Som.ambiente("relogio", 0.3, 2)
+	end
+end
+
 local function entrarExploracao()
 	estadoJogo = "explorar"
 	local lp = Players.LocalPlayer
@@ -69,7 +82,7 @@ local function entrarExploracao()
 	end
 	coreGui(Enum.CoreGuiType.Chat, true)
 	Cinema.escurecer(0, 1.2)
-	Exploracao.entrar()
+	Exploracao.entrar(char)
 end
 
 local function jogar(params: { inicio: number? }?)
@@ -135,13 +148,7 @@ irParaMenu = function(primeira: boolean)
 		grupo:habilitar(true)
 		grupo:mostrar(if primeira then 1.0 else 0.4)
 	end
-	if Som.disponivel("musica_menu") then
-		-- música de fundo do menu ("Sombra no Corredor"), em loop
-		Som.ambiente("musica_menu", 0.85, 2)
-	else
-		Som.ambiente("drone", 0.7, 2)
-		Som.ambiente("relogio", 0.3, 2)
-	end
+	tocarClimaMenu()
 	Cinema.escurecer(0, if primeira then 1.8 else 0.9)
 	if rotuloVersao then
 		rotuloVersao.Visible = true
@@ -171,6 +178,11 @@ function Main.iniciar()
 		remotos.SalvarConfig:FireServer(cfg)
 	end)
 	Som.iniciar(Ajustes.valores)
+	Som.aoMudarEstado(function()
+		if estadoJogo == "menu" then
+			tocarClimaMenu()
+		end
+	end)
 	Cinema.legendas(Ajustes.valores.legendas)
 	Cutscene.configurar({ tremor = Ajustes.valores.tremor })
 	Ajustes.aoMudar(function(chave, valor)
@@ -181,8 +193,10 @@ function Main.iniciar()
 		elseif chave == "efeitosLeves" then
 			Chamas.modoLeve(valor)
 			MenuCena.modoLeve(valor)
+			Exploracao.configurar({ leve = valor })
 		elseif chave == "tremor" then
 			Cutscene.configurar({ tremor = valor })
+			Exploracao.configurar({ tremor = valor })
 		end
 	end)
 
@@ -199,6 +213,7 @@ function Main.iniciar()
 	end
 	Chamas.modoLeve(Ajustes.valores.efeitosLeves)
 	MenuCena.modoLeve(Ajustes.valores.efeitosLeves)
+	Ajustes.aplicar("efeitosLeves", Ajustes.valores.efeitosLeves) -- agora que o mapa e o menu existem
 
 	-- botões 3D
 	local corSec = RGB(54, 47, 62)
@@ -245,7 +260,7 @@ function Main.iniciar()
 			end
 		end,
 	}
-	Paineis.iniciar({ ajustes = Ajustes, sala = sala })
+	Paineis.iniciar({ ajustes = Ajustes, sala = sala, som = Som })
 	Paineis.aoFechar(function()
 		if estadoJogo == "menu" and grupo then
 			grupo:habilitar(true)
@@ -264,6 +279,7 @@ function Main.iniciar()
 	Exploracao.iniciar(remotos, function()
 		task.spawn(voltarAoMenu)
 	end)
+	Exploracao.configurar({ tremor = Ajustes.valores.tremor, leve = Ajustes.valores.efeitosLeves })
 
 	-- rótulo discreto com a revisão
 	local telaV = Interface.tela("OI3_Versao", 5, true)

@@ -174,6 +174,42 @@ checar("áreas de toque dos botões (projeção na tela)", function()
 	end
 end)
 
+checar("lanterna da primeira pessoa (peças)", function()
+	local PP = H.modulo("ReplicatedStorage/OI3/Cliente/PrimeiraPessoa")
+	local m, lente = PP.montarLanterna(roblox.Color3.fromRGB(200, 160, 130))
+	assert(m.PrimaryPart and lente, "lanterna incompleta")
+	local n = 0
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			n += 1
+			assert(d.CanCollide == false and d.CastShadow == false, "peça da lanterna com colisão/sombra: " .. d.Name)
+		end
+	end
+	print("    peças da lanterna:", n)
+end)
+
+checar("detalhes novos (efeitos marcados)", function()
+	local ws2 = roblox.Instance.new("Folder")
+	local Mapa = H.modulo("ReplicatedStorage/OI3/Mapa")
+	local modelo = Mapa.construir(ws2)
+	local fx, fogo, luzes, sombras = 0, 0, 0, 0
+	for _, d in modelo:GetDescendants() do
+		if (d:IsA("ParticleEmitter") or d:IsA("Beam")) then
+			assert(d:GetAttribute("OI3_FX"), "efeito sem marca: " .. d:GetFullName())
+			fx += 1
+		elseif d:IsA("Fire") then
+			fogo += 1
+		elseif d:IsA("Light") then
+			luzes += 1
+			if d.Shadows then
+				sombras += 1
+			end
+		end
+	end
+	print(string.format("    efeitos: %d, fogo: %d, luzes: %d (com sombra: %d)", fx, fogo, luzes, sombras))
+	assert(sombras <= 8, "luzes com sombra demais para celular")
+end)
+
 print(if falhas == 0 then "\nTUDO OK" else ("\nFALHAS: " .. falhas))
 if falhas > 0 then
 	error("testes falharam")

@@ -65,6 +65,20 @@ function MenuCena.construirCenario(pasta: Instance)
 	c:cilindro(CF(P(2, 0.06, -2)) * CFrame.Angles(0, 0, math.pi / 2), 0.08, 10, RGB(96, 50, 46), M.Fabric)
 	Moveis.cadeira(c, P(10.5, 0, -6), V3(-0.7, 0, 0.7).Unit)
 	Moveis.ursinho(c, P(10.5, 1.8, -6.1), V3(-0.7, 0, 0.7).Unit)
+	-- AJUSTE-3: mais detalhes no quarto do menu
+	Moveis.luar(c, P(-15.2, 9.5, -1), P(-7.5, 0, 0.5), false)
+	Moveis.estante(c, P(14.45, 0, -8.6), V3(-1, 0, 0), 4.2, 8.5, 21)
+	Moveis.boneca(c, P(0.4, 3.48, -10.6), V3(0.15, 0, 1).Unit)
+	Moveis.blocos(c, P(7.2, 0, -0.8), 9)
+	Moveis.teia(c, P(-15.4, 13.95, -11.9), V3(1, 0, 0), V3(0, 0, 1), 2.4)
+	Moveis.teia(c, P(14.4, 13.95, -11.9), V3(-1, 0, 0), V3(0, 0, 1), 2.0)
+	for _, x in { -9, -3, 3, 9 } do
+		c:entre(P(x - 0.4, 13.25, -12), P(x + 0.4, 14, 12), COR.madeiraEscura, M.Wood)
+	end
+	Moveis.desenho(c, P(-10.5, 6.2, -11.55), V3(0, 0, 1), 1)
+	Moveis.vela(c, P(-1.8, 0, -8.5), { altura = 0.55, luz = true, alcance = 9, brilho = 0.4 })
+	Moveis.vela(c, P(-1.2, 0, -8.9), { altura = 0.35 })
+
 	-- luz-chave dos botões (presa à câmera depois)
 	local chave = c:caixa(P(0, 7, 8), V3(0.3, 0.3, 0.3), RGB(0, 0, 0), M.SmoothPlastic, { Transparency = 1, Name = "LuzBotoes" })
 	refs.luzBotoesLuz = c:luz(chave, "SpotLight", { Brightness = 1.6, Range = 16, Angle = 70, Color = RGB(255, 214, 170), Face = Enum.NormalId.Front, Shadows = false })

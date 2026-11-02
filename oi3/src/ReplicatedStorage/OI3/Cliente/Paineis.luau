@@ -189,6 +189,32 @@ local function montarConfig()
 		TextColor3 = COR.textoFraco,
 		Size = UDim2.new(1, 0, 0, 22),
 	}), 8)
+	-- situação dos sons (ajuda a saber se o Roblox já liberou os áudios)
+	local statusSom = ordem(Interface.texto(conteudo, {
+		Name = "StatusSom",
+		Text = "Sons: carregando...",
+		TextSize = 14,
+		TextColor3 = COR.textoFraco,
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+	}), 9)
+	local som = estado.ctx.som
+	if som then
+		local TEXTOS = {
+			pronto = "Sons: prontos.",
+			carregando = "Sons: carregando...",
+			parcial = "Sons: alguns ainda não foram liberados pelo Roblox.",
+			indisponivel = "Sons: ainda em análise no Roblox (ficam mudos até liberar).",
+			sem_audio = "Sons: nenhum áudio instalado.",
+		}
+		local function atualizar()
+			local resumo = som.estado()
+			statusSom.Text = TEXTOS[resumo] or ("Sons: " .. tostring(resumo))
+			statusSom.TextColor3 = if resumo == "pronto" then COR.ok else COR.textoFraco
+		end
+		atualizar()
+		som.aoMudarEstado(atualizar)
+	end
 end
 
 ---------------------------------------------------------------------------

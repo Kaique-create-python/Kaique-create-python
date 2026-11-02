@@ -342,7 +342,7 @@ end
 function H.exportarPecas(raiz): { any }
 	local lista = {}
 	for _, d in raiz:GetDescendants() do
-		if d:IsA("BasePart") and d.Transparency < 0.98 then
+		if d:IsA("BasePart") and (d.Transparency < 0.98 or d:FindFirstChildWhichIsA("Light")) then
 			local cf = d.CFrame
 			local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = cf:GetComponents()
 			local forma = "Block"
@@ -371,8 +371,12 @@ function H.exportarPecas(raiz): { any }
 						math.floor(luz.Color.B * 255),
 						luz.Brightness,
 						luz.Range,
+						if luz:IsA("SpotLight") then luz.Angle else 0,
+						if luz:IsA("SpotLight") then luz.Face.Name else "",
+						luz.Enabled,
 					}
 					else nil,
+				fogo = d:FindFirstChildOfClass("Fire") ~= nil,
 			})
 		end
 	end
@@ -427,6 +431,27 @@ function H.moverModelo(modelo, cf)
 			d.CFrame = cf * antigo:Inverse() * d.CFrame
 		end
 	end
+end
+
+-- Exporta os Beams (raios de luz) de uma pasta
+function H.exportarBeams(raiz)
+	local lista = {}
+	for _, b in raiz:GetDescendants() do
+		if b:IsA("Beam") and b.Attachment0 and b.Attachment1 then
+			local p0 = (b.Attachment0.Parent.CFrame * b.Attachment0.CFrame).Position
+			local p1 = (b.Attachment1.Parent.CFrame * b.Attachment1.CFrame).Position
+			local cor = b.Color.Keypoints[1].Value
+			table.insert(lista, {
+				p0 = { p0.X, p0.Y, p0.Z },
+				p1 = { p1.X, p1.Y, p1.Z },
+				w0 = b.Width0,
+				w1 = b.Width1,
+				c = { math.floor(cor.R * 255), math.floor(cor.G * 255), math.floor(cor.B * 255) },
+				t = b.Transparency.Keypoints[1].Value,
+			})
+		end
+	end
+	return lista
 end
 
 return H

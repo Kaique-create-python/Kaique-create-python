@@ -20,6 +20,11 @@ class H(BaseHTTPRequestHandler):
             return self.responder(401, {"message": "sem chave"})
         if self.path.startswith("/v1/games"):
             return self.responder(200, {"data": [{"name": "OI3", "creator": {"id": 1357078972, "name": "dono", "type": "User"}}]})
+        m = re.match(r"/assets/v1/assets/(\d+)\?readMask=moderationResult", self.path)
+        if m:
+            # final par = aprovado, ímpar = em análise (só para variar no teste)
+            estado = "Approved" if int(m.group(1)[-1]) % 2 == 0 else "Reviewing"
+            return self.responder(200, {"assetId": m.group(1), "moderationResult": {"moderationState": estado}})
         m = re.match(r"/assets/v1/operations/(\w+)", self.path)
         if m:
             op = ESTADO["ops"][m.group(1)]

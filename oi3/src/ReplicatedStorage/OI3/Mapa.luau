@@ -3,6 +3,7 @@
 
 local Construtor = require(script.Parent.Construtor)
 local Moveis = require(script.Parent.Moveis)
+local Detalhes = require(script.Parent.Detalhes)
 
 local Mapa = {}
 
@@ -162,6 +163,7 @@ function Mapa.construirQuartoEspelho(c, reflexo: boolean?)
 	c:cilindro(CF(63, F + 0.06, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.08, 6.6, RGB(92, 52, 46), M.Fabric)
 	-- quadro antigo
 	Moveis.quadro(c, V3(60, F + 7.5, -ZA + 0.5), V3(0, 0, 1), 2.6, 3.2, RGB(46, 50, 46))
+	Detalhes.quartoEspelho(c, F, TETO, reflexo)
 	return refs
 end
 
@@ -437,9 +439,9 @@ function Mapa.construir(pai: Instance)
 	ci:entre(V3(8.2, F, 6), V3(10.6, F + 2.6, 8.2), COR.madeira, M.Wood)
 	ci:bola(V3(9.4, F + 3.2, 7.1), 1, RGB(84, 92, 100), M.SmoothPlastic)
 	-- cabideiro
-	ci:coluna(V3(-9.5, F, 9.5), 6, 0.3, COR.madeiraEscura, M.Wood)
-	ci:caixa(V3(-9.5, F + 5.6, 9.5), V3(1.4, 0.2, 0.2), COR.madeiraEscura, M.Wood)
-	ci:caixa(V3(-9.5, F + 4.2, 9.5), V3(0.9, 1.8, 0.6), RGB(46, 42, 52), M.Fabric)
+	ci:coluna(V3(10.6, F, 10.4), 6, 0.3, COR.madeiraEscura, M.Wood)
+	ci:caixa(V3(10.6, F + 5.6, 10.4), V3(1.4, 0.2, 0.2), COR.madeiraEscura, M.Wood)
+	ci:caixa(V3(10.6, F + 4.2, 10.4), V3(0.9, 1.8, 0.6), RGB(46, 42, 52), M.Fabric)
 	Moveis.quadro(ci, V3(XHL - 0.5, F + 7.6, -14), V3(-1, 0, 0), 2.6, 3.4, RGB(60, 52, 46))
 
 	-------------------------------------------------------------------
@@ -549,6 +551,9 @@ function Mapa.construir(pai: Instance)
 		ce:caixa(V3(bx + s, 1.55, bz), V3(1.8, 0.18, 0.8), COR.madeira, M.Wood)
 	end
 
+	-- AJUSTE-3: detalhes extras (vigas, lareira, estantes, luar, poeira, névoa, mata...)
+	Detalhes.construir(modelo, Mapa.L)
+
 	modelo.Parent = pai
 	return modelo, refs
 end
@@ -558,10 +563,22 @@ function Mapa.construirTerreno(terreno: Terrain)
 	terreno:FillBlock(CF(15, -4, 10), V3(260, 8, 260), Enum.Material.Grass)
 	terreno:FillBlock(CF(0, -1.9, 42), V3(8, 4, 48), Enum.Material.Mud)
 	terreno:FillBlock(CF(0, -1.9, 70), V3(8, 4, 14), Enum.Material.Mud)
+	-- morros ao longe (silhueta no horizonte)
+	for _, m in { { V3(-170, -30, 20), 70 }, { V3(200, -35, -10), 80 }, { V3(20, -40, -170), 90 }, { V3(-120, -40, 170), 80 }, { V3(150, -40, 170), 75 } } do
+		terreno:FillBall(m[1], m[2], Enum.Material.Grass)
+	end
 	pcall(function()
-		terreno:SetMaterialColor(Enum.Material.Grass, RGB(52, 62, 44))
+		terreno:SetMaterialColor(Enum.Material.Grass, RGB(48, 58, 42))
 		terreno:SetMaterialColor(Enum.Material.Mud, RGB(58, 46, 38))
-		terreno.Decoration = false
+		terreno.Decoration = true -- grama com folhinhas
+	end)
+	-- nuvens de noite passando
+	pcall(function()
+		local nuvens = terreno:FindFirstChildOfClass("Clouds") or Instance.new("Clouds")
+		nuvens.Cover = 0.62
+		nuvens.Density = 0.45
+		nuvens.Color = RGB(64, 70, 86)
+		nuvens.Parent = terreno
 	end)
 end
 

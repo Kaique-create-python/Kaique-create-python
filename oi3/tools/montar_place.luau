@@ -59,19 +59,19 @@ luz.Ambient = rgb(22, 24, 32)
 luz.OutdoorAmbient = rgb(48, 52, 70)
 luz.ColorShift_Top = rgb(110, 124, 170)
 luz.ColorShift_Bottom = rgb(0, 0, 0)
-luz.EnvironmentDiffuseScale = 0.35
-luz.EnvironmentSpecularScale = 0.6
+luz.EnvironmentDiffuseScale = 0.5
+luz.EnvironmentSpecularScale = 1
 luz.GlobalShadows = true
 luz.ShadowSoftness = 0.25
-luz.ExposureCompensation = 0.2
+luz.ExposureCompensation = 0.25
 
 local atm = Instance.new("Atmosphere")
-atm.Density = 0.36
-atm.Offset = 0.2
-atm.Color = rgb(106, 116, 138)
-atm.Decay = rgb(38, 44, 60)
-atm.Glare = 0
-atm.Haze = 1.6
+atm.Density = 0.38
+atm.Offset = 0.24
+atm.Color = rgb(98, 110, 134)
+atm.Decay = rgb(40, 46, 64)
+atm.Glare = 0.12
+atm.Haze = 2.2
 atm.Parent = luz
 
 local ceu = Instance.new("Sky")
@@ -81,22 +81,39 @@ ceu.SkyboxFt = "rbxasset://textures/sky/sky512_ft.tex"
 ceu.SkyboxLf = "rbxasset://textures/sky/sky512_lf.tex"
 ceu.SkyboxRt = "rbxasset://textures/sky/sky512_rt.tex"
 ceu.SkyboxUp = "rbxasset://textures/sky/sky512_up.tex"
-ceu.StarCount = 3000
-ceu.MoonAngularSize = 13
+ceu.StarCount = 5000
+ceu.MoonAngularSize = 15
 ceu.CelestialBodiesShown = true
 ceu.Parent = luz
 
 local bloom = Instance.new("BloomEffect")
-bloom.Intensity = 0.7
-bloom.Size = 26
-bloom.Threshold = 1.4
+bloom.Intensity = 0.65
+bloom.Size = 30
+bloom.Threshold = 1.25
 bloom.Parent = luz
 
 local cor = Instance.new("ColorCorrectionEffect")
-cor.Saturation = -0.22
-cor.Contrast = 0.08
-cor.TintColor = rgb(226, 232, 255)
+cor.Saturation = -0.18
+cor.Contrast = 0.14
+cor.TintColor = rgb(222, 230, 255)
 cor.Parent = luz
+
+-- profundidade de campo leve e raios da lua (o modo "efeitos leves" desliga)
+local dof = Instance.new("DepthOfFieldEffect")
+dof.FarIntensity = 0.16
+dof.FocusDistance = 28
+dof.InFocusRadius = 34
+dof.NearIntensity = 0
+dof.Parent = luz
+local raios = Instance.new("SunRaysEffect")
+raios.Intensity = 0.04
+raios.Spread = 0.55
+raios.Parent = luz
+
+-- materiais novos do Roblox (madeira, tijolo e pedra bem mais bonitos)
+pcall(function()
+	game:GetService("MaterialService").Use2022Materials = true
+end)
 
 -- Jogadores: o personagem só aparece depois do menu/abertura
 local jogadores = game:GetService("Players")

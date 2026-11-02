@@ -51,6 +51,16 @@ function Ajustes.aplicar(chave: string, valor: any)
 		correcao.Brightness = valor
 		correcao.Contrast = -valor * 0.15
 	elseif chave == "efeitosLeves" then
+		-- partículas e raios de luz marcados como efeito (névoa, poeira, luar...)
+		for _, raiz in { workspace:FindFirstChild("Orfanato"), workspace:FindFirstChild("OI3_Menu") } do
+			if raiz then
+				for _, d in raiz:GetDescendants() do
+					if (d:IsA("ParticleEmitter") or d:IsA("Beam")) and d:GetAttribute("OI3_FX") then
+						d.Enabled = not valor
+					end
+				end
+			end
+		end
 		-- modo leve: menos sombras e efeitos de pós-processamento
 		pcall(function()
 			Lighting.GlobalShadows = if valor then false else (estadoLuz.GlobalShadows ~= false)

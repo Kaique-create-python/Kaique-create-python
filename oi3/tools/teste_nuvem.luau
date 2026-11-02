@@ -103,6 +103,13 @@ else
 		local p = B.montarPecas({ id = "t", texto = "T", cor = Color3.new(1, 0, 0), aoClicar = function() end }, lay.L, lay.A)
 		p.modelo:Destroy()
 	end)
+	-- lanterna da primeira pessoa (só as peças; a luz liga no celular do jogador)
+	checar("lanterna", function()
+		local PP = require(OI3.Cliente.PrimeiraPessoa)
+		local m = PP.montarLanterna()
+		res.info.pecasLanterna = #m:GetDescendants()
+		m:Destroy()
+	end)
 	checar("recursos", function()
 		local R = require(OI3.Recursos)
 		res.info.audio = R.audio

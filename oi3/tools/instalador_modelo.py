@@ -246,15 +246,34 @@ def ler_operacao(chave, op_id):
     return asset_id, estado
 
 
+def consultar_moderacao(chave, asset_id):
+    """pergunta ao Roblox o estado de moderação de um áudio já enviado."""
+    try:
+        d = http_json("GET", "%s/assets/v1/assets/%s?readMask=moderationResult" % (API, asset_id), chave, tentativas=2, espera_max=30)
+        return ((d.get("moderationResult") or {}).get("moderationState")) or ""
+    except Exception:
+        return ""
+
+
+TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
+
+
 def enviar_audio(chave, criador, nome, info, dados, recibos):
     sha = info["sha256"]
     r = recibos["audio"].get(sha) or {}
     rotulo = info.get("rotulo", nome)
     if r.get("assetId"):
-        if r.get("estado") == "Rejected":
-            aviso("%s: o Roblox recusou este áudio antes; seguindo sem ele." % rotulo)
+        estado = consultar_moderacao(chave, r["assetId"]) or r.get("estado", "")
+        if estado and estado != r.get("estado"):
+            r["estado"] = estado
+            recibos["audio"][sha] = r
+            gravar_recibos(recibos)
+        if estado == "Rejected":
+            aviso("%s: o Roblox RECUSOU este áudio na moderação (ID %s); o jogo segue sem ele." % (rotulo, r["assetId"]))
             return 0
-        ok("%s: já enviado antes (ID %s)" % (rotulo, r["assetId"]))
+        ok("%s: já enviado (ID %s) - moderação: %s" % (rotulo, r["assetId"], TRADUZ.get(estado, estado or "?")))
+        if estado == "Reviewing":
+            aviso("   enquanto estiver 'em análise' esse som fica MUDO no jogo (o Roblox libera sozinho depois).")
         return int(r["assetId"])
     if r.get("operationId"):
         try:
@@ -505,6 +524,8 @@ def cmd_install(pular_teste=False):
         inf = res.get("info", {})
         ok("teste passou: %s módulos, mapa com %s peças, menu com %s peças, animações R6 carregadas: %s" % (
             inf.get("modulos"), inf.get("pecasMapa"), inf.get("pecasMenu"), inf.get("animacoesCarregadas")))
+        if inf.get("pecasLanterna"):
+            ok("lanterna da primeira pessoa montada (%s peças)" % inf.get("pecasLanterna"))
 
     passo(6, "Publicando")
     try:
