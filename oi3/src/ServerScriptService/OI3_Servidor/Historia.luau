@@ -43,6 +43,15 @@ function Historia.livres(escolhas: { [any]: string }): { string }
 	return l
 end
 
+-- AJUSTE-7: quem escolheu cada criança (o cartão mostra "COM <nome>" para o grupo)
+local function quemEscolheu(g): { [string]: string }
+	local q = {}
+	for p, c in g.escolhas do
+		q[c] = p.DisplayName
+	end
+	return q
+end
+
 local function comecarTarde(g)
 	if g.fase ~= "escolha" then
 		return
@@ -93,13 +102,13 @@ function Historia.escolher(plr: Player, codigo: any)
 	for p, c in g.escolhas do
 		if c == codigo and p ~= plr then
 			if remoto then
-				remoto:FireClient(plr, "ocupado", { livres = Historia.livres(g.escolhas) })
+				remoto:FireClient(plr, "ocupado", { livres = Historia.livres(g.escolhas), quem = quemEscolheu(g) })
 			end
 			return
 		end
 	end
 	g.escolhas[plr] = codigo
-	enviar(g, "escolhas", { livres = Historia.livres(g.escolhas) })
+	enviar(g, "escolhas", { livres = Historia.livres(g.escolhas), quem = quemEscolheu(g) })
 	for _, p in g.membros do
 		if p.Parent and not g.escolhas[p] then
 			return

@@ -78,9 +78,9 @@ function Botoes3D.montarPecas(def: Def, L: number, A: number)
 	modelo.PrimaryPart = raiz
 
 	-- aro de metal envelhecido + fundo escuro (dá o relevo)
-	local corAro = RGB(112, 88, 52)
-	pilula(modelo, raiz, CF(0, 0, A * 0.22), L + A * 0.26, A * 1.26, A * 0.28, corAro, Enum.Material.Metal, "Aro")
-	pilula(modelo, raiz, CF(0, 0, A * 0.13), L + A * 0.06, A * 1.06, A * 0.3, RGB(10, 9, 11), Enum.Material.SmoothPlastic, "Fundo")
+	local corAro = RGB(98, 76, 46)
+	pilula(modelo, raiz, CF(0, 0, A * 0.22), L + A * 0.18, A * 1.18, A * 0.28, corAro, Enum.Material.Metal, "Aro")
+	pilula(modelo, raiz, CF(0, 0, A * 0.13), L + A * 0.05, A * 1.05, A * 0.3, RGB(8, 7, 9), Enum.Material.SmoothPlastic, "Fundo")
 	if def.principal then
 		local aura = pilula(modelo, raiz, CF(0, 0, A * 0.42), L + A * 0.36, A * 1.36, 0.04, RGB(150, 24, 24), Enum.Material.Neon, "Aura")
 		pecas.aura = aura
@@ -108,11 +108,11 @@ function Botoes3D.montarPecas(def: Def, L: number, A: number)
 	pecas.partesTampa = partesTampa
 	-- brilho (verniz) na parte de cima da tampa
 	local brilho = novaParte(modelo, "Brilho", V3(math.max(L - A, 0.1) * 0.86, A * 0.1, 0.02), def.cor:Lerp(Color3.new(1, 1, 1), 0.45), Enum.Material.SmoothPlastic, tampaRaiz.CFrame * CF(0, A * 0.3, frente - 0.01))
-	brilho.Transparency = 0.45
+	brilho.Transparency = 0.8
 	soldar(tampaRaiz, brilho)
 	-- faixa escura embaixo (sombra de volume)
 	local sombra = novaParte(modelo, "Sombra", V3(math.max(L - A, 0.1) * 0.9, A * 0.08, 0.02), def.cor:Lerp(Color3.new(0, 0, 0), 0.45), Enum.Material.SmoothPlastic, tampaRaiz.CFrame * CF(0, -A * 0.34, frente - 0.01))
-	sombra.Transparency = 0.3
+	sombra.Transparency = 0.45
 	soldar(tampaRaiz, sombra)
 
 	-- placa invisível para o texto (largura total da pílula, anda junto com a tampa)
@@ -353,9 +353,10 @@ function Botoes3D.calcularLayout(n: number, vw: number, vh: number, fov: number)
 	local meiaA = D * math.tan(math.rad(fov) / 2)
 	local aspecto = vw / math.max(vh, 1)
 	local meiaL = meiaA * aspecto
-	local alvoPx = math.clamp(vh * 0.1, 48, 74)
+	-- AJUSTE-7: botões mais finos e compridos (mais elegantes), ainda grandes para o dedo
+	local alvoPx = math.clamp(vh * 0.088, 46, 66)
 	local A = alvoPx / vh * 2 * meiaA
-	local L = A * 4.1
+	local L = A * 4.7
 	local paisagem = aspecto >= 1.15
 	if paisagem then
 		L = math.min(L, meiaL * 0.62)
@@ -376,7 +377,7 @@ function Botoes3D.calcularLayout(n: number, vw: number, vh: number, fov: number)
 			y = -meiaA + meiaA * 0.12 + total - A / 2 - (i - 1) * (A + esp)
 		end
 		-- a frente do botão (-Z) olha para a câmera, virada um pouco para o centro (mostra a espessura)
-		local alvo = Vector3.new(-x * 0.3, y * 0.2, 0)
+		local alvo = Vector3.new(-x * 0.14, y * 0.1, 0)
 		pos[i] = CFrame.lookAt(Vector3.new(x, y, -D), alvo) * CFrame.Angles(math.rad(-2), 0, 0)
 	end
 	return { locais = pos, L = L, A = A, paisagem = paisagem, D = D, meiaA = meiaA, meiaL = meiaL }

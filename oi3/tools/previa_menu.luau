@@ -20,10 +20,10 @@ for _, p in base do
 end
 local RGB = roblox.Color3.fromRGB
 local defs = {
-	{ id = "jogar", texto = "JOGAR", cor = RGB(150, 30, 30), principal = true, aoClicar = function() end },
-	{ id = "multi", texto = "MULTIPLAYER", cor = RGB(54, 47, 62), aoClicar = function() end },
-	{ id = "config", texto = "CONFIGURAÇÕES", cor = RGB(54, 47, 62), aoClicar = function() end },
-	{ id = "creditos", texto = "CRÉDITOS", cor = RGB(54, 47, 62), aoClicar = function() end },
+	{ id = "jogar", texto = "JOGAR", cor = RGB(126, 20, 22), principal = true, aoClicar = function() end },
+	{ id = "multi", texto = "MULTIPLAYER", cor = RGB(32, 28, 34), aoClicar = function() end },
+	{ id = "config", texto = "CONFIGURAÇÕES", cor = RGB(32, 28, 34), aoClicar = function() end },
+	{ id = "creditos", texto = "CRÉDITOS", cor = RGB(32, 28, 34), aoClicar = function() end },
 }
 local saidas = {}
 for _, tela in { { 1280, 720, "pc" }, { 844, 390, "celular" }, { 390, 844, "retrato" } } do
@@ -69,7 +69,7 @@ for _, tela in { { 1280, 720, "pc" }, { 844, 390, "celular" }, { 390, 844, "retr
 	end
 	for i, p in extras do
 		local def = defs[i]
-		p.txt = { { w = p.s[1], h = p.s[2], texto = def.texto, cor = "#f0e8d8", fonte = "Merriweather, Georgia, serif", peso = 900, contorno = "#140c0a", escala = 0.5 } }
+		p.txt = { { w = p.s[1], h = p.s[2], texto = def.texto, cor = if i == 1 then "#f0e8d8" else "#e2d6c0", fonte = "Merriweather, Georgia, serif", peso = 900, contorno = "#140c0a", escala = 0.5 } }
 	end
 	local tudo = table.clone(base)
 	for _, p in lista do

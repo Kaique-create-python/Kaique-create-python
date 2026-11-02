@@ -20,6 +20,9 @@ local estado = {
 	ctx = nil :: any,
 	aoFechar = nil :: ((string) -> ())?,
 	multi = nil :: any,
+	aviso = nil :: any,
+	resumo = nil :: any,
+	noMenu = false,
 }
 
 local function cartao(nome: string, titulo: string, largura: number, altura: number): (CanvasGroup, ScrollingFrame)
@@ -218,38 +221,139 @@ end
 -- Multiplayer
 ---------------------------------------------------------------------------
 local function montarMulti()
-	local _, conteudo = cartao("multi", "MULTIPLAYER", 500, 350)
+	-- AJUSTE-7: sala com uma VAGA por criança (até 3), foto de cada um, quem está pronto e a contagem
+	local maximo = Config.SALA.maximoJogadores
+	local c, conteudo = cartao("multi", "MULTIPLAYER", 560, 400)
 	local sala = estado.ctx.sala
+	local lp = Players.LocalPlayer
+	local contador = Interface.texto(c, {
+		Name = "Contador",
+		Text = "SALA 0/" .. maximo,
+		FontFace = FONTE.textoNegrito,
+		TextSize = 14,
+		TextColor3 = COR.textoFraco,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -56, 0, 18),
+		Size = UDim2.fromOffset(110, 20),
+	})
 	ordem(Interface.texto(conteudo, {
-		Text = "Assistam à abertura juntos. Quando todos da sala estiverem prontos, a história começa para o grupo.",
-		TextSize = 16,
+		Text = "Entrem na sala, apertem ESTOU PRONTO e a história começa para o grupo. Cada um vai ser uma criança diferente.",
+		TextSize = 15,
 		TextColor3 = COR.textoFraco,
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 	}), 1)
-	local lista = Instance.new("Frame")
-	lista.Name = "Lista"
-	lista.BackgroundTransparency = 1
-	lista.Size = UDim2.new(1, 0, 0, 0)
-	lista.AutomaticSize = Enum.AutomaticSize.Y
-	ordem(lista, 2)
-	lista.Parent = conteudo
-	local ll = Instance.new("UIListLayout")
-	ll.Padding = UDim.new(0, 4)
-	ll.SortOrder = Enum.SortOrder.LayoutOrder
-	ll.Parent = lista
+
+	local vagas = Instance.new("Frame")
+	vagas.Name = "Vagas"
+	vagas.BackgroundTransparency = 1
+	vagas.Size = UDim2.new(1, 0, 0, 150)
+	ordem(vagas, 2)
+	vagas.Parent = conteudo
+	local lv = Instance.new("UIListLayout")
+	lv.FillDirection = Enum.FillDirection.Horizontal
+	lv.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	lv.Padding = UDim.new(0, 8)
+	lv.SortOrder = Enum.SortOrder.LayoutOrder
+	lv.Parent = vagas
+	local slots = {}
+	for i = 1, maximo do
+		local v = Instance.new("Frame")
+		v.Name = "Vaga" .. i
+		v.LayoutOrder = i
+		v.BackgroundColor3 = Color3.fromRGB(22, 20, 25)
+		v.BorderSizePixel = 0
+		v.Size = UDim2.new(1 / maximo, -math.ceil(8 * (maximo - 1) / maximo), 1, 0)
+		Interface.canto(v, 4)
+		local bordaVaga = Interface.borda(v, COR.borda, 1, 0.5)
+		v.Parent = vagas
+		local foto = Instance.new("ImageLabel")
+		foto.Name = "Foto"
+		foto.AnchorPoint = Vector2.new(0.5, 0)
+		foto.Position = UDim2.new(0.5, 0, 0, 12)
+		foto.Size = UDim2.fromOffset(66, 66)
+		foto.BackgroundColor3 = Color3.fromRGB(38, 34, 40)
+		foto.BorderSizePixel = 0
+		foto.Image = ""
+		Interface.canto(foto, 4)
+		local aro = Interface.borda(foto, COR.textoFraco, 2, 0.2)
+		foto.Parent = v
+		local nome = Interface.texto(v, {
+			Name = "Nome",
+			Text = "",
+			FontFace = FONTE.textoForte,
+			TextSize = 16,
+			TextWrapped = false,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.new(0, 6, 0, 84),
+			Size = UDim2.new(1, -12, 0, 22),
+		})
+		local chip = Interface.texto(v, {
+			Name = "Chip",
+			Text = "",
+			FontFace = FONTE.textoNegrito,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -10),
+			Size = UDim2.fromOffset(104, 22),
+			BackgroundTransparency = 0,
+			BackgroundColor3 = Color3.fromRGB(46, 42, 48),
+		})
+		Interface.canto(chip, 4)
+		-- vaga livre: o cartão inteiro vira um botão de convidar
+		local livre = Instance.new("TextButton")
+		livre.Name = "Livre"
+		livre.BackgroundTransparency = 1
+		livre.Size = UDim2.fromScale(1, 1)
+		livre.Text = ""
+		livre.ZIndex = 3
+		livre.Parent = v
+		local mais = Interface.texto(livre, {
+			Text = "+",
+			FontFace = FONTE.titulo,
+			TextSize = 40,
+			TextColor3 = COR.borda,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.new(0, 0, 0, 18),
+			Size = UDim2.new(1, 0, 0, 56),
+			ZIndex = 3,
+		})
+		local convidar = Interface.texto(livre, {
+			Text = "VAGA LIVRE\ntoque para convidar",
+			FontFace = FONTE.textoForte,
+			TextSize = 13,
+			TextColor3 = COR.textoFraco,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			Position = UDim2.new(0, 6, 0, 82),
+			Size = UDim2.new(1, -12, 0, 40),
+			ZIndex = 3,
+		})
+		livre.Activated:Connect(function()
+			if livre.Visible then
+				sala.convidar()
+			end
+		end)
+		slots[i] = { quadro = v, borda = bordaVaga, foto = foto, aro = aro, nome = nome, chip = chip, livre = livre, mais = mais, convidar = convidar }
+	end
+
 	local status = ordem(Interface.texto(conteudo, {
 		Name = "Status",
 		Text = "Entrando na sala...",
 		FontFace = FONTE.textoForte,
 		TextSize = 17,
 		TextColor3 = COR.texto,
-		Size = UDim2.new(1, 0, 0, 26),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Size = UDim2.new(1, 0, 0, 30),
 	}), 3)
+	local pulso = Instance.new("UIScale")
+	pulso.Parent = status
 	local botoes = Instance.new("Frame")
 	botoes.Name = "Botoes"
 	botoes.BackgroundTransparency = 1
-	botoes.Size = UDim2.new(1, 0, 0, 46)
+	botoes.Size = UDim2.new(1, 0, 0, 48)
 	ordem(botoes, 4)
 	botoes.Parent = conteudo
 	local lb = Instance.new("UIListLayout")
@@ -257,100 +361,188 @@ local function montarMulti()
 	lb.Padding = UDim.new(0, 10)
 	lb.Parent = botoes
 	local pronto = false
+	local naSala = false
 	local bPronto: TextButton
-	bPronto = Interface.botao(botoes, "ESTOU PRONTO", { Size = UDim2.new(0.5, -5, 1, 0), BackgroundColor3 = Color3.fromRGB(120, 28, 28) }, function()
-		pronto = not pronto
+	local VERMELHO, CINZA = Color3.fromRGB(128, 28, 28), Color3.fromRGB(52, 48, 56)
+	local function pintarPronto()
 		bPronto.Text = if pronto then "CANCELAR" else "ESTOU PRONTO"
+		bPronto.BackgroundColor3 = if pronto then CINZA else VERMELHO
+		bPronto.TextTransparency = if naSala then 0 else 0.5
+	end
+	bPronto = Interface.botao(botoes, "ESTOU PRONTO", { Size = UDim2.new(0.5, -5, 1, 0), BackgroundColor3 = VERMELHO }, function()
+		if not naSala then
+			sala.entrar()
+			return
+		end
+		pronto = not pronto
+		pintarPronto()
 		sala.pronto(pronto)
 	end)
 	Interface.botao(botoes, "CONVIDAR AMIGOS", { Size = UDim2.new(0.5, -5, 1, 0) }, function()
 		sala.convidar()
 	end)
 	ordem(Interface.texto(conteudo, {
-		Text = "Até " .. Config.SALA.maximoJogadores .. " pessoas por grupo. Quem não estiver na sala continua no menu.",
+		Text = "Até " .. maximo .. " pessoas por grupo. Quem não estiver na sala continua no menu.",
 		TextSize = 13,
 		TextColor3 = COR.textoFraco,
+		TextXAlignment = Enum.TextXAlignment.Center,
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 	}), 5)
 
-	local miniaturas: { [number]: string } = {}
-	local function linhaJogador(info: { userId: number, nome: string, pronto: boolean }, i: number)
-		local f = Instance.new("Frame")
-		f.Name = "J" .. info.userId
-		f.BackgroundColor3 = Color3.fromRGB(26, 24, 29)
-		f.BorderSizePixel = 0
-		f.Size = UDim2.new(1, 0, 0, 40)
-		f.LayoutOrder = i
-		Interface.canto(f, 4)
-		local foto = Instance.new("ImageLabel")
-		foto.BackgroundColor3 = Color3.fromRGB(40, 36, 42)
-		foto.BorderSizePixel = 0
-		foto.Position = UDim2.fromOffset(4, 4)
-		foto.Size = UDim2.fromOffset(32, 32)
-		foto.Image = miniaturas[info.userId] or ""
-		Interface.canto(foto, 4)
-		foto.Parent = f
-		if not miniaturas[info.userId] then
-			task.spawn(function()
-				local ok, img = pcall(function()
-					return Players:GetUserThumbnailAsync(info.userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-				end)
-				if ok and img then
-					miniaturas[info.userId] = img
-					if foto.Parent then
-						foto.Image = img
-					end
-				end
-			end)
+	local function pintarVaga(sl, info: { userId: number, nome: string, pronto: boolean }?)
+		sl.livre.Visible = info == nil
+		sl.foto.Visible = info ~= nil
+		sl.nome.Visible = info ~= nil
+		sl.chip.Visible = info ~= nil
+		if not info then
+			sl.quadro.BackgroundTransparency = 0.45
+			sl.borda.Color = COR.borda
+			sl.borda.Transparency = 0.6
+			return
 		end
-		Interface.texto(f, { Text = info.nome, Position = UDim2.fromOffset(44, 0), Size = UDim2.new(1, -150, 1, 0), TextSize = 17, FontFace = FONTE.textoForte })
-		local tag = Interface.texto(f, {
-			Text = if info.pronto then "PRONTO" else "ESPERANDO",
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -8, 0.5, 0),
-			Size = UDim2.fromOffset(100, 24),
-			TextSize = 13,
-			FontFace = FONTE.textoNegrito,
-			TextXAlignment = Enum.TextXAlignment.Center,
-			BackgroundTransparency = 0,
-			BackgroundColor3 = if info.pronto then Color3.fromRGB(38, 74, 46) else Color3.fromRGB(46, 42, 48),
-			TextColor3 = if info.pronto then COR.ok else COR.textoFraco,
-		})
-		Interface.canto(tag, 4)
-		f.Parent = lista
+		local eu = info.userId == lp.UserId
+		sl.quadro.BackgroundTransparency = 0
+		sl.foto.Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", info.userId)
+		sl.nome.Text = if eu then info.nome .. " (você)" else info.nome
+		sl.nome.TextColor3 = if eu then COR.ouro else COR.texto
+		sl.chip.Text = if info.pronto then "PRONTO" else "ESPERANDO"
+		sl.chip.BackgroundColor3 = if info.pronto then Color3.fromRGB(38, 74, 46) else Color3.fromRGB(46, 42, 48)
+		sl.chip.TextColor3 = if info.pronto then COR.ok else COR.textoFraco
+		sl.aro.Color = if info.pronto then COR.ok else COR.textoFraco
+		sl.borda.Color = if eu then COR.ouro else COR.borda
+		sl.borda.Transparency = if eu then 0.25 else 0.5
 	end
 
 	estado.multi = {
 		atualizar = function(dados: any)
-			for _, ch in lista:GetChildren() do
-				if ch:IsA("Frame") then
-					ch:Destroy()
+			local membros = dados.membros or {}
+			naSala = false
+			for _, info in membros do
+				if info.userId == lp.UserId then
+					naSala = true
+					pronto = info.pronto == true
 				end
 			end
-			for i, info in dados.membros or {} do
-				linhaJogador(info, i)
+			for i, sl in slots do
+				pintarVaga(sl, membros[i])
 			end
+			contador.Text = string.format("SALA %d/%d", #membros, maximo)
+			pintarPronto()
 			local minimo = Config.SALA.minimoJogadores
+			pulso.Scale = 1
 			if dados.contagem then
-				status.Text = "Começando em " .. tostring(dados.contagem) .. "..."
+				status.Text = "A história começa em " .. tostring(dados.contagem) .. "..."
 				status.TextColor3 = COR.destaqueClaro
-			elseif #(dados.membros or {}) < minimo then
-				status.Text = "Esperando mais alguém entrar na sala (mínimo " .. minimo .. ")."
+				pulso.Scale = 1.18
+				TweenService:Create(pulso, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			elseif not naSala and #membros >= maximo then
+				status.Text = "Sala cheia. Espere uma vaga."
+				status.TextColor3 = COR.textoFraco
+			elseif #membros < minimo then
+				status.Text = "Esperando mais alguém entrar (mínimo " .. minimo .. ")."
 				status.TextColor3 = COR.texto
 			else
-				status.Text = "Todos precisam apertar ESTOU PRONTO."
+				local faltam = 0
+				for _, info in membros do
+					if not info.pronto then
+						faltam += 1
+					end
+				end
+				status.Text = if faltam == 1 then "Falta 1 pessoa apertar ESTOU PRONTO." else "Faltam " .. faltam .. " pessoas apertarem ESTOU PRONTO."
 				status.TextColor3 = COR.texto
 			end
 			if dados.mensagem then
 				status.Text = dados.mensagem
+				status.TextColor3 = COR.textoFraco
 			end
+		end,
+		mensagem = function(texto: string)
+			status.Text = texto
+			status.TextColor3 = COR.textoFraco
 		end,
 		reiniciar = function()
 			pronto = false
-			bPronto.Text = "ESTOU PRONTO"
+			naSala = false
+			for _, sl in slots do
+				pintarVaga(sl, nil)
+			end
+			status.Text = "Entrando na sala..."
+			pintarPronto()
 		end,
 	}
+	estado.multi.reiniciar()
+end
+
+-- AJUSTE-7: aviso discreto no menu quando já tem gente na sala (toque para entrar)
+local function montarAvisoSala()
+	local tela = estado.tela :: ScreenGui
+	local b = Instance.new("TextButton")
+	b.Name = "AvisoSala"
+	b.AutoButtonColor = false
+	b.AnchorPoint = Vector2.new(0, 0)
+	b.Position = UDim2.fromOffset(14, 12)
+	b.Size = UDim2.fromOffset(210, 40)
+	b.BackgroundColor3 = COR.painel
+	b.BackgroundTransparency = 0.1
+	b.BorderSizePixel = 0
+	b.Text = ""
+	b.Visible = false
+	b.ZIndex = 2
+	Interface.canto(b, 4)
+	Interface.borda(b, COR.destaque, 1, 0.2)
+	b.Parent = tela
+	local ponto = Instance.new("Frame")
+	ponto.AnchorPoint = Vector2.new(0, 0.5)
+	ponto.Position = UDim2.new(0, 12, 0.5, 0)
+	ponto.Size = UDim2.fromOffset(10, 10)
+	ponto.BackgroundColor3 = COR.destaqueClaro
+	ponto.BorderSizePixel = 0
+	ponto.ZIndex = 2
+	Interface.canto(ponto, 4)
+	ponto.Parent = b
+	TweenService:Create(ponto, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.7 }):Play()
+	local t = Interface.texto(b, {
+		Text = "",
+		FontFace = FONTE.textoNegrito,
+		TextSize = 15,
+		Position = UDim2.fromOffset(30, 0),
+		Size = UDim2.new(1, -36, 1, 0),
+		ZIndex = 2,
+	})
+	b.Activated:Connect(function()
+		if estado.ctx and estado.ctx.abrirMulti then
+			estado.ctx.abrirMulti()
+		end
+	end)
+	estado.aviso = { botao = b, texto = t }
+end
+
+local function atualizarAviso()
+	local av = estado.aviso
+	if not av then
+		return
+	end
+	local r = estado.resumo
+	local lp = Players.LocalPlayer
+	local souMembro = r and r.ids and table.find(r.ids, lp.UserId) ~= nil
+	local mostrar = estado.noMenu and not estado.aberto and r ~= nil and (r.n or 0) > 0 and not souMembro
+	av.botao.Visible = mostrar == true
+	if mostrar then
+		av.texto.Text = string.format("SALA %d/%d · ENTRAR", r.n, r.max or Config.SALA.maximoJogadores)
+	end
+end
+
+function Paineis.resumoSala(info: any)
+	if type(info) == "table" then
+		estado.resumo = info
+		atualizarAviso()
+	end
+end
+
+function Paineis.noMenu(v: boolean)
+	estado.noMenu = v
+	atualizarAviso()
 end
 
 ---------------------------------------------------------------------------
@@ -377,6 +569,7 @@ function Paineis.iniciar(ctx: any)
 	montarCreditos()
 	montarConfig()
 	montarMulti()
+	montarAvisoSala()
 end
 
 function Paineis.aoFechar(fn: (string) -> ())
@@ -407,6 +600,7 @@ function Paineis.abrir(nome: string)
 		estado.multi.reiniciar()
 		estado.ctx.sala.entrar()
 	end
+	atualizarAviso()
 end
 
 function Paineis.fechar(semAviso: boolean?)
@@ -435,8 +629,16 @@ function Paineis.fechar(semAviso: boolean?)
 	if nome == "multi" then
 		estado.ctx.sala.sair()
 	end
+	atualizarAviso()
 	if not semAviso and estado.aoFechar then
 		estado.aoFechar(nome)
+	end
+end
+
+-- só um recado na linha de status (não mexe nas vagas)
+function Paineis.recadoSala(texto: string)
+	if estado.multi then
+		estado.multi.mensagem(texto)
 	end
 end
 

@@ -51,6 +51,13 @@ def main():
                              {"textura": arq[:-4], "material": t["nome"], "mapa": mapa,
                               "rotulo": "textura %s (%s)" % (t["nome"].replace("OI3_", ""), mapa)}))
 
+    # AJUSTE-7: imagens (a foto antiga do orfanato e a arte da tela de carregamento)
+    for arq, chave, rotulo in [("foto/foto_orfanato.jpg", "foto", "foto antiga"),
+                               ("tela/carregando.jpg", "carregando", "tela de carregamento")]:
+        caminho = os.path.join(RAIZ, "assets", arq)
+        if os.path.exists(caminho):
+            entradas.append(("imagem/" + os.path.basename(arq), caminho, {"imagem": chave, "rotulo": rotulo}))
+
     manifesto = {}
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:

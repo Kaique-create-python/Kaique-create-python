@@ -43,12 +43,14 @@ class H(BaseHTTPRequestHandler):
                 return self.responder(200, {"path": m.group(1), "state": "PROCESSING"})
             if "C.REVISAO" in t["script"]:
                 rev = re.search(r'Config.REVISAO = "([^"]+)"', ESTADO.get("ultimo_place", ""))
-                ids = dict(re.findall(r"\t\t(\w+) = (\d+),", ESTADO.get("ultimo_place", "").split("--@@OI3_RECURSOS_INICIO@@")[-1].split("--@@OI3_RECURSOS_FIM@@")[0]))
+                bloco = ESTADO.get("ultimo_place", "").split("--@@OI3_RECURSOS_INICIO@@")[-1].split("--@@OI3_RECURSOS_FIM@@")[0]
+                ids = dict(re.findall(r"\t\t(\w+) = (\d+),", bloco.split("audio = {")[-1].split("\t},")[0]))
                 res = json.dumps({"revisao": rev.group(1) if rev else "?", "audio": ids})
             elif ESTADO["falhar_teste"]:
                 res = json.dumps({"ok": False, "erros": ["mapa: erro simulado"], "info": {}})
             else:
-                ids = dict(re.findall(r"\t\t(\w+) = (\d+),", ESTADO.get("ultimo_place", "").split("--@@OI3_RECURSOS_INICIO@@")[-1].split("--@@OI3_RECURSOS_FIM@@")[0]))
+                bloco = ESTADO.get("ultimo_place", "").split("--@@OI3_RECURSOS_INICIO@@")[-1].split("--@@OI3_RECURSOS_FIM@@")[0]
+                ids = dict(re.findall(r"\t\t(\w+) = (\d+),", bloco.split("audio = {")[-1].split("\t},")[0]))
                 sons = {"_controle": 0.6}
                 for k, v in ids.items():
                     sons[k] = -1 if (ESTADO["bloquear"] or int(v) not in ESTADO["liberados"]) else 12.5
@@ -96,6 +98,8 @@ class H(BaseHTTPRequestHandler):
             txt = corpo.decode("utf-8")
             assert "<roblox" in txt and "sfx = 90" in txt and "vozes1 = 90" in txt, "IDs não entraram no place"
             ESTADO["ultimo_place"] = txt
+            m2 = re.search(r"local FUNDO = (\d+) --@@OI3_IMG_CARREGANDO@@", txt)
+            print("MOCK tela de carregamento com arte:", m2.group(1) if m2 else "NAO", flush=True)
             ESTADO["versao"] += 1
             ESTADO["places"].append(m.group(3))
             print("MOCK place", m.group(3), "versao", ESTADO["versao"], len(corpo), "bytes", flush=True)

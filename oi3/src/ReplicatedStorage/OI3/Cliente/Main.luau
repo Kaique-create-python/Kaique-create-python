@@ -94,6 +94,7 @@ local function sairDoMenu()
 	end
 	estadoJogo = "historia"
 	Paineis.fechar(true)
+	Paineis.noMenu(false)
 	if grupo then
 		grupo:habilitar(false)
 		grupo:esconder()
@@ -155,6 +156,7 @@ irParaMenu = function(primeira: boolean)
 		grupo:mostrar(if primeira then 1.0 else 0.4)
 	end
 	tocarClimaMenu()
+	Paineis.noMenu(true)
 	Cinema.escurecer(0, if primeira then 1.8 else 0.9)
 	if rotuloVersao then
 		rotuloVersao.Visible = true
@@ -223,18 +225,18 @@ function Main.iniciar()
 	Ajustes.aplicar("efeitosLeves", Ajustes.valores.efeitosLeves) -- agora que o mapa e o menu existem
 
 	-- botões 3D
-	local corSec = RGB(54, 47, 62)
+	local corSec = RGB(32, 28, 34) -- AJUSTE-7: carvão escuro com aro de latão
 	grupo = Botoes3D.grupo(pastaMenu, {
-		{ id = "jogar", texto = "JOGAR", cor = RGB(150, 30, 30), principal = true, aoClicar = function()
+		{ id = "jogar", texto = "JOGAR", cor = RGB(126, 20, 22), principal = true, aoClicar = function()
 			task.spawn(jogar)
 		end },
-		{ id = "multi", texto = "MULTIPLAYER", cor = corSec, aoClicar = function()
+		{ id = "multi", texto = "MULTIPLAYER", cor = corSec, corTexto = RGB(226, 214, 192), aoClicar = function()
 			abrirPainel("multi")
 		end },
-		{ id = "config", texto = "CONFIGURAÇÕES", cor = corSec, aoClicar = function()
+		{ id = "config", texto = "CONFIGURAÇÕES", cor = corSec, corTexto = RGB(226, 214, 192), aoClicar = function()
 			abrirPainel("config")
 		end },
-		{ id = "creditos", texto = "CRÉDITOS", cor = corSec, aoClicar = function()
+		{ id = "creditos", texto = "CRÉDITOS", cor = corSec, corTexto = RGB(226, 214, 192), aoClicar = function()
 			abrirPainel("creditos")
 		end },
 	})
@@ -263,11 +265,14 @@ function Main.iniciar()
 					SocialService:PromptGameInvite(lp)
 				end)
 			else
-				Paineis.atualizarSala({ membros = {}, mensagem = "Convites não estão disponíveis agora." })
+				Paineis.recadoSala("Convites não estão disponíveis agora.")
 			end
 		end,
 	}
-	Paineis.iniciar({ ajustes = Ajustes, sala = sala, som = Som })
+	Paineis.iniciar({ ajustes = Ajustes, sala = sala, som = Som, abrirMulti = function()
+		Som.tocar("clique", { volume = 0.9 })
+		abrirPainel("multi")
+	end })
 	Paineis.aoFechar(function()
 		if estadoJogo == "menu" and grupo then
 			grupo:habilitar(true)
@@ -276,6 +281,8 @@ function Main.iniciar()
 	remotos.Sala.OnClientEvent:Connect(function(tipo: string, info: any)
 		if tipo == "estado" then
 			Paineis.atualizarSala(info)
+		elseif tipo == "resumo" then
+			Paineis.resumoSala(info)
 		elseif tipo == "iniciar" and type(info) == "table" then
 			-- a sala começou: o servidor da história manda escolher as crianças em seguida
 			Paineis.fechar(true)

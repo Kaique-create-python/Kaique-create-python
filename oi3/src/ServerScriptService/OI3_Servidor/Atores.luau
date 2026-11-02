@@ -56,6 +56,42 @@ function Atores.ajustarRosto(modelo: Model, codigo: string)
 	end
 end
 
+-- acessório que vai no rosto (encaixe FaceFront/FaceCenter) = rosto trocável
+function Atores.marcarRostos(modelo: Instance)
+	for _, a in modelo:GetChildren() do
+		if a:IsA("Accessory") then
+			local alca = a:FindFirstChild("Handle")
+			if alca and (alca:FindFirstChild("FaceFrontAttachment") or alca:FindFirstChild("FaceCenterAttachment")) then
+				a:SetAttribute("OI3_Rosto", true)
+			end
+		end
+	end
+end
+
+-- biblioteca de rostos de reação (só o acessório do rosto, tirado de um avatar montado pelo Roblox)
+function Atores.montarRosto(id: number): Accessory?
+	local d = Instance.new("HumanoidDescription")
+	d.FaceAccessory = tostring(id)
+	local ok, m = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(d, Enum.HumanoidRigType.R6)
+	end)
+	if not ok or not m then
+		return nil
+	end
+	local achado = nil
+	for _, a in m:GetChildren() do
+		if a:IsA("Accessory") then
+			achado = a:Clone()
+			break
+		end
+	end
+	m:Destroy()
+	if achado then
+		achado:SetAttribute("OI3_Rosto", true)
+	end
+	return achado
+end
+
 function Atores.montar(codigo: string): (Model?, string?)
 	local r = (Config.ROUPAS or {})[codigo]
 	if not r then
@@ -81,6 +117,7 @@ function Atores.montar(codigo: string): (Model?, string?)
 	local modelo = m :: Model
 	modelo.Name = codigo
 	Atores.ajustarRosto(modelo, codigo)
+	Atores.marcarRostos(modelo)
 	-- scripts que vêm junto (Animate/Health) não servem para atores de cena
 	for _, x in modelo:GetDescendants() do
 		if x:IsA("BaseScript") then
@@ -110,6 +147,18 @@ function Atores.preparar()
 				warn("[OI3] não deu para montar o ator " .. codigo .. ":", erro)
 			end
 		end
+		local rostos = Instance.new("Folder")
+		rostos.Name = "Rostos"
+		for nome, id in Config.ROSTOS_REACAO or {} do
+			local a = Atores.montarRosto(id)
+			if a then
+				a.Name = nome
+				a.Parent = rostos
+			else
+				warn("[OI3] rosto de reação '" .. nome .. "' não carregou")
+			end
+		end
+		rostos.Parent = pasta
 		local antiga = ReplicatedStorage:FindFirstChild("OI3_Atores")
 		if antiga then
 			antiga:Destroy()

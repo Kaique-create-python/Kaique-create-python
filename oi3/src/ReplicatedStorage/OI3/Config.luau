@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-6"
+Config.REVISAO = "AJUSTE-7"
 Config.DONO_USERID = 1357078972
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)
@@ -62,6 +62,14 @@ Config.ROUPAS = {
 	-- a sombra do espelho: avatar padrão do Roblox, todo preto e sem rosto (aparência oficial ainda não definida)
 	CRIATURA = { pele = Color3.fromRGB(4, 4, 6), semRosto = true, escala = 1.42 },
 }
+-- AJUSTE-7: rostos de reação (itens do catálogo) trocados na cutscene: medo, risada, nervoso.
+-- Fora dessas reações cada personagem usa o rosto dele.
+Config.ROSTOS_REACAO = {
+	medo = 99348810187853,
+	rindo = 18600770545,
+	nervoso = 113101418764487,
+}
+Config.REACOES = { medo = "medo", grito = "medo", assustado = "medo", rindo = "rindo", nervoso = "nervoso" }
 
 -- Créditos oficiais (fornecidos pelos criadores)
 Config.CREDITOS = {

@@ -4,6 +4,7 @@
 
 local Construtor = require(script.Parent.Construtor)
 local Moveis = require(script.Parent.Moveis)
+local Recursos = require(script.Parent.Recursos)
 
 local Capitulo1Mapa = {}
 
@@ -17,18 +18,29 @@ local function ancora(c, nome: string, pos: Vector3, tamanho: Vector3?)
 	return c:caixa(pos, tamanho or V3(1.2, 1.2, 1.2), RGB(0, 0, 0), M.SmoothPlastic, { Name = nome, Transparency = 1, colisao = false, CanQuery = true })
 end
 
--- foto antiga desenhada (um prop): o grupo do orfanato, e o rosto de uma das crianças rabiscado
-function Capitulo1Mapa.desenharFoto(pai: Instance)
+-- AJUSTE-7: a foto antiga é a imagem enviada pelos criadores (envelhecida em tools/foto_antiga.py,
+-- com o rosto do menino rabiscado). Enquanto o Roblox não liberar a imagem, aparece um desenho no lugar.
+Capitulo1Mapa.PROPORCAO_FOTO = 704 / 653
+
+local function desenhoReserva(pai: Instance)
 	local fundo = Instance.new("Frame")
-	fundo.Name = "Foto"
+	fundo.Name = "Reserva"
 	fundo.Size = UDim2.fromScale(1, 1)
-	fundo.BackgroundColor3 = RGB(176, 150, 112)
+	fundo.BackgroundColor3 = RGB(226, 214, 188)
 	fundo.BorderSizePixel = 0
 	fundo.Parent = pai
+	local miolo = Instance.new("Frame")
+	miolo.AnchorPoint = Vector2.new(0.5, 0.5)
+	miolo.Position = UDim2.fromScale(0.5, 0.47)
+	miolo.Size = UDim2.fromScale(0.88, 0.82)
+	miolo.BackgroundColor3 = RGB(150, 124, 92)
+	miolo.BorderSizePixel = 0
+	miolo.ClipsDescendants = true
+	miolo.Parent = fundo
 	local grad = Instance.new("UIGradient")
-	grad.Color = ColorSequence.new(RGB(214, 192, 150), RGB(140, 112, 80))
-	grad.Rotation = 70
-	grad.Parent = fundo
+	grad.Color = ColorSequence.new(RGB(196, 172, 132), RGB(96, 76, 56))
+	grad.Rotation = 80
+	grad.Parent = miolo
 	local function forma(pos: UDim2, tam: UDim2, cor: Color3, redondo: boolean?, rot: number?)
 		local f = Instance.new("Frame")
 		f.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -39,35 +51,58 @@ function Capitulo1Mapa.desenharFoto(pai: Instance)
 		f.Rotation = rot or 0
 		if redondo then
 			local u = Instance.new("UICorner")
-			u.CornerRadius = UDim.new(1, 0)
+			u.CornerRadius = UDim.new(0.3, 0)
 			u.Parent = f
 		end
-		f.Parent = fundo
+		f.Parent = miolo
 		return f
 	end
-	local sombra = RGB(70, 52, 38)
-	-- a casa ao fundo
-	forma(UDim2.fromScale(0.5, 0.2), UDim2.fromScale(0.9, 0.28), RGB(120, 96, 70))
-	-- o adulto à esquerda
-	forma(UDim2.fromScale(0.15, 0.56), UDim2.fromScale(0.13, 0.4), sombra)
-	forma(UDim2.fromScale(0.15, 0.32), UDim2.fromScale(0.09, 0.12), sombra, true)
-	-- quatro crianças
-	for i, x in { 0.36, 0.52, 0.68, 0.84 } do
-		forma(UDim2.fromScale(x, 0.7), UDim2.fromScale(0.1, 0.26), sombra)
-		forma(UDim2.fromScale(x, 0.52), UDim2.fromScale(0.08, 0.11), sombra, true)
-		if i == 4 then
-			-- rosto rabiscado
-			for k = 1, 9 do
-				forma(UDim2.fromScale(x + (k % 3 - 1) * 0.012, 0.52 + (k - 5) * 0.008), UDim2.fromScale(0.12, 0.012), RGB(14, 10, 8), false, (k * 37) % 160 - 80)
-			end
-		end
+	local pele, escuro, claro = RGB(206, 186, 150), RGB(52, 40, 32), RGB(232, 222, 200)
+	-- a mãe (cabelo comprido), à esquerda
+	forma(UDim2.fromScale(0.33, 0.36), UDim2.fromScale(0.2, 0.3), escuro, true)
+	forma(UDim2.fromScale(0.34, 0.37), UDim2.fromScale(0.15, 0.2), pele, true)
+	forma(UDim2.fromScale(0.33, 0.7), UDim2.fromScale(0.24, 0.42), escuro)
+	-- o pai (camisa clara), à direita
+	forma(UDim2.fromScale(0.66, 0.24), UDim2.fromScale(0.15, 0.08), escuro, true)
+	forma(UDim2.fromScale(0.66, 0.31), UDim2.fromScale(0.16, 0.19), pele, true)
+	forma(UDim2.fromScale(0.66, 0.68), UDim2.fromScale(0.3, 0.48), claro)
+	-- o menino no colo do pai, com o rosto RABISCADO
+	forma(UDim2.fromScale(0.62, 0.78), UDim2.fromScale(0.13, 0.22), RGB(170, 180, 186))
+	forma(UDim2.fromScale(0.62, 0.6), UDim2.fromScale(0.12, 0.13), pele, true)
+	for k = 1, 12 do
+		forma(
+			UDim2.fromScale(0.62 + ((k * 7) % 5 - 2) * 0.008, 0.6 + ((k * 3) % 5 - 2) * 0.012),
+			UDim2.fromScale(0.15, 0.014),
+			RGB(14, 11, 16),
+			false,
+			(k * 47) % 170 - 85
+		)
 	end
-	-- moldura interna
-	local borda = Instance.new("UIStroke")
-	borda.Thickness = 3
-	borda.Color = RGB(236, 226, 204)
-	borda.Parent = fundo
 	return fundo
+end
+
+-- monta a foto dentro de "pai" (SurfaceGui ou Frame); devolve o quadro
+function Capitulo1Mapa.desenharFoto(pai: Instance)
+	local quadro = Instance.new("Frame")
+	quadro.Name = "Foto"
+	quadro.Size = UDim2.fromScale(1, 1)
+	quadro.BackgroundTransparency = 1
+	quadro.ClipsDescendants = true
+	quadro.Parent = pai
+	desenhoReserva(quadro)
+	local id = Recursos.imagens and Recursos.imagens.foto
+	if type(id) == "number" and id > 0 then
+		-- a imagem de verdade fica por cima: se ainda não carregou, o desenho aparece por baixo
+		local img = Instance.new("ImageLabel")
+		img.Name = "Imagem"
+		img.Size = UDim2.fromScale(1, 1)
+		img.BackgroundTransparency = 1
+		img.ScaleType = Enum.ScaleType.Crop
+		img.Image = "rbxassetid://" .. id
+		img.ZIndex = 2
+		img.Parent = quadro
+	end
+	return quadro
 end
 
 function Capitulo1Mapa.construir(pai: Instance, L: any)
@@ -102,7 +137,7 @@ function Capitulo1Mapa.construir(pai: Instance, L: any)
 	Moveis.vela(c, V3(0, F + 2.74, 3.6), { altura = 0.5 })
 
 	-- 1) a foto (mesinha lateral do hall)
-	local foto = c:caixa(V3(8.75, F + 3.05, 6.55), V3(0.1, 0.8, 1.0), RGB(60, 40, 28), M.Wood, { Name = "OI3_Foto" })
+	local foto = c:caixa(V3(8.75, F + 3.05, 6.55), V3(0.1, 0.835, 0.9), RGB(60, 40, 28), M.Wood, { Name = "OI3_Foto" })
 	foto.CFrame = CF(8.75, F + 3.05, 6.55) * CFrame.Angles(0, 0, math.rad(-8))
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = Enum.NormalId.Left

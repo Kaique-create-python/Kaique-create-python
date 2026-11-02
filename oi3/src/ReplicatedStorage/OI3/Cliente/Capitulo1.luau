@@ -34,7 +34,7 @@ Capitulo1.SOBRE = {
 }
 -- o que aparece ao interagir com cada coisa estranha (curto: nada explica o mistério)
 Capitulo1.DETALHES = {
-	foto = { objeto = "Foto antiga", acao = "Olhar", texto = "Uma foto antiga do orfanato. O rosto de uma das crianças foi rabiscado." },
+	foto = { objeto = "Foto antiga", acao = "Olhar", texto = "Uma foto antiga de uma família. Alguém rabiscou o rosto do menino." },
 	trancado = { objeto = "Porta", acao = "Abrir", texto = "Trancada. Essa porta nunca abre." },
 	tv = { objeto = "TV velha", acao = "Olhar", texto = "O fio da TV está fora da tomada." },
 	brinquedos = { objeto = "Caixa de brinquedos", acao = "Olhar", texto = "Três ursinhos iguais, guardados juntos." },
@@ -58,6 +58,7 @@ local estado = {
 	cartoes = {} :: { [string]: any },
 	grupo = 1,
 	escolhas = {} :: { [string]: string },
+	quem = {} :: { [string]: string },
 	token = 0,
 }
 
@@ -175,20 +176,34 @@ local function fecharEscolha()
 	estado.cartoes = {}
 end
 
-local function atualizarCartoes(livres: { string })
+local function atualizarCartoes(livres: { string }, quem: { [string]: string }?)
 	estado.livres = livres
+	if quem then
+		estado.quem = quem
+	end
+	local nomes = estado.quem or {}
 	for cod, cartao in estado.cartoes do
-		local livre = table.find(livres, cod) ~= nil or estado.minha == cod
-		cartao.botao.Active = livre
-		cartao.botao.AutoButtonColor = livre
-		cartao.botao.Text = if estado.minha == cod then "ESCOLHIDO" elseif livre then "ESCOLHER" else "OCUPADO"
-		cartao.frame.BackgroundTransparency = if livre then 0.15 else 0.55
+		local minha = estado.minha == cod
+		local livre = table.find(livres, cod) ~= nil
+		local pode = livre and not estado.minha
+		cartao.botao.Active = pode
+		cartao.botao.AutoButtonColor = pode
+		local dono = nomes[cod]
+		cartao.botao.Text = if minha
+			then "VOCÊ"
+			elseif pode then "ESCOLHER"
+			elseif livre then "LIVRE"
+			elseif dono then "COM " .. string.upper(string.sub(dono, 1, 14))
+			else "OCUPADO"
+		cartao.botao.BackgroundColor3 = if minha then RGB(150, 112, 52) elseif pode then RGB(120, 28, 28) else RGB(44, 40, 46)
+		cartao.frame.BackgroundTransparency = if minha or livre then 0.15 else 0.55
 	end
 end
 
 function Capitulo1.mostrarEscolha(info: any)
 	fecharEscolha()
 	estado.minha = nil
+	estado.quem = {}
 	estado.grupo = (info and info.grupo) or 1
 	local tela = Interface.tela("OI3_Escolha", 20, false)
 	estado.escolha = tela
@@ -280,7 +295,7 @@ function Capitulo1.mostrarEscolha(info: any)
 				return
 			end
 			estado.minha = cod
-			atualizarCartoes({})
+			atualizarCartoes(estado.livres or {})
 			estado.ctx.remoto:FireServer("escolher", cod)
 		end)
 		estado.cartoes[cod] = { frame = f, botao = b }
@@ -332,26 +347,79 @@ end
 local function mostrarFoto()
 	criarTela()
 	local tela = estado.tela :: ScreenGui
+	local velho = tela:FindFirstChild("FotoGrande")
+	if velho then
+		velho:Destroy()
+	end
+	-- escurece o fundo e a foto "chega" girando de leve, como se fosse pega na mão
 	local f = Instance.new("TextButton")
 	f.Name = "FotoGrande"
 	f.Text = ""
 	f.AutoButtonColor = false
-	f.AnchorPoint = Vector2.new(0.5, 0.5)
-	f.Position = UDim2.fromScale(0.5, 0.45)
-	f.Size = UDim2.fromScale(0.5, 0.62)
+	f.Size = UDim2.fromScale(1, 1)
+	f.BackgroundColor3 = RGB(0, 0, 0)
 	f.BackgroundTransparency = 1
+	f.ZIndex = 20
 	f.Parent = tela
+	local foto = Instance.new("Frame")
+	foto.AnchorPoint = Vector2.new(0.5, 0.5)
+	foto.Position = UDim2.fromScale(0.5, 0.56)
+	foto.Size = UDim2.fromScale(0.62, 0.66)
+	foto.BackgroundTransparency = 1
+	foto.Rotation = -7
+	foto.ZIndex = 21
+	foto.Parent = f
 	local proporcao = Instance.new("UIAspectRatioConstraint")
-	proporcao.AspectRatio = 1.25
-	proporcao.Parent = f
-	Capitulo1Mapa.desenharFoto(f)
-	local function fechar()
-		if f.Parent then
-			f:Destroy()
+	proporcao.AspectRatio = Capitulo1Mapa.PROPORCAO_FOTO
+	proporcao.Parent = foto
+	local sombra = Instance.new("Frame")
+	sombra.AnchorPoint = Vector2.new(0.5, 0.5)
+	sombra.Position = UDim2.new(0.5, 8, 0.5, 10)
+	sombra.Size = UDim2.fromScale(1, 1)
+	sombra.BackgroundColor3 = RGB(0, 0, 0)
+	sombra.BackgroundTransparency = 0.55
+	sombra.BorderSizePixel = 0
+	sombra.ZIndex = 21
+	sombra.Parent = foto
+	local quadro = Capitulo1Mapa.desenharFoto(foto)
+	for _, d in quadro:GetDescendants() do
+		if d:IsA("GuiObject") then
+			d.ZIndex += 22
 		end
 	end
+	quadro.ZIndex = 22
+	local dica = Instance.new("TextLabel")
+	dica.BackgroundTransparency = 1
+	dica.AnchorPoint = Vector2.new(0.5, 0)
+	dica.Position = UDim2.fromScale(0.5, 0.92)
+	dica.Size = UDim2.fromScale(0.6, 0.04)
+	dica.TextScaled = true
+	dica.FontFace = FONTE.texto
+	dica.TextColor3 = COR.textoFraco
+	dica.Text = "toque para fechar"
+	dica.TextTransparency = 1
+	dica.ZIndex = 23
+	dica.Parent = f
+	local entra = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(f, entra, { BackgroundTransparency = 0.45 }):Play()
+	TweenService:Create(foto, entra, { Position = UDim2.fromScale(0.5, 0.46), Rotation = -2 }):Play()
+	TweenService:Create(dica, TweenInfo.new(0.6), { TextTransparency = 0.2 }):Play()
+	local fechado = false
+	local function fechar()
+		if fechado or not f.Parent then
+			return
+		end
+		fechado = true
+		local sai = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(f, sai, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(foto, sai, { Position = UDim2.fromScale(0.5, 1.4), Rotation = 8 }):Play()
+		TweenService:Create(dica, sai, { TextTransparency = 1 }):Play()
+		task.delay(0.32, function()
+			f:Destroy()
+		end)
+	end
 	f.Activated:Connect(fechar)
-	task.delay(6, fechar)
+	task.delay(9, fechar)
 end
 
 local function achar(nome: string)
@@ -646,7 +714,7 @@ function Capitulo1.iniciar(ctx: any)
 			if tipo == "ocupado" then
 				estado.minha = nil
 			end
-			atualizarCartoes((info and info.livres) or {})
+			atualizarCartoes((info and info.livres) or {}, info and info.quem)
 		elseif tipo == "tarde" then
 			task.spawn(Capitulo1.tarde, info)
 		elseif tipo == "achado" then

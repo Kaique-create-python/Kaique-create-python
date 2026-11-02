@@ -129,7 +129,7 @@ function Mapa.construirQuartoEspelho(c, reflexo: boolean?)
 	local xFim = if reflexo then 69.7 else XL
 	local refs = {}
 	if reflexo then
-		c:laje(XQE, -ZA, xFim, ZA, F - 0.05, 0.6, RGB(22, 15, 11), M.WoodPlanks, { colisao = false })
+		c:laje(XQE, -ZA, xFim, ZA, F - 0.05, 0.6, RGB(14, 9, 7), M.SmoothPlastic, { colisao = false })
 		Moveis.assoalho(c, XQE, -ZA, xFim, ZA, F, COR.assoalho)
 		c:laje(XQE, -ZA, xFim, ZA, TETO + 0.5, 0.5, COR.gesso, M.Plaster, { colisao = false, Name = "Teto" })
 		-- "corredor" escuro atrás da porta refletida
@@ -199,8 +199,8 @@ function Mapa.construir(pai: Instance)
 	c:entre(V3(X0 - 0.7, -1, Z0 - 0.7), V3(X1 + 0.7, F - 0.35, Z1 + 0.7), COR.pedra, M.Slate)
 	c:entre(V3(36, -1, -ZA - 0.7), V3(XL + 0.7, F - 0.35, ZA + 0.7), COR.pedra, M.Slate)
 	-- base escura (aparece nas frestas e segura o jogador) + tábuas por cima (AJUSTE-5)
-	c:laje(X0, Z0, X1, Z1, F - 0.05, 0.4, RGB(22, 15, 11), M.WoodPlanks)
-	c:laje(36, -ZA, XL, ZA, F - 0.05, 0.4, RGB(22, 15, 11), M.WoodPlanks)
+	c:laje(X0, Z0, X1, Z1, F - 0.05, 0.4, RGB(14, 9, 7), M.SmoothPlastic)
+	c:laje(36, -ZA, XL, ZA, F - 0.05, 0.4, RGB(14, 9, 7), M.SmoothPlastic)
 	local assoalho = Instance.new("Model")
 	assoalho.Name = "Assoalho"
 	assoalho.Parent = estrutura

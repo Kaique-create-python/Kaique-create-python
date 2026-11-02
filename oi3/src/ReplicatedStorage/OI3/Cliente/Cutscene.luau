@@ -553,8 +553,10 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		placa.CanCollide = false
 		placa.CanQuery = false
 		placa.Transparency = 1
-		placa.Size = Vector3.new(Mapa.L.ESP_L * 0.92, Mapa.L.ESP_A * 0.6, 0.05)
-		placa.CFrame = CFrame.lookAt(centroVidro - V3(0.08, 0, 0), centroVidro - V3(10, 0, 0))
+		-- a frase fica no ALTO do espelho, acima da cabeça das crianças (antes a cabeça do menino tapava)
+		local altoVidro = centroVidro + V3(0, Mapa.L.ESP_A * 0.27, 0)
+		placa.Size = Vector3.new(Mapa.L.ESP_L * 0.92, Mapa.L.ESP_A * 0.34, 0.05)
+		placa.CFrame = CFrame.lookAt(altoVidro - V3(0.08, 0, 0), altoVidro - V3(10, 0, 0))
 		placa.Parent = pasta
 		local sg = Instance.new("SurfaceGui")
 		sg.Face = Enum.NormalId.Front
@@ -573,9 +575,11 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		frase.TextStrokeColor3 = Color3.fromRGB(20, 0, 0)
 		frase.TextStrokeTransparency = 0.4
 		frase.TextTransparency = 1
+		frase.MaxVisibleGraphemes = 0
 		frase.Parent = sg
-		local cfA = olhar(V3(61.2, F + 4.9, 0.3), centroVidro + V3(0, -0.5, 0))
-		local cfB = olhar(V3(63.4, F + 4.6, 0.15), centroVidro + V3(0, -0.2, 0))
+		-- câmera alta, olhando por cima das cabeças para o alto do espelho
+		local cfA = olhar(V3(61.6, F + 6.6, -2.8), altoVidro + V3(0, -0.3, 0.2))
+		local cfB = olhar(V3(63.4, F + 6.7, -1.5), altoVidro + V3(0, -0.15, 0.1))
 		corte(cfA, 54)
 		menino:virar(alvoEsp, 0.35)
 		nina:virar(alvoEsp, 0.45)
@@ -583,7 +587,18 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		esperar(0.6)
 		Som.tocar("estatica", { volume = 0.45 })
 		Som.tocar("tensao", { volume = 0.75 })
-		TweenService:Create(frase, TweenInfo.new(2.4, Enum.EasingStyle.Sine), { TextTransparency = 0.05 }):Play()
+		TweenService:Create(frase, TweenInfo.new(0.4), { TextTransparency = 0.05 }):Play()
+		task.spawn(function()
+			-- as letras aparecem uma por uma, como se alguém escrevesse do outro lado
+			local total = utf8.len(frase.Text) or 17
+			for i = 1, total do
+				if not frase.Parent then
+					break
+				end
+				frase.MaxVisibleGraphemes = i
+				task.wait(0.13 + math.random() * 0.06)
+			end
+		end)
 		TweenService:Create(corCena, TweenInfo.new(2.4), { TintColor = Color3.fromRGB(255, 214, 214), Contrast = 0.18 }):Play()
 		nina:expressao("medo")
 		keko:expressao("medo")

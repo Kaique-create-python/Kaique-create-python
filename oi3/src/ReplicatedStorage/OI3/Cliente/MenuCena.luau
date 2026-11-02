@@ -81,7 +81,7 @@ function MenuCena.construirCenario(pasta: Instance)
 
 	-- luz-chave dos botões (presa à câmera depois)
 	local chave = c:caixa(P(0, 7, 8), V3(0.3, 0.3, 0.3), RGB(0, 0, 0), M.SmoothPlastic, { Transparency = 1, Name = "LuzBotoes" })
-	refs.luzBotoesLuz = c:luz(chave, "SpotLight", { Brightness = 1.6, Range = 16, Angle = 70, Color = RGB(255, 214, 170), Face = Enum.NormalId.Front, Shadows = false })
+	refs.luzBotoesLuz = c:luz(chave, "SpotLight", { Brightness = 1.35, Range = 16, Angle = 70, Color = RGB(236, 216, 194), Face = Enum.NormalId.Front, Shadows = false })
 	refs.luzBotoes = chave
 	-- poeira no ar
 	local volume = c:caixa(P(1, 6, -3), V3(26, 10, 16), RGB(0, 0, 0), M.SmoothPlastic, { Transparency = 1, Name = "Poeira", colisao = false, CanQuery = false })

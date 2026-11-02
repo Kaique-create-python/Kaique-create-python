@@ -20,7 +20,16 @@ function Sala.estado(mensagem: string?)
 	for _, p in membros do
 		table.insert(lista, { userId = p.UserId, nome = p.DisplayName, pronto = prontos[p] == true })
 	end
-	return { membros = lista, contagem = contagem, mensagem = mensagem }
+	return { membros = lista, contagem = contagem, mensagem = mensagem, max = Config.SALA.maximoJogadores }
+end
+
+-- AJUSTE-7: um resumo vai para TODOS do servidor (o menu mostra "SALA 2/3 · ENTRAR")
+function Sala.resumo()
+	local ids = {}
+	for _, p in membros do
+		table.insert(ids, p.UserId)
+	end
+	return { n = #membros, max = Config.SALA.maximoJogadores, ids = ids }
 end
 
 local function transmitir(mensagem: string?)
@@ -31,6 +40,7 @@ local function transmitir(mensagem: string?)
 	for _, p in membros do
 		(remoto :: RemoteEvent):FireClient(p, "estado", e)
 	end
+	(remoto :: RemoteEvent):FireAllClients("resumo", Sala.resumo())
 end
 
 function Sala.todosProntos(): boolean
@@ -60,6 +70,9 @@ local function comecar()
 		if remoto and p.Parent then
 			(remoto :: RemoteEvent):FireClient(p, "iniciar", { inicio = inicio, membros = ids })
 		end
+	end
+	if remoto then
+		(remoto :: RemoteEvent):FireAllClients("resumo", Sala.resumo())
 	end
 	-- AJUSTE-6: a história do grupo começa pela escolha das crianças
 	require(script.Parent:WaitForChild("Historia")).iniciarGrupo(grupo)
@@ -143,6 +156,13 @@ function Sala.iniciar(r: RemoteEvent)
 		end
 	end)
 	Players.PlayerRemoving:Connect(Sala.remover)
+	Players.PlayerAdded:Connect(function(plr: Player)
+		task.delay(3, function()
+			if plr.Parent and remoto then
+				(remoto :: RemoteEvent):FireClient(plr, "resumo", Sala.resumo())
+			end
+		end)
+	end)
 end
 
 return Sala

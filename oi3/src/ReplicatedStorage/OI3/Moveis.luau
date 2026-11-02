@@ -15,7 +15,7 @@ Moveis.COR = {
 	madeira = RGB(88, 63, 44),
 	madeiraClara = RGB(124, 92, 63),
 	piso = RGB(74, 53, 38),
-	assoalho = RGB(116, 80, 52), -- tábuas do assoalho (AJUSTE-5)
+	assoalho = RGB(150, 104, 64), -- tábuas do assoalho (AJUSTE-7: mais claras, madeira de verdade)
 	gesso = RGB(118, 110, 98), -- teto de reboco (AJUSTE-5)
 	telhado = RGB(36, 38, 44),
 	moldura = RGB(168, 162, 148),
@@ -635,7 +635,7 @@ Moveis.VARIANTE = {
 }
 
 local LARGURA_TABUA = 0.9
-local FRESTA = 0.05
+local FRESTA = 0.08
 local X_GLOBAL_MIN, X_GLOBAL_MAX = -90, 100
 
 function Moveis.assoalho(c, x0: number, z0: number, x1: number, z1: number, y: number, corBase: Color3?): number
@@ -660,10 +660,10 @@ function Moveis.assoalho(c, x0: number, z0: number, x1: number, z1: number, y: n
 					math.clamp(sat * (1 + tom * 0.12), 0, 1),
 					math.clamp(v * (1 + tom * 0.16 - (if gasto > 0.85 then 0.18 else 0)), 0, 1)
 				)
+				-- madeira oficial do Roblox (veio bem visível); a cor varia em cada tábua
 				c:entre(Vector3.new(xa, y - 0.12, za), Vector3.new(xb, y, zb), cor, M.Wood, {
 					colisao = false,
 					CastShadow = false,
-					MaterialVariant = Moveis.VARIANTE.tabua,
 					Name = "Tabua",
 				})
 				n += 1
@@ -682,7 +682,7 @@ function Moveis.aplicarVariantes(raiz: Instance): number
 	local V = Moveis.VARIANTE
 	local n = 0
 	for _, p in raiz:GetDescendants() do
-		if p:IsA("BasePart") and p.MaterialVariant == "" and p.Transparency < 0.95 then
+		if p:IsA("BasePart") and p.MaterialVariant == "" and p.Transparency < 0.95 and p.Name ~= "Tabua" then
 			local m = p.Material
 			local nome = nil
 			if m == M.Wood then

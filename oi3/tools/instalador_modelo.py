@@ -45,6 +45,7 @@ ARQ_RECIBOS = os.path.join(PASTA_RECIBOS, "recibos.json")
 LIMITE_TAREFA = 200 * 1024
 MARCA_INI = "--@@OI3_RECURSOS_INICIO@@"
 MARCA_FIM = "--@@OI3_RECURSOS_FIM@@"
+MARCA_CARREGANDO = "--@@OI3_IMG_CARREGANDO@@"
 
 MANIFESTO = __MANIFESTO__
 PAYLOAD_SHA256 = "__PAYLOAD_SHA__"
@@ -120,8 +121,9 @@ def materiais_texturas():
     return mats
 
 
-def montar_place(xml_bytes, ids_audio, ids_tex=None):
+def montar_place(xml_bytes, ids_audio, ids_tex=None, ids_img=None):
     ids_tex = ids_tex or {}
+    ids_img = ids_img or {}
     txt = xml_bytes.decode("utf-8")
     # texturas: troca os marcadores pelos IDs; a variante só "liga" se os 3 mapas existem
     ligados = {}
@@ -132,6 +134,9 @@ def montar_place(xml_bytes, ids_audio, ids_tex=None):
         if completo:
             txt = txt.replace(">OI3TEXNOME_" + material + "<", ">" + material + "<")
             ligados[material] = {m: int(ids_tex[a]) for m, a in mapas.items()}
+    # a tela de carregamento roda antes de tudo (ReplicatedFirst): o ID da arte vai direto no script dela
+    if ids_img.get("carregando"):
+        txt = txt.replace("local FUNDO = 0 " + MARCA_CARREGANDO, "local FUNDO = %d %s" % (int(ids_img["carregando"]), MARCA_CARREGANDO))
     a = txt.index(MARCA_INI) + len(MARCA_INI)
     b = txt.index(MARCA_FIM, a)
     linhas = ["", "return {", '\trevisao = "%s",' % REVISAO, "\taudio = {"]
@@ -141,6 +146,10 @@ def montar_place(xml_bytes, ids_audio, ids_tex=None):
     for material in sorted(ligados):
         m = ligados[material]
         linhas.append("\t\t%s = { cor = %d, normal = %d, rugosidade = %d }," % (material, m["cor"], m["normal"], m["rugosidade"]))
+    linhas += ["\t},", "\timagens = {"]
+    for nome in sorted(ids_img):
+        if ids_img[nome]:
+            linhas.append("\t\t%s = %d," % (nome, int(ids_img[nome])))
     linhas += ["\t},", "}", ""]
     bloco = "\n".join(linhas)
     if "]]>" in bloco:
@@ -346,7 +355,7 @@ def liberar_audios(chave, universe, ids, recibos):
             _, resp = http("PATCH", url, chave, corpo, "application/json-patch+json", tentativas=2, espera_max=60)
     except ErroHTTP as e:
         if e.codigo == 403:
-            aviso("A chave não tem a permissão de LIBERAR sons e texturas para o jogo (asset-permissions).")
+            aviso("A chave não tem a permissão de LIBERAR sons e imagens para o jogo (asset-permissions).")
         else:
             aviso("O Roblox não deixou liberar os áudios agora (%s)." % e.resumo())
         return "falhou", lista
@@ -369,7 +378,7 @@ def liberar_audios(chave, universe, ids, recibos):
     lib[str(universe)] = sorted(set(lib.get(str(universe), [])) | feitos)
     gravar_recibos(recibos)
     if feitos and len(feitos) >= len(lista):
-        ok("sons e texturas LIBERADOS para o jogo (%d de %d)" % (len(feitos), len(lista)))
+        ok("sons e imagens LIBERADOS para o jogo (%d de %d)" % (len(feitos), len(lista)))
         return "ok", lista
     if feitos:
         aviso("só %d de %d recursos foram liberados para o jogo." % (len(feitos), len(lista)))
@@ -573,6 +582,18 @@ def cmd_testar():
     if ligados != len(mats):
         raise Falha("texturas não ligaram (%d de %d)" % (ligados, len(mats)))
     ok("texturas: %d materiais (%d imagens) se ligam no place" % (len(mats), len(falsos)))
+    imgs = {inf["imagem"]: 950000 + k for k, inf in enumerate(i for i in MANIFESTO.values() if i.get("imagem"))}
+    t = montar_place(xml, {"sfx": 1}, falsos, imgs).decode("utf-8")
+    ET.fromstring(t.encode("utf-8"))
+    for nome, num in imgs.items():
+        if ("\t\t%s = %d," % (nome, num)) not in t:
+            raise Falha("imagem %s não entrou no place" % nome)
+    if imgs:
+        ok("imagens: %s entram no place" % ", ".join(sorted(imgs)))
+    if "carregando" in imgs:
+        if ("local FUNDO = %d %s" % (imgs["carregando"], MARCA_CARREGANDO)) not in t:
+            raise Falha("a arte não entrou na tela de carregamento")
+        ok("tela de carregamento recebe a arte")
     script = arquivos["teste_nuvem.luau"].decode("utf-8")
     tam = len(script.encode("utf-8"))
     if tam > LIMITE_TAREFA:
@@ -645,16 +666,28 @@ def cmd_install(pular_teste=False):
             ok("texturas prontas: %d de %d" % (prontas, len(texturas)))
         else:
             aviso("texturas prontas: %d de %d (as que faltam usam o material normal do Roblox)" % (prontas, len(texturas)))
-    print("   Liberando sons e texturas para o jogo usar (sem isso o Roblox bloqueia)...")
+    ids_img = {}
+    imagens = [(nome, inf) for nome, inf in MANIFESTO.items() if inf.get("imagem")]
+    for nome, inf in imagens:
+        ids_img[inf["imagem"]] = enviar_audio(chave, criador, nome, inf, arquivos[nome], recibos,
+                                              "Image", "image/jpeg", "imagem", silencioso=True)
+    if imagens:
+        prontas = [inf["rotulo"] for nome, inf in imagens if ids_img.get(inf["imagem"])]
+        if len(prontas) == len(imagens):
+            ok("imagens prontas: %s" % ", ".join(prontas))
+        else:
+            aviso("imagens prontas: %d de %d (a que falta é desenhada pelo próprio jogo)" % (len(prontas), len(imagens)))
+    print("   Liberando sons e imagens para o jogo usar (sem isso o Roblox bloqueia)...")
     todos = dict(ids)
     todos.update({"tex_" + k: v for k, v in ids_tex.items()})
+    todos.update({"img_" + k: v for k, v in ids_img.items()})
     liberacao, _ = liberar_audios(chave, universe, todos, recibos)
     lista_audio = sorted({int(v) for v in ids.values() if v})
     if liberacao in ("falhou", "parcial"):
         aviso("   (o passo a passo para liberar na mão aparece no FINAL)")
 
     passo(4, "Montando o place")
-    place_xml = montar_place(arquivos["place.rbxlx"], ids, ids_tex)
+    place_xml = montar_place(arquivos["place.rbxlx"], ids, ids_tex, ids_img)
     ok("place pronto (%d kB) com áudios: %s" % (len(place_xml) // 1024, json.dumps(ids)))
 
     som_ok = None
