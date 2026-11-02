@@ -18,6 +18,7 @@ local Botoes3D = require(script.Parent.Botoes3D)
 local Paineis = require(script.Parent.Paineis)
 local Cutscene = require(script.Parent.Cutscene)
 local Exploracao = require(script.Parent.Exploracao)
+local Capitulo1 = require(script.Parent.Capitulo1)
 
 local Main = {}
 
@@ -38,7 +39,7 @@ local function esperarRemotos()
 	local pasta = OI3:WaitForChild("Remotos", 60)
 	assert(pasta, "[OI3] remotos não encontrados")
 	local r = {}
-	for _, nome in { "PedirDados", "SalvarConfig", "Entrar", "Lanterna", "IntroVista", "Sala" } do
+	for _, nome in { "PedirDados", "SalvarConfig", "Entrar", "Lanterna", "IntroVista", "Sala", "Historia" } do
 		r[nome] = pasta:WaitForChild(nome, 30)
 	end
 	return r
@@ -86,11 +87,12 @@ local function entrarExploracao()
 	Exploracao.entrar(char)
 end
 
-local function jogar(params: { inicio: number? }?)
+-- sai do menu com a animação (usada quando a história começa)
+local function sairDoMenu()
 	if estadoJogo ~= "menu" then
 		return
 	end
-	estadoJogo = "cutscene"
+	estadoJogo = "historia"
 	Paineis.fechar(true)
 	if grupo then
 		grupo:habilitar(false)
@@ -106,13 +108,15 @@ local function jogar(params: { inicio: number? }?)
 	task.wait(1.35)
 	MenuCena.esconder()
 	coreGui(Enum.CoreGuiType.Chat, false)
-	Cutscene.tocar({
-		inicio = params and params.inicio,
-		aoTerminar = function()
-			remotos.IntroVista:FireServer()
-			entrarExploracao()
-		end,
-	})
+end
+
+-- AJUSTE-6: JOGAR (sozinho) pede ao servidor para começar a história; ele manda escolher a criança
+local function jogar()
+	if estadoJogo ~= "menu" then
+		return
+	end
+	sairDoMenu()
+	remotos.Historia:FireServer("solo")
 end
 
 local function abrirPainel(nome: string)
@@ -133,6 +137,7 @@ local function voltarAoMenu()
 	Cinema.escurecer(1, 0.6)
 	task.wait(0.65)
 	Exploracao.sair()
+	Capitulo1.parar()
 	remotos.Entrar:FireServer("menu")
 	irParaMenu(false)
 end
@@ -221,7 +226,7 @@ function Main.iniciar()
 	local corSec = RGB(54, 47, 62)
 	grupo = Botoes3D.grupo(pastaMenu, {
 		{ id = "jogar", texto = "JOGAR", cor = RGB(150, 30, 30), principal = true, aoClicar = function()
-			task.spawn(jogar, nil)
+			task.spawn(jogar)
 		end },
 		{ id = "multi", texto = "MULTIPLAYER", cor = corSec, aoClicar = function()
 			abrirPainel("multi")
@@ -272,15 +277,27 @@ function Main.iniciar()
 		if tipo == "estado" then
 			Paineis.atualizarSala(info)
 		elseif tipo == "iniciar" and type(info) == "table" then
-			if estadoJogo == "menu" then
-				task.spawn(jogar, { inicio = info.inicio })
-			end
+			-- a sala começou: o servidor da história manda escolher as crianças em seguida
+			Paineis.fechar(true)
 		end
 	end)
 
 	Exploracao.iniciar(remotos, function()
 		task.spawn(voltarAoMenu)
 	end)
+	Capitulo1.iniciar({
+		remoto = remotos.Historia,
+		sairDoMenu = sairDoMenu,
+		entrarExploracao = entrarExploracao,
+		sairExploracao = function()
+			Exploracao.sair()
+			estadoJogo = "cutscene"
+		end,
+		fimRitual = function()
+			remotos.IntroVista:FireServer()
+			entrarExploracao()
+		end,
+	})
 	Exploracao.configurar({ tremor = Ajustes.valores.tremor, leve = Ajustes.valores.efeitosLeves })
 
 	-- rótulo discreto com a revisão

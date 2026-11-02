@@ -689,6 +689,12 @@ def cmd_install(pular_teste=False):
             inf.get("modulos"), inf.get("pecasMapa"), inf.get("pecasMenu"), inf.get("animacoesCarregadas")))
         if inf.get("pecasLanterna"):
             ok("lanterna da primeira pessoa montada (%s peças)" % inf.get("pecasLanterna"))
+        nomes = {"VO": "Vô", "KE": "Keko", "NI": "Nina", "ME": "menino"}
+        for cod, txt in sorted((inf.get("atores") or {}).items()):
+            if str(txt).startswith("falhou"):
+                aviso("avatar %s: %s" % (nomes.get(cod, cod), txt))
+            else:
+                ok("avatar %s (itens do catálogo): %s" % (nomes.get(cod, cod), txt))
         som_ok = conferir_sons(inf.get("sons"))
         if som_ok is False and liberacao == "ok":
             aviso("   (a liberação pode levar alguns minutos para valer no Roblox)")

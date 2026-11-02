@@ -112,10 +112,7 @@ function PrimeiraPessoa.montarLanterna(pele: Color3?)
 	local lente = c:cilindro(CF(0, 0, -0.8) * giro, 0.03, 0.36, RGB(255, 244, 222), Enum.Material.Neon, { Name = "Lente" })
 	c:caixa(V3(0, 0.17, 0.05), V3(0.08, 0.06, 0.18), RGB(150, 40, 36), Enum.Material.SmoothPlastic, { Name = "Botao" })
 	c:cilindro(CF(0, 0, 0.7) * giro, 0.06, 0.26, metal, Enum.Material.Metal)
-	-- mão segurando (estilo blocado, combina com o Roblox)
-	local corPele = pele or RGB(214, 170, 134)
-	c:caixa(V3(0.02, -0.12, 0.25), V3(0.36, 0.34, 0.5), corPele, Enum.Material.SmoothPlastic, { Name = "Mao" })
-	c:caixa(V3(0.02, -0.22, 0.85), V3(0.44, 0.44, 0.9), RGB(48, 46, 54), Enum.Material.Fabric, { Name = "Manga" })
+	-- (sem mão modelada: os personagens são só itens do Roblox; aparece apenas a lanterna)
 	for _, p in m:GetDescendants() do
 		if p:IsA("BasePart") then
 			p.CanCollide = false

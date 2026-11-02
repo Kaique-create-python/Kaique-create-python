@@ -52,7 +52,7 @@ class H(BaseHTTPRequestHandler):
                 sons = {"_controle": 0.6}
                 for k, v in ids.items():
                     sons[k] = -1 if (ESTADO["bloquear"] or int(v) not in ESTADO["liberados"]) else 12.5
-                res = json.dumps({"ok": True, "erros": [], "info": {"modulos": 27, "pecasMapa": 1814, "pecasMenu": 195, "animacoesCarregadas": 4, "pecasLanterna": 11, "sons": sons}})
+                res = json.dumps({"ok": True, "erros": [], "info": {"modulos": 27, "pecasMapa": 1814, "pecasMenu": 195, "animacoesCarregadas": 4, "pecasLanterna": 9, "sons": sons, "atores": {"KE": "roupas 2/2, acessórios 2/2", "NI": "roupas 2/2, acessórios 3/3", "ME": "roupas 2/2, acessórios 2/2", "VO": "roupas 2/2, acessórios 1/1"}}})
             return self.responder(200, {"path": m.group(1), "state": "COMPLETE", "output": {"results": [res]}})
         self.responder(404, {"message": "nao achei " + self.path})
     def do_PATCH(self):

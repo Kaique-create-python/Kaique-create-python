@@ -8,7 +8,8 @@ local Config = require(OI3:WaitForChild("Config"))
 local Mapa = require(OI3:WaitForChild("Mapa"))
 local Dados = require(script.Parent:WaitForChild("Dados"))
 local Sala = require(script.Parent:WaitForChild("Sala"))
-local Roupas = require(script.Parent:WaitForChild("Roupas"))
+local Atores = require(script.Parent:WaitForChild("Atores"))
+local Historia = require(script.Parent:WaitForChild("Historia"))
 
 local Main = {}
 
@@ -46,6 +47,7 @@ local function criarRemotos()
 	remotos.Lanterna = ev("Lanterna")
 	remotos.IntroVista = ev("IntroVista")
 	remotos.Sala = ev("Sala")
+	remotos.Historia = ev("Historia")
 	pasta.Parent = OI3
 end
 
@@ -81,6 +83,7 @@ local function spawnar(plr: Player)
 		local P = Mapa.pontos()
 		local desloc = Vector3.new((math.random() - 0.5) * 6, 0, (math.random() - 0.5) * 5)
 		char:PivotTo(P.spawn + desloc)
+		Historia.personagemNasceu(plr) -- AJUSTE-6: vira a criança escolhida (itens do catálogo)
 		local hum = char:FindFirstChildOfClass("Humanoid")
 		if hum then
 			hum.Died:Connect(function()
@@ -95,6 +98,7 @@ end
 
 local function despawnar(plr: Player)
 	modo[plr] = "menu"
+	Historia.sair(plr)
 	local char = plr.Character
 	if char then
 		char:Destroy()
@@ -154,7 +158,8 @@ function Main.iniciar()
 		warn("[OI3] terreno:", errTerreno)
 	end
 
-	Roupas.preparar() -- AJUSTE-5: camisa, calça e cabelo dos personagens (catálogo)
+	Atores.preparar() -- AJUSTE-6: personagens = avatares do Roblox só com IDs do catálogo
+	Historia.iniciar(remotos.Historia, permitido, Atores.vestirJogador)
 	Dados.iniciar()
 	Sala.iniciar(remotos.Sala)
 

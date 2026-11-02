@@ -61,6 +61,8 @@ local function comecar()
 			(remoto :: RemoteEvent):FireClient(p, "iniciar", { inicio = inicio, membros = ids })
 		end
 	end
+	-- AJUSTE-6: a história do grupo começa pela escolha das crianças
+	require(script.Parent:WaitForChild("Historia")).iniciarGrupo(grupo)
 end
 
 function Sala.verificar()

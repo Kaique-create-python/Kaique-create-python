@@ -307,6 +307,36 @@ end
 
 H.require = requireFalso
 
+-- Prévia/teste offline: o jogo usa avatares do Roblox montados no servidor (OI3_Atores).
+-- Fora do Roblox não dá para baixar o catálogo, então colocamos manequins simples no lugar.
+function H.prepararAtores()
+	local rs = rawget(arvore, "filhos").ReplicatedStorage
+	if rawget(rs, "filhos").OI3_Atores then
+		return rawget(rs, "filhos").OI3_Atores
+	end
+	local Rig = require("./rig_previa")
+	local RGB = roblox.Color3.fromRGB
+	local AM = RGB(245, 205, 48)
+	local defs = {
+		KE = { 0.9, { pele = AM, torso = RGB(26, 26, 30), bracos = RGB(26, 26, 30), pernas = RGB(20, 20, 24) } },
+		NI = { 0.88, { pele = AM, torso = RGB(186, 160, 222), bracos = AM, pernas = RGB(150, 180, 214) } },
+		ME = { 0.9, { pele = AM, torso = RGB(126, 176, 222), bracos = AM, pernas = RGB(24, 24, 28) } },
+		VO = { 1.12, { pele = AM, torso = RGB(104, 74, 52), bracos = RGB(104, 74, 52), pernas = RGB(70, 50, 38) } },
+		CRIATURA = { 1.42, { pele = RGB(4, 4, 6), torso = RGB(4, 4, 6), bracos = RGB(4, 4, 6), pernas = RGB(4, 4, 6) } },
+	}
+	local pasta = roblox.Instance.new("Folder")
+	pasta.Name = "OI3_Atores"
+	for cod, d in defs do
+		local m = Rig.rig(cod, d[1], d[2])
+		m.Name = cod
+		m:SetAttribute("Escala", d[1])
+		m:SetAttribute("Codigo", cod)
+		m.Parent = pasta
+	end
+	rawget(rs, "filhos").OI3_Atores = pasta
+	return pasta
+end
+
 function H.modulo(caminho: string)
 	local no = arvore
 	for parte in string.gmatch(caminho, "[^/]+") do

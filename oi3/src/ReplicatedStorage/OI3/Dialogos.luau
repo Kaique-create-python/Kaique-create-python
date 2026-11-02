@@ -14,6 +14,11 @@ Dialogos.FALANTES = {
 Dialogos.FALAS = {
 	VO_1 = { quem = "VO", texto = "Já está tarde, crianças... Todo mundo pra cama." },
 	VO_2 = { quem = "VO", texto = "Boa noite. E nada de bagunça, hein?" },
+	-- AJUSTE-6: a tarde e o jantar (voz vem no próximo ajuste; por enquanto só legenda)
+	VO_3 = { quem = "VO", texto = "Vão brincar, crianças. Daqui a pouco eu chamo pro jantar." },
+	VO_4 = { quem = "VO", texto = "Crianças! O jantar tá pronto!" },
+	VO_5 = { quem = "VO", texto = "Aí não, criança. Essa porta fica fechada." },
+	VO_6 = { quem = "VO", texto = "Comam tudo... e nada de ficar acordado até tarde, hein?" },
 	KE_1 = { quem = "KE", texto = "Ei... vocês dois. Querem jogar um jogo?" },
 	NI_1 = { quem = "NI", texto = "Que jogo, Keko?" },
 	KE_2 = { quem = "KE", texto = "É um jogo proibido. Se chama..." },

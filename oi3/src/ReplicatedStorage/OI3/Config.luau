@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-5"
+Config.REVISAO = "AJUSTE-6"
 Config.DONO_USERID = 1357078972
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)
@@ -50,13 +50,17 @@ function Config.sanitizarConfig(v: any): { [string]: any }
 	return out
 end
 
--- AJUSTE-5: roupas e cabelos do catálogo do Roblox (itens clássicos, funcionam em R6).
--- 0 = ainda sem item. Keko: cabelo e rosto escolhidos pelos criadores (falta o número do item).
+-- AJUSTE-6: os personagens são avatares do Roblox montados SÓ com itens do catálogo (nada modelado).
+-- Visual igual à imagem dos criadores. rosto = rosto clássico do Roblox; rostoAcessorio = rosto feito
+-- por usuários (acessório de rosto, funciona em R6). pele = cor do corpo (amarelo clássico).
+Config.PELE = Color3.fromRGB(245, 205, 48)
 Config.ROUPAS = {
-	KE = { camisa = 11936840903, calca = 9996628332, cabelo = {}, rosto = 0 },
-	NI = { camisa = 6998311830, calca = 2979045299, cabelo = { 126460999741527 }, rosto = 0 },
-	ME = { camisa = 6163926164, calca = 7718540287, cabelo = { 6714486677 }, rosto = 0 },
-	VO = { camisa = 11237559621, calca = 5916135431, cabelo = { 18331282448 }, rosto = 0 },
+	KE = { camisa = 11936840903, calca = 2364049062, cabelo = { 103171837469465 }, rostoAcessorio = { 84594171427321 }, escala = 0.9 },
+	NI = { camisa = 6564988672, calca = 6521541544, cabelo = { 118626986786259 }, chapeu = { 129746506894352 }, rostoAcessorio = { 123099866795854 }, escala = 0.88 },
+	ME = { camisa = 8128877497, calca = 3173277543, cabelo = { 130609450737661 }, rostoAcessorio = { 71785971768993 }, escala = 0.9 },
+	VO = { camisa = 15287605063, calca = 11821073808, cabelo = { 137342192749534 }, rosto = 144075659, escala = 1.12 },
+	-- a sombra do espelho: avatar padrão do Roblox, todo preto e sem rosto (aparência oficial ainda não definida)
+	CRIATURA = { pele = Color3.fromRGB(4, 4, 6), semRosto = true, escala = 1.42 },
 }
 
 -- Créditos oficiais (fornecidos pelos criadores)
@@ -85,7 +89,7 @@ Config.CORES = {
 -- Multiplayer
 Config.SALA = {
 	minimoJogadores = 2,
-	maximoJogadores = 4,
+	maximoJogadores = 3, -- três crianças
 	contagem = 5, -- segundos de contagem quando todos estão prontos
 	atrasoInicio = 2.5, -- segundos entre o aviso e o começo sincronizado
 }

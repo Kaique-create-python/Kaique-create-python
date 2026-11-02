@@ -1,5 +1,6 @@
 -- Prévias das cenas da abertura (personagens posicionados, rostos e reflexo do espelho)
 local H = require("./harness")
+H.prepararAtores()
 local fs = require("@lune/fs")
 local serde = require("@lune/serde")
 local roblox = require("@lune/roblox")

@@ -207,8 +207,8 @@ function Cinema.escurecer(alvo: number, tempo: number?)
 	TweenService:Create(preto, TweenInfo.new(t, Enum.EasingStyle.Sine), { BackgroundTransparency = 1 - alvo }):Play()
 end
 
-function Cinema.legenda(codigoFala: string, duracao: number)
-	if not estado.legendasLigadas then
+function Cinema.legenda(codigoFala: string, duracao: number, forcar: boolean?)
+	if not estado.legendasLigadas and not forcar then
 		return
 	end
 	local fala = Dialogos.FALAS[codigoFala]

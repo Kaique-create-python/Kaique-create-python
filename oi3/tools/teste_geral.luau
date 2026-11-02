@@ -1,5 +1,6 @@
 -- Testes offline (Lune): compila tudo, monta mapa, personagens e cenário do menu
 local H = require("./harness")
+H.prepararAtores()
 local fs = require("@lune/fs")
 local serde = require("@lune/serde")
 local roblox = require("@lune/roblox")
@@ -26,6 +27,9 @@ end)
 checar("require de todos os módulos", function()
 	local function varrer(no, caminho)
 		for nome, filho in rawget(no, "filhos") do
+			if type(filho) ~= "table" then
+				continue -- manequins de prévia (Instance de verdade), não são módulos
+			end
 			local c = caminho .. "/" .. nome
 			if rawget(filho, "fonte") and rawget(filho, "ClassName") == "ModuleScript" then
 				local ok, err = pcall(H.require, filho)
@@ -53,26 +57,41 @@ checar("mapa do orfanato", function()
 	end
 end)
 
-checar("personagens R6 + rostos + expressões", function()
-	local Personagens = H.modulo("ReplicatedStorage/OI3/Personagens")
+checar("personagens: só itens do catálogo do Roblox (nada modelado)", function()
+	local Config = H.modulo("ReplicatedStorage/OI3/Config")
+	-- todo personagem tem camisa, calça, cabelo e rosto (do Roblox ou de usuário) por ID
 	for _, cod in { "VO", "KE", "NI", "ME" } do
-		local m = Personagens.criar(cod)
-		m.Parent = ws
-		for _, nome in { "HumanoidRootPart", "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "Rosto" } do
-			assert(m:FindFirstChild(nome), cod .. " sem " .. nome)
-		end
-		local juntas = 0
-		for _, d in m:GetDescendants() do
-			if d:IsA("Motor6D") then juntas += 1 end
-		end
-		assert(juntas == 6, cod .. " juntas=" .. juntas)
-		for nome in Personagens.EXPRESSOES do
-			Personagens.expressao(m, nome)
+		local r = Config.ROUPAS[cod]
+		assert(r, "sem roupas: " .. cod)
+		assert(type(r.camisa) == "number" and r.camisa > 0, cod .. " sem camisa")
+		assert(type(r.calca) == "number" and r.calca > 0, cod .. " sem calça")
+		assert(r.cabelo and #r.cabelo > 0, cod .. " sem cabelo")
+		assert((r.rosto and r.rosto > 0) or (r.rostoAcessorio and #r.rostoAcessorio > 0), cod .. " sem rosto")
+		for _, campo in { "cabelo", "chapeu", "rostoAcessorio" } do
+			for _, id in r[campo] or {} do
+				assert(type(id) == "number" and id > 0 and id == math.floor(id), cod .. " ID inválido em " .. campo)
+			end
 		end
 	end
-	local c = Personagens.criarCriatura()
-	c.Parent = ws
-	assert(c.PrimaryPart, "criatura sem raiz")
+	-- o servidor monta a descrição do avatar com esses IDs e a pele amarela
+	local Atores = H.modulo("ServerScriptService/OI3_Servidor/Atores")
+	local d = Atores.descricao("NI")
+	assert(d.Shirt == Config.ROUPAS.NI.camisa and d.Pants == Config.ROUPAS.NI.calca, "descrição sem roupa")
+	assert(d.HatAccessory ~= "" and d.HairAccessory ~= "" and d.FaceAccessory ~= "", "descrição sem acessórios")
+	assert(d.HeadColor == Config.PELE, "pele errada")
+	assert(Atores.descricao("VO").Face == 144075659, "Vô sem o Smile clássico")
+	-- o cliente só copia o avatar pronto (aqui, manequins de prévia no lugar)
+	H.prepararAtores()
+	local Personagens = H.modulo("ReplicatedStorage/OI3/Personagens")
+	for _, cod in { "VO", "KE", "NI", "ME", "CRIATURA" } do
+		local m = Personagens.criar(cod)
+		m.Parent = ws
+		assert(m.PrimaryPart and m.PrimaryPart.Anchored, cod .. " sem raiz ancorada")
+		assert(m:GetAttribute("Escala"), cod .. " sem escala")
+		for _, nome in { "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
+			assert(m:FindFirstChild(nome), cod .. " sem " .. nome)
+		end
+	end
 end)
 
 checar("cenário do menu", function()
@@ -242,6 +261,33 @@ checar("passos: som certo para cada chão", function()
 			assert(AudioMapa.itens["pisada_" .. tipo .. i], "falta pisada_" .. tipo .. i)
 		end
 	end
+end)
+
+checar("capítulo 1: detalhes estranhos, mesa, escolha e falas", function()
+	local Mapa = H.modulo("ReplicatedStorage/OI3/Mapa")
+	local Historia = H.modulo("ServerScriptService/OI3_Servidor/Historia")
+	local Capitulo1 = H.modulo("ReplicatedStorage/OI3/Cliente/Capitulo1")
+	local Dialogos = H.modulo("ReplicatedStorage/OI3/Dialogos")
+	local Iluminacao = H.modulo("ReplicatedStorage/OI3/Cliente/Iluminacao")
+	local ws3 = roblox.Instance.new("Folder")
+	local modelo = Mapa.construir(ws3)
+	for _, nome in { "OI3_Foto", "OI3_PortaTrancada", "OI3_TV", "OI3_TVTela", "OI3_CaixaBrinquedos", "OI3_PortaPorao", "OI3_MesaJantar" } do
+		assert(modelo:FindFirstChild(nome, true), "falta no mapa: " .. nome)
+	end
+	-- os 5 detalhes do cliente são os mesmos que o servidor aceita
+	for _, nome in Historia.DETALHES do
+		assert(Capitulo1.DETALHES[nome], "cliente sem o detalhe " .. nome)
+	end
+	-- ninguém pega a mesma criança
+	local livres = Historia.livres({ a = "KE", b = "ME" })
+	assert(#livres == 1 and livres[1] == "NI", "livres errado")
+	assert(#Historia.livres({}) == 3, "3 crianças livres no começo")
+	for _, id in { "VO_3", "VO_4", "VO_5", "VO_6" } do
+		assert(Dialogos.FALAS[id] and Dialogos.FALAS[id].quem == "VO", "falta a fala " .. id)
+	end
+	local t = Iluminacao.valoresTarde()
+	assert(t.ClockTime > 14 and t.ClockTime < 18.5, "a tarde precisa ser de tarde")
+	print("    detalhes:", #Historia.DETALHES, "mesa e âncoras no mapa: ok")
 end)
 
 checar("áreas de toque dos botões (projeção na tela)", function()

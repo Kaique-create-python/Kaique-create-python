@@ -64,30 +64,45 @@ else
 	checar("terreno", function()
 		require(OI3.Mapa).construirTerreno(workspace.Terrain)
 	end)
-	-- personagens e animações R6
+	-- personagens: avatares do Roblox montados SÓ com IDs do catálogo (confere cada item de verdade)
 	checar("personagens", function()
-		local Personagens = require(OI3.Personagens)
+		local Atores = require(ServerScriptService.OI3_Servidor.Atores)
 		local Animacoes = require(OI3.Animacoes)
+		local Config = require(OI3.Config)
+		local relatorio = {}
 		local carregadas = 0
 		for _, cod in { "VO", "KE", "NI", "ME" } do
-			local m = Personagens.criar(cod)
-			m.Parent = workspace
+			local m, erro = Atores.montar(cod)
+			if not m then
+				relatorio[cod] = "falhou: " .. tostring(erro)
+				continue
+			end
+			local r = Config.ROUPAS[cod]
+			local acessorios, roupas = 0, 0
+			for _, x in m:GetChildren() do
+				if x:IsA("Accessory") then
+					acessorios += 1
+				elseif x:IsA("Shirt") or x:IsA("Pants") then
+					roupas += 1
+				end
+			end
+			local esperados = #(r.cabelo or {}) + #(r.chapeu or {}) + #(r.rostoAcessorio or {})
+			relatorio[cod] = string.format("roupas %d/2, acessórios %d/%d", roupas, acessorios, esperados)
 			local hum = m:FindFirstChildOfClass("Humanoid")
-			local animador = hum and hum:FindFirstChildOfClass("Animator")
-			assert(animador, cod .. " sem Animator")
-			local a = Instance.new("Animation")
-			a.AnimationId = Animacoes.andar
-			local ok = pcall(function()
-				animador:LoadAnimation(a)
-			end)
-			if ok then
-				carregadas += 1
+			if hum then
+				local animador = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+				local a = Instance.new("Animation")
+				a.AnimationId = Animacoes.andar
+				if pcall(function()
+					animador:LoadAnimation(a)
+				end) then
+					carregadas += 1
+				end
 			end
 			m:Destroy()
 		end
+		res.info.atores = relatorio
 		res.info.animacoesCarregadas = carregadas
-		local c = Personagens.criarCriatura()
-		c:Destroy()
 	end)
 	-- cenário do menu (só as peças)
 	checar("menu", function()

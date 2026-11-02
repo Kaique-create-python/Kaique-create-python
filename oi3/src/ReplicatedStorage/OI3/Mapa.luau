@@ -4,6 +4,7 @@
 local Construtor = require(script.Parent.Construtor)
 local Moveis = require(script.Parent.Moveis)
 local Detalhes = require(script.Parent.Detalhes)
+local Capitulo1Mapa = require(script.Parent.Capitulo1Mapa)
 
 local Mapa = {}
 
@@ -561,6 +562,7 @@ function Mapa.construir(pai: Instance)
 
 	-- AJUSTE-3: detalhes extras (vigas, lareira, estantes, luar, poeira, névoa, mata...)
 	Detalhes.construir(modelo, Mapa.L)
+	Capitulo1Mapa.construir(modelo, Mapa.L) -- AJUSTE-6: mesa de jantar e os 5 detalhes estranhos
 	Moveis.aplicarVariantes(modelo) -- AJUSTE-5: texturas realistas (se o instalador enviou)
 
 	modelo.Parent = pai

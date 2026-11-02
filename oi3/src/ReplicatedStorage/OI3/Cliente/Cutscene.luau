@@ -118,7 +118,7 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 
 	local function ocultarOutros(oculto: boolean)
 		for _, plr in Players:GetPlayers() do
-			if plr ~= Players.LocalPlayer and plr.Character then
+			if plr.Character then
 				for _, d in plr.Character:GetDescendants() do
 					if d:IsA("BasePart") or d:IsA("Decal") then
 						d.LocalTransparencyModifier = if oculto then 1 else 0
