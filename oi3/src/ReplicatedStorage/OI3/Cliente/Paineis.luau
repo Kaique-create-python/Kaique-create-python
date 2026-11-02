@@ -200,20 +200,17 @@ local function montarConfig()
 	}), 9)
 	local som = estado.ctx.som
 	if som then
-		local TEXTOS = {
-			pronto = "Sons: prontos.",
-			carregando = "Sons: carregando...",
-			parcial = "Sons: alguns ainda não foram liberados pelo Roblox.",
-			indisponivel = "Sons: ainda em análise no Roblox (ficam mudos até liberar).",
-			sem_audio = "Sons: nenhum áudio instalado.",
-		}
 		local function atualizar()
-			local resumo = som.estado()
-			statusSom.Text = TEXTOS[resumo] or ("Sons: " .. tostring(resumo))
-			statusSom.TextColor3 = if resumo == "pronto" then COR.ok else COR.textoFraco
+			local texto, tudoBem = som.textoEstado()
+			statusSom.Text = texto
+			statusSom.TextColor3 = if tudoBem then COR.ok else COR.textoFraco
 		end
 		atualizar()
 		som.aoMudarEstado(atualizar)
+		-- botão para ouvir na hora se o som está saindo
+		ordem(Interface.botao(conteudo, "TESTAR SOM", { Size = UDim2.new(1, 0, 0, 44), TextSize = 17 }, function()
+			som.testar()
+		end), 10)
 	end
 end
 

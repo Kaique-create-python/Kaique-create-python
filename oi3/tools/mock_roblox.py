@@ -5,7 +5,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from email.parser import BytesParser
 from email.policy import default
 
-ESTADO = {"ops": {}, "versao": 10, "tarefas": {}, "uploads": [], "places": [], "falhar_teste": "--falhar" in sys.argv}
+ESTADO = {"ops": {}, "versao": 10, "tarefas": {}, "uploads": [], "places": [], "falhar_teste": "--falhar" in sys.argv,
+          "sem_permissao": "--sem-permissao" in sys.argv, "bloquear": "--bloquear" in sys.argv, "liberados": set()}
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -47,8 +48,27 @@ class H(BaseHTTPRequestHandler):
             elif ESTADO["falhar_teste"]:
                 res = json.dumps({"ok": False, "erros": ["mapa: erro simulado"], "info": {}})
             else:
-                res = json.dumps({"ok": True, "erros": [], "info": {"modulos": 25, "pecasMapa": 1062, "pecasMenu": 93, "animacoesCarregadas": 4}})
+                ids = dict(re.findall(r"\t\t(\w+) = (\d+),", ESTADO.get("ultimo_place", "").split("--@@OI3_RECURSOS_INICIO@@")[-1].split("--@@OI3_RECURSOS_FIM@@")[0]))
+                sons = {"_controle": 0.6}
+                for k, v in ids.items():
+                    sons[k] = -1 if (ESTADO["bloquear"] or int(v) not in ESTADO["liberados"]) else 12.5
+                res = json.dumps({"ok": True, "erros": [], "info": {"modulos": 27, "pecasMapa": 1814, "pecasMenu": 195, "animacoesCarregadas": 4, "pecasLanterna": 11, "sons": sons}})
             return self.responder(200, {"path": m.group(1), "state": "COMPLETE", "output": {"results": [res]}})
+        self.responder(404, {"message": "nao achei " + self.path})
+    def do_PATCH(self):
+        if self.headers.get("x-api-key") != "CHAVE-DE-TESTE":
+            return self.responder(401, {"message": "chave errada"})
+        corpo = self.corpo()
+        if self.path == "/asset-permissions-api/v1/assets/permissions":
+            if ESTADO["sem_permissao"]:
+                return self.responder(403, {"error": {"code": "Forbidden", "message": "Insufficient scopes"}})
+            d = json.loads(corpo.decode("utf-8"))
+            assert self.headers.get("Content-Type") == "application/json", self.headers.get("Content-Type")
+            assert d["subjectType"] == "Universe" and d["subjectId"] == "10774214680" and d["action"] == "Use", d
+            ids = [int(r["assetId"]) for r in d["requests"]]
+            ESTADO["liberados"].update(ids)
+            print("MOCK liberou", ids, flush=True)
+            return self.responder(200, {"successAssetIds": ids, "errors": []})
         self.responder(404, {"message": "nao achei " + self.path})
     def do_POST(self):
         if self.headers.get("x-api-key") != "CHAVE-DE-TESTE":

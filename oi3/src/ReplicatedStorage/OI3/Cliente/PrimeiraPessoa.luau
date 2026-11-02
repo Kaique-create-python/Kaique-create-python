@@ -52,6 +52,36 @@ local estado = {
 }
 
 ---------------------------------------------------------------------------
+-- Passos: som certo para cada chão (madeira, grama, pedra...)
+---------------------------------------------------------------------------
+local CHAO_MADEIRA = {
+	[Enum.Material.Wood] = true,
+	[Enum.Material.WoodPlanks] = true,
+}
+local CHAO_GRAMA = {
+	[Enum.Material.Grass] = true,
+	[Enum.Material.LeafyGrass] = true,
+	[Enum.Material.Ground] = true,
+	[Enum.Material.Mud] = true,
+	[Enum.Material.Sand] = true,
+	[Enum.Material.Fabric] = true, -- tapete: abafado como grama
+}
+
+-- função pura (testável): escolhe o nome do som do passo
+function PrimeiraPessoa.somDoPasso(material: Enum.Material, n: number, disponivel: ((string) -> boolean)?): string
+	local tipo = nil
+	if CHAO_MADEIRA[material] then
+		tipo = "passo_madeira"
+	elseif CHAO_GRAMA[material] then
+		tipo = "passo_grama"
+	end
+	if tipo and (disponivel == nil or disponivel(tipo .. n)) then
+		return tipo .. n
+	end
+	return "passo" .. n
+end
+
+---------------------------------------------------------------------------
 -- Lanterna na mão (modelo local, preso à câmera)
 ---------------------------------------------------------------------------
 
@@ -238,7 +268,8 @@ local function atualizar(dt: number)
 	if passo ~= estado.passoAnterior and andando then
 		estado.passoAnterior = passo
 		local vol = math.clamp(0.18 + velH / 40, 0.2, 0.55)
-		Som.tocar("passo" .. math.random(1, 3), { volume = vol, velocidade = 0.92 + math.random() * 0.16 })
+		local nome = PrimeiraPessoa.somDoPasso(hum.FloorMaterial, math.random(1, 3), Som.disponivel)
+		Som.tocar(nome, { volume = vol, velocidade = 0.92 + math.random() * 0.16 })
 	end
 
 	-- FOV (abre um pouco ao correr)

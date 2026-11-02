@@ -146,5 +146,71 @@
    "inicio": 0.0,
    "dur": 161.75
   }
+ },
+ "ambiente": {
+  "lanterna_liga": {
+   "inicio": 0.1,
+   "dur": 0.24
+  },
+  "lanterna_desliga": {
+   "inicio": 0.69,
+   "dur": 0.21
+  },
+  "grilos": {
+   "inicio": 1.25,
+   "dur": 16.0
+  },
+  "lareira": {
+   "inicio": 17.6,
+   "dur": 14.0
+  },
+  "assobio": {
+   "inicio": 31.95,
+   "dur": 16.0
+  },
+  "goteira1": {
+   "inicio": 48.3,
+   "dur": 1.1
+  },
+  "goteira2": {
+   "inicio": 49.75,
+   "dur": 1.1
+  },
+  "estalo1": {
+   "inicio": 51.2,
+   "dur": 0.8
+  },
+  "estalo2": {
+   "inicio": 52.35,
+   "dur": 0.8
+  },
+  "galhos": {
+   "inicio": 53.5,
+   "dur": 1.8
+  },
+  "passo_madeira1": {
+   "inicio": 55.65,
+   "dur": 0.42
+  },
+  "passo_madeira2": {
+   "inicio": 56.42,
+   "dur": 0.42
+  },
+  "passo_madeira3": {
+   "inicio": 57.19,
+   "dur": 0.42
+  },
+  "passo_grama1": {
+   "inicio": 57.96,
+   "dur": 0.42
+  },
+  "passo_grama2": {
+   "inicio": 58.73,
+   "dur": 0.42
+  },
+  "passo_grama3": {
+   "inicio": 59.5,
+   "dur": 0.42
+  }
  }
 }

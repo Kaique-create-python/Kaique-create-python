@@ -133,6 +133,106 @@ checar("falas e mapa de áudio coerentes", function()
 	end
 end)
 
+checar("sons usados no código existem no mapa de áudio", function()
+	local AudioMapa = H.modulo("ReplicatedStorage/OI3/AudioMapa")
+	local fs = require("@lune/fs")
+	-- todo nome passado para Som.tocar/Som.ambiente/Som.disponivel com texto fixo precisa existir
+	local usados = {}
+	local function varrer(caminho)
+		for _, nome in fs.readDir(caminho) do
+			local c = caminho .. "/" .. nome
+			if fs.isDir(c) then
+				varrer(c)
+			elseif string.sub(nome, -5) == ".luau" then
+				local src = fs.readFile(c)
+				for som, depois in string.gmatch(src, 'Som%.tocar%("([%w_]+)"(%s*%.?%.?)') do
+					if depois ~= ".." and not string.find(depois, "%.%.") then
+						usados[som] = c
+					end
+				end
+				for som, depois in string.gmatch(src, 'Som%.ambiente%("([%w_]+)"(%s*%.?%.?)') do
+					if depois ~= ".." and not string.find(depois, "%.%.") then
+						usados[som] = c
+					end
+				end
+				for som, depois in string.gmatch(src, 'Som%.disponivel%("([%w_]+)"(%s*%.?%.?)') do
+					if depois ~= ".." and not string.find(depois, "%.%.") then
+						usados[som] = c
+					end
+				end
+			end
+		end
+	end
+	varrer("oi3/src")
+	local n = 0
+	for som, onde in usados do
+		n += 1
+		assert(AudioMapa.itens[som], "som '" .. som .. "' (usado em " .. onde .. ") não existe no AudioMapa")
+	end
+	-- sons montados com número no fim
+	for _, base in { "passo", "passo_madeira", "passo_grama" } do
+		for i = 1, 3 do
+			assert(AudioMapa.itens[base .. i], "falta " .. base .. i)
+		end
+	end
+	for _, base in { "goteira", "estalo" } do
+		for i = 1, 2 do
+			assert(AudioMapa.itens[base .. i], "falta " .. base .. i)
+		end
+	end
+	for _, laco in { "grilos", "lareira", "assobio", "vento", "interior", "relogio", "musica_menu" } do
+		assert(AudioMapa.itens[laco] and AudioMapa.itens[laco].loop == true, laco .. " precisa ser loop")
+	end
+	assert(table.find(AudioMapa.arquivos, "ambiente"), "arquivo 'ambiente' fora da lista")
+	print("    nomes de som conferidos:", n)
+end)
+
+checar("ambiente: dentro/fora, mistura e sorteio", function()
+	local Ambiente = H.modulo("ReplicatedStorage/OI3/Cliente/Ambiente")
+	local AudioMapa = H.modulo("ReplicatedStorage/OI3/AudioMapa")
+	local V3 = roblox.Vector3.new
+	local casos = {
+		{ V3(-24, 3, -8), true, "dormitório" },
+		{ V3(0, 3, 0), true, "hall" },
+		{ V3(34, 3, 0), true, "corredor" },
+		{ V3(63, 3, 0), true, "quarto do espelho" },
+		{ V3(0, 2, 30), false, "frente da casa" },
+		{ V3(-50, 2, 0), false, "lado de fora (oeste)" },
+		{ V3(40, 2, -20), false, "fundos da ala leste" },
+		{ V3(0, 40, 0), false, "telhado/céu" },
+	}
+	for _, c in casos do
+		assert(Ambiente.dentroDaCasa(c[1]) == c[2], "dentro/fora errado: " .. c[3])
+	end
+	for _, dentro in { true, false } do
+		for nome, v in Ambiente.mistura(dentro) do
+			assert(AudioMapa.itens[nome], "mistura usa som inexistente: " .. nome)
+			assert(v >= 0 and v <= 1, "volume fora de 0..1")
+		end
+		for i = 0, 99 do
+			local tipo = Ambiente.sortear(dentro, i / 100, true)
+			if tipo then
+				local ok = AudioMapa.itens[tipo] or AudioMapa.itens[tipo .. "1"]
+				assert(ok, "sorteio deu som inexistente: " .. tipo)
+			end
+			local antigo = Ambiente.sortear(dentro, i / 100, false)
+			assert(antigo == nil or antigo == "rangido" or antigo == "sussurro", "sem arquivo novo só pode usar sons antigos")
+		end
+	end
+end)
+
+checar("passos: som certo para cada chão", function()
+	local PP = H.modulo("ReplicatedStorage/OI3/Cliente/PrimeiraPessoa")
+	local E = roblox.Enum.Material
+	assert(PP.somDoPasso(E.WoodPlanks, 2, nil) == "passo_madeira2", "madeira")
+	assert(PP.somDoPasso(E.Wood, 1, nil) == "passo_madeira1", "madeira 2")
+	assert(PP.somDoPasso(E.Grass, 3, nil) == "passo_grama3", "grama")
+	assert(PP.somDoPasso(E.Slate, 1, nil) == "passo1", "pedra usa o passo comum")
+	assert(PP.somDoPasso(E.WoodPlanks, 2, function()
+		return false
+	end) == "passo2", "sem o arquivo novo volta para o passo comum")
+end)
+
 checar("áreas de toque dos botões (projeção na tela)", function()
 	local B = H.modulo("ReplicatedStorage/OI3/Cliente/Botoes3D")
 	local MenuCena = H.modulo("ReplicatedStorage/OI3/Cliente/MenuCena")

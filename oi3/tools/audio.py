@@ -530,7 +530,7 @@ def montar_sprite(itens, nome_arquivo, folga=0.35):
     mapa = {}
     pos = 0.1
     for nome, x in itens:
-        mapa[nome] = {"inicio": round(pos, 3), "dur": round(len(x) / SR, 3)}
+        mapa[nome] = {"inicio": round(pos, 4), "dur": round(len(x) / SR, 4)}
         partes.append(x)
         partes.append(np.zeros(int(folga * SR)))
         pos += len(x) / SR + folga
@@ -664,8 +664,226 @@ def ajuste2(pasta_vozes, video):
         json.dump(resumo, f, ensure_ascii=False, indent=1)
 
 
+# ---------------------------------------------------------------- AJUSTE-4
+# Lanterna (liga/desliga) e ambientes do orfanato. Tudo sintetizado por código.
+LOOPS.update({"grilos", "lareira", "assobio"})
+
+
+def ressonante_varia(x, f_curva, q, bloco=256):
+    """filtro ressonante cujo centro muda com o tempo (assobio do vento)."""
+    y = np.zeros_like(x)
+    zi = np.zeros(2)
+    for i in range(0, len(x), bloco):
+        f = float(np.mean(f_curva[i:i + bloco]))
+        b, a = signal.iirpeak(min(max(f, 40.0), SR / 2 * 0.95) / (SR / 2), q)
+        y[i:i + bloco], zi = signal.lfilter(b, a, x[i:i + bloco], zi=zi)
+    return y
+
+
+def _tique(d, f_corpo, brilho=(2500, 9000), tau_ping=0.018, semente=0):
+    """clique mecânico curto: estalo do plástico + 'tim' do metal + corpo da mola."""
+    g = np.random.default_rng(semente)
+    t = tt(d)
+    estalo = norm(bp(g.standard_normal(len(t)), *brilho) * np.exp(-t / 0.0012), 1.0)
+    ping = np.sin(2 * np.pi * f_corpo * t + g.uniform(0, 6.28)) * np.exp(-t / tau_ping)
+    ping2 = np.sin(2 * np.pi * f_corpo * 1.73 * t) * np.exp(-t / (tau_ping * 0.6))
+    corpo = norm(ressonante(g.standard_normal(len(t)), f_corpo * 0.22, 6) * np.exp(-t / 0.008), 1.0)
+    return estalo * 1.0 + ping * 0.2 + ping2 * 0.08 + corpo * 0.45
+
+
+def lanterna(liga=True):
+    d = 0.24 if liga else 0.21
+    y = np.zeros(int(d * SR))
+    a = _tique(0.08, 4200 if liga else 3600, semente=41 if liga else 43)
+    b = _tique(0.06, 5100 if liga else 4300, brilho=(3000, 10000), tau_ping=0.012, semente=42 if liga else 44)
+    colocar(y, a, 0.004, 1.0)  # apertar
+    colocar(y, b, 0.085 if liga else 0.07, 0.55 if liga else 0.42)  # soltar
+    t = tt(0.05)
+    colocar(y, norm(lp(ruido(0.05), 600) * np.exp(-t / 0.006), 1.0), 0.0, 0.35)  # polegar na borracha
+    y = reverb(y, 0.35, 0.12, 14, 6000, 47)
+    return fade(norm(y, 0.8), 0.0005, 0.02)
+
+
+def grilos(d=16.0):
+    tot = d + 1.5
+    y = np.zeros(int(tot * SR))
+    g = np.random.default_rng(77)
+    # três grilos perto, cada um com seu tom e ritmo (cri-cri-cri)
+    for f, periodo, pulsos, ganho in [(4350, 0.62, 4, 0.55), (4720, 0.83, 3, 0.4), (4080, 1.07, 4, 0.3)]:
+        t0 = g.uniform(0, periodo)
+        while t0 < tot - 0.3:
+            for p in range(pulsos):
+                dur_p = 0.012 + g.uniform(-0.002, 0.002)
+                tp = tt(dur_p)
+                env = np.sin(np.pi * tp / dur_p) ** 2
+                fp = f * (1 + g.uniform(-0.006, 0.006))
+                pulso = (np.sin(2 * np.pi * fp * tp) + 0.12 * np.sin(4 * np.pi * fp * tp)) * env
+                colocar(y, pulso, t0 + p * 0.028, ganho * g.uniform(0.8, 1.0))
+            t0 += periodo * g.uniform(0.9, 1.15) * (2.2 if g.random() < 0.08 else 1.0)
+    # coro distante (trinado contínuo) e o ar da noite
+    t = tt(tot)
+    coro = np.zeros(len(t))
+    for k in range(7):  # vários grilos longe, cada um num tom e ritmo (dá o "batimento" natural)
+        fk = g.uniform(3650, 4150)
+        taxa = g.uniform(28, 46)
+        trinado = (0.5 + 0.5 * np.sin(2 * np.pi * taxa * t + g.uniform(0, 6.28))) ** 3
+        liga = (suave_aleatorio(tot, g.uniform(0.15, 0.4), 300 + k) > 0.35).astype(float)
+        coro += np.sin(2 * np.pi * fk * t + g.uniform(0, 6.28)) * trinado * lp(liga, 3, 1) * g.uniform(0.4, 1.0)
+    coro = bp(coro, 3000, 5200) * 0.05
+    ar = lp(ruido(tot), 900) * 0.035 * (0.6 + 0.4 * suave_aleatorio(tot, 0.2, 79))
+    y = reverb(y + coro + ar, 1.4, 0.22, 3.2, 7000, 80)
+    return norm(emloop(hp(y, 120), 1.5), 0.5)
+
+
+def lareira(d=14.0):
+    tot = d + 1.5
+    g = np.random.default_rng(91)
+    ronco = hp(lp(np.cumsum(ruido(tot)) * 0.01, 300), 40)
+    ronco = norm(ronco, 1.0) * (0.55 + 0.45 * suave_aleatorio(tot, 0.8, 92))
+    chiado = norm(bp(ruido(tot), 2500, 7000), 1.0) * (0.15 + 0.85 * suave_aleatorio(tot, 1.5, 93) ** 3) * 0.1
+    y = ronco * 0.35 + chiado
+    tcur = 0.0
+    while True:
+        tcur += g.exponential(1 / 9.0)
+        if tcur >= tot - 0.15:
+            break
+        amp = min(1.0, (g.pareto(2.2) + 0.15) * 0.25)  # muitos estalinhos, poucos grandes
+        tc = tt(0.03)
+        est = norm(ressonante(g.standard_normal(len(tc)), g.uniform(900, 4500), g.uniform(3, 9)) * np.exp(-tc / g.uniform(0.0015, 0.006)), 1.0)
+        est += norm(hp(g.standard_normal(len(tc)), 2000) * np.exp(-tc / 0.0008), 1.0) * 0.6
+        colocar(y, est, tcur, amp)
+        if g.random() < 0.05:  # "pop" grave da lenha
+            tp = tt(0.12)
+            pop = np.sin(2 * np.pi * g.uniform(90, 160) * tp) * np.exp(-tp / 0.02)
+            pop += norm(bp(g.standard_normal(len(tp)), 300, 1500) * np.exp(-tp / 0.01), 1.0) * 0.6
+            colocar(y, pop, tcur, 0.5)
+    y = reverb(y, 0.9, 0.18, 5, 6000, 94)
+    return norm(emloop(hp(y, 35), 1.5), 0.6)
+
+
+def goteira(semente, f0=1100.0):
+    d = 1.1
+    t = tt(d)
+    f = f0 * (1 + 1.4 * np.minimum(t / 0.035, 1.0))  # o "plim" sobe de tom
+    plim = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.018)
+    tic = norm(hp(ruido(d), 3000) * np.exp(-t / 0.0007), 1.0) * 0.3
+    y = reverb(plim + tic, 1.0, 0.45, 4.5, 5000, semente + 1)
+    return fade(norm(y, 0.7), 0.0003, 0.05)
+
+
+def estalo_madeira(semente):
+    g = np.random.default_rng(semente)
+    d = 0.8
+    t = tt(d)
+    batida = sum(ressonante(ruido(d), f, 10) * a for f, a in
+                 [(g.uniform(180, 240), 1.0), (g.uniform(420, 520), 0.6), (g.uniform(900, 1200), 0.3)])
+    y = norm(batida * np.exp(-t / 0.045), 1.0) + norm(bp(ruido(d), 1500, 6000) * np.exp(-t / 0.002), 1.0) * 0.5
+    colocar(y, rangido(0.35, g.uniform(150, 220), semente + 5), 0.05, 0.25)
+    y = reverb(y, 1.2, 0.35, 3.5, 4000, semente + 2)
+    return fade(norm(y, 0.7), 0.0005, 0.08)
+
+
+def assobio(d=16.0):
+    tot = d + 1.5
+    rajada = suave_aleatorio(tot, 0.22, 102) ** 1.6
+    f1 = 620 + 520 * rajada
+    w1 = ressonante_varia(ruido(tot), f1, 60) * rajada
+    w2 = ressonante_varia(ruido(tot), f1 * 1.5, 70) * rajada ** 2
+    ronco = lp(ruido(tot), 220, 2) * (0.25 + 0.75 * rajada)
+    y = norm(w1, 1.0) * 0.6 + norm(w2, 1.0) * 0.22 + norm(ronco, 1.0) * 0.5
+    y = reverb(y, 1.5, 0.3, 3, 4000, 103)
+    return norm(emloop(hp(y, 50), 1.5), 0.55)
+
+
+def galhos(semente=111):
+    g = np.random.default_rng(semente)
+    d = 1.8
+    y = np.zeros(int(d * SR))
+    tcur = 0.05
+    for _ in range(int(g.integers(3, 5))):
+        tc = tt(0.08)
+        f = g.uniform(2600, 3400)
+        toque = np.sin(2 * np.pi * f * tc) * np.exp(-tc / 0.012) * 0.6 + np.sin(2 * np.pi * f * 2.3 * tc) * np.exp(-tc / 0.006) * 0.3
+        toque += norm(hp(g.standard_normal(len(tc)), 2500) * np.exp(-tc / 0.0012), 1.0) * 0.8
+        toque += norm(ressonante(g.standard_normal(len(tc)), g.uniform(500, 800), 4) * np.exp(-tc / 0.01), 1.0) * 0.5
+        colocar(y, toque, tcur, g.uniform(0.5, 1.0))
+        tcur += g.uniform(0.18, 0.45)
+    t = tt(d)
+    y += norm(bp(ruido(d), 3500, 8000), 1.0) * (suave_aleatorio(d, 3, semente + 1) ** 3) * 0.08 * np.minimum(1, t / 0.3)
+    y = reverb(y, 1.0, 0.3, 4, 6000, semente + 2)
+    return fade(norm(y, 0.6), 0.001, 0.1)
+
+
+def passo_madeira(semente):
+    g = np.random.default_rng(semente)
+    d = 0.42
+    t = tt(d)
+    calcanhar = np.sin(2 * np.pi * g.uniform(62, 78) * t) * np.exp(-t / 0.03)
+    tabua = sum(ressonante(ruido(d), f, 7) * a for f, a in
+                [(g.uniform(150, 190), 1.0), (g.uniform(310, 380), 0.7), (g.uniform(700, 850), 0.35)])
+    tabua = norm(tabua, 1.0) * np.exp(-t / 0.06)
+    sola = norm(bp(ruido(d), 900, 4000) * np.exp(-t / 0.012), 1.0) * 0.25
+    y = calcanhar * 0.7 + tabua * 0.8 + sola
+    i = int(g.uniform(0.06, 0.09) * SR)  # ponta do pé, mais fraca
+    y[i:] += (norm(bp(ruido(d), 300, 2500) * np.exp(-t / 0.02), 1.0) * 0.3)[: len(y) - i]
+    if semente % 3 == 2:  # tábua que range de leve
+        colocar(y, rangido(0.3, g.uniform(180, 260), semente + 9), 0.05, 0.12)
+    y = reverb(y, 0.6, 0.18, 7, 5000, semente + 3)
+    return fade(norm(y, 0.85), 0.0005, 0.06)
+
+
+def passo_grama(semente):
+    g = np.random.default_rng(semente)
+    d = 0.42
+    t = tt(d)
+    y = np.zeros(len(t))
+    for _ in range(int(g.integers(40, 70))):  # folhinhas amassando
+        tg = tt(0.006)
+        grao = bp(g.standard_normal(len(tg)), g.uniform(1500, 3000), g.uniform(5000, 9000)) * np.exp(-tg / 0.0015)
+        colocar(y, grao, g.uniform(0, 0.16) ** 1.3, g.uniform(0.2, 1.0))
+    baque = lp(ruido(d), 300) * np.exp(-t / 0.03) + np.sin(2 * np.pi * 55 * t) * np.exp(-t / 0.025) * 0.5
+    y = norm(y, 1.0) * 0.8 + norm(baque, 1.0) * 0.45
+    return fade(norm(y, 0.8), 0.001, 0.06)
+
+
+def ambiente_itens():
+    return [
+        ("lanterna_liga", lanterna(True)),
+        ("lanterna_desliga", lanterna(False)),
+        ("grilos", grilos()),
+        ("lareira", lareira()),
+        ("assobio", assobio()),
+        ("goteira1", goteira(201, 1050.0)),
+        ("goteira2", goteira(202, 1320.0)),
+        ("estalo1", estalo_madeira(211)),
+        ("estalo2", estalo_madeira(212)),
+        ("galhos", galhos(111)),
+        ("passo_madeira1", passo_madeira(221)),
+        ("passo_madeira2", passo_madeira(222)),
+        ("passo_madeira3", passo_madeira(223)),
+        ("passo_grama1", passo_grama(231)),
+        ("passo_grama2", passo_grama(232)),
+        ("passo_grama3", passo_grama(233)),
+    ]
+
+
+def ajuste4():
+    caminho_json = os.path.join(ASSETS, "audio_mapa.json")
+    with open(caminho_json, encoding="utf-8") as f:
+        resumo = json.load(f)
+    itens = ambiente_itens()
+    mapa_a, dur_a, ogg_a = montar_sprite(itens, "oi3_ambiente")
+    resumo["ambiente"] = mapa_a
+    print(f"ambiente: {len(itens)} itens, {dur_a:.1f}s, {os.path.getsize(ogg_a) // 1024} KB")
+    escrever_mapa_json(resumo)
+    with open(caminho_json, "w", encoding="utf-8") as f:
+        json.dump(resumo, f, ensure_ascii=False, indent=1)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste2":
+    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste4":
+        ajuste4()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste2":
         ajuste2(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "")
     else:
         main()

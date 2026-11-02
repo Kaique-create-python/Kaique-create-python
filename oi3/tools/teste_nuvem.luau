@@ -110,6 +110,49 @@ else
 		res.info.pecasLanterna = #m:GetDescendants()
 		m:Destroy()
 	end)
+	-- sons: cada áudio carrega no Roblox? "_controle" é um som público do próprio Roblox:
+	-- se ele carrega e o nosso não, o áudio está bloqueado (falta liberar para o jogo)
+	checar("sons", function()
+		local R = require(OI3.Recursos)
+		local lista = { _controle = "rbxassetid://12222216" }
+		if type(R.audio) == "table" then
+			for chave, id in R.audio do
+				local n = tonumber(id)
+				if n and n > 0 then
+					lista[chave] = "rbxassetid://" .. n
+				end
+			end
+		end
+		local sons = {}
+		for chave, id in lista do
+			local s = Instance.new("Sound")
+			s.Name = "OI3_TesteSom_" .. chave
+			s.SoundId = id
+			s.Volume = 0
+			s.Parent = workspace
+			sons[chave] = s
+		end
+		local t0 = os.clock()
+		while os.clock() - t0 < 20 do
+			local todos = true
+			for _, s in sons do
+				if not s.IsLoaded then
+					todos = false
+					break
+				end
+			end
+			if todos then
+				break
+			end
+			task.wait(0.25)
+		end
+		local saida = {}
+		for chave, s in sons do
+			saida[chave] = if s.IsLoaded then math.floor(s.TimeLength * 10 + 0.5) / 10 else -1
+			s:Destroy()
+		end
+		res.info.sons = saida
+	end)
 	checar("recursos", function()
 		local R = require(OI3.Recursos)
 		res.info.audio = R.audio

@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-3"
+Config.REVISAO = "AJUSTE-4"
 Config.DONO_USERID = 1357078972
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)

@@ -258,6 +258,102 @@ def consultar_moderacao(chave, asset_id):
 TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
 
 
+NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna"}
+
+
+def conferir_sons(sons):
+    """Mostra se cada áudio carregou no servidor de teste do Roblox.
+    '_controle' é um som público do próprio Roblox: se ele carrega e o nosso não, é falta de permissão.
+    Retorna True (todos ok), False (algum bloqueado) ou None (não deu para saber)."""
+    if not isinstance(sons, dict):
+        return None
+    def num(v):
+        try:
+            return float(v)
+        except Exception:
+            return -1.0
+    resto = {k: num(v) for k, v in sons.items() if k != "_controle"}
+    if not resto:
+        return None
+    if num(sons.get("_controle")) <= 0:
+        aviso("não deu para conferir os sons no servidor de teste (nem o som padrão do Roblox carregou). Confira ouvindo no jogo.")
+        return None
+    bloqueados = []
+    for k in sorted(resto):
+        if resto[k] > 0:
+            ok("som %s: carregou no Roblox (%.1f s)" % (NOMES_AUDIO.get(k, k), resto[k]))
+        else:
+            bloqueados.append(k)
+            aviso("som %s: NÃO carregou no Roblox (bloqueado: falta liberar para o jogo)" % NOMES_AUDIO.get(k, k))
+    return not bloqueados
+
+
+def explicar_liberacao_manual(universe, lista):
+    print("   COMO LIBERAR NA MÃO (no navegador do celular, uma vez por áudio):")
+    print("     1. Abra create.roblox.com e entre na sua conta")
+    print("     2. Creations > Development Items > Audio")
+    print("     3. Toque no áudio (IDs abaixo) > Permissions")
+    print("     4. Aba Experiences > Add experiences > digite %s > Add > Done" % universe)
+    print("   Áudios: " + ", ".join(str(a) for a in lista))
+    print("   OU: edite a chave da Open Cloud e adicione a permissão 'asset-permissions' (write);")
+    print("       depois rode este instalador de novo que ele libera sozinho.")
+
+
+def liberar_audios(chave, universe, ids, recibos):
+    """Dá ao jogo (universe) a permissão de USAR cada áudio.
+    Sem isso o Roblox deixa o áudio MUDO no jogo, mesmo aprovado e mesmo sendo seu."""
+    lista = sorted({int(v) for v in ids.values() if v})
+    if not lista:
+        return "sem_audio", lista
+    pedido = {
+        "subjectType": "Universe",
+        "subjectId": str(universe),
+        "action": "Use",
+        "requests": [{"assetId": a} for a in lista],
+    }
+    corpo = json.dumps(pedido).encode("utf-8")
+    url = API + "/asset-permissions-api/v1/assets/permissions"
+    try:
+        try:
+            _, resp = http("PATCH", url, chave, corpo, "application/json", tentativas=3, espera_max=60)
+        except ErroHTTP as e:
+            if e.codigo != 415:
+                raise
+            _, resp = http("PATCH", url, chave, corpo, "application/json-patch+json", tentativas=2, espera_max=60)
+    except ErroHTTP as e:
+        if e.codigo == 403:
+            aviso("A chave não tem a permissão de LIBERAR áudios para o jogo (asset-permissions).")
+        else:
+            aviso("O Roblox não deixou liberar os áudios agora (%s)." % e.resumo())
+        return "falhou", lista
+    except Falha as f:
+        aviso(str(f))
+        return "falhou", lista
+    try:
+        d = json.loads(resp.decode("utf-8") or "{}")
+    except Exception:
+        d = {}
+    feitos = {int(a) for a in (d.get("successAssetIds") or []) if str(a).isdigit()}
+    erros = d.get("errors") or []
+    for e in erros:
+        codigo = str(e.get("code", "?"))
+        if codigo in ("AlreadyGranted", "PermissionAlreadyExists"):
+            feitos.add(int(e.get("assetId") or 0))
+        else:
+            aviso("áudio %s: não liberou (%s)" % (e.get("assetId"), codigo))
+    lib = recibos.setdefault("liberados", {})
+    lib[str(universe)] = sorted(set(lib.get(str(universe), [])) | feitos)
+    gravar_recibos(recibos)
+    if feitos and len(feitos) >= len(lista):
+        ok("áudios LIBERADOS para o jogo (%d de %d)" % (len(feitos), len(lista)))
+        return "ok", lista
+    if feitos:
+        aviso("só %d de %d áudios foram liberados para o jogo." % (len(feitos), len(lista)))
+        return "parcial", lista
+    aviso("o Roblox não confirmou a liberação dos áudios.")
+    return "falhou", lista
+
+
 def enviar_audio(chave, criador, nome, info, dados, recibos):
     sha = info["sha256"]
     r = recibos["audio"].get(sha) or {}
@@ -288,7 +384,7 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
             r.update({"assetId": str(asset_id), "estado": estado})
             recibos["audio"][sha] = r
             gravar_recibos(recibos)
-            ok("%s: pronto (ID %s, moderação: %s)" % (rotulo, asset_id, estado or "?"))
+            ok("%s: pronto (ID %s, moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "?")))
             return 0 if estado == "Rejected" else int(asset_id)
         aviso("%s: o Roblox ainda está processando o envio anterior; seguindo sem ele por enquanto." % rotulo)
         return 0
@@ -336,7 +432,9 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
             if estado == "Rejected":
                 aviso("%s: o Roblox recusou na moderação; seguindo sem ele." % rotulo)
                 return 0
-            ok("%s: ID %s (moderação: %s)" % (rotulo, asset_id, estado or "em análise"))
+            ok("%s: ID %s (moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "em análise")))
+            if estado != "Approved":
+                aviso("   enquanto estiver 'em análise' esse som fica MUDO no jogo (o Roblox libera sozinho depois).")
             return int(asset_id)
     print("")
     aviso("%s: ainda processando. Rode o instalador de novo daqui a uns minutos para incluir este áudio." % rotulo)
@@ -490,11 +588,16 @@ def cmd_install(pular_teste=False):
     sem = [k for k, v in ids.items() if not v]
     if sem:
         aviso("Sem áudio por enquanto: %s (o jogo usa legendas no lugar)." % ", ".join(sem))
+    print("   Liberando os áudios para o jogo usar (sem isso o Roblox deixa mudo)...")
+    liberacao, lista_audio = liberar_audios(chave, universe, ids, recibos)
+    if liberacao in ("falhou", "parcial"):
+        aviso("   (o passo a passo para liberar na mão aparece no FINAL)")
 
     passo(4, "Montando o place")
     place_xml = montar_place(arquivos["place.rbxlx"], ids)
     ok("place pronto (%d kB) com áudios: %s" % (len(place_xml) // 1024, json.dumps(ids)))
 
+    som_ok = None
     passo(5, "Teste isolado na nuvem (versão salva, NÃO publicada)")
     try:
         v_teste = publicar(chave, universe, place, place_xml, "Saved")
@@ -526,6 +629,9 @@ def cmd_install(pular_teste=False):
             inf.get("modulos"), inf.get("pecasMapa"), inf.get("pecasMenu"), inf.get("animacoesCarregadas")))
         if inf.get("pecasLanterna"):
             ok("lanterna da primeira pessoa montada (%s peças)" % inf.get("pecasLanterna"))
+        som_ok = conferir_sons(inf.get("sons"))
+        if som_ok is False and liberacao == "ok":
+            aviso("   (a liberação pode levar alguns minutos para valer no Roblox)")
 
     passo(6, "Publicando")
     try:
@@ -566,6 +672,12 @@ def cmd_install(pular_teste=False):
 
     titulo("PRONTO! %s %s no ar" % (JOGO, REVISAO))
     print("   Abra: https://www.roblox.com/games/%s" % place)
+    if lista_audio and (som_ok is False or (liberacao != "ok" and som_ok is not True)):
+        print("")
+        aviso("IMPORTANTE: os sons só tocam depois que os áudios forem LIBERADOS para o jogo.")
+        explicar_liberacao_manual(universe, lista_audio)
+    elif som_ok is True:
+        ok("sons conferidos no servidor do Roblox: todos carregam.")
     if sem:
         print("   Áudio ainda pendente: %s. Rode este instalador de novo mais tarde para incluir." % ", ".join(sem))
 

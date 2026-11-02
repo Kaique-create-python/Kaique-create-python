@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local Interface = require(script.Parent.Interface)
 local Som = require(script.Parent.Som)
 local PrimeiraPessoa = require(script.Parent.PrimeiraPessoa)
+local Ambiente = require(script.Parent.Ambiente)
 
 local Exploracao = {}
 
@@ -55,7 +56,12 @@ local function definirLuz(ligar: boolean)
 		estado.remotos.Lanterna:FireServer(ligar) -- os outros jogadores veem a luz pela cabeça
 	end
 	PrimeiraPessoa.definirLuz(ligar)
-	Som.tocar("clique", { volume = 0.7 })
+	local nome = if ligar then "lanterna_liga" else "lanterna_desliga"
+	if Som.disponivel(nome) then
+		Som.tocar(nome, { volume = 0.85 })
+	else
+		Som.tocar("clique", { volume = 0.7 })
+	end
 	pintarBotao(estado.botaoLuz, ligar)
 end
 
@@ -327,28 +333,12 @@ function Exploracao.entrar(char: Model?)
 			PrimeiraPessoa.definirLuz(estado.luz)
 		end
 	end)
-	Som.ambiente("interior", 0.7, 2)
-	Som.ambiente("vento", 0.3, 2)
+	-- ambiente sonoro: vento e grilos lá fora, casa rangendo, lareira e relógio no hall
+	Ambiente.iniciar()
 	local aviso = estado.aviso :: Frame
 	aviso.Visible = true
 	task.delay(8, function()
 		aviso.Visible = false
-	end)
-	-- rangidos e sussurros raros
-	estado.tokenClima += 1
-	local token = estado.tokenClima
-	task.spawn(function()
-		while estado.ativo and token == estado.tokenClima do
-			task.wait(10 + math.random() * 14)
-			if not estado.ativo or token ~= estado.tokenClima then
-				break
-			end
-			if math.random() < 0.75 then
-				Som.tocar("rangido", { volume = 0.18 + math.random() * 0.15 })
-			else
-				Som.tocar("sussurro", { volume = 0.22 })
-			end
-		end
 	end)
 end
 
@@ -358,6 +348,7 @@ function Exploracao.sair()
 	end
 	estado.ativo = false
 	estado.tokenClima += 1
+	Ambiente.parar(1.0)
 	if estado.conexaoPersonagem then
 		estado.conexaoPersonagem:Disconnect()
 		estado.conexaoPersonagem = nil
