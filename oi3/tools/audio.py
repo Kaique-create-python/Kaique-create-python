@@ -920,8 +920,195 @@ def ajuste5(pasta):
         json.dump(resumo, f, ensure_ascii=False, indent=1)
 
 
+# ---------------------------------------------------------------- AJUSTE-8
+# O resto da história: vozes novas (Keko com voz de criança de verdade, a mulher do final, a criança
+# misteriosa contando até dez) e os sons novos (caixinha de música, lavanderia, batidas na parede,
+# projetor, carro, rádio, as três batidas do final). Tudo num arquivo só ("historia") para gastar
+# só UM envio de áudio do mês.
+LOOPS.update({"maquina", "projetor", "motor", "radio", "desmoronar"})
+
+
+def caixinha_parabens():
+    """'Parabéns a você' (melodia de domínio público) numa caixinha de música desafinada e lenta."""
+    hz = {"G4": 392.0, "A4": 440.0, "B4": 493.9, "C5": 523.3, "D5": 587.3, "E5": 659.3, "F5": 698.5, "G5": 784.0}
+    seq = [("G4", .5), ("G4", .5), ("A4", 1), ("G4", 1), ("C5", 1), ("B4", 2),
+           ("G4", .5), ("G4", .5), ("A4", 1), ("G4", 1), ("D5", 1), ("C5", 2),
+           ("G4", .5), ("G4", .5), ("G5", 1), ("E5", 1), ("C5", 1), ("B4", 1), ("A4", 2)]
+    batida = 0.42
+    total = sum(d for _, d in seq) * batida + 3.0
+    y = np.zeros(int(total * SR))
+    t0 = 0.3
+    for i, (n, d) in enumerate(seq):
+        # a mola vai perdendo força: cada nota atrasa um pouquinho e desafina
+        f = hz[n] * 2 ** (-(i * 1.2) / 1200)
+        colocar(y, nota_caixinha(f, 2.4, 100 + i), t0)
+        t0 += d * batida * (1 + i * 0.012)
+    y = reverb(y, 2.2, 0.4, 2.4, 5200, 11)
+    return fade(norm(y, 0.7), 0.01, 1.2)
+
+
+def maquina_lavar(d=6.0):
+    t = tt(d + 1.0)
+    motor_ = np.zeros_like(t)
+    for f, a in [(48, 0.6), (96, 0.3), (144, 0.12)]:
+        motor_ += a * np.sin(2 * np.pi * f * t + f)
+    agua = lp(ruido(d + 1.0), 700) * (0.55 + 0.45 * np.sin(2 * np.pi * 0.9 * t) ** 2)
+    batidas = np.zeros_like(t)
+    for k in range(int((d + 1.0) / 0.95)):
+        tb = tt(0.2)
+        colocar(batidas, np.sin(2 * np.pi * 60 * tb) * np.exp(-tb / 0.05) * 0.5, 0.2 + k * 0.95)
+    y = norm(motor_, 0.35) + norm(agua, 0.3) + batidas
+    return norm(emloop(lp(y, 2500), 1.0), 0.6)
+
+
+def batida_parede(oca, semente=0):
+    g = np.random.default_rng(semente)
+    d = 0.9 if oca else 0.35
+    t = tt(d)
+    golpe = bp(ruido(d), 300, 3000) * np.exp(-t / 0.006)
+    if oca:
+        corpo = ressonante(ruido(d), g.uniform(170, 200), 18) * np.exp(-t / 0.22) * 2.2
+        corpo += ressonante(ruido(d), g.uniform(390, 430), 14) * np.exp(-t / 0.12)
+    else:
+        corpo = lp(ruido(d), 260) * np.exp(-t / 0.03) * 1.4
+    y = np.zeros(int(d * 2 * SR) + int(0.25 * SR))
+    colocar(y, golpe + corpo, 0.0)
+    colocar(y, (golpe + corpo) * 0.85, 0.24)  # toc-toc
+    return fade(norm(y, 0.85), 0.001, 0.05)
+
+
+def arrastar(d=1.7, semente=4):
+    g = np.random.default_rng(semente)
+    t = tt(d)
+    gr = (suave_aleatorio(d, 22, semente) > 0.35).astype(float)
+    gr = lp(gr, 70, 1)
+    x = bp(ruido(d), 120, 1600) * (0.25 + 0.75 * gr)
+    x += 0.4 * ressonante(ruido(d), g.uniform(140, 180), 9) * gr
+    env = np.minimum(1, t / 0.08) * np.minimum(1, (d - t) / 0.15)
+    return fade(norm(x * env, 0.75), 0.005, 0.05)
+
+
+def projetor(d=4.0):
+    t = tt(d + 1.0)
+    cliques = np.zeros_like(t)
+    tb = tt(0.012)
+    c = bp(ruido(0.012), 1200, 5000) * np.exp(-tb / 0.002)
+    for k in range(int((d + 1.0) * 24)):
+        colocar(cliques, c * (0.7 + 0.3 * np.sin(k)), k / 24)
+    motor_ = 0.25 * np.sin(2 * np.pi * 110 * t) + 0.1 * np.sin(2 * np.pi * 220 * t) + 0.12 * lp(ruido(d + 1), 400)
+    return norm(emloop(cliques * 0.6 + motor_, 1.0), 0.5)
+
+
+def motor_carro(d=5.0):
+    t = tt(d + 1.0)
+    f = 34 + 2 * np.sin(2 * np.pi * 0.3 * t)
+    x = np.zeros_like(t)
+    for h, a in [(1, 1.0), (2, 0.55), (3, 0.3), (4, 0.18), (6, 0.08)]:
+        x += a * np.sin(2 * np.pi * np.cumsum(f * h) / SR)
+    x *= 0.8 + 0.2 * np.sin(2 * np.pi * f * 0.5 * t) ** 2
+    x += 0.15 * lp(ruido(d + 1), 300)
+    return norm(emloop(lp(x, 900), 1.0), 0.55)
+
+
+def partida_carro():
+    d = 2.2
+    t = tt(d)
+    giro = np.zeros_like(t)
+    for k in range(9):
+        tb = tt(0.13)
+        colocar(giro, bp(ruido(0.13), 200, 1500) * np.exp(-tb / 0.05), 0.05 + k * 0.12)
+    pega = np.zeros_like(t)
+    t2 = t[t >= 1.1] - 1.1
+    f = 60 * np.exp(-t2 * 2) + 34
+    ronco = sum(a * np.sin(2 * np.pi * np.cumsum(f * h) / SR) for h, a in [(1, 1.0), (2, 0.5), (3, 0.25)])
+    pega[len(t) - len(t2):] = ronco * np.minimum(1, t2 / 0.05)
+    return fade(norm(giro * 0.6 + lp(pega, 900), 0.8), 0.002, 0.1)
+
+
+def tres_batidas():
+    d = 3.2
+    y = np.zeros(int(d * SR))
+    for k in range(3):
+        tb = tt(0.6)
+        bum = np.sin(2 * np.pi * 62 * tb) * np.exp(-tb / 0.09) + lp(ruido(0.6), 400) * np.exp(-tb / 0.05) * 0.8
+        bum += bp(ruido(0.6), 600, 2500) * np.exp(-tb / 0.01) * 0.4
+        colocar(y, bum, 0.3 + k * 0.85)
+    return norm(reverb(y, 2.0, 0.3, 2.2, 3000, 21), 0.95)
+
+
+def vela_apaga():
+    d = 0.7
+    t = tt(d)
+    sopro = bp(ruido(d), 300, 2400) * np.exp(-((t - 0.18) / 0.12) ** 2)
+    return fade(norm(sopro, 0.5), 0.01, 0.1)
+
+
+def radio_chiado(d=3.0):
+    t = tt(d + 1.0)
+    x = bp(ruido(d + 1), 400, 4200) * (0.6 + 0.4 * suave_aleatorio(d + 1, 6, 77))
+    x += 0.15 * np.sin(2 * np.pi * 1000 * t) * (suave_aleatorio(d + 1, 3, 78) > 0.6)
+    return norm(emloop(x, 1.0), 0.35)
+
+
+def desmoronar(d=6.0):
+    t = tt(d + 1.0)
+    x = lp(ruido(d + 1), 120) * 1.2
+    for k in range(10):
+        colocar(x, impacto(1.2)[: int(1.0 * SR)] * 0.35, 0.2 + k * 0.6 + 0.2 * np.sin(k * 3.1))
+    x += 0.2 * bp(ruido(d + 1), 800, 3000) * suave_aleatorio(d + 1, 4, 91)
+    return norm(emloop(x, 1.0), 0.8)
+
+
+def criancas_risada_radio(pasta):
+    """a 'risadinha' do rádio: o começo da risada do Keko (antes do 'Que medroso'), bem baixinho."""
+    x = ler_audio(os.path.join(pasta, "KE2_a.mp3"))
+    partes = recortar(x, 7)
+    risada = partes[4]
+    lac, dur = silencios(risada, limiar_db=-30, minimo=0.12)
+    internas = [g for g in lac if g[0] > 0.2 and g[1] < dur - 0.05]
+    corte = internas[0][0] if internas else min(dur, 0.9)
+    r = risada[: int(min(corte, 1.2) * SR)]
+    return tratar_voz(lp(r, 3500), 0.0, -24)
+
+
+def ajuste8(pasta):
+    caminho_json = os.path.join(ASSETS, "audio_mapa.json")
+    with open(caminho_json, encoding="utf-8") as f:
+        resumo = json.load(f)
+    itens = []
+    # Keko: voz de CRIANÇA de verdade, sem mudar o tom (o usuário achou estranho o tom alterado)
+    ke = recortar(ler_audio(os.path.join(pasta, "KE2_a.mp3")), 7)
+    for nome, x in zip(["KE_1", "KE_2", "KE_3", "KE_4", "KE_5", "KE_6"], ke[:6]):
+        itens.append((nome, tratar_voz(x, 0.0, -16.5 if nome == "KE_5" else -17.5)))
+    keb = recortar(ler_audio(os.path.join(pasta, "KE2_b.mp3")), 7)
+    itens.append(("KE_8", tratar_voz(keb[6], 0.0, -19)))
+    itens.append(("RISADA_RADIO", criancas_risada_radio(pasta)))
+    itens.append(("MU_1", tratar_voz(recortar(ler_audio(os.path.join(pasta, "MU_a.mp3")), 1)[0], 0.0)))
+    cr = recortar(ler_audio(os.path.join(pasta, "CR_a.mp3")), 11)
+    itens.append(("CR_1", tratar_voz(cr[0], 0.0, -18)))
+    for i in range(1, 11):
+        itens.append(("CONTA_%d" % i, tratar_voz(cr[i], 0.0, -18)))
+    sons = [("caixinha", caixinha_parabens()), ("maquina", maquina_lavar()), ("batida_oca", batida_parede(True, 1)),
+            ("batida_macica", batida_parede(False, 2)), ("arrastar", arrastar()), ("projetor", projetor()),
+            ("motor", motor_carro()), ("partida", partida_carro()), ("tres_batidas", tres_batidas()),
+            ("vela_apaga", vela_apaga()), ("radio", radio_chiado()), ("desmoronar", desmoronar())]
+    itens += sons
+    mapa_h, dur_h, ogg_h = montar_sprite(itens, "oi3_historia")
+    # as falas antigas do Keko (voz adulta com tom mudado) saem do mapa: agora vêm de "historia"
+    for k in list(resumo.get("vozes2", {})):
+        if k.startswith("KE_"):
+            del resumo["vozes2"][k]
+    resumo["historia"] = mapa_h
+    print(f"historia: {len(itens)} itens, {dur_h:.1f}s, {os.path.getsize(ogg_h) // 1024} KB")
+    escrever_mapa_json(resumo)
+    with open(caminho_json, "w", encoding="utf-8") as f:
+        json.dump(resumo, f, ensure_ascii=False, indent=1)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste5":
+    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste8":
+        ajuste8(sys.argv[2])
+    elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste5":
         ajuste5(sys.argv[2])
     elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste4":
         ajuste4()

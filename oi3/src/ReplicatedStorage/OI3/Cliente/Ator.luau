@@ -18,8 +18,9 @@ local PRIORIDADE = {
 	acenar = Enum.AnimationPriority.Action,
 	segurar = Enum.AnimationPriority.Action,
 	pular = Enum.AnimationPriority.Action,
+	sentar = Enum.AnimationPriority.Action,
 }
-local EM_LOOP = { parado = true, parado2 = true, andar = true, segurar = true }
+local EM_LOOP = { parado = true, parado2 = true, andar = true, segurar = true, sentar = true }
 
 local function carregar(modelo: Model): { [string]: AnimationTrack }
 	local hum = modelo:FindFirstChildOfClass("Humanoid")

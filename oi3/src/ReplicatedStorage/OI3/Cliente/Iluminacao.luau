@@ -92,6 +92,28 @@ function Iluminacao.tarde(tempo: number?)
 	aplicar(Iluminacao.valoresTarde(), tempo or 0)
 end
 
+-- AJUSTE-8: a manhã ensolarada do final (a rua, o carro do avô)
+function Iluminacao.valoresManha(): { [string]: any }
+	return {
+		ClockTime = 9.3,
+		Brightness = 3.2,
+		Ambient = Color3.fromRGB(120, 124, 130),
+		OutdoorAmbient = Color3.fromRGB(150, 156, 166),
+		ColorShift_Top = Color3.fromRGB(255, 244, 226),
+		ExposureCompensation = 0.25,
+		EnvironmentDiffuseScale = 1,
+		atm = { 0.22, Color3.fromRGB(200, 214, 230), Color3.fromRGB(120, 140, 170), 0.6, 0.2 },
+		cc = { Color3.fromRGB(255, 252, 246), 0.06, 0.05 },
+		raios = 0.08,
+	}
+end
+
+function Iluminacao.manha(tempo: number?)
+	guardarNoite()
+	atual = "manha"
+	aplicar(Iluminacao.valoresManha(), tempo or 0)
+end
+
 function Iluminacao.noite(tempo: number?)
 	if not noite then
 		return

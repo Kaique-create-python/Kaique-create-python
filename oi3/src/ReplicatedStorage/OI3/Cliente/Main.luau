@@ -302,7 +302,17 @@ function Main.iniciar()
 		end,
 		fimRitual = function()
 			remotos.IntroVista:FireServer()
+			remotos.Historia:FireServer("fimRitual") -- AJUSTE-8: o servidor começa a Missão 1
 			entrarExploracao()
+		end,
+		-- AJUSTE-8: o final do capítulo (cutscene própria) e a volta para o menu
+		antesDoFinal = function()
+			Exploracao.sair()
+			estadoJogo = "cutscene"
+		end,
+		voltarMenu = function()
+			estadoJogo = "explorar"
+			task.spawn(voltarAoMenu)
 		end,
 	})
 	Exploracao.configurar({ tremor = Ajustes.valores.tremor, leve = Ajustes.valores.efeitosLeves })

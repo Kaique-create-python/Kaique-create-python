@@ -8,6 +8,10 @@ Dialogos.FALANTES = {
 	KE = { nome = "Keko", cor = Color3.fromRGB(214, 84, 84) },
 	NI = { nome = "Nina", cor = Color3.fromRGB(196, 168, 232) },
 	ME = { nome = "Menino", cor = Color3.fromRGB(120, 168, 236) },
+	-- AJUSTE-8: o resto do capítulo
+	MU = { nome = "Mulher", cor = Color3.fromRGB(206, 200, 186) },
+	CR = { nome = "???", cor = Color3.fromRGB(170, 170, 178) },
+	RA = { nome = "Rádio", cor = Color3.fromRGB(150, 160, 150) },
 }
 
 -- texto = legenda (RichText permitido). censura = parte escondida.
@@ -34,6 +38,30 @@ Dialogos.FALAS = {
 	ME_5 = { quem = "ME", texto = "TEM ALGUÉM NO ESPELHO!" },
 	KE_5 = { quem = "KE", texto = "Que medroso! Não tem ninguém aí!" },
 	NI_3 = { quem = "NI", texto = "Ele ficou com medo!" },
+	-- AJUSTE-8: o resto do Capítulo 1 (poucas falas, como pede a história)
+	KE_6 = { quem = "KE", texto = "Enquanto a Nina abre a porta... bora brincar de esconde-esconde?" },
+	NI_4 = { quem = "NI", texto = "Eu vou achar um jeito de abrir essa porta." },
+	NI_5 = { quem = "NI", texto = "Abriu! Vem, rápido!" },
+	CR_1 = { quem = "CR", texto = "Não deixa ele me encontrar." },
+	ME_6 = { quem = "ME", texto = "Você ainda não lembra?" },
+	VO_7 = { quem = "VO", texto = "Desta vez... não pode dar errado." },
+	VO_8 = { quem = "VO", texto = "Ninguém vem procurar por eles... Ninguém nunca vem." },
+	ME_7 = { quem = "ME", texto = "Eu lembrei... esse é o meu rosto." },
+	VO_9 = { quem = "VO", texto = "Pode deixar comigo. Eu levo os pequenos para um lugar seguro." },
+	MU_1 = { quem = "MU", texto = "Muito obrigada, senhor. O senhor é muito gentil." },
+	KE_8 = { quem = "RA", texto = "Oi..." },
+	CONTA_3_RADIO = { quem = "RA", texto = "Três..." },
+	RISADA_RADIO = { quem = "RA", texto = "(uma risadinha baixa)" },
+	CONTA_1 = { quem = "CR", texto = "Um..." },
+	CONTA_2 = { quem = "CR", texto = "Dois..." },
+	CONTA_3 = { quem = "CR", texto = "Três..." },
+	CONTA_4 = { quem = "CR", texto = "Quatro..." },
+	CONTA_5 = { quem = "CR", texto = "Cinco..." },
+	CONTA_6 = { quem = "CR", texto = "Seis..." },
+	CONTA_7 = { quem = "CR", texto = "Sete..." },
+	CONTA_8 = { quem = "CR", texto = "Oito..." },
+	CONTA_9 = { quem = "CR", texto = "Nove..." },
+	CONTA_10 = { quem = "CR", texto = "Dez." },
 }
 
 -- Barra de censura (nome ainda não definido pelos criadores)

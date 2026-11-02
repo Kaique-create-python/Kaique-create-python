@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-7"
+Config.REVISAO = "AJUSTE-8"
 Config.DONO_USERID = 1357078972
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)
@@ -59,17 +59,23 @@ Config.ROUPAS = {
 	NI = { camisa = 6564988672, calca = 6521541544, cabelo = { 118626986786259 }, chapeu = { 129746506894352 }, rostoAcessorio = { 123099866795854 }, escala = 0.88 },
 	ME = { camisa = 8128877497, calca = 3173277543, cabelo = { 130609450737661 }, rostoAcessorio = { 71785971768993 }, escala = 0.9 },
 	VO = { camisa = 15287605063, calca = 11821073808, cabelo = { 137342192749534 }, rosto = 144075659, escala = 1.12 },
+	-- AJUSTE-8: a cena final (a mulher e as duas crianças que o avô "ajuda") — só itens do catálogo
+	MU = { camisa = 89445375743259, calca = 11256860860, cabelo = { 90520217081274 }, rosto = 144075659, escala = 1.05 },
+	C1 = { camisa = 83999947073729, calca = 4526708605, cabelo = { 123627412625874 }, rosto = 144075659, escala = 0.82 },
+	C2 = { camisa = 7070736405, calca = 15317825191, cabelo = { 100241424894087 }, rosto = 144075659, escala = 0.78 },
 	-- a sombra do espelho: avatar padrão do Roblox, todo preto e sem rosto (aparência oficial ainda não definida)
 	CRIATURA = { pele = Color3.fromRGB(4, 4, 6), semRosto = true, escala = 1.42 },
 }
 -- AJUSTE-7: rostos de reação (itens do catálogo) trocados na cutscene: medo, risada, nervoso.
 -- Fora dessas reações cada personagem usa o rosto dele.
 Config.ROSTOS_REACAO = {
-	medo = 99348810187853,
-	rindo = 18600770545,
-	nervoso = 113101418764487,
+	-- AJUSTE-8: rostos "só da frente" (olhos e boca, sem casco de cabeça), que aparecem na cabeça R6
+	medo = 14514324629, -- Mortified Face (3D)
+	rindo = 92888146308813, -- Blushing Happy Smile
+	nervoso = 140691530205460, -- Nervous 3D Face
+	chorando = 12846708960, -- Cute Crying 3D Face
 }
-Config.REACOES = { medo = "medo", grito = "medo", assustado = "medo", rindo = "rindo", nervoso = "nervoso" }
+Config.REACOES = { medo = "medo", grito = "medo", assustado = "medo", rindo = "rindo", nervoso = "nervoso", chorando = "chorando", triste = "chorando" }
 
 -- Créditos oficiais (fornecidos pelos criadores)
 Config.CREDITOS = {

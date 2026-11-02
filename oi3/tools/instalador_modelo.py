@@ -291,7 +291,7 @@ def consultar_moderacao(chave, asset_id):
 TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
 
 
-NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna", "passos": "passos gravados"}
+NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna", "passos": "passos gravados", "historia": "história (vozes e sons novos)"}
 
 
 def conferir_sons(sons):
@@ -728,6 +728,13 @@ def cmd_install(pular_teste=False):
                 aviso("avatar %s: %s" % (nomes.get(cod, cod), txt))
             else:
                 ok("avatar %s (itens do catálogo): %s" % (nomes.get(cod, cod), txt))
+        if inf.get("reacoes"):
+            if "ESCONDIDO" in str(inf["reacoes"]) or "não carregou" in str(inf["reacoes"]):
+                aviso("rostos de reação: %s" % inf["reacoes"])
+            else:
+                ok("rostos de reação: %s" % inf["reacoes"])
+        if inf.get("missoes"):
+            ok("resto da história: %s missões, cenários com %s peças" % (inf.get("missoes"), inf.get("pecasMissoes")))
         som_ok = conferir_sons(inf.get("sons"))
         if som_ok is False and liberacao == "ok":
             aviso("   (a liberação pode levar alguns minutos para valer no Roblox)")

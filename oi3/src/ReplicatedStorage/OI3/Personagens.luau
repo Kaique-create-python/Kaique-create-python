@@ -61,35 +61,131 @@ function Personagens.criarCriatura(): Model
 	return Personagens.criar("CRIATURA")
 end
 
--- Reações: troca o rosto por outro ITEM do catálogo (medo, risada, nervoso). Fora delas, o rosto
+-- Reações: troca o rosto por outro ITEM do catálogo (medo, risada, nervoso, choro). Fora delas, o rosto
 -- do personagem volta. Os rostos vêm prontos do servidor (OI3_Atores/Rostos).
+--
+-- AJUSTE-8: os rostos do catálogo são feitos para a cabeça R15, que é um pouco menor que a cabeça R6
+-- (malha "Head" com escala 1.25 → 0.625 de meia profundidade). Encaixados pelo jeito normal, alguns
+-- ficavam DENTRO da cabeça e a cabeça aparecia só amarela. Agora cada rosto é encaixado pelo ponto
+-- certo (FaceFront/FaceCenter), medido, e puxado para fora (ou aumentado, se for um "casco" de cabeça
+-- inteira) até ficar visível. E fica numa pasta soldada à cabeça, não num Accessory (o Humanoid não
+-- re-solda por conta própria e não briga com a nossa solda).
 local OI3 = script.Parent
 local Config = require(OI3.Config)
-local guardados: { [Model]: { Accessory } } = setmetatable({}, { __mode = "k" }) :: any
+local guardados: { [Model]: { Instance } } = setmetatable({}, { __mode = "k" }) :: any
 
-local function escalar(a: Accessory, s: number)
-	local alca = a:FindFirstChild("Handle")
-	if not alca or not alca:IsA("BasePart") then
-		return
+local MEIA_CABECA_R6 = 0.625
+
+-- função pura (testável): a frente da caixa do rosto, no espaço da cabeça (-Z = frente)
+function Personagens.frenteDoRosto(rel: CFrame, tam: Vector3): number
+	local frente = math.huge
+	for _, sx in { -1, 1 } do
+		for _, sy in { -1, 1 } do
+			for _, sz in { -1, 1 } do
+				local p = rel * Vector3.new(sx * tam.X / 2, sy * tam.Y / 2, sz * tam.Z / 2)
+				if p.Z < frente then
+					frente = p.Z
+				end
+			end
+		end
+	end
+	return frente
+end
+
+-- função pura (testável): onde o rosto fica para aparecer (novo rel no espaço da cabeça + fator de aumento)
+function Personagens.posicaoRosto(rel: CFrame, tam: Vector3, s: number): (CFrame, number)
+	local frenteCabeca = -MEIA_CABECA_R6 * s
+	local frente = Personagens.frenteDoRosto(rel, tam)
+	local largura = math.min(tam.X, tam.Y)
+	if largura >= 0.85 * 2 * MEIA_CABECA_R6 * s then
+		-- "casco" (rosto pintado num capacete do tamanho da cabeça): aumenta até cobrir a cabeça R6
+		if frente > frenteCabeca - 0.02 then
+			local fator = (2 * MEIA_CABECA_R6 * s + 0.08) / math.max(math.min(tam.X, tam.Z), 0.05)
+			return rel, math.max(fator, 1)
+		end
+		return rel, 1
+	end
+	if frente > frenteCabeca - 0.02 then
+		-- rosto só da frente (olhos e boca): puxa para fora da cabeça
+		return CFrame.new(0, 0, (frenteCabeca - 0.035) - frente) * rel, 1
+	end
+	return rel, 1
+end
+
+-- Encaixa um rosto (Accessory ou a peça dele) na cabeça do modelo, visível. Devolve a pasta criada.
+function Personagens.encaixarRosto(modelo: Model, rosto: Instance, escala: number?, marca: string?): Folder?
+	local cabeca = modelo:FindFirstChild("Head")
+	local alca = if rosto:IsA("BasePart") then rosto else rosto:FindFirstChild("Handle")
+	if not (cabeca and cabeca:IsA("BasePart") and alca and alca:IsA("BasePart")) then
+		return nil
+	end
+	local s = escala or modelo:GetAttribute("Escala") or 1
+	local encaixe = alca:FindFirstChild("FaceFrontAttachment") or alca:FindFirstChild("FaceCenterAttachment")
+	local alvo = encaixe and cabeca:FindFirstChild(encaixe.Name)
+	local rel: CFrame
+	if encaixe and encaixe:IsA("Attachment") and alvo and alvo:IsA("Attachment") then
+		rel = alvo.CFrame * encaixe.CFrame:Inverse()
+	elseif alca:IsDescendantOf(modelo) then
+		rel = cabeca.CFrame:ToObjectSpace(alca.CFrame)
+	else
+		rel = CFrame.new(0, 0, -MEIA_CABECA_R6 * s)
+	end
+	if alca:FindFirstChildOfClass("SpecialMesh") then
+		-- malha antiga: o tamanho da peça não é o da malha; só garante que fica um pouco para fora
+		rel = CFrame.new(0, 0, -0.04 * s) * rel
+	else
+		local novoRel, fator = Personagens.posicaoRosto(rel, alca.Size, s)
+		rel = novoRel
+		if fator > 1.001 then
+			alca.Size *= fator
+		end
+	end
+	for _, j in alca:GetChildren() do
+		if j:IsA("JointInstance") or j:IsA("WeldConstraint") then
+			j:Destroy()
+		end
 	end
 	alca.Anchored = false
 	alca.CanCollide = false
 	alca.CanQuery = false
 	alca.CanTouch = false
 	alca.Massless = true
-	if math.abs(s - 1) > 0.001 then
-		local malha = alca:FindFirstChildOfClass("SpecialMesh")
-		if malha then
-			malha.Scale *= s
-			malha.Offset *= s
-		end
-		alca.Size *= s
-		for _, at in alca:GetChildren() do
-			if at:IsA("Attachment") then
-				at.Position *= s
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OI3_Rosto"
+	pasta:SetAttribute(marca or "OI3_Rosto", true)
+	alca.Name = "RostoMalha"
+	alca.Parent = pasta
+	if rosto ~= alca then
+		rosto:Destroy() -- o Accessory vazio não serve mais
+	end
+	alca.CFrame = cabeca.CFrame * rel
+	local w = Instance.new("WeldConstraint")
+	w.Name = "OI3_RostoSolda"
+	w.Part0 = cabeca
+	w.Part1 = alca
+	w.Parent = alca
+	pasta.Parent = modelo
+	return pasta
+end
+
+-- Troca TODOS os acessórios de rosto de um modelo pela versão encaixada e visível (servidor e cliente)
+function Personagens.fixarRostos(modelo: Model, escala: number?): number
+	local n = 0
+	for _, a in modelo:GetChildren() do
+		if a:IsA("Accessory") then
+			local alca = a:FindFirstChild("Handle")
+			if alca and (alca:FindFirstChild("FaceFrontAttachment") or alca:FindFirstChild("FaceCenterAttachment")) then
+				if Personagens.encaixarRosto(modelo, a, escala, "OI3_Rosto") then
+					n += 1
+				end
 			end
 		end
 	end
+	return n
+end
+
+local function ehRosto(x: Instance): boolean
+	return x:GetAttribute("OI3_Rosto") == true or x:GetAttribute("OI3_Reacao") == true
 end
 
 function Personagens.expressao(modelo: Model, nome: string)
@@ -99,20 +195,20 @@ function Personagens.expressao(modelo: Model, nome: string)
 	if atual == alvo then
 		return
 	end
-	local hum = modelo:FindFirstChildOfClass("Humanoid")
-	if not hum then
-		return
-	end
 	local pasta = ReplicatedStorage:FindFirstChild("OI3_Atores")
 	local biblioteca = pasta and pasta:FindFirstChild("Rostos")
-	local novo = reacao and biblioteca and biblioteca:FindFirstChild(reacao)
+	local codigo = modelo:GetAttribute("Codigo")
+	-- rosto de reação do personagem (se tiver) ou o geral
+	local novo = reacao
+		and biblioteca
+		and (biblioteca:FindFirstChild((codigo or "") .. "_" .. reacao) or biblioteca:FindFirstChild(reacao))
 	if reacao and not novo then
 		return -- rosto de reação não carregou: fica com o rosto de sempre
 	end
 	-- tira o rosto atual (o de sempre fica guardado para voltar depois)
 	local base = guardados[modelo]
 	for _, a in modelo:GetChildren() do
-		if a:IsA("Accessory") and a:GetAttribute("OI3_Rosto") then
+		if ehRosto(a) then
 			if a:GetAttribute("OI3_Reacao") then
 				a:Destroy()
 			else
@@ -126,12 +222,18 @@ function Personagens.expressao(modelo: Model, nome: string)
 		end
 	end
 	if novo then
-		local c = novo:Clone()
-		c:SetAttribute("OI3_Reacao", true)
-		escalar(c, modelo:GetAttribute("Escala") or 1)
-		pcall(function()
-			hum:AddAccessory(c)
+		local ok = pcall(function()
+			assert(Personagens.encaixarRosto(modelo, novo:Clone(), nil, "OI3_Reacao"))
 		end)
+		if not ok and base then
+			-- não deu para encaixar: volta o rosto de sempre (nunca fica sem rosto)
+			for _, a in base do
+				a.Parent = modelo
+			end
+			guardados[modelo] = nil
+			modelo:SetAttribute("Reacao", "base")
+			return
+		end
 	elseif base then
 		for _, a in base do
 			a.Parent = modelo

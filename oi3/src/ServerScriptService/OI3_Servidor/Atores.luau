@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local OI3 = ReplicatedStorage:WaitForChild("OI3")
 local Config = require(OI3:WaitForChild("Config"))
+local Personagens = require(OI3:WaitForChild("Personagens"))
 
 local Atores = {}
 
@@ -131,6 +132,8 @@ function Atores.montar(codigo: string): (Model?, string?)
 		end)
 	end
 	modelo:SetAttribute("Escala", s)
+	-- AJUSTE-8: rosto encaixado e medido (na cabeça R6 alguns rostos ficavam escondidos)
+	pcall(Personagens.fixarRostos, modelo, s)
 	modelo:SetAttribute("Codigo", codigo)
 	return modelo, nil
 end
@@ -183,6 +186,7 @@ function Atores.vestirJogador(plr: Player, codigo: string)
 		return
 	end
 	Atores.ajustarRosto(char :: Model, codigo)
+	pcall(Personagens.fixarRostos, char :: Model, 1)
 	char:SetAttribute("Codigo", codigo)
 end
 

@@ -116,26 +116,6 @@
   }
  },
  "vozes2": {
-  "KE_1": {
-   "inicio": 0.1,
-   "dur": 3.22
-  },
-  "KE_2": {
-   "inicio": 3.67,
-   "dur": 3.06
-  },
-  "KE_3": {
-   "inicio": 7.08,
-   "dur": 7.23
-  },
-  "KE_4": {
-   "inicio": 14.66,
-   "dur": 1.18
-  },
-  "KE_5": {
-   "inicio": 16.19,
-   "dur": 4.09
-  },
   "VO_2": {
    "inicio": 20.63,
    "dur": 2.97
@@ -293,6 +273,136 @@
   "pisada_pedra5": {
    "inicio": 10.1622,
    "dur": 0.2
+  }
+ },
+ "historia": {
+  "KE_1": {
+   "inicio": 0.1,
+   "dur": 3.28
+  },
+  "KE_2": {
+   "inicio": 3.73,
+   "dur": 3.03
+  },
+  "KE_3": {
+   "inicio": 7.11,
+   "dur": 8.15
+  },
+  "KE_4": {
+   "inicio": 15.61,
+   "dur": 1.39
+  },
+  "KE_5": {
+   "inicio": 17.35,
+   "dur": 3.71
+  },
+  "KE_6": {
+   "inicio": 21.4099,
+   "dur": 3.71
+  },
+  "KE_8": {
+   "inicio": 25.4699,
+   "dur": 0.7
+  },
+  "RISADA_RADIO": {
+   "inicio": 26.5199,
+   "dur": 1.2
+  },
+  "MU_1": {
+   "inicio": 28.0699,
+   "dur": 3.75
+  },
+  "CR_1": {
+   "inicio": 32.1699,
+   "dur": 2.01
+  },
+  "CONTA_1": {
+   "inicio": 34.5299,
+   "dur": 0.7
+  },
+  "CONTA_2": {
+   "inicio": 35.5799,
+   "dur": 0.84
+  },
+  "CONTA_3": {
+   "inicio": 36.7699,
+   "dur": 0.74
+  },
+  "CONTA_4": {
+   "inicio": 37.8599,
+   "dur": 0.68
+  },
+  "CONTA_5": {
+   "inicio": 38.8899,
+   "dur": 0.82
+  },
+  "CONTA_6": {
+   "inicio": 40.0599,
+   "dur": 0.84
+  },
+  "CONTA_7": {
+   "inicio": 41.2499,
+   "dur": 0.8
+  },
+  "CONTA_8": {
+   "inicio": 42.3999,
+   "dur": 0.65
+  },
+  "CONTA_9": {
+   "inicio": 43.3999,
+   "dur": 0.74
+  },
+  "CONTA_10": {
+   "inicio": 44.4899,
+   "dur": 0.82
+  },
+  "caixinha": {
+   "inicio": 45.6599,
+   "dur": 10.98
+  },
+  "maquina": {
+   "inicio": 56.9899,
+   "dur": 6.0
+  },
+  "batida_oca": {
+   "inicio": 63.3399,
+   "dur": 2.05
+  },
+  "batida_macica": {
+   "inicio": 65.7399,
+   "dur": 0.95
+  },
+  "arrastar": {
+   "inicio": 67.0399,
+   "dur": 1.7
+  },
+  "projetor": {
+   "inicio": 69.0899,
+   "dur": 4.0
+  },
+  "motor": {
+   "inicio": 73.4399,
+   "dur": 5.0
+  },
+  "partida": {
+   "inicio": 78.7899,
+   "dur": 2.2
+  },
+  "tres_batidas": {
+   "inicio": 81.3399,
+   "dur": 3.2
+  },
+  "vela_apaga": {
+   "inicio": 84.8899,
+   "dur": 0.7
+  },
+  "radio": {
+   "inicio": 85.9399,
+   "dur": 3.0
+  },
+  "desmoronar": {
+   "inicio": 89.2899,
+   "dur": 6.0
   }
  }
 }

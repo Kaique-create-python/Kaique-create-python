@@ -18,6 +18,7 @@ local Cinema = require(script.Parent.Cinema)
 local Som = require(script.Parent.Som)
 local Iluminacao = require(script.Parent.Iluminacao)
 local Cutscene = require(script.Parent.Cutscene)
+local MissoesCliente = require(script.Parent.MissoesCliente) -- AJUSTE-8: o resto do capítulo
 
 local Capitulo1 = {}
 
@@ -59,6 +60,8 @@ local estado = {
 	grupo = 1,
 	escolhas = {} :: { [string]: string },
 	quem = {} :: { [string]: string },
+	botaoContinuar = nil :: TextButton?,
+	botaoComeco = nil :: TextButton?,
 	token = 0,
 }
 
@@ -200,6 +203,16 @@ local function atualizarCartoes(livres: { string }, quem: { [string]: string }?)
 	end
 end
 
+function Capitulo1.mostrarContinuar(ligado: boolean)
+	local bc, bi = estado.botaoContinuar, estado.botaoComeco
+	if bc and bc.Parent then
+		bc.BackgroundColor3 = if ligado then RGB(150, 112, 52) else RGB(34, 31, 36)
+	end
+	if bi and bi.Parent then
+		bi.BackgroundColor3 = if ligado then RGB(34, 31, 36) else RGB(150, 112, 52)
+	end
+end
+
 function Capitulo1.mostrarEscolha(info: any)
 	fecharEscolha()
 	estado.minha = nil
@@ -301,6 +314,30 @@ function Capitulo1.mostrarEscolha(info: any)
 		estado.cartoes[cod] = { frame = f, botao = b }
 	end
 	atualizarCartoes((info and info.livres) or { "KE", "NI", "ME" })
+	-- AJUSTE-8: continuar de onde parou?
+	if info and info.salvo then
+		local linhaC = Instance.new("Frame")
+		linhaC.Name = "Continuar"
+		linhaC.BackgroundTransparency = 1
+		linhaC.AnchorPoint = Vector2.new(0.5, 1)
+		linhaC.Position = UDim2.new(0.5, 0, 1, -10)
+		linhaC.Size = UDim2.fromOffset(520, 44)
+		linhaC.Parent = fundo
+		local lc = Instance.new("UIListLayout")
+		lc.FillDirection = Enum.FillDirection.Horizontal
+		lc.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		lc.Padding = UDim.new(0, 10)
+		lc.Parent = linhaC
+		estado.botaoContinuar = Interface.botao(linhaC, "CONTINUAR: " .. string.upper(info.salvo.nome), { Size = UDim2.fromOffset(330, 44), TextSize = 15 }, function()
+			estado.ctx.remoto:FireServer("continuar", true)
+		end)
+		estado.botaoComeco = Interface.botao(linhaC, "DO COMEÇO", { Size = UDim2.fromOffset(150, 44), TextSize = 15 }, function()
+			estado.ctx.remoto:FireServer("continuar", false)
+		end)
+		linha.Size = UDim2.new(0.94, 0, 0.66, 0)
+		linha.Position = UDim2.fromScale(0.5, 0.52)
+		Capitulo1.mostrarContinuar(true)
+	end
 	local fim = os.clock() + ((info and info.tempo) or 25)
 	task.spawn(function()
 		while estado.escolha == tela do
@@ -693,6 +730,7 @@ end
 function Capitulo1.parar()
 	estado.token += 1
 	estado.fase = "nada"
+	MissoesCliente.parar()
 	fecharEscolha()
 	limparCoisas()
 	if estado.tela then
@@ -702,9 +740,50 @@ function Capitulo1.parar()
 	Iluminacao.noite(0)
 end
 
+-- a criança que EU escolhi (para as habilidades das missões)
+function Capitulo1.minhaCrianca(): string?
+	local lp = Players.LocalPlayer
+	return estado.minha or (estado.escolhas and estado.escolhas[tostring(lp.UserId)]) or lp.Character and lp.Character:GetAttribute("Codigo")
+end
+
+-- AJUSTE-8: continuar de onde parou (sem a tarde, o jantar e o ritual)
+function Capitulo1.continuarMissao(info: any)
+	fecharEscolha()
+	estado.token += 1
+	estado.fase = "missao"
+	estado.escolhas = (info and info.escolhas) or {}
+	Iluminacao.noite(0)
+	estado.ctx.entrarExploracao()
+end
+
 function Capitulo1.iniciar(ctx: any)
 	estado.ctx = ctx
+	MissoesCliente.iniciar({
+		remoto = ctx.remoto,
+		minhaCrianca = Capitulo1.minhaCrianca,
+		voltarMenu = ctx.voltarMenu,
+		antesDoFinal = ctx.antesDoFinal,
+	})
 	ctx.remoto.OnClientEvent:Connect(function(tipo: string, info: any)
+		if string.sub(tipo, 1, 2) == "m_" then
+			if tipo == "m_missao" then
+				estado.fase = "missao"
+				limparCoisas()
+				if estado.tela then
+					estado.tela:Destroy()
+					estado.tela = nil
+				end
+			end
+			MissoesCliente.evento(tipo, info)
+			return
+		end
+		if tipo == "continuar_missao" then
+			task.spawn(Capitulo1.continuarMissao, info)
+			return
+		elseif tipo == "continuar" then
+			Capitulo1.mostrarContinuar(info and info.ligado == true)
+			return
+		end
 		if tipo == "escolher" then
 			task.spawn(function()
 				ctx.sairDoMenu()

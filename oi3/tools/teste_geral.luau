@@ -4,6 +4,7 @@ H.prepararAtores()
 local fs = require("@lune/fs")
 local serde = require("@lune/serde")
 local roblox = require("@lune/roblox")
+local task = require("@lune/task")
 
 local falhas = 0
 local function checar(nome, fn)
@@ -372,7 +373,7 @@ checar("AJUSTE-7: foto antiga (imagem enviada + desenho reserva)", function()
 	local Rec = H.modulo("ReplicatedStorage/OI3/Recursos")
 	local C1M = H.modulo("ReplicatedStorage/OI3/Capitulo1Mapa")
 	assert(type(Rec.imagens) == "table", "Recursos.imagens faltando")
-	assert(Rec.revisao == "AJUSTE-7", "Recursos.revisao desatualizado")
+	assert(Rec.revisao == "AJUSTE-8", "Recursos.revisao desatualizado")
 	local f = roblox.Instance.new("Frame")
 	local q = C1M.desenharFoto(f)
 	assert(q:FindFirstChild("Reserva"), "sem o desenho reserva")
@@ -411,6 +412,235 @@ checar("AJUSTE-7: resumo da sala para o menu", function()
 	assert(r.n == 0 and r.max == 3 and type(r.ids) == "table", "resumo da sala inválido")
 	local e = Sala.estado()
 	assert(e.max == 3 and #e.membros == 0, "estado da sala inválido")
+end)
+
+checar("AJUSTE-8: o assoalho de madeira aparece (tapetes pequenos, sem textura de terra)", function()
+	local Mapa = H.modulo("ReplicatedStorage/OI3/Mapa")
+	local pasta = roblox.Instance.new("Folder")
+	local modelo = Mapa.construir(pasta)
+	local F = Mapa.L.F
+	local pecas = {}
+	for _, d in modelo:GetDescendants() do
+		if d:IsA("BasePart") and d.Transparency < 0.9 then
+			local y = d.CFrame.Position.Y
+			if y > F - 0.6 and y < F + 0.6 then
+				table.insert(pecas, d)
+			end
+			if d.Name == "Tapete" then
+				assert(d.MaterialVariant == "", "tapete com textura (parecia terra): " .. d:GetFullName())
+				assert(d.Size.X * d.Size.Z <= 80 or d.Size.Y * d.Size.Z <= 80, string.format("tapete grande demais: %.0f x %.0f", d.Size.X, d.Size.Z))
+			end
+		end
+	end
+	local function topo(x, z)
+		local melhor, alto = nil, -math.huge
+		for _, p in pecas do
+			local cf, sz = p.CFrame, p.Size
+			local q = cf:PointToObjectSpace(roblox.Vector3.new(x, cf.Position.Y, z))
+			if math.abs(q.X) <= sz.X / 2 and math.abs(q.Y) <= sz.Y / 2 + 0.01 and math.abs(q.Z) <= sz.Z / 2 then
+				local t = cf.Position.Y + math.abs(cf.UpVector.Y) * sz.Y / 2 + math.abs(cf.RightVector.Y) * sz.X / 2
+				if t > alto then
+					melhor, alto = p, t
+				end
+			end
+		end
+		return melhor
+	end
+	-- caminhos principais: hall (em volta da mesa), corredor, dormitório e varanda
+	local madeira, tapete, total = 0, 0, 0
+	for _, area in { { -10, 10, -12, 10 }, { 14, 54, -3.5, 3.5 }, { -34, -14, -20, 8 }, { -7, 7, 13, 17 } } do
+		for x = area[1], area[2], 1.37 do
+			for z = area[3], area[4], 1.29 do
+				local p = topo(x, z)
+				if p then
+					total += 1
+					if p.Name == "Tabua" then
+						madeira += 1
+					elseif p.Name == "Tapete" then
+						tapete += 1
+					end
+				end
+			end
+		end
+	end
+	local fracao = madeira / math.max(total, 1)
+	print(string.format("    chão nos caminhos: %d%% tábua, %d%% tapete (%d pontos)", math.floor(fracao * 100), math.floor(tapete / total * 100), total))
+	assert(fracao >= 0.6, "o assoalho ainda está coberto")
+end)
+
+checar("AJUSTE-8: rosto de reação nunca fica escondido dentro da cabeça", function()
+	local P = H.modulo("ReplicatedStorage/OI3/Personagens")
+	local CF, V3 = roblox.CFrame.new, roblox.Vector3.new
+	for _, s in { 1, 0.9, 0.88 } do
+		local frenteCabeca = -0.625 * s
+		-- rosto só da frente, encaixado onde a cabeça R15 teria a frente (fica dentro da R6)
+		local rel, fator = P.posicaoRosto(CF(0, 0, -0.6 * s), V3(0.8, 0.5, 0.04) * s, s)
+		assert(fator == 1, "rosto de frente não deve aumentar")
+		assert(P.frenteDoRosto(rel, V3(0.8, 0.5, 0.04) * s) <= frenteCabeca - 0.02, "rosto de frente continuou escondido")
+		-- casco de cabeça inteira menor que a cabeça R6
+		local rel2, fator2 = P.posicaoRosto(CF(0, 0, 0), V3(1.2, 1.2, 1.2) * s, s)
+		assert(fator2 > 1, "casco pequeno deveria aumentar")
+		assert(P.frenteDoRosto(rel2, V3(1.2, 1.2, 1.2) * s * fator2) <= frenteCabeca - 0.02, "casco continuou escondido")
+		-- rosto que já está para fora: não mexe
+		local rel3, fator3 = P.posicaoRosto(CF(0, 0, -0.75 * s), V3(0.8, 0.5, 0.04), s)
+		assert(fator3 == 1 and rel3 == CF(0, 0, -0.75 * s), "mexeu num rosto que já aparecia")
+	end
+	local Config = H.modulo("ReplicatedStorage/OI3/Config")
+	for _, nome in { "medo", "rindo", "nervoso", "chorando" } do
+		assert(tonumber(Config.ROSTOS_REACAO[nome]), "falta o rosto " .. nome)
+	end
+	assert(Config.ROSTOS_REACAO.rindo ~= 18600770545 and Config.ROSTOS_REACAO.nervoso ~= 113101418764487, "rostos-casco antigos ainda em uso")
+end)
+
+checar("AJUSTE-8: dados das missões e cenários coerentes", function()
+	local Md = H.modulo("ReplicatedStorage/OI3/Missoes")
+	local MM = H.modulo("ReplicatedStorage/OI3/MissoesMapa")
+	assert(Md.TOTAL == 8, "deviam ser 8 missões (7 + porão)")
+	local n, i, visitas = 1, 1, 0
+	while n do
+		visitas += 1
+		n, i = Md.proximo(n, i)
+		assert(visitas < 200, "a sequência de passos não termina")
+	end
+	local nomes = {}
+	for k, m in Md.LISTA do
+		local l = MM.layout(m.cenario)
+		assert(l.spawn and l.olhar, "cenário sem spawn: " .. m.cenario)
+		for j, p in m.passos do
+			for _, id in Md.pontosDoPasso(p) do
+				assert(l.pontos[id], string.format("missão %d passo %d: ponto %s sem posição", k, j, id))
+			end
+			if p.tipo == "ordem" then
+				assert(#p.pontos >= 3, "ordem curta demais")
+				assert(Md.conferirOrdem(p, { p.pontos[2].id }) == "errado", "ordem errada aceita")
+				local seq = {}
+				for _, q in p.pontos do
+					table.insert(seq, q.id)
+				end
+				assert(Md.conferirOrdem(p, seq) == "certo", "ordem certa recusada")
+			elseif p.tipo == "codigo" then
+				assert(string.match(p.codigo, "^%d+$"), "código precisa ser só números")
+			elseif p.tipo == "evento" then
+				nomes[p.evento] = true
+			end
+		end
+	end
+	-- todo evento tem um script no cliente
+	local cliente = fs.readFile("oi3/src/ReplicatedStorage/OI3/Cliente/MissoesCliente.luau")
+	for nome in nomes do
+		assert(string.find(cliente, "EVENTOS." .. nome .. " = function", 1, true), "evento sem script no cliente: " .. nome)
+	end
+	-- a senha da lavanderia sai dos balões (azul, vermelho, amarelo)
+	local d = Md.DIGITOS_BALOES
+	assert(d.bal_azul .. d.bal_vermelho .. d.bal_amarelo == Md.CODIGO_LAVANDERIA, "senha dos balões não bate")
+	assert(Md.CODIGO_PORAO == "3194" and string.find(cliente, '{ "3", "1", "9", "4" }', 1, true), "números da fita não batem com a senha do porão")
+	-- cenários montam sem erro
+	for _, nome in MM.CENARIOS do
+		local pasta = roblox.Instance.new("Folder")
+		local modelo = MM.construir(nome, pasta)
+		assert(#modelo:GetDescendants() > 50, "cenário vazio: " .. nome)
+	end
+end)
+
+checar("AJUSTE-8: missões no servidor (simulação: festa inteira, ordem e senha)", function()
+	local Md = H.modulo("ReplicatedStorage/OI3/Missoes")
+	local S = H.modulo("ServerScriptService/OI3_Servidor/Missoes")
+	for _, m in Md.LISTA do
+		for _, p in m.passos do
+			if p.dur then
+				p.dur = 0.05
+			end
+		end
+	end
+	local eventos = {}
+	local remotoFalso = {}
+	function remotoFalso:FireClient(_p, tipo, info)
+		table.insert(eventos, { tipo = tipo, info = info })
+	end
+	local jogador = { Parent = true, UserId = 7, Name = "teste", DisplayName = "teste" }
+	local g = { membros = { jogador }, escolhas = { [jogador] = "KE" }, token = 1 }
+	local salvo = 0
+	S.configurar(remotoFalso :: any, function()
+		return g
+	end, function(_, n)
+		salvo = n
+	end, function() end)
+	local function esperar(tipo: string, filtro: ((any) -> boolean)?, max: number?)
+		local t0 = os.clock()
+		while os.clock() - t0 < (max or 8) do
+			for k, e in eventos do
+				if e.tipo == tipo and (not filtro or filtro(e.info)) then
+					table.remove(eventos, k)
+					return e.info
+				end
+			end
+			task.wait(0.05)
+		end
+		error("não chegou: " .. tipo)
+	end
+	local function passo(i: number)
+		return esperar("m_passo", function(info)
+			return info.i == i
+		end)
+	end
+	S.iniciar(g, 2)
+	assert(salvo == 2, "não salvou o ponto da missão")
+	esperar("m_missao")
+	passo(1)
+	passo(2)
+	for _, id in { "bal_azul", "bal_vermelho", "bal_amarelo" } do
+		S.acao(jogador :: any, id)
+	end
+	passo(3)
+	S.acao(jogador :: any, "agulha")
+	passo(4)
+	S.acao(jogador :: any, "toca_discos")
+	passo(5)
+	for k = 1, 4 do
+		S.acao(jogador :: any, "prato" .. k)
+	end
+	passo(6)
+	for _, v in { "vela_a", "vela_b", "vela_c", "vela_d" } do
+		S.acao(jogador :: any, v)
+	end
+	passo(7)
+	S.acao(jogador :: any, "bolo_azul") -- ordem errada
+	esperar("m_errou", function(info)
+		return info.motivo == "ordem"
+	end)
+	for _, v in { "bolo_vermelha", "bolo_azul", "bolo_amarela", "bolo_verde" } do
+		S.acao(jogador :: any, v)
+	end
+	passo(8)
+	passo(9)
+	S.codigo(jogador :: any, "teclado_lavanderia", "111")
+	esperar("m_errou", function(info)
+		return info.motivo == "codigo"
+	end)
+	S.codigo(jogador :: any, "teclado_lavanderia", Md.CODIGO_LAVANDERIA)
+	local nova = esperar("m_missao", nil, 6)
+	assert(nova.n == 3 and salvo == 3, "não foi para a lavanderia")
+	-- as três cadeiras: brinquedo errado, certo, e a contagem que recomeça quando alguém olha
+	S.iniciar(g, 7)
+	esperar("m_missao")
+	passo(2)
+	S.acao(jogador :: any, "cadeira_ke", "boneca")
+	esperar("m_errou", function(info)
+		return info.motivo == "dono"
+	end)
+	S.acao(jogador :: any, "cadeira_ke", "carrinho")
+	S.acao(jogador :: any, "cadeira_ni", "boneca")
+	S.acao(jogador :: any, "cadeira_me", "ursinho")
+	passo(3)
+	S.sentar(jogador :: any, true)
+	esperar("m_conta", function(info)
+		return info.k == 1
+	end)
+	S.olhou(jogador :: any)
+	esperar("m_recomeca", function(info)
+		return info.motivo == "olhou"
+	end)
+	g.token = -1 -- encerra os laços do teste
 end)
 
 print(if falhas == 0 then "\nTUDO OK" else ("\nFALHAS: " .. falhas))

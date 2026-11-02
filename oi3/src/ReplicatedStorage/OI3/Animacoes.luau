@@ -8,4 +8,5 @@ return {
 	acenar = "rbxassetid://128777973", -- WaveAnimation
 	segurar = "rbxassetid://182393478", -- ToolLoopAnimation (braço segurando objeto)
 	pular = "rbxassetid://125750702", -- JumpAnimation
+	sentar = "rbxassetid://178130996", -- SitAnimation (R6, AJUSTE-8: as três cadeiras)
 }

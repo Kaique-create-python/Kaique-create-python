@@ -661,10 +661,10 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		Som.tocar("impacto", { volume = 1 })
 		Cinema.titulo("OI3", true, 1.4)
 		esperar(2.8)
-		Cinema.rodape("fim da introdução", true)
+		Cinema.rodape("A brincadeira terminou. O jogo começou.", true)
 		esperar(2.4)
 		Cinema.titulo("OI3", false, 1.2)
-		Cinema.rodape("fim da introdução", false)
+		Cinema.rodape("A brincadeira terminou. O jogo começou.", false)
 		esperar(1.4)
 	end
 

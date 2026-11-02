@@ -159,7 +159,11 @@ function Main.iniciar()
 	end
 
 	Atores.preparar() -- AJUSTE-6: personagens = avatares do Roblox só com IDs do catálogo
-	Historia.iniciar(remotos.Historia, permitido, Atores.vestirJogador)
+	Historia.iniciar(remotos.Historia, permitido, Atores.vestirJogador, {
+		missao = Dados.missao,
+		marcarMissao = Dados.marcarMissao,
+		marcarFimCapitulo = Dados.marcarFimCapitulo,
+	})
 	Dados.iniciar()
 	Sala.iniciar(remotos.Sala)
 

@@ -161,8 +161,8 @@ function Mapa.construirQuartoEspelho(c, reflexo: boolean?)
 	-- cadeira no canto
 	Moveis.cadeira(c, V3(58.6, F, 6.2), V3(0.6, 0, -1).Unit)
 	-- tapete redondo
-	c:cilindro(CF(63, F + 0.04, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.08, 8, RGB(70, 36, 38), M.Fabric)
-	c:cilindro(CF(63, F + 0.06, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.08, 6.6, RGB(92, 52, 46), M.Fabric)
+	c:cilindro(CF(63, F + 0.04, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.08, 6.4, RGB(168, 140, 102), M.Fabric, { Name = "Tapete" })
+	c:cilindro(CF(63, F + 0.06, 0) * CFrame.Angles(0, 0, math.pi / 2), 0.08, 5.6, RGB(96, 34, 32), M.Fabric, { Name = "Tapete" })
 	-- quadro antigo
 	Moveis.quadro(c, V3(60, F + 7.5, -ZA + 0.5), V3(0, 0, 1), 2.6, 3.2, RGB(46, 50, 46))
 	Detalhes.quartoEspelho(c, F, TETO, reflexo)
@@ -366,7 +366,8 @@ function Mapa.construir(pai: Instance)
 		c:bloco(folha * CF(-s * 0.18, -1.8, 0), V3(0.06, 2.8, 2.2), COR.madeiraEscura, M.Wood)
 	end
 	-- varanda
-	c:entre(V3(-8, 0, Z1 + 0.5), V3(8, F, 18), COR.madeira, M.WoodPlanks)
+	c:entre(V3(-8, 0, Z1 + 0.5), V3(8, F - 0.05, 18), RGB(14, 9, 7), M.SmoothPlastic)
+	Moveis.assoalho(c, -8, Z1 + 0.5, 8, 18, F, COR.madeira) -- AJUSTE-8: tábuas de verdade na varanda
 	for i = 1, 3 do
 		c:entre(V3(-4, 0, 18 + (i - 1) * 1.1), V3(4, F - i * 0.33, 18 + i * 1.1), COR.pedraClara, M.Concrete)
 	end
@@ -408,8 +409,8 @@ function Mapa.construir(pai: Instance)
 	-- baú de brinquedos
 	ci:entre(V3(-17.4, F, -6.5), V3(-14.6, F + 2, -3.5), COR.madeiraClara, M.Wood)
 	ci:entre(V3(-17.5, F + 2, -6.6), V3(-14.5, F + 2.25, -3.4), COR.madeiraEscura, M.Wood)
-	-- tapete do corredor central
-	ci:entre(V3(-33, F, -15), V3(-15, F + 0.06, 3), RGB(70, 40, 40), M.Fabric)
+	-- tapete entre as camas (AJUSTE-8: menor, para o assoalho aparecer)
+	Moveis.tapete(ci, -29, -9.5, -19, -2.5, F, RGB(96, 34, 32), RGB(176, 146, 100))
 	-- quadros
 	Moveis.quadro(ci, V3(XDH - 0.5, F + 7.5, -14), V3(-1, 0, 0), 3, 2.2, RGB(70, 76, 64))
 	Moveis.quadro(ci, V3(XDH - 0.5, F + 7.5, 7), V3(-1, 0, 0), 2.2, 2.8, RGB(80, 64, 54))
@@ -444,7 +445,7 @@ function Mapa.construir(pai: Instance)
 	-- lustre
 	Moveis.lustre(ci, V3(0, TETO - 2.9, 2), 1.7, 0.32)
 	-- tapete e mesa lateral
-	ci:entre(V3(-4.5, F, -5), V3(4.5, F + 0.06, 9.5), RGB(62, 46, 60), M.Fabric)
+	Moveis.tapete(ci, -3.6, -2.8, 3.6, 8, F, RGB(70, 40, 62), RGB(168, 140, 102))
 	ci:entre(V3(8.2, F, 6), V3(10.6, F + 2.6, 8.2), COR.madeira, M.Wood)
 	ci:bola(V3(9.4, F + 3.2, 7.1), 1, RGB(84, 92, 100), M.SmoothPlastic)
 	-- cabideiro
@@ -455,7 +456,7 @@ function Mapa.construir(pai: Instance)
 
 	-------------------------------------------------------------------
 	-- Interior: corredor
-	ci:entre(V3(XHL + 1, F, -1.6), V3(XQE - 0.8, F + 0.06, 1.6), RGB(78, 30, 30), M.Fabric)
+	Moveis.tapete(ci, XHL + 2, -1.1, XQE - 2, 1.1, F, RGB(96, 28, 28), RGB(160, 128, 88))
 	for _, x in { 18, 40 } do
 		Moveis.portaFechada(ci, V3(x, F, ZC - 0.62), V3(0, 0, -1))
 	end

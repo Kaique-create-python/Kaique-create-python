@@ -648,8 +648,11 @@ function Moveis.assoalho(c, x0: number, z0: number, x1: number, z1: number, y: n
 		local zB = (fila + 1) * LARGURA_TABUA - FRESTA / 2
 		local za, zb = math.max(zA, z0), math.min(zB, z1)
 		local g = Random.new(fila * 7919 + 1301)
-		local x = X_GLOBAL_MIN + g:NextNumber(0, 9)
-		while x < X_GLOBAL_MAX do
+		-- AJUSTE-8: cenários longe da casa (missões) começam perto deles; a casa continua igual
+		local longe = x0 < X_GLOBAL_MIN or x1 > X_GLOBAL_MAX
+		local x = (if longe then math.floor(x0 / 15) * 15 - 15 else X_GLOBAL_MIN) + g:NextNumber(0, 9)
+		local limite = if longe then x1 else X_GLOBAL_MAX
+		while x < limite do
 			local comp = g:NextNumber(7, 15)
 			local tom = g:NextNumber(-1, 1)
 			local gasto = g:NextNumber(0, 1)
@@ -675,6 +678,28 @@ function Moveis.assoalho(c, x0: number, z0: number, x1: number, z1: number, y: n
 	return n
 end
 
+-- AJUSTE-8: tapete com cara de tapete (borda clara, miolo e uma faixa por dentro), em tecido oficial do
+-- Roblox. Os tapetes antigos eram enormes e com a textura de tecido pareciam TERRA à noite; agora são
+-- menores e deixam o assoalho de madeira aparecer em volta.
+function Moveis.tapete(c, x0: number, z0: number, x1: number, z1: number, y: number, corMiolo: Color3, corBorda: Color3)
+	local extra = { Name = "Tapete", CastShadow = false }
+	local borda = 0.32
+	c:entre(Vector3.new(x0, y, z0), Vector3.new(x1, y + 0.04, z1), corBorda, M.Fabric, extra)
+	c:entre(Vector3.new(x0 + borda, y + 0.04, z0 + borda), Vector3.new(x1 - borda, y + 0.06, z1 - borda), corMiolo, M.Fabric, extra)
+	local d = borda + 0.45
+	if x1 - x0 > 2 * d + 1 and z1 - z0 > 2 * d + 1 then
+		local e = 0.1
+		for _, f in {
+			{ Vector3.new(x0 + d, y + 0.06, z0 + d), Vector3.new(x1 - d, y + 0.07, z0 + d + e) },
+			{ Vector3.new(x0 + d, y + 0.06, z1 - d - e), Vector3.new(x1 - d, y + 0.07, z1 - d) },
+			{ Vector3.new(x0 + d, y + 0.06, z0 + d), Vector3.new(x0 + d + e, y + 0.07, z1 - d) },
+			{ Vector3.new(x1 - d - e, y + 0.06, z0 + d), Vector3.new(x1 - d, y + 0.07, z1 - d) },
+		} do
+			c:entre(f[1], f[2], corBorda, M.Fabric, { Name = "Tapete", CastShadow = false, colisao = false })
+		end
+	end
+end
+
 -- Aplica as texturas realistas (MaterialVariant) em todas as peças de um modelo.
 -- Se o instalador não conseguiu enviar uma textura, o nome não existe no MaterialService
 -- e o Roblox simplesmente usa o material normal da peça.
@@ -682,7 +707,7 @@ function Moveis.aplicarVariantes(raiz: Instance): number
 	local V = Moveis.VARIANTE
 	local n = 0
 	for _, p in raiz:GetDescendants() do
-		if p:IsA("BasePart") and p.MaterialVariant == "" and p.Transparency < 0.95 and p.Name ~= "Tabua" then
+		if p:IsA("BasePart") and p.MaterialVariant == "" and p.Transparency < 0.95 and p.Name ~= "Tabua" and p.Name ~= "Tapete" then
 			local m = p.Material
 			local nome = nil
 			if m == M.Wood then

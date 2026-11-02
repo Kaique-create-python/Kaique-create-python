@@ -13,7 +13,7 @@ local loja: DataStore? = nil
 local cache: { [Player]: Entrada } = {}
 
 local function padrao(): { [string]: any }
-	return { versao = 1, config = table.clone(Config.PADRAO), viuIntro = false }
+	return { versao = 1, config = table.clone(Config.PADRAO), viuIntro = false, missao = 0, fimCap1 = false }
 end
 
 local function chaveDe(plr: Player): string
@@ -63,6 +63,9 @@ function Dados.carregar(plr: Player)
 				end
 				d.config = Config.sanitizarConfig(valor.config)
 				d.viuIntro = valor.viuIntro == true
+				-- AJUSTE-8: ponto salvo das missões (0 = começar do início)
+				d.missao = math.clamp(math.floor(tonumber(valor.missao) or 0), 0, 99)
+				d.fimCap1 = valor.fimCap1 == true
 				entrada.dados = d
 			end
 			entrada.carregado = true
@@ -104,6 +107,33 @@ function Dados.marcarIntro(plr: Player)
 	end
 end
 
+-- AJUSTE-8: ponto de continuar (a missão em que o jogador está)
+function Dados.missao(plr: Player): number
+	local e = cache[plr]
+	if not e or not e.carregado then
+		return 0
+	end
+	return tonumber(e.dados.missao) or 0
+end
+
+function Dados.marcarMissao(plr: Player, n: number)
+	local e = cache[plr]
+	if e and e.carregado and tonumber(n) then
+		e.dados.missao = math.clamp(math.floor(n), 0, 99)
+		e.sujo = true
+	end
+end
+
+function Dados.marcarFimCapitulo(plr: Player)
+	local e = cache[plr]
+	if e and e.carregado then
+		e.dados.missao = 0
+		e.dados.fimCap1 = true
+		e.sujo = true
+		task.spawn(Dados.salvar, plr)
+	end
+end
+
 function Dados.salvar(plr: Player)
 	local e = cache[plr]
 	if not e or not loja or not e.sujo or e.falhou then
@@ -113,6 +143,8 @@ function Dados.salvar(plr: Player)
 		versao = 1,
 		config = table.clone(e.dados.config),
 		viuIntro = e.dados.viuIntro == true,
+		missao = tonumber(e.dados.missao) or 0,
+		fimCap1 = e.dados.fimCap1 == true,
 	}
 	local ok, err = pcall(function()
 		(loja :: DataStore):UpdateAsync(chaveDe(plr), function(antigo)

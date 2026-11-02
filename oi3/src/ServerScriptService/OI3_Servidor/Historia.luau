@@ -4,6 +4,10 @@
 -- para o jantar e o começo do ritual (sincronizado).
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local MissoesDados = require(ReplicatedStorage:WaitForChild("OI3"):WaitForChild("Missoes"))
+local Missoes = require(script.Parent:WaitForChild("Missoes")) -- AJUSTE-8: o resto do capítulo
 
 local Historia = {}
 
@@ -19,6 +23,8 @@ local DURACAO_JANTAR = 14 -- a cena do jantar no cliente
 local remoto: RemoteEvent? = nil
 local grupoDe: { [Player]: any } = {}
 local aoVestir: ((Player, string) -> ())? = nil
+local dados: any = nil -- { missao = fn(plr), marcarMissao = fn(plr, n), marcarFimCapitulo = fn(plr) }
+local ESPERA_RITUAL = 240 -- se alguém não terminar a cutscene, as missões começam mesmo assim
 
 local function enviar(g, tipo: string, info: any)
 	for _, p in g.membros do
@@ -61,11 +67,23 @@ local function comecarTarde(g)
 			g.escolhas[p] = Historia.livres(g.escolhas)[1] or "KE"
 		end
 	end
-	g.fase = "tarde"
 	local mapa = {}
 	for p, c in g.escolhas do
 		mapa[tostring(p.UserId)] = c
 	end
+	-- AJUSTE-8: continuar de onde parou (pula a tarde, o jantar e o ritual)
+	if g.continuar then
+		g.fase = "continuando"
+		enviar(g, "continuar_missao", { escolhas = mapa, n = g.continuar })
+		local tk = g.token
+		task.delay(3, function()
+			if g.token == tk then
+				Missoes.iniciar(g, g.continuar)
+			end
+		end)
+		return
+	end
+	g.fase = "tarde"
 	enviar(g, "tarde", { escolhas = mapa, total = #Historia.DETALHES })
 	local token = g.token
 	task.delay(TEMPO_TARDE, function()
@@ -76,7 +94,17 @@ local function comecarTarde(g)
 end
 
 function Historia.iniciarGrupo(membros: { Player })
-	local g = { membros = table.clone(membros), fase = "escolha", escolhas = {}, achados = {}, naMesa = {}, token = os.clock() }
+	local g = { membros = table.clone(membros), fase = "escolha", escolhas = {}, achados = {}, naMesa = {}, token = os.clock(), ritualFim = {} }
+	-- AJUSTE-8: dá para continuar se TODOS do grupo já passaram de alguma missão
+	local salvo = math.huge
+	for _, p in membros do
+		local n = if dados and dados.missao then dados.missao(p) else 0
+		salvo = math.min(salvo, n)
+	end
+	if salvo ~= math.huge and salvo >= 1 and MissoesDados.missao(salvo) then
+		g.salvo = salvo
+		g.continuar = salvo
+	end
 	for _, p in membros do
 		local antigo = grupoDe[p]
 		if antigo then
@@ -84,7 +112,12 @@ function Historia.iniciarGrupo(membros: { Player })
 		end
 		grupoDe[p] = g
 	end
-	enviar(g, "escolher", { livres = Historia.livres(g.escolhas), tempo = ESPERA_ESCOLHA, grupo = #membros })
+	local infoSalvo = nil
+	if g.salvo then
+		local m = MissoesDados.missao(g.salvo)
+		infoSalvo = { n = g.salvo, nome = m.titulo .. " — " .. m.nome }
+	end
+	enviar(g, "escolher", { livres = Historia.livres(g.escolhas), tempo = ESPERA_ESCOLHA, grupo = #membros, salvo = infoSalvo })
 	local token = g.token
 	task.delay(ESPERA_ESCOLHA, function()
 		if g.token == token then
@@ -185,7 +218,44 @@ function Historia.iniciarRitual(g)
 		return
 	end
 	g.fase = "ritual"
+	g.ritualFim = {}
 	enviar(g, "ritual", { inicio = workspace:GetServerTimeNow() + DURACAO_JANTAR })
+	local token = g.token
+	task.delay(DURACAO_JANTAR + ESPERA_RITUAL, function()
+		if g.token == token and g.fase == "ritual" then
+			Missoes.iniciar(g, 1)
+		end
+	end)
+end
+
+-- AJUSTE-8: quando todos terminam a cutscene do ritual, começa a Missão 1
+function Historia.fimRitual(plr: Player)
+	local g = grupoDe[plr]
+	if not g or g.fase ~= "ritual" then
+		return
+	end
+	g.ritualFim[plr] = true
+	for _, p in g.membros do
+		if p.Parent and not g.ritualFim[p] then
+			return
+		end
+	end
+	g.fase = "indo"
+	local token = g.token
+	task.delay(1.5, function()
+		if g.token == token then
+			Missoes.iniciar(g, 1)
+		end
+	end)
+end
+
+function Historia.continuar(plr: Player, ligar: any)
+	local g = grupoDe[plr]
+	if not g or g.fase ~= "escolha" or not g.salvo then
+		return
+	end
+	g.continuar = if ligar == true then g.salvo else nil
+	enviar(g, "continuar", { ligado = g.continuar ~= nil })
 end
 
 function Historia.sair(plr: Player)
@@ -210,11 +280,28 @@ function Historia.personagemNasceu(plr: Player)
 	if cod and aoVestir then
 		task.spawn(aoVestir, plr, cod)
 	end
+	-- renasceu no meio de uma missão: volta para o cenário certo
+	local g = grupoDe[plr]
+	if g and g.fase == "missao" then
+		task.delay(1, Missoes.sincronizar, plr)
+	end
 end
 
-function Historia.iniciar(r: RemoteEvent, permitido: (Player, string, number) -> boolean, vestir: (Player, string) -> ())
+function Historia.iniciar(r: RemoteEvent, permitido: (Player, string, number) -> boolean, vestir: (Player, string) -> (), funcoesDados: any?)
 	remoto = r
 	aoVestir = vestir
+	dados = funcoesDados
+	Missoes.configurar(r, function(plr: Player)
+		return grupoDe[plr]
+	end, function(plr: Player, n: number)
+		if dados and dados.marcarMissao then
+			dados.marcarMissao(plr, n)
+		end
+	end, function(plr: Player)
+		if dados and dados.marcarFimCapitulo then
+			dados.marcarFimCapitulo(plr)
+		end
+	end)
 	r.OnServerEvent:Connect(function(plr: Player, tipo: any, valor: any)
 		if not permitido(plr, "historia", 0.25) then
 			return
@@ -227,6 +314,22 @@ function Historia.iniciar(r: RemoteEvent, permitido: (Player, string, number) ->
 			Historia.detalhe(plr, valor)
 		elseif tipo == "naMesa" then
 			Historia.naMesa(plr)
+		elseif tipo == "fimRitual" then
+			Historia.fimRitual(plr)
+		elseif tipo == "continuar" then
+			Historia.continuar(plr, valor)
+		elseif tipo == "m_acao" and type(valor) == "table" then
+			Missoes.acao(plr, valor.ponto, valor.valor)
+		elseif tipo == "m_codigo" and type(valor) == "table" then
+			Missoes.codigo(plr, valor.ponto, valor.texto)
+		elseif tipo == "m_esconder" then
+			Missoes.esconder(plr, if type(valor) == "string" then valor else nil)
+		elseif tipo == "m_distrair" then
+			Missoes.distrair(plr)
+		elseif tipo == "m_sentar" then
+			Missoes.sentar(plr, valor == true)
+		elseif tipo == "m_olhou" then
+			Missoes.olhou(plr)
 		end
 	end)
 	Players.PlayerRemoving:Connect(Historia.sair)

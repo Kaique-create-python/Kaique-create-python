@@ -80,7 +80,7 @@ else
 			local r = Config.ROUPAS[cod]
 			local acessorios, roupas = 0, 0
 			for _, x in m:GetChildren() do
-				if x:IsA("Accessory") then
+				if x:IsA("Accessory") or (x:IsA("Folder") and x:GetAttribute("OI3_Rosto")) then
 					acessorios += 1
 				elseif x:IsA("Shirt") or x:IsA("Pants") then
 					roupas += 1
@@ -88,6 +88,44 @@ else
 			end
 			local esperados = #(r.cabelo or {}) + #(r.chapeu or {}) + #(r.rostoAcessorio or {})
 			relatorio[cod] = string.format("roupas %d/2, acessórios %d/%d", roupas, acessorios, esperados)
+			-- AJUSTE-8: o rosto tem que ficar NA FRENTE da cabeça (senão some e a cabeça fica só amarela)
+			local Personagens = require(OI3.Personagens)
+			local cabeca = m:FindFirstChild("Head")
+			local function medir(pasta)
+				local malha = pasta and pasta:FindFirstChild("RostoMalha")
+				if not (cabeca and malha) then
+					return "sem rosto"
+				end
+				local s = m:GetAttribute("Escala") or 1
+				local frente = Personagens.frenteDoRosto(cabeca.CFrame:ToObjectSpace(malha.CFrame), malha.Size)
+				return if frente <= -0.625 * s then "visível" else string.format("ESCONDIDO (%.2f)", frente)
+			end
+			if (r.rostoAcessorio and #r.rostoAcessorio > 0) then
+				local base = nil
+				for _, x in m:GetChildren() do
+					if x:GetAttribute("OI3_Rosto") then
+						base = x
+					end
+				end
+				relatorio[cod] ..= ", rosto " .. medir(base)
+			end
+			if cod == "ME" then
+				local reacoes = {}
+				for nome, id in Config.ROSTOS_REACAO or {} do
+					local a = Atores.montarRosto(id)
+					if not a then
+						table.insert(reacoes, nome .. " não carregou")
+						continue
+					end
+					local pasta = Personagens.encaixarRosto(m, a, nil, "OI3_Reacao")
+					table.insert(reacoes, nome .. " " .. medir(pasta))
+					if pasta then
+						pasta:Destroy()
+					end
+				end
+				table.sort(reacoes)
+				res.info.reacoes = table.concat(reacoes, ", ")
+			end
 			local hum = m:FindFirstChildOfClass("Humanoid")
 			if hum then
 				local animador = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
@@ -103,6 +141,24 @@ else
 		end
 		res.info.atores = relatorio
 		res.info.animacoesCarregadas = carregadas
+	end)
+	-- AJUSTE-8: os cenários das missões montam no Roblox de verdade (fontes, materiais, peças)
+	checar("missoes", function()
+		local MM = require(OI3.MissoesMapa)
+		local M = require(OI3.Missoes)
+		local total = 0
+		for _, nome in MM.CENARIOS do
+			local pasta = Instance.new("Folder")
+			local modelo = MM.construir(nome, pasta)
+			for _, d in modelo:GetDescendants() do
+				if d:IsA("BasePart") then
+					total += 1
+				end
+			end
+			pasta:Destroy()
+		end
+		res.info.missoes = M.TOTAL
+		res.info.pecasMissoes = total
 	end)
 	-- cenário do menu (só as peças)
 	checar("menu", function()
