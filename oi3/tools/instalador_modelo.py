@@ -111,13 +111,36 @@ def carregar_pacote():
     return arquivos
 
 
-def montar_place(xml_bytes, ids_audio):
+def materiais_texturas():
+    """{material: {"cor": arquivo, "normal": arquivo, "rugosidade": arquivo}} a partir do manifesto."""
+    mats = {}
+    for nome, inf in MANIFESTO.items():
+        if inf.get("textura"):
+            mats.setdefault(inf["material"], {})[inf["mapa"]] = inf["textura"]
+    return mats
+
+
+def montar_place(xml_bytes, ids_audio, ids_tex=None):
+    ids_tex = ids_tex or {}
     txt = xml_bytes.decode("utf-8")
+    # texturas: troca os marcadores pelos IDs; a variante só "liga" se os 3 mapas existem
+    ligados = {}
+    for material, mapas in materiais_texturas().items():
+        completo = all(ids_tex.get(arq) for arq in mapas.values()) and len(mapas) == 3
+        for arq in mapas.values():
+            txt = txt.replace("rbxassetid://OI3TEX_" + arq + "<", ("rbxassetid://%d<" % ids_tex[arq]) if ids_tex.get(arq) else "<")
+        if completo:
+            txt = txt.replace(">OI3TEXNOME_" + material + "<", ">" + material + "<")
+            ligados[material] = {m: int(ids_tex[a]) for m, a in mapas.items()}
     a = txt.index(MARCA_INI) + len(MARCA_INI)
     b = txt.index(MARCA_FIM, a)
     linhas = ["", "return {", '\trevisao = "%s",' % REVISAO, "\taudio = {"]
     for chave in sorted(ids_audio):
         linhas.append("\t\t%s = %d," % (chave, int(ids_audio[chave])))
+    linhas += ["\t},", "\ttexturas = {"]
+    for material in sorted(ligados):
+        m = ligados[material]
+        linhas.append("\t\t%s = { cor = %d, normal = %d, rugosidade = %d }," % (material, m["cor"], m["normal"], m["rugosidade"]))
     linhas += ["\t},", "}", ""]
     bloco = "\n".join(linhas)
     if "]]>" in bloco:
@@ -200,11 +223,12 @@ def ler_recibos():
             r = json.load(f)
             if isinstance(r, dict):
                 r.setdefault("audio", {})
+                r.setdefault("imagem", {})
                 r.setdefault("publicacoes", [])
                 return r
     except Exception:
         pass
-    return {"audio": {}, "publicacoes": []}
+    return {"audio": {}, "imagem": {}, "publicacoes": []}
 
 
 def gravar_recibos(r):
@@ -258,7 +282,7 @@ def consultar_moderacao(chave, asset_id):
 TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
 
 
-NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna"}
+NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna", "passos": "passos gravados"}
 
 
 def conferir_sons(sons):
@@ -322,7 +346,7 @@ def liberar_audios(chave, universe, ids, recibos):
             _, resp = http("PATCH", url, chave, corpo, "application/json-patch+json", tentativas=2, espera_max=60)
     except ErroHTTP as e:
         if e.codigo == 403:
-            aviso("A chave não tem a permissão de LIBERAR áudios para o jogo (asset-permissions).")
+            aviso("A chave não tem a permissão de LIBERAR sons e texturas para o jogo (asset-permissions).")
         else:
             aviso("O Roblox não deixou liberar os áudios agora (%s)." % e.resumo())
         return "falhou", lista
@@ -345,31 +369,35 @@ def liberar_audios(chave, universe, ids, recibos):
     lib[str(universe)] = sorted(set(lib.get(str(universe), [])) | feitos)
     gravar_recibos(recibos)
     if feitos and len(feitos) >= len(lista):
-        ok("áudios LIBERADOS para o jogo (%d de %d)" % (len(feitos), len(lista)))
+        ok("sons e texturas LIBERADOS para o jogo (%d de %d)" % (len(feitos), len(lista)))
         return "ok", lista
     if feitos:
-        aviso("só %d de %d áudios foram liberados para o jogo." % (len(feitos), len(lista)))
+        aviso("só %d de %d recursos foram liberados para o jogo." % (len(feitos), len(lista)))
         return "parcial", lista
     aviso("o Roblox não confirmou a liberação dos áudios.")
     return "falhou", lista
 
 
-def enviar_audio(chave, criador, nome, info, dados, recibos):
+def enviar_audio(chave, criador, nome, info, dados, recibos, tipo="Audio", mime="audio/ogg", gaveta="audio", silencioso=False):
     sha = info["sha256"]
-    r = recibos["audio"].get(sha) or {}
+    recibos.setdefault(gaveta, {})
+    r = recibos[gaveta].get(sha) or {}
     rotulo = info.get("rotulo", nome)
+    if r.get("assetId") and silencioso and r.get("estado") == "Approved":
+        return int(r["assetId"])  # textura já aprovada: nem pergunta de novo
     if r.get("assetId"):
         estado = consultar_moderacao(chave, r["assetId"]) or r.get("estado", "")
         if estado and estado != r.get("estado"):
             r["estado"] = estado
-            recibos["audio"][sha] = r
+            recibos[gaveta][sha] = r
             gravar_recibos(recibos)
         if estado == "Rejected":
-            aviso("%s: o Roblox RECUSOU este áudio na moderação (ID %s); o jogo segue sem ele." % (rotulo, r["assetId"]))
+            aviso("%s: o Roblox RECUSOU na moderação (ID %s); o jogo segue sem ele." % (rotulo, r["assetId"]))
             return 0
-        ok("%s: já enviado (ID %s) - moderação: %s" % (rotulo, r["assetId"], TRADUZ.get(estado, estado or "?")))
-        if estado == "Reviewing":
-            aviso("   enquanto estiver 'em análise' esse som fica MUDO no jogo (o Roblox libera sozinho depois).")
+        if not silencioso:
+            ok("%s: já enviado (ID %s) - moderação: %s" % (rotulo, r["assetId"], TRADUZ.get(estado, estado or "?")))
+            if estado == "Reviewing":
+                aviso("   enquanto estiver 'em análise' esse som fica MUDO no jogo (o Roblox libera sozinho depois).")
         return int(r["assetId"])
     if r.get("operationId"):
         try:
@@ -382,21 +410,21 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
             return 0
         if asset_id:
             r.update({"assetId": str(asset_id), "estado": estado})
-            recibos["audio"][sha] = r
+            recibos[gaveta][sha] = r
             gravar_recibos(recibos)
             ok("%s: pronto (ID %s, moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "?")))
             return 0 if estado == "Rejected" else int(asset_id)
         aviso("%s: o Roblox ainda está processando o envio anterior; seguindo sem ele por enquanto." % rotulo)
         return 0
     pedido = {
-        "assetType": "Audio",
+        "assetType": tipo,
         "displayName": ("%s %s %s" % (JOGO, rotulo, REVISAO))[:50],
         "description": "Audio do jogo OI3 (%s). Gerado pelo instalador." % rotulo,
         "creationContext": {"creator": criador},
     }
     corpo, tipo = multipart([
         ("request", json.dumps(pedido).encode("utf-8"), None, "application/json"),
-        ("fileContent", dados, nome.split("/")[-1], "audio/ogg"),
+        ("fileContent", dados, nome.split("/")[-1], mime),
     ])
     try:
         _, resp = http("POST", API + "/assets/v1/assets", chave, corpo, tipo, tentativas=3, espera_max=300)
@@ -412,7 +440,7 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
         aviso("%s: resposta inesperada do Roblox; seguindo sem o áudio." % rotulo)
         return 0
     r = {"nome": nome, "operationId": op_id, "enviadoEm": int(time.time())}
-    recibos["audio"][sha] = r
+    recibos[gaveta][sha] = r
     gravar_recibos(recibos)
     print("   ...enviado, esperando o Roblox processar %s" % rotulo, end="", flush=True)
     inicio = time.time()
@@ -433,7 +461,7 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
                 aviso("%s: o Roblox recusou na moderação; seguindo sem ele." % rotulo)
                 return 0
             ok("%s: ID %s (moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "em análise")))
-            if estado != "Approved":
+            if estado != "Approved" and not silencioso:
                 aviso("   enquanto estiver 'em análise' esse som fica MUDO no jogo (o Roblox libera sozinho depois).")
             return int(asset_id)
     print("")
@@ -528,6 +556,23 @@ def cmd_testar():
         teste = montar_place(xml, ids)
         ET.fromstring(teste)
     ok("troca dos IDs de áudio funciona")
+    mats = materiais_texturas()
+    falsos = {}
+    k = 900000
+    for material, mapas in mats.items():
+        for arq in mapas.values():
+            k += 1
+            falsos[arq] = k
+    for teste_ids in (falsos, {}):
+        t = montar_place(xml, {"sfx": 1}, teste_ids)
+        ET.fromstring(t)
+        if b"rbxassetid://OI3TEX" in t:
+            raise Falha("sobrou marcador de textura no place")
+    t = montar_place(xml, {"sfx": 1}, falsos).decode("utf-8")
+    ligados = sum(1 for m in mats if (">" + m + "<") in t)
+    if ligados != len(mats):
+        raise Falha("texturas não ligaram (%d de %d)" % (ligados, len(mats)))
+    ok("texturas: %d materiais (%d imagens) se ligam no place" % (len(mats), len(falsos)))
     script = arquivos["teste_nuvem.luau"].decode("utf-8")
     tam = len(script.encode("utf-8"))
     if tam > LIMITE_TAREFA:
@@ -588,13 +633,28 @@ def cmd_install(pular_teste=False):
     sem = [k for k, v in ids.items() if not v]
     if sem:
         aviso("Sem áudio por enquanto: %s (o jogo usa legendas no lugar)." % ", ".join(sem))
-    print("   Liberando os áudios para o jogo usar (sem isso o Roblox deixa mudo)...")
-    liberacao, lista_audio = liberar_audios(chave, universe, ids, recibos)
+    ids_tex = {}
+    texturas = [(nome, inf) for nome, inf in MANIFESTO.items() if inf.get("textura")]
+    if texturas:
+        print("   Enviando texturas realistas (%d imagens, opcionais; só na 1ª vez demora)..." % len(texturas))
+        for nome, inf in texturas:
+            ids_tex[inf["textura"]] = enviar_audio(chave, criador, nome, inf, arquivos[nome], recibos,
+                                                   "Image", "image/jpeg", "imagem", silencioso=True)
+        prontas = sum(1 for v in ids_tex.values() if v)
+        if prontas == len(texturas):
+            ok("texturas prontas: %d de %d" % (prontas, len(texturas)))
+        else:
+            aviso("texturas prontas: %d de %d (as que faltam usam o material normal do Roblox)" % (prontas, len(texturas)))
+    print("   Liberando sons e texturas para o jogo usar (sem isso o Roblox bloqueia)...")
+    todos = dict(ids)
+    todos.update({"tex_" + k: v for k, v in ids_tex.items()})
+    liberacao, _ = liberar_audios(chave, universe, todos, recibos)
+    lista_audio = sorted({int(v) for v in ids.values() if v})
     if liberacao in ("falhou", "parcial"):
         aviso("   (o passo a passo para liberar na mão aparece no FINAL)")
 
     passo(4, "Montando o place")
-    place_xml = montar_place(arquivos["place.rbxlx"], ids)
+    place_xml = montar_place(arquivos["place.rbxlx"], ids, ids_tex)
     ok("place pronto (%d kB) com áudios: %s" % (len(place_xml) // 1024, json.dumps(ids)))
 
     som_ok = None

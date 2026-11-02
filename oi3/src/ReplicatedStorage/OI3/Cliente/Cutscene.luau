@@ -3,6 +3,8 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
 local OI3 = script.Parent.Parent
 local Mapa = require(OI3.Mapa)
@@ -66,6 +68,41 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 	local fundoEsp = acharNoMapa("FundoEspelho")
 	local estadoVidro = if vidro then { vidro.Transparency, vidro.Reflectance } else nil
 
+	-- AJUSTE-5: acabamento de cinema — câmera na mão, foco automático, luz suave no rosto e cor de filme
+	local dof = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
+	local dofAntes = if dof then { dof.FarIntensity, dof.NearIntensity, dof.FocusDistance, dof.InFocusRadius } else nil
+	if dof then
+		dof.FarIntensity = 0.42
+		dof.NearIntensity = 0.3
+	end
+	local corCena = Instance.new("ColorCorrectionEffect")
+	corCena.Name = "OI3_CorCena"
+	corCena.Saturation = -0.2
+	corCena.Contrast = 0.1
+	corCena.TintColor = Color3.fromRGB(232, 236, 255)
+	corCena.Parent = Lighting
+	local suporteLuz = Instance.new("Part")
+	suporteLuz.Name = "OI3_LuzRosto"
+	suporteLuz.Anchored = true
+	suporteLuz.CanCollide = false
+	suporteLuz.CanQuery = false
+	suporteLuz.CanTouch = false
+	suporteLuz.Transparency = 1
+	suporteLuz.Size = Vector3.new(0.2, 0.2, 0.2)
+	suporteLuz.Parent = pasta
+	local luzRosto = Instance.new("PointLight")
+	luzRosto.Brightness = 0.32
+	luzRosto.Range = 9
+	luzRosto.Color = Color3.fromRGB(255, 236, 214)
+	luzRosto.Shadows = false
+	luzRosto.Parent = suporteLuz
+	local raioFoco = RaycastParams.new()
+	raioFoco.FilterType = Enum.RaycastFilterType.Exclude
+	raioFoco.FilterDescendantsInstances = if vidro then { suporteLuz, vidro } else { suporteLuz }
+	local focoAtual = 20
+	local atmosfera = Lighting:FindFirstChildOfClass("Atmosphere")
+	local atmosferaAntes = if atmosfera then { atmosfera.Density, atmosfera.Color } else nil
+
 	local function esperar(t: number)
 		local fim = os.clock() + t
 		while os.clock() < fim do
@@ -91,7 +128,7 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		end
 	end
 
-	local conexao = RunService.RenderStepped:Connect(function()
+	local conexao = RunService.RenderStepped:Connect(function(dt)
 		for _, a in atores do
 			a:passo()
 		end
@@ -115,6 +152,20 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 			local t = os.clock()
 			cf = cf * CFrame.Angles(math.noise(t * 9, 1.1) * 0.02 * tremor, math.noise(t * 9, 2.2) * 0.02 * tremor, math.noise(t * 7, 3.3) * 0.012 * tremor)
 		end
+		if opcoes.tremor then
+			-- câmera na mão: respiração bem sutil do operador
+			local t = os.clock()
+			cf = cf * CFrame.Angles(math.noise(t * 0.6, 7.7) * 0.006, math.noise(t * 0.5, 8.8) * 0.007, math.noise(t * 0.4, 9.9) * 0.004)
+		end
+		if dof then
+			-- foco automático no que está no meio do quadro (o fundo fica levemente desfocado)
+			local hit = workspace:Raycast(cf.Position, cf.LookVector * 90, raioFoco)
+			local alvo = if hit then hit.Distance else 45
+			focoAtual += (alvo - focoAtual) * math.min(1, (dt or 0.016) * 4)
+			dof.FocusDistance = focoAtual
+			dof.InFocusRadius = math.clamp(focoAtual * 0.3, 2.5, 20)
+		end
+		suporteLuz.CFrame = cf * CFrame.new(0.8, 0.6, -1.2)
 		camera.CFrame = cf
 		camera.FieldOfView = fov
 		contador += 1
@@ -157,7 +208,11 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 	local function novoAtor(codigo: string, pos: Vector3, alvo: Vector3?, alvoPasta: Instance?)
 		local a = Ator.novo(codigo, alvoPasta or pasta, pos, alvo)
 		a.aoPasso = function(ator)
-			Som.tocar("passo" .. math.random(1, 3), { pai = ator.raiz, volume = 0.3 * ator.escala, alcance = 50 })
+			local pisada = "pisada_madeira" .. math.random(1, 5)
+			if not Som.disponivel(pisada) then
+				pisada = "passo" .. math.random(1, 3)
+			end
+			Som.tocar(pisada, { pai = ator.raiz, volume = 0.32 * ator.escala, alcance = 50, velocidade = 0.95 + math.random() * 0.1 })
 		end
 		table.insert(atores, a)
 		return a
@@ -329,6 +384,46 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		pastaReflexo = pr
 		Mapa.construirQuartoEspelho(Construtor.novo(pr, { refletir = refletir }), true)
 		Chamas.registrar(pr)
+		-- a porta do quarto (só nesta cena): fechada no ritual, aberta depois do apagão
+		local XQE = 56
+		local dobradica = CFrame.new(XQE + 0.62, F, -2.2)
+		local function cfPorta(angulo: number): CFrame
+			return dobradica * CFrame.Angles(0, -math.rad(angulo), 0) * CFrame.new(0, 3.95, 2.2)
+		end
+		local function criarPorta(pai: Instance, refl: ((CFrame) -> CFrame)?): BasePart
+			local folha = Instance.new("Part")
+			folha.Name = "OI3_PortaCena"
+			folha.Anchored = true
+			folha.CanCollide = false
+			folha.CanQuery = false
+			folha.Size = Vector3.new(0.18, 7.9, 4.4)
+			folha.Color = Color3.fromRGB(58, 40, 30)
+			folha.Material = Enum.Material.Wood
+			folha.MaterialVariant = "OI3_Madeira"
+			folha.CFrame = if refl then refl(cfPorta(0)) else cfPorta(0)
+			local macaneta = Instance.new("Part")
+			macaneta.Name = "Macaneta"
+			macaneta.Anchored = true
+			macaneta.CanCollide = false
+			macaneta.CanQuery = false
+			macaneta.Shape = Enum.PartType.Ball
+			macaneta.Size = Vector3.new(0.28, 0.28, 0.28)
+			macaneta.Color = Color3.fromRGB(150, 120, 70)
+			macaneta.Material = Enum.Material.Metal
+			macaneta.Parent = folha
+			folha.Parent = pai
+			return folha
+		end
+		local portaReal = criarPorta(pasta, nil)
+		local portaReflexo = criarPorta(pr, refletir)
+		local function porAngulo(angulo: number)
+			local cf = cfPorta(angulo)
+			portaReal.CFrame = cf
+			portaReal.Macaneta.CFrame = cf * CFrame.new(0.15, -0.2, 1.75)
+			portaReflexo.CFrame = refletir(cf)
+			portaReflexo.Macaneta.CFrame = refletir(cf * CFrame.new(0.15, -0.2, 1.75))
+		end
+		porAngulo(0)
 
 		local alvoEsp = V3(Mapa.L.XESP, F, 0)
 		menino:posicionar(P.espMenino, alvoEsp + V3(0, 0, 0))
@@ -450,6 +545,96 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		esperar(3.9)
 
 		-----------------------------------------------------------------
+		-- CENA 7B (história do Capítulo 1): o espelho responde, as luzes apagam e a porta está aberta
+		local centroVidro = V3(Mapa.L.XESP, Mapa.L.ESP_Y, 0)
+		local placa = Instance.new("Part")
+		placa.Name = "OI3_FraseEspelho"
+		placa.Anchored = true
+		placa.CanCollide = false
+		placa.CanQuery = false
+		placa.Transparency = 1
+		placa.Size = Vector3.new(Mapa.L.ESP_L * 0.92, Mapa.L.ESP_A * 0.6, 0.05)
+		placa.CFrame = CFrame.lookAt(centroVidro - V3(0.08, 0, 0), centroVidro - V3(10, 0, 0))
+		placa.Parent = pasta
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = Enum.NormalId.Front
+		sg.LightInfluence = 0
+		sg.Brightness = 1.4
+		sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		sg.PixelsPerStud = 60
+		sg.Parent = placa
+		local frase = Instance.new("TextLabel")
+		frase.BackgroundTransparency = 1
+		frase.Size = UDim2.fromScale(1, 1)
+		frase.Text = "VOCÊS\nDEMORARAM."
+		frase.TextScaled = true
+		frase.FontFace = Font.new("rbxasset://fonts/families/SpecialElite.json")
+		frase.TextColor3 = Color3.fromRGB(150, 14, 14)
+		frase.TextStrokeColor3 = Color3.fromRGB(20, 0, 0)
+		frase.TextStrokeTransparency = 0.4
+		frase.TextTransparency = 1
+		frase.Parent = sg
+		local cfA = olhar(V3(61.2, F + 4.9, 0.3), centroVidro + V3(0, -0.5, 0))
+		local cfB = olhar(V3(63.4, F + 4.6, 0.15), centroVidro + V3(0, -0.2, 0))
+		corte(cfA, 54)
+		menino:virar(alvoEsp, 0.35)
+		nina:virar(alvoEsp, 0.45)
+		keko:virar(alvoEsp, 0.45)
+		esperar(0.6)
+		Som.tocar("estatica", { volume = 0.45 })
+		Som.tocar("tensao", { volume = 0.75 })
+		TweenService:Create(frase, TweenInfo.new(2.4, Enum.EasingStyle.Sine), { TextTransparency = 0.05 }):Play()
+		TweenService:Create(corCena, TweenInfo.new(2.4), { TintColor = Color3.fromRGB(255, 214, 214), Contrast = 0.18 }):Play()
+		nina:expressao("medo")
+		keko:expressao("medo")
+		mover(cfA, cfB, 3.6, 54, 47)
+		esperar(3.7)
+		-- apagão
+		Cinema.limparLegenda()
+		Cinema.escurecer(1, 0.04)
+		if coracao then
+			coracao:Destroy()
+			coracao = nil
+		end
+		luzRosto.Enabled = false
+		Som.tocar("impacto", { volume = 0.85 })
+		esperar(1.9)
+		-- quando a luz volta: a porta aberta e o corredor que não é mais o mesmo
+		placa:Destroy()
+		porAngulo(104)
+		corCena.TintColor = Color3.fromRGB(255, 200, 200)
+		corCena.Saturation = -0.35
+		if atmosfera then
+			atmosfera.Density = 0.62
+			atmosfera.Color = Color3.fromRGB(120, 60, 60)
+		end
+		for i, x in { 50, 40, 30, 20 } do
+			local ponto = Instance.new("Part")
+			ponto.Name = "OI3_LuzCorredor"
+			ponto.Anchored = true
+			ponto.CanCollide = false
+			ponto.CanQuery = false
+			ponto.Transparency = 1
+			ponto.Size = Vector3.new(0.2, 0.2, 0.2)
+			ponto.Position = V3(x, F + 7.5, if i % 2 == 0 then 1.5 else -1.5)
+			ponto.Parent = pasta
+			local l = Instance.new("PointLight")
+			l.Color = Color3.fromRGB(190, 30, 26)
+			l.Brightness = 1.6
+			l.Range = 16
+			l.Shadows = i == 1
+			l.Parent = ponto
+		end
+		local cfPortaA = olhar(V3(66.2, F + 4.5, 2.6), V3(XQE - 8, F + 3.8, -0.6))
+		local cfPortaB = olhar(V3(63.0, F + 4.4, 1.6), V3(XQE - 8, F + 3.8, -0.4))
+		corte(cfPortaA, 58)
+		Cinema.escurecer(0, 1.6)
+		Som.tocar("rangido", { volume = 0.55, velocidade = 0.8 })
+		Som.ambiente("vento", 0.28, 1.5) -- some na limpeza (pararAmbientes)
+		mover(cfPortaA, cfPortaB, 5.2, 58, 50)
+		esperar(5.0)
+
+		-----------------------------------------------------------------
 		-- CENA 8: o título
 		Cinema.limparLegenda()
 		Cinema.escurecer(1, 2.2)
@@ -490,6 +675,14 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 
 	-- limpeza
 	conexao:Disconnect()
+	if dof and dofAntes then
+		dof.FarIntensity, dof.NearIntensity, dof.FocusDistance, dof.InFocusRadius = dofAntes[1], dofAntes[2], dofAntes[3], dofAntes[4]
+	end
+	corCena:Destroy()
+	if atmosfera and atmosferaAntes then
+		atmosfera.Density = atmosferaAntes[1]
+		atmosfera.Color = atmosferaAntes[2]
+	end
 	for _, a in atores do
 		a:destruir()
 	end

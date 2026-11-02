@@ -57,6 +57,12 @@ function Ajustes.aplicar(chave: string, valor: any)
 				for _, d in raiz:GetDescendants() do
 					if (d:IsA("ParticleEmitter") or d:IsA("Beam")) and d:GetAttribute("OI3_FX") then
 						d.Enabled = not valor
+					elseif d:IsA("Light") then
+						-- sombras das luzes: pesadas no celular fraco (guarda o original para voltar)
+						if d:GetAttribute("OI3_SombraOrig") == nil then
+							d:SetAttribute("OI3_SombraOrig", d.Shadows)
+						end
+						d.Shadows = if valor then false else d:GetAttribute("OI3_SombraOrig") == true
 					end
 				end
 			end

@@ -30,6 +30,7 @@ local estado = {
 	amp = 0,
 	tempo = 0,
 	passoAnterior = 0,
+	ultimaPisada = -1,
 	stamina = 1,
 	ultimoGasto = 0,
 	cansado = false,
@@ -54,31 +55,39 @@ local estado = {
 ---------------------------------------------------------------------------
 -- Passos: som certo para cada chão (madeira, grama, pedra...)
 ---------------------------------------------------------------------------
-local CHAO_MADEIRA = {
-	[Enum.Material.Wood] = true,
-	[Enum.Material.WoodPlanks] = true,
-}
-local CHAO_GRAMA = {
-	[Enum.Material.Grass] = true,
-	[Enum.Material.LeafyGrass] = true,
-	[Enum.Material.Ground] = true,
-	[Enum.Material.Mud] = true,
-	[Enum.Material.Sand] = true,
-	[Enum.Material.Fabric] = true, -- tapete: abafado como grama
-}
+local CHAO: { [Enum.Material]: string } = {}
+local function chao(tipo: string, nomes: { string })
+	for _, nome in nomes do
+		local ok, mat = pcall(function()
+			return (Enum.Material :: any)[nome]
+		end)
+		if ok and mat then
+			CHAO[mat] = tipo
+		end
+	end
+end
+chao("madeira", { "Wood", "WoodPlanks" })
+chao("grama", { "Grass", "LeafyGrass", "Ground", "Mud", "Sand", "Snow" })
+chao("tapete", { "Fabric", "Carpet" })
+chao("pedra", { "Slate", "Cobblestone", "Concrete", "Brick", "Rock", "Granite", "Marble", "Pavement", "Asphalt", "Basalt", "Limestone", "Sandstone", "CeramicTiles", "Plaster" })
 
--- função pura (testável): escolhe o nome do som do passo
-function PrimeiraPessoa.somDoPasso(material: Enum.Material, n: number, disponivel: ((string) -> boolean)?): string
-	local tipo = nil
-	if CHAO_MADEIRA[material] then
-		tipo = "passo_madeira"
-	elseif CHAO_GRAMA[material] then
-		tipo = "passo_grama"
+-- função pura (testável): escolhe o som do passo. sorteio = número de 0 a 1.
+-- 1º gravações reais (pisada_*, 5 de cada chão); 2º sintetizados (passo_madeira/grama); 3º passo comum.
+function PrimeiraPessoa.somDoPasso(material: Enum.Material, sorteio: number, disponivel: ((string) -> boolean)?): string
+	local tipo = CHAO[material] or "madeira"
+	local i = math.clamp(math.floor(sorteio * 5) + 1, 1, 5)
+	local gravado = "pisada_" .. tipo .. i
+	if disponivel == nil or disponivel(gravado) then
+		return gravado
 	end
-	if tipo and (disponivel == nil or disponivel(tipo .. n)) then
-		return tipo .. n
+	local j = math.clamp(math.floor(sorteio * 3) + 1, 1, 3)
+	if tipo == "madeira" or tipo == "grama" then
+		local sintetico = "passo_" .. tipo .. j
+		if disponivel(sintetico) then
+			return sintetico
+		end
 	end
-	return "passo" .. n
+	return "passo" .. j
 end
 
 ---------------------------------------------------------------------------
@@ -268,8 +277,14 @@ local function atualizar(dt: number)
 	if passo ~= estado.passoAnterior and andando then
 		estado.passoAnterior = passo
 		local vol = math.clamp(0.18 + velH / 40, 0.2, 0.55)
-		local nome = PrimeiraPessoa.somDoPasso(hum.FloorMaterial, math.random(1, 3), Som.disponivel)
-		Som.tocar(nome, { volume = vol, velocidade = 0.92 + math.random() * 0.16 })
+		-- sorteia a variação sem repetir a anterior (passo natural)
+		local r = math.random()
+		if math.floor(r * 5) == estado.ultimaPisada then
+			r = (r + 0.2 + math.random() * 0.6) % 1
+		end
+		estado.ultimaPisada = math.floor(r * 5)
+		local nome = PrimeiraPessoa.somDoPasso(hum.FloorMaterial, r, Som.disponivel)
+		Som.tocar(nome, { volume = vol, velocidade = 0.94 + math.random() * 0.12 })
 	end
 
 	-- FOV (abre um pouco ao correr)

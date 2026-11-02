@@ -41,6 +41,29 @@ function texturaRuido(tipo) {
   return t;
 }
 const TEX = {};
+// AJUSTE-5: texturas realistas (MaterialVariant) na prévia
+const VAR_TEX = {};
+let gerente = null;
+function texVariante(v) {
+  if (VAR_TEX[v.nome]) return VAR_TEX[v.nome];
+  const carregar = (url, srgb) => {
+    const t = new THREE.TextureLoader(gerente).load(url);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  VAR_TEX[v.nome] = { map: carregar(v.cor, true), normalMap: carregar(v.normal, false), roughnessMap: carregar(v.rug, false), studs: v.studs };
+  return VAR_TEX[v.nome];
+}
+function uvPorFace(geo, sx, sy, sz, studs) {
+  const uv = geo.attributes.uv;
+  const dims = [[sz, sy], [sz, sy], [sx, sz], [sx, sz], [sx, sy], [sx, sy]];
+  for (let f = 0; f < 6; f++) for (let i = 0; i < 4; i++) {
+    const k = f * 4 + i;
+    uv.setXY(k, uv.getX(k) * dims[f][0] / studs, uv.getY(k) * dims[f][1] / studs);
+  }
+  uv.needsUpdate = true;
+}
 function geoWedge(sx, sy, sz) {
   const hx = sx/2, hy = sy/2, hz = sz/2;
   const v = [
@@ -93,6 +116,9 @@ function guiCanvas(info) {
 }
 
 window.renderCena = function (pecas, opts) {
+  let pendentes = 0;
+  gerente = new THREE.LoadingManager();
+  gerente.onStart = () => { pendentes++; };
   const W = opts.w || 1280, Hh = opts.h || 720;
   const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
   renderer.setSize(W, Hh);
@@ -128,6 +154,11 @@ window.renderCena = function (pecas, opts) {
     const def = MAT[p.m] || {rough: 0.7, metal: 0};
     let mat;
     if (def.basic) mat = new THREE.MeshBasicMaterial({color: cor.clone().multiplyScalar(opts.neon || 1.6)});
+    else if (p.mv && opts.variantes && opts.variantes[p.mv] && geo.type === 'BoxGeometry') {
+      const vt = texVariante(opts.variantes[p.mv]);
+      uvPorFace(geo, sx, sy, sz, vt.studs);
+      mat = new THREE.MeshStandardMaterial({color: cor, map: vt.map, normalMap: vt.normalMap, roughnessMap: vt.roughnessMap, roughness: 1, metalness: 0});
+    }
     else {
       if (!TEX[p.m] && ['WoodPlanks','Brick','Wood','Fabric'].includes(p.m)) TEX[p.m] = texturaRuido(p.m);
       const tex = TEX[p.m];
@@ -211,11 +242,20 @@ window.renderCena = function (pecas, opts) {
     scene.add(sp); scene.add(sp.target);
   }
   renderer.render(scene, cam);
+  const fim = () => {
+    renderer.render(scene, cam);
+  };
+  if (pendentes > 0) {
+    return new Promise(res => { gerente.onLoad = () => { fim(); escreverUI(); res(true); }; setTimeout(() => { fim(); escreverUI(); res(true); }, 8000); });
+  }
+  escreverUI();
+  return true;
+  function escreverUI() {
   if (opts.rotulo) {
     const ui = document.getElementById('ui');
     ui.innerHTML = `<div style="position:absolute;left:10px;bottom:8px;color:#ddd;font:13px sans-serif;background:rgba(0,0,0,.5);padding:3px 7px;border-radius:4px">${opts.rotulo}</div>` + (opts.overlay || '');
   }
-  return true;
+  }
 };
 </script>
 </body>

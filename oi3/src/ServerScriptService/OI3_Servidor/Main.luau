@@ -8,6 +8,7 @@ local Config = require(OI3:WaitForChild("Config"))
 local Mapa = require(OI3:WaitForChild("Mapa"))
 local Dados = require(script.Parent:WaitForChild("Dados"))
 local Sala = require(script.Parent:WaitForChild("Sala"))
+local Roupas = require(script.Parent:WaitForChild("Roupas"))
 
 local Main = {}
 
@@ -153,6 +154,7 @@ function Main.iniciar()
 		warn("[OI3] terreno:", errTerreno)
 	end
 
+	Roupas.preparar() -- AJUSTE-5: camisa, calça e cabelo dos personagens (catálogo)
 	Dados.iniciar()
 	Sala.iniciar(remotos.Sala)
 

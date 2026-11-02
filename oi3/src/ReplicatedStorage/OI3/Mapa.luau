@@ -107,11 +107,11 @@ end
 -- Face interna de uma sala: papel de parede + lambri + rodapé + friso
 local function faceSala(c, p1, p2, lado, papel, aberturas, semLambri)
 	local a, b, _, n = infoParede(p1, p2)
-	local function em(dist, esp, y0, alt, cor, mat)
+	local function em(dist, esp, y0, alt, cor, mat, extra)
 		local off = n * (lado * dist)
-		c:parede(a + off, b + off, y0, alt, esp, cor, mat, relativas(aberturas, y0))
+		c:parede(a + off, b + off, y0, alt, esp, cor, mat, relativas(aberturas, y0), extra)
 	end
-	em(0.25, 0.5, F, H, papel, M.Fabric)
+	em(0.25, 0.5, F, H, papel, M.Fabric, { Name = "Papel" })
 	if not semLambri then
 		em(0.56, 0.12, F, 3.2, COR.lambri, M.WoodPlanks)
 		em(0.62, 0.24, F + 3.2, 0.22, COR.madeiraEscura, M.Wood)
@@ -128,8 +128,9 @@ function Mapa.construirQuartoEspelho(c, reflexo: boolean?)
 	local xFim = if reflexo then 69.7 else XL
 	local refs = {}
 	if reflexo then
-		c:laje(XQE, -ZA, xFim, ZA, F, 0.6, COR.piso, M.WoodPlanks, { colisao = false })
-		c:laje(XQE, -ZA, xFim, ZA, TETO + 0.5, 0.5, COR.teto, M.Wood, { colisao = false })
+		c:laje(XQE, -ZA, xFim, ZA, F - 0.05, 0.6, RGB(22, 15, 11), M.WoodPlanks, { colisao = false })
+		Moveis.assoalho(c, XQE, -ZA, xFim, ZA, F, COR.assoalho)
+		c:laje(XQE, -ZA, xFim, ZA, TETO + 0.5, 0.5, COR.gesso, M.Plaster, { colisao = false, Name = "Teto" })
 		-- "corredor" escuro atrás da porta refletida
 		c:entre(V3(XQE - 4.5, F, -3), V3(XQE - 0.6, F + 9, 3), RGB(4, 4, 6), M.SmoothPlastic, { colisao = false })
 	end
@@ -196,11 +197,18 @@ function Mapa.construir(pai: Instance)
 	-- Fundação e pisos
 	c:entre(V3(X0 - 0.7, -1, Z0 - 0.7), V3(X1 + 0.7, F - 0.35, Z1 + 0.7), COR.pedra, M.Slate)
 	c:entre(V3(36, -1, -ZA - 0.7), V3(XL + 0.7, F - 0.35, ZA + 0.7), COR.pedra, M.Slate)
-	c:laje(X0, Z0, X1, Z1, F, 0.4, COR.piso, M.WoodPlanks)
-	c:laje(36, -ZA, XL, ZA, F, 0.4, COR.piso, M.WoodPlanks)
+	-- base escura (aparece nas frestas e segura o jogador) + tábuas por cima (AJUSTE-5)
+	c:laje(X0, Z0, X1, Z1, F - 0.05, 0.4, RGB(22, 15, 11), M.WoodPlanks)
+	c:laje(36, -ZA, XL, ZA, F - 0.05, 0.4, RGB(22, 15, 11), M.WoodPlanks)
+	local assoalho = Instance.new("Model")
+	assoalho.Name = "Assoalho"
+	assoalho.Parent = estrutura
+	local ca = Construtor.novo(assoalho)
+	Moveis.assoalho(ca, X0, Z0, X1, Z1, F, COR.assoalho)
+	Moveis.assoalho(ca, 36, -ZA, XL, ZA, F, COR.assoalho)
 	-- tetos
-	c:laje(X0, Z0, X1, Z1, TETO + 0.5, 0.5, COR.teto, M.Wood)
-	c:laje(36, -ZA, XL, ZA, TETO + 0.5, 0.5, COR.teto, M.Wood)
+	c:laje(X0, Z0, X1, Z1, TETO + 0.5, 0.5, COR.gesso, M.Plaster, { Name = "Teto" })
+	c:laje(36, -ZA, XL, ZA, TETO + 0.5, 0.5, COR.gesso, M.Plaster, { Name = "Teto" })
 
 	-------------------------------------------------------------------
 	-- Paredes externas do prédio principal (camada de tijolo por fora)
@@ -325,7 +333,7 @@ function Mapa.construir(pai: Instance)
 			local cume = V3(xm, yBeiral + subida, zm)
 			local centro = (beiralP + cume) / 2
 			local cf = CFrame.lookAt(centro, cume)
-			c:bloco(cf * CF(0, 0.4, 0), V3(largura, 0.8, comp + 0.6), COR.telhado, M.Slate)
+			c:bloco(cf * CF(0, 0.4, 0), V3(largura, 0.8, comp + 0.6), COR.telhado, M.Slate, { Name = "Telhado" })
 		end
 		c:bloco(CF(xm, yBeiral + subida + 0.35, zm), V3(largura + 0.2, 0.6, 1.2), COR.madeiraEscura, M.Wood)
 		-- oitões (triângulos)
@@ -365,7 +373,7 @@ function Mapa.construir(pai: Instance)
 		c:coluna(V3(x, F, 17.3), 10.5, 0.9, COR.moldura, M.Wood)
 		c:caixa(V3(x, F + 0.3, 17.3), V3(1.3, 0.6, 1.3), COR.moldura, M.Wood)
 	end
-	c:bloco(CF(0, F + 11.3, 15.3) * CFrame.Angles(math.rad(12), 0, 0), V3(17.5, 0.6, 6.4), COR.telhado, M.Slate)
+	c:bloco(CF(0, F + 11.3, 15.3) * CFrame.Angles(math.rad(12), 0, 0), V3(17.5, 0.6, 6.4), COR.telhado, M.Slate, { Name = "Telhado" })
 	c:caixa(V3(0, F + 10.6, 17.4), V3(16.2, 0.5, 0.5), COR.moldura, M.Wood)
 	-- grade da varanda
 	for _, s in { -1, 1 } do
@@ -376,7 +384,7 @@ function Mapa.construir(pai: Instance)
 	end
 	-- luz da varanda (fraca)
 	local lampVar = c:caixa(V3(4.4, F + 8, Z1 + 0.9), V3(0.5, 0.7, 0.5), RGB(255, 196, 120), M.Neon, { Name = "OI3_Chama" })
-	c:luz(lampVar, "PointLight", { Range = 14, Brightness = 0.7, Color = RGB(255, 180, 110), Shadows = false })
+	c:luz(lampVar, "PointLight", { Range = 14, Brightness = 0.7, Color = RGB(255, 180, 110), Shadows = true })
 
 	-------------------------------------------------------------------
 	-- Interior: dormitório
@@ -491,7 +499,7 @@ function Mapa.construir(pai: Instance)
 	ce:coluna(V3(7.4, 0, zG + 2.2), 9, 0.45, COR.ferro, M.Metal)
 	ce:caixa(V3(7.4, 9.4, zG + 2.2), V3(1.1, 0.25, 1.1), COR.ferro, M.Metal)
 	local lampada = ce:caixa(V3(7.4, 8.8, zG + 2.2), V3(0.7, 0.9, 0.7), RGB(255, 210, 150), M.Neon, { Name = "OI3_Lampada" })
-	ce:luz(lampada, "PointLight", { Range = 22, Brightness = 1.1, Color = RGB(255, 206, 150), Shadows = false })
+	ce:luz(lampada, "PointLight", { Range = 22, Brightness = 1.1, Color = RGB(255, 206, 150), Shadows = true })
 	refs.lampada = lampada
 	-- cercas vivas (limites)
 	local folhas = RGB(30, 40, 30)
@@ -553,6 +561,7 @@ function Mapa.construir(pai: Instance)
 
 	-- AJUSTE-3: detalhes extras (vigas, lareira, estantes, luar, poeira, névoa, mata...)
 	Detalhes.construir(modelo, Mapa.L)
+	Moveis.aplicarVariantes(modelo) -- AJUSTE-5: texturas realistas (se o instalador enviou)
 
 	modelo.Parent = pai
 	return modelo, refs
@@ -563,6 +572,9 @@ function Mapa.construirTerreno(terreno: Terrain)
 	terreno:FillBlock(CF(15, -4, 10), V3(260, 8, 260), Enum.Material.Grass)
 	terreno:FillBlock(CF(0, -1.9, 42), V3(8, 4, 48), Enum.Material.Mud)
 	terreno:FillBlock(CF(0, -1.9, 70), V3(8, 4, 14), Enum.Material.Mud)
+	-- embaixo da casa: terra sem grama (a grama decorativa atravessava o assoalho)
+	terreno:FillBlock(CF(0, -4, -6), V3(84, 8, 48), Enum.Material.Ground)
+	terreno:FillBlock(CF(53.5, -4, 0), V3(42, 8, 24), Enum.Material.Ground)
 	-- morros ao longe (silhueta no horizonte)
 	for _, m in { { V3(-170, -30, 20), 70 }, { V3(200, -35, -10), 80 }, { V3(20, -40, -170), 90 }, { V3(-120, -40, 170), 80 }, { V3(150, -40, 170), 75 } } do
 		terreno:FillBall(m[1], m[2], Enum.Material.Grass)

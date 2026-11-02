@@ -9,6 +9,7 @@ local OI3 = script.Parent.Parent
 local Config = require(OI3.Config)
 local Interface = require(script.Parent.Interface)
 local Som = require(script.Parent.Som)
+local Texturas = require(script.Parent.Texturas)
 local Chamas = require(script.Parent.Chamas)
 local Ajustes = require(script.Parent.Ajustes)
 local Cinema = require(script.Parent.Cinema)
@@ -178,6 +179,7 @@ function Main.iniciar()
 		remotos.SalvarConfig:FireServer(cfg)
 	end)
 	Som.iniciar(Ajustes.valores)
+	Texturas.verificar() -- AJUSTE-5: material sem textura volta ao visual normal
 	Som.aoMudarEstado(function()
 		if estadoJogo == "menu" then
 			tocarClimaMenu()

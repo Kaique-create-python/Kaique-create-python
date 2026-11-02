@@ -49,9 +49,13 @@ ws.StreamingEnabled = false
 local terreno = Instance.new("Terrain")
 terreno.Parent = ws
 
--- Iluminação noturna (Future)
+-- Iluminação noturna (Future + estilo realista com prioridade de qualidade: AJUSTE-5)
 local luz = game:GetService("Lighting")
 luz.Technology = Enum.Technology.Future
+pcall(function()
+	luz.LightingStyle = Enum.LightingStyle.Realistic
+	luz.PrioritizeLightingQuality = true
+end)
 luz.ClockTime = 22.3
 luz.GeographicLatitude = 30
 luz.Brightness = 1.6
@@ -111,9 +115,27 @@ raios.Spread = 0.55
 raios.Parent = luz
 
 -- materiais novos do Roblox (madeira, tijolo e pedra bem mais bonitos)
+local servicoMateriais = game:GetService("MaterialService")
 pcall(function()
-	game:GetService("MaterialService").Use2022Materials = true
+	servicoMateriais.Use2022Materials = true
 end)
+
+-- AJUSTE-5: texturas realistas feitas por código (MaterialVariant). Os mapas ficam com
+-- marcadores "rbxassetid://OI3TEX_<arquivo>" e o NOME com "OI3TEXNOME_": o instalador troca
+-- pelos IDs reais e só "liga" (renomeia) a variante se os 3 mapas foram enviados.
+local serde = require("@lune/serde")
+local texturas = serde.decode("json", fs.readFile("oi3/assets/texturas/texturas.json"))
+for _, t in texturas do
+	local mv = Instance.new("MaterialVariant")
+	mv.Name = "OI3TEXNOME_" .. t.nome
+	mv.BaseMaterial = (Enum.Material :: any)[t.base]
+	mv.ColorMap = "rbxassetid://OI3TEX_" .. string.gsub(t.mapas.cor, "%.jpg$", "")
+	mv.NormalMap = "rbxassetid://OI3TEX_" .. string.gsub(t.mapas.normal, "%.jpg$", "")
+	mv.RoughnessMap = "rbxassetid://OI3TEX_" .. string.gsub(t.mapas.rugosidade, "%.jpg$", "")
+	mv.StudsPerTile = t.studs
+	mv.MaterialPattern = (Enum.MaterialPattern :: any)[t.padrao]
+	mv.Parent = servicoMateriais
+end
 
 -- Jogadores: o personagem só aparece depois do menu/abertura
 local jogadores = game:GetService("Players")

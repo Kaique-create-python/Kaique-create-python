@@ -1,0 +1,98 @@
+[
+ {
+  "nome": "OI3_Tabua",
+  "base": "Wood",
+  "studs": 6.0,
+  "padrao": "Regular",
+  "mapas": {
+   "cor": "OI3_Tabua_cor.jpg",
+   "normal": "OI3_Tabua_normal.jpg",
+   "rugosidade": "OI3_Tabua_rugosidade.jpg"
+  },
+  "tamanho": 1024
+ },
+ {
+  "nome": "OI3_Madeira",
+  "base": "Wood",
+  "studs": 4.0,
+  "padrao": "Regular",
+  "mapas": {
+   "cor": "OI3_Madeira_cor.jpg",
+   "normal": "OI3_Madeira_normal.jpg",
+   "rugosidade": "OI3_Madeira_rugosidade.jpg"
+  },
+  "tamanho": 512
+ },
+ {
+  "nome": "OI3_Papel",
+  "base": "Fabric",
+  "studs": 6.0,
+  "padrao": "Regular",
+  "mapas": {
+   "cor": "OI3_Papel_cor.jpg",
+   "normal": "OI3_Papel_normal.jpg",
+   "rugosidade": "OI3_Papel_rugosidade.jpg"
+  },
+  "tamanho": 1024
+ },
+ {
+  "nome": "OI3_Tecido",
+  "base": "Fabric",
+  "studs": 5.0,
+  "padrao": "Regular",
+  "mapas": {
+   "cor": "OI3_Tecido_cor.jpg",
+   "normal": "OI3_Tecido_normal.jpg",
+   "rugosidade": "OI3_Tecido_rugosidade.jpg"
+  },
+  "tamanho": 512
+ },
+ {
+  "nome": "OI3_Tijolo",
+  "base": "Brick",
+  "studs": 4.0,
+  "padrao": "Regular",
+  "mapas": {
+   "cor": "OI3_Tijolo_cor.jpg",
+   "normal": "OI3_Tijolo_normal.jpg",
+   "rugosidade": "OI3_Tijolo_rugosidade.jpg"
+  },
+  "tamanho": 512
+ },
+ {
+  "nome": "OI3_Pedra",
+  "base": "Slate",
+  "studs": 7.0,
+  "padrao": "Organic",
+  "mapas": {
+   "cor": "OI3_Pedra_cor.jpg",
+   "normal": "OI3_Pedra_normal.jpg",
+   "rugosidade": "OI3_Pedra_rugosidade.jpg"
+  },
+  "tamanho": 512
+ },
+ {
+  "nome": "OI3_Gesso",
+  "base": "Plaster",
+  "studs": 10.0,
+  "padrao": "Organic",
+  "mapas": {
+   "cor": "OI3_Gesso_cor.jpg",
+   "normal": "OI3_Gesso_normal.jpg",
+   "rugosidade": "OI3_Gesso_rugosidade.jpg"
+  },
+  "tamanho": 512
+ },
+ {
+  "nome": "OI3_Telhado",
+  "base": "Slate",
+  "studs": 8.0,
+  "padrao": "Regular",
+  "mapas": {
+   "cor": "OI3_Telhado_cor.jpg",
+   "normal": "OI3_Telhado_normal.jpg",
+   "rugosidade": "OI3_Telhado_rugosidade.jpg"
+  },
+  "tamanho": 512
+ }
+]

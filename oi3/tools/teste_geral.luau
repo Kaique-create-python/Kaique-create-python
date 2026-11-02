@@ -223,14 +223,25 @@ end)
 
 checar("passos: som certo para cada chão", function()
 	local PP = H.modulo("ReplicatedStorage/OI3/Cliente/PrimeiraPessoa")
+	local AudioMapa = H.modulo("ReplicatedStorage/OI3/AudioMapa")
 	local E = roblox.Enum.Material
-	assert(PP.somDoPasso(E.WoodPlanks, 2, nil) == "passo_madeira2", "madeira")
-	assert(PP.somDoPasso(E.Wood, 1, nil) == "passo_madeira1", "madeira 2")
-	assert(PP.somDoPasso(E.Grass, 3, nil) == "passo_grama3", "grama")
-	assert(PP.somDoPasso(E.Slate, 1, nil) == "passo1", "pedra usa o passo comum")
-	assert(PP.somDoPasso(E.WoodPlanks, 2, function()
+	assert(PP.somDoPasso(E.WoodPlanks, 0.3, nil) == "pisada_madeira2", "madeira")
+	assert(PP.somDoPasso(E.Grass, 0.99, nil) == "pisada_grama5", "grama")
+	assert(PP.somDoPasso(E.Fabric, 0.0, nil) == "pisada_tapete1", "tapete")
+	assert(PP.somDoPasso(E.Slate, 0.5, nil) == "pisada_pedra3", "pedra")
+	assert(PP.somDoPasso(E.Neon, 0.5, nil) == "pisada_madeira3", "chão desconhecido usa madeira")
+	local soAntigos = function(n)
+		return string.sub(n, 1, 13) == "passo_madeira"
+	end
+	assert(PP.somDoPasso(E.WoodPlanks, 0.3, soAntigos) == "passo_madeira1", "sem gravação usa o sintetizado")
+	assert(PP.somDoPasso(E.Slate, 0.9, function()
 		return false
-	end) == "passo2", "sem o arquivo novo volta para o passo comum")
+	end) == "passo3", "sem nada usa o passo comum")
+	for _, tipo in { "madeira", "grama", "tapete", "pedra" } do
+		for i = 1, 5 do
+			assert(AudioMapa.itens["pisada_" .. tipo .. i], "falta pisada_" .. tipo .. i)
+		end
+	end
 end)
 
 checar("áreas de toque dos botões (projeção na tela)", function()
@@ -307,7 +318,8 @@ checar("detalhes novos (efeitos marcados)", function()
 		end
 	end
 	print(string.format("    efeitos: %d, fogo: %d, luzes: %d (com sombra: %d)", fx, fogo, luzes, sombras))
-	assert(sombras <= 8, "luzes com sombra demais para celular")
+	-- AJUSTE-5: qualidade máxima pedida pelos criadores; o modo "efeitos leves" desliga TODAS as sombras
+	assert(sombras <= 16, "luzes com sombra demais")
 end)
 
 print(if falhas == 0 then "\nTUDO OK" else ("\nFALHAS: " .. falhas))

@@ -880,8 +880,50 @@ def ajuste4():
         json.dump(resumo, f, ensure_ascii=False, indent=1)
 
 
+# ---------------------------------------------------------------- AJUSTE-5
+# Passos GRAVADOS de verdade: pacote "Impact Sounds" do Kenney (licença CC0, domínio público).
+# Madeira (assoalho), grama (lá fora), carpete (tapetes) e concreto (pedra/caminho).
+def preparar_pisada(x, tipo):
+    pico = np.max(np.abs(x)) + 1e-9
+    acima = np.where(np.abs(x) > pico * 10 ** (-45 / 20))[0]
+    ini = max(0, acima[0] - int(0.005 * SR)) if len(acima) else 0
+    fim = min(len(x), (acima[-1] + int(0.03 * SR)) if len(acima) else len(x))
+    y = x[ini:fim]
+    if len(y) < int(0.2 * SR):
+        y = np.concatenate([y, np.zeros(int(0.2 * SR) - len(y))])
+    y = hp(y, 45, 2)
+    ativo = y[: int(0.25 * SR)]
+    alvo = {"madeira": -17.0, "grama": -19.0, "tapete": -20.0, "pedra": -17.5}[tipo]
+    y = y * (10 ** (alvo / 20) / (np.sqrt(np.mean(ativo ** 2)) + 1e-9))
+    if tipo == "madeira":  # sala de madeira: um pouquinho de ambiente
+        y = reverb(np.concatenate([y, np.zeros(int(0.25 * SR))]), 0.45, 0.1, 9, 5000, 61)
+    p = np.max(np.abs(y))
+    if p > 0.85:
+        y = np.tanh(y / p * 1.3) / np.tanh(1.3) * 0.85
+    return fade(y, 0.001, 0.015)
+
+
+def ajuste5(pasta):
+    caminho_json = os.path.join(ASSETS, "audio_mapa.json")
+    with open(caminho_json, encoding="utf-8") as f:
+        resumo = json.load(f)
+    itens = []
+    for tipo, arquivo in [("madeira", "wood"), ("grama", "grass"), ("tapete", "carpet"), ("pedra", "concrete")]:
+        for i in range(5):
+            x = ler_audio(os.path.join(pasta, "footstep_%s_%03d.ogg" % (arquivo, i)))
+            itens.append(("pisada_%s%d" % (tipo, i + 1), preparar_pisada(x, tipo)))
+    mapa_p, dur_p, ogg_p = montar_sprite(itens, "oi3_passos", folga=0.25)
+    resumo["passos"] = mapa_p
+    print(f"passos: {len(itens)} pisadas gravadas, {dur_p:.1f}s, {os.path.getsize(ogg_p) // 1024} KB")
+    escrever_mapa_json(resumo)
+    with open(caminho_json, "w", encoding="utf-8") as f:
+        json.dump(resumo, f, ensure_ascii=False, indent=1)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste4":
+    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste5":
+        ajuste5(sys.argv[2])
+    elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste4":
         ajuste4()
     elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste2":
         ajuste2(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "")

@@ -80,8 +80,11 @@ class H(BaseHTTPRequestHandler):
             partes = {p.get_param("name", header="content-disposition"): p for p in msg.iter_parts()}
             pedido = json.loads(partes["request"].get_content())
             arquivo = partes["fileContent"].get_payload(decode=True)
-            assert pedido["assetType"] == "Audio" and pedido["creationContext"]["creator"]["userId"] == "1357078972", pedido
-            assert arquivo[:4] == b"OggS", "arquivo não é ogg"
+            assert pedido["assetType"] in ("Audio", "Image") and pedido["creationContext"]["creator"]["userId"] == "1357078972", pedido
+            if pedido["assetType"] == "Audio":
+                assert arquivo[:4] == b"OggS", "arquivo não é ogg"
+            else:
+                assert arquivo[:2] == b"\xff\xd8", "imagem não é jpeg"
             op = "op%d" % (len(ESTADO["ops"]) + 1)
             ESTADO["ops"][op] = {"consultas": 0, "id": str(9000 + len(ESTADO["ops"]) + 1)}
             ESTADO["uploads"].append((pedido["displayName"], len(arquivo)))

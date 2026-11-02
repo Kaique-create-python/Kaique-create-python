@@ -161,6 +161,7 @@ function MenuCena.construirCenario(pasta: Instance)
 	corpo.Parent = vulto
 	refs.vulto = vulto
 	refs.contagem = c.contagem
+	Moveis.aplicarVariantes(pasta) -- AJUSTE-5: texturas realistas no quarto do menu
 	return refs
 end
 

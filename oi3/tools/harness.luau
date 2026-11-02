@@ -377,6 +377,7 @@ function H.exportarPecas(raiz): { any }
 					}
 					else nil,
 				fogo = d:FindFirstChildOfClass("Fire") ~= nil,
+				mv = if d.MaterialVariant ~= "" then d.MaterialVariant else nil,
 			})
 		end
 	end

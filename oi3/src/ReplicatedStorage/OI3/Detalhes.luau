@@ -123,7 +123,7 @@ function Detalhes.construir(pai: Instance, L: { [string]: number })
 		ce:coluna(p, 8.5, 0.4, COR.ferro, M.Metal)
 		ce:caixa(p + V3(0, 8.9, 0), V3(1, 0.22, 1), COR.ferro, M.Metal)
 		local lamp = ce:caixa(p + V3(0, 8.35, 0), V3(0.6, 0.8, 0.6), RGB(255, 210, 150), M.Neon, { Name = "OI3_Lampada" })
-		ce:luz(lamp, "PointLight", { Range = 18, Brightness = 0.9, Color = RGB(255, 204, 148), Shadows = false })
+		ce:luz(lamp, "PointLight", { Range = 18, Brightness = 0.9, Color = RGB(255, 204, 148), Shadows = true })
 		Moveis.mariposas(ce, p + V3(0, 8.3, 0))
 	end
 	Moveis.mariposas(ce, V3(7.4, 8.8, 66.2))

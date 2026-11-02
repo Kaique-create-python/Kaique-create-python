@@ -26,6 +26,7 @@ local NOMES = {
 	vozes2 = "vozes 2",
 	musica = "música",
 	ambiente = "ambiente",
+	passos = "passos",
 }
 
 local grupos: { [string]: SoundGroup } = {}

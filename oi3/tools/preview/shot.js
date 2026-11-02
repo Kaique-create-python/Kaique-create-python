@@ -6,7 +6,7 @@ const path = require('path');
 
 (async () => {
   const lote = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--allow-file-access-from-files'] });
   for (const item of lote) {
     const pecas = JSON.parse(fs.readFileSync(item.pecas, 'utf8'));
     const extra = item.extra ? JSON.parse(fs.readFileSync(item.extra, 'utf8')) : [];

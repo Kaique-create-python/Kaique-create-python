@@ -36,10 +36,20 @@ def main():
         mapa = f.read()
     for chave, arq, rotulo in [("sfx", "oi3_sfx.ogg", "efeitos"), ("vozes1", "oi3_vozes1.ogg", "vozes1"),
                                ("vozes2", "oi3_vozes2.ogg", "vozes2"), ("musica", "oi3_musica.ogg", "musica menu"),
-                               ("ambiente", "oi3_ambiente.ogg", "ambiente")]:
+                               ("ambiente", "oi3_ambiente.ogg", "ambiente"), ("passos", "oi3_passos.ogg", "passos gravados")]:
         caminho = os.path.join(RAIZ, "assets", arq)
         if os.path.exists(caminho) and ('"%s"' % chave) in mapa:
             entradas.append(("audio/" + arq, caminho, {"chave": chave, "rotulo": rotulo}))
+
+    # AJUSTE-5: texturas realistas (feitas por código em tools/texturas.py)
+    pasta_tex = os.path.join(RAIZ, "assets", "texturas")
+    with open(os.path.join(pasta_tex, "texturas.json"), encoding="utf-8") as f:
+        lista_tex = json.load(f)
+    for t in lista_tex:
+        for mapa, arq in t["mapas"].items():
+            entradas.append(("textura/" + arq, os.path.join(pasta_tex, arq),
+                             {"textura": arq[:-4], "material": t["nome"], "mapa": mapa,
+                              "rotulo": "textura %s (%s)" % (t["nome"].replace("OI3_", ""), mapa)}))
 
     manifesto = {}
     buf = io.BytesIO()

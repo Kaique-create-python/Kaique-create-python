@@ -15,6 +15,8 @@ Moveis.COR = {
 	madeira = RGB(88, 63, 44),
 	madeiraClara = RGB(124, 92, 63),
 	piso = RGB(74, 53, 38),
+	assoalho = RGB(116, 80, 52), -- tábuas do assoalho (AJUSTE-5)
+	gesso = RGB(118, 110, 98), -- teto de reboco (AJUSTE-5)
 	telhado = RGB(36, 38, 44),
 	moldura = RGB(168, 162, 148),
 	vidro = RGB(36, 48, 62),
@@ -258,7 +260,7 @@ function Moveis.lustre(c, centro: Vector3, raio: number?, brilho: number?)
 		end
 	end
 	if principal then
-		c:luz(principal, "PointLight", { Range = 26, Brightness = brilho or 0.35, Color = COR.luzVela, Shadows = false })
+		c:luz(principal, "PointLight", { Range = 26, Brightness = brilho or 0.35, Color = COR.luzVela, Shadows = true })
 	end
 end
 
@@ -614,6 +616,93 @@ function Moveis.banco(c, base: Vector3, frente: Vector3)
 	for _, s in { -1.9, 1.9 } do
 		c:bloco(cf * CF(s, 0.75, 0), V3(0.25, 1.5, 1.2), COR.ferro, M.Metal)
 	end
+end
+
+---------------------------------------------------------------------------
+-- AJUSTE-5: assoalho de tábuas de verdade (cada tábua é uma peça, com emendas
+-- desencontradas, frestas escuras e cor variando). É determinístico: a mesma
+-- tábua sai igual em qualquer recorte, então o reflexo do espelho bate com o chão.
+---------------------------------------------------------------------------
+Moveis.VARIANTE = {
+	tabua = "OI3_Tabua",
+	madeira = "OI3_Madeira",
+	papel = "OI3_Papel",
+	tecido = "OI3_Tecido",
+	tijolo = "OI3_Tijolo",
+	pedra = "OI3_Pedra",
+	gesso = "OI3_Gesso",
+	telhado = "OI3_Telhado",
+}
+
+local LARGURA_TABUA = 0.9
+local FRESTA = 0.05
+local X_GLOBAL_MIN, X_GLOBAL_MAX = -90, 100
+
+function Moveis.assoalho(c, x0: number, z0: number, x1: number, z1: number, y: number, corBase: Color3?): number
+	local base = corBase or RGB(118, 82, 54)
+	local h, sat, v = base:ToHSV()
+	local n = 0
+	local fila = math.floor(z0 / LARGURA_TABUA)
+	while fila * LARGURA_TABUA < z1 do
+		local zA = fila * LARGURA_TABUA + FRESTA / 2
+		local zB = (fila + 1) * LARGURA_TABUA - FRESTA / 2
+		local za, zb = math.max(zA, z0), math.min(zB, z1)
+		local g = Random.new(fila * 7919 + 1301)
+		local x = X_GLOBAL_MIN + g:NextNumber(0, 9)
+		while x < X_GLOBAL_MAX do
+			local comp = g:NextNumber(7, 15)
+			local tom = g:NextNumber(-1, 1)
+			local gasto = g:NextNumber(0, 1)
+			local xa, xb = math.max(x, x0), math.min(x + comp - FRESTA, x1)
+			if zb - za > 0.05 and xb - xa > 0.1 then
+				local cor = Color3.fromHSV(
+					(h + tom * 0.012) % 1,
+					math.clamp(sat * (1 + tom * 0.12), 0, 1),
+					math.clamp(v * (1 + tom * 0.16 - (if gasto > 0.85 then 0.18 else 0)), 0, 1)
+				)
+				c:entre(Vector3.new(xa, y - 0.12, za), Vector3.new(xb, y, zb), cor, M.Wood, {
+					colisao = false,
+					CastShadow = false,
+					MaterialVariant = Moveis.VARIANTE.tabua,
+					Name = "Tabua",
+				})
+				n += 1
+			end
+			x += comp
+		end
+		fila += 1
+	end
+	return n
+end
+
+-- Aplica as texturas realistas (MaterialVariant) em todas as peças de um modelo.
+-- Se o instalador não conseguiu enviar uma textura, o nome não existe no MaterialService
+-- e o Roblox simplesmente usa o material normal da peça.
+function Moveis.aplicarVariantes(raiz: Instance): number
+	local V = Moveis.VARIANTE
+	local n = 0
+	for _, p in raiz:GetDescendants() do
+		if p:IsA("BasePart") and p.MaterialVariant == "" and p.Transparency < 0.95 then
+			local m = p.Material
+			local nome = nil
+			if m == M.Wood then
+				nome = V.madeira
+			elseif m == M.Fabric then
+				nome = if p.Name == "Papel" then V.papel else V.tecido
+			elseif m == M.Brick then
+				nome = V.tijolo
+			elseif m == M.Slate then
+				nome = if p.Name == "Telhado" then V.telhado else V.pedra
+			elseif m == M.Plaster then
+				nome = V.gesso
+			end
+			if nome then
+				p.MaterialVariant = nome
+				n += 1
+			end
+		end
+	end
+	return n
 end
 
 return Moveis

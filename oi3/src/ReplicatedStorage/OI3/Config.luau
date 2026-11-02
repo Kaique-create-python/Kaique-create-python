@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-4"
+Config.REVISAO = "AJUSTE-5"
 Config.DONO_USERID = 1357078972
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)
@@ -49,6 +49,15 @@ function Config.sanitizarConfig(v: any): { [string]: any }
 	end
 	return out
 end
+
+-- AJUSTE-5: roupas e cabelos do catálogo do Roblox (itens clássicos, funcionam em R6).
+-- 0 = ainda sem item. Keko: cabelo e rosto escolhidos pelos criadores (falta o número do item).
+Config.ROUPAS = {
+	KE = { camisa = 11936840903, calca = 9996628332, cabelo = {}, rosto = 0 },
+	NI = { camisa = 6998311830, calca = 2979045299, cabelo = { 126460999741527 }, rosto = 0 },
+	ME = { camisa = 6163926164, calca = 7718540287, cabelo = { 6714486677 }, rosto = 0 },
+	VO = { camisa = 11237559621, calca = 5916135431, cabelo = { 18331282448 }, rosto = 0 },
+}
 
 -- Créditos oficiais (fornecidos pelos criadores)
 Config.CREDITOS = {

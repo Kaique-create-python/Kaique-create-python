@@ -365,6 +365,90 @@ function Personagens.piscar(modelo: Model)
 	end)
 end
 
+-- Acessório (cabelo) no tamanho do boneco: os bonecos das crianças são menores que o padrão
+local function escalarAcessorio(a: Accessory, s: number)
+	local alca = a:FindFirstChild("Handle")
+	if not alca or not alca:IsA("BasePart") then
+		return
+	end
+	alca.Anchored = false
+	alca.CanCollide = false
+	alca.CanQuery = false
+	alca.CanTouch = false
+	alca.Massless = true
+	if math.abs(s - 1) > 0.001 then
+		local malha = alca:FindFirstChildOfClass("SpecialMesh")
+		if malha then
+			malha.Scale *= s
+			malha.Offset *= s
+		end
+		alca.Size *= s
+		for _, at in alca:GetChildren() do
+			if at:IsA("Attachment") then
+				at.Position *= s
+			end
+		end
+	end
+end
+
+-- Veste o boneco com o kit do catálogo (camisa, calça, cabelo e, se houver, rosto).
+-- O kit é montado pelo servidor em ReplicatedStorage.OI3_Roupas; se ainda não existir, segue sem.
+function Personagens.vestir(m: Model, codigo: string): boolean
+	local pasta = game:GetService("ReplicatedStorage"):FindFirstChild("OI3_Roupas")
+	local kit = pasta and pasta:FindFirstChild(codigo)
+	if not kit then
+		return false
+	end
+	local hum = m:FindFirstChildOfClass("Humanoid")
+	local s = (Personagens.DEFS[codigo] and Personagens.DEFS[codigo].escala) or 1
+	local vestiu = false
+	local pele = Personagens.DEFS[codigo] and Personagens.DEFS[codigo].cores.pele
+	for _, x in kit:GetChildren() do
+		if x:IsA("Shirt") or x:IsA("Pants") then
+			x:Clone().Parent = m
+			vestiu = true
+			-- onde a roupa não cobre (manga curta, bermuda, pescoço) aparece pele, não a cor antiga
+			if pele then
+				local partes = if x:IsA("Shirt") then { "Torso", "Left Arm", "Right Arm" } else { "Left Leg", "Right Leg" }
+				for _, n in partes do
+					local p = m:FindFirstChild(n)
+					if p and p:IsA("BasePart") then
+						p.Color = pele
+					end
+				end
+			end
+		elseif x:IsA("Accessory") and hum then
+			local a = x:Clone()
+			escalarAcessorio(a, s)
+			local ok = pcall(function()
+				hum:AddAccessory(a)
+			end)
+			if not ok then
+				a:Destroy()
+			end
+			vestiu = true
+		elseif x:IsA("Decal") and x.Name == "RostoCatalogo" then
+			-- rosto escolhido no catálogo: some o rosto desenhado e entra o do catálogo
+			local cabeca = m:FindFirstChild("Head")
+			if cabeca then
+				local placa = m:FindFirstChild("Rosto")
+				if placa then
+					for _, g in placa:GetDescendants() do
+						if g:IsA("SurfaceGui") then
+							g.Enabled = false
+						end
+					end
+				end
+				local d = x:Clone()
+				d.Name = "face"
+				d.Parent = cabeca
+				m:SetAttribute("RostoCatalogo", true)
+			end
+		end
+	end
+	return vestiu
+end
+
 -- Cria um personagem pelo código (VO, KE, NI, ME)
 function Personagens.criar(codigo: string): Model
 	local def = Personagens.DEFS[codigo]
@@ -373,6 +457,7 @@ function Personagens.criar(codigo: string): Model
 	m:SetAttribute("Codigo", codigo)
 	Personagens.criarRosto(m, def.bochechas)
 	Personagens.expressao(m, def.rosto)
+	pcall(Personagens.vestir, m, codigo) -- AJUSTE-5: roupas do catálogo
 	return m
 end
 
