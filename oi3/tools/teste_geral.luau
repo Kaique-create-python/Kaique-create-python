@@ -380,7 +380,7 @@ checar("AJUSTE-7: foto antiga (imagem enviada + desenho reserva)", function()
 	local Rec = H.modulo("ReplicatedStorage/OI3/Recursos")
 	local C1M = H.modulo("ReplicatedStorage/OI3/Capitulo1Mapa")
 	assert(type(Rec.imagens) == "table", "Recursos.imagens faltando")
-	assert(Rec.revisao == "AJUSTE-10", "Recursos.revisao desatualizado")
+	assert(Rec.revisao == "AJUSTE-11", "Recursos.revisao desatualizado")
 	local f = roblox.Instance.new("Frame")
 	local q = C1M.desenharFoto(f)
 	assert(q:FindFirstChild("Reserva"), "sem o desenho reserva")
@@ -881,6 +881,47 @@ checar("AJUSTE-10: ADM no servidor (pular passo, ir para missão/passo e final S
 	assert(terminados == 0, "pulo do ADM NÃO pode marcar o fim do capítulo")
 	g.token = -1
 	local _ = Md
+end)
+
+checar("AJUSTE-11: Wendigo principal, sombra no esconde-esconde e vozes sem buracos", function()
+	local Config = H.modulo("ReplicatedStorage/OI3/Config")
+	assert(Config.MONSTRO_PRINCIPAL == "15020057104", "o monstro principal tem que ser o Wendigo")
+	assert(Config.MONSTRO_ESCONDE == "catalogo", "o esconde-esconde usa a sombra do catálogo")
+	local achou = false
+	for _, info in Config.MONSTROS_INTERNET do
+		if tostring(info.id) == Config.MONSTRO_PRINCIPAL then
+			achou = true
+		end
+	end
+	assert(achou, "o Wendigo precisa estar na lista dos monstros da internet")
+	-- a ronda e o susto do esconde-esconde pedem a variante do catálogo
+	local src = fs.readFile("oi3/src/ReplicatedStorage/OI3/Cliente/MissoesCliente.luau")
+	assert(string.find(src, 'estado.layout.rota%[2%], Config.MONSTRO_ESCONDE'), "a sombra do esconde-esconde tem que ser a do catálogo")
+	assert(string.find(src, "jumpscare%(Config.MONSTRO_ESCONDE%)"), "o susto do esconde-esconde tem que ser a sombra do catálogo")
+	-- variante pedida existe → vem ela; não existe → vem o principal
+	local P = H.modulo("ReplicatedStorage/OI3/Personagens")
+	local atores = H.prepararAtores()
+	local lista = atores:FindFirstChild("Monstros") or roblox.Instance.new("Folder")
+	lista.Name = "Monstros"
+	local cat = atores:FindFirstChild("CRIATURA"):Clone()
+	cat.Name = "catalogo"
+	cat:SetAttribute("NomeMonstro", "Sombra do catálogo")
+	cat.Parent = lista
+	lista.Parent = atores
+	local m1 = P.criarCriatura("catalogo")
+	assert(m1:GetAttribute("NomeMonstro") == "Sombra do catálogo", "não usou a variante pedida")
+	local m2 = P.criarCriatura("nao_existe")
+	assert(m2 and m2:GetAttribute("Codigo") == "CRIATURA", "variante faltando tem que cair no principal")
+	-- as falas antigas do menino ficam de reserva (nada que tem gravação fica mudo)
+	local AudioMapa = H.modulo("ReplicatedStorage/OI3/AudioMapa")
+	for _, id in { "ME_1", "ME_2", "ME_3" } do
+		assert(AudioMapa.itens[id .. "_v1"], "falta a reserva " .. id .. "_v1")
+	end
+	-- o relatório de vozes do ADM roda e aponta o que falta gravar
+	local AC = H.modulo("ReplicatedStorage/OI3/Cliente/AdminCliente")
+	local rel = AC.relatorioVozes()
+	assert(string.find(rel, "Falas com voz tocando"), "relatório de vozes")
+	assert(string.find(rel, "VO_7"), "o relatório tem que listar as falas sem gravação (VO_7)")
 end)
 
 print(if falhas == 0 then "\nTUDO OK" else ("\nFALHAS: " .. falhas))

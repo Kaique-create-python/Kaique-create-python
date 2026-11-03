@@ -27,10 +27,7 @@ function Personagens.pronto(): boolean
 	return ReplicatedStorage:FindFirstChild("OI3_Atores") ~= nil
 end
 
--- Cópia do avatar para cena (raiz ancorada, sem colisão, sem nome em cima da cabeça)
-function Personagens.criar(codigo: string): Model
-	local b = base(codigo)
-	assert(b, "o avatar " .. codigo .. " ainda não carregou do catálogo")
+local function copiar(b: Model, codigo: string): Model
 	local m = b:Clone()
 	for _, p in m:GetDescendants() do
 		if p:IsA("BasePart") then
@@ -56,8 +53,24 @@ function Personagens.criar(codigo: string): Model
 	return m
 end
 
--- a sombra do espelho (avatar padrão do Roblox, todo preto)
-function Personagens.criarCriatura(): Model
+-- Cópia do avatar para cena (raiz ancorada, sem colisão, sem nome em cima da cabeça)
+function Personagens.criar(codigo: string): Model
+	local b = base(codigo)
+	assert(b, "o avatar " .. codigo .. " ainda não carregou do catálogo")
+	return copiar(b, codigo)
+end
+
+-- o monstro. AJUSTE-11: "variante" escolhe um modelo específico (ex.: "catalogo" no esconde-esconde);
+-- sem variante (ou se ela não carregou) vem o monstro principal (o Wendigo, se carregou)
+function Personagens.criarCriatura(variante: string?): Model
+	if variante then
+		local pasta = ReplicatedStorage:FindFirstChild("OI3_Atores")
+		local lista = pasta and pasta:FindFirstChild("Monstros")
+		local v = lista and lista:FindFirstChild(variante)
+		if v and v:IsA("Model") then
+			return copiar(v, "CRIATURA")
+		end
+	end
 	return Personagens.criar("CRIATURA")
 end
 

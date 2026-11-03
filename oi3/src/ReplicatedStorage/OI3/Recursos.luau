@@ -2,7 +2,7 @@
 -- O instalador troca o bloco abaixo pelos IDs reais (0 = ainda sem áudio: o jogo segue só com legendas).
 --@@OI3_RECURSOS_INICIO@@
 return {
-	revisao = "AJUSTE-10",
+	revisao = "AJUSTE-11",
 	audio = {},
 	texturas = {},
 	imagens = {},

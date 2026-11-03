@@ -7,6 +7,7 @@ uso: python3 oi3/tools/gerar_instalador.py AJUSTE-1
 """
 import base64
 import hashlib
+import re
 import io
 import json
 import os
@@ -75,9 +76,21 @@ def main():
     b85 = base64.b85encode(bruto).decode("ascii")
     linhas = "\n".join(b85[i:i + 120] for i in range(0, len(b85), 120))
 
+    # AJUSTE-11: falas que ainda não têm gravação nenhuma (o instalador avisa no fim)
+    with open(os.path.join(RAIZ, "src", "ReplicatedStorage", "OI3", "Dialogos.luau"), encoding="utf-8") as f:
+        dialogos = f.read()
+    falas = re.findall(r'^\s*([A-Z]{2,}_[A-Z0-9_]+)\s*=\s*\{\s*quem\s*=', dialogos, re.M)
+    with open(os.path.join(RAIZ, "src", "ReplicatedStorage", "OI3", "AudioMapa.luau"), encoding="utf-8") as f:
+        itens_audio = set(re.findall(r'^\s*([A-Za-z0-9_]+)\s*=\s*\{\s*arquivo\s*=', f.read(), re.M))
+    with open(os.path.join(RAIZ, "src", "ReplicatedStorage", "OI3", "SonsBiblioteca.luau"), encoding="utf-8") as f:
+        itens_audio |= set(re.findall(r'^\t\t([A-Za-z0-9_]+) = \{', f.read(), re.M))
+    sem_voz = [f for f in falas if f != "CONTA_3_RADIO" and f not in itens_audio and (f + "_v1") not in itens_audio]
+    print("falas ainda sem voz:", ", ".join(sem_voz) or "nenhuma")
+
     with open(os.path.join(RAIZ, "tools", "instalador_modelo.py"), encoding="utf-8") as f:
         modelo = f.read()
     saida = (modelo.replace("__REVISAO__", revisao)
+             .replace("__FALAS_SEM_VOZ__", ", ".join(sem_voz))
              .replace("__NOME_ARQUIVO__", nome_arquivo)
              .replace("__MANIFESTO__", json.dumps(manifesto, ensure_ascii=False, indent=1))
              .replace("__PAYLOAD_SHA__", sha_zip)

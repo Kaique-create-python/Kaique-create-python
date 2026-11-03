@@ -193,9 +193,9 @@ local ESPASMOS = {
 	{ { "LeftKnee", 0.9, 0, 0 } },
 }
 
-function Monstro.novo(pasta: Instance, posPes: Vector3, olhar: Vector3?)
+function Monstro.novo(pasta: Instance, posPes: Vector3, olhar: Vector3?, variante: string?)
 	local self = setmetatable({}, Monstro)
-	local modelo = Personagens.criarCriatura()
+	local modelo = Personagens.criarCriatura(variante)
 	self.codigo = "CRIATURA"
 	self.modelo = modelo
 	self.raiz = modelo.PrimaryPart :: BasePart

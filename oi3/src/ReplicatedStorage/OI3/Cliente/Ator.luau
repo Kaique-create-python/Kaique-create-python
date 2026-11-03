@@ -60,10 +60,11 @@ local function yawPara(de: Vector3, para: Vector3): number?
 	return math.atan2(-d.X, -d.Z)
 end
 
-function Ator.novo(codigo: string, pasta: Instance, posPes: Vector3, olhar: Vector3?): any
+function Ator.novo(codigo: string, pasta: Instance, posPes: Vector3, olhar: Vector3?, variante: string?): any
 	-- AJUSTE-9: a criatura agora é o MONSTRO (animado junta por junta, se contorce, anda como dinossauro)
+	-- AJUSTE-11: "variante" escolhe qual modelo (o esconde-esconde usa a sombra do catálogo)
 	if codigo == "CRIATURA" then
-		return require(script.Parent.Monstro).novo(pasta, posPes, olhar)
+		return require(script.Parent.Monstro).novo(pasta, posPes, olhar, variante)
 	end
 	local self = setmetatable({}, Ator)
 	local modelo = Personagens.criar(codigo)

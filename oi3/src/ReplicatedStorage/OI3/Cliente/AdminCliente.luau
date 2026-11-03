@@ -48,6 +48,7 @@ local estado = {
 	voo = {} :: any,
 	visor = {} :: any,
 	botoes = {} :: { [string]: TextButton },
+	relatorio = nil :: TextLabel?,
 }
 
 -- função pura (testável): lê um comando digitado no chat → (comando, argumentos)
@@ -223,7 +224,7 @@ local function pararVisor()
 	estado.visor = {}
 end
 
-function AdminCliente.verMonstro()
+function AdminCliente.verMonstro(variante: string?)
 	pararVisor()
 	local cam = workspace.CurrentCamera
 	local look = cam.CFrame.LookVector
@@ -239,7 +240,7 @@ function AdminCliente.verMonstro()
 	pasta.Name = "OI3_AdmMonstro"
 	pasta.Parent = workspace
 	local Monstro = require(script.Parent.Monstro)
-	local ok, a = pcall(Monstro.novo, pasta, pes, cam.CFrame.Position)
+	local ok, a = pcall(Monstro.novo, pasta, pes, cam.CFrame.Position, variante)
 	if not ok or not a then
 		pasta:Destroy()
 		mensagem("O monstro não apareceu: " .. tostring(a), false)
@@ -254,8 +255,9 @@ function AdminCliente.verMonstro()
 		end
 	end)
 	local pastaAtores = ReplicatedStorage:FindFirstChild("OI3_Atores")
-	local ativo = pastaAtores and pastaAtores:GetAttribute("MonstroAtivo") or "?"
-	mensagem("Monstro: " .. tostring(ativo) .. " · pose: parado (toque PRÓXIMA POSE)")
+	local ativo = variante or (pastaAtores and pastaAtores:GetAttribute("MonstroAtivo")) or "?"
+	local nome = a.modelo:GetAttribute("NomeMonstro") or ativo
+	mensagem("Monstro: " .. tostring(nome) .. " · pose: parado (toque PRÓXIMA POSE)")
 end
 
 function AdminCliente.proximaPose()
@@ -308,6 +310,58 @@ function AdminCliente.proximaPose()
 		a:investida()
 	end
 	mensagem("Pose: " .. nome)
+end
+
+-- AJUSTE-11: confere as vozes: quais falas tocam, quais ainda não foram gravadas, quais arquivos não
+-- carregam (em análise no Roblox ou bloqueados) e quais estão usando a voz antiga de reserva
+local NOMES_VOZ = { vozes1 = "vozes 1", vozes2 = "vozes 2", vozes3 = "vozes 3 (menino novo)", historia = "história" }
+
+function AdminCliente.relatorioVozes(): string
+	local Dialogos = require(OI3.Dialogos)
+	local AudioMapa = require(OI3.AudioMapa)
+	local total, tocam = 0, 0
+	local semGravacao, parados, reserva = {}, {}, {}
+	for id in Dialogos.FALAS do
+		if id ~= "CONTA_3_RADIO" then
+			total += 1
+			local it = AudioMapa.itens[id]
+			if Som.temGravacao(id) then
+				tocam += 1
+			elseif not it and not AudioMapa.itens[id .. "_v1"] then
+				table.insert(semGravacao, id)
+			else
+				local usado = Som.itemTocavel(id)
+				if usado then
+					tocam += 1
+					if usado ~= it then
+						table.insert(reserva, id)
+					end
+				else
+					table.insert(parados, id)
+				end
+			end
+		end
+	end
+	table.sort(semGravacao)
+	table.sort(parados)
+	table.sort(reserva)
+	local arquivos = {}
+	for arq, nome in NOMES_VOZ do
+		table.insert(arquivos, nome .. ": " .. Som.estadoDoArquivo(arq))
+	end
+	table.sort(arquivos)
+	local l = { string.format("Falas com voz tocando: %d de %d.", tocam, total) }
+	if #semGravacao > 0 then
+		table.insert(l, "Ainda SEM gravação (só legenda): " .. table.concat(semGravacao, ", "))
+	end
+	if #parados > 0 then
+		table.insert(l, "Gravadas mas o arquivo NÃO carregou (em análise no Roblox ou bloqueado): " .. table.concat(parados, ", "))
+	end
+	if #reserva > 0 then
+		table.insert(l, "Tocando a voz ANTIGA no lugar da nova: " .. table.concat(reserva, ", "))
+	end
+	table.insert(l, "Arquivos: " .. table.concat(arquivos, " · "))
+	return table.concat(l, "\n")
 end
 
 function AdminCliente.testarSons()
@@ -374,6 +428,9 @@ end
 ACOES.monstro = function()
 	AdminCliente.verMonstro()
 end
+ACOES.sombra_esconde = function()
+	AdminCliente.verMonstro(require(OI3.Config).MONSTRO_ESCONDE)
+end
 ACOES.pose = function()
 	AdminCliente.proximaPose()
 end
@@ -390,6 +447,14 @@ ACOES.medo = function()
 end
 ACOES.sons = function()
 	AdminCliente.testarSons()
+end
+ACOES.vozes = function()
+	local txt = AdminCliente.relatorioVozes()
+	if estado.relatorio then
+		estado.relatorio.Text = txt
+	end
+	mensagem("Vozes conferidas (veja embaixo de CONFERIR VOZES).")
+	print(txt)
 end
 ACOES.dia = function()
 	Iluminacao.tarde(0.5)
@@ -695,6 +760,7 @@ local function criarPainel()
 	local gMo = secao(rolar, "MONSTRO", 7)
 	for i, d in {
 		{ "VER O MONSTRO", "monstro" },
+		{ "VER A SOMBRA (esconde)", "sombra_esconde" },
 		{ "PRÓXIMA POSE", "pose" },
 		{ "SUMIR MONSTRO", "sumir" },
 		{ "SUSTO (jumpscare)", "susto" },
@@ -704,17 +770,28 @@ local function criarPainel()
 			ACOES[d[2]]()
 		end)
 	end
-	estado.listaMonstros = secao(rolar, "TROCAR O MODELO DO MONSTRO (fica salvo)", 8)
+	estado.listaMonstros = secao(rolar, "MONSTRO PRINCIPAL (fica salvo; o esconde-esconde usa sempre a sombra)", 8)
 	preencherMonstros()
 
 	-- sons e tela
-	local gS = secao(rolar, "SONS E TELA", 9)
-	botao(gS, "TESTAR SONS", 1, ACOES.sons)
-	botao(gS, "DIA", 2, ACOES.dia)
-	botao(gS, "NOITE", 3, ACOES.noite)
+	local gS = secao(rolar, "SONS, VOZES E TELA", 9)
+	botao(gS, "CONFERIR VOZES", 1, ACOES.vozes)
+	botao(gS, "TESTAR SONS", 2, ACOES.sons)
+	botao(gS, "DIA", 3, ACOES.dia)
+	botao(gS, "NOITE", 4, ACOES.noite)
+	estado.relatorio = Interface.texto(rolar, {
+		Name = "RelatorioVozes",
+		Text = "",
+		TextSize = 13,
+		TextColor3 = COR.texto,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		Size = UDim2.new(1, -8, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		LayoutOrder = 10,
+	})
 
 	-- dar ADM
-	local gD = secao(rolar, "DAR ADM PARA ALGUÉM (só o dono)", 10)
+	local gD = secao(rolar, "DAR ADM PARA ALGUÉM (só o dono)", 11)
 	local caixa = Instance.new("TextBox")
 	caixa.PlaceholderText = "nome do jogador"
 	caixa.Text = ""
@@ -739,7 +816,7 @@ local ALIASES = {
 	reiniciar = "/reiniciar", sombra = "/sombra", imortal = "/imortal", rapido = "/rapido", voar = "/voar",
 	objetivo = "/objetivo", inicio = "/inicio", monstro = "/monstro", pose = "/pose", sumir = "/sumir",
 	susto = "/susto", medo = "/medo", sons = "/sons", dia = "/dia", noite = "/noite", cutscene = "/cutscene",
-	info = "/info", daradm = "/daradm",
+	info = "/info", daradm = "/daradm", vozes = "/vozes",
 }
 
 local function criarComandosChat()

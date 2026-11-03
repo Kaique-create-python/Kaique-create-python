@@ -19,6 +19,7 @@ local Iluminacao = require(script.Parent.Iluminacao)
 local Final = require(script.Parent.Final)
 local Medo = require(script.Parent.Medo)
 local Dialogos = require(OI3.Dialogos)
+local Config = require(OI3.Config)
 
 local MC = {}
 
@@ -474,7 +475,7 @@ local function cloneAtor(cod: string, pai: Instance, pos: Vector3, olhar: Vector
 end
 
 -- AJUSTE-9: o susto agora é o MONSTRO se erguendo na sua cara: grito, ossos estalando, e a tela apaga
-local function jumpscare()
+local function jumpscare(variante: string?)
 	local cam = workspace.CurrentCamera
 	local pasta = Instance.new("Folder")
 	pasta.Name = "OI3_Susto"
@@ -482,7 +483,7 @@ local function jumpscare()
 	local olho = cam.CFrame.Position
 	local frente = V3(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z)
 	frente = if frente.Magnitude > 0.01 then frente.Unit else V3(0, 0, -1)
-	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, olho + frente * 3, olho)
+	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, olho + frente * 3, olho, variante)
 	if ok and a then
 		if a.semMedo then
 			a:semMedo()
@@ -1101,7 +1102,8 @@ local function pegarSombra(): any
 	if not pasta then
 		return nil
 	end
-	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, estado.layout.entrada, estado.layout.rota[2])
+	-- AJUSTE-11: no esconde-esconde fica a sombra do catálogo (o Wendigo aparece no resto)
+	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, estado.layout.entrada, estado.layout.rota[2], Config.MONSTRO_ESCONDE)
 	if not ok or not a then
 		warn("[OI3] o monstro não apareceu:", a)
 		return nil
@@ -2263,7 +2265,7 @@ H.m_pego = function(info)
 	local eu = table.find(info.ids or {}, lp.UserId) ~= nil
 	if eu then
 		task.spawn(function()
-			jumpscare()
+			jumpscare(Config.MONSTRO_ESCONDE)
 			if estado.escondido then
 				sairEsconderijo(true)
 			end

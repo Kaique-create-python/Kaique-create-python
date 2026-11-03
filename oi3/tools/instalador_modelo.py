@@ -34,6 +34,7 @@ import uuid
 import zipfile
 
 REVISAO = "__REVISAO__"
+FALAS_SEM_VOZ = "__FALAS_SEM_VOZ__"  # falas que ainda não foram gravadas (só legenda no jogo)
 JOGO = "OI3"
 UNIVERSE_PADRAO = "10774214680"
 PLACE_PADRAO = "128842336879717"
@@ -744,21 +745,22 @@ def cmd_install(pular_teste=False):
         if isinstance(internet, dict) and internet:
             faltam = []
             for aid, txt in sorted(internet.items()):
+                principal = " <- o PRINCIPAL (Wendigo)" if aid == "15020057104" else ""
                 if str(txt).startswith("ok"):
-                    ok("monstro da internet %s: %s" % (aid, txt))
+                    ok("monstro da internet %s: %s%s" % (aid, txt, principal))
                 else:
                     faltam.append(aid)
-                    aviso("monstro da internet %s não carregou (%s)" % (aid, str(txt)[:120]))
+                    aviso("monstro da internet %s não carregou (%s)%s" % (aid, str(txt)[:120], principal))
             if faltam:
                 print("   PARA LIBERAR O MONSTRO DA INTERNET (grátis, uma vez só, pelo navegador do celular):")
                 print("     1. Entre na sua conta em create.roblox.com")
                 for aid in faltam:
                     print("     2. Abra https://create.roblox.com/store/asset/%s e toque em 'Obter' (Get)" % aid)
                 print("     3. Pronto: no próximo servidor o jogo já usa (troque no painel ADM > MONSTRO).")
-                if len(faltam) == len(internet):
-                    print("     Enquanto isso o jogo usa o monstro do catálogo (o do AJUSTE-9).")
+                if "15020057104" in faltam:
+                    print("     Enquanto o Wendigo não for liberado, o monstro principal é a sombra do catálogo.")
                 else:
-                    print("     Enquanto isso o jogo usa os monstros que já carregaram.")
+                    print("     O Wendigo já está valendo; os outros só entram se você escolher no painel ADM.")
         if inf.get("biblioteca"):
             ok("sons gravados da biblioteca do Roblox carregados: %s (os que faltarem tocam o som antigo)" % inf["biblioteca"])
         som_ok = conferir_sons(inf.get("sons"))
@@ -812,6 +814,9 @@ def cmd_install(pular_teste=False):
         ok("sons conferidos no servidor do Roblox: todos carregam.")
     if sem:
         print("   Áudio ainda pendente: %s. Rode este instalador de novo mais tarde para incluir." % ", ".join(sem))
+    if FALAS_SEM_VOZ:
+        print("   Falas ainda sem voz gravada (aparecem só com legenda): %s" % FALAS_SEM_VOZ)
+        print("   No jogo: painel ADM > CONFERIR VOZES mostra o que toca e o que falta.")
 
 
 def main():

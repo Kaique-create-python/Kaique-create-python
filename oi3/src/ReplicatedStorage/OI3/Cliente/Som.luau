@@ -81,16 +81,28 @@ function Som.temGravacao(nome: string): boolean
 	return #variantesVivas(nome) > 0
 end
 
+-- AJUSTE-11: o trecho de sprite que pode tocar AGORA. Se o arquivo novo não toca (ainda em análise no
+-- Roblox, ou bloqueado) ou a fala nova não existe, usa a gravação antiga ("nome_v1"), se houver:
+-- assim nenhuma fala que tem gravação fica muda.
+local function itemTocavel(nome: string): any
+	local it = AudioMapa.itens[nome]
+	if it and idDe(it.arquivo) > 0 and estadoArquivo[it.arquivo] ~= "falhou" then
+		return it
+	end
+	local antigo = AudioMapa.itens[nome .. "_v1"]
+	if antigo and idDe(antigo.arquivo) > 0 and estadoArquivo[antigo.arquivo] ~= "falhou" then
+		return antigo
+	end
+	return nil
+end
+Som.itemTocavel = itemTocavel
+
 -- true se o arquivo do item tem ID e não está marcado como falho (ou se há gravação da biblioteca)
 function Som.disponivel(nome: string): boolean
 	if Som.temGravacao(nome) then
 		return true
 	end
-	local it = AudioMapa.itens[nome]
-	if not it or idDe(it.arquivo) <= 0 then
-		return false
-	end
-	return estadoArquivo[it.arquivo] ~= "falhou"
+	return itemTocavel(nome) ~= nil
 end
 
 -- true só quando o som já carregou de verdade
@@ -100,12 +112,12 @@ function Som.pronto(nome: string): boolean
 			return true
 		end
 	end
-	local it = AudioMapa.itens[nome]
+	local it = itemTocavel(nome)
 	return it ~= nil and estadoArquivo[it.arquivo] == "pronto"
 end
 
 function Som.duracao(nome: string): number?
-	local it = AudioMapa.itens[nome]
+	local it = itemTocavel(nome) or AudioMapa.itens[nome] or AudioMapa.itens[nome .. "_v1"]
 	if it then
 		return it.dur
 	end
@@ -142,6 +154,14 @@ function Som.estado(): (string, { [string]: string })
 		resumo = "parcial"
 	end
 	return resumo, table.clone(estadoArquivo)
+end
+
+-- AJUSTE-11: estado de um arquivo ("pronto", "carregando", "falhou", "sem_id")
+function Som.estadoDoArquivo(arquivo: string): string
+	if idDe(arquivo) <= 0 then
+		return "sem_id"
+	end
+	return estadoArquivo[arquivo] or "carregando"
 end
 
 -- Frase curta para a tela de Configurações (e se está tudo bem)
@@ -432,12 +452,12 @@ function Som.tocar(nome: string, opcoes: Opcoes?): Sound?
 		it = { inicio = v.inicio, dur = v.dur, loop = b.loop }
 		ganho = v.ganho or 1
 	else
-		it = AudioMapa.itens[nome]
+		it = itemTocavel(nome)
 		if not it then
 			return nil
 		end
 		modelo = modelos[it.arquivo]
-		if not modelo or estadoArquivo[it.arquivo] == "falhou" then
+		if not modelo then
 			return nil
 		end
 	end

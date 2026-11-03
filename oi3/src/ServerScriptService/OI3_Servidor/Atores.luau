@@ -326,7 +326,7 @@ function Atores.lerEscolhaMonstro(): string?
 		return nil
 	end
 	local ok, v = pcall(function()
-		return (configStore :: DataStore):GetAsync("monstro")
+		return (configStore :: DataStore):GetAsync("monstro_v2")
 	end)
 	return if ok and type(v) == "string" then v else nil
 end
@@ -334,7 +334,7 @@ end
 function Atores.salvarEscolhaMonstro(chave: string)
 	if configStore then
 		pcall(function()
-			(configStore :: DataStore):SetAsync("monstro", chave)
+			(configStore :: DataStore):SetAsync("monstro_v2", chave)
 		end)
 	end
 end
@@ -409,15 +409,15 @@ function Atores.preparar()
 		end
 		variantes.Parent = pasta
 		workspace:SetAttribute("OI3_MonstrosInternet", table.concat(relatorio, " | "))
-		-- qual vale: a escolha salva do ADM; senão o 1º da internet que carregou; senão o do catálogo
+		-- qual vale: a escolha salva do ADM; senão o principal (Wendigo); senão o 1º da internet que
+		-- carregou; senão o do catálogo
 		local escolha = Atores.lerEscolhaMonstro()
 		if not (escolha and variantes:FindFirstChild(escolha)) then
 			escolha = nil
-			for _, info in Config.MONSTROS_INTERNET or {} do
-				if variantes:FindFirstChild(tostring(info.id)) then
-					escolha = tostring(info.id)
-					break
-				end
+			-- AJUSTE-11: os criadores escolheram o Wendigo; se ele não carregar, fica a sombra do catálogo
+			-- (os outros da internet só entram se o ADM escolher no painel)
+			if Config.MONSTRO_PRINCIPAL and variantes:FindFirstChild(Config.MONSTRO_PRINCIPAL) then
+				escolha = Config.MONSTRO_PRINCIPAL
 			end
 		end
 		if escolha and escolha ~= "catalogo" then

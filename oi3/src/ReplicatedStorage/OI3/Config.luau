@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-10"
+Config.REVISAO = "AJUSTE-11"
 Config.DONO_USERID = 1357078972
 -- AJUSTE-10: outros ADMs (UserId). O dono já é ADM; ele também pode dar ADM na hora pelo painel.
 Config.ADMINS = {}
@@ -91,6 +91,10 @@ Config.MONSTROS_INTERNET = {
 	{ id = 15020057104, nome = "Wendigo (caveira de cervo)" },
 	{ id = 15595921840, nome = "Pele-branca (caveira)" },
 }
+-- AJUSTE-11: o monstro principal é o Wendigo (quando carrega); no esconde-esconde fica a sombra do
+-- catálogo (a do AJUSTE-9), como os criadores pediram
+Config.MONSTRO_PRINCIPAL = "15020057104"
+Config.MONSTRO_ESCONDE = "catalogo"
 -- AJUSTE-7: rostos de reação (itens do catálogo) trocados na cutscene: medo, risada, nervoso.
 -- Fora dessas reações cada personagem usa o rosto dele.
 Config.ROSTOS_REACAO = {
