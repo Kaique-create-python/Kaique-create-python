@@ -1,0 +1,318 @@
+-- BIZARRE BATTLEGROUNDS :: teste isolado na nuvem (Luau Execution) numa versão SALVA (não publicada).
+-- Monta tudo de verdade no servidor do Roblox e faz uma luta de teste com TODOS os golpes.
+-- Se aparecer erro aqui, o instalador NÃO publica.
+
+local HttpService = game:GetService("HttpService")
+local LogService = game:GetService("LogService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local ContentProvider = game:GetService("ContentProvider")
+
+local res = { ok = true, erros = {}, avisos = {}, info = {} }
+local function falha(msg: string)
+	res.ok = false
+	table.insert(res.erros, msg)
+end
+local function aviso(msg: string)
+	table.insert(res.avisos, msg)
+end
+local function checar(nome: string, fn: () -> ())
+	local ok, err = pcall(fn)
+	if not ok then
+		falha(nome .. ": " .. tostring(err))
+	end
+	return ok
+end
+
+-- erros dos golpes (eles rodam em paralelo) aparecem no log: guardamos para o relatório
+local logsRuins = {}
+LogService.MessageOut:Connect(function(msg, tipo)
+	if tipo == Enum.MessageType.MessageError or (tipo == Enum.MessageType.MessageWarning and string.find(msg, "[BB]", 1, true)) then
+		if string.find(msg, "BB", 1, true) then
+			table.insert(logsRuins, string.sub(msg, 1, 300))
+		end
+	end
+end)
+
+local BB = ReplicatedStorage:FindFirstChild("BB")
+local SRV = ServerScriptService:FindFirstChild("BB_Servidor")
+if not BB or not SRV then
+	falha("pastas BB/BB_Servidor não existem no place")
+	return HttpService:JSONEncode(res)
+end
+
+-- 1) todos os módulos carregam
+local total = 0
+for _, pasta in { BB, SRV } do
+	for _, m in pasta:GetDescendants() do
+		if m:IsA("ModuleScript") then
+			total += 1
+			checar("require " .. m:GetFullName(), function()
+				require(m)
+			end)
+		end
+	end
+end
+res.info.modulos = total
+if not res.ok then
+	return HttpService:JSONEncode(res)
+end
+
+local Config = require(BB.Config)
+local Regras = require(BB.Regras)
+local Stands = require(BB.Stands)
+local Golpes = require(BB.Golpes)
+local Sons = require(BB.Sons)
+local Rig = require(BB.Rig)
+local Lutadores = require(SRV.Lutadores)
+local Fisica = require(SRV.Fisica)
+local Mapa = require(SRV.Mapa)
+local Combate = require(SRV.Combate)
+local Executores = require(SRV.Executores)
+local StandModelos = require(SRV.StandModelos)
+res.info.revisao = Config.REVISAO
+
+-- 2) o servidor do jogo ligou? (se não, ligamos o necessário aqui)
+local t0 = os.clock()
+while not workspace:GetAttribute("BB_Pronto") and os.clock() - t0 < 12 do
+	task.wait(0.25)
+end
+local mainRodou = workspace:GetAttribute("BB_Pronto") == true
+res.info.servidorLigou = mainRodou
+local efeitoFalso = Instance.new("RemoteEvent")
+if not mainRodou then
+	checar("ligar sistemas", function()
+		local remotos = { Efeito = efeitoFalso, Privado = Instance.new("RemoteEvent"), Acao = Instance.new("RemoteEvent") }
+		Fisica.iniciar(remotos.Privado)
+		Mapa.construir(workspace)
+		Mapa.iniciar(remotos.Efeito)
+		Executores.iniciar(remotos)
+		Combate.iniciar(remotos, Executores, function() end)
+	end)
+end
+
+-- 3) a cidade
+checar("mapa", function()
+	local pasta = workspace:FindFirstChild("BB_Mapa")
+	assert(pasta, "BB_Mapa não foi montado")
+	local q = pasta:FindFirstChild("Quebraveis")
+	res.info.pecasMapa = #pasta:GetDescendants()
+	res.info.quebraveis = if q then #q:GetChildren() else 0
+	assert(res.info.quebraveis > 1000, "poucas peças quebráveis: " .. tostring(res.info.quebraveis))
+end)
+
+-- 4) os Stands (corpos do catálogo)
+checar("stands", function()
+	local t1 = os.clock()
+	while not workspace:GetAttribute("BB_StandsProntos") and os.clock() - t1 < 45 do
+		task.wait(0.5)
+	end
+	if not workspace:GetAttribute("BB_StandsProntos") then
+		StandModelos.preparar()
+	end
+	local pasta = ReplicatedStorage:FindFirstChild("BB_Stands")
+	assert(pasta, "BB_Stands não existe")
+	local rel = {}
+	for _, id in Stands.ORDEM do
+		local m = pasta:FindFirstChild(id)
+		assert(m, "Stand sem corpo: " .. id)
+		local juntas = 0
+		for _, d in m:GetDescendants() do
+			if d:IsA("Motor6D") then
+				juntas += 1
+			end
+		end
+		rel[id] = string.format("%s, juntas %d", tostring(m:GetAttribute("Origem")), juntas)
+		if juntas < 15 then
+			falha("Stand " .. id .. " com poucas juntas (" .. juntas .. ")")
+		end
+	end
+	res.info.stands = rel
+end)
+
+-- 5) luta de teste: dois bonecos no meio da praça
+local pastaTeste = Instance.new("Folder")
+pastaTeste.Name = "BB_TesteNuvem"
+pastaTeste.Parent = workspace
+local function lutador(nome: string, pos: Vector3, olhar: Vector3, stand: string)
+	local m = Rig.montar(nome, 1, nil, true)
+	m:PivotTo(CFrame.lookAt(pos, pos + olhar))
+	m.Parent = pastaTeste
+	pcall(function()
+		(m:FindFirstChild("HumanoidRootPart") :: BasePart):SetNetworkOwner(nil)
+	end)
+	Fisica.grupo(m, Fisica.GRUPOS.lutador)
+	local l = Lutadores.criar(m, nil, stand, { bot = true, nome = nome })
+	l.estado.semRecarga = true
+	return l
+end
+
+local A_POS = Vector3.new(30, 3.8, 14)
+local V_POS = Vector3.new(30, 3.8, 8.5)
+local atk = lutador("TesteAtacante", A_POS, Vector3.new(0, 0, -1), Stands.ORDEM[1])
+local vit = lutador("TesteVitima", V_POS, Vector3.new(0, 0, 1), Stands.ORDEM[1])
+vit.imortal = true
+
+local function arrumar()
+	for _, l in { atk, vit } do
+		Fisica.soltar(l)
+		Fisica.limparEmpurroes(l.raiz)
+		l.modelo:SetAttribute("BB_Ragdoll", 0)
+		l.modelo:SetAttribute("BB_Congelado", nil)
+		l.modelo:SetAttribute("BB_Pedra", nil)
+		l.modelo:SetAttribute("BB_Preso", nil)
+		l.agarradoPor = nil
+		l.congeladoPor = nil
+		l.filaTempo = nil
+		local sem = l.estado.semRecarga
+		local desp = l.estado.despertoAte
+		l.estado = Regras.novoEstado()
+		l.estado.semRecarga = sem
+		l.estado.despertoAte = desp
+		l.hum.Health = l.hum.MaxHealth
+		pcall(function()
+			l.hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end)
+	end
+	atk.modelo:PivotTo(CFrame.lookAt(A_POS, A_POS + Vector3.new(0, 0, -1)))
+	vit.modelo:PivotTo(CFrame.lookAt(V_POS, V_POS + Vector3.new(0, 0, 1)))
+	atk.dir = Vector3.new(0, 0, -1)
+	atk.dirT = workspace:GetServerTimeNow()
+	task.wait(0.15)
+end
+
+checar("combo de M1", function()
+	arrumar()
+	for _ = 1, 4 do
+		Combate.m1(atk, {})
+		task.wait(Config.M1.intervalo + 0.05)
+	end
+	task.wait(0.2)
+	local dano = vit.hum.MaxHealth - vit.hum.Health
+	res.info.m1 = string.format("%.1f de dano, ragdoll %s", dano, tostring((vit.modelo:GetAttribute("BB_Ragdoll") or 0) > 0))
+	if dano <= 0 then
+		aviso("M1 não acertou o boneco de teste (posição?)")
+	end
+end)
+
+checar("bloqueio e parry", function()
+	arrumar()
+	Combate.bloquear(vit, true)
+	task.wait(0.4)
+	local r = Combate.acertar(atk, vit, { dano = 5, tipo = "melee", atordoar = 0.5 }, { dir = Vector3.new(0, 0, -1) })
+	assert(r == "bloqueado", "bloqueio de frente deu " .. tostring(r))
+	Combate.bloquear(vit, false)
+	task.wait(0.05)
+	Combate.bloquear(vit, true)
+	local p = Combate.acertar(atk, vit, { dano = 5, tipo = "melee", atordoar = 0.5 }, { dir = Vector3.new(0, 0, -1) })
+	assert(p == "parry", "parry deu " .. tostring(p))
+	Combate.bloquear(vit, false)
+end)
+
+-- todos os golpes de todos os Stands
+local golpesInfo = {}
+local erroAntes = #logsRuins
+for _, id in Stands.ORDEM do
+	local s = Stands.get(id)
+	checar("trocar para " .. id, function()
+		Lutadores.trocarStand(atk, id)
+		atk.estado.semRecarga = true
+	end)
+	for _, slot in { 1, 2, 3, 4, "ult" } do
+		local g, gid = Golpes.doSlot(s, slot)
+		if not g or not gid then
+			falha(id .. ": slot " .. tostring(slot) .. " sem golpe")
+			continue
+		end
+		checar("golpe " .. gid, function()
+			arrumar()
+			if slot == "ult" then
+				atk.estado.despertar = Config.DESPERTAR.max
+				Regras.despertar(atk.estado, workspace:GetServerTimeNow())
+			end
+			-- a cura precisa de vida faltando
+			if g.tipo == "cura" then
+				atk.hum.Health = 50
+			end
+			local antes = #logsRuins
+			Combate.golpe(atk, slot, {})
+			task.wait(math.min(5, (g.trava or 1) + 0.9 + ((g.tempo and g.tempo.duracao) or 0)))
+			local dano = vit.hum.MaxHealth - vit.hum.Health
+			local curou = if g.tipo == "cura" then atk.hum.Health - 50 else 0
+			golpesInfo[gid] = if g.tipo == "cura" then string.format("curou %.0f", curou) else string.format("%.1f", dano)
+			if #logsRuins > antes then
+				falha("golpe " .. gid .. " deu erro: " .. logsRuins[#logsRuins])
+			end
+			if g.tipo ~= "cura" and dano <= 0 and g.tipo ~= "contra" then
+				aviso(gid .. " não acertou o boneco de teste")
+			end
+			atk.estado.despertoAte = 0
+		end)
+	end
+end
+res.info.golpes = golpesInfo
+local _ = erroAntes
+
+-- contra-ataque de verdade: ativa a postura e alguém bate
+checar("contra-ataque", function()
+	Lutadores.trocarStand(atk, "BOSSA_NOVA")
+	atk.estado.semRecarga = true
+	arrumar()
+	Combate.golpe(atk, 4, {})
+	task.wait(0.2)
+	local r = Combate.acertar(vit, atk, { dano = 5, tipo = "melee", atordoar = 0.5 }, { dir = Vector3.new(0, 0, 1) })
+	assert(r == "contra", "a postura de contra não pegou: " .. tostring(r))
+	task.wait(0.6)
+end)
+
+-- 6) o mapa quebra e volta
+checar("mapa quebra e reconstrói", function()
+	local n = Mapa.quebrarArea(Vector3.new(-158, 6, -152), 18, 9)
+	assert(n > 0, "nada quebrou num prédio")
+	local v = Mapa.restaurarTudo()
+	assert(v >= n, "não reconstruiu tudo")
+	res.info.quebraTeste = string.format("%d peças quebraram e %d voltaram", n, v)
+end)
+
+-- 7) alguns sons da biblioteca carregam?
+checar("sons", function()
+	local lista = {}
+	for nome, s in Sons.LISTA do
+		local snd = Instance.new("Sound")
+		snd.SoundId = "rbxassetid://" .. s.ids[1]
+		snd.Name = nome
+		snd.Parent = pastaTeste
+		table.insert(lista, snd)
+	end
+	pcall(function()
+		ContentProvider:PreloadAsync(lista)
+	end)
+	local okN = 0
+	local falhos = {}
+	for _, snd in lista do
+		if snd.TimeLength > 0 then
+			okN += 1
+		else
+			table.insert(falhos, snd.Name)
+		end
+	end
+	res.info.sons = string.format("%d/%d", okN, #lista)
+	if okN == 0 then
+		aviso("nenhum som carregou no servidor de teste (normal em alguns servidores de teste)")
+	elseif #falhos > 0 then
+		aviso("sons que não carregaram: " .. table.concat(falhos, ", "))
+	end
+end)
+
+-- limpeza
+for _, l in { atk, vit } do
+	Lutadores.remover(l.modelo)
+end
+pastaTeste:Destroy()
+res.info.logs = #logsRuins
+if #logsRuins > 0 and res.ok then
+	for i = 1, math.min(5, #logsRuins) do
+		aviso("log: " .. logsRuins[i])
+	end
+end
+return HttpService:JSONEncode(res)
