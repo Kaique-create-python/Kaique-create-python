@@ -142,6 +142,31 @@ else
 		res.info.atores = relatorio
 		res.info.animacoesCarregadas = carregadas
 	end)
+	-- AJUSTE-9: o MONSTRO (corpo R15 do catálogo + braços extras + espinha) e as juntas que se contorcem.
+	-- Só informa: se o catálogo falhar, o jogo usa o corpo reserva (preto, R6) e segue.
+	checar("monstro", function()
+		local Atores = require(ServerScriptService.OI3_Servidor.Atores)
+		local m, erro = Atores.montar("CRIATURA")
+		if not m then
+			res.info.monstro = "falhou: " .. tostring(erro)
+			return
+		end
+		local r15 = m:FindFirstChild("UpperTorso") ~= nil
+		local juntas = 0
+		for _, n in { "Root", "Waist", "Neck", "LeftShoulder", "RightShoulder", "LeftElbow", "RightElbow", "LeftHip", "RightHip", "LeftKnee", "RightKnee" } do
+			if m:FindFirstChild(n, true) then
+				juntas += 1
+			end
+		end
+		local acessorios = 0
+		for _, x in m:GetChildren() do
+			if x:IsA("Accessory") then
+				acessorios += 1
+			end
+		end
+		res.info.monstro = string.format("%s, altura %.1f, juntas %d/11, acessórios %d/2", if r15 then "corpo R15 do catálogo" else "corpo RESERVA (R6)", Atores.alturaCorpo(m), juntas, acessorios)
+		m:Destroy()
+	end)
 	-- AJUSTE-8: os cenários das missões montam no Roblox de verdade (fontes, materiais, peças)
 	checar("missoes", function()
 		local MM = require(OI3.MissoesMapa)
@@ -203,10 +228,32 @@ else
 			s.Parent = workspace
 			sons[chave] = s
 		end
+		-- AJUSTE-9: as gravações da biblioteca do Roblox (públicas; só informa quantas carregaram)
+		local lib = {}
+		local okLib, Biblioteca = pcall(require, OI3.SonsBiblioteca)
+		if okLib and type(Biblioteca) == "table" then
+			for _, b in Biblioteca.sons do
+				for _, v in b.variantes do
+					if not lib[v.id] then
+						local s = Instance.new("Sound")
+						s.SoundId = "rbxassetid://" .. v.id
+						s.Volume = 0
+						s.Parent = workspace
+						lib[v.id] = s
+					end
+				end
+			end
+		end
 		local t0 = os.clock()
 		while os.clock() - t0 < 20 do
 			local todos = true
 			for _, s in sons do
+				if not s.IsLoaded then
+					todos = false
+					break
+				end
+			end
+			for _, s in lib do
 				if not s.IsLoaded then
 					todos = false
 					break
@@ -223,6 +270,15 @@ else
 			s:Destroy()
 		end
 		res.info.sons = saida
+		local carregou, total = 0, 0
+		for _, s in lib do
+			total += 1
+			if s.IsLoaded then
+				carregou += 1
+			end
+			s:Destroy()
+		end
+		res.info.biblioteca = string.format("%d/%d", carregou, total)
 	end)
 	checar("recursos", function()
 		local R = require(OI3.Recursos)

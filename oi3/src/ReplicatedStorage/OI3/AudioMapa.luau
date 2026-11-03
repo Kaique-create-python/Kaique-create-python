@@ -8,6 +8,7 @@ return {
 		"ambiente",
 		"passos",
 		"historia",
+		"vozes3",
 	},
 	itens = {
 		vento = { arquivo = "sfx", inicio = 0.1, dur = 14.0, loop = true },
@@ -27,9 +28,6 @@ return {
 		respiracao = { arquivo = "sfx", inicio = 64.954, dur = 2.7, loop = false },
 		whoosh = { arquivo = "sfx", inicio = 68.004, dur = 1.4, loop = false },
 		tensao = { arquivo = "sfx", inicio = 69.754, dur = 6.0, loop = false },
-		ME_1 = { arquivo = "vozes1", inicio = 0.1, dur = 2.52, loop = false },
-		ME_2 = { arquivo = "vozes1", inicio = 2.97, dur = 2.96, loop = false },
-		ME_3 = { arquivo = "vozes1", inicio = 6.28, dur = 1.42, loop = false },
 		ME_4A = { arquivo = "vozes1", inicio = 8.05, dur = 1.29, loop = false },
 		ME_4B = { arquivo = "vozes1", inicio = 9.69, dur = 1.29, loop = false },
 		ME_4C = { arquivo = "vozes1", inicio = 11.33, dur = 1.29, loop = false },
@@ -108,5 +106,8 @@ return {
 		vela_apaga = { arquivo = "historia", inicio = 84.8899, dur = 0.7, loop = false },
 		radio = { arquivo = "historia", inicio = 85.9399, dur = 3.0, loop = true },
 		desmoronar = { arquivo = "historia", inicio = 89.2899, dur = 6.0, loop = true },
+		ME_1 = { arquivo = "vozes3", inicio = 0.1, dur = 2.54, loop = false },
+		ME_3 = { arquivo = "vozes3", inicio = 2.99, dur = 1.78, loop = false },
+		ME_6 = { arquivo = "vozes3", inicio = 5.12, dur = 1.92, loop = false },
 	},
 }

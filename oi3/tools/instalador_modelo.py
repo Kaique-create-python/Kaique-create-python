@@ -291,7 +291,7 @@ def consultar_moderacao(chave, asset_id):
 TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
 
 
-NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna", "passos": "passos gravados", "historia": "história (vozes e sons novos)"}
+NOMES_AUDIO = {"sfx": "efeitos", "vozes1": "vozes 1", "vozes2": "vozes 2", "musica": "música do menu", "ambiente": "ambiente e lanterna", "passos": "passos gravados", "historia": "história (vozes e sons novos)", "vozes3": "vozes 3 (menino com voz de criança)"}
 
 
 def conferir_sons(sons):
@@ -735,6 +735,13 @@ def cmd_install(pular_teste=False):
                 ok("rostos de reação: %s" % inf["reacoes"])
         if inf.get("missoes"):
             ok("resto da história: %s missões, cenários com %s peças" % (inf.get("missoes"), inf.get("pecasMissoes")))
+        if inf.get("monstro"):
+            if str(inf["monstro"]).startswith("falhou") or "RESERVA" in str(inf["monstro"]):
+                aviso("monstro: %s (o jogo usa o corpo reserva; tente instalar de novo mais tarde)" % inf["monstro"])
+            else:
+                ok("monstro grotesco: %s" % inf["monstro"])
+        if inf.get("biblioteca"):
+            ok("sons gravados da biblioteca do Roblox carregados: %s (os que faltarem tocam o som antigo)" % inf["biblioteca"])
         som_ok = conferir_sons(inf.get("sons"))
         if som_ok is False and liberacao == "ok":
             aviso("   (a liberação pode levar alguns minutos para valer no Roblox)")

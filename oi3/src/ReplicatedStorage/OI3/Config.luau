@@ -3,7 +3,7 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-8"
+Config.REVISAO = "AJUSTE-9"
 Config.DONO_USERID = 1357078972
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)
@@ -63,8 +63,24 @@ Config.ROUPAS = {
 	MU = { camisa = 89445375743259, calca = 11256860860, cabelo = { 90520217081274 }, rosto = 144075659, escala = 1.05 },
 	C1 = { camisa = 83999947073729, calca = 4526708605, cabelo = { 123627412625874 }, rosto = 144075659, escala = 0.82 },
 	C2 = { camisa = 7070736405, calca = 15317825191, cabelo = { 100241424894087 }, rosto = 144075659, escala = 0.78 },
-	-- a sombra do espelho: avatar padrão do Roblox, todo preto e sem rosto (aparência oficial ainda não definida)
-	CRIATURA = { pele = Color3.fromRGB(4, 4, 6), semRosto = true, escala = 1.42 },
+	-- AJUSTE-9: a sombra agora é um MONSTRO grotesco, só com itens do catálogo (corpo R15):
+	-- "Tall Thin Scary Smile Monster" (alto, magro, todo preto, sorriso cheio de dentes e olhos brancos),
+	-- "Creepy Black Abnormal Arms" (braços extras saindo das costas) e "Black Bone Spine" (espinha para fora).
+	-- Se o catálogo falhar, volta o corpo antigo (avatar padrão todo preto, escala 1.42).
+	CRIATURA = {
+		r15 = true,
+		pele = Color3.fromRGB(6, 6, 8),
+		semRosto = true,
+		cabeca = 121300117934913,
+		torso = 80168481216504,
+		bracoE = 96763870489127,
+		bracoD = 72642274719223,
+		pernaE = 130042895811873,
+		pernaD = 71513352115673,
+		costas = { 138093012499102, 135293618169318 },
+		altura = 8.4, -- em pé (andando curvado fica mais baixo)
+		escala = 1.42, -- só para o corpo reserva (R6)
+	},
 }
 -- AJUSTE-7: rostos de reação (itens do catálogo) trocados na cutscene: medo, risada, nervoso.
 -- Fora dessas reações cada personagem usa o rosto dele.

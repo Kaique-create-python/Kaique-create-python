@@ -17,6 +17,7 @@ local Ator = require(script.Parent.Ator)
 local PrimeiraPessoa = require(script.Parent.PrimeiraPessoa)
 local Iluminacao = require(script.Parent.Iluminacao)
 local Final = require(script.Parent.Final)
+local Medo = require(script.Parent.Medo)
 local Dialogos = require(OI3.Dialogos)
 
 local MC = {}
@@ -150,6 +151,7 @@ local function levar(pos: Vector3, olhar: Vector3?)
 		return
 	end
 	local alvo = olhar or (pos + V3(0, 0, -1))
+	PrimeiraPessoa.esquecerChao()
 	char:PivotTo(CFrame.lookAt(pos + V3(0, 3, 0), V3(alvo.X, pos.Y + 3, alvo.Z)))
 	r.AssemblyLinearVelocity = Vector3.zero
 end
@@ -471,21 +473,43 @@ local function cloneAtor(cod: string, pai: Instance, pos: Vector3, olhar: Vector
 	return m
 end
 
+-- AJUSTE-9: o susto agora é o MONSTRO se erguendo na sua cara: grito, ossos estalando, e a tela apaga
 local function jumpscare()
 	local cam = workspace.CurrentCamera
 	local pasta = Instance.new("Folder")
+	pasta.Name = "OI3_Susto"
 	pasta.Parent = workspace
-	local frente = cam.CFrame.Position + cam.CFrame.LookVector * 3.2 - V3(0, 4.4, 0)
-	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, frente, cam.CFrame.Position)
-	Som.tocar("susto", { volume = 1 })
-	Cinema.escurecer(0.35, 0.05)
-	task.wait(0.9)
-	Cinema.escurecer(1, 0.25)
-	task.wait(0.4)
+	local olho = cam.CFrame.Position
+	local frente = V3(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z)
+	frente = if frente.Magnitude > 0.01 then frente.Unit else V3(0, 0, -1)
+	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, olho + frente * 3, olho)
 	if ok and a then
+		if a.semMedo then
+			a:semMedo()
+		end
+		-- a cabeça dele fica na altura dos seus olhos
+		local alto = a.alturaTotal or 7
+		a:posicionar(olho + frente * 2.7 - V3(0, alto * 0.9, 0), olho)
+		if a.investida then
+			a:investida()
+		end
+		table.insert(estado.atores, a)
+	end
+	Som.tocar("susto", { volume = 1 })
+	Som.tocar("grito_crianca", { volume = 0.9, velocidade = 1 + math.random() * 0.1 })
+	Cinema.escurecer(0.3, 0.05)
+	task.wait(0.95)
+	Cinema.escurecer(1, 0.2)
+	task.wait(0.45)
+	if ok and a then
+		local i = table.find(estado.atores, a)
+		if i then
+			table.remove(estado.atores, i)
+		end
 		a:destruir()
 	end
 	pasta:Destroy()
+	Medo.forcar(0.75, 4) -- o coração continua disparado depois do susto
 end
 
 local function girarPorta(id: string)
@@ -562,6 +586,7 @@ local function limparCenario()
 	pcall(function()
 		RunService:UnbindFromRenderStep("OI3_Tremor")
 	end)
+	Medo.limpar()
 	if estado.cenario then
 		estado.cenario:Destroy()
 		estado.cenario = nil
@@ -619,6 +644,15 @@ local function montarCenario(nome: string)
 	estado.layout = l
 	estado.nomeCenario = nome
 	prepararCenario(nome)
+	-- AJUSTE-9: rede de segurança do cenário (caiu muito abaixo do chão? volta para o começo)
+	table.insert(estado.conexoes, RunService.Heartbeat:Connect(function()
+		local r = raiz()
+		local l = estado.layout
+		if r and l and l.spawn and not r.Anchored and r.Position.Y < l.spawn.Y - 40 then
+			levar(l.spawn, l.olhar)
+			aviso("Você caiu... voltou para o começo da sala.", 3)
+		end
+	end))
 	-- atores andam a cada quadro
 	table.insert(estado.conexoes, RunService.RenderStepped:Connect(function(dt)
 		for _, a in estado.atores do
@@ -828,14 +862,16 @@ REACAO.mecanismo = function()
 end
 
 REACAO.passagem = function()
-	-- entra rastejando no espacinho atrás da parede
+	-- entra rastejando no espacinho atrás da parede (AJUSTE-9: agachado; dá para passar andando agachado também)
 	task.spawn(function()
+		PrimeiraPessoa.agachar(true)
 		Cinema.escurecer(1, 0.4)
 		Som.tocar("arrastar", { volume = 0.5, velocidade = 1.4 })
 		task.wait(0.6)
 		local l = estado.layout
 		levar(l.esconderijo + V3(0, 0, 2), l.desenhoMuda)
 		Cinema.escurecer(0, 0.6)
+		aviso("Você está agachado. Aperte AGACHAR (ou C) para levantar.", 4)
 	end)
 end
 
@@ -992,6 +1028,7 @@ local function esconder(e: any)
 	end
 	estado.escondido = e.id
 	remoto():FireServer("m_esconder", e.id)
+	Medo.escondido(true)
 	PrimeiraPessoa.desligar()
 	r.Anchored = true
 	char:PivotTo(CFrame.new(e.pos + V3(0, -8, 0))) -- some de vista (os outros não veem o corpo)
@@ -1011,6 +1048,7 @@ sairEsconderijo = function(silencioso: boolean?)
 	end
 	local e = esconderijo(estado.escondido)
 	estado.escondido = nil
+	Medo.escondido(false)
 	remoto():FireServer("m_esconder", false)
 	tirarBotao("SAIR")
 	local char = lp.Character
@@ -1065,12 +1103,10 @@ local function pegarSombra(): any
 	end
 	local ok, a = pcall(Ator.novo, "CRIATURA", pasta, estado.layout.entrada, estado.layout.rota[2])
 	if not ok or not a then
+		warn("[OI3] o monstro não apareceu:", a)
 		return nil
 	end
-	a.aoPasso = function(at)
-		local k = math.random(1, 5)
-		Som.tocar("pisada_madeira" .. k, { pai = at.raiz, volume = 1.4, velocidade = 0.6, alcance = 70, minimo = 8 })
-	end
+	-- (as pisadas pesadas, a respiração e o medo já vêm com o monstro)
 	if minhaCrianca() == "ME" then
 		local h = Instance.new("Highlight")
 		h.FillTransparency = 1
@@ -1097,48 +1133,159 @@ local function sombraSome()
 	end
 end
 
+-- AJUSTE-9: o monstro espia um esconderijo. Todo mundo vê; quem está DENTRO vê o rosto dele colado na
+-- fresta (de lado no armário, de cabeça para baixo embaixo da cama), se contorcendo, farejando e gemendo.
+local function tipoEspiada(e: any): string
+	return if e.tipo == "cama" then "chao" elseif e.tipo == "bau" then "bau" else "fresta"
+end
+
+-- função pura (testável): onde a cabeça do monstro para (na frente da câmera de quem está escondido),
+-- para onde ela olha e onde os pés dele ficam
+function MC.pontoEspiada(e: any, meiaCabeca: number?): (Vector3, Vector3, Vector3)
+	local cam: CFrame = e.cam
+	local meia = meiaCabeca or 0.95
+	-- o rosto fica logo DEPOIS da porta do armário (0,55 da câmera), da beirada da cama (~1) e colado
+	-- na parede do baú (~3,1): de dentro dá para ver o rosto inteiro pela fresta
+	local dist = if e.tipo == "cama" then 1.05 + meia elseif e.tipo == "bau" then 3.15 + meia * 0.3 else 0.62 + meia
+	local alvo = cam.Position + cam.LookVector * dist
+	if e.tipo == "cama" then
+		-- de cabeça para baixo rente ao chão (mas sem afundar no assoalho)
+		alvo = V3(alvo.X, math.max(cam.Position.Y + 0.3, e.pos.Y + meia + 0.08), alvo.Z)
+	end
+	local fora = V3(cam.LookVector.X, 0, cam.LookVector.Z)
+	fora = if fora.Magnitude > 0.01 then fora.Unit else V3(0, 0, 1)
+	local pes = V3(alvo.X, e.checar.Y, alvo.Z) + fora * (if e.tipo == "cama" then 2.4 else 1.7)
+	return alvo, cam.Position, pes
+end
+
+local function espiarEsconderijo(a: any, e: any, dur: number, token: number)
+	local cab = a.cabecaParte
+	local alvo, olhar, pes = MC.pontoEspiada(e, if cab then math.max(cab.Size.X, cab.Size.Z) / 2 else nil)
+	local d = a:andar(pes, 5)
+	task.wait(d)
+	if token ~= estado.token or not a.raiz.Parent then
+		return
+	end
+	a:virar(V3(alvo.X, pes.Y, alvo.Z), 0.45)
+	task.wait(0.45)
+	if token ~= estado.token or not a.raiz.Parent then
+		return
+	end
+	local comigo = estado.escondido == e.id
+	if comigo then
+		Medo.forcar(1, dur + 2.5)
+		task.delay(dur * 0.35, function()
+			if estado.escondido == e.id then
+				Som.tocar("choramingo", { volume = 0.55, velocidade = 1.05 })
+			end
+		end)
+	end
+	if a.espiar then
+		a:espiar(alvo, olhar, tipoEspiada(e), dur)
+	end
+	if e.tipo == "armario" then
+		task.delay(0.9, function()
+			somEm("raspar", alvo, { volume = 0.9, velocidade = 0.75, alcance = 40 })
+		end)
+	end
+	task.wait(dur * 0.45)
+	if token ~= estado.token or not a.raiz.Parent then
+		return
+	end
+	if a.contorcer then
+		a:contorcer(1.4) -- se contorce colado na fresta
+	end
+	task.wait(dur * 0.55)
+	if token ~= estado.token or not a.raiz.Parent then
+		return
+	end
+	if a.pararEspiar then
+		a:pararEspiar()
+	end
+	task.wait(0.5)
+end
+
 local function rondaDaSombra(info: any, token: number)
 	local l = estado.layout
 	local a = pegarSombra()
 	if not a then
 		return
 	end
+	local function vivo(): boolean
+		return token == estado.token and a.raiz.Parent ~= nil
+	end
+	-- entra devagar pela porta escura, para, fareja o ar e se contorce
 	a:posicionar(l.rota[1], l.rota[2])
-	local caminho = { { pos = l.rota[2] }, { pos = l.rota[3] } }
-	if #info.checar == 0 then
-		for k = 4, #l.rota - 2 do
-			table.insert(caminho, { pos = l.rota[k] })
-		end
-	else
-		for _, id in info.checar do
+	local d = a:andar(l.rota[2], 4.2)
+	task.wait(d)
+	if not vivo() then
+		return
+	end
+	if a.farejar then
+		a:farejar()
+		task.wait(0.8)
+		a:contorcer(1.2)
+		task.wait(1.3)
+	end
+	-- os lugares que ele vai conferir: os perigosos (usados na rodada anterior) e os seguros ocupados
+	local alvos = {}
+	local vistos = {}
+	for _, lista in { info.checar or {}, info.espiar or {} } do
+		for _, id in lista do
 			local e = esconderijo(id)
-			if e then
-				table.insert(caminho, { pos = e.checar, olhar = e.pos, pausa = 2.2 })
+			if e and not vistos[id] then
+				vistos[id] = true
+				table.insert(alvos, e)
 			end
 		end
 	end
-	table.insert(caminho, { pos = l.rota[#l.rota - 1] })
-	table.insert(caminho, { pos = l.rota[#l.rota] })
-	for _, w in caminho do
-		if token ~= estado.token or not a.raiz.Parent then
+	table.sort(alvos, function(x, y)
+		return x.pos.X < y.pos.X
+	end)
+	if #alvos == 0 then
+		for k = 3, #l.rota - 2 do
+			if not vivo() or estado.sombraDistraida then
+				break
+			end
+			local dd = a:andar(l.rota[k], 5)
+			task.wait(dd)
+			if math.random() < 0.35 and a.farejar then
+				a:farejar()
+			end
+		end
+	else
+		for i, e in alvos do
+			if not vivo() or estado.sombraDistraida then
+				break
+			end
+			local agora = workspace:GetServerTimeNow()
+			local resta = (tonumber(info.avalia) or (agora + 10)) - agora
+			local dur = math.clamp(resta / (#alvos - i + 1) - 2.4, 2.4, 5)
+			espiarEsconderijo(a, e, dur, token)
+		end
+	end
+	if estado.sombraDistraida and vivo() then
+		-- o brinquedo do Keko: vai atrás do barulho, fareja, se contorce e desiste
+		if a.pararEspiar then
+			a:pararEspiar()
+		end
+		local dd = a:andar(l.barulho, 6)
+		task.wait(dd + 0.2)
+		a:virar(l.barulho + V3(0, 0, 3), 0.4)
+		if a.farejar then
+			a:farejar()
+			task.wait(0.7)
+			a:contorcer(1.0)
+		end
+		task.wait(2.2)
+	end
+	-- vai embora pela porta escura
+	for _, k in { #l.rota - 1, #l.rota } do
+		if not vivo() then
 			return
 		end
-		if estado.sombraDistraida then
-			local d = a:andar(l.barulho, 9)
-			task.wait(d + 0.2)
-			a:virar(l.barulho + V3(0, 0, 3), 0.4)
-			task.wait(3)
-			local d2 = a:andar(l.entrada, 9)
-			task.wait(d2)
-			break
-		end
-		local d = a:andar(w.pos, 7)
-		task.wait(d)
-		if w.pausa then
-			a:virar(w.olhar, 0.4)
-			Som.tocar("respiracao", { pai = a.raiz, volume = 0.9, alcance = 40 })
-			task.wait(w.pausa)
-		end
+		local dd = a:andar(l.rota[k], 5.5)
+		task.wait(dd)
 	end
 	sombraSome()
 end
@@ -2051,10 +2198,30 @@ end
 H.m_sombra_vem = function(info)
 	local eu = minhaCrianca()
 	local atraso = if eu == "NI" then 0 else 4
+	local token = estado.token
 	task.delay(atraso, function()
-		aviso(if eu == "NI" then "Nina ouve passos vindo... ESCONDAM-SE!" else "Passos no corredor! ESCONDA-SE!", 5)
+		aviso(if eu == "NI" then "Nina ouve passos vindo... ESCONDAM-SE!" else "Passos pesados no corredor! ESCONDA-SE!", 5)
 		somEm("rangido", estado.layout and estado.layout.entrada, { volume = 0.9, velocidade = 0.6 })
 	end)
+	-- AJUSTE-9: passos de gigante vindo pelo corredor escuro (cada vez mais perto) e um gemido lá longe
+	local entrada = estado.layout and estado.layout.entrada
+	if entrada then
+		local longe = entrada + V3(-14, 0, 0)
+		for k = 1, 8 do
+			task.delay(atraso + 1.6 + k * 1.25, function()
+				if token == estado.token then
+					local pos = longe:Lerp(entrada, k / 8)
+					somEm("passo_monstro", pos, { volume = 0.35 + k * 0.1, velocidade = 0.85 + math.random() * 0.1, alcance = 120, minimo = 12 })
+					Medo.pisada(pos, 0.5)
+				end
+			end)
+		end
+		task.delay(atraso + 6, function()
+			if token == estado.token then
+				somEm("gemido", longe, { volume = 0.9, velocidade = 0.8, alcance = 120, minimo = 12 })
+			end
+		end)
+	end
 	if eu == "KE" then
 		botao("JOGAR", "JOGAR BRINQUEDO", function()
 			remoto():FireServer("m_distrair")
@@ -2152,8 +2319,8 @@ H.m_presenca = function(info)
 		local O = estado.layout.origem
 		local ok, a = pcall(Ator.novo, "CRIATURA", estado.cenario, V3(O.X + info.x, O.Y + 1, O.Z), V3(O.X + info.x + 5, O.Y + 1, O.Z))
 		if ok and a then
-			a.aoPasso = function(at)
-				Som.tocar("pisada_madeira" .. math.random(1, 5), { pai = at.raiz, volume = 1.5, velocidade = 0.55, alcance = 80, minimo = 10 })
+			if a.gritar then
+				a:gritar()
 			end
 			estado.presenca = a
 			table.insert(estado.atores, a)

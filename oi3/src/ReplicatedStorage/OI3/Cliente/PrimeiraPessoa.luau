@@ -50,7 +50,19 @@ local estado = {
 	leve = false,
 	conexoes = {} :: { RBXScriptConnection },
 	aoEstamina = nil :: ((number, boolean, boolean) -> ())?,
+	-- AJUSTE-9: rede de segurança (último chão firme) e agachar
+	posSegura = nil :: CFrame?,
+	ultimaSegura = 0,
+	agachado = false,
+	agacharAlvo = 0,
+	agacharK = 0,
+	aoCair = nil :: (() -> ())?,
 }
+
+-- função pura (testável): caiu demais abaixo do último chão firme?
+function PrimeiraPessoa.caiu(yAtual: number, ySeguro: number?): boolean
+	return ySeguro ~= nil and yAtual < ySeguro - 28
+end
 
 ---------------------------------------------------------------------------
 -- Passos: som certo para cada chão (madeira, grama, pedra...)
@@ -229,6 +241,23 @@ local function atualizar(dt: number)
 	local noChao = hum.FloorMaterial ~= Enum.Material.Air
 	local andando = velH > 0.6 and noChao
 
+	-- AJUSTE-9: rede de segurança — guarda o último chão firme e devolve quem cair no vazio
+	if noChao and not raiz.Anchored and math.abs(v.Y) < 2 and estado.tempo - estado.ultimaSegura > 0.5 then
+		estado.ultimaSegura = estado.tempo
+		estado.posSegura = raiz.CFrame
+	end
+	if not raiz.Anchored and PrimeiraPessoa.caiu(raiz.Position.Y, estado.posSegura and estado.posSegura.Position.Y) then
+		local volta = estado.posSegura :: CFrame
+		raiz.AssemblyLinearVelocity = Vector3.zero
+		local char = estado.char
+		if char then
+			char:PivotTo(volta + V3(0, 2.5, 0))
+		end
+		if estado.aoCair then
+			task.spawn(estado.aoCair)
+		end
+	end
+
 	-- corrida e estamina
 	local corre = estado.querCorrer and andando and not estado.cansado and hum.MoveDirection.Magnitude > 0.1
 	estado.correndo = corre
@@ -246,7 +275,20 @@ local function atualizar(dt: number)
 	if estado.cansado and estado.stamina >= 0.35 then
 		estado.cansado = false
 	end
+	-- AJUSTE-9: agachar (câmera baixa, devagar, passos quase sem som, a cabeça passa por lugares baixos)
+	estado.agacharK += ((if estado.agachado then 1 else 0) - estado.agacharK) * math.min(1, dt * 9)
+	local ag = estado.agacharK
+	if ag > 0.5 then
+		corre = false
+		estado.correndo = false
+	end
+	hum.CameraOffset = V3(0, -1.75 * ag, 0)
+	local cabeca = estado.char and estado.char:FindFirstChild("Head")
+	if cabeca and cabeca:IsA("BasePart") then
+		cabeca.CanCollide = ag < 0.5
+	end
 	local alvoVel = if estado.cansado then VEL_CANSADO elseif corre then VEL_CORRER else VEL_ANDAR
+	alvoVel *= 1 - 0.55 * ag
 	hum.WalkSpeed += (alvoVel - hum.WalkSpeed) * math.min(1, dt * 6)
 	if estado.aoEstamina then
 		estado.aoEstamina(estado.stamina, corre, estado.cansado)
@@ -273,7 +315,7 @@ local function atualizar(dt: number)
 	local passo = math.floor(f * 2 / math.pi)
 	if passo ~= estado.passoAnterior and andando then
 		estado.passoAnterior = passo
-		local vol = math.clamp(0.18 + velH / 40, 0.2, 0.55)
+		local vol = math.clamp(0.18 + velH / 40, 0.2, 0.55) * (1 - 0.75 * estado.agacharK)
 		-- sorteia a variação sem repetir a anterior (passo natural)
 		local r = math.random()
 		if math.floor(r * 5) == estado.ultimaPisada then
@@ -352,8 +394,53 @@ function PrimeiraPessoa.aoEstamina(fn: (number, boolean, boolean) -> ())
 	estado.aoEstamina = fn
 end
 
+-- avisa quando a rede de segurança devolveu o jogador
+function PrimeiraPessoa.aoCair(fn: () -> ())
+	estado.aoCair = fn
+end
+
+-- esquece o último chão firme (ao ser levado para outro cenário)
+function PrimeiraPessoa.esquecerChao()
+	estado.posSegura = nil
+end
+
 function PrimeiraPessoa.correr(sim: boolean)
 	estado.querCorrer = sim
+	if sim and estado.agachado then
+		PrimeiraPessoa.agachar(false) -- correr levanta
+	end
+end
+
+local ouvintesAgachar: { (boolean) -> () } = {}
+
+-- AJUSTE-9: agachar / levantar
+function PrimeiraPessoa.agachar(sim: boolean)
+	if estado.agachado == sim then
+		return
+	end
+	-- para levantar precisa ter espaço em cima da cabeça
+	if not sim and estado.raiz and estado.char then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { estado.char }
+		local r = estado.raiz
+		local bateu = workspace:Raycast(r.Position, V3(0, 3.2 * (r.Size.Y / 2), 0), params)
+		if bateu and bateu.Instance.CanCollide then
+			return -- teto baixo: continua agachado
+		end
+	end
+	estado.agachado = sim
+	for _, fn in ouvintesAgachar do
+		task.spawn(fn, sim)
+	end
+end
+
+function PrimeiraPessoa.agachado(): boolean
+	return estado.agachado
+end
+
+function PrimeiraPessoa.aoAgachar(fn: (boolean) -> ())
+	table.insert(ouvintesAgachar, fn)
 end
 
 function PrimeiraPessoa.luzLigada(): boolean
@@ -411,6 +498,15 @@ function PrimeiraPessoa.desligar()
 		cam.FieldOfView = 70
 	end
 	estado.querCorrer = false
+	if estado.hum then
+		estado.hum.CameraOffset = Vector3.zero
+	end
+	local cab = estado.char and estado.char:FindFirstChild("Head")
+	if cab and cab:IsA("BasePart") then
+		cab.CanCollide = true
+	end
+	estado.agachado = false
+	estado.agacharK = 0
 	estado.char = nil
 	estado.hum = nil
 	estado.raiz = nil

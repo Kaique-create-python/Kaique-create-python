@@ -37,7 +37,8 @@ def main():
     for chave, arq, rotulo in [("sfx", "oi3_sfx.ogg", "efeitos"), ("vozes1", "oi3_vozes1.ogg", "vozes1"),
                                ("vozes2", "oi3_vozes2.ogg", "vozes2"), ("musica", "oi3_musica.ogg", "musica menu"),
                                ("ambiente", "oi3_ambiente.ogg", "ambiente"), ("passos", "oi3_passos.ogg", "passos gravados"),
-                               ("historia", "oi3_historia.ogg", "historia (vozes e sons)")]:
+                               ("historia", "oi3_historia.ogg", "historia (vozes e sons)"),
+                               ("vozes3", "oi3_vozes3.ogg", "vozes 3 (menino com voz de crianca)")]:
         caminho = os.path.join(RAIZ, "assets", arq)
         if os.path.exists(caminho) and ('"%s"' % chave) in mapa:
             entradas.append(("audio/" + arq, caminho, {"chave": chave, "rotulo": rotulo}))

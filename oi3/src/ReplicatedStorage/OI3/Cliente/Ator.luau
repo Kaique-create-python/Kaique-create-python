@@ -60,9 +60,13 @@ local function yawPara(de: Vector3, para: Vector3): number?
 	return math.atan2(-d.X, -d.Z)
 end
 
-function Ator.novo(codigo: string, pasta: Instance, posPes: Vector3, olhar: Vector3?)
+function Ator.novo(codigo: string, pasta: Instance, posPes: Vector3, olhar: Vector3?): any
+	-- AJUSTE-9: a criatura agora é o MONSTRO (animado junta por junta, se contorce, anda como dinossauro)
+	if codigo == "CRIATURA" then
+		return require(script.Parent.Monstro).novo(pasta, posPes, olhar)
+	end
 	local self = setmetatable({}, Ator)
-	local modelo = if codigo == "CRIATURA" then Personagens.criarCriatura() else Personagens.criar(codigo)
+	local modelo = Personagens.criar(codigo)
 	self.codigo = codigo
 	self.modelo = modelo
 	self.raiz = modelo.PrimaryPart :: BasePart

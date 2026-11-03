@@ -32,6 +32,14 @@ function Atores.descricao(codigo: string): HumanoidDescription
 	d.HairAccessory = lista(r.cabelo)
 	d.HatAccessory = lista(r.chapeu)
 	d.FaceAccessory = lista(r.rostoAcessorio)
+	-- AJUSTE-9: corpo R15 do catálogo (o monstro) e acessórios das costas
+	d.BackAccessory = lista(r.costas)
+	d.Head = tonumber(r.cabeca) or 0
+	d.Torso = tonumber(r.torso) or 0
+	d.LeftArm = tonumber(r.bracoE) or 0
+	d.RightArm = tonumber(r.bracoD) or 0
+	d.LeftLeg = tonumber(r.pernaE) or 0
+	d.RightLeg = tonumber(r.pernaD) or 0
 	local cor = r.pele or Config.PELE
 	d.HeadColor = cor
 	d.TorsoColor = cor
@@ -93,14 +101,42 @@ function Atores.montarRosto(id: number): Accessory?
 	return achado
 end
 
+-- função pura (testável): altura do CORPO (sem acessórios), da sola ao topo da cabeça
+function Atores.alturaCorpo(modelo: Model): number
+	local fundo, topo = math.huge, -math.huge
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" and not p:FindFirstAncestorOfClass("Accessory") then
+			local meia = p.Size.Y / 2
+			fundo = math.min(fundo, p.CFrame.Position.Y - meia)
+			topo = math.max(topo, p.CFrame.Position.Y + meia)
+		end
+	end
+	if fundo == math.huge then
+		return 0
+	end
+	return topo - fundo
+end
+
 function Atores.montar(codigo: string): (Model?, string?)
 	local r = (Config.ROUPAS or {})[codigo]
 	if not r then
 		return nil, "personagem desconhecido"
 	end
+	local tipo = if r.r15 then Enum.HumanoidRigType.R15 else Enum.HumanoidRigType.R6
 	local ok, m = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(Atores.descricao(codigo), Enum.HumanoidRigType.R6)
+		return Players:CreateHumanoidModelFromDescription(Atores.descricao(codigo), tipo)
 	end)
+	if (not ok or not m) and r.r15 then
+		-- AJUSTE-9: tenta o corpo do monstro sem os acessórios das costas antes de desistir
+		local d = Atores.descricao(codigo)
+		d.BackAccessory = ""
+		ok, m = pcall(function()
+			return Players:CreateHumanoidModelFromDescription(d, tipo)
+		end)
+		if ok and m then
+			warn("[OI3] acessórios das costas do " .. codigo .. " não carregaram; o corpo veio sem eles")
+		end
+	end
 	if not ok or not m then
 		-- se algum item do catálogo falhar, monta o avatar padrão do Roblox com a mesma cor
 		local d = Instance.new("HumanoidDescription")
@@ -126,6 +162,14 @@ function Atores.montar(codigo: string): (Model?, string?)
 		end
 	end
 	local s = tonumber(r.escala) or 1
+	-- AJUSTE-9: corpo R15 do catálogo: escala para a altura pedida (cada pacote vem de um tamanho)
+	if r.r15 and modelo:FindFirstChild("UpperTorso") and tonumber(r.altura) then
+		local h = Atores.alturaCorpo(modelo)
+		if h > 0.5 then
+			s = math.clamp(r.altura / h, 0.5, 3)
+		end
+		modelo:SetAttribute("R15", true)
+	end
 	if math.abs(s - 1) > 0.001 then
 		pcall(function()
 			modelo:ScaleTo(s)

@@ -19,6 +19,7 @@ local Paineis = require(script.Parent.Paineis)
 local Cutscene = require(script.Parent.Cutscene)
 local Exploracao = require(script.Parent.Exploracao)
 local Capitulo1 = require(script.Parent.Capitulo1)
+local Medo = require(script.Parent.Medo)
 
 local Main = {}
 
@@ -194,6 +195,7 @@ function Main.iniciar()
 	end)
 	Cinema.legendas(Ajustes.valores.legendas)
 	Cutscene.configurar({ tremor = Ajustes.valores.tremor })
+	Medo.configurar({ tremor = Ajustes.valores.tremor })
 	Ajustes.aoMudar(function(chave, valor)
 		if chave == "musica" or chave == "efeitos" or chave == "vozes" then
 			Som.volumes(Ajustes.valores)
@@ -205,6 +207,7 @@ function Main.iniciar()
 			Exploracao.configurar({ leve = valor })
 		elseif chave == "tremor" then
 			Cutscene.configurar({ tremor = valor })
+			Medo.configurar({ tremor = valor })
 			Exploracao.configurar({ tremor = valor })
 		end
 	end)

@@ -479,10 +479,16 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 		esperar(0.7)
 		local posCriatura = V3(2 * Mapa.L.XESP - 63.8, F, 0.95)
 		local criatura = novoAtor("CRIATURA", posCriatura, V3(50, F, 0.95), pr)
+		if criatura.semMedo then
+			criatura:semMedo() -- AJUSTE-9: aqui a câmera não embaça (é preciso ver o rosto dele)
+		end
 		criatura:visivel(false)
 		for _, v in { true, false, true, false, true } do
 			criatura:visivel(v)
 			esperar(0.06)
+		end
+		if criatura.contorcer then
+			criatura:contorcer(1.6) -- se contorce no espelho, ossos estalando
 		end
 		Som.tocar("susto", { volume = 1 })
 		Som.tocar("respiracao", { volume = 0.8 })

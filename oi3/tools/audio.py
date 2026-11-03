@@ -1105,8 +1105,31 @@ def ajuste8(pasta):
         json.dump(resumo, f, ensure_ascii=False, indent=1)
 
 
+def ajuste9(pasta):
+    """AJUSTE-9: o menino de azul (ME) com voz de CRIANÇA de verdade (ElevenLabs "Mishi", sem mudar o tom).
+    As falas antigas dele (voz adulta com tom mudado) saem do mapa. Falas ainda não geradas ficam só na legenda."""
+    caminho_json = os.path.join(ASSETS, "audio_mapa.json")
+    with open(caminho_json, encoding="utf-8") as f:
+        resumo = json.load(f)
+    itens = []
+    for nome, arq, alvo in [("ME_1", "ME_1_a.mp3", -17.5), ("ME_3", "ME_3_a.mp3", -17.5), ("ME_6", "ME_6_a.mp3", -19.0)]:
+        caminho = os.path.join(pasta, arq)
+        if os.path.exists(caminho):
+            itens.append((nome, tratar_voz(recortar(ler_audio(caminho), 1)[0], 0.0, alvo)))
+    mapa_v, dur_v, ogg_v = montar_sprite(itens, "oi3_vozes3")
+    for k in ("ME_1", "ME_2", "ME_3"):
+        resumo.get("vozes1", {}).pop(k, None)
+    resumo["vozes3"] = mapa_v
+    print(f"vozes3: {len(itens)} falas, {dur_v:.1f}s, {os.path.getsize(ogg_v) // 1024} KB")
+    escrever_mapa_json(resumo)
+    with open(caminho_json, "w", encoding="utf-8") as f:
+        json.dump(resumo, f, ensure_ascii=False, indent=1)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste8":
+    if len(sys.argv) > 1 and sys.argv[1] == "--ajuste9":
+        ajuste9(sys.argv[2])
+    elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste8":
         ajuste8(sys.argv[2])
     elif len(sys.argv) > 1 and sys.argv[1] == "--ajuste5":
         ajuste5(sys.argv[2])

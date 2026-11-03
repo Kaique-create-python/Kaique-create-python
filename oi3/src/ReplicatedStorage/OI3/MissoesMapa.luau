@@ -259,6 +259,131 @@ end
 -- MONTAGEM (só no aparelho do jogador)
 ---------------------------------------------------------------------------
 
+-- AJUSTE-9: atrás de cada porta, um corredorzinho de verdade: chão, paredes, teto e uma porta fechada
+-- no fim (antes as portas davam para o NADA e quem passava por elas caía). Também tem quadros tortos,
+-- teia de aranha e uma arandela fraca.
+local function vestibulo(c, centroBase: Vector3, fora: Vector3, largura: number, alturaPorta: number, o: any, p: any)
+	local D = p.fundo or 8
+	local W = largura + 1.6
+	local Hv = math.max(alturaPorta + 1.4, 5.2)
+	local lado = Vector3.yAxis:Cross(fora).Unit
+	local a = centroBase + fora * 0.3 - lado * (W / 2)
+	local b = centroBase + fora * (0.3 + D) + lado * (W / 2)
+	local x0, x1 = math.min(a.X, b.X), math.max(a.X, b.X)
+	local z0, z1 = math.min(a.Z, b.Z), math.max(a.Z, b.Z)
+	c:laje(x0 - 0.6, z0 - 0.6, x1 + 0.6, z1 + 0.6, F - 0.05, 0.6, RGB(14, 9, 7), M.SmoothPlastic, { Name = "ChaoVestibulo" })
+	if o.piso == "pedra" then
+		c:laje(x0, z0, x1, z1, F, 0.06, RGB(66, 64, 62), M.Slate, { Name = "ChaoVestibulo" })
+	else
+		Moveis.assoalho(c, x0, z0, x1, z1, F, o.corPiso or COR.assoalho)
+	end
+	c:laje(x0 - 0.6, z0 - 0.6, x1 + 0.6, z1 + 0.6, F + Hv + 0.5, 0.5, o.corTeto or COR.gesso, M.Plaster, { Name = "Teto" })
+	local cor = o.corParede or COR.papelDorm
+	local mat = o.matParede or M.Fabric
+	for _, sx in { -1, 1 } do
+		local p0 = centroBase + fora * 0.3 + lado * (sx * (W / 2 + 0.3))
+		local p1 = p0 + fora * D
+		c:parede(V3(p0.X, 0, p0.Z), V3(p1.X, 0, p1.Z), F, Hv, 0.6, cor, mat, nil, { Name = "Parede" })
+	end
+	local fim = centroBase + fora * (0.6 + D)
+	local f0 = fim - lado * (W / 2 + 0.6)
+	local f1 = fim + lado * (W / 2 + 0.6)
+	c:parede(V3(f0.X, 0, f0.Z), V3(f1.X, 0, f1.Z), F, Hv, 0.6, cor, mat, nil, { Name = "Parede" })
+	-- rodapé dos dois lados
+	for _, sx in { -1, 1 } do
+		local r0 = centroBase + fora * 0.3 + lado * (sx * (W / 2 - 0.06))
+		local r1 = r0 + fora * D
+		c:entre(V3(math.min(r0.X, r1.X) - 0.06, F, math.min(r0.Z, r1.Z) - 0.06), V3(math.max(r0.X, r1.X) + 0.06, F + 0.45, math.max(r0.Z, r1.Z) + 0.06), COR.lambri, M.Wood)
+	end
+	if p.portaNoFim ~= false then
+		Moveis.portaFechada(c, centroBase + fora * (0.3 + D), -fora, RGB(66, 50, 40))
+	end
+	-- um quadro torto numa das paredes e teia de aranha no canto do teto
+	local ladoQuadro = if (math.floor(centroBase.X + centroBase.Z) % 2) == 0 then 1 else -1
+	local q = centroBase + fora * (0.3 + D * 0.5) + lado * (ladoQuadro * (W / 2 - 0.05)) + V3(0, F + 4.6 - centroBase.Y, 0)
+	local cfq = CFrame.lookAt(q, q - lado * ladoQuadro) * CFrame.Angles(0, 0, math.rad(7 * ladoQuadro))
+	c:bloco(cfq, V3(1.9, 1.4, 0.1), COR.madeiraEscura, M.Wood)
+	c:bloco(cfq * CF(0, 0, -0.06), V3(1.5, 1.0, 0.04), RGB(70, 66, 58), M.SmoothPlastic)
+	local canto = fim - fora * 0.35 + lado * (-ladoQuadro * (W / 2 - 0.35)) + V3(0, F + Hv - 0.4 - centroBase.Y, 0)
+	c:cunha(CFrame.lookAt(canto, canto + fora) * CFrame.Angles(0, math.rad(45), 0), V3(0.05, 1.4, 1.4), RGB(200, 200, 196), M.SmoothPlastic, { Transparency = 0.55, Name = "Teia", colisao = false })
+	if p.luz ~= false then
+		local l = centroBase + fora * (0.3 + D * 0.6) + lado * (-ladoQuadro * (W / 2 - 0.25)) + V3(0, F + Hv - 1.6 - centroBase.Y, 0)
+		local b = c:bola(l, 0.35, RGB(255, 214, 160), M.Neon, { Name = "OI3_Lampada" })
+		c:luz(b, "PointLight", { Range = 9, Brightness = 0.22, Color = RGB(255, 200, 140), Shadows = false })
+	end
+end
+MissoesMapa.vestibulo = vestibulo
+
+-- AJUSTE-9: mais detalhes em toda sala: vigas no teto, teias nos cantos, quadros tortos nas paredes
+-- (fora das portas) e poeira flutuando na luz
+local function detalhesSala(c, x0: number, x1: number, z0: number, z1: number, h: number, o: any)
+	local semente = math.floor(math.abs(x0 * 7 + z0 * 13)) % 97
+	local function sorteio(k: number): number
+		return ((semente * 31 + k * 17) % 100) / 100
+	end
+	-- vigas de madeira escura atravessando o teto
+	local zz = z0 + 3
+	while zz < z1 - 2 do
+		c:entre(V3(x0 + 0.3, F + h - 0.75, zz), V3(x1 - 0.3, F + h, zz + 0.55), COR.madeiraEscura, M.Wood, { Name = "Viga" })
+		zz += 6
+	end
+	-- teias de aranha nos quatro cantos de cima
+	for _, canto in { { x0, z0, 1, 1 }, { x1, z0, -1, 1 }, { x0, z1, 1, -1 }, { x1, z1, -1, -1 } } do
+		local p = V3(canto[1] + canto[3] * 0.75, F + h - 0.75, canto[2] + canto[4] * 0.75)
+		local alvo = p + V3(-canto[3], 0, -canto[4])
+		c:cunha(CFrame.lookAt(p, alvo) * CFrame.Angles(0, 0, math.pi), V3(0.04, 1.7, 1.7), RGB(214, 212, 206), M.SmoothPlastic, { Name = "Teia", Transparency = 0.62, colisao = false })
+	end
+	-- quadros tortos nas paredes norte e sul (longe das portas)
+	local function livre(lado: string, pos: number): boolean
+		for _, p in o.portas or {} do
+			if p.lado == lado and math.abs(pos - p.centro) < (p.largura or 4.4) / 2 + 1.8 then
+				return false
+			end
+		end
+		return true
+	end
+	local tons = { RGB(70, 60, 52), RGB(52, 58, 66), RGB(86, 70, 58), RGB(60, 52, 60) }
+	for k, lado in { "N", "S" } do
+		for j, frac in { 0.22, 0.78 } do
+			local pos = (x1 - x0) * frac
+			if livre(lado, pos) and sorteio(k * 3 + j) < 0.8 then
+				local zf = if lado == "N" then z0 + 0.32 else z1 - 0.32
+				local frente = if lado == "N" then V3(0, 0, 1) else V3(0, 0, -1)
+				local base = V3(x0 + pos, F + 5.2 + sorteio(j) * 0.8, zf)
+				local inclina = math.rad((sorteio(k + j * 5) - 0.5) * 16)
+				local cf = CFrame.lookAt(base, base + frente) * CFrame.Angles(0, 0, inclina)
+				local larg = 1.6 + sorteio(k * 7 + j) * 1.0
+				c:bloco(cf, V3(larg, larg * 0.75, 0.1), COR.madeiraEscura, M.Wood, { Name = "Quadro" })
+				c:bloco(cf * CF(0, 0, -0.06), V3(larg - 0.3, larg * 0.75 - 0.3, 0.03), tons[((k + j + semente) % #tons) + 1], M.SmoothPlastic, { Name = "Quadro" })
+			end
+		end
+	end
+	-- poeira no ar (pontinhos que brilham na luz)
+	local ar = c:caixa(V3((x0 + x1) / 2, F + h / 2, (z0 + z1) / 2), V3(x1 - x0 - 1, h - 1, z1 - z0 - 1), RGB(0, 0, 0), M.SmoothPlastic, {
+		Name = "Poeira",
+		Transparency = 1,
+		colisao = false,
+		CanQuery = false,
+	})
+	local pe = Instance.new("ParticleEmitter")
+	pe.Name = "OI3_Poeira"
+	pe.Shape = Enum.ParticleEmitterShape.Box
+	pe.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	pe.Color = ColorSequence.new(RGB(220, 210, 190))
+	pe.LightEmission = 0.4
+	pe.LightInfluence = 1
+	pe.Size = NumberSequence.new(0.05, 0.03)
+	pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.55), NumberSequenceKeypoint.new(1, 1) })
+	pe.Lifetime = NumberRange.new(8, 12)
+	pe.Rate = 5
+	pe.Speed = NumberRange.new(0.05, 0.2)
+	pe.SpreadAngle = Vector2.new(180, 180)
+	pe.Drag = 0.5
+	pe:SetAttribute("OI3_FX", true)
+	pe.Parent = ar
+end
+
 -- sala fechada: piso de tábuas, teto, paredes com aberturas (portas)
 -- portas = { { lado = "N"/"S"/"O"/"L", centro = distância a partir do canto oeste/norte, largura, altura } }
 local function sala(c, O: Vector3, w: number, d: number, h: number, opts: any?)
@@ -282,6 +407,22 @@ local function sala(c, O: Vector3, w: number, d: number, h: number, opts: any?)
 	c:parede(V3(x0 - 0.3, 0, z1), V3(x1 + 0.3, 0, z1), F, h, 0.6, cor, mat, ab.S, { Name = nome })
 	c:parede(V3(x0, 0, z0), V3(x0, 0, z1), F, h, 0.6, cor, mat, ab.O, { Name = nome })
 	c:parede(V3(x1, 0, z0), V3(x1, 0, z1), F, h, 0.6, cor, mat, ab.L, { Name = nome })
+	-- AJUSTE-9: um corredorzinho atrás de cada porta (ninguém cai mais no vazio)
+	for _, p in o.portas or {} do
+		if p.vestibulo ~= false then
+			local fora, centroBase
+			if p.lado == "N" then
+				fora, centroBase = V3(0, 0, -1), V3(x0 + p.centro, F, z0)
+			elseif p.lado == "S" then
+				fora, centroBase = V3(0, 0, 1), V3(x0 + p.centro, F, z1)
+			elseif p.lado == "O" then
+				fora, centroBase = V3(-1, 0, 0), V3(x0, F, z0 + p.centro)
+			else
+				fora, centroBase = V3(1, 0, 0), V3(x1, F, z0 + p.centro)
+			end
+			vestibulo(c, centroBase, fora, p.largura or 4.4, math.min(p.altura or 8, h - 0.5), o, p)
+		end
+	end
 	-- rodapé escuro
 	if not o.semRodape then
 		local r = COR.lambri
@@ -289,6 +430,9 @@ local function sala(c, O: Vector3, w: number, d: number, h: number, opts: any?)
 		c:entre(V3(x0 + 0.3, F, z1 - 0.42), V3(x1 - 0.3, F + 0.5, z1 - 0.3), r, M.Wood)
 		c:entre(V3(x0 + 0.3, F, z0 + 0.3), V3(x0 + 0.42, F + 0.5, z1 - 0.3), r, M.Wood)
 		c:entre(V3(x1 - 0.42, F, z0 + 0.3), V3(x1 - 0.3, F + 0.5, z1 - 0.3), r, M.Wood)
+	end
+	if not o.semDetalhes then
+		detalhesSala(c, x0, x1, z0, z1, h, o)
 	end
 	return x0, x1, z0, z1
 end
@@ -521,12 +665,11 @@ CONSTRUIR.quarto = function(c, l)
 	local O = l.origem
 	sala(c, O, 34, 24, 11, {
 		corParede = COR.papelDorm,
-		portas = { { lado = "L", centro = 12, largura = 4.4 }, { lado = "O", centro = 7, largura = 4.4 } },
+		portas = { { lado = "L", centro = 12, largura = 4.4 }, { lado = "O", centro = 7, largura = 4.4, luz = false, portaNoFim = false, fundo = 9 } },
 	})
-	-- porta trancada (leste) e o vão escuro (oeste) com um "corredor" preto
+	-- porta trancada (leste) e o vão escuro (oeste): um corredor sem luz de onde a sombra vem
 	folhaPorta(c, "saida", L(O, 17, 0, 0), V3(0, 0, 1))
-	c:entre(L(O, -25, -1, -9), L(O, -17.3, 9, -1), RGB(2, 2, 3), M.SmoothPlastic, { Name = "Vao", colisao = false })
-	c:entre(L(O, -25, -1.05, -9), L(O, -17, 0, -1), RGB(10, 8, 7), M.Wood)
+	c:entre(L(O, -26.2, -0.04, -8.4), L(O, -17.3, 9.2, -1.6), RGB(2, 2, 3), M.SmoothPlastic, { Name = "Vao", colisao = false, Transparency = 0.06 })
 	for i, x in { -11, -4, 3, 10 } do
 		Moveis.cama(c, L(O, x, 0, -11.7), V3(0, 0, 1), COR.cobertores[(i % #COR.cobertores) + 1])
 	end
@@ -756,6 +899,7 @@ CONSTRUIR.espelhos = function(c, l)
 	c:parede(V3(B.X - 6, 0, B.Z - 6), V3(B.X - 6, 0, B.Z + 6), F, h, 0.6, papel, M.Fabric, nil, { Name = "Papel" })
 	c:parede(V3(B.X + 6, 0, B.Z - 6), V3(B.X + 6, 0, B.Z + 6), F, h, 0.6, papel, M.Fabric, { { centro = 6, largura = 4.4, base = 0, topo = 8 } }, { Name = "Papel" })
 	folhaPorta(c, "quarto", V3(B.X + 6, F, B.Z), V3(0, 0, 1), 4.2, RGB(70, 50, 40))
+	vestibulo(c, V3(B.X + 6, F, B.Z), V3(1, 0, 0), 4.4, 8, { corParede = papel, matParede = M.Fabric }, {})
 	c:parede(V3(B.X - 6.3, 0, B.Z + 6), V3(B.X + 6.3, 0, B.Z + 6), F, h, 0.6, papel, M.Fabric, { { centro = 6.3, largura = 6, base = 1, topo = 9 } }, { Name = "Papel" })
 	c:bloco(CF(V3(B.X, F + 5, B.Z + 6.35)), V3(6, 8, 0.1), RGB(150, 160, 170), M.Glass, { Name = "OI3_X_UltimoEspelho", Transparency = 0.4, Reflectance = 0.12, colisao = true })
 	c:entre(V3(B.X - 3.4, F + 0.7, B.Z + 6.1), V3(B.X + 3.4, F + 1.0, B.Z + 6.6), COR.ouro, M.Metal)
@@ -779,7 +923,7 @@ CONSTRUIR.quarto_trancado = function(c, l)
 	local O = l.origem
 	sala(c, O, 24, 18, 10, {
 		corParede = RGB(110, 120, 140),
-		portas = { { lado = "O", centro = 13, largura = 4.4 }, { lado = "N", centro = 18.7, largura = 3.2, altura = 4.2 } },
+		portas = { { lado = "O", centro = 13, largura = 4.4 }, { lado = "N", centro = 18.7, largura = 3.2, altura = 4.2, vestibulo = false } },
 	})
 	-- tampa da passagem (some quando o mecanismo abre)
 	c:entre(L(O, 4.8, 0, -9.3), L(O, 8, 4.2, -8.7), RGB(110, 120, 140), M.Fabric, { Name = "OI3_X_Tampa", colisao = true })

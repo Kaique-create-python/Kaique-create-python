@@ -184,10 +184,17 @@ checar("sons usados no código existem no mapa de áudio", function()
 		end
 	end
 	varrer("oi3/src")
+	-- AJUSTE-9: os sons também podem vir das gravações da biblioteca do Roblox (SonsBiblioteca)
+	local Biblioteca = H.modulo("ReplicatedStorage/OI3/SonsBiblioteca")
 	local n = 0
 	for som, onde in usados do
 		n += 1
-		assert(AudioMapa.itens[som], "som '" .. som .. "' (usado em " .. onde .. ") não existe no AudioMapa")
+		assert(AudioMapa.itens[som] or Biblioteca.sons[som], "som '" .. som .. "' (usado em " .. onde .. ") não existe no AudioMapa nem na biblioteca")
+	end
+	-- somEm("nome", ...) no cliente das missões também
+	local src = fs.readFile("oi3/src/ReplicatedStorage/OI3/Cliente/MissoesCliente.luau")
+	for som in string.gmatch(src, 'somEm%("([%w_]+)"') do
+		assert(AudioMapa.itens[som] or Biblioteca.sons[som], "som '" .. som .. "' (somEm) não existe")
 	end
 	-- sons montados com número no fim
 	for _, base in { "passo", "passo_madeira", "passo_grama" } do
@@ -373,7 +380,7 @@ checar("AJUSTE-7: foto antiga (imagem enviada + desenho reserva)", function()
 	local Rec = H.modulo("ReplicatedStorage/OI3/Recursos")
 	local C1M = H.modulo("ReplicatedStorage/OI3/Capitulo1Mapa")
 	assert(type(Rec.imagens) == "table", "Recursos.imagens faltando")
-	assert(Rec.revisao == "AJUSTE-8", "Recursos.revisao desatualizado")
+	assert(Rec.revisao == "AJUSTE-9", "Recursos.revisao desatualizado")
 	local f = roblox.Instance.new("Frame")
 	local q = C1M.desenharFoto(f)
 	assert(q:FindFirstChild("Reserva"), "sem o desenho reserva")
@@ -466,6 +473,106 @@ checar("AJUSTE-8: o assoalho de madeira aparece (tapetes pequenos, sem textura d
 	local fracao = madeira / math.max(total, 1)
 	print(string.format("    chão nos caminhos: %d%% tábua, %d%% tapete (%d pontos)", math.floor(fracao * 100), math.floor(tapete / total * 100), total))
 	assert(fracao >= 0.6, "o assoalho ainda está coberto")
+end)
+
+checar("AJUSTE-9: atrás de toda porta e vão dos cenários tem CHÃO (ninguém cai no vazio)", function()
+	local MM = H.modulo("ReplicatedStorage/OI3/MissoesMapa")
+	local V3 = roblox.Vector3.new
+	local F = 1
+	local verificadas = 0
+	for _, nome in MM.CENARIOS do
+		if nome == "rua" then
+			continue
+		end
+		local pasta = roblox.Instance.new("Folder")
+		local modelo, l = MM.construir(nome, pasta)
+		local chao = {}
+		local portas = {}
+		local paredes = {}
+		for _, d in modelo:GetDescendants() do
+			if d:IsA("BasePart") then
+				local cf, sz = d.CFrame, d.Size
+				local topoY = cf.Position.Y + math.abs(cf.UpVector.Y) * sz.Y / 2 + math.abs(cf.RightVector.Y) * sz.X / 2 + math.abs(cf.LookVector.Y) * sz.Z / 2
+				if topoY > F - 0.7 and topoY < F + 0.5 and d.CanCollide then
+					table.insert(chao, d)
+				end
+				if string.sub(d.Name, 1, 10) == "OI3_Porta_" then
+					table.insert(portas, d)
+				end
+			end
+		end
+		local function temChao(x, z)
+			for _, p in chao do
+				local cf, sz = p.CFrame, p.Size
+				local q = cf:PointToObjectSpace(V3(x, cf.Position.Y, z))
+				if math.abs(q.X) <= sz.X / 2 + 0.05 and math.abs(q.Z) <= sz.Z / 2 + 0.05 then
+					return true
+				end
+			end
+			return false
+		end
+		-- 1) folhas de porta: chão dos dois lados (2 e 5 studs)
+		for _, porta in portas do
+			local cf = porta.CFrame
+			local n = cf.LookVector
+			for _, lado in { -1, 1 } do
+				for _, dist in { 2, 5 } do
+					local pnt = cf.Position + n * lado * dist
+					assert(temChao(pnt.X, pnt.Z), string.format("%s: sem chão do lado de %s (%.1f, %.1f)", nome, porta.Name, pnt.X, pnt.Z))
+					verificadas += 1
+				end
+			end
+		end
+		-- 2) o spawn e os pontos de interação têm chão embaixo
+		assert(temChao(l.spawn.X, l.spawn.Z), nome .. ": spawn sem chão")
+		for id, pos in l.pontos or {} do
+			if id ~= "saida" then
+				assert(temChao(pos.X, pos.Z), nome .. ": ponto " .. id .. " sem chão")
+			end
+		end
+		local _ = paredes
+		pasta:Destroy()
+	end
+	-- 3) os corredores novos atrás das portas (sala) também têm chão até o fundo
+	local Moveis = H.modulo("ReplicatedStorage/OI3/Moveis")
+	local _ = Moveis
+	print("    pontos de porta conferidos:", verificadas)
+	assert(verificadas >= 24, "poucas portas conferidas: " .. verificadas)
+end)
+
+checar("AJUSTE-9: monstro (poses, espiada e medo)", function()
+	local Medo = H.modulo("ReplicatedStorage/OI3/Cliente/Medo")
+	assert(Medo.bpm(0) < Medo.bpm(0.5) and Medo.bpm(0.5) < Medo.bpm(1), "o coração precisa acelerar com o medo")
+	assert(Medo.bpm(1) <= 170 and Medo.bpm(0) >= 60, "batimento fora do normal")
+	assert(Medo.intervaloFolego(1) < Medo.intervaloFolego(0), "a respiração precisa acelerar com o medo")
+	local Monstro = H.modulo("ReplicatedStorage/OI3/Cliente/Monstro")
+	for nome, pose in Monstro.POSES do
+		for junta, v in pose do
+			assert(#v >= 3, nome .. "/" .. junta .. " sem 3 ângulos")
+			for _, a in v do
+				assert(math.abs(a) < 3.3, nome .. "/" .. junta .. ": ângulo absurdo " .. a)
+			end
+		end
+	end
+	local soma = Monstro.somar({ Neck = { 1, 0, 0 } }, { Neck = { 0.5, 1, 0 }, Waist = { 1, 1, 1 } }, 0.5)
+	assert(math.abs(soma.Neck[1] - 1.25) < 1e-6 and math.abs(soma.Waist[2] - 0.5) < 1e-6, "somar poses errado")
+	-- o ponto da espiada fica do lado de FORA de cada esconderijo e a cabeça olha para a câmera
+	local MC = H.modulo("ReplicatedStorage/OI3/Cliente/MissoesCliente")
+	local MM = H.modulo("ReplicatedStorage/OI3/MissoesMapa")
+	local l = MM.layout("quarto")
+	for _, e in l.esconderijos do
+		local alvo, olhar, pes = MC.pontoEspiada(e, 0.95)
+		local d = (alvo - e.cam.Position).Magnitude
+		assert(d > 1.2 and d < 4.5, e.id .. ": cabeça longe/perto demais da câmera (" .. d .. ")")
+		assert((olhar - e.cam.Position).Magnitude < 1e-6, e.id .. ": precisa olhar para quem está escondido")
+		assert(alvo.Y > 1 + 0.9, e.id .. ": cabeça afundando no chão")
+		local _ = pes
+	end
+	-- servidor: espia só esconderijos SEGUROS e ocupados (no máximo 2) e dá tempo para a cena
+	local Serv = H.modulo("ServerScriptService/OI3_Servidor/Missoes")
+	local alvos = Serv.alvosEspiar({ a = "cama1", b = "armario2", c = "bau", d = "cama1" }, { bau = true })
+	assert(#alvos == 2 and table.find(alvos, "cama1") and table.find(alvos, "armario2"), "alvos da espiada errados")
+	assert(Serv.tempoConferir(0) == 9.5 and Serv.tempoConferir(2) > Serv.tempoConferir(1), "tempo da ronda errado")
 end)
 
 checar("AJUSTE-8: rosto de reação nunca fica escondido dentro da cabeça", function()

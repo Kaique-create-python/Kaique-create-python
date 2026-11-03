@@ -51,6 +51,27 @@ end
 ---------------------------------------------------------------------------
 -- ESCONDE-ESCONDE (Missão 1)
 ---------------------------------------------------------------------------
+-- função pura (testável): esconderijos SEGUROS ocupados que o monstro vai espiar (no máximo 2)
+function Servidor.alvosEspiar(escondidos: { [any]: string }, queimados: { [string]: boolean }): { string }
+	local vistos, lista = {}, {}
+	for _, spot in escondidos do
+		if type(spot) == "string" and not queimados[spot] and not vistos[spot] then
+			vistos[spot] = true
+			table.insert(lista, spot)
+		end
+	end
+	table.sort(lista)
+	while #lista > 2 do
+		table.remove(lista)
+	end
+	return lista
+end
+
+-- função pura (testável): quanto tempo a ronda leva até conferir quem foi pego
+function Servidor.tempoConferir(nEspiar: number): number
+	return 9.5 + 5.5 * math.clamp(nEspiar, 0, 2)
+end
+
 local function esconde(g, token: number)
 	local m = g.m
 	local passo = M.passo(m.n, m.i)
@@ -71,9 +92,12 @@ local function esconde(g, token: number)
 			table.insert(checar, id)
 		end
 		table.sort(checar)
+		-- AJUSTE-9: e ESPIA pelas frestas de quem está escondido num lugar seguro (assusta, mas vai embora)
+		local espiar = Servidor.alvosEspiar(m.esc.escondidos, m.esc.queimados)
+		local espera = Servidor.tempoConferir(#espiar)
 		m.esc.procurando = true
-		enviar(g, "m_sombra", { inicio = agora() + 0.3, checar = checar })
-		task.wait(9.5) -- o momento em que ela passa conferindo
+		enviar(g, "m_sombra", { inicio = agora() + 0.3, checar = checar, espiar = espiar, avalia = agora() + espera })
+		task.wait(espera) -- o momento em que ela termina de conferir
 		if not valido(g, token) then
 			return
 		end

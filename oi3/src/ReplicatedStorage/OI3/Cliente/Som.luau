@@ -5,6 +5,12 @@
 --  * um som PÚBLICO do próprio Roblox serve de "controle": se ele carrega e o nosso não,
 --    o áudio está bloqueado (falta liberar a permissão do jogo) e a tela de Configurações diz isso;
 --  * o trecho do sprite só é marcado depois que o áudio carregou (antes podia ficar mudo).
+-- AJUSTE-9 ("nada sintético"):
+--  * os sons agora são GRAVAÇÕES de verdade das bibliotecas licenciadas do Roblox (SonsBiblioteca):
+--    coração, respiração, rangidos, batidas, máquinas, vento, grilos... e os sons do monstro;
+--  * eles são públicos (não precisam de upload nem de permissão); se algum não carregar, o jogo toca o
+--    som antigo do mesmo nome (sprite) no lugar;
+--  * a caixinha de música toca "Parabéns" nota por nota com uma nota gravada de uma caixinha de verdade.
 
 local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -14,6 +20,7 @@ local TweenService = game:GetService("TweenService")
 local OI3 = script.Parent.Parent
 local Recursos = require(OI3.Recursos)
 local AudioMapa = require(OI3.AudioMapa)
+local Biblioteca = require(OI3.SonsBiblioteca)
 
 local Som = {}
 
@@ -28,6 +35,7 @@ local NOMES = {
 	ambiente = "ambiente",
 	passos = "passos",
 	historia = "história",
+	vozes3 = "vozes 3",
 }
 
 local grupos: { [string]: SoundGroup } = {}
@@ -38,6 +46,9 @@ local estadoControle = "carregando" -- "carregando" | "pronto" | "falhou"
 local ativos: { [Sound]: { inicio: number, fim: number, loop: boolean } } = {}
 local ouvintesEstado: { () -> () } = {}
 local iniciado = false
+-- biblioteca (AJUSTE-9): um Sound modelo por ID público
+local modelosLib: { [number]: Sound } = {}
+local estadoLib: { [number]: string } = {} -- "carregando" | "pronto" | "falhou"
 
 local function idDe(arquivo: string): number
 	local audio = Recursos.audio
@@ -51,8 +62,30 @@ function Som.item(nome: string)
 	return AudioMapa.itens[nome]
 end
 
--- true se o arquivo do item tem ID e não está marcado como falho
+-- variantes da biblioteca que ainda podem tocar (não falharam)
+local function variantesVivas(nome: string): { any }
+	local b = Biblioteca.sons[nome]
+	local lista = {}
+	if b and iniciado then
+		for _, v in b.variantes do
+			if estadoLib[v.id] ~= "falhou" then
+				table.insert(lista, v)
+			end
+		end
+	end
+	return lista
+end
+
+-- true se o som gravado (biblioteca) deste nome pode tocar
+function Som.temGravacao(nome: string): boolean
+	return #variantesVivas(nome) > 0
+end
+
+-- true se o arquivo do item tem ID e não está marcado como falho (ou se há gravação da biblioteca)
 function Som.disponivel(nome: string): boolean
+	if Som.temGravacao(nome) then
+		return true
+	end
 	local it = AudioMapa.itens[nome]
 	if not it or idDe(it.arquivo) <= 0 then
 		return false
@@ -60,15 +93,24 @@ function Som.disponivel(nome: string): boolean
 	return estadoArquivo[it.arquivo] ~= "falhou"
 end
 
--- true só quando o arquivo do item já carregou de verdade
+-- true só quando o som já carregou de verdade
 function Som.pronto(nome: string): boolean
+	for _, v in variantesVivas(nome) do
+		if estadoLib[v.id] == "pronto" then
+			return true
+		end
+	end
 	local it = AudioMapa.itens[nome]
 	return it ~= nil and estadoArquivo[it.arquivo] == "pronto"
 end
 
 function Som.duracao(nome: string): number?
 	local it = AudioMapa.itens[nome]
-	return it and it.dur or nil
+	if it then
+		return it.dur
+	end
+	local b = Biblioteca.sons[nome]
+	return b and b.variantes[1] and b.variantes[1].dur or nil
 end
 
 -- Resumo: "pronto", "carregando", "parcial", "indisponivel", "sem_audio"
@@ -193,6 +235,87 @@ local function vigiarArquivo(arquivo: string, id: number)
 	end)
 end
 
+-- AJUSTE-9: carrega as gravações da biblioteca em lotes (em segundo plano, sem travar o jogo)
+function Som.carregarBiblioteca()
+	local ids: { number } = {}
+	local vistos = {}
+	for _, b in Biblioteca.sons do
+		for _, v in b.variantes do
+			if not vistos[v.id] then
+				vistos[v.id] = true
+				table.insert(ids, v.id)
+			end
+		end
+	end
+	table.sort(ids)
+	for _, id in ids do
+		if not modelosLib[id] then
+			modelosLib[id] = criarModelo("Lib" .. id, "rbxassetid://" .. id)
+			estadoLib[id] = "carregando"
+		end
+	end
+	task.spawn(function()
+		for i = 1, #ids, 8 do
+			local lote = {}
+			for k = i, math.min(i + 7, #ids) do
+				table.insert(lote, modelosLib[ids[k]])
+			end
+			pcall(function()
+				ContentProvider:PreloadAsync(lote)
+			end)
+			for _, s in lote do
+				local id = tonumber(string.match(s.SoundId, "%d+")) :: number
+				if s.IsLoaded and s.TimeLength > 0 then
+					estadoLib[id] = "pronto"
+				end
+			end
+		end
+		-- quem não carregou ganha mais um tempo; depois disso o som antigo toca no lugar
+		local t0 = os.clock()
+		while os.clock() - t0 < 30 do
+			local falta = false
+			for _, id in ids do
+				local s = modelosLib[id]
+				if estadoLib[id] == "carregando" then
+					if s.IsLoaded and s.TimeLength > 0 then
+						estadoLib[id] = "pronto"
+					else
+						falta = true
+					end
+				end
+			end
+			if not falta then
+				break
+			end
+			task.wait(1)
+		end
+		local falhos = 0
+		for _, id in ids do
+			if estadoLib[id] == "carregando" then
+				estadoLib[id] = "falhou"
+				falhos += 1
+			end
+		end
+		if falhos > 0 then
+			warn(string.format("[OI3] %d sons gravados da biblioteca não carregaram; usando os sons antigos no lugar.", falhos))
+		end
+	end)
+end
+
+-- quantos sons da biblioteca carregaram (para o teste e para a tela de Configurações)
+function Som.estadoBiblioteca(): (number, number, number)
+	local prontos, falhos, total = 0, 0, 0
+	for _, e in estadoLib do
+		total += 1
+		if e == "pronto" then
+			prontos += 1
+		elseif e == "falhou" then
+			falhos += 1
+		end
+	end
+	return prontos, falhos, total
+end
+
 local function vigiarControle()
 	task.spawn(function()
 		for _ = 1, 2 do
@@ -244,6 +367,7 @@ function Som.iniciar(volumes: { musica: number, efeitos: number, vozes: number }
 		end
 	end
 	vigiarControle()
+	Som.carregarBiblioteca()
 
 	-- vigia: garante o trecho certo mesmo se o PlaybackRegion falhar
 	RunService.Heartbeat:Connect(function()
@@ -284,22 +408,46 @@ export type Opcoes = {
 	pai: Instance?,
 	alcance: number?,
 	minimo: number?,
+	variante: number?,
 }
 
+local tocarCaixinha: (Opcoes?) -> Sound?
+
 -- Toca um item. Retorna o Sound (ou nil se não houver áudio).
+-- AJUSTE-9: se houver gravação da biblioteca com esse nome, ela toca (uma variante sorteada);
+-- senão toca o trecho do sprite antigo.
 function Som.tocar(nome: string, opcoes: Opcoes?): Sound?
-	local it = AudioMapa.itens[nome]
-	if not it then
-		return nil
-	end
-	local modelo = modelos[it.arquivo]
-	if not modelo or estadoArquivo[it.arquivo] == "falhou" then
-		return nil
+	if nome == "caixinha" and Som.temGravacao("caixinha_nota") then
+		return tocarCaixinha(opcoes)
 	end
 	local o = opcoes or {}
+	local modelo: Sound?
+	local it: any = nil
+	local ganho = 1
+	local vivas = variantesVivas(nome)
+	if #vivas > 0 then
+		local b = Biblioteca.sons[nome]
+		local v = vivas[if o.variante then math.clamp(o.variante, 1, #vivas) else math.random(1, #vivas)]
+		modelo = modelosLib[v.id]
+		it = { inicio = v.inicio, dur = v.dur, loop = b.loop }
+		ganho = v.ganho or 1
+	else
+		it = AudioMapa.itens[nome]
+		if not it then
+			return nil
+		end
+		modelo = modelos[it.arquivo]
+		if not modelo or estadoArquivo[it.arquivo] == "falhou" then
+			return nil
+		end
+	end
+	if not modelo then
+		return nil
+	end
 	local s = modelo:Clone()
 	s.Name = "OI3_" .. nome
-	s.Volume = o.volume or 1
+	s.Volume = math.clamp((o.volume or 1) * ganho, 0, 10)
+	s:SetAttribute("Ganho", ganho)
 	s.PlaybackSpeed = o.velocidade or 1
 	s.SoundGroup = grupos[o.grupo or "Efeitos"]
 	local loop = o.loop or it.loop == true
@@ -355,6 +503,59 @@ function Som.tocar(nome: string, opcoes: Opcoes?): Sound?
 	return s
 end
 
+-- "Parabéns pra você" (semitons acima do Ré5 e duração em tempos) tocado com UMA nota gravada de uma
+-- caixinha de música de verdade (PSE "Music Box Single Notes"), afinada nota por nota pela velocidade.
+local PARABENS = {
+	{ 0, 0.75 }, { 0, 0.25 }, { 2, 1 }, { 0, 1 }, { 5, 1 }, { 4, 2 },
+	{ 0, 0.75 }, { 0, 0.25 }, { 2, 1 }, { 0, 1 }, { 7, 1 }, { 5, 2 },
+	{ 0, 0.75 }, { 0, 0.25 }, { 12, 1 }, { 9, 1 }, { 5, 1 }, { 4, 1 }, { 2, 2 },
+	{ 10, 0.75 }, { 10, 0.25 }, { 9, 1 }, { 5, 1 }, { 7, 1 }, { 5, 3 },
+}
+local RE5_HZ = 587.33
+
+tocarCaixinha = function(opcoes: Opcoes?): Sound?
+	local o = opcoes or {}
+	-- "alça": um Sound mudo que representa a caixinha (quem chamou pode mudar o Volume ou destruir)
+	local alca = Instance.new("Sound")
+	alca.Name = "OI3_caixinha"
+	alca.Volume = o.volume or 1
+	alca.Parent = o.pai or SoundService
+	local loop = o.loop == true
+	local base = Biblioteca.caixinhaHz or 829
+	task.spawn(function()
+		local rodada = 0
+		repeat
+			rodada += 1
+			-- a cada volta a caixinha fica um pouco mais lenta (a corda acabando)
+			local tempo = 0.36 * (1 + math.min(rodada - 1, 6) * 0.06)
+			for i, nota in PARABENS do
+				if not alca.Parent then
+					return
+				end
+				local hz = RE5_HZ * 2 ^ (nota[1] / 12)
+				local vel = (hz / base) * (1 + (math.random() - 0.5) * 0.006)
+				if i == #PARABENS and rodada > 2 then
+					vel *= 0.985 -- a última nota sai um pouco desafinada
+				end
+				Som.tocar("caixinha_nota", {
+					volume = alca.Volume * (if nota[2] >= 1 then 1 else 0.8),
+					velocidade = vel,
+					pai = if o.pai then o.pai else nil,
+					alcance = o.alcance,
+					minimo = o.minimo,
+					grupo = o.grupo,
+				})
+				task.wait(nota[2] * tempo * (1 + (math.random() - 0.5) * 0.05))
+			end
+			task.wait(1.4)
+		until not loop or not alca.Parent
+		if alca.Parent then
+			alca:Destroy()
+		end
+	end)
+	return alca
+end
+
 -- Toca uma sequência curta para o jogador conferir se o som está saindo
 function Som.testar()
 	Som.tocar("clique", { volume = 1 })
@@ -366,6 +567,25 @@ function Som.testar()
 	task.delay(0.9, function()
 		Som.tocar("NI_1", { grupo = "Vozes", volume = 1 })
 	end)
+end
+
+-- Volume de verdade de um som já tocando (as gravações da biblioteca têm um ganho próprio)
+function Som.volumeReal(s: Sound, volume: number): number
+	local g = s:GetAttribute("Ganho")
+	return math.clamp(volume * (if type(g) == "number" then g else 1), 0, 10)
+end
+
+-- Muda o volume de um som já tocando (respeitando o ganho da gravação)
+function Som.mudarVolume(s: Sound?, volume: number, fade: number?)
+	if not s or not s.Parent then
+		return
+	end
+	local alvo = Som.volumeReal(s, volume)
+	if fade and fade > 0 then
+		TweenService:Create(s, TweenInfo.new(fade), { Volume = alvo }):Play()
+	else
+		s.Volume = alvo
+	end
 end
 
 -- Ambientes 2D em loop com fade
@@ -384,13 +604,13 @@ function Som.ambiente(nome: string, volume: number, fade: number?)
 		return
 	end
 	if atual and atual.Parent then
-		TweenService:Create(atual, TweenInfo.new(t), { Volume = volume }):Play()
+		TweenService:Create(atual, TweenInfo.new(t), { Volume = Som.volumeReal(atual, volume) }):Play()
 		return
 	end
 	local s = Som.tocar(nome, { grupo = "Musica", volume = 0, loop = true })
 	if s then
 		ambientes[nome] = s
-		TweenService:Create(s, TweenInfo.new(t), { Volume = volume }):Play()
+		TweenService:Create(s, TweenInfo.new(t), { Volume = Som.volumeReal(s, volume) }):Play()
 	end
 end
 

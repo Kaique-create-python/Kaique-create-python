@@ -22,6 +22,7 @@ local estado = {
 	telaCheia = nil :: ScreenGui?,
 	botaoLuz = nil :: TextButton?,
 	botaoCorrer = nil :: TextButton?,
+	botaoAgachar = nil :: TextButton?,
 	aviso = nil :: Frame?,
 	barra = nil :: CanvasGroup?,
 	preenchido = nil :: Frame?,
@@ -253,6 +254,19 @@ function Exploracao.iniciar(remotos: any, aoMenu: () -> ())
 		correr.MouseLeave:Connect(soltar)
 		estado.botaoCorrer = correr
 
+		-- AJUSTE-9: AGACHAR (liga/desliga)
+		local agachar, iconeA = botaoAcao(tela, "Agachar", "AGACHAR", UDim2.new(1, -24, 1, y - 72))
+		traco(iconeA, UDim2.fromScale(0.5, 0.32), UDim2.fromScale(0.16, 0.16), 0)
+		traco(iconeA, UDim2.fromScale(0.45, 0.55), UDim2.fromScale(0.34, 0.12), 25)
+		traco(iconeA, UDim2.fromScale(0.58, 0.74), UDim2.fromScale(0.34, 0.12), -30)
+		agachar.Activated:Connect(function()
+			PrimeiraPessoa.agachar(not PrimeiraPessoa.agachado())
+		end)
+		PrimeiraPessoa.aoAgachar(function(sim)
+			pintarBotao(agachar, sim)
+		end)
+		estado.botaoAgachar = agachar
+
 		local luz, iconeL = botaoAcao(tela, "Lanterna", "LUZ", UDim2.new(1, -96, 1, y))
 		traco(iconeL, UDim2.fromScale(0.42, 0.58), UDim2.fromScale(0.42, 0.16), -35)
 		traco(iconeL, UDim2.fromScale(0.64, 0.4), UDim2.fromScale(0.24, 0.26), -35)
@@ -283,7 +297,7 @@ function Exploracao.iniciar(remotos: any, aoMenu: () -> ())
 	local lista = Instance.new("UIListLayout")
 	lista.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	lista.Parent = aviso
-	local dica = if UserInputService.TouchEnabled then "Lanterna: LUZ · Correr: segure CORRER" else "Lanterna: F · Correr: segure Shift"
+	local dica = if UserInputService.TouchEnabled then "Lanterna: LUZ · Correr: segure CORRER · AGACHAR" else "Lanterna: F · Correr: segure Shift · Agachar: C"
 	Interface.texto(aviso, { Name = "L1", Text = "Explore o orfanato.", FontFace = Interface.FONTE.titulo, TextSize = 18, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextXAlignment = Enum.TextXAlignment.Center })
 	Interface.texto(aviso, { Name = "L2", Text = "Capítulo 1 em breve · " .. dica, TextSize = 14, TextColor3 = COR.textoFraco, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextXAlignment = Enum.TextXAlignment.Center })
 	aviso.Parent = tela
@@ -296,6 +310,12 @@ function Exploracao.iniciar(remotos: any, aoMenu: () -> ())
 		end
 		return Enum.ContextActionResult.Pass
 	end, false, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
+	ContextActionService:BindAction("OI3_Agachar", function(_, st)
+		if st == Enum.UserInputState.Begin and estado.ativo then
+			PrimeiraPessoa.agachar(not PrimeiraPessoa.agachado())
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
 	ContextActionService:BindAction("OI3_Correr", function(_, st)
 		if estado.ativo then
 			PrimeiraPessoa.correr(st == Enum.UserInputState.Begin or st == Enum.UserInputState.Change)

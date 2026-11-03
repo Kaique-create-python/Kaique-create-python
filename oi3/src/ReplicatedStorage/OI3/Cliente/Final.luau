@@ -206,14 +206,10 @@ function Final.tocar(params: { inicio: number?, aoTerminar: () -> () })
 		end
 		task.wait(0.8)
 		-- ele não se assusta: só aumenta o volume do rádio
-		if radio then
-			radio.Volume = 0.9
-		end
+		Som.mudarVolume(radio, 0.9)
 		task.wait(1.4)
 		-- 8) o carro vai embora
-		if motor then
-			motor.Volume = 0.7
-		end
+		Som.mudarVolume(motor, 0.7)
 		local largo = CFrame.lookAt(l.carro + V3(-18, 7, -16), l.carro + V3(6, 2, 2))
 		corte(largo, 50)
 		if vo then
