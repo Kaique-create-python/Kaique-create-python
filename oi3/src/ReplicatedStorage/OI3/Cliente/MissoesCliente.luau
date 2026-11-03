@@ -2011,6 +2011,9 @@ local function aplicarPasso(info: any)
 	end
 	estado.contando = false
 	local passo = M.passo(estado.n, estado.i)
+	if not (passo and passo.tipo == "esconder") then
+		sombraSome()
+	end
 	atualizarObjetivo(passo, info.extra)
 	if not passo or not estado.cenario then
 		return
@@ -2107,8 +2110,15 @@ H.m_passo = function(info)
 	end)
 end
 
+-- AJUSTE-10: nos pulos do ADM o servidor "refaz" os passos anteriores; estas reações abrem telas
+-- ou mudam o jogador de lugar, então ficam de fora
+local SO_NO_JOGO = { passagem = true, documentos = true, foto_apagada = true }
+
 H.m_feito = function(info)
 	estado.feitos[info.ponto] = true
+	if info.silencioso and SO_NO_JOGO[info.ponto] then
+		return
+	end
 	for i = #estado.prompts, 1, -1 do
 		local pr = estado.prompts[i]
 		if pr.Name == "Prompt_" .. info.ponto then
@@ -2417,6 +2427,58 @@ end
 
 function MC.iniciar(ctx: any)
 	estado.ctx = ctx
+end
+
+-- AJUSTE-10 (ADM) -----------------------------------------------------------
+function MC.susto()
+	task.spawn(jumpscare)
+end
+
+-- onde fica o próximo ponto do objetivo atual (para o teleporte do ADM)
+function MC.pontoObjetivo(): Vector3?
+	local l = estado.layout
+	local passo = M.passo(estado.n, estado.i)
+	if not (l and passo) then
+		return nil
+	end
+	for _, id in M.pontosDoPasso(passo) do
+		if not estado.feitos[id] then
+			local p = (l.pontos or {})[id]
+			if p then
+				return p
+			end
+			local cad = id:match("^cadeira_(%a+)$")
+			if cad and l.cadeiras and l.cadeiras[cad] then
+				return l.cadeiras[cad]
+			end
+		end
+	end
+	if passo.tipo == "esconder" and l.esconderijos and l.esconderijos[1] then
+		return l.esconderijos[1].checar
+	end
+	if passo.tipo == "fuga" and l.saida then
+		return l.saida
+	end
+	return nil
+end
+
+-- leva o jogador para perto de um ponto (sem cair dentro de móveis)
+function MC.levarPerto(alvo: Vector3)
+	local l = estado.layout
+	local chao = if l and l.spawn then l.spawn.Y else alvo.Y
+	local de = raiz() and (raiz() :: BasePart).Position or alvo
+	local dir = Vector3.new(de.X - alvo.X, 0, de.Z - alvo.Z)
+	dir = if dir.Magnitude > 0.1 then dir.Unit else Vector3.new(0, 0, 1)
+	levar(Vector3.new(alvo.X, chao, alvo.Z) + dir * 3, alvo)
+end
+
+function MC.voltarInicio(): boolean
+	local l = estado.layout
+	if l and l.spawn then
+		levar(l.spawn, l.olhar)
+		return true
+	end
+	return false
 end
 
 return MC

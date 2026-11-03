@@ -166,6 +166,19 @@ else
 		end
 		res.info.monstro = string.format("%s, altura %.1f, juntas %d/11, acessórios %d/2", if r15 then "corpo R15 do catálogo" else "corpo RESERVA (R6)", Atores.alturaCorpo(m), juntas, acessorios)
 		m:Destroy()
+		-- AJUSTE-10: os monstros da internet (só carregam se estiverem no inventário do dono)
+		local Config = require(OI3.Config)
+		local internet = {}
+		for _, info in Config.MONSTROS_INTERNET or {} do
+			local okM, mi, errM = pcall(Atores.montarMonstroInternet, info)
+			if okM and mi then
+				internet[tostring(info.id)] = string.format("ok (%s, juntas %d)", info.nome, mi:GetAttribute("Juntas") or 0)
+				mi:Destroy()
+			else
+				internet[tostring(info.id)] = info.nome .. ": " .. tostring(if okM then errM else mi)
+			end
+		end
+		res.info.monstrosInternet = internet
 	end)
 	-- AJUSTE-8: os cenários das missões montam no Roblox de verdade (fontes, materiais, peças)
 	checar("missoes", function()

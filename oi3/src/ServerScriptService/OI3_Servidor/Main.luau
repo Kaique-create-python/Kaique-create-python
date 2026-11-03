@@ -10,6 +10,8 @@ local Dados = require(script.Parent:WaitForChild("Dados"))
 local Sala = require(script.Parent:WaitForChild("Sala"))
 local Atores = require(script.Parent:WaitForChild("Atores"))
 local Historia = require(script.Parent:WaitForChild("Historia"))
+local Missoes = require(script.Parent:WaitForChild("Missoes"))
+local Admin = require(script.Parent:WaitForChild("Admin")) -- AJUSTE-10
 
 local Main = {}
 
@@ -48,6 +50,7 @@ local function criarRemotos()
 	remotos.IntroVista = ev("IntroVista")
 	remotos.Sala = ev("Sala")
 	remotos.Historia = ev("Historia")
+	remotos.Admin = ev("Admin") -- AJUSTE-10: comandos de ADM (o servidor confere quem pode)
 	pasta.Parent = OI3
 end
 
@@ -166,6 +169,7 @@ function Main.iniciar()
 	})
 	Dados.iniciar()
 	Sala.iniciar(remotos.Sala)
+	Admin.iniciar(remotos.Admin, Historia, Missoes, Atores)
 
 	remotos.PedirDados.OnServerInvoke = function(plr: Player)
 		local d = Dados.obter(plr)

@@ -56,6 +56,7 @@ local estado = {
 	agachado = false,
 	agacharAlvo = 0,
 	agacharK = 0,
+	multAdm = 1, -- AJUSTE-10: o ADM pode correr mais rápido
 	aoCair = nil :: (() -> ())?,
 }
 
@@ -288,7 +289,7 @@ local function atualizar(dt: number)
 		cabeca.CanCollide = ag < 0.5
 	end
 	local alvoVel = if estado.cansado then VEL_CANSADO elseif corre then VEL_CORRER else VEL_ANDAR
-	alvoVel *= 1 - 0.55 * ag
+	alvoVel *= (1 - 0.55 * ag) * estado.multAdm
 	hum.WalkSpeed += (alvoVel - hum.WalkSpeed) * math.min(1, dt * 6)
 	if estado.aoEstamina then
 		estado.aoEstamina(estado.stamina, corre, estado.cansado)
@@ -433,6 +434,11 @@ function PrimeiraPessoa.agachar(sim: boolean)
 	for _, fn in ouvintesAgachar do
 		task.spawn(fn, sim)
 	end
+end
+
+-- AJUSTE-10 (ADM): multiplica a velocidade de andar/correr
+function PrimeiraPessoa.velocidadeAdm(k: number)
+	estado.multAdm = math.clamp(k, 0.5, 4)
 end
 
 function PrimeiraPessoa.agachado(): boolean

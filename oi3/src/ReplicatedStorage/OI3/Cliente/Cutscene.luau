@@ -23,6 +23,7 @@ local PULAR = { motivo = "pular" }
 
 local opcoes = { tremor = true }
 local ativa = false
+local pularAtual: (() -> ())? = nil -- AJUSTE-10: o ADM pode pular a cutscene
 
 function Cutscene.configurar(o: { tremor: boolean })
 	opcoes.tremor = o.tremor
@@ -30,6 +31,12 @@ end
 
 function Cutscene.ativa(): boolean
 	return ativa
+end
+
+function Cutscene.pular()
+	if ativa and pularAtual then
+		pularAtual()
+	end
 end
 
 local function acharNoMapa(nome: string): BasePart?
@@ -60,6 +67,9 @@ function Cutscene.tocar(params: { inicio: number?, aoTerminar: (pulou: boolean) 
 	local pastaReflexo: Folder? = nil
 	local atores = {}
 	local pulou = false
+	pularAtual = function()
+		pulou = true
+	end
 	local camEstado = { cf = camera.CFrame, fov = 70 }
 	local camMov: any = nil
 	local tremor = 0

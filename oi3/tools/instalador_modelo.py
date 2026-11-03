@@ -740,6 +740,25 @@ def cmd_install(pular_teste=False):
                 aviso("monstro: %s (o jogo usa o corpo reserva; tente instalar de novo mais tarde)" % inf["monstro"])
             else:
                 ok("monstro grotesco: %s" % inf["monstro"])
+        internet = inf.get("monstrosInternet") or {}
+        if isinstance(internet, dict) and internet:
+            faltam = []
+            for aid, txt in sorted(internet.items()):
+                if str(txt).startswith("ok"):
+                    ok("monstro da internet %s: %s" % (aid, txt))
+                else:
+                    faltam.append(aid)
+                    aviso("monstro da internet %s não carregou (%s)" % (aid, str(txt)[:120]))
+            if faltam:
+                print("   PARA LIBERAR O MONSTRO DA INTERNET (grátis, uma vez só, pelo navegador do celular):")
+                print("     1. Entre na sua conta em create.roblox.com")
+                for aid in faltam:
+                    print("     2. Abra https://create.roblox.com/store/asset/%s e toque em 'Obter' (Get)" % aid)
+                print("     3. Pronto: no próximo servidor o jogo já usa (troque no painel ADM > MONSTRO).")
+                if len(faltam) == len(internet):
+                    print("     Enquanto isso o jogo usa o monstro do catálogo (o do AJUSTE-9).")
+                else:
+                    print("     Enquanto isso o jogo usa os monstros que já carregaram.")
         if inf.get("biblioteca"):
             ok("sons gravados da biblioteca do Roblox carregados: %s (os que faltarem tocam o som antigo)" % inf["biblioteca"])
         som_ok = conferir_sons(inf.get("sons"))

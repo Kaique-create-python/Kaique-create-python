@@ -3,8 +3,10 @@
 local Config = {}
 
 Config.JOGO = "OI3"
-Config.REVISAO = "AJUSTE-9"
+Config.REVISAO = "AJUSTE-10"
 Config.DONO_USERID = 1357078972
+-- AJUSTE-10: outros ADMs (UserId). O dono já é ADM; ele também pode dar ADM na hora pelo painel.
+Config.ADMINS = {}
 
 -- Chave do DataStore (NUNCA trocar: troca apagaria o progresso salvo)
 Config.DATASTORE = "OI3_Jogadores_v1"
@@ -81,6 +83,13 @@ Config.ROUPAS = {
 		altura = 8.4, -- em pé (andando curvado fica mais baixo)
 		escala = 1.42, -- só para o corpo reserva (R6)
 	},
+}
+-- AJUSTE-10: monstros da internet (modelos grátis do Creator Store). Para valerem, o dono do jogo toca em
+-- "Obter" na página de cada um (create.roblox.com/store/asset/<id>). Os scripts de dentro são apagados.
+Config.MONSTROS_INTERNET = {
+	{ id = 84937636042899, nome = "Magrelo de braços longos" },
+	{ id = 15020057104, nome = "Wendigo (caveira de cervo)" },
+	{ id = 15595921840, nome = "Pele-branca (caveira)" },
 }
 -- AJUSTE-7: rostos de reação (itens do catálogo) trocados na cutscene: medo, risada, nervoso.
 -- Fora dessas reações cada personagem usa o rosto dele.

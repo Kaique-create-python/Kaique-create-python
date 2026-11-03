@@ -380,7 +380,7 @@ checar("AJUSTE-7: foto antiga (imagem enviada + desenho reserva)", function()
 	local Rec = H.modulo("ReplicatedStorage/OI3/Recursos")
 	local C1M = H.modulo("ReplicatedStorage/OI3/Capitulo1Mapa")
 	assert(type(Rec.imagens) == "table", "Recursos.imagens faltando")
-	assert(Rec.revisao == "AJUSTE-9", "Recursos.revisao desatualizado")
+	assert(Rec.revisao == "AJUSTE-10", "Recursos.revisao desatualizado")
 	local f = roblox.Instance.new("Frame")
 	local q = C1M.desenharFoto(f)
 	assert(q:FindFirstChild("Reserva"), "sem o desenho reserva")
@@ -748,6 +748,139 @@ checar("AJUSTE-8: missões no servidor (simulação: festa inteira, ordem e senh
 		return info.motivo == "olhou"
 	end)
 	g.token = -1 -- encerra os laços do teste
+end)
+
+checar("AJUSTE-10: ADM (quem é ADM, pulos válidos, comandos do chat, monstros da internet)", function()
+	local Admin = H.modulo("ServerScriptService/OI3_Servidor/Admin")
+	local Config = H.modulo("ReplicatedStorage/OI3/Config")
+	assert(Admin.ehId(Config.DONO_USERID, 0, {}), "o dono tem que ser ADM")
+	assert(Admin.ehId(555, 555, {}), "quem criou a experiência é ADM")
+	assert(not Admin.ehId(12345, 0, {}), "qualquer um NÃO pode ser ADM")
+	assert(Admin.ehId(12345, 0, { [12345] = true }), "ADM dado pelo dono vale")
+	local d, n, i, c = Admin.validarIr("missao", 3, 99, "NI")
+	assert(d == "missao" and n == 3 and i >= 1 and c == "NI", "pulo para missão")
+	local Md = H.modulo("ReplicatedStorage/OI3/Missoes")
+	assert(i == #Md.missao(3).passos, "passo além do fim precisa virar o último")
+	assert(Admin.validarIr("missao", 99) == nil, "missão que não existe")
+	assert(Admin.validarIr("missao", 2.5) == nil, "missão quebrada")
+	assert(Admin.validarIr("tarde") == "tarde" and Admin.validarIr("hackear") == nil, "destinos")
+	local _, _, _, cod = Admin.validarIr("tarde", nil, nil, "XX")
+	assert(cod == nil, "criança inválida tem que ser ignorada")
+	local AC = H.modulo("ReplicatedStorage/OI3/Cliente/AdminCliente")
+	local cmd, args = AC.lerComando("/missao 3 2")
+	assert(cmd == "missao" and args[1] == "3" and args[2] == "2", "ler comando do chat")
+	assert(AC.lerComando("oi gente") == nil, "mensagem normal não é comando")
+	local At = H.modulo("ServerScriptService/OI3_Servidor/Atores")
+	assert(At.contarJuntas({ "Neck", "Root", "Waist", "LeftShoulder", "RightShoulder", "LeftHip", "RightHip" }) == 7, "contar juntas R15")
+	assert(At.contarJuntas({ "Neck", "Root Joint", "Left Shoulder", "Right Shoulder", "Left Hip", "Right Hip" }) == 6, "contar juntas R6")
+	assert(At.contarJuntas({ "Bone1", "Bone2" }) == 0, "rig sem juntas padrão")
+	-- um modelo "baixado" com script malicioso: o script some e o rig é aceito
+	local CF, V3 = roblox.CFrame.new, roblox.Vector3.new
+	local bruto = roblox.Instance.new("Model")
+	local npc = roblox.Instance.new("Model")
+	npc.Name = "Bicho"
+	npc.Parent = bruto
+	local hum = roblox.Instance.new("Humanoid")
+	hum.Parent = npc
+	local raiz = roblox.Instance.new("Part")
+	raiz.Name = "HumanoidRootPart"
+	raiz.Size = V3(2, 2, 1)
+	raiz.CFrame = CF(0, 3, 0)
+	raiz.Parent = npc
+	local torso = roblox.Instance.new("Part")
+	torso.Name = "Torso"
+	torso.Size = V3(2, 2, 1)
+	torso.CFrame = CF(0, 3, 0)
+	torso.Parent = npc
+	for _, nome in { "Root Joint", "Neck", "Left Shoulder", "Right Shoulder", "Left Hip", "Right Hip" } do
+		local m = roblox.Instance.new("Motor6D")
+		m.Name = nome
+		m.Part0 = raiz
+		m.Part1 = torso
+		m.Parent = torso
+	end
+	local ruim = roblox.Instance.new("Script")
+	ruim.Name = "Virus"
+	ruim.Parent = npc
+	local som = roblox.Instance.new("Sound")
+	som.Parent = torso
+	local m, err = At.adaptarMonstro(bruto)
+	assert(m, "rig válido recusado: " .. tostring(err))
+	for _, d in m:GetDescendants() do
+		assert(not d:IsA("LuaSourceContainer"), "script de modelo da internet não pode sobrar")
+		assert(not d:IsA("Sound"), "som de modelo da internet não pode sobrar")
+	end
+	assert(m.PrimaryPart == raiz and raiz.Anchored and not torso.Anchored, "raiz ancorada, resto solto")
+	local vazio = roblox.Instance.new("Model")
+	assert(At.adaptarMonstro(vazio) == nil, "modelo sem Humanoid tem que ser recusado")
+	assert(#Config.MONSTROS_INTERNET >= 1, "lista de monstros da internet")
+	-- braço de modelo da internet em pose "T": a correção leva o braço para baixo
+	local Monstro = H.modulo("ReplicatedStorage/OI3/Cliente/Monstro")
+	assert(Monstro.correcaoBraco(V3(0, -2, 0.1)) == nil, "braço caído não precisa de correção")
+	for _, d in { V3(-2, 0, 0), V3(2, 0, 0), V3(-1.5, -0.8, 0) } do
+		local c = Monstro.correcaoBraco(d)
+		assert(c, "braço aberto precisa de correção")
+		local r = c * d.Unit
+		assert(r.Y < -0.95, string.format("correção errada: %.2f %.2f", r.X, r.Y))
+	end
+end)
+
+checar("AJUSTE-10: ADM no servidor (pular passo, ir para missão/passo e final SEM salvar)", function()
+	local Md = H.modulo("ReplicatedStorage/OI3/Missoes")
+	local S = H.modulo("ServerScriptService/OI3_Servidor/Missoes")
+	local eventos = {}
+	local remotoFalso = {}
+	function remotoFalso:FireClient(_p, tipo, info)
+		table.insert(eventos, { tipo = tipo, info = info })
+	end
+	local jogador = { Parent = true, UserId = 8, Name = "adm", DisplayName = "adm" }
+	local g = { membros = { jogador }, escolhas = { [jogador] = "ME" }, token = 1, teste = true }
+	local salvos, terminados = 0, 0
+	S.configurar(remotoFalso :: any, function()
+		return g
+	end, function()
+		salvos += 1
+	end, function()
+		terminados += 1
+	end)
+	local function esperar(tipo: string, filtro: ((any) -> boolean)?, max: number?)
+		local t0 = os.clock()
+		while os.clock() - t0 < (max or 8) do
+			for k, e in eventos do
+				if e.tipo == tipo and (not filtro or filtro(e.info)) then
+					table.remove(eventos, k)
+					return e.info
+				end
+			end
+			task.wait(0.05)
+		end
+		error("não chegou: " .. tipo)
+	end
+	-- vai direto para a Missão 5, passo 4: refaz os pontos dos passos anteriores e começa no 4
+	S.adminIr(g, 5, 4)
+	esperar("m_missao", function(info)
+		return info.n == 5
+	end)
+	local feitoAntes = esperar("m_feito", function(info)
+		return info.silencioso == true
+	end)
+	assert(feitoAntes, "não refez os passos anteriores")
+	local p4 = esperar("m_passo", function(info)
+		return info.n == 5 and info.i == 4
+	end)
+	assert(p4, "não começou no passo 4")
+	-- pula o passo atual
+	S.adminPasso(g)
+	esperar("m_passo", function(info)
+		return info.n == 5 and info.i == 5
+	end)
+	-- final (modo teste)
+	S.adminFinal(g)
+	esperar("m_final")
+	assert(salvos == 0, "pulo do ADM NÃO pode salvar o ponto da missão")
+	assert(terminados == 0, "pulo do ADM NÃO pode marcar o fim do capítulo")
+	g.token = -1
+	local _ = Md
 end)
 
 print(if falhas == 0 then "\nTUDO OK" else ("\nFALHAS: " .. falhas))

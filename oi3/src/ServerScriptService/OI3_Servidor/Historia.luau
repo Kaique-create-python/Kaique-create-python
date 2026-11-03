@@ -78,7 +78,8 @@ local function comecarTarde(g)
 		local tk = g.token
 		task.delay(3, function()
 			if g.token == tk then
-				Missoes.iniciar(g, g.continuar)
+				Missoes.iniciar(g, g.continuar, g.continuarPasso)
+				g.continuarPasso = nil
 			end
 		end)
 		return
@@ -148,6 +149,83 @@ function Historia.escolher(plr: Player, codigo: any)
 		end
 	end
 	comecarTarde(g)
+end
+
+function Historia.grupoDe(plr: Player): any
+	return grupoDe[plr]
+end
+
+-- AJUSTE-10 (ADM): vai direto para uma parte da história. "Modo teste": nada disso salva progresso.
+-- destino: "tarde" | "jantar" | "ritual" | "missao" (n, i) | "final"
+function Historia.adminIr(plr: Player, destino: string, n: number?, i: number?, cod: string?)
+	local g = grupoDe[plr]
+	if not g then
+		g = { membros = { plr }, fase = "escolha", escolhas = {}, achados = {}, naMesa = {}, token = os.clock(), ritualFim = {} }
+		grupoDe[plr] = g
+	end
+	g.teste = true
+	if cod then
+		for p, c in g.escolhas do
+			if c == cod and p ~= plr then
+				g.escolhas[p] = nil
+			end
+		end
+		g.escolhas[plr] = cod
+	end
+	for _, p in g.membros do
+		if not g.escolhas[p] then
+			g.escolhas[p] = Historia.livres(g.escolhas)[1] or "KE"
+		end
+	end
+	-- já numa missão: troca direto (sem voltar para a casa)
+	if g.fase == "missao" and g.m and (destino == "missao" or destino == "final") then
+		if destino == "final" then
+			Missoes.adminFinal(g)
+		else
+			Missoes.adminIr(g, n :: number, i)
+		end
+		return
+	end
+	if g.m then
+		g.m.token += 1
+		g.m = nil
+	end
+	g.token = os.clock() -- cancela o que estava agendado (jantar, ritual, missão)
+	g.achados = {}
+	g.naMesa = {}
+	g.esperandoMesa = nil
+	g.ritualFim = {}
+	g.fase = "escolha"
+	g.continuar = nil
+	g.continuarPasso = nil
+	if destino == "missao" then
+		g.continuar = n
+		g.continuarPasso = i
+	elseif destino == "final" then
+		g.continuar = MissoesDados.TOTAL
+	end
+	comecarTarde(g)
+	local tk = g.token
+	if destino == "jantar" or destino == "ritual" then
+		task.delay(2.5, function()
+			if g.token == tk and g.fase == "tarde" then
+				Historia.chamarJantar(g)
+				if destino == "ritual" then
+					task.delay(2.5, function()
+						if g.token == tk and g.fase == "jantar" then
+							Historia.iniciarRitual(g)
+						end
+					end)
+				end
+			end
+		end)
+	elseif destino == "final" then
+		task.delay(8, function()
+			if g.token == tk and g.fase == "missao" then
+				Missoes.adminFinal(g)
+			end
+		end)
+	end
 end
 
 function Historia.codigoDe(plr: Player): string?

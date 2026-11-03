@@ -20,6 +20,7 @@ local Cutscene = require(script.Parent.Cutscene)
 local Exploracao = require(script.Parent.Exploracao)
 local Capitulo1 = require(script.Parent.Capitulo1)
 local Medo = require(script.Parent.Medo)
+local AdminCliente = require(script.Parent.AdminCliente) -- AJUSTE-10
 
 local Main = {}
 
@@ -40,7 +41,7 @@ local function esperarRemotos()
 	local pasta = OI3:WaitForChild("Remotos", 60)
 	assert(pasta, "[OI3] remotos não encontrados")
 	local r = {}
-	for _, nome in { "PedirDados", "SalvarConfig", "Entrar", "Lanterna", "IntroVista", "Sala", "Historia" } do
+	for _, nome in { "PedirDados", "SalvarConfig", "Entrar", "Lanterna", "IntroVista", "Sala", "Historia", "Admin" } do
 		r[nome] = pasta:WaitForChild(nome, 30)
 	end
 	return r
@@ -319,6 +320,18 @@ function Main.iniciar()
 		end,
 	})
 	Exploracao.configurar({ tremor = Ajustes.valores.tremor, leve = Ajustes.valores.efeitosLeves })
+
+	-- AJUSTE-10: painel de ADM (só aparece para quem o servidor marcou como ADM)
+	if remotos.Admin then
+		AdminCliente.iniciar({
+			remoto = remotos.Admin,
+			estado = function()
+				return estadoJogo
+			end,
+			sairDoMenu = sairDoMenu,
+			voltarAoMenu = voltarAoMenu,
+		})
+	end
 
 	-- rótulo discreto com a revisão
 	local telaV = Interface.tela("OI3_Versao", 5, true)

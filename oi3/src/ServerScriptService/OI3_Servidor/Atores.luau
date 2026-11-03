@@ -105,7 +105,7 @@ end
 function Atores.alturaCorpo(modelo: Model): number
 	local fundo, topo = math.huge, -math.huge
 	for _, p in modelo:GetDescendants() do
-		if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" and not p:FindFirstAncestorOfClass("Accessory") then
+		if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" and p.Transparency < 0.95 and not p:FindFirstAncestorOfClass("Accessory") then
 			local meia = p.Size.Y / 2
 			fundo = math.min(fundo, p.CFrame.Position.Y - meia)
 			topo = math.max(topo, p.CFrame.Position.Y + meia)
@@ -182,6 +182,198 @@ function Atores.montar(codigo: string): (Model?, string?)
 	return modelo, nil
 end
 
+---------------------------------------------------------------------------
+-- AJUSTE-10: MONSTROS DA INTERNET (modelos grátis do Creator Store do Roblox)
+-- Só carregam se estiverem no inventário do dono do jogo (tocar em "Obter" na página do modelo) ou se
+-- o jogo permitir "recursos de terceiros". TODO script de dentro é apagado antes de usar (segurança),
+-- e só servem modelos com Humanoid e juntas padrão (para o monstro se contorcer). Se nenhum carregar,
+-- o monstro do catálogo (AJUSTE-9) continua.
+---------------------------------------------------------------------------
+local InsertService = game:GetService("InsertService")
+local AssetService = game:GetService("AssetService")
+local DataStoreService = game:GetService("DataStoreService")
+
+local JUNTAS_PADRAO = { "Neck", "Root", "Root Joint", "Waist", "LeftShoulder", "Left Shoulder", "RightShoulder", "Right Shoulder", "LeftHip", "Left Hip", "RightHip", "Right Hip", "LeftKnee", "RightKnee", "LeftElbow", "RightElbow" }
+local LIXO = { "LuaSourceContainer", "Sound", "ProximityPrompt", "ClickDetector", "BillboardGui", "Tool", "BodyMover", "AnimationController", "Animator", "Dialog", "ForceField", "Explosion", "Fire", "Smoke", "Sparkles" }
+
+-- função pura (testável): quantas juntas padrão um conjunto de nomes de Motor6D tem
+function Atores.contarJuntas(nomes: { string }): number
+	local n = 0
+	for _, j in JUNTAS_PADRAO do
+		if table.find(nomes, j) then
+			n += 1
+		end
+	end
+	return n
+end
+
+-- limpa e prepara um modelo baixado: acha o personagem, apaga scripts e o que não for visual,
+-- confere as juntas e deixa a raiz ancorada (igual aos outros atores)
+function Atores.adaptarMonstro(bruto: Instance): (Model?, string?)
+	local alvo: Model? = nil
+	if bruto:IsA("Model") and bruto:FindFirstChildOfClass("Humanoid") then
+		alvo = bruto
+	else
+		for _, d in bruto:GetDescendants() do
+			if d:IsA("Humanoid") and d.Parent and d.Parent:IsA("Model") then
+				alvo = d.Parent :: Model
+				break
+			end
+		end
+	end
+	if not alvo then
+		return nil, "sem Humanoid"
+	end
+	for _, d in alvo:GetDescendants() do
+		for _, classe in LIXO do
+			if d:IsA(classe) then
+				d:Destroy()
+				break
+			end
+		end
+	end
+	local raiz = alvo:FindFirstChild("HumanoidRootPart")
+	if not (raiz and raiz:IsA("BasePart")) then
+		return nil, "sem HumanoidRootPart"
+	end
+	local nomes = {}
+	for _, d in alvo:GetDescendants() do
+		if d:IsA("Motor6D") then
+			table.insert(nomes, d.Name)
+		end
+	end
+	local juntas = Atores.contarJuntas(nomes)
+	if juntas < 5 then
+		return nil, "rig sem juntas padrão (" .. juntas .. ")"
+	end
+	for _, p in alvo:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.Anchored = p == raiz
+			p.CanCollide = false
+			p.CanTouch = false
+			p.CanQuery = false
+			p.Massless = true
+		end
+	end
+	raiz.Transparency = 1
+	alvo.PrimaryPart = raiz
+	local hum = alvo:FindFirstChildOfClass("Humanoid") :: Humanoid
+	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	alvo:SetAttribute("Juntas", juntas)
+	return alvo, nil
+end
+
+local function carregarModelo(id: number): (Instance?, string?)
+	-- 1º jeito novo (respeita "recursos de terceiros"), 2º o clássico (modelo no inventário do dono)
+	local ok, m = pcall(function()
+		return (AssetService :: any):LoadAssetAsync(id)
+	end)
+	if ok and m then
+		return m, nil
+	end
+	local ok2, m2 = pcall(function()
+		return InsertService:LoadAsset(id)
+	end)
+	if ok2 and m2 then
+		return m2, nil
+	end
+	return nil, tostring(if ok2 then m else m2)
+end
+
+-- monta um monstro da internet (escala para a altura do monstro)
+function Atores.montarMonstroInternet(info: { id: number, nome: string }): (Model?, string?)
+	local bruto, erro = carregarModelo(info.id)
+	if not bruto then
+		return nil, "não carregou: " .. tostring(erro)
+	end
+	local m, err = Atores.adaptarMonstro(bruto)
+	if not m then
+		bruto:Destroy()
+		return nil, err
+	end
+	if m.Parent then
+		m.Parent = nil
+	end
+	local h = Atores.alturaCorpo(m)
+	local alvo = tonumber((Config.ROUPAS.CRIATURA or {}).altura) or 8.4
+	local s = if h > 0.5 then math.clamp(alvo / h, 0.2, 6) else 1
+	if math.abs(s - 1) > 0.01 then
+		pcall(function()
+			m:ScaleTo(s)
+		end)
+	end
+	m:SetAttribute("Escala", s)
+	m:SetAttribute("Codigo", "CRIATURA")
+	m:SetAttribute("Origem", "internet")
+	m:SetAttribute("NomeMonstro", info.nome)
+	m:SetAttribute("AssetId", info.id)
+	m.Name = "CRIATURA"
+	if bruto ~= m then
+		bruto:Destroy()
+	end
+	return m, nil
+end
+
+-- qual monstro está valendo (escolhido pelo ADM e guardado num DataStore SEPARADO, de configuração)
+local configStore: DataStore? = nil
+pcall(function()
+	configStore = DataStoreService:GetDataStore("OI3_Configuracao_v1")
+end)
+
+function Atores.lerEscolhaMonstro(): string?
+	if not configStore then
+		return nil
+	end
+	local ok, v = pcall(function()
+		return (configStore :: DataStore):GetAsync("monstro")
+	end)
+	return if ok and type(v) == "string" then v else nil
+end
+
+function Atores.salvarEscolhaMonstro(chave: string)
+	if configStore then
+		pcall(function()
+			(configStore :: DataStore):SetAsync("monstro", chave)
+		end)
+	end
+end
+
+-- troca o monstro que vale (chave = "catalogo" ou o ID do modelo); devolve o nome ou nil
+function Atores.usarMonstro(chave: string): string?
+	local pasta = ReplicatedStorage:FindFirstChild("OI3_Atores")
+	local variantes = pasta and pasta:FindFirstChild("Monstros")
+	if not variantes then
+		return nil
+	end
+	local escolhido = variantes:FindFirstChild(chave)
+	if not escolhido then
+		return nil
+	end
+	local antigo = (pasta :: Instance):FindFirstChild("CRIATURA")
+	local novo = escolhido:Clone()
+	novo.Name = "CRIATURA"
+	if antigo then
+		antigo:Destroy()
+	end
+	novo.Parent = pasta
+	;(pasta :: Instance):SetAttribute("MonstroAtivo", chave)
+	return escolhido:GetAttribute("NomeMonstro") or chave
+end
+
+function Atores.listaMonstros(): { { chave: string, nome: string } }
+	local pasta = ReplicatedStorage:FindFirstChild("OI3_Atores")
+	local variantes = pasta and pasta:FindFirstChild("Monstros")
+	local l = {}
+	for _, v in (variantes and variantes:GetChildren()) or {} do
+		table.insert(l, { chave = v.Name, nome = v:GetAttribute("NomeMonstro") or v.Name })
+	end
+	table.sort(l, function(a, b)
+		return a.chave < b.chave
+	end)
+	return l
+end
+
 function Atores.preparar()
 	task.spawn(function()
 		local pasta = Instance.new("Folder")
@@ -194,6 +386,53 @@ function Atores.preparar()
 				warn("[OI3] não deu para montar o ator " .. codigo .. ":", erro)
 			end
 		end
+		-- AJUSTE-10: as variações do monstro (catálogo + internet) e a que está valendo
+		local variantes = Instance.new("Folder")
+		variantes.Name = "Monstros"
+		local base = pasta:FindFirstChild("CRIATURA")
+		if base then
+			local c = base:Clone()
+			c.Name = "catalogo"
+			c:SetAttribute("NomeMonstro", "Sombra do catálogo (sorriso)")
+			c.Parent = variantes
+		end
+		local relatorio = {}
+		for _, info in Config.MONSTROS_INTERNET or {} do
+			local m, erro = Atores.montarMonstroInternet(info)
+			if m then
+				m.Name = tostring(info.id)
+				m.Parent = variantes
+				table.insert(relatorio, info.nome .. ": ok")
+			else
+				table.insert(relatorio, info.nome .. ": " .. tostring(erro))
+			end
+		end
+		variantes.Parent = pasta
+		workspace:SetAttribute("OI3_MonstrosInternet", table.concat(relatorio, " | "))
+		-- qual vale: a escolha salva do ADM; senão o 1º da internet que carregou; senão o do catálogo
+		local escolha = Atores.lerEscolhaMonstro()
+		if not (escolha and variantes:FindFirstChild(escolha)) then
+			escolha = nil
+			for _, info in Config.MONSTROS_INTERNET or {} do
+				if variantes:FindFirstChild(tostring(info.id)) then
+					escolha = tostring(info.id)
+					break
+				end
+			end
+		end
+		if escolha and escolha ~= "catalogo" then
+			local v = variantes:FindFirstChild(escolha)
+			if v then
+				local antigo = pasta:FindFirstChild("CRIATURA")
+				if antigo then
+					antigo:Destroy()
+				end
+				local c = v:Clone()
+				c.Name = "CRIATURA"
+				c.Parent = pasta
+			end
+		end
+		pasta:SetAttribute("MonstroAtivo", escolha or "catalogo")
 		local rostos = Instance.new("Folder")
 		rostos.Name = "Rostos"
 		for nome, id in Config.ROSTOS_REACAO or {} do

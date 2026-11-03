@@ -256,6 +256,19 @@ function Monstro.novo(pasta: Instance, posPes: Vector3, olhar: Vector3?)
 			end
 		end
 	end
+	-- AJUSTE-10: modelos da internet às vezes vêm de braços abertos (pose em "T"): mede o braço em
+	-- repouso e guarda uma correção no ombro para ele começar caído, como no corpo padrão
+	self.compensa = {}
+	for _, lado in { "Left", "Right" } do
+		local j = self.juntas[lado .. "Shoulder"]
+		local ombro = modelo:FindFirstChild(lado .. "UpperArm")
+		local mao = modelo:FindFirstChild(lado .. "Hand") or modelo:FindFirstChild(lado .. "LowerArm")
+		local tronco = self.tronco
+		if j and tronco and ombro and mao and ombro:IsA("BasePart") and mao:IsA("BasePart") then
+			local d = tronco.CFrame:VectorToObjectSpace(mao.CFrame.Position - ombro.CFrame.Position)
+			self.compensa[lado .. "Shoulder"] = Monstro.correcaoBraco(d)
+		end
+	end
 	local hum = modelo:FindFirstChildOfClass("Humanoid")
 	if hum then
 		pcall(function()
@@ -513,8 +526,27 @@ end
 function Monstro:pose(nome: string, cf: CFrame)
 	local j = self.juntas[nome]
 	if j then
+		local c = self.compensa and self.compensa[nome]
+		if c then
+			cf = cf * c
+		end
 		j.motor.Transform = j.rot0:Inverse() * cf * j.rot0
 	end
+end
+
+-- função pura (testável): rotação (no plano do corpo) que leva um braço em repouso para baixo.
+-- d = direção ombro→mão no espaço do tronco. Braço já caído (pose padrão) = sem correção.
+function Monstro.correcaoBraco(d: Vector3): CFrame?
+	local xy = Vector3.new(d.X, d.Y, 0)
+	if xy.Magnitude < 0.05 then
+		return nil
+	end
+	local u = xy.Unit
+	if u.Y < -0.85 then
+		return nil -- já está caído
+	end
+	local ang = -math.pi / 2 - math.atan2(u.Y, u.X)
+	return CFrame.Angles(0, 0, ang)
 end
 
 -- aplica a pose (camadas: base → andar → espiar → espasmos)

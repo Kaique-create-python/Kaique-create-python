@@ -78,11 +78,19 @@ local function esconde(g, token: number)
 	m.esc = { escondidos = {}, queimados = {}, rodada = 0, distraido = false, procurando = false }
 	m.publico.rodada = 0
 	local l = MM.layout("quarto")
-	task.wait(4)
+	local function esperar(seg: number)
+		-- AJUSTE-10: o ADM pode chamar a sombra na hora (m.esc.agora)
+		local fim = os.clock() + seg
+		while os.clock() < fim and not m.esc.agora and valido(g, token) do
+			task.wait(0.2)
+		end
+	end
+	esperar(4)
 	while valido(g, token) and m.esc.rodada < (passo.rodadas or 3) do
 		-- a Nina ouve os passos antes (o cliente dela avisa já; os outros, 4 s depois)
-		enviar(g, "m_sombra_vem", { chega = agora() + 16 })
-		task.wait(16)
+		enviar(g, "m_sombra_vem", { chega = agora() + (if m.esc.agora then 3 else 16) })
+		esperar(if m.esc.agora then 3 else 16)
+		m.esc.agora = false
 		if not valido(g, token) then
 			return
 		end
@@ -109,7 +117,7 @@ local function esconde(g, token: number)
 				if spot then
 					usados[spot] = true
 				end
-				if not m.esc.distraido and (not spot or m.esc.queimados[spot]) then
+				if not m.esc.distraido and (not spot or m.esc.queimados[spot]) and not p:GetAttribute("OI3_Imortal") then
 					table.insert(pegos, p.UserId)
 				end
 			end
@@ -210,7 +218,7 @@ local function perseguir(g, token: number)
 			local raiz = (alvo.Character :: Model):FindFirstChild("HumanoidRootPart") :: BasePart
 			local px = raiz.Position.X - O.X
 			x += math.clamp(px - x, -VEL_PRESENCA * dt, VEL_PRESENCA * dt)
-			if math.abs(px - x) < 2.4 then
+			if math.abs(px - x) < 2.4 and not alvo:GetAttribute("OI3_Imortal") then
 				if remoto then
 					remoto:FireClient(alvo, "m_pego_perseguicao", { volta = l.retorno })
 				end
@@ -235,6 +243,9 @@ local function final(g)
 	g.fase = "final"
 	g.m.token += 1
 	enviar(g, "m_final", { inicio = agora() + 1.5 })
+	if g.teste then
+		return -- AJUSTE-10: pulo do ADM não salva nada
+	end
 	for _, p in g.membros do
 		if terminou then
 			terminou(p)
@@ -292,26 +303,99 @@ local function iniciarPasso(g)
 	end
 end
 
-function Servidor.iniciar(g, n: number)
+-- AJUSTE-10 (ADM): faz de conta que os passos 1..ate-1 foram feitos (o cliente arruma o cenário)
+local function repetirFeitos(g, n: number, ate: number, token: number)
+	for k = 1, ate - 1 do
+		local p = M.passo(n, k)
+		if p and (p.tipo == "achar" or p.tipo == "ordem" or p.tipo == "codigo") then
+			for _, id in M.pontosDoPasso(p) do
+				if not valido(g, token) then
+					return
+				end
+				enviar(g, "m_feito", { ponto = id, por = 0, silencioso = true })
+				task.wait(0.12)
+			end
+		end
+	end
+end
+
+function Servidor.iniciar(g, n: number, passoInicial: number?)
 	local missao = M.missao(n)
 	if not missao then
 		return
 	end
 	g.fase = "missao"
 	g.m = { n = n, i = 1, feitos = {}, seq = {}, token = (g.m and g.m.token or 0) + 1, publico = {} }
-	for _, p in g.membros do
-		if salvar then
-			salvar(p, n)
+	if not g.teste then
+		for _, p in g.membros do
+			if salvar then
+				salvar(p, n)
+			end
 		end
 	end
-	enviar(g, "m_missao", { n = n, cenario = missao.cenario })
+	enviar(g, "m_missao", { n = n, cenario = missao.cenario, teste = g.teste == true })
 	-- dá tempo dos aparelhos montarem o cenário e levarem o personagem até lá
 	local token = g.m.token
 	task.delay(3, function()
-		if valido(g, token) then
-			iniciarPasso(g)
+		if not valido(g, token) then
+			return
+		end
+		local i0 = math.clamp(passoInicial or 1, 1, #missao.passos)
+		if i0 > 1 then
+			repetirFeitos(g, n, i0, token)
+			if not valido(g, token) then
+				return
+			end
+			g.m.i = i0
+		end
+		iniciarPasso(g)
+	end)
+end
+
+-- AJUSTE-10 (ADM) -----------------------------------------------------------
+function Servidor.adminIr(g, n: number, i: number?)
+	g.teste = true
+	if g.m then
+		g.m.token += 1
+	end
+	Servidor.iniciar(g, n, i)
+end
+
+-- completa o passo atual como se o grupo tivesse feito tudo
+function Servidor.adminPasso(g)
+	local m = g.m
+	if not m then
+		return
+	end
+	g.teste = true
+	local passo = M.passo(m.n, m.i)
+	m.token += 1 -- para o que estiver rodando (sombra, contagem, fuga)
+	local tk = m.token
+	if passo and passo.tipo == "fuga" then
+		final(g)
+		return
+	end
+	if passo and (passo.tipo == "achar" or passo.tipo == "ordem" or passo.tipo == "codigo") then
+		for _, id in M.pontosDoPasso(passo) do
+			if not m.feitos[id] then
+				m.feitos[id] = true
+				enviar(g, "m_feito", { ponto = id, por = 0, objetivo = M.objetivo(passo, m.feitos, m.publico) })
+			end
+		end
+	end
+	task.delay(0.8, function()
+		if g.m == m and m.token == tk then
+			avancar(g)
 		end
 	end)
+end
+
+function Servidor.adminFinal(g)
+	g.teste = true
+	if not g.m then
+		g.m = { n = M.TOTAL, i = 1, feitos = {}, seq = {}, token = 1, publico = {} }
+	end
+	final(g)
 end
 
 avancar = function(g)
