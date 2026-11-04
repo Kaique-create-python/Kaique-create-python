@@ -322,7 +322,7 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
     if not op_id:
         aviso("%s: resposta inesperada do Roblox; seguindo sem as vozes." % rotulo)
         return 0
-    r = {"nome": nome, "operationId": op_id, "enviadoEm": int(time.time())}
+    r = {"nome": nome, "operationId": op_id, "enviadoEm": int(time.time()), "trechos": info.get("trechos", 0)}
     gaveta[sha] = r
     gravar_recibos(recibos)
     print("   ...enviado, esperando o Roblox processar as vozes", end="", flush=True)
@@ -394,11 +394,24 @@ def liberar_audio(chave, universe, asset_id, recibos):
     return False
 
 
-def colocar_vozes(place, asset_id):
+def vozes_antigas(recibos):
+    """o áudio de vozes enviado antes (se o novo não deu certo): (id, quantos trechos)"""
+    melhor = None
+    for r in (recibos.get("audio") or {}).values():
+        if r.get("assetId") and r.get("estado") != "Rejected" and r.get("trechos"):
+            if not melhor or r.get("enviadoEm", 0) > melhor.get("enviadoEm", 0):
+                melhor = r
+    if melhor:
+        return int(melhor["assetId"]), int(melhor["trechos"])
+    return 0, 0
+
+
+def colocar_vozes(place, asset_id, trechos=0):
     """troca o marcador do place pelo número do áudio (mesmo tamanho: o arquivo continua válido)"""
     if place.count(MARCADOR_VOZES) != 1:
         raise Falha("o marcador das vozes não está no place (pacote estranho)")
-    valor = str(int(asset_id)).encode("ascii").ljust(len(MARCADOR_VOZES), b" ")
+    texto = str(int(asset_id)) + ((" %d" % int(trechos)) if trechos else "")
+    valor = texto.encode("ascii").ljust(len(MARCADOR_VOZES), b" ")
     return place.replace(MARCADOR_VOZES, valor)
 
 
@@ -584,12 +597,18 @@ def cmd_install(pular_teste=False):
         except Exception as e:  # nada das vozes pode travar a instalação
             aviso("vozes: %s (seguindo sem elas)" % type(e).__name__)
             id_vozes = 0
+        trechos = MANIFESTO["vozes.ogg"].get("trechos", 0)
+        if not id_vozes:
+            # o envio novo não deu: usa o áudio que já foi enviado antes (com as vozes que ele tem)
+            id_vozes, trechos = vozes_antigas(recibos)
+            if id_vozes:
+                aviso("usando as vozes enviadas antes (áudio %s, %d vozes)." % (id_vozes, trechos))
         if id_vozes:
             try:
                 liberar_audio(chave, universe, id_vozes, recibos)
             except Exception as e:
                 aviso("liberar vozes: %s (seguindo)" % type(e).__name__)
-            place_bin = colocar_vozes(place_bin, id_vozes)
+            place_bin = colocar_vozes(place_bin, id_vozes, trechos)
             ok("place com as vozes (áudio %s)" % id_vozes)
         else:
             aviso("sem as vozes por enquanto: o jogo usa o grito da biblioteca do Roblox.")

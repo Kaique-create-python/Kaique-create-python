@@ -190,6 +190,15 @@ function Fisica.derrubar(lut: any, ate: number)
 			end
 		end
 	else
+		-- bot: braços e pernas soltos também são do servidor (senão o celular de quem está perto
+		-- "pega" um pedaço e o corpo treme)
+		for _, p in m:GetChildren() do
+			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+				pcall(function()
+					p:SetNetworkOwner(nil)
+				end)
+			end
+		end
 		pcall(function()
 			lut.hum:ChangeState(Enum.HumanoidStateType.Physics)
 		end)
@@ -224,6 +233,20 @@ function Fisica.levantar(lut: any)
 	end
 	Fisica.grupo(m, Fisica.GRUPOS.lutador)
 	if not lut.jogador and lut.hum.Health > 0 then
+		-- bot levanta em pé, virado para onde estava olhando
+		local raiz = lut.raiz
+		local frente = Vector3.new(raiz.CFrame.LookVector.X, 0, raiz.CFrame.LookVector.Z)
+		if frente.Magnitude < 0.2 then
+			frente = Vector3.new(raiz.CFrame.UpVector.X, 0, raiz.CFrame.UpVector.Z)
+		end
+		if frente.Magnitude > 0.1 and not raiz.Anchored then
+			local pos = raiz.Position + Vector3.new(0, 1.4, 0)
+			pcall(function()
+				raiz.CFrame = CFrame.lookAt(pos, pos + frente.Unit)
+				raiz.AssemblyLinearVelocity = Vector3.zero
+				raiz.AssemblyAngularVelocity = Vector3.zero
+			end)
+		end
 		pcall(function()
 			lut.hum:ChangeState(Enum.HumanoidStateType.GettingUp)
 		end)

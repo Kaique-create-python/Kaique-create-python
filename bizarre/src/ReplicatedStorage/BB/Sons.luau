@@ -56,14 +56,16 @@ Sons.LISTA = {
 	onda = { ids = { 9125934358, 9120769331 }, vol = 0.9, vel = { 1, 1.1 } },
 }
 
--- vozes dos Stands: trechos do áudio "BB_Vozes" (início em segundos, duração, volume).
+-- vozes dos Stands: trechos do áudio "BB_Vozes" (início em segundos, duração, volume, ordem).
+-- "ordem" = posição no áudio: um áudio antigo com menos trechos só toca os que ele tem.
 -- O áudio é gerado (vozes de banco, não são os dubladores do anime) e enviado pelo instalador.
 Sons.VOZES = {
-	DORA = { 0.000, 1.363, 1.00 },
-	ORA = { 1.613, 1.420, 1.00 },
-	ORA_FINAL = { 3.283, 1.677, 1.00 },
-	SP_THE_WORLD = { 5.210, 2.411, 1.00 },
-	ZA_WARUDO = { 7.870, 2.925, 1.00 },
+	BITES_THE_DUST = { 11.046, 2.562, 1.00, 6 },
+	DORA = { 0.000, 1.363, 1.00, 1 },
+	ORA = { 1.613, 1.420, 1.00, 2 },
+	ORA_FINAL = { 3.283, 1.677, 1.00, 3 },
+	SP_THE_WORLD = { 5.210, 2.411, 1.00, 4 },
+	ZA_WARUDO = { 7.870, 2.925, 1.00, 5 },
 } :: { [string]: { number } }
 
 -- músicas (APM). O menu tem samba; a luta tem rock/percussão.

@@ -24,6 +24,8 @@ local MODOS = {
 	lado = CFrame.new(-2.7, 0.6, -0.6),
 }
 
+local COLISAO_FORCADA = { "Torso", "Head", "HumanoidRootPart", "UpperTorso", "LowerTorso" }
+
 local function agoraServidor(): number
 	return workspace:GetServerTimeNow()
 end
@@ -55,17 +57,24 @@ local function criar(dono: Model, standId: string): any
 		m:Destroy()
 		return nil
 	end
+	-- AJUSTE-3: o Stand nunca encosta em ninguém (nem no próprio dono). O Humanoid do R6 força
+	-- colisão no tronco e na cabeça; o grupo BB_Efeitos não colide com nada e o passo desliga de novo.
 	for _, p in partes(m) do
 		p.Anchored = p == raiz
 		p.CanCollide = false
 		p.CanQuery = false
 		p.CanTouch = false
 		p.CastShadow = false
+		p.Massless = true
+		p.CollisionGroup = "BB_Efeitos"
 		p.LocalTransparencyModifier = 1
 	end
 	local hum = m:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.EvaluateStateMachine = false
+		pcall(function()
+			hum:ChangeState(Enum.HumanoidStateType.Physics)
+		end)
 	end
 	local s = Stands.get(standId)
 	local brilho = Instance.new("Highlight")
@@ -200,7 +209,15 @@ local function atualizar(v: any, dt: number)
 		local agora = os.clock()
 		local fora = dono:GetAttribute("BB_StandFora") == true
 		local desperto = (dono:GetAttribute("BB_Desperto") or 0) > agoraServidor()
-		v.alvoVis = if fora or desperto or agora < v.acaoAte then 1 else 0
+		local caido = (dono:GetAttribute("BB_Ragdoll") or 0) > agoraServidor()
+		v.alvoVis = if (fora or desperto or agora < v.acaoAte) and not caido then 1 else 0
+		-- o Humanoid liga a colisão do tronco/cabeça sozinho: desliga antes da câmera olhar
+		for _, nome in COLISAO_FORCADA do
+			local p = v.modelo:FindFirstChild(nome)
+			if p and p:IsA("BasePart") and p.CanCollide then
+				p.CanCollide = false
+			end
+		end
 		if agora >= v.modoAte then
 			v.modo = "costas"
 			v.escalaAlvo = 1

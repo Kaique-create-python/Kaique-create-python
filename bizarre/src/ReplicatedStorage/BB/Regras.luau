@@ -35,6 +35,7 @@ export type Estado = {
 	semRecarga: boolean,
 	buffAte: number,
 	buffDano: number,
+	imuneRagdollAte: number,
 }
 
 function Regras.novoEstado(): Estado
@@ -68,6 +69,7 @@ function Regras.novoEstado(): Estado
 		semRecarga = false,
 		buffAte = 0,
 		buffDano = 1,
+		imuneRagdollAte = 0,
 	}
 end
 

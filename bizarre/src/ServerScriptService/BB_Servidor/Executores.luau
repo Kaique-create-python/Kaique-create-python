@@ -145,6 +145,10 @@ function Executores.executar(lut: any, g: any, id: string, t0: number, dados: an
 		dir = Lutadores.olhar(lut, t0),
 		dados = dados or {},
 	}
+	-- golpes de perto grudam no inimigo que está quase na frente
+	if (g.alcance or 0) > 0 and g.alcance <= 40 then
+		ctx.dir = Hitbox.grudar(lut, ctx.dir, g.alcance + 4, 0.6)
+	end
 	if g.armadura then
 		e.armaduraAte = math.max(e.armaduraAte, t0 + g.armadura[2])
 	end

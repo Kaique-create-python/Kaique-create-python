@@ -186,6 +186,8 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 	if h.m1 and t < e.ragdollAte then
 		return "nada"
 	end
+	-- acabou de levantar: um instante sem cair de novo (não fica preso no chão apanhando)
+	local podeCair = t >= (e.imuneRagdollAte or 0)
 	-- tempo parado: o golpe fica guardado e chega junto quando o tempo voltar
 	if t < e.congeladoAte and alvo.congeladoPor == atk then
 		alvo.filaTempo = alvo.filaTempo or {}
@@ -243,7 +245,7 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 	local vel = vetor(h, dir, inf.origem, alvo)
 	local emp = h.empurrar or {}
 	local durEmp = emp.dur or 0.12
-	if h.ragdoll and h.ragdoll > 0 then
+	if h.ragdoll and h.ragdoll > 0 and podeCair then
 		Regras.derrubar(e, t, h.ragdoll)
 		Fisica.derrubar(alvo, e.ragdollAte)
 		alvo.forcaVoo = h.quebra or 1
@@ -339,7 +341,7 @@ function Combate.m1(lut: any, dados: any)
 			return
 		end
 		local hb = if stand then Config.M1.hitboxStand else Config.M1.hitbox
-		local d = Lutadores.olhar(lut, agora())
+		local d = Hitbox.grudar(lut, Lutadores.olhar(lut, agora()), hb.frente + hb.tam.Z * 0.5 + 2.5, 0.5)
 		local folga = if stand and lut.stand.passiva and lut.stand.passiva.alcanceExtra then lut.stand.passiva.alcanceExtra else 0
 		if lut.jogador then
 			folga += math.clamp(lut.raiz.AssemblyLinearVelocity:Dot(d) * 0.06, 0, 1.5)
@@ -618,6 +620,7 @@ local function passo(dt: number)
 			-- acabou o ragdoll: quebra o que ficou "dentro" e levanta
 			Mapa.quebrarCaixa(lut.raiz.CFrame + Vector3.new(0, 1.6, 0), Vector3.new(4, 4, 4), 3, Vector3.new(0, 1, 0), true)
 			Fisica.levantar(lut)
+			e.imuneRagdollAte = t + Config.EMPURRAO.imuneDepois
 			lut.forcaVoo = nil
 		end
 		Regras.recuperarGuarda(e, t, dt)

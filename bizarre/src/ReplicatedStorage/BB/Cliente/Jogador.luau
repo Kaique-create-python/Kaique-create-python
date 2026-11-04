@@ -137,20 +137,22 @@ local function pararImpulso()
 	end
 end
 
--- mira automática: vira para o inimigo travado ou o mais perto na frente da câmera
-function Jogador.mirar(): Vector3
+-- mira com ímã ("grude"): vira para o inimigo travado ou para o melhor alvo na frente da câmera.
+-- Devolve a direção e a distância até o alvo (nil se não tem ninguém).
+local ALCANCE_IMA = 22
+function Jogador.mirar(): (Vector3, number?)
 	local c, _, raiz = partes()
 	local cam = workspace.CurrentCamera
 	local olhar = Regras.achatar(cam.CFrame.LookVector)
 	if not c or not raiz then
-		return olhar
+		return olhar, nil
 	end
 	local alvo: BasePart? = nil
 	local travado = Camera.travado()
 	if travado then
 		alvo = travado:FindFirstChild("HumanoidRootPart") :: BasePart?
 	else
-		local melhor = 17
+		local nota = math.huge
 		for modelo in Efeitos._modelosLutadores() do
 			if modelo == c or not modelo:GetAttribute("BB_Lutador") then
 				continue
@@ -160,19 +162,25 @@ function Jogador.mirar(): Vector3
 			if r and h and h.Health > 0 then
 				local v = r.Position - raiz.Position
 				local d = v.Magnitude
-				if d < melhor and Regras.achatar(v):Dot(olhar) > 0.35 then
-					melhor = d
-					alvo = r
+				local frente = Regras.achatar(v):Dot(olhar)
+				if d < ALCANCE_IMA and frente > 0.25 then
+					local n = d * (2 - frente)
+					if n < nota then
+						nota = n
+						alvo = r
+					end
 				end
 			end
 		end
 	end
 	local dir = olhar
+	local dist = nil
 	if alvo then
 		dir = Regras.achatar(alvo.Position - raiz.Position)
+		dist = (alvo.Position - raiz.Position).Magnitude
 	end
 	raiz.CFrame = CFrame.lookAt(raiz.Position, raiz.Position + dir)
-	return dir
+	return dir, dist
 end
 
 ------------------------------------------------------------------------------------- ações
@@ -192,7 +200,7 @@ function Jogador.m1()
 	if not hum or not raiz then
 		return
 	end
-	local dir = Jogador.mirar()
+	local dir, dist = Jogador.mirar()
 	local variante = nil
 	if n == 4 and hum.FloorMaterial == Enum.Material.Air then
 		variante = if raiz.AssemblyLinearVelocity.Y > 4 then "cima" else "baixo"
@@ -201,7 +209,12 @@ function Jogador.m1()
 	Acoes.tocar(personagem(), { id = "m1", n = n, variante = variante, stand = atributo("BB_StandFora") == true })
 	remotos.Acao:FireServer("m1", { dir = dir, variante = variante })
 	if not variante then
-		impulso(dir * 9, 0.07)
+		-- ímã: chega perto do alvo para o soco pegar (sem atravessar ele)
+		if dist and dist > 4.2 and dist < 14 then
+			impulso(dir * math.clamp((dist - 3.6) / 0.1, 9, 62), 0.1)
+		else
+			impulso(dir * 9, 0.07)
+		end
 	end
 end
 
@@ -419,6 +432,33 @@ local function aoPrivado(tipo: string, d: any)
 end
 
 local CORPO_CAIDO = { "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "UpperTorso", "LowerTorso" }
+local virandoParaAlvo = false
+
+-- fim do ragdoll: fica em pé no chão, olhando para onde estava virado (não levanta torto/enterrado)
+local function levantarEmPe(c: Model, hum: Humanoid, raiz: BasePart)
+	local frente = Vector3.new(raiz.CFrame.LookVector.X, 0, raiz.CFrame.LookVector.Z)
+	if frente.Magnitude < 0.2 then
+		frente = Vector3.new(raiz.CFrame.UpVector.X, 0, raiz.CFrame.UpVector.Z)
+	end
+	if frente.Magnitude < 0.2 then
+		frente = Vector3.new(0, 0, -1)
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { c }
+	pcall(function()
+		params.RespectCanCollide = true
+	end)
+	local base = raiz.Position
+	local chao = workspace:Raycast(base + Vector3.new(0, 2, 0), Vector3.new(0, -12, 0), params)
+	local y = if chao then chao.Position.Y + 3.1 else base.Y + 1.5
+	local pos = Vector3.new(base.X, math.max(y, base.Y), base.Z)
+	raiz.CFrame = CFrame.lookAt(pos, pos + frente.Unit)
+	raiz.AssemblyLinearVelocity = Vector3.zero
+	raiz.AssemblyAngularVelocity = Vector3.zero
+	hum.AutoRotate = true
+	hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+end
 
 local function passo()
 	local c, hum, raiz = partes()
@@ -447,8 +487,24 @@ local function passo()
 		end
 	elseif ragdollLocal then
 		ragdollLocal = false
-		hum.AutoRotate = true
-		hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		levantarEmPe(c, hum, raiz)
+	end
+	-- mira travada: o personagem fica sempre de frente para o alvo (anda de lado em volta dele)
+	local travado = Camera.travado()
+	local rAlvo = travado and travado:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if rAlvo and not ragdollLocal and not Jogador.atordoado() then
+		local d = Vector3.new(rAlvo.Position.X - raiz.Position.X, 0, rAlvo.Position.Z - raiz.Position.Z)
+		if d.Magnitude > 0.6 then
+			hum.AutoRotate = false
+			local alvoCf = CFrame.lookAt(raiz.Position, raiz.Position + d.Unit)
+			raiz.CFrame = raiz.CFrame:Lerp(alvoCf, 0.4)
+			virandoParaAlvo = true
+		end
+	elseif virandoParaAlvo then
+		virandoParaAlvo = false
+		if not ragdollLocal then
+			hum.AutoRotate = true
+		end
 	end
 	-- despertar novo: a ULT volta a ficar disponível
 	local d = c:GetAttribute("BB_Desperto") or 0

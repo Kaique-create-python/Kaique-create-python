@@ -119,7 +119,8 @@ def main():
     ]
     vozes = os.path.join(RAIZ, "assets", "vozes.ogg")
     if os.path.isfile(vozes):
-        entradas.append(("vozes.ogg", open(vozes, "rb").read(), {"audio": "vozes", "rotulo": "vozes dos Stands"}))
+        ordem = json.load(open(os.path.join(RAIZ, "assets", "vozes_ordem.json")))
+        entradas.append(("vozes.ogg", open(vozes, "rb").read(), {"audio": "vozes", "rotulo": "vozes dos Stands", "trechos": len(ordem)}))
     manifesto = {}
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:

@@ -39,18 +39,71 @@ function Camera.correndo(sim: boolean)
 	correndo = sim
 end
 
-function Camera.travar(alvo: Model?)
-	alvoTrava = alvo
+-- mira travada: um losango vermelho girando em cima do alvo
+local marca: BillboardGui? = nil
+local function mostrarMarca(alvo: Model?)
+	if marca then
+		marca:Destroy()
+		marca = nil
+	end
+	local r = alvo and alvo:FindFirstChild("HumanoidRootPart")
+	if not r then
+		return
+	end
+	local b = Instance.new("BillboardGui")
+	b.Name = "BB_Mira"
+	b.Size = UDim2.fromOffset(46, 46)
+	b.StudsOffsetWorldSpace = Vector3.new(0, 4.4, 0)
+	b.AlwaysOnTop = true
+	b.LightInfluence = 0
+	b.Adornee = r
+	local q = Instance.new("Frame")
+	q.Name = "Losango"
+	q.AnchorPoint = Vector2.new(0.5, 0.5)
+	q.Position = UDim2.fromScale(0.5, 0.5)
+	q.Size = UDim2.fromScale(0.62, 0.62)
+	q.Rotation = 45
+	q.BackgroundTransparency = 1
+	q.Parent = b
+	local borda = Instance.new("UIStroke")
+	borda.Color = Color3.fromRGB(255, 60, 70)
+	borda.Thickness = 3
+	borda.Parent = q
+	local ponto = Instance.new("Frame")
+	ponto.AnchorPoint = Vector2.new(0.5, 0.5)
+	ponto.Position = UDim2.fromScale(0.5, 0.5)
+	ponto.Size = UDim2.fromScale(0.22, 0.22)
+	ponto.BackgroundColor3 = Color3.fromRGB(255, 60, 70)
+	ponto.BorderSizePixel = 0
+	ponto.Parent = q
+	b.Parent = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	marca = b
 end
 
+function Camera.travar(alvo: Model?)
+	alvoTrava = alvo
+	mostrarMarca(alvo)
+end
+
+-- solta sozinho: alvo morreu, sumiu, ficou longe demais ou o dono caiu no ragdoll
+local DISTANCIA_MAXIMA = 130
 function Camera.travado(): Model?
 	if alvoTrava and (not alvoTrava.Parent or not alvoTrava:FindFirstChild("HumanoidRootPart")) then
-		alvoTrava = nil
+		Camera.travar(nil)
 	end
 	if alvoTrava then
 		local hum = alvoTrava:FindFirstChildOfClass("Humanoid")
-		if hum and hum.Health <= 0 then
-			alvoTrava = nil
+		local eu = Players.LocalPlayer.Character
+		local raiz = eu and eu:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local r = alvoTrava:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if (hum and hum.Health <= 0) or (raiz and r and (r.Position - raiz.Position).Magnitude > DISTANCIA_MAXIMA) then
+			Camera.travar(nil)
+		end
+	end
+	if marca and marca.Parent then
+		local q = marca:FindFirstChild("Losango") :: Frame?
+		if q then
+			q.Rotation = 45 + math.sin(os.clock() * 5) * 12
 		end
 	end
 	return alvoTrava
@@ -79,10 +132,11 @@ function Camera.iniciar()
 			local dist = (cam.CFrame.Position - foco).Magnitude
 			local dir = (r.Position - foco)
 			if dir.Magnitude > 2 then
+				-- câmera atrás do ombro olhando o alvo (como no Jujutsu Shenanigans)
 				local olhar = CFrame.lookAt(foco, r.Position + Vector3.new(0, -2, 0))
-				local desejado = olhar * CFrame.new(0, 0, dist)
+				local desejado = olhar * CFrame.new(1.4, 0, dist)
 				desejado = desejado + Vector3.new(0, 2.5, 0)
-				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(desejado.Position, r.Position), math.min(1, dt * 10))
+				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(desejado.Position, r.Position + Vector3.new(0, 0.5, 0)), math.min(1, dt * 12))
 			end
 		end
 		-- tremor

@@ -103,17 +103,22 @@ end
 -- o áudio, toca o grito da biblioteca no lugar (nunca fica mudo).
 local vozesEstado = "?" -- "?" ainda não conferiu, "ok", "nao"
 local vozesId = ""
+local vozesTrechos = math.huge -- quantos trechos o áudio enviado tem ("id quantos")
 local function conferirVozes()
 	if vozesEstado ~= "?" then
 		return
 	end
 	vozesEstado = "nao"
 	local v = BB.Parent:FindFirstChild("BB_Vozes")
-	local id = if v and v:IsA("StringValue") then string.match(v.Value, "^%s*(%d+)") else nil
+	local id, qtd = nil, nil
+	if v and v:IsA("StringValue") then
+		id, qtd = string.match(v.Value, "^%s*(%d+)%s*(%d*)")
+	end
 	if not id then
 		return
 	end
 	vozesId = id
+	vozesTrechos = tonumber(qtd) or math.huge
 	task.spawn(function()
 		local teste = Instance.new("Sound")
 		teste.SoundId = "rbxassetid://" .. id
@@ -141,6 +146,9 @@ function Som.voz(nome: string?, pos: Vector3?, opcoes: any?): Sound?
 	end
 	conferirVozes()
 	local trecho = Sons.VOZES[nome]
+	if trecho and (trecho[4] or 1) > vozesTrechos then
+		trecho = nil -- o áudio no ar é mais antigo e ainda não tem esta voz
+	end
 	if vozesEstado ~= "ok" or not trecho then
 		return Som.tocar("grito", pos, { vol = 0.8 })
 	end

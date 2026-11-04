@@ -19,6 +19,9 @@ import tempfile
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAIDA = os.path.join(RAIZ, "assets", "vozes.ogg")
 SONS = os.path.join(RAIZ, "src", "ReplicatedStorage", "BB", "Sons.luau")
+# ordem fixa dos trechos: voz nova entra SEMPRE no fim. Assim um áudio antigo (já enviado ao
+# Roblox) continua certo para as vozes que ele tem, se o envio do novo falhar.
+ORDEM = os.path.join(RAIZ, "assets", "vozes_ordem.json")
 SR = 44100
 INTERVALO = 0.25  # silêncio entre um trecho e outro (o celular nunca "vaza" para o vizinho)
 
@@ -77,9 +80,18 @@ def main():
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
     pasta = sys.argv[1]
-    arquivos = sorted(f for f in os.listdir(pasta) if f.lower().endswith(".mp3"))
-    if not arquivos:
+    achados = {os.path.splitext(f)[0].upper(): f for f in os.listdir(pasta) if f.lower().endswith(".mp3")}
+    if not achados:
         raise SystemExit("nenhum .mp3 em " + pasta)
+    ordem = json.load(open(ORDEM)) if os.path.isfile(ORDEM) else []
+    for nome in sorted(achados):
+        if nome not in ordem:
+            ordem.append(nome)
+    faltam = [n for n in ordem if n not in achados]
+    if faltam:
+        raise SystemExit("faltam gravações que já estavam no áudio: %s" % ", ".join(faltam))
+    json.dump(ordem, open(ORDEM, "w"))
+    arquivos = [achados[n] for n in ordem]
     trechos = {}
     with tempfile.TemporaryDirectory() as tmp:
         lista = []
@@ -93,7 +105,7 @@ def main():
             wav = os.path.join(tmp, nome + ".wav")
             d = tratar(os.path.join(pasta, arq), wav, nome)
             vol = REGRAS.get(nome, (1, 9, 1.0))[2]
-            trechos[nome] = (round(t, 3), round(d, 3), vol)
+            trechos[nome] = (round(t, 3), round(d, 3), vol, len(trechos) + 1)
             lista += [wav, silencio]
             t += d + INTERVALO
         juntar = os.path.join(tmp, "lista.txt")
@@ -108,8 +120,8 @@ def main():
     # escreve a tabela no Sons.luau
     linhas = ["Sons.VOZES = {"]
     for nome in sorted(trechos):
-        ini, d, vol = trechos[nome]
-        linhas.append("\t%s = { %.3f, %.3f, %.2f }," % (nome, ini, d, vol))
+        ini, d, vol, ordem_n = trechos[nome]
+        linhas.append("\t%s = { %.3f, %.3f, %.2f, %d }," % (nome, ini, d, vol, ordem_n))
     linhas.append("} :: { [string]: { number } }")
     texto = open(SONS, encoding="utf-8").read()
     novo, n = re.subn(r"Sons\.VOZES = \{.*?\} :: \{ \[string\]: \{ number \} \}", "\n".join(linhas), texto, flags=re.S)

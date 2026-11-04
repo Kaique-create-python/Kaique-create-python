@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.REVISAO = "AJUSTE-2"
+Config.REVISAO = "AJUSTE-3"
 Config.NOME_JOGO = "BIZARRE BATTLEGROUNDS"
 
 -- dono e ADMs (o dono sempre é ADM; quem criou a experiência também)
@@ -68,6 +68,7 @@ Config.EMPURRAO = {
 	multRagdoll = 0.62, -- multiplica a força dos golpes que derrubam
 	durMax = 0.17, -- tempo máximo empurrando com força total
 	velMax = 95, -- velocidade máxima de qualquer empurrão
+	imuneDepois = 0.9, -- AJUSTE-3: depois de levantar, segundos sem cair de novo
 }
 
 -- evasiva: Q/DASH quando estiver atordoado ou no chão (barra recarrega sozinha)

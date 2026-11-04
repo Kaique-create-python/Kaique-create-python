@@ -35,15 +35,22 @@ local function travarProximo()
 	if not raiz then
 		return
 	end
-	local melhor, d = nil, 90
+	-- o melhor alvo: perto e no meio da tela (quem está atrás da câmera quase nunca é escolhido)
+	local olharCam = workspace.CurrentCamera.CFrame.LookVector
+	local melhor, nota = nil, math.huge
 	for modelo in Efeitos._modelosLutadores() do
 		if modelo ~= c and modelo:GetAttribute("BB_Lutador") then
 			local r = modelo:FindFirstChild("HumanoidRootPart") :: BasePart?
 			local h = modelo:FindFirstChildOfClass("Humanoid")
 			if r and h and h.Health > 0 then
-				local dist = (r.Position - raiz.Position).Magnitude
-				if dist < d then
-					melhor, d = modelo, dist
+				local v = r.Position - raiz.Position
+				local dist = v.Magnitude
+				if dist < 90 and dist > 0.1 then
+					local frente = v.Unit:Dot(olharCam)
+					local n = dist * (2.2 - frente)
+					if n < nota then
+						melhor, nota = modelo, n
+					end
 				end
 			end
 		end
@@ -203,7 +210,7 @@ local function criarBotoesMoveis()
 	segurar(stand, function()
 		Jogador.alternarStand()
 	end)
-	local trava = botaoRedondo(gui, "TRAVAR", u * 0.62, m1c + Vector2.new(-u * 2.35, u * 0.15), Color3.fromRGB(60, 60, 80), 14)
+	local trava = botaoRedondo(gui, "MIRA", u * 0.7, m1c + Vector2.new(-u * 2.4, u * 0.15), Color3.fromRGB(190, 40, 55), 16)
 	segurar(trava, function()
 		travarProximo()
 	end)

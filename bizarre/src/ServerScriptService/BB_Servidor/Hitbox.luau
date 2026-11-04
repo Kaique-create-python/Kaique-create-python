@@ -96,4 +96,30 @@ function Hitbox.maisPertoNaFrente(lut: any, dir: Vector3, alcance: number, coneC
 	return melhor
 end
 
+-- "grude" do servidor: se tem um inimigo perto e quase na frente, o golpe vira para ele
+-- (o celular manda a direção um pouquinho atrasada; isso evita errar soco que acertou na tela)
+function Hitbox.grudar(lut: any, dir: Vector3, alcance: number, cosMin: number?): Vector3
+	local raiz = lut.raiz
+	local d0 = Vector3.new(dir.X, 0, dir.Z)
+	if d0.Magnitude < 1e-3 then
+		return dir
+	end
+	d0 = d0.Unit
+	local melhor, nota = nil, math.huge
+	for _, l in Hitbox.esfera(raiz.Position, alcance, lut) do
+		local v = l.raiz.Position - raiz.Position
+		local plano = Vector3.new(v.X, 0, v.Z)
+		if plano.Magnitude > 0.3 then
+			local frente = plano.Unit:Dot(d0)
+			if frente >= (cosMin or 0.55) then
+				local n = plano.Magnitude * (2 - frente)
+				if n < nota then
+					melhor, nota = plano.Unit, n
+				end
+			end
+		end
+	end
+	return melhor or d0
+end
+
 return Hitbox
