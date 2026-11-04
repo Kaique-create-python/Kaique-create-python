@@ -12,12 +12,14 @@ Outros comandos:
 
 O que ele faz (nessa ordem):
   1) confere o próprio pacote (sha256 de cada arquivo)
-  2) salva uma versão de TESTE (não publicada) e roda o teste isolado na nuvem:
-     monta a cidade, os 6 Stands e faz uma luta de teste com TODOS os golpes
-  3) só se o teste passar: publica e confere
+  2) envia as vozes dos Stands (ORA, ZA WARUDO, DORA...) - OPCIONAL: se o Roblox recusar,
+     demorar ou a chave não tiver permissão, o jogo segue com o grito da biblioteca
+  3) salva uma versão de TESTE (não publicada) e roda o teste isolado na nuvem:
+     abre Morioh, monta os 6 Stands e faz uma luta de teste com TODOS os golpes
+  4) só se o teste passar: publica e confere
 A chave da Open Cloud é pedida escondida, nunca aparece na tela e nunca é salva.
 Nada aqui apaga o Place nem o DataStore dos jogadores (as estatísticas só somam).
-Os sons são da biblioteca liberada do Roblox: não precisa enviar áudio nenhum.
+Os outros sons são da biblioteca liberada do Roblox (não precisam de envio).
 """
 import base64
 import getpass
@@ -26,9 +28,11 @@ import io
 import json
 import os
 import sys
+import struct
 import time
 import urllib.error
 import urllib.request
+import uuid
 import zipfile
 
 REVISAO = "__REVISAO__"
@@ -48,7 +52,15 @@ PAYLOAD = """
 __PAYLOAD__
 """
 
-NOMES_STANDS = {"MARACATU": "MARACATU", "BOSSA_NOVA": "BOSSA NOVA", "FREVO": "FREVO", "AXE": "AXÉ", "CHORINHO": "CHORINHO", "FUNK": "FUNK"}
+NOMES_STANDS = {
+    "STAR_PLATINUM": "STAR PLATINUM",
+    "THE_WORLD": "THE WORLD",
+    "MAGICIANS_RED": "MAGICIAN'S RED",
+    "SILVER_CHARIOT": "SILVER CHARIOT",
+    "CRAZY_DIAMOND": "CRAZY DIAMOND",
+    "KILLER_QUEEN": "KILLER QUEEN",
+}
+MARCADOR_VOZES = b"BBVOZ" + b"_" * 59  # o place guarda o número do áudio das vozes aqui
 
 
 # --------------------------------------------------------------------- saída
@@ -159,6 +171,8 @@ PERMISSOES = {
     "publicar": "Place Publishing (universe-places) -> write, com a experiência BIZARRE marcada",
     "luau": "Luau Execution Sessions (universe.place.luau-execution-session) -> read e write, com a experiência marcada",
     "reiniciar": "Universes -> universe:write (opcional)",
+    "audio": "Assets (asset:read e asset:write) - opcional, só para as vozes",
+    "liberar": "Asset Permissions (asset-permissions:write) - opcional, libera as vozes para o jogo",
 }
 
 
@@ -206,10 +220,211 @@ def dono_do_universo(universe):
         return None
 
 
+# --------------------------------------------------------------------- vozes (opcionais)
+def multipart(campos):
+    limite = "----BB" + uuid.uuid4().hex
+    partes = []
+    for nome, valor, arquivo, tipo in campos:
+        cab = '--%s\r\nContent-Disposition: form-data; name="%s"' % (limite, nome)
+        if arquivo:
+            cab += '; filename="%s"' % arquivo
+        cab += "\r\n"
+        if tipo:
+            cab += "Content-Type: %s\r\n" % tipo
+        cab += "\r\n"
+        partes.append(cab.encode("utf-8"))
+        partes.append(valor)
+        partes.append(b"\r\n")
+    partes.append(("--%s--\r\n" % limite).encode("utf-8"))
+    return b"".join(partes), "multipart/form-data; boundary=" + limite
+
+
+def ler_operacao(chave, op_id):
+    d = http_json("GET", API + "/assets/v1/operations/" + op_id, chave, tentativas=3)
+    if not d.get("done"):
+        return None, None
+    if d.get("error"):
+        raise Falha("O Roblox recusou o áudio: %s" % json.dumps(d.get("error"))[:300])
+    resp = d.get("response") or {}
+    estado = ((resp.get("moderationResult") or {}).get("moderationState")) or ""
+    return resp.get("assetId"), estado
+
+
+def consultar_moderacao(chave, asset_id):
+    try:
+        d = http_json("GET", "%s/assets/v1/assets/%s?readMask=moderationResult" % (API, asset_id), chave, tentativas=2, espera_max=30)
+        return ((d.get("moderationResult") or {}).get("moderationState")) or ""
+    except Exception:
+        return ""
+
+
+TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
+
+
+def enviar_audio(chave, criador, nome, info, dados, recibos):
+    """Envia um áudio (uma vez só: o recibo guarda o ID). Nunca trava: devolve 0 se não deu."""
+    sha = info["sha256"]
+    gaveta = recibos.setdefault("audio", {})
+    r = gaveta.get(sha) or {}
+    rotulo = info.get("rotulo", nome)
+    if r.get("assetId"):
+        estado = consultar_moderacao(chave, r["assetId"]) or r.get("estado", "")
+        if estado and estado != r.get("estado"):
+            r["estado"] = estado
+            gaveta[sha] = r
+            gravar_recibos(recibos)
+        if estado == "Rejected":
+            aviso("%s: o Roblox RECUSOU na moderação (ID %s); o jogo segue com o grito da biblioteca." % (rotulo, r["assetId"]))
+            return 0
+        ok("%s: já enviado antes (ID %s) - moderação: %s" % (rotulo, r["assetId"], TRADUZ.get(estado, estado or "?")))
+        return int(r["assetId"])
+    if r.get("operationId"):
+        try:
+            asset_id, estado = ler_operacao(chave, r["operationId"])
+        except Falha as f:
+            aviso(str(f))
+            return 0
+        except ErroHTTP as e:
+            aviso("%s: %s" % (rotulo, explicar(e, "audio")))
+            return 0
+        if asset_id:
+            r.update({"assetId": str(asset_id), "estado": estado})
+            gaveta[sha] = r
+            gravar_recibos(recibos)
+            ok("%s: pronto (ID %s, moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "?")))
+            return 0 if estado == "Rejected" else int(asset_id)
+        aviso("%s: o Roblox ainda está processando o envio anterior; seguindo sem ele por enquanto." % rotulo)
+        return 0
+    pedido = {
+        "assetType": "Audio",
+        "displayName": ("BIZARRE vozes dos Stands %s" % REVISAO)[:50],
+        "description": "Gritos dos Stands do jogo BIZARRE BATTLEGROUNDS (vozes geradas). Enviado pelo instalador.",
+        "creationContext": {"creator": criador},
+    }
+    corpo, tipo = multipart([
+        ("request", json.dumps(pedido).encode("utf-8"), None, "application/json"),
+        ("fileContent", dados, nome.split("/")[-1], "audio/ogg"),
+    ])
+    try:
+        _, resp = http("POST", API + "/assets/v1/assets", chave, corpo, tipo, tentativas=3, espera_max=300)
+    except ErroHTTP as e:
+        aviso("%s: %s" % (rotulo, explicar(e, "audio")))
+        aviso("Seguindo sem as vozes (o jogo usa o grito da biblioteca no lugar).")
+        return 0
+    except Falha as f:
+        aviso(str(f))
+        return 0
+    try:
+        op = json.loads(resp.decode("utf-8") or "{}")
+    except Exception:
+        op = {}
+    op_id = op.get("operationId") or (op.get("path") or "").split("/")[-1]
+    if not op_id:
+        aviso("%s: resposta inesperada do Roblox; seguindo sem as vozes." % rotulo)
+        return 0
+    r = {"nome": nome, "operationId": op_id, "enviadoEm": int(time.time())}
+    gaveta[sha] = r
+    gravar_recibos(recibos)
+    print("   ...enviado, esperando o Roblox processar as vozes", end="", flush=True)
+    inicio = time.time()
+    while time.time() - inicio < 120:
+        time.sleep(4)
+        print(".", end="", flush=True)
+        try:
+            asset_id, estado = ler_operacao(chave, op_id)
+        except (Falha, ErroHTTP) as f:
+            print("")
+            aviso(str(f) if isinstance(f, Falha) else explicar(f, "audio"))
+            return 0
+        if asset_id:
+            print("")
+            r.update({"assetId": str(asset_id), "estado": estado})
+            gravar_recibos(recibos)
+            if estado == "Rejected":
+                aviso("%s: o Roblox recusou na moderação; seguindo sem as vozes." % rotulo)
+                return 0
+            ok("%s: ID %s (moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "em análise")))
+            if estado != "Approved":
+                aviso("   enquanto estiver 'em análise' o jogo usa o grito da biblioteca (o Roblox libera sozinho depois).")
+            return int(asset_id)
+    print("")
+    aviso("%s: ainda processando. Rode o instalador de novo daqui a uns minutos para incluir as vozes." % rotulo)
+    return 0
+
+
+def liberar_audio(chave, universe, asset_id, recibos):
+    """Dá ao jogo a permissão de USAR o áudio (sem isso o Roblox deixa mudo). Nunca trava."""
+    lib = recibos.setdefault("liberados", {})
+    if int(asset_id) in lib.get(str(universe), []):
+        ok("vozes já liberadas para o jogo")
+        return True
+    pedido = {"subjectType": "Universe", "subjectId": str(universe), "action": "Use", "requests": [{"assetId": int(asset_id)}]}
+    corpo = json.dumps(pedido).encode("utf-8")
+    url = API + "/asset-permissions-api/v1/assets/permissions"
+    try:
+        try:
+            _, resp = http("PATCH", url, chave, corpo, "application/json", tentativas=3, espera_max=60)
+        except ErroHTTP as e:
+            if e.codigo != 415:
+                raise
+            _, resp = http("PATCH", url, chave, corpo, "application/json-patch+json", tentativas=2, espera_max=60)
+    except ErroHTTP as e:
+        if e.codigo == 403:
+            aviso("A chave não tem a permissão de liberar áudios para o jogo (%s)." % PERMISSOES["liberar"])
+        else:
+            aviso("O Roblox não deixou liberar as vozes agora (%s)." % e.resumo())
+        return False
+    except Falha as f:
+        aviso(str(f))
+        return False
+    try:
+        d = json.loads(resp.decode("utf-8") or "{}")
+    except Exception:
+        d = {}
+    feitos = {int(a) for a in (d.get("successAssetIds") or []) if str(a).isdigit()}
+    for e in d.get("errors") or []:
+        if str(e.get("code", "")) in ("AlreadyGranted", "PermissionAlreadyExists"):
+            feitos.add(int(e.get("assetId") or 0))
+    if int(asset_id) in feitos:
+        lib[str(universe)] = sorted(set(lib.get(str(universe), [])) | {int(asset_id)})
+        gravar_recibos(recibos)
+        ok("vozes LIBERADAS para o jogo")
+        return True
+    aviso("o Roblox não confirmou a liberação das vozes (o jogo usa o grito da biblioteca se ficar mudo).")
+    return False
+
+
+def colocar_vozes(place, asset_id):
+    """troca o marcador do place pelo número do áudio (mesmo tamanho: o arquivo continua válido)"""
+    if place.count(MARCADOR_VOZES) != 1:
+        raise Falha("o marcador das vozes não está no place (pacote estranho)")
+    valor = str(int(asset_id)).encode("ascii").ljust(len(MARCADOR_VOZES), b" ")
+    return place.replace(MARCADOR_VOZES, valor)
+
+
+def conferir_binario(place):
+    """confere a estrutura do .rbxl (cabeçalho e pedaços) sem precisar do Roblox"""
+    if place[:8] != b"<roblox!":
+        raise Falha("o place não é um arquivo binário do Roblox")
+    off = 32
+    n = 0
+    while off < len(place):
+        nome = place[off:off + 4]
+        clen, ulen, _ = struct.unpack_from("<III", place, off + 4)
+        off += 16 + (clen if clen else ulen)
+        n += 1
+        if nome == b"END\x00":
+            break
+    if off > len(place) or n < 4:
+        raise Falha("o place está cortado (pedaços: %d)" % n)
+    return n
+
+
 # --------------------------------------------------------------------- place / luau
 def publicar(chave, universe, place, dados, tipo_versao):
     url = "%s/universes/v1/%s/places/%s/versions?versionType=%s" % (API, universe, place, tipo_versao)
-    _, resp = http("POST", url, chave, dados, "application/xml", tentativas=3, espera_max=300)
+    tipo = "application/octet-stream" if dados[:8] == b"<roblox!" else "application/xml"
+    _, resp = http("POST", url, chave, dados, tipo, tentativas=3, espera_max=300)
     d = json.loads(resp.decode("utf-8"))
     return int(d["versionNumber"])
 
@@ -258,11 +473,13 @@ def resultado_teste(tarefa):
 def mostrar_relatorio(res):
     inf = res.get("info", {})
     ok("teste passou: %s módulos carregados (revisão %s)" % (inf.get("modulos"), inf.get("revisao")))
-    ok("cidade: %s peças, %s quebráveis" % (inf.get("pecasMapa"), inf.get("quebraveis")))
+    ok("Morioh: %s peças quebráveis, %s pontos de nascer" % (inf.get("quebraveis"), inf.get("spawns")))
     if inf.get("quebraTeste"):
         ok("quebrar e reconstruir: %s" % inf["quebraTeste"])
+    if inf.get("vozes"):
+        ok("vozes: %s" % inf["vozes"])
     stands = inf.get("stands") or {}
-    for sid in ["MARACATU", "BOSSA_NOVA", "FREVO", "AXE", "CHORINHO", "FUNK"]:
+    for sid in NOMES_STANDS:
         txt = stands.get(sid)
         if not txt:
             continue
@@ -302,16 +519,15 @@ def cmd_testar():
     titulo("%s %s - teste offline do pacote" % (JOGO, REVISAO))
     arquivos = carregar_pacote()
     ok("pacote íntegro: %d arquivos conferidos por sha256" % len(arquivos))
-    import xml.etree.ElementTree as ET
-    xml = arquivos["place.rbxlx"]
-    raiz = ET.fromstring(xml)
-    itens = raiz.findall(".//Item")
-    ok("place .rbxlx válido (%d instâncias, %d kB)" % (len(itens), len(xml) // 1024))
-    scripts = [i for i in itens if i.get("class") in ("Script", "LocalScript", "ModuleScript")]
-    ok("%d scripts dentro do place" % len(scripts))
-    if b'"' + REVISAO.encode() + b'"' not in xml:
-        raise Falha("a revisão %s não está no place" % REVISAO)
-    ok("revisão %s confere" % REVISAO)
+    place = arquivos["place.rbxl"]
+    n = conferir_binario(place)
+    ok("place binário válido (mapa Morioh + jogo: %d pedaços, %d kB)" % (n, len(place) // 1024))
+    teste = colocar_vozes(place, 123456789)
+    if len(teste) != len(place) or conferir_binario(teste) != n:
+        raise Falha("trocar o número das vozes estragaria o place")
+    ok("lugar do número das vozes confere")
+    if "vozes.ogg" in arquivos:
+        ok("vozes dos Stands: %d kB (opcional)" % (len(arquivos["vozes.ogg"]) // 1024))
     script = arquivos["teste_nuvem.luau"].decode("utf-8")
     tam = len(script.encode("utf-8"))
     if tam > LIMITE_TAREFA:
@@ -353,10 +569,33 @@ def cmd_install(pular_teste=False):
     else:
         aviso("Não consegui confirmar o dono da experiência (seguindo).")
 
-    place_xml = arquivos["place.rbxlx"]
+    criador = {"userId": dono}
+    if info and info[0] == "Group":
+        criador = {"groupId": info[1]}
     recibos = ler_recibos()
+    place_bin = arquivos["place.rbxl"]
+    conferir_binario(place_bin)
 
-    passo(3, "Teste isolado na nuvem (versão salva, NÃO publicada)")
+    passo(3, "Vozes dos Stands (opcional: não trava a instalação)")
+    id_vozes = 0
+    if "vozes.ogg" in arquivos:
+        try:
+            id_vozes = enviar_audio(chave, criador, "vozes.ogg", MANIFESTO["vozes.ogg"], arquivos["vozes.ogg"], recibos)
+        except Exception as e:  # nada das vozes pode travar a instalação
+            aviso("vozes: %s (seguindo sem elas)" % type(e).__name__)
+            id_vozes = 0
+        if id_vozes:
+            try:
+                liberar_audio(chave, universe, id_vozes, recibos)
+            except Exception as e:
+                aviso("liberar vozes: %s (seguindo)" % type(e).__name__)
+            place_bin = colocar_vozes(place_bin, id_vozes)
+            ok("place com as vozes (áudio %s)" % id_vozes)
+        else:
+            aviso("sem as vozes por enquanto: o jogo usa o grito da biblioteca do Roblox.")
+    place_xml = place_bin
+
+    passo(4, "Teste isolado na nuvem (versão salva, NÃO publicada)")
     try:
         v_teste = publicar(chave, universe, place, place_xml, "Saved")
     except ErroHTTP as e:
@@ -367,7 +606,7 @@ def cmd_install(pular_teste=False):
     else:
         try:
             tarefa, logs = rodar_luau(chave, universe, place, v_teste, arquivos["teste_nuvem.luau"].decode("utf-8"),
-                                      mensagem="...rodando na nuvem (a luta de teste com todos os golpes leva uns 2 minutos)")
+                                      mensagem="...rodando na nuvem (abre Morioh e faz a luta de teste com todos os golpes; leva uns 3 minutos)")
         except ErroHTTP as e:
             if e.codigo == 403:
                 raise Falha(explicar(e, "luau") + "\n   Nada foi publicado. Depois de ajustar a chave, rode de novo.")
@@ -387,16 +626,16 @@ def cmd_install(pular_teste=False):
             sys.exit(2)
         mostrar_relatorio(res)
 
-    passo(4, "Publicando")
+    passo(5, "Publicando")
     try:
         v_pub = publicar(chave, universe, place, place_xml, "Published")
     except ErroHTTP as e:
         raise Falha(explicar(e, "publicar"))
     ok("publicado! versão %d" % v_pub)
-    recibos["publicacoes"].append({"revisao": REVISAO, "versao": v_pub, "teste": v_teste, "quando": int(time.time())})
+    recibos["publicacoes"].append({"revisao": REVISAO, "versao": v_pub, "teste": v_teste, "vozes": id_vozes, "quando": int(time.time())})
     gravar_recibos(recibos)
 
-    passo(5, "Conferindo a versão publicada")
+    passo(6, "Conferindo a versão publicada")
     conferencia = (
         'local RS = game:GetService("ReplicatedStorage")\n'
         'local C = require(RS.BB.Config)\n'
@@ -427,6 +666,8 @@ def cmd_install(pular_teste=False):
     print("   Abra: https://www.roblox.com/games/%s" % place)
     print("   Você é ADM (botão vermelho ADM no canto de cima): crie bots, encha o DESPERTAR,")
     print("   tire as recargas e restaure o mapa para testar tudo rápido.")
+    if not id_vozes:
+        print("   (sem as vozes desta vez: rode o instalador de novo mais tarde para tentar enviar)")
 
 
 def main():

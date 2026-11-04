@@ -1,4 +1,6 @@
--- BIZARRE BATTLEGROUNDS :: monta o arquivo do place (.rbxlx) a partir de bizarre/src
+-- BIZARRE BATTLEGROUNDS :: monta o arquivo do place a partir de bizarre/src
+-- Base: o mapa Morioh V2 (bizarre/assets/morioh.rbxl, feito no ChatGPT e convertido para binário).
+-- Saída: bizarre/dist/BB_place.rbxl (binário, ~2,5 MB). Sem o mapa, sai uma cidade gerada.
 -- uso (na raiz do repositório): lune run bizarre/tools/montar_place.luau
 
 local fs = require("@lune/fs")
@@ -9,9 +11,18 @@ local Color3 = roblox.Color3
 local Enum = roblox.Enum
 
 local RAIZ = "bizarre/src"
-local SAIDA = "bizarre/dist/BB_place.rbxlx"
+local SAIDA = "bizarre/dist/BB_place.rbxl"
+local MAPA = "bizarre/assets/morioh.rbxl"
+-- o instalador troca este texto pelo número do áudio das vozes (mesmo tamanho: 64 letras)
+local MARCADOR_VOZES = "BBVOZ" .. string.rep("_", 59)
 
-local game = Instance.new("DataModel")
+local game
+local comMapa = fs.isFile(MAPA)
+if comMapa then
+	game = roblox.deserializePlace(fs.readFile(MAPA))
+else
+	game = Instance.new("DataModel")
+end
 
 local function rgb(r, g, b)
 	return Color3.fromRGB(r, g, b)
@@ -43,66 +54,84 @@ local function carregar(caminho: string, pai)
 	end
 end
 
--- Workspace: a cidade é montada pelo servidor quando ele liga
+-- Workspace: com o Morioh, o mapa já vem pronto (StreamingEnabled ligado, raio 128/512)
 local ws = game:GetService("Workspace")
-ws.StreamingEnabled = false
+if comMapa then
+	ws.StreamingEnabled = true
+	pcall(function()
+		ws.StreamingMinRadius = 128
+		ws.StreamingTargetRadius = 512
+	end)
+else
+	ws.StreamingEnabled = false -- a cidade gerada é montada pelo servidor quando ele liga
+end
 ws.FallenPartsDestroyHeight = -250
 ws.Gravity = 196.2
-local terreno = Instance.new("Terrain")
-terreno.Parent = ws
+if not ws:FindFirstChildOfClass("Terrain") then
+	local terreno = Instance.new("Terrain")
+	terreno.Parent = ws
+end
 
--- luz de fim de tarde, cores vivas (clima "bizarro")
+-- luz: a paleta e a atmosfera de Morioh (do mapa) + iluminação Future, céu, brilho e raios de sol
 local luz = game:GetService("Lighting")
 luz.Technology = Enum.Technology.Future
 pcall(function()
 	luz.LightingStyle = Enum.LightingStyle.Realistic
 	luz.PrioritizeLightingQuality = false
 end)
-luz.ClockTime = 15.8
-luz.GeographicLatitude = 22
-luz.Brightness = 2.4
-luz.Ambient = rgb(70, 60, 90)
-luz.OutdoorAmbient = rgb(140, 128, 160)
-luz.ColorShift_Top = rgb(255, 214, 170)
-luz.ColorShift_Bottom = rgb(60, 40, 90)
-luz.EnvironmentDiffuseScale = 0.6
-luz.EnvironmentSpecularScale = 0.8
 luz.GlobalShadows = true
-luz.ShadowSoftness = 0.3
-luz.ExposureCompensation = 0.1
+luz.ShadowSoftness = 0.25
+luz.EnvironmentDiffuseScale = 0.5
+luz.EnvironmentSpecularScale = 0.6
+if not comMapa then
+	luz.ClockTime = 15.8
+	luz.GeographicLatitude = 22
+	luz.Brightness = 2.4
+	luz.Ambient = rgb(70, 60, 90)
+	luz.OutdoorAmbient = rgb(140, 128, 160)
+	luz.ExposureCompensation = 0.1
+end
+luz.ColorShift_Top = rgb(255, 222, 190)
+luz.ColorShift_Bottom = rgb(70, 50, 90)
 
-local atm = Instance.new("Atmosphere")
-atm.Density = 0.3
-atm.Offset = 0.18
-atm.Color = rgb(230, 190, 210)
-atm.Decay = rgb(140, 100, 170)
-atm.Glare = 0.35
-atm.Haze = 1.4
-atm.Parent = luz
+if not luz:FindFirstChildOfClass("Atmosphere") then
+	local atm = Instance.new("Atmosphere")
+	atm.Density = 0.3
+	atm.Offset = 0.18
+	atm.Color = rgb(230, 190, 210)
+	atm.Decay = rgb(140, 100, 170)
+	atm.Glare = 0.35
+	atm.Haze = 1.4
+	atm.Parent = luz
+end
 
-local ceu = Instance.new("Sky")
-ceu.SunAngularSize = 14
-ceu.MoonAngularSize = 9
-ceu.StarCount = 1500
-ceu.Parent = luz
+if not luz:FindFirstChildOfClass("Sky") then
+	local ceu = Instance.new("Sky")
+	ceu.SunAngularSize = 14
+	ceu.MoonAngularSize = 9
+	ceu.StarCount = 1500
+	ceu.Parent = luz
+end
 
 local bloom = Instance.new("BloomEffect")
-bloom.Intensity = 0.5
-bloom.Size = 26
-bloom.Threshold = 1.6
+bloom.Intensity = 0.4
+bloom.Size = 24
+bloom.Threshold = 1.8
 bloom.Parent = luz
 
 local raios = Instance.new("SunRaysEffect")
-raios.Intensity = 0.06
-raios.Spread = 0.7
+raios.Intensity = 0.05
+raios.Spread = 0.6
 raios.Parent = luz
 
-local cor = Instance.new("ColorCorrectionEffect")
-cor.Name = "Vivo"
-cor.Saturation = 0.18
-cor.Contrast = 0.1
-cor.TintColor = rgb(255, 248, 245)
-cor.Parent = luz
+if not luz:FindFirstChildOfClass("ColorCorrectionEffect") then
+	local cor = Instance.new("ColorCorrectionEffect")
+	cor.Name = "Vivo"
+	cor.Saturation = 0.18
+	cor.Contrast = 0.1
+	cor.TintColor = rgb(255, 248, 245)
+	cor.Parent = luz
+end
 
 local servicoMateriais = game:GetService("MaterialService")
 pcall(function()
@@ -127,7 +156,7 @@ sp.AutoJumpEnabled = false
 sp.EnableMouseLockOption = true
 sp.LoadCharacterAppearance = true
 pcall(function()
-	sp.GameSettingsAvatar = Enum.GameAvatarType.R15
+	sp.GameSettingsAvatar = Enum.GameAvatarType.R6
 end)
 local sps = Instance.new("StarterPlayerScripts")
 sps.Parent = sp
@@ -147,19 +176,28 @@ carregar(RAIZ .. "/ReplicatedFirst", game:GetService("ReplicatedFirst"))
 carregar(RAIZ .. "/ReplicatedStorage", game:GetService("ReplicatedStorage"))
 carregar(RAIZ .. "/ServerScriptService", game:GetService("ServerScriptService"))
 
+local vozes = Instance.new("StringValue")
+vozes.Name = "BB_Vozes"
+vozes.Value = MARCADOR_VOZES
+vozes.Parent = game:GetService("ReplicatedStorage")
+
 for _, nome in { "ServerStorage", "Teams", "Chat", "TextChatService", "LocalizationService", "TestService" } do
 	pcall(function()
 		game:GetService(nome)
 	end)
 end
 
-local xml = roblox.serializePlace(game, true)
+local dados = roblox.serializePlace(game, false)
 fs.writeDir("bizarre/dist")
-fs.writeFile(SAIDA, xml)
+fs.writeFile(SAIDA, dados)
 local n = 0
-for _, d in game:GetDescendants() do
-	if d:IsA("LuaSourceContainer") then
-		n += 1
+for _, d in game:GetChildren() do
+	if d.Name ~= "Workspace" then
+		for _, x in d:GetDescendants() do
+			if x:IsA("LuaSourceContainer") then
+				n += 1
+			end
+		end
 	end
 end
-print(string.format("place gerado: %s (%d scripts, %d bytes)", SAIDA, n, #xml))
+print(string.format("place gerado: %s (%d scripts, %d bytes, mapa Morioh: %s)", SAIDA, n, #dados, tostring(comMapa)))

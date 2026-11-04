@@ -1,5 +1,6 @@
--- BIZARRE BATTLEGROUNDS :: projéteis (lâminas, bola de fogo, cacos, bola de som...)
+-- BIZARRE BATTLEGROUNDS :: projéteis (rolamento, facas, ankh de fogo, rapieira, moeda, tanquinho...)
 -- O servidor calcula o caminho e os acertos; os celulares desenham o mesmo caminho.
+-- "guiado" (Sheer Heart Attack): vira devagar atrás do inimigo mais perto e avisa os celulares.
 
 local RunService = game:GetService("RunService")
 
@@ -17,6 +18,9 @@ local contraDe: ((alvo: any, p: any) -> boolean)? = nil
 
 local paramsRaio = RaycastParams.new()
 paramsRaio.FilterType = Enum.RaycastFilterType.Include
+pcall(function()
+	paramsRaio.RespectCanCollide = true
+end)
 
 local function agora(): number
 	return workspace:GetServerTimeNow()
@@ -49,6 +53,7 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 		golpe = golpeId,
 		t0 = agora(),
 		congeladoAte = 0,
+		avisoT = 0,
 	}
 	ativos[id] = p
 	if remoto then
@@ -66,6 +71,43 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 		})
 	end
 	return id
+end
+
+-- persegue o inimigo mais perto (só no plano do chão) virando no máximo "guiado" radianos/s
+local function guiar(p: any, dt: number, t: number)
+	local melhor, melhorD = nil, 70
+	for _, l in Hitbox.esfera(p.pos, 70, p.dono) do
+		local d = (l.raiz.Position - p.pos).Magnitude
+		if d < melhorD then
+			melhor, melhorD = l, d
+		end
+	end
+	if not melhor then
+		return
+	end
+	local quer = melhor.raiz.Position - p.pos
+	quer = Vector3.new(quer.X, 0, quer.Z)
+	if quer.Magnitude < 0.5 then
+		return
+	end
+	quer = quer.Unit
+	local atual = Vector3.new(p.dir.X, 0, p.dir.Z)
+	if atual.Magnitude < 1e-3 then
+		atual = quer
+	end
+	atual = atual.Unit
+	local ang = math.acos(math.clamp(atual:Dot(quer), -1, 1))
+	local maximo = p.def.guiado * dt
+	local novo = quer
+	if ang > maximo then
+		local lado = if atual:Cross(quer).Y >= 0 then 1 else -1
+		novo = CFrame.Angles(0, maximo * lado, 0):VectorToWorldSpace(atual)
+	end
+	p.dir = novo.Unit
+	if remoto and t - p.avisoT >= 0.12 then
+		p.avisoT = t
+		remoto:FireAllClients("projVirar", { id = p.id, pos = p.pos, dir = p.dir, t = t, resta = math.max(0, p.alcance - p.dist) })
+	end
 end
 
 local function terminar(p: any, pos: Vector3, explodiu: boolean)
@@ -88,12 +130,13 @@ end
 
 function Projeteis.passo(dt: number)
 	local t = agora()
-	if Mapa.pasta then
-		paramsRaio.FilterDescendantsInstances = { Mapa.pasta }
-	end
+	paramsRaio.FilterDescendantsInstances = Mapa.filtro()
 	for _, p in ativos do
 		if t < p.congeladoAte then
 			continue
+		end
+		if p.def.guiado then
+			guiar(p, dt, t)
 		end
 		local passo = p.dir * p.vel * dt
 		-- bateu no mapa?

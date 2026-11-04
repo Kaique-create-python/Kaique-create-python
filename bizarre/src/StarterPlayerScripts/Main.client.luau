@@ -55,6 +55,11 @@ local TRATADORES = {
 	proj = Efeitos.proj,
 	projFim = Efeitos.projFim,
 	projRefletir = Efeitos.projRefletir,
+	projVirar = Efeitos.projVirar,
+	rolo = Efeitos.rolo,
+	rebobinar = Efeitos.rebobinar,
+	rebobinarFim = Efeitos.rebobinarFim,
+	buff = Efeitos.buff,
 	area = Efeitos.area,
 	explosao = Efeitos.explosao,
 	onda = Efeitos.onda,
@@ -122,7 +127,8 @@ local function estadoVisual(m: Model, agora: number)
 		extras[m] = x
 	end
 	-- pedra/preso: corpo cinza ou rosado
-	local querCor = if pedra then Color3.fromRGB(130, 128, 124) elseif preso then Color3.fromRGB(255, 150, 210) else nil
+	local bomba = (m:GetAttribute("BB_Bomba") or 0) > agora -- a Killer Queen transformou em bomba
+	local querCor = if pedra then Color3.fromRGB(130, 128, 124) elseif preso or bomba then Color3.fromRGB(255, 150, 210) else nil
 	if querCor and not x.brilho then
 		local h = Instance.new("Highlight")
 		h.FillColor = querCor

@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.REVISAO = "AJUSTE-1"
+Config.REVISAO = "AJUSTE-2"
 Config.NOME_JOGO = "BIZARRE BATTLEGROUNDS"
 
 -- dono e ADMs (o dono sempre é ADM; quem criou a experiência também)
@@ -34,11 +34,12 @@ Config.M1 = {
 	atordoar = 0.62,
 	hitbox = { tam = Vector3.new(5, 5.5, 5.5), frente = 3.4 },
 	hitboxStand = { tam = Vector3.new(6, 6, 7), frente = 4.6 },
-	empurraoLeve = 9, -- golpes 1 a 3 empurram um pouquinho
+	empurraoLeve = 7, -- golpes 1 a 3 empurram um pouquinho
 	-- 4º golpe: arremessa (ragdoll), sobe (uppercut) se pulando, ou crava no chão se no ar
-	final = { frente = 74, cima = 22, dur = 0.24, ragdoll = 1.35, quebra = 2 },
-	finalCima = { frente = 10, cima = 92, dur = 0.2, ragdoll = 1.5, quebra = 1 },
-	finalBaixo = { frente = 8, cima = -110, dur = 0.18, ragdoll = 1.4, quebra = 2 },
+	-- AJUSTE-2: bem mais curto (antes jogava o personagem longe demais)
+	final = { frente = 46, cima = 16, dur = 0.14, ragdoll = 1.1, quebra = 2 },
+	finalCima = { frente = 8, cima = 62, dur = 0.13, ragdoll = 1.2, quebra = 1 },
+	finalBaixo = { frente = 6, cima = -90, dur = 0.12, ragdoll = 1.1, quebra = 2 },
 }
 
 -- bloqueio (segurar F / botão BLOQ)
@@ -57,9 +58,16 @@ Config.BLOQUEIO = {
 
 -- dash (Q / botão DASH)
 Config.DASH = {
-	frente = { vel = 92, dur = 0.3, recarga = 2.4 },
-	lado = { vel = 82, dur = 0.24, recarga = 1.6 },
-	tras = { vel = 78, dur = 0.24, recarga = 1.8 },
+	frente = { vel = 82, dur = 0.28, recarga = 2.4 },
+	lado = { vel = 74, dur = 0.22, recarga = 1.6 },
+	tras = { vel = 70, dur = 0.22, recarga = 1.8 },
+}
+
+-- AJUSTE-2: empurrões de golpes com ragdoll ficam mais curtos (ninguém voa longe demais)
+Config.EMPURRAO = {
+	multRagdoll = 0.62, -- multiplica a força dos golpes que derrubam
+	durMax = 0.17, -- tempo máximo empurrando com força total
+	velMax = 95, -- velocidade máxima de qualquer empurrão
 }
 
 -- evasiva: Q/DASH quando estiver atordoado ou no chão (barra recarrega sozinha)
@@ -82,7 +90,7 @@ Config.DESPERTAR = {
 }
 
 -- ragdoll e queda
-Config.RAGDOLL_MAX = 3
+Config.RAGDOLL_MAX = 2.4
 Config.ATORDOAR_MAX = 3
 Config.ALTURA_MINIMA = -60 -- caiu do mapa: volta para um spawn
 
@@ -90,13 +98,15 @@ Config.ALTURA_MINIMA = -60 -- caiu do mapa: volta para um spawn
 Config.COMBO_JANELA = 1.6
 Config.CREDITO_ABATE = 14 -- segundos: quem bateu por último leva o abate
 
--- mapa quebrável
+-- mapa quebrável (Morioh: cada peça tem Health; a força do golpe vira dano)
 Config.MAPA = {
-	regenerar = 28, -- segundos para uma peça quebrada voltar
-	regenerarVariacao = 8,
-	destrocosAlto = 9, -- pedaços por peça (efeitos altos)
-	destrocosBaixo = 4,
-	limiteDestrocos = 420,
+	regenerar = 30, -- segundos para uma peça quebrada voltar
+	regenerarVariacao = 10,
+	destrocosAlto = 6, -- pedaços por peça (efeitos altos)
+	destrocosBaixo = 3,
+	limiteDestrocos = 320,
+	maxPorImpacto = 40, -- peças que um golpe só pode quebrar de uma vez (celular aguenta)
+	danoPorForca = { 60, 130, 220, 330, 520 }, -- força 1 a 5 -> dano nas peças
 }
 
 -- bots de treino

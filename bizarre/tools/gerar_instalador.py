@@ -1,25 +1,109 @@
 #!/usr/bin/env python3
 """BIZARRE BATTLEGROUNDS :: gera o instalador de um arquivo só (BIZARRE_AJUSTE<N>.py).
 
-Passos: monta o place (Lune), junta place + teste da nuvem num zip, calcula sha256 de cada
-arquivo, codifica em base85 e injeta no modelo.
-uso (na raiz do repositório): python3 bizarre/tools/gerar_instalador.py AJUSTE-1
+Passos: monta o place binário (Lune, em cima do mapa Morioh), deixa SEM compressão o pedaço do
+arquivo onde fica o marcador das vozes (para o instalador trocar pelo número do áudio sem precisar
+de Lune no celular), junta place + teste da nuvem + vozes num zip, calcula sha256 de cada arquivo,
+codifica em base85 e injeta no modelo.
+uso (na raiz do repositório): python3 bizarre/tools/gerar_instalador.py AJUSTE-2
 """
 import base64
 import hashlib
 import io
 import json
 import os
+import struct
 import subprocess
 import sys
 import zipfile
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(RAIZ)
+MARCADOR_VOZES = b"BBVOZ" + b"_" * 59  # igual ao de montar_place.luau (64 letras)
+
+
+def lz4_bloco(src, tamanho):
+    """descompressor LZ4 (formato de bloco) - o mesmo que o Roblox usa nos pedaços do .rbxl"""
+    dst = bytearray()
+    i, n = 0, len(src)
+    while i < n:
+        token = src[i]
+        i += 1
+        lit = token >> 4
+        if lit == 15:
+            while True:
+                b = src[i]
+                i += 1
+                lit += b
+                if b != 255:
+                    break
+        dst += src[i:i + lit]
+        i += lit
+        if i >= n:
+            break
+        desloc = src[i] | (src[i + 1] << 8)
+        i += 2
+        mlen = token & 15
+        if mlen == 15:
+            while True:
+                b = src[i]
+                i += 1
+                mlen += b
+                if b != 255:
+                    break
+        mlen += 4
+        ini = len(dst) - desloc
+        if desloc >= mlen:
+            dst += dst[ini:ini + mlen]
+        else:
+            for k in range(mlen):
+                dst.append(dst[ini + k])
+    if len(dst) != tamanho:
+        raise SystemExit("LZ4: tamanho errado (%d != %d)" % (len(dst), tamanho))
+    return bytes(dst)
+
+
+def pedacos(dados):
+    """lista (inicio, nome, comprimido, descomprimido, inicio_dos_dados) de cada pedaço do .rbxl"""
+    if dados[:8] != b"<roblox!":
+        raise SystemExit("o place não é binário")
+    off = 32
+    lista = []
+    while off < len(dados):
+        nome = dados[off:off + 4]
+        clen, ulen, _ = struct.unpack_from("<III", dados, off + 4)
+        ini = off + 16
+        lista.append((off, nome, clen, ulen, ini))
+        off = ini + (clen if clen else ulen)
+        if nome == b"END\x00":
+            break
+    return lista
+
+
+def descomprimir_marcador(dados):
+    """deixa sem compressão o pedaço que tem o marcador (o resto do arquivo fica igual)"""
+    saida = bytearray(dados[:32])
+    achou = 0
+    for off, nome, clen, ulen, ini in pedacos(dados):
+        bruto = dados[ini:ini + (clen if clen else ulen)]
+        if clen and nome == b"PROP" and clen < 2_000_000:
+            if bruto[:4] == b"\x28\xb5\x2f\xfd":
+                raise SystemExit("pedaço em ZSTD: atualize o gerador")
+            cru = lz4_bloco(bruto, ulen)
+            if MARCADOR_VOZES in cru:
+                achou += cru.count(MARCADOR_VOZES)
+                saida += nome + struct.pack("<III", 0, len(cru), 0) + cru
+                continue
+        saida += dados[off:ini] + bruto
+    if achou != 1:
+        raise SystemExit("o marcador das vozes apareceu %d vezes (precisa ser 1)" % achou)
+    if bytes(saida).count(MARCADOR_VOZES) != 1:
+        raise SystemExit("o marcador não ficou visível no arquivo")
+    return bytes(saida)
 
 
 def main():
-    revisao = sys.argv[1] if len(sys.argv) > 1 else "AJUSTE-1"
+    revisao = sys.argv[1] if len(sys.argv) > 1 else "AJUSTE-2"
     numero = revisao.split("-")[-1]
     nome_arquivo = "BIZARRE_AJUSTE%s.py" % numero
     with open(os.path.join(RAIZ, "src", "ReplicatedStorage", "BB", "Config.luau"), encoding="utf-8") as f:
@@ -27,18 +111,23 @@ def main():
             sys.exit("Config.REVISAO não é %s" % revisao)
     subprocess.run(["lune", "run", "bizarre/tools/montar_place.luau"], cwd=REPO, check=True)
 
+    with open(os.path.join(RAIZ, "dist", "BB_place.rbxl"), "rb") as f:
+        place = descomprimir_marcador(f.read())
     entradas = [
-        ("place.rbxlx", os.path.join(RAIZ, "dist", "BB_place.rbxlx")),
-        ("teste_nuvem.luau", os.path.join(RAIZ, "tools", "teste_nuvem.luau")),
+        ("place.rbxl", place, {}),
+        ("teste_nuvem.luau", open(os.path.join(RAIZ, "tools", "teste_nuvem.luau"), "rb").read(), {}),
     ]
+    vozes = os.path.join(RAIZ, "assets", "vozes.ogg")
+    if os.path.isfile(vozes):
+        entradas.append(("vozes.ogg", open(vozes, "rb").read(), {"audio": "vozes", "rotulo": "vozes dos Stands"}))
     manifesto = {}
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
-        for nome, caminho in entradas:
-            with open(caminho, "rb") as f:
-                dados = f.read()
+        for nome, dados, extra in entradas:
             z.writestr(nome, dados)
-            manifesto[nome] = {"sha256": hashlib.sha256(dados).hexdigest(), "tamanho": len(dados)}
+            info = {"sha256": hashlib.sha256(dados).hexdigest(), "tamanho": len(dados)}
+            info.update(extra)
+            manifesto[nome] = info
     bruto = buf.getvalue()
     sha_zip = hashlib.sha256(bruto).hexdigest()
     b85 = base64.b85encode(bruto).decode("ascii")

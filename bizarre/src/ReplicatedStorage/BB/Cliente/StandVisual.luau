@@ -1,6 +1,7 @@
 -- BIZARRE BATTLEGROUNDS :: o Stand de cada lutador, desenhado no celular
--- O servidor só diz QUAL Stand e se está para fora (atributos). Aqui o celular copia o corpo,
--- posiciona atrás do dono (ou na frente quando ataca), anima e faz aparecer/sumir.
+-- O servidor só diz QUAL Stand e se está para fora (atributos). Aqui o celular copia o corpo
+-- (R6 com roupa e acessórios do catálogo, sólido), posiciona atrás do dono (ou na frente quando
+-- ataca), anima e faz aparecer/sumir. ARMOR OFF: o Silver Chariot tira as peças de armadura.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -75,7 +76,7 @@ local function criar(dono: Model, standId: string): any
 	brilho.DepthMode = Enum.HighlightDepthMode.Occluded
 	brilho.Enabled = false
 	brilho.Parent = m
-	local torso = (m:FindFirstChild("UpperTorso") or raiz) :: BasePart
+	local torso = (m:FindFirstChild("Torso") or m:FindFirstChild("UpperTorso") or raiz) :: BasePart
 	local aura = Instance.new("ParticleEmitter")
 	aura.Name = "Aura"
 	aura.Color = ColorSequence.new(s.aura)
@@ -88,7 +89,7 @@ local function criar(dono: Model, standId: string): any
 	aura.SpreadAngle = Vector2.new(180, 180)
 	aura.Parent = torso
 	if s.visual.fogo then
-		for _, nomeMao in { "LeftHand", "RightHand" } do
+		for _, nomeMao in { "Left Arm", "Right Arm", "LeftHand", "RightHand" } do
 			local mao = m:FindFirstChild(nomeMao)
 			if mao then
 				local fogo = Instance.new("Fire")
@@ -101,6 +102,23 @@ local function criar(dono: Model, standId: string): any
 			end
 		end
 	end
+	-- peças de armadura (ombreiras, cinto, peitoral): somem no ARMOR OFF
+	local armadura = {}
+	for _, ac in m:GetChildren() do
+		if ac:IsA("Accessory") then
+			local tipo = ac.AccessoryType
+			if tipo == Enum.AccessoryType.Shoulder or tipo == Enum.AccessoryType.Waist or tipo == Enum.AccessoryType.Front or tipo == Enum.AccessoryType.Back then
+				local h = ac:FindFirstChild("Handle")
+				if h and h:IsA("BasePart") then
+					table.insert(armadura, h)
+				end
+			end
+		end
+	end
+	local escalaBase = 1
+	pcall(function()
+		escalaBase = m:GetScale()
+	end)
 	m.Parent = pastaVisual
 	local anim = Animador.registrar(m, "stand")
 	local v = {
@@ -120,7 +138,10 @@ local function criar(dono: Model, standId: string): any
 		modoAte = 0,
 		escala = 1,
 		escalaAlvo = 1,
+		escalaBase = escalaBase,
 		visita = nil,
+		armadura = armadura,
+		semArmadura = false,
 	}
 	return v
 end
@@ -212,22 +233,35 @@ local function atualizar(v: any, dt: number)
 	local vel = if v.alvoVis > v.vis then 9 else 5
 	v.vis += (v.alvoVis - v.vis) * math.min(1, dt * vel)
 	if math.abs(v.vis - antes) > 0.002 or (v.vis > 0.99 and antes <= 0.99) or (v.vis < 0.01 and antes >= 0.01) then
-		local ltm = 1 - v.vis * 0.92
-		if v.vis < 0.01 then
+		-- AJUSTE-2: aparecido, o Stand fica sólido (sem transparência)
+		local ltm = 1 - v.vis
+		if v.vis > 0.97 then
+			ltm = 0
+		elseif v.vis < 0.01 then
 			ltm = 1
 		end
 		for _, p in v.partes do
 			p.LocalTransparencyModifier = ltm
 		end
+		v.ltm = ltm
+		v.semArmadura = nil -- recalcula a armadura abaixo
 		v.brilho.Enabled = v.vis > 0.05
-		v.brilho.FillTransparency = 1 - v.vis * 0.14
-		v.brilho.OutlineTransparency = 1 - v.vis * 0.8
+		v.brilho.FillTransparency = 1 - v.vis * 0.08
+		v.brilho.OutlineTransparency = 1 - v.vis * 0.75
 	end
-	-- crescer na ULT
+	-- ARMOR OFF: esconde ombreiras/cinto/peitoral enquanto durar
+	local semArmadura = (dono:GetAttribute("BB_SemArmadura") or 0) > agoraServidor()
+	if #v.armadura > 0 and semArmadura ~= v.semArmadura then
+		v.semArmadura = semArmadura
+		for _, h in v.armadura do
+			h.LocalTransparencyModifier = if semArmadura then 1 else (v.ltm or 1)
+		end
+	end
+	-- crescer na ULT (a escala do molde já vem maior que o usuário)
 	if math.abs(v.escala - v.escalaAlvo) > 0.01 then
 		v.escala += (v.escalaAlvo - v.escala) * math.min(1, dt * 6)
 		pcall(function()
-			v.modelo:ScaleTo(v.escala)
+			v.modelo:ScaleTo(v.escalaBase * v.escala)
 		end)
 		Animador.atualizarJuntas(v.modelo)
 	end

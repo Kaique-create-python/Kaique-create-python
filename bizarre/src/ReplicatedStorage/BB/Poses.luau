@@ -384,6 +384,86 @@ P.giro = {
 	LH = { 20, 0, -8 }, LK = { -30, 0, 0 }, RH = { -10, 0, 8 }, RK = { -20, 0, 0 },
 }
 
+-- AJUSTE-2: poses da JoJo ---------------------------------------------------------------------
+-- Star Finger: o braço do Stand estica reto para a frente
+P.star_finger_carrega = {
+	Waist = { 6, -30, 0 }, Neck = { 0, 20, 0 },
+	RS = { 40, 0, 20 }, RE = { 110, 0, 0 },
+	LS = { 60, 0, -20 }, LE = { 90, 0, 0 },
+}
+P.star_finger = {
+	Root = { -10, 0, 0 }, Waist = { -10, 32, 0 }, Neck = { -4, -24, 0 },
+	RS = { 94, 0, -2 }, RE = { 0, 0, 0 }, RW = { -12, 0, 0 },
+	LS = { -24, 0, -34 }, LE = { 20, 0, 0 },
+	LH = { 24, 0, -6 }, LK = { -30, 0, 0 }, RH = { -24, 0, 6 }, RK = { -6, 0, 0 },
+}
+-- DIO: inclinado para trás, mão no rosto e outra na cintura
+P.pose_dio = {
+	Root = { 6, 10, 0 }, Waist = { 16, -26, -10 }, Neck = { 18, 22, 6 },
+	RS = { 146, 0, -44 }, RE = { 104, 0, 0 },
+	LS = { 18, 0, -62 }, LE = { 112, 0, 0 },
+	RH = { 12, 0, 12 }, RK = { -22, 0, 0 }, LH = { -10, 0, -12 },
+}
+P.wryyy = {
+	Root = { 18, 0, 0 }, Waist = { 34, 0, 0 }, Neck = { 38, 0, 0 },
+	LS = { 46, 0, -112 }, LE = { 30, 0, 0 },
+	RS = { 46, 0, 112 }, RE = { 30, 0, 0 },
+	LH = { 16, 0, -14 }, LK = { -24, 0, 0 }, RH = { 16, 0, 14 }, RK = { -24, 0, 0 },
+}
+-- Josuke: uma mão ajeitando o topete, a outra apontando
+P.pose_josuke = {
+	Waist = { 2, 22, 6 }, Neck = { 6, -16, 0 },
+	RS = { 152, 0, 30 }, RE = { 118, 0, 0 },
+	LS = { 92, 0, 12 }, LE = { 4, 0, 0 }, LW = { -10, 0, 0 },
+	LH = { 10, 0, -14 }, RH = { -8, 0, 14 }, RK = { -10, 0, 0 },
+}
+P.topete = {
+	Waist = { 6, 0, 0 }, Neck = { 12, 0, 0 },
+	RS = { 156, 0, 24 }, RE = { 120, 0, 0 },
+	LS = { 156, 0, -24 }, LE = { 120, 0, 0 },
+	LH = { 6, 0, -10 }, RH = { 6, 0, 10 },
+}
+-- Polnareff: em guarda de esgrima, de lado
+P.esgrima = {
+	Root = { 0, -18, 0 }, Waist = { -6, 40, 0 }, Neck = { 0, -34, 0 },
+	RS = { 82, 0, -6 }, RE = { 18, 0, 0 },
+	LS = { 124, 0, -72 }, LE = { 84, 0, 0 },
+	LH = { 22, 0, -16 }, LK = { -32, 0, 0 }, RH = { -22, 0, 12 }, RK = { -22, 0, 0 },
+}
+P.saudacao = {
+	Waist = { 4, 20, 0 }, Neck = { 6, -14, 0 },
+	RS = { 160, 0, -8 }, RE = { 10, 0, 0 },
+	LS = { 20, 0, -40 }, LE = { 70, 0, 0 },
+	LH = { 6, 0, -8 }, RH = { 6, 0, 8 },
+}
+-- Kira: mão levantada, polegar no "detonador"
+P.detonar = {
+	Waist = { 4, 16, 0 }, Neck = { 8, -12, 0 },
+	RS = { 104, 0, -12 }, RE = { 64, 0, 0 }, RW = { -30, 0, 0 },
+	LS = { 8, 0, -14 }, LE = { 16, 0, 0 },
+	LH = { 4, 0, -6 }, RH = { 2, 0, 6 },
+}
+P.pose_kira = {
+	Waist = { 8, -20, 4 }, Neck = { 10, 18, 0 },
+	RS = { 122, 0, -36 }, RE = { 96, 0, 0 }, RW = { -20, 0, 0 },
+	LS = { 52, 0, 34 }, LE = { 104, 0, 0 },
+	LH = { -6, 0, -10 }, RH = { 14, 0, 10 }, RK = { -16, 0, 0 },
+}
+-- Jotaro: puxa a aba do boné e aponta
+P.aba_bone = {
+	Waist = { -2, 10, 0 }, Neck = { -14, -8, 0 },
+	RS = { 158, 0, -26 }, RE = { 132, 0, 0 },
+	LS = { 4, 0, -18 }, LE = { 30, 0, 0 },
+	LH = { 4, 0, -8 }, RH = { -4, 0, 8 },
+}
+-- Stand rugindo (despertar)
+P.stand_ruge = {
+	Root = { -8, 0, 0 }, Waist = { 22, 0, 0 }, Neck = { 30, 0, 0 },
+	LS = { 70, 0, -96 }, LE = { 70, 0, 0 },
+	RS = { 70, 0, 96 }, RE = { 70, 0, 0 },
+	LH = { 20, 0, -18 }, LK = { -40, 0, 0 }, RH = { 20, 0, 18 }, RK = { -40, 0, 0 },
+}
+
 -- espelha uma pose (troca esquerda/direita)
 local TROCA = { LS = "RS", RS = "LS", LE = "RE", RE = "LE", LW = "RW", RW = "LW", LH = "RH", RH = "LH", LK = "RK", RK = "LK", LA = "RA", RA = "LA" }
 function Poses.espelhar(p: { [string]: { number } }): { [string]: { number } }
@@ -463,6 +543,22 @@ C.chute = C.chute_alto
 C.estocadas = { proc = "estocadas", segurar = true, keys = { { 0, "estocada_carrega" } } }
 C.gira_sombrinha = { segurar = true, giro = { { 0, 0 }, { 0.16, 360 } }, giroLoop = true, keys = { { 0, "gira_sombrinha", "estalo" }, { 0.1, "gira_sombrinha" } } }
 C.barragem = { proc = "barragem", segurar = true, keys = { { 0, "guarda" } } }
+
+-- AJUSTE-2: clipes da JoJo
+C.star_finger = { dur = 0.62, impacto = 0.3, keys = { { 0, "star_finger_carrega" }, { 0.22, "star_finger_carrega", "suave" }, { 0.3, "star_finger", "estalo" }, { 0.52, "star_finger" }, { 0.62, "guarda", "suave" } } }
+C.pose_dio = { segurar = true, keys = { { 0, "pose_dio", "estalo" }, { 0.25, "pose_dio" } } }
+C.pose_josuke = { segurar = true, keys = { { 0, "pose_josuke", "estalo" }, { 0.25, "pose_josuke" } } }
+C.esgrima = { segurar = true, keys = { { 0, "esgrima", "estalo" }, { 0.2, "esgrima" } } }
+C.detonar = { segurar = true, keys = { { 0, "detonar", "suave" }, { 0.25, "detonar" } } }
+C.pose_kira = { segurar = true, keys = { { 0, "pose_kira", "estalo" }, { 0.3, "pose_kira" } } }
+-- despertar: um para cada Stand (o usuário faz a pose do personagem dele)
+C.despertar_STAR_PLATINUM = { dur = 1.5, keys = { { 0, "agachar" }, { 0.2, "aba_bone", "estalo" }, { 0.75, "aba_bone" }, { 0.95, "comando_aponta", "estalo" }, { 1.35, "comando_aponta" }, { 1.5, "guarda", "suave" } } }
+C.despertar_THE_WORLD = { dur = 1.6, keys = { { 0, "agachar" }, { 0.25, "wryyy", "estalo" }, { 0.95, "wryyy" }, { 1.15, "pose_dio", "estalo" }, { 1.45, "pose_dio" }, { 1.6, "guarda", "suave" } } }
+C.despertar_MAGICIANS_RED = { dur = 1.5, keys = { { 0, "agachar" }, { 0.25, "conjurar", "estalo" }, { 0.8, "conjurar" }, { 1.0, "tempo", "estalo" }, { 1.35, "tempo" }, { 1.5, "guarda", "suave" } } }
+C.despertar_SILVER_CHARIOT = { dur = 1.5, keys = { { 0, "esgrima" }, { 0.25, "saudacao", "estalo" }, { 0.85, "saudacao" }, { 1.05, "esgrima", "estalo" }, { 1.35, "esgrima" }, { 1.5, "guarda", "suave" } } }
+C.despertar_CRAZY_DIAMOND = { dur = 1.5, keys = { { 0, "agachar" }, { 0.25, "topete", "estalo" }, { 0.8, "topete" }, { 1.0, "pose_josuke", "estalo" }, { 1.35, "pose_josuke" }, { 1.5, "guarda", "suave" } } }
+C.despertar_KILLER_QUEEN = { dur = 1.6, keys = { { 0, "pose_kira" }, { 0.3, "pose_kira" }, { 0.55, "detonar", "estalo" }, { 1.0, "detonar" }, { 1.2, "pose_kira", "estalo" }, { 1.45, "pose_kira" }, { 1.6, "guarda", "suave" } } }
+C.stand_ruge = { dur = 1.5, keys = { { 0, "cruzado_flutua" }, { 0.3, "stand_ruge", "estalo" }, { 1.2, "stand_ruge" }, { 1.5, "cruzado_flutua", "suave" } } }
 
 function Poses.clipe(nome: string?)
 	if not nome then

@@ -46,7 +46,7 @@ local function pastaBots(): Folder
 	return p
 end
 
--- corpo do bot: avatar do catálogo com cores sorteadas (ou o corpo reserva)
+-- corpo do bot: avatar R6 do catálogo com cores sorteadas (ou o corpo R6 reserva)
 local function corpo(nome: string, cores: any, boneco: boolean): Model
 	local ok, modelo = pcall(function()
 		local d = Instance.new("HumanoidDescription")
@@ -60,7 +60,7 @@ local function corpo(nome: string, cores: any, boneco: boolean): Model
 			local chapeus = { "14012017490", "13704302370", "118122669761516" }
 			d.HatAccessory = chapeus[math.random(1, #chapeus)]
 		end
-		return Players:CreateHumanoidModelFromDescription(d, Enum.HumanoidRigType.R15)
+		return Players:CreateHumanoidModelFromDescription(d, Enum.HumanoidRigType.R6)
 	end)
 	local m: Model
 	if ok and modelo then
@@ -71,9 +71,13 @@ local function corpo(nome: string, cores: any, boneco: boolean): Model
 			end
 		end
 	else
-		m = Rig.montar(nome, 1, cores, true)
+		m = Rig.montarR6(nome, cores, true)
 	end
 	m.Name = nome
+	-- com StreamingEnabled o celular recebe o corpo inteiro de uma vez
+	pcall(function()
+		m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	end)
 	local hum = m:FindFirstChildOfClass("Humanoid") :: Humanoid
 	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff

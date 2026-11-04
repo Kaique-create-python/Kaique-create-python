@@ -1,5 +1,6 @@
 -- BIZARRE BATTLEGROUNDS :: efeitos visuais (só no celular; o servidor manda o "que" e o "onde")
--- faíscas, anéis, crateras, destroços, punhos da barragem, projéteis, tempo parado, sol, onomatopeias.
+-- faíscas, partículas, anéis, crateras, destroços, punhos da barragem, projéteis (rolamento, facas,
+-- ankh, rapieira, moeda, tanquinho), tempo parado + rolo compressor, Bites the Dust, onomatopeias.
 
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
@@ -9,7 +10,7 @@ local TweenService = game:GetService("TweenService")
 local BB = script.Parent.Parent
 local Config = require(BB:WaitForChild("Config"))
 local Stands = require(BB:WaitForChild("Stands"))
-local Sons = require(BB:WaitForChild("Sons"))
+local Poses = require(BB:WaitForChild("Poses"))
 local Som = require(script.Parent:WaitForChild("Som"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
@@ -62,6 +63,55 @@ local function tween(obj: Instance, dur: number, props: any, estilo: Enum.Easing
 end
 
 ------------------------------------------------------------------------------------- primitivos
+local TEXTURAS = {
+	brilho = "rbxasset://textures/particles/sparkles_main.dds",
+	fumaca = "rbxasset://textures/particles/smoke_main.dds",
+	fogo = "rbxasset://textures/particles/fire_main.dds",
+	faisca = "rbxasset://textures/particles/fire_sparks_main.dds",
+}
+
+-- explosão de partículas num ponto (some sozinha)
+-- o = { n, vel, tam, vida, textura, espalhar, gravidade, luz }
+function Efeitos.particulas(pos: Vector3, cor: Color3, o: any?)
+	local op = o or {}
+	local n = op.n or 14
+	if not qualidadeAlta then
+		n = math.ceil(n / 2)
+	end
+	local p = parte(Vector3.new(0.2, 0.2, 0.2), CFrame.new(pos), cor)
+	p.Transparency = 1
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = TEXTURAS[op.textura or "brilho"] or TEXTURAS.brilho
+	e.Color = ColorSequence.new(cor, op.cor2 or cor)
+	e.LightEmission = op.luz or 1
+	e.LightInfluence = 0
+	local tam = op.tam or 1.2
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, tam), NumberSequenceKeypoint.new(1, 0) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(1, 1) })
+	local vida = op.vida or 0.35
+	e.Lifetime = NumberRange.new(vida * 0.6, vida)
+	local vel = op.vel or 22
+	e.Speed = NumberRange.new(vel * 0.5, vel)
+	e.SpreadAngle = Vector2.new(op.espalhar or 180, op.espalhar or 180)
+	e.Drag = op.arrasto or 6
+	e.Acceleration = Vector3.new(0, op.gravidade or 0, 0)
+	e.RotSpeed = NumberRange.new(-200, 200)
+	e.Rotation = NumberRange.new(0, 360)
+	e.Rate = 0
+	e.Parent = p
+	e:Emit(n)
+	Debris:AddItem(p, vida + 0.2)
+end
+
+-- monta um visual de várias peças presas na primeira (que é a que se move)
+local function preso(principal: BasePart, extra: BasePart, cfLocal: CFrame)
+	extra.Anchored = false
+	extra.CFrame = principal.CFrame * cfLocal
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = principal
+	w.Part1 = extra
+	w.Parent = extra
+end
 -- estilhaços brilhantes que voam para fora
 function Efeitos.faiscas(pos: Vector3, cor: Color3, n: number?, forca: number?)
 	local qtd = n or 8
@@ -451,16 +501,33 @@ local TIPOS = {
 	brasa = { n = 2, forca = 3, anel = 0, luz = 0, cor = RGB(255, 140, 30) },
 	cratera = { n = 14, forca = 9, anel = 7, luz = 8, cratera = 9, poeira = 5 },
 	agarrao = { n = 4, forca = 3, anel = 2, luz = 2 },
+	impacto_prata = { n = 9, forca = 7, anel = 3, luz = 5, cor = RGB(215, 225, 245) },
+	corte_prata = { n = 6, forca = 8, anel = 2, luz = 3, cor = RGB(230, 236, 250) },
 }
 local ARCOIRIS = { RGB(232, 44, 70), RGB(250, 210, 40), RGB(36, 200, 96), RGB(40, 120, 230) }
 
+local paramsChao: RaycastParams? = nil
+local paramsChaoT = 0
 local function chaoAbaixo(pos: Vector3): Vector3
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	local mapa = workspace:FindFirstChild("BB_Mapa")
-	params.FilterDescendantsInstances = if mapa then { mapa } else {}
-	local r = workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -40, 0), params)
-	return if r then r.Position else Vector3.new(pos.X, 0.6, pos.Z)
+	if not paramsChao or os.clock() - paramsChaoT > 5 then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Include
+		local lista = {}
+		for _, nome in { "Morioh", "BB_Mapa", "BB_Temporarias" } do
+			local m = workspace:FindFirstChild(nome)
+			if m then
+				table.insert(lista, m)
+			end
+		end
+		params.FilterDescendantsInstances = lista
+		pcall(function()
+			params.RespectCanCollide = true
+		end)
+		paramsChao = params
+		paramsChaoT = os.clock()
+	end
+	local r = workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -40, 0), paramsChao)
+	return if r then r.Position else Vector3.new(pos.X, pos.Y - 3, pos.Z)
 end
 Efeitos.chaoAbaixo = chaoAbaixo
 
@@ -501,6 +568,12 @@ function Efeitos.acerto(d: any)
 		cor = ARCOIRIS[rng:NextInteger(1, 4)]
 	end
 	Efeitos.faiscas(pos, cor, def.n, def.forca)
+	if qualidadeAlta and tipo ~= "barragem" and tipo ~= "brasa" then
+		Efeitos.particulas(pos, cor, { n = math.floor(def.n * 1.2), vel = def.forca * 4, tam = 0.6 + def.anel * 0.18, vida = 0.32, cor2 = BRANCO })
+		if def.fogo then
+			Efeitos.particulas(pos, RGB(255, 140, 40), { n = 10, vel = 10, tam = 2.2, vida = 0.5, textura = "fogo", gravidade = 14, cor2 = RGB(255, 60, 10) })
+		end
+	end
 	if def.anel > 0 then
 		Efeitos.anel(pos, def.anel, cor, 0.28, 0.3, d.dir)
 	end
@@ -560,19 +633,17 @@ function Efeitos.acerto(d: any)
 end
 
 ------------------------------------------------------------------------------------- mapa
+-- (AJUSTE-2: sem som de quebrar; só os destroços e a poeira)
 function Efeitos.quebra(d: any)
-	local sons = 0
+	local poeiras = 0
 	for _, item in d.pecas or {} do
 		local peca: BasePart? = item[1]
 		if peca and peca:IsA("BasePart") then
 			local dir = item[2] or Vector3.zero
 			local forca = item[3] or 1
 			Efeitos.destrocos(peca, if typeof(dir) == "Vector3" then dir else Vector3.zero, math.min(forca, 4))
-			if sons < 3 then
-				sons += 1
-				Som.tocar(Sons.doMaterial(peca.Material.Name), peca.Position, { max = 6 })
-			end
-			if qualidadeAlta and peca.Size.Magnitude > 4 then
+			poeiras += 1
+			if qualidadeAlta and poeiras <= 6 and peca.Size.Magnitude > 4 then
 				Efeitos.poeira(peca.Position, math.min(5, peca.Size.Magnitude * 0.3), nil, 6)
 			end
 		end
@@ -622,15 +693,93 @@ local function visualProjetil(tipo: string?, cor: Color3, raio: number): (BasePa
 	elseif tipo == "bola_som" then
 		local p = parte(Vector3.new(raio * 2, raio * 2, raio * 2), CFrame.new(), RGB(160, 80, 255), Enum.Material.ForceField, Enum.PartType.Ball)
 		return p, 0
+	elseif tipo == "rolamento" then
+		-- Star Platinum: rolamento de aço jogado com o dedo
+		local p = parte(Vector3.new(0.7, 0.7, 0.7), CFrame.new(), RGB(205, 210, 220), Enum.Material.Metal, Enum.PartType.Ball)
+		p.Reflectance = 0.45
+		local brilho = parte(Vector3.new(1.3, 1.3, 1.3), CFrame.new(), cor, Enum.Material.ForceField, Enum.PartType.Ball)
+		preso(p, brilho, CFrame.identity)
+		return p, 0
+	elseif tipo == "faca" then
+		-- The World: faca de mesa (lâmina prateada e cabo escuro)
+		local p = parte(Vector3.new(0.12, 0.32, 1.5), CFrame.new(), RGB(225, 230, 240), Enum.Material.Metal)
+		p.Reflectance = 0.35
+		local cabo = parte(Vector3.new(0.18, 0.26, 0.7), CFrame.new(), RGB(60, 40, 30), Enum.Material.Wood)
+		preso(p, cabo, CFrame.new(0, 0, 1.05))
+		local guarda = parte(Vector3.new(0.2, 0.55, 0.12), CFrame.new(), RGB(200, 170, 70), Enum.Material.Metal)
+		preso(p, guarda, CFrame.new(0, 0, 0.72))
+		return p, 0
+	elseif tipo == "ankh" then
+		-- Magician's Red: cruz egípcia de fogo
+		local p = parte(Vector3.new(0.6, 3.2, 0.6), CFrame.new(), RGB(255, 120, 30), Enum.Material.Neon)
+		local barra = parte(Vector3.new(2.6, 0.55, 0.55), CFrame.new(), RGB(255, 150, 40), Enum.Material.Neon)
+		preso(p, barra, CFrame.new(0, 0.55, 0))
+		local alca = parte(Vector3.new(0.45, 1.5, 1.5), CFrame.new(), RGB(255, 190, 60), Enum.Material.Neon, Enum.PartType.Cylinder)
+		alca.Transparency = 0.25
+		preso(p, alca, CFrame.new(0, 1.9, 0) * CFrame.Angles(0, math.rad(90), 0))
+		local f = Instance.new("Fire")
+		f.Size = 6
+		f.Heat = 10
+		f.Color = RGB(255, 110, 20)
+		f.SecondaryColor = RGB(255, 220, 80)
+		f.Parent = p
+		local l = Instance.new("PointLight")
+		l.Color = RGB(255, 140, 50)
+		l.Range = 16
+		l.Brightness = 2.5
+		l.Parent = p
+		return p, 0
+	elseif tipo == "rapieira" then
+		-- Silver Chariot: a lâmina sai voando
+		local p = parte(Vector3.new(0.14, 0.14, 4.6), CFrame.new(), RGB(235, 240, 250), Enum.Material.Metal)
+		p.Reflectance = 0.4
+		local guarda = parte(Vector3.new(0.9, 0.9, 0.22), CFrame.new(), RGB(200, 206, 218), Enum.Material.Metal, Enum.PartType.Cylinder)
+		preso(p, guarda, CFrame.new(0, 0, 2.35) * CFrame.Angles(0, math.rad(90), 0))
+		local punho = parte(Vector3.new(0.26, 0.26, 0.8), CFrame.new(), RGB(220, 180, 60), Enum.Material.Metal)
+		preso(p, punho, CFrame.new(0, 0, 2.8))
+		return p, 0
+	elseif tipo == "moeda" then
+		-- Killer Queen: moeda que virou bomba
+		local p = parte(Vector3.new(0.14, 0.9, 0.9), CFrame.new(), RGB(230, 190, 70), Enum.Material.Metal, Enum.PartType.Cylinder)
+		p.Reflectance = 0.3
+		local brilho = parte(Vector3.new(1.4, 1.4, 1.4), CFrame.new(), RGB(255, 150, 210), Enum.Material.ForceField, Enum.PartType.Ball)
+		preso(p, brilho, CFrame.identity)
+		return p, 0
+	elseif tipo == "tanque" then
+		-- Sheer Heart Attack: tanquinho com caveira
+		local p = parte(Vector3.new(1.7, 1.0, 2.1), CFrame.new(), RGB(70, 76, 96), Enum.Material.Metal)
+		local cupula = parte(Vector3.new(1.4, 1.4, 1.4), CFrame.new(), RGB(84, 92, 116), Enum.Material.Metal, Enum.PartType.Ball)
+		preso(p, cupula, CFrame.new(0, 0.55, 0.1))
+		local caveira = parte(Vector3.new(0.7, 0.55, 0.12), CFrame.new(), RGB(235, 230, 220), Enum.Material.SmoothPlastic)
+		preso(p, caveira, CFrame.new(0, 0.55, -0.72))
+		for _, x in { -0.95, 0.95 } do
+			local esteira = parte(Vector3.new(0.35, 0.8, 2.2), CFrame.new(), RGB(25, 25, 28), Enum.Material.Rubber)
+			preso(p, esteira, CFrame.new(x, -0.2, 0))
+		end
+		local olho = parte(Vector3.new(0.3, 0.3, 0.3), CFrame.new(), RGB(255, 60, 60), Enum.Material.Neon, Enum.PartType.Ball)
+		preso(p, olho, CFrame.new(0, 0.95, -0.4))
+		return p, 0
+	elseif tipo == "caco" then
+		local p = parte(Vector3.new(0.7, 0.35, 1.8), CFrame.new(), RGB(255, 160, 220), Enum.Material.Glass)
+		p.Transparency = 0.15
+		return p, 0
 	end
 	local p = parte(Vector3.new(raio, raio, raio * 2), CFrame.new(), cor, Enum.Material.Neon)
 	return p, 0
 end
 
+local CORES_RASTRO = {
+	fogo = RGB(255, 140, 40),
+	ankh = RGB(255, 140, 40),
+	faca = RGB(255, 230, 140),
+	rapieira = RGB(220, 230, 255),
+	moeda = RGB(255, 150, 210),
+	tanque = RGB(120, 120, 140),
+}
 function Efeitos.proj(d: any)
 	local cor = corStand(d.stand)
 	local p = visualProjetil(d.visual, cor, d.raio or 1.5)
-	Efeitos.rastro(p, if d.visual == "fogo" then RGB(255, 140, 40) else cor, 30)
+	Efeitos.rastro(p, CORES_RASTRO[d.visual or ""] or cor, 30)
 	projeteis[d.id] = { p = p, origem = d.origem, dir = d.dir, vel = d.vel, t = d.t, alcance = d.alcance, visual = d.visual, pausaAte = 0, pausado = 0 }
 end
 
@@ -642,6 +791,17 @@ function Efeitos.projFim(d: any)
 	end
 	if d.explodiu == false and d.pos then
 		Efeitos.faiscas(d.pos, BRANCO, 4, 3)
+	end
+end
+
+-- projétil guiado virou (Sheer Heart Attack): recomeça a conta do caminho de onde ele está
+function Efeitos.projVirar(d: any)
+	local pr = projeteis[d.id]
+	if pr then
+		pr.origem = d.pos
+		pr.dir = d.dir
+		pr.t = d.t
+		pr.alcance = d.resta or pr.alcance
 	end
 end
 
@@ -672,7 +832,18 @@ local function passoProjeteis()
 		local dist = math.min(pr.alcance + 4, pr.vel * math.max(0, dt))
 		local pos = pr.origem + pr.dir * dist
 		local olhar = pos + pr.dir
-		local giro = if pr.visual == "lamina" then CFrame.Angles(0, 0, agora * 20) else CFrame.identity
+		local giro = CFrame.identity
+		if pr.visual == "lamina" then
+			giro = CFrame.Angles(0, 0, agora * 20)
+		elseif pr.visual == "moeda" then
+			giro = CFrame.Angles(agora * 18, 0, 0)
+		elseif pr.visual == "rolamento" then
+			giro = CFrame.Angles(agora * 30, 0, 0)
+		elseif pr.visual == "ankh" then
+			giro = CFrame.Angles(0, 0, math.sin(agora * 9) * 0.25)
+		elseif pr.visual == "tanque" then
+			giro = CFrame.new(0, math.abs(math.sin(agora * 16)) * 0.12, 0)
+		end
 		pr.p.CFrame = CFrame.lookAt(pos, olhar) * giro
 		if dist >= pr.alcance + 4 then
 			pr.p:Destroy()
@@ -713,6 +884,22 @@ function Efeitos.area(d: any)
 			Debris:AddItem(p, 1.25)
 		end
 		Efeitos.bolha(pos, raio * 0.6, ARCOIRIS[2], 0.4, Enum.Material.Neon)
+	elseif vfx == "prata" then
+		-- Silver Chariot: dezenas de cortes prateados em volta
+		for i = 1, (if qualidadeAlta then 18 else 8) do
+			task.delay(i * 0.012, function()
+				local a = rng:NextNumber(0, math.pi * 2)
+				local centro = pos + Vector3.new(math.cos(a) * raio * 0.5, rng:NextNumber(0, 5), math.sin(a) * raio * 0.5)
+				local corte = parte(Vector3.new(0.12, 0.5, rng:NextNumber(5, 9)), CFrame.new(centro) * CFrame.Angles(rng:NextNumber(-1, 1), a, rng:NextNumber(-1.2, 1.2)), RGB(230, 236, 250), Enum.Material.Neon)
+				corte.Transparency = 0.1
+				tween(corte, 0.25, { Size = Vector3.new(0.02, 0.1, corte.Size.Z * 1.4), Transparency = 1 })
+				Debris:AddItem(corte, 0.3)
+			end)
+		end
+		Efeitos.anel(chaoAbaixo(pos) + Vector3.new(0, 0.3, 0), raio, RGB(220, 230, 255), 0.35, 0.4)
+		Efeitos.particulas(pos + Vector3.new(0, 2, 0), RGB(220, 230, 255), { n = 30, vel = 40, tam = 0.8, vida = 0.4 })
+	elseif vfx == "coluna_fogo" then
+		Efeitos.coluna(pos, raio, RGB(255, 120, 30), 0.6)
 	elseif vfx == "onda_rosa" then
 		Efeitos.bolha(pos, raio, RGB(255, 160, 220), 0.4)
 		Efeitos.anel(chaoAbaixo(pos) + Vector3.new(0, 0.3, 0), raio, RGB(255, 160, 220), 0.35, 0.5)
@@ -796,6 +983,24 @@ end
 function Efeitos.sol(d: any)
 	local inicio = os.clock()
 	local sol = parte(Vector3.new(1, 1, 1), CFrame.new(d.acima), RGB(255, 210, 60), Enum.Material.Neon, Enum.PartType.Ball)
+	if d.visual == "ankh" then
+		-- Magician's Red: um ankh gigante de fogo cai junto com o sol
+		local ankh = visualProjetil("ankh", RGB(255, 120, 30), 2)
+		ankh.Size = Vector3.new(2.4, 12, 2.4)
+		ankh.CFrame = CFrame.new(d.acima + Vector3.new(0, 10, 0))
+		for _, x in ankh:GetChildren() do
+			if x:IsA("Fire") then
+				x.Size = 18
+			end
+		end
+		task.delay(d.formar, function()
+			tween(ankh, d.cair, { CFrame = CFrame.new(d.alvo + Vector3.new(0, 6, 0)) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			task.delay(d.cair, function()
+				ankh:Destroy()
+			end)
+		end)
+		Efeitos.onomatopeia(d.acima, "CROSSFIRE HURRICANE!", RGB(255, 150, 40), 1.6)
+	end
 	local l = Instance.new("PointLight")
 	l.Color = RGB(255, 200, 80)
 	l.Range = 60
@@ -889,7 +1094,22 @@ function Efeitos.despertar(d: any)
 		return
 	end
 	local cor = corStand(d.stand)
-	Animador.tocar(modelo, "despertar")
+	-- cada Stand tem a sua animação de despertar (pose do usuário + o Stand ruge)
+	local clipe = "despertar_" .. tostring(d.stand)
+	if Poses.clipe(clipe) then
+		Animador.tocar(modelo, clipe)
+	else
+		Animador.tocar(modelo, "despertar")
+	end
+	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
+	StandVisual.acao(modelo, { modo = "costas", clipe = "stand_ruge", dur = 1.6 })
+	local s = Stands.get(d.stand)
+	if s and s.grito then
+		task.delay(0.35, function()
+			Som.voz(s.grito, raiz.Position)
+		end)
+	end
+	Efeitos.particulas(raiz.Position, cor, { n = 40, vel = 34, tam = 1.6, vida = 0.7, cor2 = BRANCO })
 	local coluna = parte(Vector3.new(60, 6, 6), CFrame.new(raiz.Position + Vector3.new(0, 26, 0)) * CFrame.Angles(0, 0, math.rad(90)), cor, Enum.Material.Neon, Enum.PartType.Cylinder)
 	coluna.Transparency = 0.2
 	tween(coluna, 1.2, { Size = Vector3.new(80, 0.5, 0.5), Transparency = 1 })
@@ -907,7 +1127,7 @@ end
 
 function Efeitos.cura(d: any)
 	local modelo = d.quem
-	local torso = modelo and (modelo:FindFirstChild("UpperTorso") or modelo:FindFirstChild("HumanoidRootPart")) :: BasePart?
+	local torso = modelo and (modelo:FindFirstChild("Torso") or modelo:FindFirstChild("UpperTorso") or modelo:FindFirstChild("HumanoidRootPart")) :: BasePart?
 	if not torso then
 		return
 	end
@@ -961,21 +1181,31 @@ end
 
 function Efeitos.marca(d: any)
 	local raiz = d.v and d.v:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not raiz then
+	local fixo: Vector3? = d.pos
+	if not raiz and not fixo then
 		return
 	end
-	local cor = corStand(d.stand)
-	local anel = parte(Vector3.new(0.2, 4, 4), raiz.CFrame, cor, Enum.Material.Neon, Enum.PartType.Cylinder)
+	local cor = if d.bomba then RGB(255, 120, 200) else corStand(d.stand)
+	local anel = parte(Vector3.new(0.2, 4, 4), CFrame.new(fixo or (raiz :: BasePart).Position), cor, Enum.Material.Neon, Enum.PartType.Cylinder)
 	anel.Transparency = 0.3
 	local fim = os.clock() + math.max(0.2, (d.ate or 0) - workspace:GetServerTimeNow())
 	task.spawn(function()
-		while os.clock() < fim and raiz.Parent and anel.Parent do
-			anel.CFrame = CFrame.new(raiz.Position) * CFrame.Angles(0, os.clock() * 6, math.rad(90))
+		while os.clock() < fim and anel.Parent and (fixo or (raiz and raiz.Parent)) do
+			local centro = fixo or (raiz :: BasePart).Position
+			local pulso = if d.bomba then 1 + math.abs(math.sin(os.clock() * 10)) * 0.25 else 1
+			anel.Size = Vector3.new(0.2, 4 * pulso, 4 * pulso)
+			anel.CFrame = CFrame.new(centro) * CFrame.Angles(0, os.clock() * 6, math.rad(90))
 			task.wait()
 		end
 		anel:Destroy()
 	end)
-	Som.tocar("relogio", raiz.Position)
+	local onde = fixo or (raiz :: BasePart).Position
+	if d.bomba then
+		Efeitos.onomatopeia(onde + Vector3.new(0, 3, 0), "CLICK", RGB(255, 140, 210), 0.9)
+		Som.tocar("metal", onde, { vol = 0.6 })
+	else
+		Som.tocar("relogio", onde)
+	end
 end
 
 function Efeitos.agarrao(d: any)
@@ -1072,7 +1302,7 @@ function Efeitos.lancaChamas(dono: Model, dur: number)
 		while os.clock() < fim and raizDono.Parent do
 			local st = StandVisual.modelo(dono)
 			local origemCf = raizDono.CFrame * CFrame.new(0, 0.8, -3.5)
-			local mao = st and st:FindFirstChild("RightHand") :: BasePart?
+			local mao = st and (st:FindFirstChild("Right Arm") or st:FindFirstChild("RightHand")) :: BasePart?
 			if mao then
 				origemCf = CFrame.lookAt(mao.Position, mao.Position + raizDono.CFrame.LookVector)
 			end
@@ -1088,6 +1318,169 @@ function Efeitos.lancaChamas(dono: Model, dur: number)
 		end
 		if som then
 			som:Destroy()
+		end
+	end)
+end
+
+------------------------------------------------------------------------------------- JoJo
+-- coluna de fogo que sobe do chão (Magician's Red)
+function Efeitos.coluna(pos: Vector3, raio: number, cor: Color3, dur: number)
+	local chao = chaoAbaixo(pos)
+	local alto = 26
+	local c = parte(Vector3.new(alto, raio * 1.2, raio * 1.2), CFrame.new(chao) * CFrame.Angles(0, 0, math.rad(90)), cor, Enum.Material.Neon, Enum.PartType.Cylinder)
+	c.Transparency = 0.25
+	c.Size = Vector3.new(1, raio * 0.4, raio * 0.4)
+	tween(c, 0.15, { Size = Vector3.new(alto, raio * 1.4, raio * 1.4), CFrame = CFrame.new(chao + Vector3.new(0, alto / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)) })
+	task.delay(dur, function()
+		if c.Parent then
+			tween(c, 0.3, { Transparency = 1, Size = Vector3.new(alto * 1.1, 0.4, 0.4) })
+		end
+	end)
+	Debris:AddItem(c, dur + 0.35)
+	if qualidadeAlta then
+		local f = Instance.new("Fire")
+		f.Size = raio * 2
+		f.Heat = 25
+		f.Color = RGB(255, 100, 20)
+		f.SecondaryColor = RGB(255, 220, 80)
+		f.Parent = c
+	end
+	Efeitos.particulas(chao + Vector3.new(0, 2, 0), RGB(255, 140, 40), { n = 24, vel = 30, tam = 3, vida = 0.7, textura = "fogo", gravidade = 30, espalhar = 25, cor2 = RGB(255, 60, 10) })
+	Efeitos.anel(chao + Vector3.new(0, 0.3, 0), raio * 1.4, cor, 0.4, 0.6)
+	Efeitos.luz(chao + Vector3.new(0, 6, 0), cor, 8, raio * 5, dur)
+	Som.tocar("fogo_grande", chao, { alcance = 300 })
+end
+
+-- raio reto que sai da mão do Stand (Star Finger, Red Bind)
+function Efeitos.linha(dono: Model?, comp: number, cor: Color3, dur: number, fogo: boolean?)
+	local raizDono = dono and dono:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not raizDono then
+		return
+	end
+	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
+	local st = StandVisual.modelo(dono :: Model)
+	local mao = st and (st:FindFirstChild("Right Arm") or st:FindFirstChild("RightHand")) :: BasePart?
+	local origem = if mao then mao.Position else (raizDono.CFrame * CFrame.new(0.6, 0.6, -2.5)).Position
+	local dir = raizDono.CFrame.LookVector
+	local p = parte(Vector3.new(0.35, 0.35, 0.2), CFrame.lookAt(origem, origem + dir), cor, Enum.Material.Neon)
+	tween(p, 0.08, { Size = Vector3.new(0.35, 0.35, comp), CFrame = CFrame.lookAt(origem + dir * comp / 2, origem + dir * comp) })
+	if fogo and qualidadeAlta then
+		local f = Instance.new("Fire")
+		f.Size = 3
+		f.Heat = 4
+		f.Color = RGB(255, 110, 20)
+		f.SecondaryColor = RGB(255, 220, 80)
+		f.Parent = p
+	end
+	task.delay(dur, function()
+		if p.Parent then
+			tween(p, 0.12, { Size = Vector3.new(0.05, 0.05, comp), Transparency = 1 })
+		end
+	end)
+	Debris:AddItem(p, dur + 0.2)
+	Efeitos.particulas(origem + dir * comp, cor, { n = 10, vel = 16, tam = 0.8, vida = 0.3 })
+end
+
+-- ROAD ROLLER DA! (The World): cai do céu em cima de quem está parado no tempo
+function Efeitos.rolo(d: any)
+	local pos: Vector3 = d.pos
+	local chao = chaoAbaixo(pos)
+	local corpo = parte(Vector3.new(9, 6, 14), CFrame.new(chao + Vector3.new(0, 60, 0)) * CFrame.Angles(math.rad(-25), 0, math.rad(8)), RGB(240, 200, 40), Enum.Material.SmoothPlastic)
+	corpo.CastShadow = true
+	local rolo = parte(Vector3.new(9.5, 6, 6), CFrame.new(), RGB(70, 72, 78), Enum.Material.Metal, Enum.PartType.Cylinder)
+	preso(corpo, rolo, CFrame.new(0, -1.5, -6.5) * CFrame.Angles(0, math.rad(90), 0))
+	local cabine = parte(Vector3.new(6, 4, 5), CFrame.new(), RGB(230, 190, 40), Enum.Material.SmoothPlastic)
+	preso(corpo, cabine, CFrame.new(0, 5, 2.5))
+	local teto = parte(Vector3.new(7, 0.5, 6), CFrame.new(), RGB(40, 40, 44), Enum.Material.Metal)
+	preso(corpo, teto, CFrame.new(0, 7.2, 2.5))
+	local placa = parte(Vector3.new(4, 1.2, 0.2), CFrame.new(), RGB(250, 250, 250), Enum.Material.SmoothPlastic)
+	preso(corpo, placa, CFrame.new(0, 1.2, 7.05))
+	Efeitos.onomatopeia(pos + Vector3.new(0, 10, 0), "ROAD ROLLER DA!", RGB(255, 210, 40), 1.8)
+	local cai = 0.35
+	local fim = CFrame.new(chao + Vector3.new(0, 4.5, 0)) * CFrame.Angles(math.rad(-8), 0, math.rad(4))
+	tween(corpo, cai, { CFrame = fim }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	task.delay(cai, function()
+		Efeitos.cratera(chao, 10)
+		Efeitos.poeira(chao + Vector3.new(0, 2, 0), 8, nil, 20)
+		Som.tocar("metal", chao, { alcance = 400 })
+		Som.tocar("impacto_grande", chao, { alcance = 400 })
+		Camera.tremer(0.8, 0.5)
+		-- o Stand esmurra o rolo até o tempo voltar (MUDA MUDA MUDA)
+		local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
+		local ate = (d.ate or workspace:GetServerTimeNow()) - workspace:GetServerTimeNow()
+		if d.quem then
+			StandVisual.acao(d.quem, { modo = "frente", clipe = "barragem", dur = math.max(0.3, ate) })
+			Efeitos.punhos(StandVisual.modelo(d.quem), math.max(0.3, ate), corStand(d.stand))
+		end
+		task.spawn(function()
+			local t0 = os.clock()
+			while os.clock() - t0 < math.max(0.3, ate) and corpo.Parent do
+				corpo.CFrame = fim * CFrame.new(rng:NextNumber(-0.15, 0.15), rng:NextNumber(-0.1, 0.1), 0)
+				task.wait(0.05)
+			end
+			if corpo.Parent then
+				Efeitos.bolha(chao + Vector3.new(0, 4, 0), 14, RGB(255, 140, 40), 0.5, Enum.Material.Neon)
+				Efeitos.particulas(chao + Vector3.new(0, 4, 0), RGB(255, 140, 40), { n = 40, vel = 50, tam = 4, vida = 0.9, textura = "fogo", cor2 = RGB(80, 60, 50) })
+				corpo:Destroy()
+			end
+		end)
+	end)
+	Debris:AddItem(corpo, 12)
+end
+
+-- Bites the Dust: o mundo roda para trás (tela invertida, relógio ao contrário)
+local corRebobinar: ColorCorrectionEffect? = nil
+function Efeitos.rebobinar(d: any)
+	local raiz = d.quem and d.quem:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local dur = d.dur or 0.7
+	if raiz then
+		Efeitos.onomatopeia(raiz.Position + Vector3.new(0, 5, 0), "BITES THE DUST", RGB(255, 140, 210), 1.6)
+		Efeitos.ameaca(d.quem, dur + 0.6, RGB(255, 140, 210))
+	end
+	local cc = corRebobinar
+	if cc then
+		tween(cc, 0.25, { Saturation = -0.4, Contrast = 0.4, TintColor = RGB(255, 200, 235) })
+	end
+	Som.tocar("tempo_eco", nil)
+	Som.tocar("relogio", nil, { vel = 1.4 })
+	Camera.tremer(0.25, dur)
+end
+
+function Efeitos.rebobinarFim(d: any)
+	local cc = corRebobinar
+	if cc then
+		tween(cc, 0.6, { Saturation = 0, Contrast = 0, TintColor = BRANCO })
+	end
+	if d.de and d.para and (d.de - d.para).Magnitude > 2 then
+		Efeitos.bolha(d.de, 4, RGB(255, 140, 210), 0.4)
+		Efeitos.bolha(d.para, 5, RGB(255, 140, 210), 0.5, Enum.Material.Neon)
+	end
+	if d.quem then
+		Efeitos.fantasma(d.quem, RGB(255, 140, 210), 0.5)
+	end
+	Som.tocar("tempo_volta", nil)
+end
+
+-- ARMOR OFF (Silver Chariot): rastro de imagens residuais enquanto durar
+function Efeitos.buff(d: any)
+	local modelo = d.quem
+	local raiz = modelo and modelo:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not raiz then
+		return
+	end
+	local cor = corStand(d.stand)
+	Efeitos.onomatopeia(raiz.Position + Vector3.new(0, 4, 0), "ARMOR OFF!", cor, 1.3)
+	Efeitos.particulas(raiz.Position, RGB(220, 230, 255), { n = 30, vel = 30, tam = 1, vida = 0.5 })
+	Som.tocar("metal", raiz.Position)
+	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
+	task.spawn(function()
+		while workspace:GetServerTimeNow() < (d.ate or 0) and modelo.Parent do
+			Efeitos.fantasma(modelo, cor, 0.25)
+			local st = StandVisual.modelo(modelo)
+			if st and StandVisual.visivel(modelo) then
+				Efeitos.fantasma(st, RGB(220, 230, 255), 0.25)
+			end
+			task.wait(0.12)
 		end
 	end)
 end
@@ -1144,6 +1537,10 @@ function Efeitos.iniciar(gui: ScreenGui)
 	ct.Contrast = 0.08
 	ct.Parent = Lighting
 	corTempo = ct
+	local cr = Instance.new("ColorCorrectionEffect")
+	cr.Name = "BB_Rebobinar"
+	cr.Parent = Lighting
+	corRebobinar = cr
 	game:GetService("RunService").PreRender:Connect(passoProjeteis)
 	local _ = lutadoresCache
 end

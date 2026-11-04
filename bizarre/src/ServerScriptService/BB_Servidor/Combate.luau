@@ -71,6 +71,10 @@ function Combate.atualizarMovimento(lut: any)
 	if passiva and passiva.multVelocidade then
 		base *= passiva.multVelocidade
 	end
+	-- ARMOR OFF e outros buffs de velocidade
+	if lut.buffVel and t < (lut.buffAte or 0) then
+		base *= lut.buffVel
+	end
 	local vel = base
 	local pulo = Config.PULO
 	if t < e.congeladoAte or t < e.ragdollAte then
@@ -116,6 +120,9 @@ local function aplicarDano(alvo: any, dano: number, atk: any?)
 	if atk and atk ~= alvo then
 		alvo.ultimoAtacante = atk
 		alvo.ultimoAtacanteT = t
+		-- quem me bateu e quando (Bites the Dust explode essa gente)
+		alvo.atacadoPor = alvo.atacadoPor or {}
+		alvo.atacadoPor[atk] = t
 		atk.estado.ultimoDanoT = t -- quem bate também está "em combate"
 	end
 	if alvo.imortal then
@@ -234,14 +241,23 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 		Regras.atordoar(e, t, h.atordoar)
 	end
 	local vel = vetor(h, dir, inf.origem, alvo)
+	local emp = h.empurrar or {}
+	local durEmp = emp.dur or 0.12
 	if h.ragdoll and h.ragdoll > 0 then
 		Regras.derrubar(e, t, h.ragdoll)
 		Fisica.derrubar(alvo, e.ragdollAte)
 		alvo.forcaVoo = h.quebra or 1
+		-- AJUSTE-2: quem cai não sai voando longe demais
+		vel *= Config.EMPURRAO.multRagdoll
+		durEmp = math.min(durEmp, Config.EMPURRAO.durMax)
 	end
 	if vel.Magnitude > 0.1 then
-		local emp = h.empurrar or {}
-		Fisica.empurrar(alvo, vel, emp.dur or 0.12)
+		Fisica.empurrar(alvo, vel, durEmp)
+	end
+	-- DIO suga vida
+	local roubo = atk.stand.passiva and atk.stand.passiva.rouboVida
+	if roubo and atk ~= alvo and atk.hum.Health > 0 then
+		atk.hum.Health = math.min(atk.hum.MaxHealth, atk.hum.Health + dano * roubo)
 	end
 	if h.queima or (atk.stand.passiva and atk.stand.passiva.queima and tipoGolpe ~= "melee") then
 		queimar(alvo, h.queima or 3, atk)
@@ -324,21 +340,21 @@ function Combate.m1(lut: any, dados: any)
 		end
 		local hb = if stand then Config.M1.hitboxStand else Config.M1.hitbox
 		local d = Lutadores.olhar(lut, agora())
-		local folga = 0
+		local folga = if stand and lut.stand.passiva and lut.stand.passiva.alcanceExtra then lut.stand.passiva.alcanceExtra else 0
 		if lut.jogador then
-			folga = math.clamp(lut.raiz.AssemblyLinearVelocity:Dot(d) * 0.06, 0, 1.5)
+			folga += math.clamp(lut.raiz.AssemblyLinearVelocity:Dot(d) * 0.06, 0, 1.5)
 		end
 		local cf = Hitbox.cfFrente(lut.raiz, d, hb.frente + folga)
 		local alvos = Hitbox.caixa(cf, hb.tam, lut)
 		local estilo = lut.stand.m1
-		local vfx = if estilo == "fogo" then "impacto_fogo" elseif estilo == "grave" then "impacto_som" elseif estilo == "cristal" then "impacto_rosa" elseif estilo == "sombrinha" then "corte_colorido" elseif estilo == "chutes" then "impacto_dourado" else "impacto"
+		local vfx = if estilo == "fogo" then "impacto_fogo" elseif estilo == "rapieira" then "corte_prata" else "impacto"
 		for _, alvo in alvos do
 			local h: any = {
 				m1 = true,
 				dano = Regras.danoM1(n, stand),
 				atordoar = Config.M1.atordoar,
 				tipo = "melee",
-				som = if n == 4 then "soco_forte" elseif estilo == "chutes" then "chute" else "soco",
+				som = if n == 4 then "soco_forte" elseif estilo == "rapieira" then "estocada" else "soco",
 				vfx = if n == 4 then "impacto_forte" else vfx,
 				tremor = if n == 4 then 0.45 else 0.12,
 			}
@@ -353,6 +369,11 @@ function Combate.m1(lut: any, dados: any)
 				h.atordoar = 0
 				if variante == "baixo" then
 					h.vfx = "cratera"
+				end
+				if lut.stand.passiva and lut.stand.passiva.m1Explode then
+					h.dano += 2
+					h.vfx = "explosao_fogo"
+					h.som = "explosao"
 				end
 			end
 			Combate.acertar(lut, alvo, h, { dir = d })
@@ -592,9 +613,10 @@ local function passo(dt: number)
 		-- quem está voando quebra as paredes no caminho
 		if t < e.ragdollAte then
 			Mapa.atravessar(lut, lut.forcaVoo or 2)
+			Fisica.manterRagdoll(lut)
 		elseif lut.modelo:GetAttribute("BB_Ragdoll") and (lut.modelo:GetAttribute("BB_Ragdoll") :: number) > 0 then
 			-- acabou o ragdoll: quebra o que ficou "dentro" e levanta
-			Mapa.quebrarCaixa(lut.raiz.CFrame, Vector3.new(4, 6, 4), 3, Vector3.new(0, 1, 0))
+			Mapa.quebrarCaixa(lut.raiz.CFrame + Vector3.new(0, 1.6, 0), Vector3.new(4, 4, 4), 3, Vector3.new(0, 1, 0), true)
 			Fisica.levantar(lut)
 			lut.forcaVoo = nil
 		end

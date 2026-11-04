@@ -34,6 +34,29 @@ pastaRemotos.Parent = ReplicatedStorage
 Fisica.iniciar(remotos.Privado)
 Mapa.construir(workspace)
 Mapa.iniciar(remotos.Efeito)
+
+-- Morioh é grande e chega aos pouquinhos no celular (StreamingEnabled). No menu o celular
+-- recebe a região do centro (onde a câmera voa); antes de nascer, recebe a região do spawn.
+local focoMenu = Instance.new("Part")
+focoMenu.Name = "BB_FocoMenu"
+focoMenu.Anchored = true
+focoMenu.CanCollide = false
+focoMenu.CanQuery = false
+focoMenu.CanTouch = false
+focoMenu.Transparency = 1
+focoMenu.Size = Vector3.new(1, 1, 1)
+focoMenu.Position = Mapa.CENTRO_MENU
+focoMenu.Parent = workspace
+
+local function carregarRegiao(jogador: Player, pos: Vector3)
+	if not workspace.StreamingEnabled then
+		return
+	end
+	pcall(function()
+		jogador:RequestStreamAroundAsync(pos, 6)
+	end)
+end
+Fisica.carregarRegiao = carregarRegiao
 task.spawn(function()
 	StandModelos.preparar()
 	workspace:SetAttribute("BB_StandsProntos", true)
@@ -113,7 +136,10 @@ local function prepararPersonagem(jogador: Player, personagem: Model)
 	hum.JumpHeight = Config.PULO
 	hum.WalkSpeed = Config.ANDAR
 	task.wait()
-	personagem:PivotTo(melhorSpawn(e.modo) + Vector3.new(0, 1, 0))
+	local destino = melhorSpawn(e.modo) + Vector3.new(0, 1, 0)
+	carregarRegiao(jogador, destino.Position)
+	personagem:PivotTo(destino)
+	jogador.ReplicationFocus = nil
 	Fisica.grupo(personagem, Fisica.GRUPOS.lutador)
 	personagem.DescendantAdded:Connect(function(d)
 		if d:IsA("BasePart") then
@@ -135,6 +161,7 @@ local function prepararPersonagem(jogador: Player, personagem: Model)
 end
 
 Players.PlayerAdded:Connect(function(jogador)
+	jogador.ReplicationFocus = focoMenu
 	jogador.CharacterAdded:Connect(function(personagem)
 		prepararPersonagem(jogador, personagem)
 	end)
@@ -169,7 +196,9 @@ remotos.Entrar.OnServerEvent:Connect(function(jogador: Player, dados: any)
 		if modo == "treino" then
 			local treino = Mapa.treino()
 			if treino then
+				carregarRegiao(jogador, treino.spawn.Position)
 				jogador.Character:PivotTo(treino.spawn)
+				Fisica.moverPara(lut, treino.spawn)
 			end
 		end
 		return

@@ -302,8 +302,9 @@ local function cameraMenu()
 	conexaoCamera = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - t0
 		local a = t * 0.06
-		local raio = 96 + math.sin(t * 0.13) * 14
-		local pos = Vector3.new(math.cos(a) * raio, 34 + math.sin(t * 0.2) * 6, math.sin(a) * raio)
+		-- voo por cima de Morioh (acima dos prédios de 4 a 6 andares)
+		local raio = 165 + math.sin(t * 0.13) * 15
+		local pos = Vector3.new(math.cos(a) * raio, 125 + math.sin(t * 0.2) * 8, math.sin(a) * raio)
 		cam.CFrame = CFrame.lookAt(pos, Vector3.new(0, 10, 0))
 	end)
 end

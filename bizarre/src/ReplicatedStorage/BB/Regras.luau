@@ -33,6 +33,8 @@ export type Estado = {
 	contra: any,
 	multDanoRecebido: number,
 	semRecarga: boolean,
+	buffAte: number,
+	buffDano: number,
 }
 
 function Regras.novoEstado(): Estado
@@ -64,6 +66,8 @@ function Regras.novoEstado(): Estado
 		contra = nil,
 		multDanoRecebido = 1,
 		semRecarga = false,
+		buffAte = 0,
+		buffDano = 1,
 	}
 end
 
@@ -216,6 +220,9 @@ function Regras.danoFinal(base: number, atacante: Estado?, alvo: Estado, t: numb
 	local d = base
 	if atacante and Regras.desperto(atacante, t) then
 		d *= Config.DESPERTAR.multDano
+	end
+	if atacante and t < (atacante.buffAte or 0) then
+		d *= atacante.buffDano or 1
 	end
 	d *= alvo.multDanoRecebido or 1
 	return math.floor(d * 10 + 0.5) / 10

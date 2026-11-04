@@ -129,7 +129,7 @@ end)
 print("== Stands e golpes")
 local fonteExec = fs.readFile("bizarre/src/ServerScriptService/BB_Servidor/Executores.luau")
 local fonteEfeitos = fs.readFile("bizarre/src/ReplicatedStorage/BB/Cliente/Efeitos.luau")
-local EXECUTORES = { golpe = true, barragem = true, projetil = true, area = true, investida = true, agarrar = true, contra = true, teleporte = true, cura = true, especial = true }
+local EXECUTORES = { golpe = true, barragem = true, projetil = true, area = true, investida = true, agarrar = true, contra = true, teleporte = true, cura = true, buff = true, especial = true }
 
 local function sonsDe(t: any, lista: { string })
 	for k, v in t do
@@ -151,7 +151,7 @@ local function vfxDe(t: any, lista: { string })
 	end
 end
 
-teste("6 Stands completos (4 golpes + ULT, cores, corpo do catálogo)", function()
+teste("6 Stands da JoJo completos (4 golpes + ULT, cores, roupa e acessórios do catálogo)", function()
 	assert(#Stands.ORDEM == 6)
 	for _, id in Stands.ORDEM do
 		local s = Stands.get(id)
@@ -167,15 +167,28 @@ teste("6 Stands completos (4 golpes + ULT, cores, corpo do catálogo)", function
 		local u = Golpes.get(s.ult)
 		assert(u and u.ult, id .. ": ULT")
 		assert(s.cor and s.cor2 and s.aura and s.olhos, id .. ": cores")
-		assert(#s.visual.corpos >= 1, id .. ": corpos")
-		for _, c in s.visual.corpos do
-			local corpo = Stands.CORPOS[c]
-			assert(corpo, id .. ": corpo " .. c)
-			for _, k in { "torso", "bracoE", "bracoD", "pernaE", "pernaD", "cabeca" } do
-				assert(type(corpo[k]) == "number" and corpo[k] > 1000, c .. "." .. k)
-			end
+		assert(s.usuario and s.parte and s.grito, id .. ": usuário/parte/grito")
+		assert(#s.stats == 6, id .. ": status (Poder, Velocidade, Alcance, Resistência, Precisão, Potencial)")
+		for _, letra in s.stats do
+			assert(string.find("ABCDE", letra, 1, true), id .. ": status " .. tostring(letra))
 		end
+		local v = s.visual
+		assert(type(v.camisa) == "number" and v.camisa > 1000, id .. ": camisa")
+		assert(v.calca == nil or (type(v.calca) == "number" and v.calca > 1000), id .. ": calça")
+		local itens = Stands.itens(s)
+		assert(#itens >= 3, id .. ": poucos itens do catálogo")
+		local vistos = {}
+		for _, item in itens do
+			assert(type(item) == "number" and item > 1000, id .. ": item " .. tostring(item))
+			assert(not vistos[item], id .. ": item repetido " .. item)
+			vistos[item] = true
+		end
+		for tipo in v.acessorios or {} do
+			assert(({ chapeu = 1, cabelo = 1, rosto = 1, pescoco = 1, ombro = 1, frente = 1, costas = 1, cintura = 1 })[tipo], id .. ": tipo de acessório " .. tipo)
+		end
+		assert(v.escala and v.escala >= 1 and v.escala <= 1.3, id .. ": escala")
 		assert(s.passiva and s.passiva.nome and s.passiva.desc, id .. ": passiva")
+		assert(Poses.clipe("despertar_" .. id), id .. ": animação de despertar própria")
 	end
 end)
 
@@ -210,6 +223,15 @@ teste("todo golpe tem executor, animação, sons e efeitos que existem", functio
 		end
 		if g.tipo == "projetil" then
 			assert(g.proj and g.proj.vel and g.proj.alcance, gid .. ": projétil")
+			if g.proj.visual then
+				assert(string.find(fonteEfeitos, 'tipo == "' .. g.proj.visual .. '"', 1, true), gid .. ": visual do projétil " .. g.proj.visual)
+			end
+		end
+		if g.tipo == "buff" then
+			assert(g.buff and g.buff.dur and g.buff.dur > 0, gid .. ": buff")
+		end
+		if g.voz then
+			assert(type(g.voz) == "string", gid .. ": voz")
 		end
 		if g.tipo == "barragem" then
 			assert(g.inicio < g.fim and g.fim <= g.trava + 0.5 and g.hit and g.final, gid .. ": barragem")
@@ -343,6 +365,62 @@ teste("o mapa monta, quebra e reconstrói (sem física)", function()
 	assert(vidro.Transparency < 1 and parede.CanCollide == true, "voltou")
 	assert(Mapa.totalQuebradas() == 0)
 	local _ = pl
+end)
+
+teste("Morioh: dano acumula, chão e estático não quebram, máximo por impacto, volta igual", function()
+	local Mapa = H.moduloNovo("ServerScriptService/BB_Servidor/Mapa")
+	local Config2 = H.modulo("ReplicatedStorage/BB/Config")
+	local raiz = roblox.Instance.new("Folder")
+	raiz.Name = "TesteMorioh"
+	local morioh = roblox.Instance.new("Model")
+	morioh.Name = "Morioh"
+	morioh.Parent = raiz
+	local function peca(nome, pos, tam, role, vida, mat, tags)
+		local p = roblox.Instance.new("Part")
+		p.Name = nome
+		p.Size = tam
+		p.CFrame = roblox.CFrame.new(pos)
+		p.Anchored = true
+		p:SetAttribute("Role", role)
+		p:SetAttribute("Health", vida)
+		p:SetAttribute("MaterialClass", mat)
+		p:SetAttribute("Destructible", vida > 0)
+		for _, t in tags do
+			p:AddTag(t)
+		end
+		p.Parent = morioh
+		return p
+	end
+	local parede = peca("Parede", V(0, 4, 0), V(8, 8, 1), "Wall", 160, "Concrete", { "MoriohDestructible" })
+	local vidro = peca("Vidro", V(6, 4, 0), V(3, 3, 0.2), "Glass", 20, "Glass", { "MoriohDestructible", "MoriohGlass" })
+	local rua = peca("Asfalto", V(0, -0.25, 0), V(40, 0.5, 40), "Road", 0, "Asphalt", { "MoriohStatic" })
+	local piso = peca("Piso", V(0, 0.1, 6), V(8, 0.2, 8), "Floor", 80, "WoodPlanks", { "MoriohDestructible" })
+	Mapa.construir(raiz)
+	assert(Mapa.modo == "morioh", "modo")
+	assert(#Mapa.spawns() >= 8 and Mapa.treino() and #Mapa.treino().bonecos == 3, "spawns e treino do Morioh")
+	assert(Mapa.ehQuebravel(parede) and Mapa.ehQuebravel(vidro) and not Mapa.ehQuebravel(rua), "quem quebra")
+	-- força 1 (60) não derruba concreto (160) de primeira, mas acumula
+	assert(not Mapa.quebrar(parede, nil, 1) and not Mapa.quebrar(parede, nil, 1), "concreto aguenta 2 golpes fracos")
+	assert(Mapa.quebrar(parede, nil, 1), "o 3º golpe fraco quebra (dano acumulado)")
+	assert(parede.Transparency == 1 and parede.CanCollide == false, "parede sumiu")
+	assert(not Mapa.quebrar(rua, nil, 9), "rua nunca quebra")
+	-- quem desliza no chão não abre buraco no piso
+	Mapa.quebrarCaixa(roblox.CFrame.new(0, 1, 6), V(8, 4, 8), 9, nil, true)
+	assert(piso.Transparency == 0, "piso ficou")
+	assert(Mapa.quebrarVidros(V(6, 4, 0), 6) == 1 and vidro.Transparency == 1, "vidro estoura")
+	-- muitas peças: um impacto só quebra no máximo maxPorImpacto
+	for i = 1, 70 do
+		peca("Tijolo" .. i, V(20 + (i % 7), 1 + math.floor(i / 7) * 0.5, 20), V(0.9, 0.4, 0.9), "Wall", 80, "Brick", { "MoriohDestructible" })
+	end
+	local n = Mapa.quebrarArea(V(23, 3, 20), 12, 9)
+	assert(n == Config2.MAPA.maxPorImpacto, "máximo por impacto: " .. n)
+	-- volta tudo do jeito que era
+	assert(Mapa.restaurarTudo() == 2 + n, "restaurou")
+	assert(parede.Transparency == 0 and parede.CanCollide == true and vidro.Transparency == 0, "voltou igual")
+	assert(Mapa.totalQuebradas() == 0)
+	-- a bomba da Killer Queen acha o objeto mais perto (e não o chão)
+	local alvo = Mapa.maisPerto(roblox.CFrame.new(0, 3, 1), V(8, 8, 8))
+	assert(alvo == parede, "mais perto: " .. tostring(alvo))
 end)
 
 print("== instalador")

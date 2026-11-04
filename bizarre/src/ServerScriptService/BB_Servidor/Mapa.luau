@@ -1,7 +1,12 @@
--- BIZARRE BATTLEGROUNDS :: a cidade quebrável (monta, quebra e reconstrói sozinha)
--- Quebrar = a peça some (fica invisível e sem colisão) e os celulares soltam os destroços.
--- Depois de um tempo ela volta (se ninguém estiver no lugar).
+-- BIZARRE BATTLEGROUNDS :: a cidade quebrável (quebra e reconstrói sozinha)
+-- Mapa principal: Morioh (Workspace.Morioh, feito no ChatGPT). Cada peça quebrável tem o atributo
+-- Health; a força do golpe vira dano (Config.MAPA.danoPorForca) e, quando a vida acaba, a peça
+-- some (fica invisível e sem colisão) e os celulares soltam os destroços. Depois de 30 s ela volta
+-- (se ninguém estiver no lugar). Peças MoriohStatic (chão, rua, fundação) nunca quebram e um golpe
+-- quebra no máximo Config.MAPA.maxPorImpacto peças (as mais perto do impacto).
+-- Sem o Morioh (testes), monta a cidade antiga do Plano.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -13,28 +18,62 @@ local Hitbox = require(script.Parent.Hitbox)
 
 local Mapa = {}
 
--- força mínima para quebrar cada tipo de peça
-Mapa.RESISTENCIA = { vidro = 1, adereco = 1, parede = 2, carro = 2, estatua = 3, temporario = 1 }
+Mapa.modo = "plano" :: string
+Mapa.pasta = nil :: Instance? -- onde ficam as peças da cidade (Morioh ou BB_Mapa)
+Mapa.pastaQuebravel = nil :: Instance?
+Mapa.pastaTemporarias = nil :: Folder?
 
-local pecas: { [number]: any } = {}
-local porParte: { [BasePart]: number } = {}
-local grupos: { [number]: { number } } = {}
-local quebradas: { [number]: boolean } = {}
+-- vida das peças da cidade antiga (força 1 quebra vidro/adereço, 2 parede/carro, 3 estátua)
+Mapa.VIDA_PLANO = { vidro = 20, adereco = 50, parede = 100, carro = 110, estatua = 200, temporario = 40 }
+
+-- pontos de nascer do Morioh: todos conferidos em rua livre (asfalto em Y = 0, nada em cima)
+local SPAWNS_MORIOH = {
+	{ 0, 40 }, { 0, -40 }, { 40, 0 }, { -40, 0 },
+	{ 0, 110 }, { 0, -110 }, { 110, 0 }, { -110, 0 },
+	{ 0, 200 }, { 0, -200 }, { 200, 0 }, { -200, 0 },
+	{ 240, -120 }, { -240, 120 },
+}
+-- área de treino: Campo do Budogaoka (chão em Y = 0,16)
+local TREINO_MORIOH = {
+	spawn = { -760, 140 },
+	bonecos = { { -790, 120 }, { -790, 140 }, { -790, 160 } },
+}
+Mapa.CENTRO_MENU = Vector3.new(0, 30, 0)
+
+type Info = {
+	parte: BasePart,
+	vida: number,
+	vidaMax: number,
+	vidro: boolean,
+	grupo: any?,
+	quebrada: boolean,
+	volta: number,
+	ultimoDano: number,
+	orig: { any }?,
+	temporaria: boolean?,
+	spec: any?,
+}
+
+local infos: { [BasePart]: Info } = {}
+local grupos: { [any]: { BasePart } } = {} -- só a cidade antiga (carro/árvore/poste quebram juntos)
+local quebradas: { [BasePart]: boolean } = {}
+local danificadas: { [BasePart]: boolean } = {}
 local pendentesQuebra: { any } = {}
 local pendentesVolta: { BasePart } = {}
 local remoto: RemoteEvent? = nil
 local plano: any = nil
-Mapa.pasta = nil :: Folder?
-Mapa.pastaQuebravel = nil :: Folder?
+local spawnsProntos: { CFrame } = {}
+local treinoPronto: any = nil
 
 local paramsQuebravel = OverlapParams.new()
 paramsQuebravel.FilterType = Enum.RaycastFilterType.Include
-paramsQuebravel.MaxParts = 300
+paramsQuebravel.MaxParts = 900
 
 local function agora(): number
 	return workspace:GetServerTimeNow()
 end
 
+-------------------------------------------------------------------------------- peças da cidade antiga
 local function criarParte(p: any): BasePart
 	local parte: BasePart
 	if p.f == "Wedge" then
@@ -106,7 +145,22 @@ local function criarParte(p: any): BasePart
 	return parte
 end
 
-function Mapa.construir(pai: Instance?, planoPronto: any?)
+local function infoPlano(parte: BasePart, spec: any): Info
+	local vida = Mapa.VIDA_PLANO[spec.k] or 50
+	return {
+		parte = parte,
+		vida = vida,
+		vidaMax = vida,
+		vidro = spec.k == "vidro",
+		grupo = spec.g,
+		quebrada = false,
+		volta = 0,
+		ultimoDano = 0,
+		spec = spec,
+	}
+end
+
+local function construirPlano(pai: Instance?, planoPronto: any?)
 	plano = planoPronto or Plano.gerar()
 	local pasta = Instance.new("Folder")
 	pasta.Name = "BB_Mapa"
@@ -120,11 +174,10 @@ function Mapa.construir(pai: Instance?, planoPronto: any?)
 		local parte = criarParte(p)
 		if p.q then
 			parte.Parent = quebraveis
-			pecas[p.id] = { spec = p, parte = parte, volta = 0 }
-			porParte[parte] = p.id
+			infos[parte] = infoPlano(parte, p)
 			if p.g then
 				grupos[p.g] = grupos[p.g] or {}
-				table.insert(grupos[p.g], p.id)
+				table.insert(grupos[p.g], parte)
 			end
 		else
 			parte.Parent = fixas
@@ -133,12 +186,137 @@ function Mapa.construir(pai: Instance?, planoPronto: any?)
 	pasta.Parent = pai or workspace
 	Mapa.pasta = pasta
 	Mapa.pastaQuebravel = quebraveis
-	paramsQuebravel.FilterDescendantsInstances = { quebraveis }
+	spawnsProntos = plano.spawns
+	treinoPronto = plano.treino
+	return pasta
+end
+
+-------------------------------------------------------------------------------- Morioh
+local function ehDoMorioh(parte: BasePart): boolean
+	return Mapa.modo == "morioh" and Mapa.pasta ~= nil and parte:IsDescendantOf(Mapa.pasta :: Instance)
+end
+
+local function quebravelMorioh(parte: BasePart): boolean
+	if parte:GetAttribute("Destructible") ~= true or CollectionService:HasTag(parte, "MoriohStatic") then
+		return false
+	end
+	local h = parte:GetAttribute("Health")
+	return type(h) == "number" and h > 0
+end
+
+-- informação da peça (criada só quando ela leva o primeiro golpe)
+local function infoDe(parte: BasePart): Info?
+	local info = infos[parte]
+	if info then
+		return info
+	end
+	if not ehDoMorioh(parte) or not quebravelMorioh(parte) then
+		return nil
+	end
+	local vida = parte:GetAttribute("Health") :: number
+	-- peça enorme (toldo, letreiro, telhado inteiro) precisa de mais pancada
+	local maior = math.max(parte.Size.X, parte.Size.Y, parte.Size.Z)
+	if maior > 40 then
+		vida *= maior / 40
+	end
+	local vidro = CollectionService:HasTag(parte, "MoriohGlass") or parte:GetAttribute("MaterialClass") == "Glass"
+	local novo: Info = {
+		parte = parte,
+		vida = vida,
+		vidaMax = vida,
+		vidro = vidro,
+		grupo = nil,
+		quebrada = false,
+		volta = 0,
+		ultimoDano = 0,
+	}
+	infos[parte] = novo
+	return novo
+end
+
+local PISO = {
+	Floor = true, Stair = true, Paving = true, Deck = true, SportSurface = true, Sidewalk = true,
+	Road = true, Curb = true, Ground = true, Foundation = true, Railway = true, Beach = true,
+	Crosswalk = true, RoadMarking = true, RoadDetail = true, SidewalkDetail = true, Plinth = true,
+}
+
+local function cfNoChao(x: number, y: number, z: number, olharPara: Vector3?): CFrame
+	local pos = Vector3.new(x, y + 3.2, z)
+	local alvo = olharPara or Vector3.new(0, pos.Y, 0)
+	if (Vector3.new(alvo.X, pos.Y, alvo.Z) - pos).Magnitude < 1 then
+		return CFrame.new(pos)
+	end
+	return CFrame.lookAt(pos, Vector3.new(alvo.X, pos.Y, alvo.Z))
+end
+
+local function construirMorioh(morioh: Instance)
+	Mapa.modo = "morioh"
+	Mapa.pasta = morioh
+	Mapa.pastaQuebravel = morioh
+	-- quem está voando atravessa (e quebra) as paredes: grupo de colisão nas peças quebráveis
+	-- (menos o que é chão: piso, escada, calçada... senão o corpo caído afunda)
+	task.spawn(function()
+		local n = 0
+		for _, p in CollectionService:GetTagged("MoriohDestructible") do
+			if p:IsA("BasePart") and not PISO[p:GetAttribute("Role") or ""] and p:IsDescendantOf(morioh) then
+				p.CollisionGroup = Fisica.GRUPOS.quebravel
+				n += 1
+				if n % 4000 == 0 then
+					task.wait()
+				end
+			end
+		end
+	end)
+	spawnsProntos = {}
+	for _, xz in SPAWNS_MORIOH do
+		table.insert(spawnsProntos, cfNoChao(xz[1], 0, xz[2]))
+	end
+	local centroTreino = Vector3.new(-790, 0, 140)
+	local bonecos = {}
+	local s = TREINO_MORIOH.spawn
+	for _, xz in TREINO_MORIOH.bonecos do
+		table.insert(bonecos, cfNoChao(xz[1], 0.16, xz[2], Vector3.new(s[1], 0, s[2])))
+	end
+	treinoPronto = {
+		centro = cfNoChao(centroTreino.X, 0.16, centroTreino.Z),
+		bonecos = bonecos,
+		spawn = cfNoChao(s[1], 0.16, s[2], centroTreino),
+	}
+end
+
+function Mapa.construir(pai: Instance?, planoPronto: any?)
+	local raiz = pai or workspace
+	local morioh = if planoPronto then nil else raiz:FindFirstChild("Morioh")
+	local temporarias = Instance.new("Folder")
+	temporarias.Name = "BB_Temporarias"
+	temporarias.Parent = raiz
+	Mapa.pastaTemporarias = temporarias
+	local pasta
+	if morioh then
+		construirMorioh(morioh)
+		pasta = morioh
+	else
+		Mapa.modo = "plano"
+		pasta = construirPlano(raiz, planoPronto)
+	end
+	paramsQuebravel.FilterDescendantsInstances = { Mapa.pasta :: Instance, temporarias }
 	return pasta, plano
 end
 
 function Mapa.plano()
 	return plano
+end
+
+-- o que os raios/caixas de cenário devem enxergar (chão, paredes e peças temporárias)
+function Mapa.filtro(): { Instance }
+	local l = {}
+	if Mapa.pasta then
+		table.insert(l, Mapa.pasta :: Instance)
+	end
+	if Mapa.pastaTemporarias then
+		table.insert(l, Mapa.pastaTemporarias :: Instance)
+	end
+	return l
 end
 
 function Mapa.iniciar(efeito: RemoteEvent?)
@@ -149,16 +327,25 @@ function Mapa.iniciar(efeito: RemoteEvent?)
 end
 
 function Mapa.ehQuebravel(parte: Instance): boolean
-	return parte:IsA("BasePart") and porParte[parte :: BasePart] ~= nil
+	if not parte:IsA("BasePart") then
+		return false
+	end
+	if infos[parte :: BasePart] then
+		return true
+	end
+	return ehDoMorioh(parte :: BasePart) and quebravelMorioh(parte :: BasePart)
 end
 
 function Mapa.estaQuebrada(parte: BasePart): boolean
-	local id = porParte[parte]
-	return id ~= nil and quebradas[id] == true
+	return quebradas[parte] == true
 end
 
-local function esconder(info: any)
+-------------------------------------------------------------------------------- quebrar / voltar
+local function esconder(info: Info)
 	local parte = info.parte
+	if not info.orig then
+		info.orig = { parte.Transparency, parte.CanCollide, parte.CanQuery, parte.CanTouch }
+	end
 	parte.Transparency = 1
 	parte.CanCollide = false
 	parte.CanQuery = false
@@ -166,164 +353,245 @@ local function esconder(info: any)
 	for _, l in parte:GetChildren() do
 		if l:IsA("Light") or l:IsA("SurfaceGui") then
 			(l :: any).Enabled = false
+		elseif l:IsA("Decal") then
+			l.Transparency = 1
 		end
 	end
 end
 
-local function mostrar(info: any)
+local function mostrar(info: Info)
 	local parte = info.parte
-	local p = info.spec
-	parte.Transparency = p.t or 0
-	parte.CanCollide = not p.semColisao
-	parte.CanQuery = true
-	parte.CanTouch = true
+	local o = info.orig
+	if o then
+		parte.Transparency = o[1]
+		parte.CanCollide = o[2]
+		parte.CanQuery = o[3]
+		parte.CanTouch = o[4]
+	end
+	info.orig = nil
 	for _, l in parte:GetChildren() do
 		if l:IsA("Light") or l:IsA("SurfaceGui") then
 			(l :: any).Enabled = true
+		elseif l:IsA("Decal") then
+			l.Transparency = 0
 		end
 	end
 end
 
-local function marcarQuebra(id: number, dir: Vector3?, forca: number, t: number)
-	local info = pecas[id]
-	if not info or quebradas[id] then
+local function marcarQuebra(info: Info, dir: Vector3?, forca: number, t: number): boolean
+	if info.quebrada then
 		return false
 	end
-	quebradas[id] = true
-	info.volta = t + Config.MAPA.regenerar + math.random() * Config.MAPA.regenerarVariacao
+	info.quebrada = true
+	info.vida = 0
+	quebradas[info.parte] = true
+	danificadas[info.parte] = nil
+	info.volta = if info.temporaria then math.huge else t + Config.MAPA.regenerar + math.random() * Config.MAPA.regenerarVariacao
 	esconder(info)
 	table.insert(pendentesQuebra, { info.parte, dir or Vector3.zero, forca })
 	return true
 end
 
--- quebra uma peça (e o grupo dela, se for carro/árvore/poste...)
-function Mapa.quebrar(parte: BasePart, dir: Vector3?, forca: number?): boolean
-	local id = porParte[parte]
-	if not id or quebradas[id] then
-		return false
-	end
-	local info = pecas[id]
-	local f = forca or 1
-	local precisa = Mapa.RESISTENCIA[info.spec.k] or 1
-	if f < precisa then
-		return false
-	end
-	local t = agora()
-	local g = info.spec.g
-	if g and grupos[g] then
-		for _, outro in grupos[g] do
-			marcarQuebra(outro, dir, f, t)
-		end
-		return true
-	end
-	return marcarQuebra(id, dir, f, t)
-end
-
-function Mapa.quebrarCaixa(cf: CFrame, tam: Vector3, forca: number, dir: Vector3?): number
+-- força (1 a 9) -> dano na peça
+function Mapa.dano(forca: number): number
+	local tabela = Config.MAPA.danoPorForca
 	if forca <= 0 then
 		return 0
 	end
+	local i = math.floor(forca)
+	if i <= #tabela then
+		local base = tabela[math.max(1, i)]
+		local prox = tabela[math.min(#tabela, i + 1)]
+		return base + (prox - base) * (forca - i)
+	end
+	return tabela[#tabela] + (forca - #tabela) * 200
+end
+
+-- tira vida de uma peça; quebra quando acaba. Devolve true se quebrou agora.
+local function ferir(info: Info, dano: number, dir: Vector3?, forca: number, t: number): boolean
+	if info.quebrada or dano <= 0 then
+		return false
+	end
+	info.vida -= dano
+	info.ultimoDano = t
+	if info.vida > 0 then
+		danificadas[info.parte] = true
+		return false
+	end
+	local g = info.grupo
+	if g and grupos[g] then
+		for _, outra in grupos[g] do
+			local io = infos[outra]
+			if io then
+				marcarQuebra(io, dir, forca, t)
+			end
+		end
+		return true
+	end
+	return marcarQuebra(info, dir, forca, t)
+end
+
+-- quebra uma peça só (o projétil que bate numa parede, por exemplo)
+function Mapa.quebrar(parte: BasePart, dir: Vector3?, forca: number?): boolean
+	local info = infoDe(parte)
+	if not info or info.quebrada then
+		return false
+	end
+	local f = forca or 1
+	return ferir(info, Mapa.dano(f), dir, f, agora())
+end
+
+local function ehPiso(p: BasePart): boolean
+	return Mapa.modo == "morioh" and PISO[p:GetAttribute("Role") or ""] == true
+end
+
+-- aplica o dano nas peças achadas, das mais perto para as mais longe (máximo por impacto)
+local function aplicar(achadas: { BasePart }, centro: Vector3, forca: number, dirFixa: Vector3?, raio: number?, soVidro: boolean?, semPiso: boolean?): number
+	local lista = {}
+	for _, p in achadas do
+		local info = infoDe(p)
+		if info and not info.quebrada and (not soVidro or info.vidro) and not (semPiso and ehPiso(p)) then
+			table.insert(lista, { info, (p.CFrame.Position - centro).Magnitude })
+		end
+	end
+	table.sort(lista, function(a, b)
+		return a[2] < b[2]
+	end)
+	local maximo = Config.MAPA.maxPorImpacto or 40
+	local dano = Mapa.dano(forca)
+	local t = agora()
 	local n = 0
-	for _, p in workspace:GetPartBoundsInBox(cf, tam, paramsQuebravel) do
-		if Mapa.quebrar(p, dir or cf.LookVector, forca) then
+	for i = 1, math.min(#lista, maximo) do
+		local info, d = lista[i][1], lista[i][2]
+		local dir = dirFixa
+		if not dir then
+			local v = info.parte.CFrame.Position - centro
+			dir = if v.Magnitude > 0.1 then v.Unit else Vector3.new(0, 1, 0)
+		end
+		-- na borda da explosão o dano cai até a metade
+		local mult = if raio and raio > 0 then 1 - 0.5 * math.clamp(d / raio, 0, 1) else 1
+		local danoAqui = if soVidro then info.vida + 1 else dano * mult
+		if ferir(info, danoAqui, dir, forca, t) then
 			n += 1
 		end
 	end
 	return n
+end
+
+-- semPiso: não quebra o chão (quem está deslizando ou levantando não abre buraco embaixo)
+function Mapa.quebrarCaixa(cf: CFrame, tam: Vector3, forca: number, dir: Vector3?, semPiso: boolean?): number
+	if forca <= 0 then
+		return 0
+	end
+	local achadas = workspace:GetPartBoundsInBox(cf, tam, paramsQuebravel)
+	return aplicar(achadas, cf.Position, forca, dir or cf.LookVector, nil, nil, semPiso)
+end
+
+-- a peça quebrável mais perto do centro da caixa (a Killer Queen transforma em bomba)
+function Mapa.maisPerto(cf: CFrame, tam: Vector3): BasePart?
+	local melhor, melhorD = nil, math.huge
+	for _, p in workspace:GetPartBoundsInBox(cf, tam, paramsQuebravel) do
+		local info = infoDe(p)
+		if info and not info.quebrada and not ehPiso(p) then
+			local d = (p.CFrame.Position - cf.Position).Magnitude
+			if d < melhorD then
+				melhor, melhorD = p, d
+			end
+		end
+	end
+	return melhor
 end
 
 function Mapa.quebrarArea(centro: Vector3, raio: number, forca: number, dir: Vector3?): number
 	if forca <= 0 then
 		return 0
 	end
-	local n = 0
-	for _, p in workspace:GetPartBoundsInRadius(centro, raio, paramsQuebravel) do
-		local d = dir
-		if not d then
-			local v = p.Position - centro
-			d = if v.Magnitude > 0.1 then v.Unit else Vector3.new(0, 1, 0)
-		end
-		if Mapa.quebrar(p, d, forca) then
-			n += 1
-		end
-	end
-	return n
+	local achadas = workspace:GetPartBoundsInRadius(centro, raio, paramsQuebravel)
+	return aplicar(achadas, centro, forca, dir, raio)
 end
 
--- só os vidros (o grave do FUNK estoura as janelas em volta)
+-- só os vidros (onda de choque estoura as janelas em volta)
 function Mapa.quebrarVidros(centro: Vector3, raio: number): number
-	local n = 0
-	for _, p in workspace:GetPartBoundsInRadius(centro, raio, paramsQuebravel) do
-		local id = porParte[p]
-		if id and pecas[id].spec.k == "vidro" then
-			local v = p.Position - centro
-			if Mapa.quebrar(p, if v.Magnitude > 0.1 then v.Unit else nil, 1) then
-				n += 1
-			end
-		end
-	end
-	return n
+	local achadas = workspace:GetPartBoundsInRadius(centro, raio, paramsQuebravel)
+	return aplicar(achadas, centro, 1, nil, nil, true)
 end
 
--- quantas peças quebradas existem perto (o CHORINHO usa isso)
+-- quantas peças quebradas existem perto (o Crazy Diamond usa isso)
 function Mapa.quebradasPerto(pos: Vector3, raio: number): number
 	local n = 0
-	for id in quebradas do
-		local info = pecas[id]
-		if info and (info.parte.Position - pos).Magnitude <= raio then
+	for parte in quebradas do
+		if (parte.CFrame.Position - pos).Magnitude <= raio then
 			n += 1
 		end
 	end
 	return n
 end
 
-local function ocupada(info: any): boolean
+local function ocupada(info: Info): boolean
 	local parte = info.parte
 	local achados = workspace:GetPartBoundsInBox(parte.CFrame, parte.Size * 0.96, Hitbox.parametros())
 	return #achados > 0
 end
 
-local function restaurarId(id: number, forcar: boolean?): boolean
-	local info = pecas[id]
-	if not info or not quebradas[id] then
+local function restaurar(info: Info, forcar: boolean?): boolean
+	if not info.quebrada then
 		return false
 	end
 	if not forcar and ocupada(info) then
 		info.volta = agora() + 2
 		return false
 	end
-	quebradas[id] = nil
+	info.quebrada = false
+	quebradas[info.parte] = nil
 	mostrar(info)
 	table.insert(pendentesVolta, info.parte)
+	if info.temporaria then
+		return true
+	end
+	if info.spec then
+		info.vida = info.vidaMax -- cidade antiga: a peça fica guardada
+	else
+		infos[info.parte] = nil -- Morioh: esquece a peça (memória do servidor)
+	end
 	return true
 end
 
 -- reconstrói tudo num raio. Devolve as peças que voltaram.
 function Mapa.restaurarPerto(pos: Vector3, raio: number, forcar: boolean?): { BasePart }
 	local voltaram = {}
-	local ids = {}
-	for id in quebradas do
-		local info = pecas[id]
-		if info and (info.parte.Position - pos).Magnitude <= raio then
-			table.insert(ids, id)
+	local lista = {}
+	for parte in quebradas do
+		if (parte.CFrame.Position - pos).Magnitude <= raio then
+			table.insert(lista, parte)
 		end
 	end
-	for _, id in ids do
-		if restaurarId(id, forcar) then
-			table.insert(voltaram, pecas[id].parte)
+	for _, parte in lista do
+		local info = infos[parte]
+		if info and not info.temporaria and restaurar(info, forcar) then
+			table.insert(voltaram, parte)
+		end
+	end
+	-- o que só estava rachado também volta inteiro
+	for parte in danificadas do
+		if (parte.CFrame.Position - pos).Magnitude <= raio then
+			local info = infos[parte]
+			if info then
+				info.vida = info.vidaMax
+			end
 		end
 	end
 	return voltaram
 end
 
 function Mapa.restaurarTudo(): number
-	local ids = {}
-	for id in quebradas do
-		table.insert(ids, id)
+	local lista = {}
+	for parte in quebradas do
+		table.insert(lista, parte)
 	end
 	local n = 0
-	for _, id in ids do
-		if restaurarId(id, true) then
+	for _, parte in lista do
+		local info = infos[parte]
+		if info and not info.temporaria and restaurar(info, true) then
 			n += 1
 		end
 	end
@@ -338,27 +606,27 @@ function Mapa.totalQuebradas(): number
 	return n
 end
 
--- peças temporárias (paredão de caixas de som etc.): quebram mas não voltam
+-- peças temporárias (paredão de pedra etc.): quebram mas não voltam
 function Mapa.temporaria(spec: any, duracao: number): BasePart
 	spec.q = true
 	spec.k = "temporario"
-	spec.id = -(#pendentesQuebra + math.random(1, 1e6))
+	spec.id = -math.random(1, 1e9)
 	local parte = criarParte(spec)
 	parte:SetAttribute("BB_Q", nil)
-	parte.Parent = Mapa.pastaQuebravel
-	local id = spec.id
-	pecas[id] = { spec = spec, parte = parte, volta = math.huge, temporaria = true }
-	porParte[parte] = id
+	parte.Parent = Mapa.pastaTemporarias or Mapa.pastaQuebravel or workspace
+	local info = infoPlano(parte, spec)
+	info.temporaria = true
+	info.grupo = nil
+	infos[parte] = info
 	task.delay(duracao, function()
-		if pecas[id] then
-			if not quebradas[id] then
-				marcarQuebra(id, Vector3.new(0, 1, 0), 1, agora())
+		if infos[parte] then
+			if not info.quebrada then
+				marcarQuebra(info, Vector3.new(0, 1, 0), 1, agora())
 			end
-			pecas[id].volta = math.huge
 			task.delay(1, function()
-				porParte[parte] = nil
-				pecas[id] = nil
-				quebradas[id] = nil
+				infos[parte] = nil
+				quebradas[parte] = nil
+				danificadas[parte] = nil
 				parte:Destroy()
 			end)
 		end
@@ -384,55 +652,77 @@ function Mapa.passo()
 		return
 	end
 	local t = agora()
-	for id in quebradas do
-		local info = pecas[id]
+	-- rachadas que ninguém mais bateu saram sozinhas
+	local saradas = {}
+	for parte in danificadas do
+		local info = infos[parte]
+		if not info or info.quebrada then
+			table.insert(saradas, parte)
+		elseif t - info.ultimoDano > Config.MAPA.regenerar then
+			info.vida = info.vidaMax
+			table.insert(saradas, parte)
+			if not info.spec and not info.temporaria then
+				infos[parte] = nil
+			end
+		end
+	end
+	for _, parte in saradas do
+		danificadas[parte] = nil
+	end
+	local prontas = {}
+	for parte in quebradas do
+		local info = infos[parte]
 		if info and not info.temporaria and t >= info.volta then
-			-- grupo inteiro volta junto
-			local g = info.spec.g
+			table.insert(prontas, info)
+		end
+	end
+	for _, info in prontas do
+		if info.quebrada then
+			local g = info.grupo
 			if g and grupos[g] then
+				-- grupo inteiro volta junto (carro, árvore, poste)
 				local livre = true
-				for _, outro in grupos[g] do
-					if quebradas[outro] and ocupada(pecas[outro]) then
+				for _, outra in grupos[g] do
+					local io = infos[outra]
+					if io and io.quebrada and ocupada(io) then
 						livre = false
 					end
 				end
-				if livre then
-					for _, outro in grupos[g] do
-						restaurarId(outro, true)
-					end
-				else
-					for _, outro in grupos[g] do
-						if pecas[outro] then
-							pecas[outro].volta = t + 2
+				for _, outra in grupos[g] do
+					local io = infos[outra]
+					if io then
+						if livre then
+							restaurar(io, true)
+						else
+							io.volta = t + 2
 						end
 					end
 				end
 			else
-				restaurarId(id, false)
+				restaurar(info, false)
 			end
 		end
 	end
 end
 
 -- quem está voando quebra o que atravessar
-local paramsVoo = OverlapParams.new()
 function Mapa.atravessar(lut: any, forca: number)
 	local raiz = lut.raiz
 	local vel = raiz.AssemblyLinearVelocity
 	if vel.Magnitude < 22 then
 		return 0
 	end
-	local _ = paramsVoo
 	local cf = CFrame.lookAt(raiz.Position, raiz.Position + vel.Unit)
-	return Mapa.quebrarCaixa(cf * CFrame.new(0, 0, -1), Vector3.new(5, 6.5, 6), forca, vel.Unit)
+	-- força mínima 3: atravessar uma parede de concreto sem quebrar ficaria estranho
+	return Mapa.quebrarCaixa(cf * CFrame.new(0, 0, -1), Vector3.new(5, 6.5, 6), math.max(forca, 3), vel.Unit, true)
 end
 
 function Mapa.spawns(): { CFrame }
-	return if plano then plano.spawns else {}
+	return spawnsProntos
 end
 
 function Mapa.treino()
-	return if plano then plano.treino else nil
+	return treinoPronto
 end
 
 return Mapa

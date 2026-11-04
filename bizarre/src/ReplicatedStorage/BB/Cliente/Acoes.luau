@@ -50,6 +50,9 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			clipe = "chute_1"
 			clipeS = "chute"
 		end
+		if s and s.m1 == "rapieira" and not dados.variante then
+			clipeS = "estocada" -- Silver Chariot: estocadas com a rapieira
+		end
 		if dados.stand then
 			Animador.tocar(modelo, "comando_m1")
 			StandVisual.acao(modelo, { modo = "frente_perto", clipe = clipeS, dur = if n == 4 then 0.45 else 0.3, impacto = 0.1 })
@@ -59,10 +62,10 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		Som.tocar(if n == 4 then "whoosh_forte" else "whoosh", raiz.Position, { max = 6 })
 		if n == 4 then
 			local cor = Efeitos.corStand(s and s.id)
-			local braco = modelo:FindFirstChild("RightHand") :: BasePart?
+			local braco = (modelo:FindFirstChild("Right Arm") or modelo:FindFirstChild("RightHand")) :: BasePart?
 			if dados.stand then
 				local st = StandVisual.modelo(modelo)
-				braco = st and st:FindFirstChild("RightHand") :: BasePart?
+				braco = st and (st:FindFirstChild("Right Arm") or st:FindFirstChild("RightHand")) :: BasePart?
 			end
 			Efeitos.rastro(braco, cor, 0.3)
 		end
@@ -137,7 +140,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			if clipeS == "barragem" then
 				Efeitos.punhos(StandVisual.modelo(modelo), (g.fim or 1) - (g.inicio or 0), cor)
 			end
-			Som.tocar("grito", raiz.Position, { vol = 0.8 })
+			Som.voz(g.voz or (s and s.grito), raiz.Position)
 			if g.onomatopeia then
 				Efeitos.onomatopeia(raiz.Position + raiz.CFrame.LookVector * 5, g.onomatopeia, cor, 1.2)
 			end
@@ -166,6 +169,35 @@ function Acoes.tocar(modelo: Model?, dados: any)
 				end)
 			end
 		end
+	end
+	-- grito do Stand (ORA! MUDA! DORA!...) e o grito do golpe final da barragem
+	if g.voz and g.tipo ~= "barragem" then
+		task.delay(g.vozT or 0.1, function()
+			Som.voz(g.voz, raiz.Position)
+		end)
+	end
+	if g.final and g.final.voz then
+		task.delay(g.final.t or 1, function()
+			Som.voz(g.final.voz, raiz.Position)
+		end)
+	end
+	-- raio reto da mão do Stand (Star Finger, Red Bind)
+	if g.vfxLinha then
+		local l = g.vfxLinha
+		task.delay(l.t or 0.2, function()
+			local corL = if l.cor == "fogo" then Color3.fromRGB(255, 130, 30) else cor
+			Efeitos.linha(modelo, l.comp or 14, corL, l.dur or 0.3, l.cor == "fogo")
+		end)
+	end
+	-- coluna de fogo na frente (Magician's Red)
+	if g.vfxColuna then
+		local c = g.vfxColuna
+		task.delay(c.t or 0.2, function()
+			local r = raizDe(modelo)
+			if r then
+				Efeitos.coluna(r.Position + r.CFrame.LookVector * (c.dist or 10), c.raio or 6, Color3.fromRGB(255, 120, 30), math.max(0.2, (c.ate or 0.6) - (c.t or 0.2)))
+			end
+		end)
 	end
 	if g.vfxContinuo and g.vfxContinuo.tipo == "lanca_chamas" then
 		task.delay(g.vfxContinuo.de, function()

@@ -1,172 +1,209 @@
--- BIZARRE BATTLEGROUNDS :: os Stands (todos originais)
--- Igual na história de onde vem a ideia, cada Stand tem nome de música. Aqui são estilos de música
--- brasileira. O visual usa partes do catálogo do Roblox (IDs), recoloridas pelo jogo.
+-- BIZARRE BATTLEGROUNDS :: os Stands (JoJo's Bizarre Adventure, partes 3 e 4)
+-- O corpo é R6 com roupa e acessórios do catálogo do Roblox (itens que a comunidade fez com o
+-- nome de cada Stand). Se algum item sair do ar, o jogo monta sem ele.
 
 local RGB = Color3.fromRGB
 
 local Stands = {}
 
-Stands.ORDEM = { "MARACATU", "BOSSA_NOVA", "FREVO", "AXE", "CHORINHO", "FUNK" }
+Stands.ORDEM = { "STAR_PLATINUM", "THE_WORLD", "MAGICIANS_RED", "SILVER_CHARIOT", "CRAZY_DIAMOND", "KILLER_QUEEN" }
 
--- corpos musculosos do catálogo (UGC); se algum sair do ar, o jogo usa o próximo da lista
-local CORPOS = {
-	bombado = { torso = 80708935200794, bracoE = 126958744062550, bracoD = 138928224263888, pernaE = 117030322057421, pernaD = 91241816366267, cabeca = 99607483795212 },
-	super = { torso = 100146285479644, bracoE = 78960847770658, bracoD = 118816811026200, pernaE = 137006374450327, pernaD = 127388639501333, cabeca = 99631456951546 },
-	musculoso = { torso = 123186912342533, bracoE = 97732771626481, bracoD = 120497948437793, pernaE = 139796633278134, pernaD = 75668276044785, cabeca = 92296656165419 },
-	guerreiro = { torso = 83993112608346, bracoE = 82163482912429, bracoD = 96755894254359, pernaE = 123686043267975, pernaD = 76240159383172, cabeca = 117769135104789 },
-	esguio = { torso = 81799656366680, bracoE = 75481733318651, bracoD = 84448938704565, pernaE = 133196756571214, pernaD = 93903398077975, cabeca = 84434933829864 },
-	forte = { torso = 139581879935814, bracoE = 126754023791812, bracoD = 122802749996325, pernaE = 76872168168398, pernaD = 79323396827336, cabeca = 79912113908248 },
-	heroi = { torso = 85419867880889, bracoE = 86308698836302, bracoD = 117011441543187, pernaE = 121874212334819, pernaD = 92627825073172, cabeca = 84496396294002 },
-}
-Stands.CORPOS = CORPOS
+-- status oficiais dos Stands: Poder, Velocidade, Alcance, Resistência, Precisão, Potencial
+Stands.STATUS = { "Poder", "Velocidade", "Alcance", "Resistência", "Precisão", "Potencial" }
 
 Stands.LISTA = {
-	MARACATU = {
-		id = "MARACATU",
-		nome = "MARACATU",
-		titulo = "Punho dos Tambores",
-		tipo = "Força",
+	STAR_PLATINUM = {
+		id = "STAR_PLATINUM",
+		nome = "STAR PLATINUM",
+		usuario = "Jotaro Kujo",
+		parte = "Parte 3",
+		titulo = "Stardust Crusaders",
+		tipo = "Força e precisão",
 		dificuldade = 1,
-		desc = "Um Stand enorme que bate no ritmo dos tambores. Socos pesados, rajadas e terremotos. Ótimo para começar.",
-		cor = RGB(64, 54, 178),
-		cor2 = RGB(246, 196, 44),
-		corPernas = RGB(40, 34, 120),
-		olhos = RGB(255, 226, 92),
-		aura = RGB(122, 110, 255),
+		desc = "O Stand do Jotaro: força e velocidade absurdas, precisão de microscópio. Rajada de ORA, o Star Finger e, desperto, PARA O TEMPO por alguns segundos.",
+		stats = { "A", "A", "C", "A", "A", "A" },
+		cor = RGB(110, 70, 190),
+		cor2 = RGB(240, 196, 70),
+		corPernas = RGB(70, 46, 140),
+		olhos = RGB(120, 230, 255),
+		aura = RGB(150, 110, 255),
 		m1 = "socos",
-		grito = "TUM! TUM! TUM!",
-		golpes = { "MARACATU_1", "MARACATU_2", "MARACATU_3", "MARACATU_4" },
-		ult = "MARACATU_ULT",
-		passiva = { nome = "Couro de Alfaia", desc = "Leva 10% menos dano.", multDanoRecebido = 0.9 },
+		grito = "ORA",
+		golpes = { "STAR_PLATINUM_1", "STAR_PLATINUM_2", "STAR_PLATINUM_3", "STAR_PLATINUM_4" },
+		ult = "STAR_PLATINUM_ULT",
+		passiva = { nome = "Precisão", desc = "Os socos do Stand acertam um pouco mais longe.", alcanceExtra = 1 },
 		visual = {
-			corpos = { "bombado", "forte", "heroi" },
-			acessorios = { 117863952882880 }, -- cocar de penas laranja
-			escala = { altura = 1.12, largura = 1.08, profundidade = 1.05, cabeca = 1 },
-			olhos = true,
+			camisa = 8207681025,
+			calca = 99443129568234,
+			acessorios = {
+				cabelo = { 13500380465 },
+				rosto = { 13954785403 },
+				ombro = { 82679306599464, 124304749353974 },
+				pescoco = { 101326124255429 },
+				cintura = { 103316149282628 },
+			},
+			pele = RGB(118, 86, 196),
+			escala = 1.14,
 		},
 	},
-	BOSSA_NOVA = {
-		id = "BOSSA_NOVA",
-		nome = "BOSSA NOVA",
-		titulo = "O Compasso Dourado",
+	THE_WORLD = {
+		id = "THE_WORLD",
+		nome = "THE WORLD",
+		usuario = "DIO",
+		parte = "Parte 3",
+		titulo = "Za Warudo",
 		tipo = "Tempo",
 		dificuldade = 3,
-		desc = "Um Stand dourado e elegante que mexe no tempo: aparece nas suas costas, faz o golpe ecoar e, desperto, PARA O TEMPO.",
-		cor = RGB(236, 186, 40),
-		cor2 = RGB(36, 168, 160),
-		corPernas = RGB(196, 146, 26),
-		olhos = RGB(80, 255, 236),
-		aura = RGB(255, 214, 80),
-		m1 = "chutes",
-		grito = "TIC-TAC!",
-		golpes = { "BOSSA_NOVA_1", "BOSSA_NOVA_2", "BOSSA_NOVA_3", "BOSSA_NOVA_4" },
-		ult = "BOSSA_NOVA_ULT",
-		passiva = { nome = "Swing", desc = "Recargas 10% mais rápidas.", multRecarga = 0.9 },
+		desc = "O Stand do DIO: rajada de MUDA, facas que voam e o poder de PARAR O TEMPO. Desperto, o tempo para por 5 segundos... e um ROLO COMPRESSOR cai do céu.",
+		stats = { "A", "A", "C", "A", "B", "B" },
+		cor = RGB(236, 192, 52),
+		cor2 = RGB(60, 170, 110),
+		corPernas = RGB(200, 150, 30),
+		olhos = RGB(255, 80, 80),
+		aura = RGB(255, 210, 70),
+		m1 = "socos",
+		grito = "MUDA",
+		golpes = { "THE_WORLD_1", "THE_WORLD_2", "THE_WORLD_3", "THE_WORLD_4" },
+		ult = "THE_WORLD_ULT",
+		passiva = { nome = "Vampiro", desc = "Recupera um pouco de vida a cada golpe que acerta.", rouboVida = 0.12 },
 		visual = {
-			corpos = { "guerreiro", "musculoso", "heroi" },
-			acessorios = { 14012017490, 13327536349 }, -- chapéu fedora e máscara veneziana
-			escala = { altura = 1.1, largura = 1, profundidade = 1, cabeca = 1 },
-			olhos = false,
+			camisa = 14315350034,
+			calca = 14315360712,
+			acessorios = {
+				chapeu = { 18448999610 },
+				ombro = { 88397065251498, 71665350650293 },
+				costas = { 94876676675745 },
+			},
+			pele = RGB(234, 194, 70),
+			escala = 1.16,
 		},
 	},
-	FREVO = {
-		id = "FREVO",
-		nome = "FREVO",
-		titulo = "A Sombrinha Veloz",
-		tipo = "Velocidade",
-		dificuldade = 2,
-		desc = "Rápido e acrobático, luta com uma sombrinha afiada: estocadas, giros que devolvem projéteis e voos com mergulho.",
-		cor = RGB(232, 44, 70),
-		cor2 = RGB(36, 200, 96),
-		corPernas = RGB(40, 120, 230),
-		olhos = RGB(255, 248, 120),
-		aura = RGB(255, 90, 120),
-		m1 = "sombrinha",
-		grito = "ALA-LAÔ!",
-		golpes = { "FREVO_1", "FREVO_2", "FREVO_3", "FREVO_4" },
-		ult = "FREVO_ULT",
-		passiva = { nome = "Passo Ligeiro", desc = "Anda 8% mais rápido.", multVelocidade = 1.08 },
-		visual = {
-			corpos = { "esguio", "guerreiro", "musculoso" },
-			acessorios = { 123031145668425 }, -- cocar de carnaval
-			escala = { altura = 1.08, largura = 0.95, profundidade = 0.95, cabeca = 1 },
-			olhos = true,
-			arma = "sombrinha",
-		},
-	},
-	AXE = {
-		id = "AXE",
-		nome = "AXÉ",
-		titulo = "O Sol da Bahia",
+	MAGICIANS_RED = {
+		id = "MAGICIANS_RED",
+		nome = "MAGICIAN'S RED",
+		usuario = "Muhammad Avdol",
+		parte = "Parte 3",
+		titulo = "Crossfire Hurricane",
 		tipo = "Fogo",
 		dificuldade = 2,
-		desc = "Pura energia de fogo: bolas de fogo, lança-chamas, uma onda de trio elétrico e, desperto, um SOL inteiro caindo.",
-		cor = RGB(255, 112, 28),
-		cor2 = RGB(255, 214, 60),
-		corPernas = RGB(196, 40, 22),
-		olhos = RGB(255, 255, 210),
-		aura = RGB(255, 140, 40),
+		desc = "O Stand com cabeça de pássaro do Avdol: controla o fogo. Ankhs de fogo (Crossfire Hurricane), cordas de fogo (Red Bind) e chamas que derretem tudo.",
+		stats = { "B", "B", "C", "B", "C", "D" },
+		cor = RGB(214, 70, 40),
+		cor2 = RGB(250, 196, 60),
+		corPernas = RGB(170, 50, 30),
+		olhos = RGB(255, 236, 140),
+		aura = RGB(255, 120, 40),
 		m1 = "fogo",
-		grito = "SOBE, SOL!",
-		golpes = { "AXE_1", "AXE_2", "AXE_3", "AXE_4" },
-		ult = "AXE_ULT",
-		passiva = { nome = "Calor", desc = "Golpes de fogo queimam um pouco por 3 s.", queima = true },
+		grito = "FOGO",
+		golpes = { "MAGICIANS_RED_1", "MAGICIANS_RED_2", "MAGICIANS_RED_3", "MAGICIANS_RED_4" },
+		ult = "MAGICIANS_RED_ULT",
+		passiva = { nome = "Calor", desc = "Golpes de fogo queimam por alguns segundos.", queima = true },
 		visual = {
-			corpos = { "super", "bombado", "heroi" },
-			acessorios = { 125093887001578, 84965512650204 }, -- auréola dourada e asas vermelhas
-			escala = { altura = 1.1, largura = 1.05, profundidade = 1.05, cabeca = 1 },
-			olhos = true,
+			camisa = 4926949609,
+			acessorios = {
+				chapeu = { 83500869419407 },
+				pescoco = { 79915463608141 },
+			},
+			pele = RGB(204, 78, 44),
+			pernas = RGB(150, 46, 30),
+			escala = 1.12,
 			fogo = true,
 		},
 	},
-	CHORINHO = {
-		id = "CHORINHO",
-		nome = "CHORINHO",
-		titulo = "O Remendo",
-		tipo = "Restauração",
+	SILVER_CHARIOT = {
+		id = "SILVER_CHARIOT",
+		nome = "SILVER CHARIOT",
+		usuario = "Jean Pierre Polnareff",
+		parte = "Parte 3",
+		titulo = "O Cavaleiro de Prata",
+		tipo = "Velocidade",
 		dificuldade = 2,
-		desc = "Conserta tudo o que quebra... inclusive EM CIMA dos inimigos. Quanto mais destruído o mapa, mais forte ele fica. Também se cura.",
-		cor = RGB(255, 132, 196),
-		cor2 = RGB(150, 236, 255),
-		corPernas = RGB(214, 88, 160),
-		olhos = RGB(160, 255, 255),
-		aura = RGB(255, 160, 220),
-		m1 = "cristal",
-		grito = "VOLTA PRO LUGAR!",
-		golpes = { "CHORINHO_1", "CHORINHO_2", "CHORINHO_3", "CHORINHO_4" },
-		ult = "CHORINHO_ULT",
-		passiva = { nome = "Saudade", desc = "Cura 1 de vida por segundo fora de combate desde cedo.", regenRapida = true },
+		desc = "O cavaleiro de armadura do Polnareff, com rapieira. Estocadas rapidíssimas, lâmina que voa, defesa que devolve tiros e o ARMOR OFF: tira a armadura e fica muito mais rápido.",
+		stats = { "C", "A", "C", "B", "B", "C" },
+		cor = RGB(196, 202, 214),
+		cor2 = RGB(90, 150, 220),
+		corPernas = RGB(150, 156, 170),
+		olhos = RGB(120, 220, 255),
+		aura = RGB(170, 210, 255),
+		m1 = "rapieira",
+		grito = "HORA",
+		golpes = { "SILVER_CHARIOT_1", "SILVER_CHARIOT_2", "SILVER_CHARIOT_3", "SILVER_CHARIOT_4" },
+		ult = "SILVER_CHARIOT_ULT",
+		passiva = { nome = "Esgrima", desc = "Anda 8% mais rápido.", multVelocidade = 1.08 },
 		visual = {
-			corpos = { "musculoso", "heroi", "guerreiro" },
-			acessorios = { 7331284875 }, -- coroa de cristais rosa
-			escala = { altura = 1.1, largura = 1, profundidade = 1, cabeca = 1 },
-			olhos = true,
-			cristais = true,
+			camisa = 4931585172,
+			calca = 4931585546,
+			acessorios = {
+				chapeu = { 113868357803510 },
+				ombro = { 103309161493468, 133335576808982 },
+			},
+			pele = RGB(200, 206, 218),
+			escala = 1.1,
+			arma = "rapieira",
 		},
 	},
-	FUNK = {
-		id = "FUNK",
-		nome = "FUNK",
-		titulo = "O Paredão do Grave",
-		tipo = "Som",
-		dificuldade = 1,
-		desc = "O grave que derruba prédio: empurra todo mundo longe, quebra vidros, levanta um paredão de caixas de som e faz um BAILE que treme o mapa.",
-		cor = RGB(130, 46, 220),
-		cor2 = RGB(36, 36, 44),
-		corPernas = RGB(28, 26, 36),
-		olhos = RGB(80, 255, 140),
-		aura = RGB(160, 80, 255),
-		m1 = "grave",
-		grito = "TUTS TUTS!",
-		golpes = { "FUNK_1", "FUNK_2", "FUNK_3", "FUNK_4" },
-		ult = "FUNK_ULT",
-		passiva = { nome = "Batida Pesada", desc = "O 4º golpe do combo empurra 25% mais longe.", empurraoFinal = 1.25 },
+	CRAZY_DIAMOND = {
+		id = "CRAZY_DIAMOND",
+		nome = "CRAZY DIAMOND",
+		usuario = "Josuke Higashikata",
+		parte = "Parte 4",
+		titulo = "Diamond is Unbreakable",
+		tipo = "Restauração",
+		dificuldade = 2,
+		desc = "O Stand do Josuke, de Morioh: rajada de DORA e o poder de CONSERTAR tudo o que quebra... inclusive em cima dos inimigos, que ficam presos dentro da parede. (Como na história, ele não cura o próprio usuário.)",
+		stats = { "A", "A", "D", "B", "B", "C" },
+		cor = RGB(236, 150, 196),
+		cor2 = RGB(110, 220, 230),
+		corPernas = RGB(200, 110, 170),
+		olhos = RGB(120, 240, 255),
+		aura = RGB(255, 160, 220),
+		m1 = "socos",
+		grito = "DORA",
+		golpes = { "CRAZY_DIAMOND_1", "CRAZY_DIAMOND_2", "CRAZY_DIAMOND_3", "CRAZY_DIAMOND_4" },
+		ult = "CRAZY_DIAMOND_ULT",
+		passiva = { nome = "Diamante", desc = "Leva 8% menos dano.", multDanoRecebido = 0.92 },
 		visual = {
-			corpos = { "forte", "bombado", "super" },
-			acessorios = { 81576078203849, 124853841101197 }, -- fone roxo e ombreira de espinhos
-			escala = { altura = 1.12, largura = 1.1, profundidade = 1.05, cabeca = 1 },
-			olhos = true,
-			caixasDeSom = true,
+			camisa = 5406872463,
+			calca = 5406873436,
+			acessorios = {
+				chapeu = { 78341194178472 },
+				ombro = { 88064969891275, 116859385127759 },
+				cintura = { 112760404661203 },
+			},
+			pele = RGB(236, 156, 200),
+			escala = 1.14,
+		},
+	},
+	KILLER_QUEEN = {
+		id = "KILLER_QUEEN",
+		nome = "KILLER QUEEN",
+		usuario = "Yoshikage Kira",
+		parte = "Parte 4",
+		titulo = "Bites the Dust",
+		tipo = "Bombas",
+		dificuldade = 3,
+		desc = "O Stand do Kira: tudo o que ele toca vira bomba. Primeira bomba, o tanquinho Sheer Heart Attack que persegue e, desperto, BITES THE DUST: o tempo volta e quem te bateu explode.",
+		stats = { "A", "B", "D", "B", "B", "A" },
+		cor = RGB(226, 168, 214),
+		cor2 = RGB(232, 190, 70),
+		corPernas = RGB(170, 120, 170),
+		olhos = RGB(255, 80, 120),
+		aura = RGB(240, 140, 220),
+		m1 = "socos",
+		grito = "KQ",
+		golpes = { "KILLER_QUEEN_1", "KILLER_QUEEN_2", "KILLER_QUEEN_3", "KILLER_QUEEN_4" },
+		ult = "KILLER_QUEEN_ULT",
+		passiva = { nome = "Detonador", desc = "O 4º soco do combo explode.", m1Explode = true },
+		visual = {
+			camisa = 4981332469,
+			calca = 4988598681,
+			acessorios = {
+				chapeu = { 135336250229496 },
+				ombro = { 130983249076976, 120276690488609 },
+				cintura = { 74346113756989 },
+			},
+			pele = RGB(228, 176, 216),
+			escala = 1.12,
 		},
 	},
 }
@@ -184,6 +221,24 @@ end
 
 function Stands.padrao(): string
 	return Stands.ORDEM[1]
+end
+
+-- todos os IDs do catálogo de um Stand (para conferir e pré-carregar)
+function Stands.itens(s: any): { number }
+	local l = {}
+	local v = s.visual
+	if v.camisa then
+		table.insert(l, v.camisa)
+	end
+	if v.calca then
+		table.insert(l, v.calca)
+	end
+	for _, lista in v.acessorios or {} do
+		for _, id in lista do
+			table.insert(l, id)
+		end
+	end
+	return l
 end
 
 return Stands

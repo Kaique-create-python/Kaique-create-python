@@ -2,6 +2,8 @@
 -- Roda depois das animações do Roblox (PreSimulation): por cima do andar/correr normal do
 -- avatar entra o golpe, mesclado. Bots e Stands não têm animação do Roblox: aqui também
 -- fazemos o andar, o pulo e a respiração deles.
+-- As poses são escritas para R15; no R6 (o jogo todo agora é R6) o cotovelo entra no ombro,
+-- o joelho entra no quadril e a cintura entra na raiz. Caído (ragdoll de verdade) não mexe em nada.
 
 local RunService = game:GetService("RunService")
 
@@ -14,7 +16,7 @@ local anims: { [Model]: any } = {}
 local rad = math.rad
 local pausaGlobal = 0
 
--- para o R6 (se alguém entrar com R6) usamos só as juntas que existem
+-- nomes das juntas do R6 -> nomes do R15 usados nas poses
 local R6 = {
 	RootJoint = "Root",
 	Neck = "Neck",
@@ -44,6 +46,42 @@ local function lerJuntas(modelo: Model)
 	end
 	return j
 end
+
+-- R6: dobra o cotovelo no ombro, o joelho no quadril e a cintura na raiz
+local DOBRA_COTOVELO = 0.55
+local DOBRA_JOELHO = 0.35
+local DOBRA_CINTURA = 0.6
+local function somar(p: { [string]: { number } }, destino: string, v: { number }?, fator: number, soX: boolean?)
+	if not v then
+		return
+	end
+	local d = p[destino]
+	local x, y, z = v[1] * fator, if soX then 0 else v[2] * fator, if soX then 0 else v[3] * fator
+	if d then
+		p[destino] = { d[1] + x, d[2] + y, d[3] + z }
+	else
+		p[destino] = { x, y, z }
+	end
+end
+
+local function paraR6(pose: { [string]: { number } }?): { [string]: { number } }?
+	if not pose then
+		return nil
+	end
+	local p = {}
+	for k, v in pose do
+		if k == "LS" or k == "RS" or k == "LH" or k == "RH" or k == "Neck" or k == "Root" then
+			p[k] = v
+		end
+	end
+	somar(p, "LS", pose.LE, DOBRA_COTOVELO, true)
+	somar(p, "RS", pose.RE, DOBRA_COTOVELO, true)
+	somar(p, "LH", pose.LK, DOBRA_JOELHO, true)
+	somar(p, "RH", pose.RK, DOBRA_JOELHO, true)
+	somar(p, "Root", pose.Waist, DOBRA_CINTURA, false)
+	return p
+end
+Animador.paraR6 = paraR6
 
 local function angulos(v: { number }?): CFrame
 	if not v then
@@ -75,6 +113,7 @@ function Animador.registrar(modelo: Model, tipo: string?): any
 		hitstop = 0,
 		fase = 0,
 		ultimo = {},
+		r6 = modelo:FindFirstChild("Torso") ~= nil and modelo:FindFirstChild("UpperTorso") == nil,
 		boneco = modelo:GetAttribute("BB_Boneco") == true,
 		temTrilhas = true,
 		conferido = 0,
@@ -97,6 +136,7 @@ function Animador.atualizarJuntas(modelo: Model)
 	local a = anims[modelo]
 	if a then
 		a.juntas = lerJuntas(modelo)
+		a.r6 = modelo:FindFirstChild("Torso") ~= nil and modelo:FindFirstChild("UpperTorso") == nil
 	end
 end
 
@@ -194,14 +234,10 @@ local function locomocao(a: any, dt: number): { [string]: { number } }
 	}
 end
 
-local function ragdollPose(a: any): { [string]: { number } }
-	local tt = os.clock() * 7 + a.semente
-	local base = Poses.P.ragdoll
-	local p = {}
-	for kk, v in base do
-		p[kk] = { v[1] + math.sin(tt + #kk) * 18, v[2], v[3] + math.cos(tt * 0.8 + #kk) * 14 }
-	end
-	return p
+-- caído de verdade (juntas soltas pelo servidor): a física manda, a animação não mexe
+local function caido(a: any): boolean
+	local ate = a.modelo:GetAttribute("BB_Ragdoll")
+	return type(ate) == "number" and ate > workspace:GetServerTimeNow()
 end
 
 local function aplicar(a: any, dt: number)
@@ -209,6 +245,20 @@ local function aplicar(a: any, dt: number)
 	if a.congelado then
 		return -- tempo parado: fica exatamente como estava
 	end
+	if caido(a) then
+		if not a.estavaCaido then
+			a.estavaCaido = true
+			for _, j in a.juntas do
+				j.motor.Transform = CFrame.identity
+			end
+		end
+		a.peso = 0
+		a.pesoAlvo = 0
+		a.clipe = nil
+		a.nome = nil
+		return
+	end
+	a.estavaCaido = false
 	local passo = dt
 	if agora < a.hitstop or agora < pausaGlobal then
 		passo = 0
@@ -245,13 +295,12 @@ local function aplicar(a: any, dt: number)
 			acao, giro = Poses.amostrar(clipe, a.t)
 		end
 	end
-	local ragdoll = a.ragdoll > 0
 	local base = if a.tipo ~= "jogador" then locomocao(a, dt) else nil
-	if ragdoll then
-		acao = ragdollPose(a)
-		giro = 0
+	if a.r6 then
+		acao = paraR6(acao)
+		base = paraR6(base)
 	end
-	local peso = if ragdoll then 1 else a.peso
+	local peso = a.peso
 	-- avatar sem nenhuma animação do Roblox tocando: nós cuidamos de todas as juntas
 	if a.tipo == "jogador" and agora - a.conferido > 0.5 then
 		a.conferido = agora

@@ -108,4 +108,71 @@ function Rig.montar(nome: string, escala: number?, cores: { [string]: Color3 }?,
 	return modelo
 end
 
+-- R6 clássico (6 peças), com as juntas e as posições padrão do Roblox
+local R6_PECAS = {
+	{ "Torso", Vector3.new(2, 2, 1), Vector3.new(0, 0, 0), "torso" },
+	{ "Head", Vector3.new(2, 1, 1), Vector3.new(0, 1.5, 0), "cabeca" },
+	{ "Left Arm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 0, 0), "bracos" },
+	{ "Right Arm", Vector3.new(1, 2, 1), Vector3.new(1.5, 0, 0), "bracos" },
+	{ "Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, -2, 0), "pernas" },
+	{ "Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, -2, 0), "pernas" },
+}
+
+function Rig.montarR6(nome: string, cores: { [string]: Color3 }?, comHumanoid: boolean?): Model
+	local c = cores or {}
+	local modelo = Instance.new("Model")
+	modelo.Name = nome
+	local raiz = Instance.new("Part")
+	raiz.Name = "HumanoidRootPart"
+	raiz.Size = Vector3.new(2, 2, 1)
+	raiz.Transparency = 1
+	raiz.CanCollide = false
+	raiz.CFrame = CFrame.new(0, 3, 0)
+	raiz.Parent = modelo
+	modelo.PrimaryPart = raiz
+	local partes = {}
+	for _, d in R6_PECAS do
+		local p = Instance.new("Part")
+		p.Name = d[1]
+		p.Size = d[2]
+		p.CFrame = raiz.CFrame * CFrame.new(d[3])
+		p.Color = c[d[4]] or Color3.fromRGB(200, 200, 200)
+		p.Material = Enum.Material.SmoothPlastic
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.CanCollide = d[1] == "Torso" or d[1] == "Head"
+		p.Parent = modelo
+		partes[d[1]] = p
+	end
+	local malha = Instance.new("SpecialMesh")
+	malha.MeshType = Enum.MeshType.Head
+	malha.Scale = Vector3.new(1.25, 1.25, 1.25)
+	malha.Parent = partes.Head
+	local meia = math.pi / 2
+	local function junta(nomeJ: string, p0: BasePart, p1: BasePart, c0: CFrame, c1: CFrame, pai: Instance)
+		local m = Instance.new("Motor6D")
+		m.Name = nomeJ
+		m.Part0 = p0
+		m.Part1 = p1
+		m.C0 = c0
+		m.C1 = c1
+		m.Parent = pai
+	end
+	local torso = partes.Torso
+	junta("RootJoint", raiz, torso, CFrame.Angles(-meia, 0, math.pi), CFrame.Angles(-meia, 0, math.pi), raiz)
+	junta("Neck", torso, partes.Head, CFrame.new(0, 1, 0) * CFrame.Angles(-meia, 0, math.pi), CFrame.new(0, -0.5, 0) * CFrame.Angles(-meia, 0, math.pi), torso)
+	junta("Right Shoulder", torso, partes["Right Arm"], CFrame.new(1, 0.5, 0) * CFrame.Angles(0, meia, 0), CFrame.new(-0.5, 0.5, 0) * CFrame.Angles(0, meia, 0), torso)
+	junta("Left Shoulder", torso, partes["Left Arm"], CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -meia, 0), CFrame.new(0.5, 0.5, 0) * CFrame.Angles(0, -meia, 0), torso)
+	junta("Right Hip", torso, partes["Right Leg"], CFrame.new(1, -1, 0) * CFrame.Angles(0, meia, 0), CFrame.new(0.5, 1, 0) * CFrame.Angles(0, meia, 0), torso)
+	junta("Left Hip", torso, partes["Left Leg"], CFrame.new(-1, -1, 0) * CFrame.Angles(0, -meia, 0), CFrame.new(-0.5, 1, 0) * CFrame.Angles(0, -meia, 0), torso)
+	if comHumanoid then
+		local hum = Instance.new("Humanoid")
+		hum.RigType = Enum.HumanoidRigType.R6
+		hum.Parent = modelo
+		local anim = Instance.new("Animator")
+		anim.Parent = hum
+	end
+	return modelo
+end
+
 return Rig

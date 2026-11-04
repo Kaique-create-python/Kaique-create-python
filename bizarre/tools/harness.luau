@@ -172,7 +172,12 @@ local servicosFalsos = {
 		GetTagged = function()
 			return {}
 		end,
-		AddTag = function() end,
+		AddTag = function(_, inst, tag)
+			inst:AddTag(tag)
+		end,
+		HasTag = function(_, inst, tag)
+			return inst:HasTag(tag)
+		end,
 	},
 	GuiService = { GetGuiInset = function()
 		return roblox.Vector2.new(0, 36), roblox.Vector2.new(0, 0)
@@ -182,15 +187,82 @@ local servicosFalsos = {
 	TextChatService = {},
 }
 
--- workspace "falso": tempo do servidor e consultas espaciais (vazias) que o Lune não tem
+-- workspace "falso": tempo do servidor e consultas espaciais (força bruta nas peças do filtro)
 local wsReal = dm:GetService("Workspace")
+
+local function caixaDe(p)
+	local cf, sz = p.CFrame, p.Size / 2
+	local r = cf.Rotation
+	local ex = math.abs(r.XVector.X) * sz.X + math.abs(r.YVector.X) * sz.Y + math.abs(r.ZVector.X) * sz.Z
+	local ey = math.abs(r.XVector.Y) * sz.X + math.abs(r.YVector.Y) * sz.Y + math.abs(r.ZVector.Y) * sz.Z
+	local ez = math.abs(r.XVector.Z) * sz.X + math.abs(r.YVector.Z) * sz.Y + math.abs(r.ZVector.Z) * sz.Z
+	return cf.Position, roblox.Vector3.new(ex, ey, ez)
+end
+
+local function partesDoFiltro(params)
+	local l = {}
+	if not params or params.FilterType ~= roblox.Enum.RaycastFilterType.Include then
+		return l
+	end
+	for _, raiz in params.FilterDescendantsInstances or {} do
+		if raiz:IsA("BasePart") then
+			table.insert(l, raiz)
+		end
+		for _, d in raiz:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(l, d)
+			end
+		end
+	end
+	return l
+end
+
+local function naCaixa(cf, tam, params)
+	local r = {}
+	local meia = tam / 2
+	for _, p in partesDoFiltro(params) do
+		if p.CanQuery ~= false then
+			local c, e = caixaDe(p)
+			local rel = cf:PointToObjectSpace(c)
+			if math.abs(rel.X) <= meia.X + e.X and math.abs(rel.Y) <= meia.Y + e.Y and math.abs(rel.Z) <= meia.Z + e.Z then
+				table.insert(r, p)
+			end
+		end
+	end
+	return r
+end
+
+local function noRaio(centro, raio, params)
+	local r = {}
+	for _, p in partesDoFiltro(params) do
+		if p.CanQuery ~= false then
+			local c, e = caixaDe(p)
+			local d = c - centro
+			local fx = math.max(0, math.abs(d.X) - e.X)
+			local fy = math.max(0, math.abs(d.Y) - e.Y)
+			local fz = math.max(0, math.abs(d.Z) - e.Z)
+			if fx * fx + fy * fy + fz * fz <= raio * raio then
+				table.insert(r, p)
+			end
+		end
+	end
+	return r
+end
 local wsProxy = setmetatable({}, {
 	__index = function(_, k)
 		if k == "GetServerTimeNow" then
 			return function()
 				return os.clock() + 1000
 			end
-		elseif k == "GetPartBoundsInBox" or k == "GetPartBoundsInRadius" or k == "GetPartsInPart" then
+		elseif k == "GetPartBoundsInBox" then
+			return function(_, cf, tam, params)
+				return naCaixa(cf, tam, params)
+			end
+		elseif k == "GetPartBoundsInRadius" then
+			return function(_, centro, raio, params)
+				return noRaio(centro, raio, params)
+			end
+		elseif k == "GetPartsInPart" then
 			return function()
 				return {}
 			end
@@ -284,10 +356,10 @@ local function ambiente(no)
 		},
 		Random = RandomFalso,
 		OverlapParams = { new = function()
-			return { FilterDescendantsInstances = {}, MaxParts = 0 }
+			return { FilterDescendantsInstances = {}, MaxParts = 0, FilterType = roblox.Enum.RaycastFilterType.Exclude }
 		end },
 		RaycastParams = { new = function()
-			return { FilterDescendantsInstances = {} }
+			return { FilterDescendantsInstances = {}, FilterType = roblox.Enum.RaycastFilterType.Exclude }
 		end },
 		task = task,
 		typeof = roblox.typeof or typeof,
@@ -340,6 +412,18 @@ requireFalso = function(no)
 end
 
 H.require = requireFalso
+
+-- carrega uma cópia nova de um módulo (estado zerado), usando as dependências já carregadas
+function H.moduloNovo(caminho: string)
+	local no = arvore
+	for parte in string.gmatch(caminho, "[^/]+") do
+		no = rawget(no, "filhos")[parte]
+		assert(no, "não achei " .. caminho)
+	end
+	local fonte = rawget(no, "fonte")
+	local fn = luau.load(fonte, { debugName = rawget(no, "caminho"), environment = ambiente(no) })
+	return fn()
+end
 
 function H.modulo(caminho: string)
 	local no = arvore

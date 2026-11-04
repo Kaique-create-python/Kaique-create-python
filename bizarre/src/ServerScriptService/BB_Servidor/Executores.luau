@@ -1,11 +1,13 @@
 -- BIZARRE BATTLEGROUNDS :: quem executa cada tipo de golpe no servidor
--- (golpe, barragem, projetil, area, investida, agarrar, contra, teleporte, cura e os especiais)
+-- (golpe, barragem, projetil, area, investida, agarrar, contra, teleporte, cura, buff e os especiais:
+-- tempo parado + rolo compressor, bomba e Bites the Dust da Killer Queen, sol, carnaval, reconstruir...)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local BB = ReplicatedStorage:WaitForChild("BB")
 local Regras = require(BB:WaitForChild("Regras"))
+local Golpes = require(BB:WaitForChild("Golpes"))
 
 local Lutadores = require(script.Parent.Lutadores)
 local Hitbox = require(script.Parent.Hitbox)
@@ -73,17 +75,63 @@ local function bater(ctx: any, h: any, ignorar: { [any]: boolean }?): { any }
 end
 Executores.bater = bater
 
-local function ondeOChao(pos: Vector3): Vector3
+local function paramsCenario(): RaycastParams
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = { Mapa.pasta }
-	local r = workspace:Raycast(pos + Vector3.new(0, 30, 0), Vector3.new(0, -80, 0), params)
+	params.FilterDescendantsInstances = Mapa.filtro()
+	pcall(function()
+		params.RespectCanCollide = true
+	end)
+	return params
+end
+Executores.paramsCenario = paramsCenario
+
+local function ondeOChao(pos: Vector3): Vector3
+	-- de 6 studs acima (não pega o telhado de cima de quem está dentro de casa)
+	local r = workspace:Raycast(pos + Vector3.new(0, 6, 0), Vector3.new(0, -60, 0), paramsCenario())
 	if r then
 		return r.Position
 	end
 	return Vector3.new(pos.X, 0.6, pos.Z)
 end
 Executores.ondeOChao = ondeOChao
+
+-- explosão num ponto (bomba, moeda, tanquinho, Bites the Dust...)
+local function explosaoEm(lut: any, pos: Vector3, ex: any, dir: Vector3?, principal: any?)
+	for _, l in Hitbox.esfera(pos, ex.raio, lut) do
+		Combate.acertar(lut, l, {
+			dano = ex.dano,
+			empurrar = ex.empurrar,
+			ragdoll = ex.ragdoll,
+			quebra = ex.quebra,
+			queima = ex.queima,
+			tipo = "area",
+			inbloqueavel = ex.inbloqueavel or l == principal,
+			vfx = ex.vfx,
+			som = nil,
+			tremor = ex.tremor,
+		}, { origem = pos, dir = dir })
+	end
+	Mapa.quebrarArea(pos, ex.raio * 0.75, ex.quebra or 1)
+	Combate.efeito("explosao", { pos = pos, raio = ex.raio, tipo = ex.vfx, som = ex.som, tremor = ex.tremor })
+end
+Executores.explosaoEm = explosaoEm
+
+-- cura aos poucos (Soco do Vampiro, Restauração...)
+local function curarAosPoucos(lut: any, total: number, dur: number)
+	if total <= 0 then
+		return
+	end
+	Combate.efeito("cura", { quem = lut.modelo, dur = dur, stand = lut.standId })
+	local passos = math.max(1, math.floor(dur / 0.1))
+	for _ = 1, passos do
+		task.wait(0.1)
+		if lut.hum.Health <= 0 then
+			return
+		end
+		lut.hum.Health = math.min(lut.hum.MaxHealth, lut.hum.Health + total / passos)
+	end
+end
 
 ------------------------------------------------------------------------------- executar
 function Executores.executar(lut: any, g: any, id: string, t0: number, dados: any?)
@@ -130,11 +178,15 @@ end
 ------------------------------------------------------------------------------- tipos
 EXEC.golpe = function(ctx)
 	local g = ctx.g
+	local acertouAlguem = false
 	for _, h in g.hits do
 		if not esperar(ctx, h.t) then
 			return
 		end
 		local acertados = bater(ctx, h)
+		if #acertados > 0 then
+			acertouAlguem = true
+		end
 		if g.eco and h.marcar and #acertados > 0 then
 			local eco = g.eco
 			for _, alvo in acertados do
@@ -145,6 +197,12 @@ EXEC.golpe = function(ctx)
 					end
 				end)
 			end
+		end
+	end
+	-- DIO: o soco do vampiro suga vida de quem apanhou
+	if g.cura and acertouAlguem then
+		if esperar(ctx, g.cura.depois or 0) or ctx.lut.hum.Health > 0 then
+			curarAosPoucos(ctx.lut, g.cura.total, g.cura.dur or 0.5)
 		end
 	end
 end
@@ -178,6 +236,10 @@ EXEC.projetil = function(ctx)
 		n = p.nComDestrocos
 	end
 	local origem = lut.raiz.Position + ctx.dir * 2.5 + Vector3.new(0, 1.2, 0)
+	if p.guiado then
+		-- o tanquinho anda no chão
+		origem = ondeOChao(lut.raiz.Position + ctx.dir * 3) + Vector3.new(0, p.raio or 1, 0)
+	end
 	for i = 1, n do
 		local off = if n > 1 then (i - (n + 1) / 2) * (p.espalhar or 8) else 0
 		local d = CFrame.Angles(0, math.rad(off), 0):VectorToWorldSpace(ctx.dir)
@@ -439,10 +501,7 @@ EXEC.teleporte = function(ctx)
 	else
 		local p = de + ctx.dir * (tp.semAlvo or 14)
 		-- não atravessa parede: para antes
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Include
-		params.FilterDescendantsInstances = { Mapa.pasta }
-		local hit = workspace:Raycast(de, p - de, params)
+		local hit = workspace:Raycast(de, p - de, paramsCenario())
 		if hit then
 			p = hit.Position - ctx.dir * 2
 		end
@@ -460,16 +519,36 @@ end
 
 EXEC.cura = function(ctx)
 	local c = ctx.g.cura
+	curarAosPoucos(ctx.lut, c.total, c.dur)
+end
+
+-- ARMOR OFF (Silver Chariot): mais rápido e mais forte por um tempo
+EXEC.buff = function(ctx)
+	local b = ctx.g.buff
 	local lut = ctx.lut
-	Combate.efeito("cura", { quem = lut.modelo, dur = c.dur, stand = lut.standId })
-	local passos = math.max(1, math.floor(c.dur / 0.1))
-	for _ = 1, passos do
-		task.wait(0.1)
-		if lut.hum.Health <= 0 then
-			return
-		end
-		lut.hum.Health = math.min(lut.hum.MaxHealth, lut.hum.Health + c.total / passos)
+	local e = lut.estado
+	if not esperar(ctx, b.t or 0.2) then
+		return
 	end
+	local t = agora()
+	local ate = t + b.dur
+	e.buffAte = ate
+	e.buffDano = b.dano or 1
+	lut.buffAte = ate
+	lut.buffVel = b.velocidade or 1
+	lut.modelo:SetAttribute("BB_Buff", ate)
+	if b.standSemArmadura then
+		lut.modelo:SetAttribute("BB_SemArmadura", ate)
+	end
+	Combate.efeito("buff", { quem = lut.modelo, ate = ate, stand = lut.standId, semArmadura = b.standSemArmadura })
+	Combate.atualizarMovimento(lut)
+	task.delay(b.dur + 0.05, function()
+		if lut.modelo.Parent and (lut.buffAte or 0) <= agora() then
+			lut.modelo:SetAttribute("BB_Buff", nil)
+			lut.modelo:SetAttribute("BB_SemArmadura", nil)
+			Combate.atualizarMovimento(lut)
+		end
+	end)
 end
 
 ------------------------------------------------------------------------------- especiais
@@ -497,10 +576,36 @@ ESPECIAL.tempoParado = function(ctx)
 		table.insert(congelados, l)
 	end
 	Projeteis.congelar(fim, lut)
-	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio })
+	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = lut.standId })
 	lut.estado.acaoAte = t + 0.15
 	Combate.atualizarMovimento(lut)
-	task.wait(tp.duracao)
+	-- DIO: "ROAD ROLLER DA!" cai em cima do congelado mais perto, pouco antes do tempo voltar
+	local rolo = tp.rolo
+	if rolo then
+		task.wait(math.max(0, tp.duracao - rolo.antes))
+		local alvo, melhor = nil, rolo.raio
+		for _, l in congelados do
+			local d = (l.raiz.Position - lut.raiz.Position).Magnitude
+			if l.hum.Health > 0 and d <= melhor then
+				alvo, melhor = l, d
+			end
+		end
+		if alvo and lut.hum.Health > 0 then
+			Combate.efeito("rolo", { quem = lut.modelo, alvo = alvo.modelo, pos = alvo.raiz.Position, t = agora(), ate = fim, stand = lut.standId })
+			task.wait(0.35)
+			Combate.acertar(lut, alvo, { dano = rolo.dano, tipo = "area", inbloqueavel = true, empurrar = rolo.empurrar, ragdoll = rolo.ragdoll, quebra = 3, vfx = "explosao_fogo", som = "soco_forte" }, { origem = alvo.raiz.Position + Vector3.new(0, -1, 0) })
+		end
+		local falta = fim - agora()
+		if falta > 0 then
+			task.wait(falta)
+		end
+		if alvo then
+			Mapa.quebrarArea(alvo.raiz.Position, 9, 3)
+			Combate.efeito("explosao", { pos = alvo.raiz.Position, raio = 12, tipo = "explosao_fogo", som = "explosao_grande", tremor = 1.2, impactFrame = true })
+		end
+	else
+		task.wait(tp.duracao)
+	end
 	Combate.efeito("tempoVolta", { dono = lut.modelo })
 	for _, l in congelados do
 		l.modelo:SetAttribute("BB_Congelado", nil)
@@ -553,9 +658,9 @@ ESPECIAL.carnaval = function(ctx)
 	task.wait(0.15)
 	if #alvos == 0 then
 		for _, l in Hitbox.esfera(lut.raiz.Position, 12, lut) do
-			Combate.acertar(lut, l, { dano = 8, empurrar = { radial = true, frente = 50, cima = 30, dur = 0.2 }, ragdoll = 1.2, tipo = "area", vfx = "impacto_colorido", som = "explosao" }, { origem = lut.raiz.Position })
+			Combate.acertar(lut, l, { dano = 8, empurrar = { radial = true, frente = 50, cima = 30, dur = 0.2 }, ragdoll = 1.2, tipo = "area", vfx = "impacto_prata", som = "corte" }, { origem = lut.raiz.Position })
 		end
-		Combate.efeito("area", { quem = lut.modelo, vfx = "confete", pos = lut.raiz.Position, raio = 14 })
+		Combate.efeito("area", { quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 14, stand = lut.standId })
 		return
 	end
 	local golpes = if #alvos == 1 then c.golpesPorAlvo + 2 else c.golpesPorAlvo
@@ -573,13 +678,13 @@ ESPECIAL.carnaval = function(ctx)
 		Combate.efeito("teleporte", { quem = lut.modelo, para = pos, stand = lut.standId })
 		for _ = 1, golpes do
 			task.wait(c.intervalo)
-			Combate.acertar(lut, alvo, { dano = c.dano, atordoar = 1.4, inbloqueavel = true, tipo = "melee", som = "estocada", vfx = "corte_colorido", empurrar = { frente = 2, cima = 0, dur = 0.05 } }, { dir = Regras.achatar(alvo.raiz.Position - lut.raiz.Position) })
+			Combate.acertar(lut, alvo, { dano = c.dano, atordoar = 1.4, inbloqueavel = true, tipo = "melee", som = "estocada", vfx = c.vfxCorte or "corte_prata", empurrar = { frente = 2, cima = 0, dur = 0.05 } }, { dir = Regras.achatar(alvo.raiz.Position - lut.raiz.Position) })
 		end
 	end
 	task.wait(0.18)
-	Combate.efeito("area", { quem = lut.modelo, vfx = "confete", pos = lut.raiz.Position, raio = 16, som = "explosao", tremor = 0.8 })
+	Combate.efeito("area", { quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 16, som = "corte", tremor = 0.8, stand = lut.standId })
 	for _, alvo in alvos do
-		Combate.acertar(lut, alvo, copiar(c.final, { inbloqueavel = true, tipo = "area", vfx = "impacto_colorido", som = "explosao", empurrar = copiar(c.final.empurrar, { radial = true }), impactFrame = true }), { origem = lut.raiz.Position })
+		Combate.acertar(lut, alvo, copiar(c.final, { inbloqueavel = true, tipo = "area", vfx = "impacto_prata", som = "corte", empurrar = copiar(c.final.empurrar, { radial = true }), impactFrame = true }), { origem = lut.raiz.Position })
 	end
 end
 
@@ -617,7 +722,7 @@ ESPECIAL.sol = function(ctx)
 	local s = ctx.g.sol
 	local acima = lut.raiz.Position + Vector3.new(0, 24, 0)
 	local alvoPos = ondeOChao(lut.raiz.Position + ctx.dir * s.dist)
-	Combate.efeito("sol", { quem = lut.modelo, acima = acima, alvo = alvoPos, formar = s.formar, cair = s.cair, t = agora(), raio = s.raio })
+	Combate.efeito("sol", { quem = lut.modelo, acima = acima, alvo = alvoPos, formar = s.formar, cair = s.cair, t = agora(), raio = s.raio, visual = s.visual })
 	task.wait(s.formar + s.cair)
 	for _, l in Hitbox.esfera(alvoPos, s.raio, lut) do
 		local d = (l.raiz.Position - alvoPos).Magnitude
@@ -728,6 +833,99 @@ ESPECIAL.saudade = function(ctx)
 	end
 end
 
+-- Killer Queen: "o que eu tocar vira bomba". Toca o inimigo (ou um objeto) e explode depois.
+ESPECIAL.bomba = function(ctx)
+	local b = ctx.g.bomba
+	local lut = ctx.lut
+	if not esperar(ctx, b.t) then
+		return
+	end
+	local cf = Hitbox.cfFrente(lut.raiz, ctx.dir, b.frente or 4)
+	local alvos = Hitbox.caixa(cf, b.caixa or Vector3.new(6, 6, 7), lut)
+	table.sort(alvos, function(a, c)
+		return (a.raiz.Position - lut.raiz.Position).Magnitude < (c.raiz.Position - lut.raiz.Position).Magnitude
+	end)
+	local alvo = alvos[1]
+	if alvo then
+		local r = Combate.acertar(lut, alvo, copiar(b.toque, { tipo = "melee", som = "soco", vfx = "impacto_rosa" }), { dir = ctx.dir })
+		if r ~= "acertou" then
+			return
+		end
+		local ate = agora() + b.atraso
+		alvo.modelo:SetAttribute("BB_Bomba", ate)
+		Combate.efeito("marca", { v = alvo.modelo, ate = ate, stand = lut.standId, bomba = true })
+		task.wait(b.atraso)
+		alvo.modelo:SetAttribute("BB_Bomba", nil)
+		if alvo.hum.Health > 0 and alvo.modelo.Parent and lut.modelo.Parent then
+			explosaoEm(lut, alvo.raiz.Position, b.explosao, ctx.dir, alvo)
+		end
+		return
+	end
+	-- errou o inimigo: a parede/objeto da frente vira bomba
+	local parte = Mapa.maisPerto(cf, b.caixa or Vector3.new(6, 6, 7))
+	if parte then
+		local pos = parte.Position
+		Combate.efeito("marca", { pos = pos, ate = agora() + b.atraso, stand = lut.standId, bomba = true })
+		task.wait(b.atraso)
+		if lut.modelo.Parent then
+			explosaoEm(lut, pos, b.explosao, ctx.dir)
+		end
+	end
+end
+
+-- Killer Queen Bites the Dust: o tempo volta alguns segundos. Você volta para onde estava, com a
+-- vida que tinha, a cidade em volta se conserta e quem te bateu nesse tempo explode.
+ESPECIAL.rebobinar = function(ctx)
+	local lut = ctx.lut
+	local r = ctx.g.rebobinar
+	local t0 = agora()
+	Combate.efeito("rebobinar", { quem = lut.modelo, t = t0, dur = r.t, stand = lut.standId })
+	if not esperar(ctx, r.t) then
+		return
+	end
+	local t = agora()
+	local alvoT = t - r.segundos
+	local hist = lut.historico or {}
+	local registro = nil
+	for _, h in hist do
+		if h.t <= alvoT then
+			registro = h
+		end
+	end
+	registro = registro or hist[1]
+	local culpados = {}
+	for atk, quando in lut.atacadoPor or {} do
+		if quando >= alvoT and atk ~= lut and atk.hum and atk.hum.Health > 0 and atk.modelo.Parent then
+			table.insert(culpados, atk)
+		end
+	end
+	local de = lut.raiz.Position
+	if registro then
+		if registro.hp > lut.hum.Health then
+			lut.hum.Health = math.min(lut.hum.MaxHealth, registro.hp)
+		end
+		if (registro.cf.Position - de).Magnitude > 2 then
+			Fisica.moverPara(lut, registro.cf)
+		end
+	end
+	local voltaram = Mapa.restaurarPerto(lut.raiz.Position, r.raio, true)
+	Combate.efeito("rebobinarFim", { quem = lut.modelo, de = de, para = if registro then registro.cf.Position else de, n = #voltaram, stand = lut.standId })
+	task.wait(0.25)
+	local ex = { raio = 7, dano = r.dano, empurrar = r.empurrar, ragdoll = r.ragdoll, quebra = r.quebra, inbloqueavel = true, vfx = "explosao_fogo", som = "explosao_grande", tremor = 0.9 }
+	if #culpados == 0 then
+		-- ninguém te bateu: quem estiver perto leva uma explosão menor
+		for _, l in Hitbox.esfera(lut.raiz.Position, 16, lut) do
+			table.insert(culpados, l)
+		end
+		ex.dano = r.dano * 0.6
+	end
+	for _, atk in culpados do
+		if atk.hum.Health > 0 and atk.modelo.Parent and (atk.raiz.Position - lut.raiz.Position).Magnitude <= r.raio * 2 then
+			explosaoEm(lut, atk.raiz.Position, ex, Regras.achatar(atk.raiz.Position - lut.raiz.Position), atk)
+		end
+	end
+end
+
 ESPECIAL.paredao = function(ctx)
 	local lut = ctx.lut
 	local p = ctx.g.paredao
@@ -800,22 +998,7 @@ local function acertarProjetil(p: any, alvo: any, _pos: Vector3)
 end
 
 local function explodir(p: any, pos: Vector3)
-	local ex = p.def.explosao
-	for _, l in Hitbox.esfera(pos, ex.raio, p.dono) do
-		Combate.acertar(p.dono, l, {
-			dano = ex.dano,
-			empurrar = ex.empurrar,
-			ragdoll = ex.ragdoll,
-			quebra = ex.quebra,
-			queima = ex.queima,
-			tipo = "area",
-			vfx = ex.vfx,
-			som = nil,
-			tremor = ex.tremor,
-		}, { origem = pos, dir = p.dir })
-	end
-	Mapa.quebrarArea(pos, ex.raio * 0.75, ex.quebra or 1)
-	Combate.efeito("explosao", { pos = pos, raio = ex.raio, tipo = ex.vfx, som = ex.som, tremor = ex.tremor })
+	explosaoEm(p.dono, pos, p.def.explosao, p.dir)
 end
 
 local function contraProjetil(alvo: any, p: any): boolean
@@ -834,8 +1017,35 @@ local function contraProjetil(alvo: any, p: any): boolean
 	return false
 end
 
+-- memória de onde cada lutador estava e com quanta vida (para o Bites the Dust)
+local function guardarHistorico()
+	local t = agora()
+	for _, l in Lutadores.todos() do
+		if l.hum.Health > 0 and l.raiz.Parent and l.stand and l.stand.ult and Executores.temRebobinar(l) then
+			local h = l.historico or {}
+			table.insert(h, { t = t, cf = l.raiz.CFrame, hp = l.hum.Health })
+			while #h > 0 and t - h[1].t > 9 do
+				table.remove(h, 1)
+			end
+			l.historico = h
+		end
+	end
+end
+
+function Executores.temRebobinar(l: any): boolean
+	local ult = l.stand and l.stand.ult
+	local g = ult and Golpes.get(ult)
+	return g ~= nil and g.especial == "rebobinar"
+end
+
 function Executores.iniciar(remotos: any)
 	Projeteis.iniciar(remotos.Efeito, acertarProjetil, explodir, contraProjetil)
+	task.spawn(function()
+		while true do
+			task.wait(0.25)
+			pcall(guardarHistorico)
+		end
+	end)
 end
 
 Executores.EXEC = EXEC

@@ -7,6 +7,7 @@ local LogService = game:GetService("LogService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ContentProvider = game:GetService("ContentProvider")
+local CollectionService = game:GetService("CollectionService")
 
 local res = { ok = true, erros = {}, avisos = {}, info = {} }
 local function falha(msg: string)
@@ -91,14 +92,17 @@ if not mainRodou then
 	end)
 end
 
--- 3) a cidade
+-- 3) a cidade (Morioh, do ChatGPT)
 checar("mapa", function()
-	local pasta = workspace:FindFirstChild("BB_Mapa")
-	assert(pasta, "BB_Mapa não foi montado")
-	local q = pasta:FindFirstChild("Quebraveis")
-	res.info.pecasMapa = #pasta:GetDescendants()
-	res.info.quebraveis = if q then #q:GetChildren() else 0
-	assert(res.info.quebraveis > 1000, "poucas peças quebráveis: " .. tostring(res.info.quebraveis))
+	local morioh = workspace:FindFirstChild("Morioh")
+	assert(morioh, "o mapa Morioh não está no place")
+	assert(Mapa.modo == "morioh", "o servidor não entrou no modo Morioh")
+	local destrutiveis = CollectionService:GetTagged("MoriohDestructible")
+	res.info.quebraveis = #destrutiveis
+	res.info.spawns = #Mapa.spawns()
+	assert(#destrutiveis > 50000, "poucas peças quebráveis: " .. #destrutiveis)
+	assert(#Mapa.spawns() >= 8 and Mapa.treino(), "spawns/treino")
+	res.info.streaming = workspace.StreamingEnabled
 end)
 
 -- 4) os Stands (corpos do catálogo)
@@ -123,8 +127,11 @@ checar("stands", function()
 			end
 		end
 		rel[id] = string.format("%s, juntas %d", tostring(m:GetAttribute("Origem")), juntas)
-		if juntas < 15 then
+		if juntas < 6 then
 			falha("Stand " .. id .. " com poucas juntas (" .. juntas .. ")")
+		end
+		if not m:FindFirstChild("Torso") then
+			aviso("Stand " .. id .. " não é R6")
 		end
 	end
 	res.info.stands = rel
@@ -135,7 +142,7 @@ local pastaTeste = Instance.new("Folder")
 pastaTeste.Name = "BB_TesteNuvem"
 pastaTeste.Parent = workspace
 local function lutador(nome: string, pos: Vector3, olhar: Vector3, stand: string)
-	local m = Rig.montar(nome, 1, nil, true)
+	local m = Rig.montarR6(nome, nil, true)
 	m:PivotTo(CFrame.lookAt(pos, pos + olhar))
 	m.Parent = pastaTeste
 	pcall(function()
@@ -147,8 +154,9 @@ local function lutador(nome: string, pos: Vector3, olhar: Vector3, stand: string
 	return l
 end
 
-local A_POS = Vector3.new(30, 3.8, 14)
-local V_POS = Vector3.new(30, 3.8, 8.5)
+-- numa rua de Morioh (asfalto em Y = 0, conferido sem nada em volta)
+local A_POS = Vector3.new(0, 3.2, 45.5)
+local V_POS = Vector3.new(0, 3.2, 40)
 local atk = lutador("TesteAtacante", A_POS, Vector3.new(0, 0, -1), Stands.ORDEM[1])
 local vit = lutador("TesteVitima", V_POS, Vector3.new(0, 0, 1), Stands.ORDEM[1])
 vit.imortal = true
@@ -243,7 +251,7 @@ for _, id in Stands.ORDEM do
 			if #logsRuins > antes then
 				falha("golpe " .. gid .. " deu erro: " .. logsRuins[#logsRuins])
 			end
-			if g.tipo ~= "cura" and dano <= 0 and g.tipo ~= "contra" then
+			if g.tipo ~= "cura" and dano <= 0 and g.tipo ~= "contra" and g.tipo ~= "buff" then
 				aviso(gid .. " não acertou o boneco de teste")
 			end
 			atk.estado.despertoAte = 0
@@ -255,10 +263,10 @@ local _ = erroAntes
 
 -- contra-ataque de verdade: ativa a postura e alguém bate
 checar("contra-ataque", function()
-	Lutadores.trocarStand(atk, "BOSSA_NOVA")
+	Lutadores.trocarStand(atk, "SILVER_CHARIOT")
 	atk.estado.semRecarga = true
 	arrumar()
-	Combate.golpe(atk, 4, {})
+	Combate.golpe(atk, 3, {})
 	task.wait(0.2)
 	local r = Combate.acertar(vit, atk, { dano = 5, tipo = "melee", atordoar = 0.5 }, { dir = Vector3.new(0, 0, 1) })
 	assert(r == "contra", "a postura de contra não pegou: " .. tostring(r))
@@ -267,8 +275,10 @@ end)
 
 -- 6) o mapa quebra e volta
 checar("mapa quebra e reconstrói", function()
-	local n = Mapa.quebrarArea(Vector3.new(-158, 6, -152), 18, 9)
+	-- casa dos Higashikata
+	local n = Mapa.quebrarArea(Vector3.new(-600, 8, -360), 18, 9)
 	assert(n > 0, "nada quebrou num prédio")
+	assert(n <= Config.MAPA.maxPorImpacto, "quebrou peças demais de uma vez: " .. n)
 	local v = Mapa.restaurarTudo()
 	assert(v >= n, "não reconstruiu tudo")
 	res.info.quebraTeste = string.format("%d peças quebraram e %d voltaram", n, v)
@@ -302,6 +312,13 @@ checar("sons", function()
 	elseif #falhos > 0 then
 		aviso("sons que não carregaram: " .. table.concat(falhos, ", "))
 	end
+end)
+
+-- 8) vozes dos Stands (só informação: se o áudio ainda não foi liberado, toca o grito de reserva)
+checar("vozes", function()
+	local v = ReplicatedStorage:FindFirstChild("BB_Vozes")
+	local id = v and string.match(v.Value, "^%s*(%d+)")
+	res.info.vozes = if id then "áudio " .. id else "sem áudio (usa o grito da biblioteca)"
 end)
 
 -- limpeza

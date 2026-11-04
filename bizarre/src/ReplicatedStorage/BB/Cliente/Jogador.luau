@@ -418,6 +418,8 @@ local function aoPrivado(tipo: string, d: any)
 	end
 end
 
+local CORPO_CAIDO = { "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "UpperTorso", "LowerTorso" }
+
 local function passo()
 	local c, hum, raiz = partes()
 	if not c or not hum or not raiz then
@@ -436,8 +438,8 @@ local function passo()
 		if hum:GetState() ~= Enum.HumanoidStateType.Physics then
 			hum:ChangeState(Enum.HumanoidStateType.Physics)
 		end
-		-- deitado, o tronco e a cabeça colidem com o chão (não atravessa o mapa)
-		for _, nome in { "UpperTorso", "LowerTorso", "Head", "Torso" } do
+		-- deitado, o corpo todo colide com o chão (não atravessa o mapa; o Humanoid tenta desligar)
+		for _, nome in CORPO_CAIDO do
 			local p = c:FindFirstChild(nome) :: BasePart?
 			if p and not p.CanCollide then
 				p.CanCollide = true

@@ -1,123 +1,147 @@
 -- BIZARRE BATTLEGROUNDS :: todos os golpes (dados). O servidor executa, o cliente anima.
 -- Tempos em segundos a partir do começo do golpe. "frente" = distância do centro da caixa à frente.
--- Tipos: golpe, barragem, projetil, area, investida, agarrar, contra, teleporte, cura, especial.
+-- Tipos: golpe, barragem, projetil, area, investida, agarrar, contra, teleporte, cura, buff, especial.
+-- "voz" = grito do Stand (ORA, MUDA, DORA, HORA...) que toca junto (quando o áudio existe).
 
 local V = Vector3.new
 
 local G = {}
 
------------------------------------------------------------------------------------------------ MARACATU
-G.MARACATU_1 = {
-	nome = "Batuque",
-	desc = "O Stand vai na frente e solta uma chuva de socos no ritmo do tambor.",
+----------------------------------------------------------------------------------------------- STAR PLATINUM
+G.STAR_PLATINUM_1 = {
+	nome = "ORA Rush",
+	desc = "A rajada de socos mais famosa: ORA ORA ORA! O último soco arremessa.",
 	tipo = "barragem",
 	cd = 12,
-	trava = 1.75,
+	trava = 1.7,
 	andar = 0.3,
 	alcance = 8,
 	standModo = "frente",
 	animU = "comando_aponta",
 	animS = "barragem",
+	voz = "ORA",
 	inicio = 0.18,
 	fim = 1.45,
-	intervalo = 0.09,
-	onomatopeia = "TUM TUM TUM!",
-	hit = { dano = 0.95, atordoar = 0.42, caixa = V(6.5, 6.5, 7.5), frente = 5, empurrar = { frente = 5, cima = 0, dur = 0.08 }, som = "soco_rapido", vfx = "barragem" },
-	final = { t = 1.52, dano = 5, caixa = V(7, 7, 8), frente = 5.2, empurrar = { frente = 66, cima = 22, dur = 0.24 }, ragdoll = 1.3, quebra = 2, som = "soco_forte", vfx = "impacto_forte", tremor = 0.5 },
+	intervalo = 0.085,
+	onomatopeia = "ORA ORA ORA!",
+	hit = { dano = 0.85, atordoar = 0.42, caixa = V(6.5, 6.5, 7.5), frente = 5.2, empurrar = { frente = 4, cima = 0, dur = 0.06 }, som = "soco_rapido", vfx = "barragem" },
+	final = { t = 1.52, dano = 6, caixa = V(7, 7, 8), frente = 5.4, empurrar = { frente = 52, cima = 16, dur = 0.15 }, ragdoll = 1.1, quebra = 2, som = "soco_forte", vfx = "impacto_forte", tremor = 0.5, voz = "ORA_FINAL" },
 }
 
-G.MARACATU_2 = {
-	nome = "Alfaia",
-	desc = "Carrega o soco com super armadura e solta um golpe que quebra a guarda e atravessa paredes.",
+G.STAR_PLATINUM_2 = {
+	nome = "Star Finger",
+	desc = "Os dedos do Star Platinum se esticam como uma lança e furam quem estiver na linha.",
+	tipo = "golpe",
+	cd = 11,
+	trava = 0.65,
+	andar = 0.15,
+	alcance = 15,
+	standModo = "frente",
+	animU = "comando_aponta",
+	animS = "star_finger",
+	animImpacto = 0.3,
+	vfxLinha = { t = 0.28, comp = 16, cor = "aura", dur = 0.3 },
+	hits = {
+		{ t = 0.3, dano = 10, atordoar = 0.9, caixa = V(2.8, 3.2, 16), frente = 9.5, empurrar = { frente = 30, cima = 6, dur = 0.12 }, quebra = 1, som = "corte", vfx = "impacto_forte", tremor = 0.4 },
+	},
+}
+
+G.STAR_PLATINUM_3 = {
+	nome = "Soco Pesado",
+	desc = "Carrega com super armadura e solta um ORA que quebra a guarda e atravessa parede.",
 	tipo = "golpe",
 	cd = 14,
-	trava = 0.95,
+	trava = 0.9,
 	andar = 0.1,
 	alcance = 9,
 	standModo = "frente",
 	animU = "comando_aponta",
 	animS = "soco_pesado",
-	animImpacto = 0.48,
-	armadura = { 0, 0.5 },
-	impulsos = { { t = 0.38, frente = 46, cima = 0, dur = 0.14 } },
-	onomatopeia = "DOOOM!",
+	animImpacto = 0.46,
+	armadura = { 0, 0.48 },
+	impulsos = { { t = 0.36, frente = 40, cima = 0, dur = 0.12 } },
+	onomatopeia = "ORAAAA!",
+	voz = "ORA_FINAL",
+	vozT = 0.4,
 	hits = {
-		{ t = 0.48, dano = 14, caixa = V(7, 7, 9), frente = 5.5, empurrar = { frente = 105, cima = 26, dur = 0.3 }, ragdoll = 1.8, quebra = 3, quebraGuarda = true, som = "soco_forte", vfx = "impacto_enorme", tremor = 0.9, impactFrame = true },
+		{ t = 0.46, dano = 13, caixa = V(7, 7, 9), frente = 5.5, empurrar = { frente = 64, cima = 20, dur = 0.16 }, ragdoll = 1.4, quebra = 3, quebraGuarda = true, som = "soco_forte", vfx = "impacto_enorme", tremor = 0.9, impactFrame = true },
 	},
 }
 
-G.MARACATU_3 = {
-	nome = "Terremoto",
-	desc = "Pula e o Stand esmurra o chão: abre uma cratera e joga todo mundo para cima.",
-	tipo = "area",
-	cd = 15,
-	trava = 1.05,
-	andar = 0,
-	alcance = 12,
-	standModo = "acima",
-	animU = "salto_slam",
-	animS = "slam",
-	animImpacto = 0.58,
-	impulsos = { { t = 0.05, frente = 14, cima = 52, dur = 0.16 }, { t = 0.42, frente = 0, cima = -120, dur = 0.12 } },
-	onomatopeia = "KRAKOOM!",
-	areas = {
-		{ t = 0.58, centro = "si", raio = 15, dano = 10, empurrar = { radial = true, frente = 28, cima = 62, dur = 0.22 }, ragdoll = 1.4, quebra = 2, raioQuebra = 17, som = "terremoto", vfx = "cratera", tremor = 0.8 },
-	},
+G.STAR_PLATINUM_4 = {
+	nome = "Bearing Shot",
+	desc = "O Star Platinum dá um peteleco numa bolinha de metal com força de bala.",
+	tipo = "projetil",
+	cd = 9,
+	trava = 0.45,
+	andar = 0.5,
+	alcance = 90,
+	standModo = "lado",
+	animU = "comando",
+	animS = "lancar",
+	animImpacto = 0.22,
+	proj = { t = 0.22, n = 1, vel = 165, alcance = 110, raio = 1.1, visual = "rolamento", dano = 9, atordoar = 0.8, empurrar = { frente = 16, cima = 4, dur = 0.08 }, som = "soco_forte", somLancar = "whoosh", vfx = "impacto" },
 }
 
-G.MARACATU_4 = {
-	nome = "Caboclo de Lança",
-	desc = "Avança como um touro; se pegar, agarra, enche de socos e joga para o alto.",
-	tipo = "agarrar",
-	cd = 16,
-	trava = 0.55,
-	andar = 0,
-	alcance = 26,
-	standModo = "frente",
-	animU = "investida",
-	animS = "agarrar",
-	investida = { t = 0.06, vel = 92, dur = 0.34, caixa = V(6, 6.5, 6), frente = 3.5 },
-	agarrao = {
-		duracao = 1.35,
-		distancia = 4.2,
-		animU = "comando_cruzado",
-		animS = "barragem",
-		sequencia = {
-			{ t = 0.15, dano = 2, som = "soco", vfx = "impacto" },
-			{ t = 0.35, dano = 2, som = "soco", vfx = "impacto" },
-			{ t = 0.55, dano = 2, som = "soco", vfx = "impacto" },
-			{ t = 0.75, dano = 2, som = "soco", vfx = "impacto" },
-		},
-		final = { t = 1.1, dano = 6, empurrar = { frente = 22, cima = 88, dur = 0.24 }, ragdoll = 1.6, quebra = 1, som = "soco_forte", vfx = "impacto_forte", tremor = 0.6, animS = "uppercut" },
-	},
-}
-
-G.MARACATU_ULT = {
-	nome = "CORTEJO REAL",
-	desc = "O Stand cresce e solta a rajada definitiva. O último soco atravessa um prédio inteiro.",
-	tipo = "barragem",
+G.STAR_PLATINUM_ULT = {
+	nome = "STAR PLATINUM: THE WORLD",
+	desc = "O Star Platinum também para o tempo! 3 segundos em que só você se mexe. Tudo o que bater chega junto quando o tempo voltar.",
+	tipo = "especial",
+	especial = "tempoParado",
 	ult = true,
 	cd = 1,
-	trava = 3.05,
-	andar = 0.15,
-	alcance = 9,
-	standModo = "frente",
-	standEscala = 1.45,
-	animU = "comando_aponta",
-	animS = "barragem",
-	armadura = { 0, 3.05 },
-	inicio = 0.35,
-	fim = 2.55,
-	intervalo = 0.075,
-	onomatopeia = "TUM TUM TUM TUM!",
-	hit = { dano = 1.05, atordoar = 0.45, caixa = V(9, 9, 10), frente = 6.5, empurrar = { frente = 5, cima = 0, dur = 0.08 }, som = "soco_rapido", vfx = "barragem" },
-	final = { t = 2.7, dano = 18, caixa = V(10, 10, 11), frente = 6.5, empurrar = { frente = 135, cima = 34, dur = 0.42 }, ragdoll = 2.3, quebra = 4, som = "explosao_grande", vfx = "impacto_enorme", tremor = 1.2, impactFrame = true },
+	trava = 0.9,
+	andar = 0,
+	alcance = 60,
+	standModo = "costas",
+	animU = "tempo",
+	animS = "tempo",
+	iframes = { 0, 0.95 },
+	voz = "SP_THE_WORLD",
+	vozT = 0.05,
+	tempo = { t = 0.75, duracao = 3, raio = 150 },
+	onomatopeia = "...",
 }
 
------------------------------------------------------------------------------------------------ BOSSA NOVA
-G.BOSSA_NOVA_1 = {
-	nome = "Contratempo",
-	desc = "Some e aparece nas costas do inimigo mais perto na sua frente, já chutando.",
+----------------------------------------------------------------------------------------------- THE WORLD
+G.THE_WORLD_1 = {
+	nome = "MUDA Rush",
+	desc = "MUDA MUDA MUDA! A rajada do DIO, e o último soco arremessa.",
+	tipo = "barragem",
+	cd = 12,
+	trava = 1.7,
+	andar = 0.3,
+	alcance = 8,
+	standModo = "frente",
+	animU = "pose_dio",
+	animS = "barragem",
+	voz = "MUDA",
+	inicio = 0.18,
+	fim = 1.45,
+	intervalo = 0.085,
+	onomatopeia = "MUDA MUDA MUDA!",
+	hit = { dano = 0.85, atordoar = 0.42, caixa = V(6.5, 6.5, 7.5), frente = 5, empurrar = { frente = 4, cima = 0, dur = 0.06 }, som = "soco_rapido", vfx = "barragem" },
+	final = { t = 1.52, dano = 6, caixa = V(7, 7, 8), frente = 5.2, empurrar = { frente = 54, cima = 18, dur = 0.15 }, ragdoll = 1.1, quebra = 2, som = "soco_forte", vfx = "impacto_forte", tremor = 0.5, voz = "MUDA_FINAL" },
+}
+
+G.THE_WORLD_2 = {
+	nome = "Facas",
+	desc = "O DIO joga um leque de facas.",
+	tipo = "projetil",
+	cd = 10,
+	trava = 0.5,
+	andar = 0.4,
+	alcance = 70,
+	standModo = "costas",
+	animU = "leque",
+	animS = "s_ocioso",
+	animImpacto = 0.24,
+	proj = { t = 0.24, n = 5, espalhar = 9, vel = 125, alcance = 95, raio = 1.4, visual = "faca", dano = 3.6, atordoar = 0.45, empurrar = { frente = 8, cima = 2, dur = 0.06 }, som = "corte", somLancar = "lamina", vfx = "impacto_dourado" },
+}
+
+G.THE_WORLD_3 = {
+	nome = "Salto no Tempo",
+	desc = "Para o tempo por um instante e aparece nas costas do inimigo, já chutando.",
 	tipo = "teleporte",
 	cd = 12,
 	trava = 0.7,
@@ -128,70 +152,38 @@ G.BOSSA_NOVA_1 = {
 	animS = "chute",
 	animImpacto = 0.32,
 	teleporte = { t = 0.14, alcance = 30, cone = 0.35, atras = 3.6, semAlvo = 16 },
-	onomatopeia = "TAC!",
+	onomatopeia = "WRYYY!",
 	hits = {
-		{ t = 0.32, dano = 8, atordoar = 1, caixa = V(6, 6, 6.5), frente = 3.6, empurrar = { frente = 34, cima = 12, dur = 0.16 }, som = "chute", vfx = "impacto_dourado", tremor = 0.4 },
+		{ t = 0.32, dano = 8, atordoar = 1, caixa = V(6, 6, 6.5), frente = 3.6, empurrar = { frente = 30, cima = 10, dur = 0.12 }, som = "chute", vfx = "impacto_dourado", tremor = 0.4 },
 	},
 }
 
-G.BOSSA_NOVA_2 = {
-	nome = "Lâminas Douradas",
-	desc = "Lança um leque de 5 lâminas douradas.",
-	tipo = "projetil",
-	cd = 10,
-	trava = 0.55,
-	andar = 0.4,
-	alcance = 70,
-	standModo = "lado",
-	animU = "leque",
-	animS = "leque",
-	animImpacto = 0.24,
-	proj = { t = 0.24, n = 5, espalhar = 13, vel = 118, alcance = 95, raio = 1.6, visual = "lamina", dano = 4, atordoar = 0.5, empurrar = { frente = 10, cima = 4, dur = 0.08 }, som = "corte", somLancar = "lamina", vfx = "impacto_dourado" },
-}
-
-G.BOSSA_NOVA_3 = {
-	nome = "Síncope",
-	desc = "Um golpe rápido que marca o inimigo. Um segundo depois o mesmo golpe ECOA no tempo e explode.",
+G.THE_WORLD_4 = {
+	nome = "Soco do Vampiro",
+	desc = "Um soco carregado que quebra a guarda. O DIO suga vida de quem apanha.",
 	tipo = "golpe",
 	cd = 14,
-	trava = 0.5,
-	andar = 0.2,
-	alcance = 8,
-	standModo = "frente",
-	animU = "comando",
-	animS = "soco_d",
-	animImpacto = 0.2,
-	eco = { atraso = 1.0, dano = 8, empurrar = { frente = 52, cima = 30, dur = 0.22 }, ragdoll = 1.2, quebra = 1, som = "tempo_eco", vfx = "eco" },
-	hits = {
-		{ t = 0.2, dano = 6, atordoar = 0.9, caixa = V(6, 6, 7), frente = 4.5, empurrar = { frente = 8, cima = 0, dur = 0.08 }, som = "soco", vfx = "impacto_dourado", marcar = true },
-	},
-}
-
-G.BOSSA_NOVA_4 = {
-	nome = "Desafinado",
-	desc = "Postura de contra-ataque. Se te baterem nessa hora, você aparece atrás deles e chuta para o céu.",
-	tipo = "contra",
-	cd = 14,
 	trava = 0.85,
-	andar = 0,
-	alcance = 6,
-	standModo = "costas",
-	animU = "contra_pose",
-	animS = "guarda",
-	contra = { inicio = 0.04, janela = 0.8, tipos = { melee = true }, reflete = false },
-	resposta = {
-		teleAtras = 3.4,
-		animU = "chute_alto",
-		animS = "chute",
-		hits = {
-			{ t = 0.16, dano = 12, caixa = V(7, 7, 7), frente = 3.4, empurrar = { frente = 70, cima = 46, dur = 0.24 }, ragdoll = 1.6, quebra = 2, som = "chute", vfx = "impacto_dourado", tremor = 0.6, inbloqueavel = true },
-		},
+	andar = 0.1,
+	alcance = 9,
+	standModo = "frente",
+	animU = "pose_dio",
+	animS = "soco_pesado",
+	animImpacto = 0.44,
+	armadura = { 0, 0.46 },
+	impulsos = { { t = 0.34, frente = 38, cima = 0, dur = 0.12 } },
+	onomatopeia = "MUDAAA!",
+	voz = "MUDA_FINAL",
+	vozT = 0.38,
+	cura = { total = 6, dur = 0.5, depois = 0.45 },
+	hits = {
+		{ t = 0.44, dano = 12, caixa = V(7, 7, 9), frente = 5.5, empurrar = { frente = 60, cima = 18, dur = 0.15 }, ragdoll = 1.3, quebra = 3, quebraGuarda = true, som = "soco_forte", vfx = "impacto_enorme", tremor = 0.8, impactFrame = true },
 	},
 }
 
-G.BOSSA_NOVA_ULT = {
-	nome = "SILÊNCIO",
-	desc = "PARA O TEMPO por 4 segundos. Só você se mexe. Todo golpe dado no tempo parado chega junto quando ele volta.",
+G.THE_WORLD_ULT = {
+	nome = "ZA WARUDO",
+	desc = "TOKI WO TOMARE! O tempo para por 5 segundos. No fim, um ROLO COMPRESSOR cai em cima do inimigo mais perto.",
 	tipo = "especial",
 	especial = "tempoParado",
 	ult = true,
@@ -203,108 +195,16 @@ G.BOSSA_NOVA_ULT = {
 	animU = "tempo",
 	animS = "tempo",
 	iframes = { 0, 1.1 },
-	tempo = { t = 0.9, duracao = 4, raio = 160 },
-	onomatopeia = "...",
+	voz = "ZA_WARUDO",
+	vozT = 0.05,
+	tempo = { t = 0.95, duracao = 5, raio = 180, rolo = { antes = 1.6, raio = 34, dano = 22, empurrar = { radial = true, frente = 58, cima = 26, dur = 0.16 }, ragdoll = 1.6 } },
+	onomatopeia = "ZA WARUDO!",
 }
 
------------------------------------------------------------------------------------------------ FREVO
-G.FREVO_1 = {
-	nome = "Passo do Frevo",
-	desc = "Avança girando a sombrinha e acerta todo mundo no caminho.",
-	tipo = "investida",
-	cd = 9,
-	trava = 0.55,
-	andar = 0,
-	alcance = 24,
-	standModo = "frente",
-	animU = "giro",
-	animS = "giro",
-	investida = { t = 0.04, vel = 96, dur = 0.38, caixa = V(7, 6, 7), frente = 1.5, multi = true, intervalo = 0.12 },
-	hit = { dano = 2.5, atordoar = 0.7, empurrar = { frente = 14, cima = 6, dur = 0.1 }, som = "estocada", vfx = "corte_colorido" },
-	final = { t = 0.46, dano = 3, caixa = V(8, 6, 8), frente = 2, empurrar = { frente = 42, cima = 16, dur = 0.16 }, som = "chute", vfx = "impacto_colorido" },
-}
-
-G.FREVO_2 = {
-	nome = "Estocada",
-	desc = "Uma sequência de estocadas longas com a sombrinha; a última arremessa.",
-	tipo = "barragem",
-	cd = 12,
-	trava = 1.25,
-	andar = 0.3,
-	alcance = 11,
-	standModo = "frente",
-	animU = "comando",
-	animS = "estocadas",
-	inicio = 0.15,
-	fim = 0.95,
-	intervalo = 0.085,
-	onomatopeia = "SHK SHK SHK!",
-	hit = { dano = 1.2, atordoar = 0.4, caixa = V(4, 5, 11), frente = 6.5, empurrar = { frente = 4, cima = 0, dur = 0.07 }, som = "estocada", vfx = "corte_colorido" },
-	final = { t = 1.02, dano = 5, caixa = V(4.5, 5, 12), frente = 7, empurrar = { frente = 74, cima = 14, dur = 0.24 }, ragdoll = 1.2, quebra = 2, som = "corte", vfx = "impacto_colorido", tremor = 0.4 },
-}
-
-G.FREVO_3 = {
-	nome = "Sombrinha Giratória",
-	desc = "Gira a sombrinha na frente: segura golpes, DEVOLVE projéteis e responde com uma estocada.",
-	tipo = "contra",
-	cd = 13,
-	trava = 1.1,
-	andar = 0.35,
-	alcance = 7,
-	standModo = "frente",
-	animU = "comando",
-	animS = "gira_sombrinha",
-	contra = { inicio = 0.05, janela = 1.0, tipos = { melee = true, projetil = true }, reflete = true, frenteApenas = true, continua = true },
-	resposta = {
-		animS = "estocada",
-		hits = {
-			{ t = 0.08, dano = 9, atordoar = 1.2, caixa = V(5, 6, 9), frente = 5, empurrar = { frente = 46, cima = 10, dur = 0.16 }, som = "corte", vfx = "impacto_colorido" },
-		},
-	},
-}
-
-G.FREVO_4 = {
-	nome = "Voo da Sombrinha",
-	desc = "Salta alto, plana com a sombrinha e mergulha num chute que racha o chão.",
-	tipo = "especial",
-	especial = "voo",
-	cd = 14,
-	trava = 1.25,
-	andar = 0,
-	alcance = 22,
-	standModo = "acima",
-	animU = "planar",
-	animS = "planar",
-	impulsos = { { t = 0.02, frente = 26, cima = 78, dur = 0.2 }, { t = 0.78, frente = 52, cima = -125, dur = 0.24 } },
-	onomatopeia = "FRUUU!",
-	areas = {
-		{ t = 1.02, centro = "si", raio = 11, dano = 11, empurrar = { radial = true, frente = 40, cima = 40, dur = 0.2 }, ragdoll = 1.3, quebra = 2, raioQuebra = 12, som = "terremoto", vfx = "cratera", tremor = 0.6 },
-	},
-	animTroca = { { t = 0.75, animU = "mergulho", animS = "mergulho" } },
-}
-
-G.FREVO_ULT = {
-	nome = "CARNAVAL",
-	desc = "Vira um borrão colorido: pula de inimigo em inimigo acertando todos várias vezes e termina numa explosão de confete.",
-	tipo = "especial",
-	especial = "carnaval",
-	ult = true,
-	cd = 1,
-	trava = 2.6,
-	andar = 0,
-	alcance = 60,
-	standModo = "frente",
-	animU = "giro",
-	animS = "estocadas",
-	iframes = { 0, 2.6 },
-	carnaval = { raio = 60, maxAlvos = 5, golpesPorAlvo = 3, intervalo = 0.11, dano = 3.5, final = { dano = 10, empurrar = { frente = 70, cima = 46, dur = 0.24 }, ragdoll = 1.8, quebra = 2 } },
-	onomatopeia = "ALA-LAÔ!!",
-}
-
------------------------------------------------------------------------------------------------ AXÉ
-G.AXE_1 = {
-	nome = "Bola de Fogo",
-	desc = "Uma bola de fogo que explode no impacto e queima.",
+----------------------------------------------------------------------------------------------- MAGICIAN'S RED
+G.MAGICIANS_RED_1 = {
+	nome = "Crossfire Hurricane",
+	desc = "Uma ankh de fogo que voa e explode no impacto.",
 	tipo = "projetil",
 	cd = 10,
 	trava = 0.6,
@@ -314,21 +214,51 @@ G.AXE_1 = {
 	animU = "lancar",
 	animS = "sopro",
 	animImpacto = 0.3,
+	voz = "CROSSFIRE",
+	vozT = 0.05,
 	proj = {
 		t = 0.3,
 		n = 1,
-		vel = 88,
-		alcance = 115,
+		vel = 84,
+		alcance = 110,
 		raio = 2.6,
-		visual = "fogo",
+		visual = "ankh",
 		somLancar = "fogo",
-		explosao = { raio = 10, dano = 11, empurrar = { radial = true, frente = 55, cima = 24, dur = 0.2 }, ragdoll = 1.1, quebra = 2, som = "explosao", vfx = "explosao_fogo", queima = 3, tremor = 0.6 },
+		explosao = { raio = 10, dano = 11, empurrar = { radial = true, frente = 44, cima = 18, dur = 0.14 }, ragdoll = 1, quebra = 2, som = "explosao", vfx = "explosao_fogo", queima = 3, tremor = 0.6 },
 	},
 }
 
-G.AXE_2 = {
-	nome = "Labareda",
-	desc = "Um lança-chamas na sua frente. Quem fica nele queima.",
+G.MAGICIANS_RED_2 = {
+	nome = "Red Bind",
+	desc = "Cordas de fogo que amarram o inimigo de longe, puxam, queimam e jogam no chão.",
+	tipo = "agarrar",
+	cd = 15,
+	trava = 0.5,
+	andar = 0,
+	alcance = 14,
+	standModo = "frente",
+	animU = "sopro",
+	animS = "sopro",
+	vfxLinha = { t = 0.18, comp = 16, cor = "fogo", dur = 0.35 },
+	golpeAgarra = { t = 0.25, caixa = V(4.5, 5.5, 16), frente = 9 },
+	agarrao = {
+		duracao = 1.6,
+		distancia = 5,
+		fogo = true,
+		animU = "sopro",
+		animS = "sopro",
+		sequencia = {
+			{ t = 0.3, dano = 2, som = "fogo", vfx = "impacto_fogo" },
+			{ t = 0.6, dano = 2, som = "fogo", vfx = "impacto_fogo" },
+			{ t = 0.9, dano = 2, som = "fogo", vfx = "impacto_fogo" },
+		},
+		final = { t = 1.3, dano = 7, empurrar = { frente = 26, cima = 40, dur = 0.14 }, ragdoll = 1.1, quebra = 1, queima = 3, som = "explosao", vfx = "explosao_fogo", tremor = 0.5, animS = "slam" },
+	},
+}
+
+G.MAGICIANS_RED_3 = {
+	nome = "Tempestade de Fogo",
+	desc = "Um mar de chamas na frente do Stand. Quem fica nele queima.",
 	tipo = "area",
 	cd = 12,
 	trava = 1.4,
@@ -340,91 +270,176 @@ G.AXE_2 = {
 	somLoop = "chama",
 	vfxContinuo = { tipo = "lanca_chamas", de = 0.15, ate = 1.3 },
 	areas = {
-		{ t = 0.15, repetir = 10, intervalo = 0.12, centro = "si", cone = { angulo = 30, alcance = 19 }, dano = 1.15, atordoar = 0.32, empurrar = { frente = 3, cima = 0, dur = 0.06 }, queima = 2, som = nil, vfx = "brasa", quebra = 0 },
+		{ t = 0.15, repetir = 10, intervalo = 0.12, centro = "si", cone = { angulo = 30, alcance = 19 }, dano = 1.1, atordoar = 0.32, empurrar = { frente = 3, cima = 0, dur = 0.05 }, queima = 2, vfx = "brasa", quebra = 0 },
 	},
 }
 
-G.AXE_3 = {
-	nome = "Trio Elétrico",
-	desc = "Uma parede de fogo atravessa a rua na sua frente arrastando quem estiver no caminho.",
-	tipo = "especial",
-	especial = "onda",
-	cd = 16,
+G.MAGICIANS_RED_4 = {
+	nome = "Coluna de Fogo",
+	desc = "Uma coluna de fogo explode do chão na sua frente e joga todo mundo para o alto.",
+	tipo = "area",
+	cd = 13,
 	trava = 0.8,
 	andar = 0.2,
-	alcance = 50,
+	alcance = 16,
 	standModo = "frente",
 	animU = "conjurar",
-	animS = "sopro",
-	onomatopeia = "VRUUUM!",
-	onda = { t = 0.35, largura = 18, altura = 9, vel = 55, alcance = 62, visual = "parede_fogo", dano = 12, empurrar = { frente = 62, cima = 26, dur = 0.24 }, ragdoll = 1.3, quebra = 3, queima = 3, som = "fogo_grande" },
+	animS = "conjurar",
+	onomatopeia = "FWOOM!",
+	vfxColuna = { t = 0.2, dist = 12, raio = 7, ate = 0.5 },
+	areas = {
+		{ t = 0.5, centro = "frente", dist = 12, raio = 7.5, dano = 12, empurrar = { radial = true, frente = 10, cima = 66, dur = 0.14 }, ragdoll = 1.2, quebra = 2, raioQuebra = 8, queima = 3, som = "fogo_grande", vfx = "coluna_fogo", tremor = 0.6 },
+	},
 }
 
-G.AXE_4 = {
-	nome = "Fênix",
-	desc = "Avança em chamas. O primeiro que pegar sobe voando.",
-	tipo = "investida",
-	cd = 13,
-	trava = 0.6,
-	andar = 0,
-	alcance = 30,
-	standModo = "frente",
-	animU = "investida",
-	animS = "uppercut",
-	investida = { t = 0.05, vel = 104, dur = 0.34, caixa = V(6.5, 7, 6.5), frente = 3, rastro = "fogo" },
-	hit = { dano = 9, empurrar = { frente = 16, cima = 92, dur = 0.24 }, ragdoll = 1.6, quebra = 1, queima = 3, som = "explosao", vfx = "explosao_fogo", tremor = 0.5 },
-}
-
-G.AXE_ULT = {
-	nome = "SOL DO MEIO-DIA",
-	desc = "Um sol nasce em cima de você e cai na frente: a maior explosão do jogo, derruba prédios.",
+G.MAGICIANS_RED_ULT = {
+	nome = "CROSSFIRE HURRICANE SPECIAL",
+	desc = "Uma ankh de fogo GIGANTE nasce em cima de você e cai na frente, numa explosão que derruba prédios.",
 	tipo = "especial",
 	especial = "sol",
 	ult = true,
 	cd = 1,
-	trava = 2.2,
+	trava = 2.1,
 	andar = 0,
 	alcance = 50,
 	standModo = "acima",
 	animU = "conjurar",
 	animS = "conjurar",
-	armadura = { 0, 2.2 },
-	sol = { formar = 1.2, cair = 0.55, dist = 30, raio = 34, danoCentro = 30, danoBorda = 14, empurrar = { radial = true, frente = 112, cima = 52, dur = 0.32 }, ragdoll = 2.4, quebra = 5, queima = 4 },
+	armadura = { 0, 2.1 },
+	voz = "CROSSFIRE",
+	vozT = 0.1,
+	sol = { formar = 1.1, cair = 0.5, dist = 28, raio = 30, danoCentro = 26, danoBorda = 12, empurrar = { radial = true, frente = 70, cima = 34, dur = 0.18 }, ragdoll = 1.8, quebra = 5, queima = 4, visual = "ankh" },
 	onomatopeia = "FWOOOOM!",
 }
 
------------------------------------------------------------------------------------------------ CHORINHO
-G.CHORINHO_1 = {
-	nome = "Remendo",
-	desc = "O Stand conserta o seu corpo: cura 24 de vida em 2,5 segundos.",
-	tipo = "cura",
-	cd = 18,
-	trava = 0.8,
-	andar = 0.6,
-	alcance = 0,
-	standModo = "costas",
-	animU = "cura",
-	animS = "cura",
-	cura = { total = 24, dur = 2.5 },
+----------------------------------------------------------------------------------------------- SILVER CHARIOT
+G.SILVER_CHARIOT_1 = {
+	nome = "Chuva de Estocadas",
+	desc = "HORA HORA HORA! Estocadas de rapieira rápidas demais para ver. A última arremessa.",
+	tipo = "barragem",
+	cd = 11,
+	trava = 1.25,
+	andar = 0.3,
+	alcance = 11,
+	standModo = "frente",
+	animU = "esgrima",
+	animS = "estocadas",
+	voz = "HORA",
+	inicio = 0.15,
+	fim = 0.95,
+	intervalo = 0.08,
+	onomatopeia = "HORA HORA!",
+	hit = { dano = 1.1, atordoar = 0.4, caixa = V(4, 5, 11), frente = 6.5, empurrar = { frente = 4, cima = 0, dur = 0.06 }, som = "estocada", vfx = "corte_prata" },
+	final = { t = 1.02, dano = 5, caixa = V(4.5, 5, 12), frente = 7, empurrar = { frente = 50, cima = 12, dur = 0.15 }, ragdoll = 1, quebra = 2, som = "corte", vfx = "impacto_prata", tremor = 0.4 },
 }
 
-G.CHORINHO_2 = {
-	nome = "Estilhaços",
-	desc = "Junta cacos do chão e atira em leque. Se o mapa estiver quebrado por perto, atira o DOBRO.",
+G.SILVER_CHARIOT_2 = {
+	nome = "Lâmina Voadora",
+	desc = "A ponta da rapieira é disparada como uma flecha e atravessa todo mundo na linha.",
+	tipo = "projetil",
+	cd = 10,
+	trava = 0.5,
+	andar = 0.4,
+	alcance = 90,
+	standModo = "frente",
+	animU = "esgrima",
+	animS = "estocada",
+	animImpacto = 0.22,
+	proj = { t = 0.22, n = 1, vel = 150, alcance = 100, raio = 1.4, visual = "rapieira", perfura = true, dano = 9, atordoar = 0.7, empurrar = { frente = 14, cima = 3, dur = 0.08 }, som = "corte", somLancar = "lamina", vfx = "impacto_prata" },
+}
+
+G.SILVER_CHARIOT_3 = {
+	nome = "Defesa da Rapieira",
+	desc = "Gira a rapieira na frente: segura golpes, DEVOLVE projéteis e responde com uma estocada.",
+	tipo = "contra",
+	cd = 13,
+	trava = 1.1,
+	andar = 0.35,
+	alcance = 7,
+	standModo = "frente",
+	animU = "esgrima",
+	animS = "gira_sombrinha",
+	contra = { inicio = 0.05, janela = 1.0, tipos = { melee = true, projetil = true }, reflete = true, frenteApenas = true, continua = true },
+	resposta = {
+		animS = "estocada",
+		hits = {
+			{ t = 0.08, dano = 9, atordoar = 1.2, caixa = V(5, 6, 9), frente = 5, empurrar = { frente = 34, cima = 8, dur = 0.12 }, som = "corte", vfx = "impacto_prata" },
+		},
+	},
+}
+
+G.SILVER_CHARIOT_4 = {
+	nome = "ARMOR OFF",
+	desc = "O Silver Chariot tira a armadura: por 8 segundos você fica muito mais rápido, bate mais forte e deixa imagens residuais.",
+	tipo = "buff",
+	cd = 22,
+	trava = 0.6,
+	andar = 0,
+	alcance = 0,
+	standModo = "frente",
+	animU = "esgrima",
+	animS = "conjurar",
+	onomatopeia = "ARMOR OFF!",
+	buff = { dur = 8, velocidade = 1.35, dano = 1.15, standSemArmadura = true },
+}
+
+G.SILVER_CHARIOT_ULT = {
+	nome = "IMAGENS RESIDUAIS",
+	desc = "Rápido como a luz: o Silver Chariot vira várias cópias e acerta todos os inimigos em volta várias vezes.",
+	tipo = "especial",
+	especial = "carnaval",
+	ult = true,
+	cd = 1,
+	trava = 2.6,
+	andar = 0,
+	alcance = 60,
+	standModo = "frente",
+	animU = "esgrima",
+	animS = "estocadas",
+	iframes = { 0, 2.6 },
+	voz = "HORA",
+	carnaval = { raio = 60, maxAlvos = 5, golpesPorAlvo = 3, intervalo = 0.11, dano = 3.4, visual = "prata", final = { dano = 10, empurrar = { frente = 50, cima = 30, dur = 0.15 }, ragdoll = 1.4, quebra = 2 } },
+	onomatopeia = "HORA HORA HORA!",
+}
+
+----------------------------------------------------------------------------------------------- CRAZY DIAMOND
+G.CRAZY_DIAMOND_1 = {
+	nome = "DORA Rush",
+	desc = "DORARARARA! A rajada do Josuke. O último soco arremessa.",
+	tipo = "barragem",
+	cd = 12,
+	trava = 1.7,
+	andar = 0.3,
+	alcance = 8,
+	standModo = "frente",
+	animU = "pose_josuke",
+	animS = "barragem",
+	voz = "DORA",
+	inicio = 0.18,
+	fim = 1.45,
+	intervalo = 0.085,
+	onomatopeia = "DORARARA!",
+	hit = { dano = 0.85, atordoar = 0.42, caixa = V(6.5, 6.5, 7.5), frente = 5, empurrar = { frente = 4, cima = 0, dur = 0.06 }, som = "soco_rapido", vfx = "barragem" },
+	final = { t = 1.52, dano = 6, caixa = V(7, 7, 8), frente = 5.2, empurrar = { frente = 52, cima = 16, dur = 0.15 }, ragdoll = 1.1, quebra = 2, som = "soco_forte", vfx = "impacto_rosa", tremor = 0.5, voz = "DORA_FINAL" },
+}
+
+G.CRAZY_DIAMOND_2 = {
+	nome = "Disparo Restaurado",
+	desc = "Junta cacos do chão e eles voam de volta para o lugar, atravessando quem estiver no caminho. Com o mapa quebrado por perto, atira o DOBRO.",
 	tipo = "projetil",
 	cd = 10,
 	trava = 0.6,
 	andar = 0.4,
 	alcance = 60,
 	standModo = "frente",
-	animU = "comando",
+	animU = "pose_josuke",
 	animS = "leque",
 	animImpacto = 0.28,
-	proj = { t = 0.28, n = 6, nComDestrocos = 11, raioDestrocos = 30, espalhar = 9, vel = 112, alcance = 80, raio = 1.4, visual = "caco", dano = 3, atordoar = 0.45, empurrar = { frente = 8, cima = 3, dur = 0.08 }, som = "cristal", somLancar = "whoosh", vfx = "impacto_rosa" },
+	proj = { t = 0.28, n = 6, nComDestrocos = 11, raioDestrocos = 30, espalhar = 9, vel = 112, alcance = 80, raio = 1.4, visual = "caco", dano = 3, atordoar = 0.45, empurrar = { frente = 8, cima = 3, dur = 0.06 }, som = "cristal", somLancar = "whoosh", vfx = "impacto_rosa" },
 }
 
-G.CHORINHO_3 = {
-	nome = "Reconstruir",
+G.CRAZY_DIAMOND_3 = {
+	nome = "Restauração",
 	desc = "Conserta tudo o que está quebrado em volta. Quem estiver no lugar fica PRESO dentro da parede.",
 	tipo = "especial",
 	especial = "reconstruir",
@@ -436,19 +451,19 @@ G.CHORINHO_3 = {
 	animU = "conjurar",
 	animS = "conjurar",
 	onomatopeia = "KRIK-KRAK!",
-	reconstruir = { t = 0.5, raio = 45, danoPreso = 12, preso = 2.0, danoPerto = 7, raioPerto = 5, semNada = { raio = 11, dano = 6, empurrar = { radial = true, frente = 42, cima = 18, dur = 0.18 } } },
+	reconstruir = { t = 0.5, raio = 45, danoPreso = 12, preso = 2.0, danoPerto = 7, raioPerto = 5, semNada = { raio = 11, dano = 6, empurrar = { radial = true, frente = 34, cima = 14, dur = 0.12 } } },
 }
 
-G.CHORINHO_4 = {
-	nome = "Abraço de Pedra",
-	desc = "O Stand agarra e transforma o inimigo em pedra; depois estilhaça.",
+G.CRAZY_DIAMOND_4 = {
+	nome = "Prisão de Pedra",
+	desc = "Como fez com o Angelo: o Crazy Diamond agarra, funde o inimigo numa pedra e depois estilhaça.",
 	tipo = "agarrar",
 	cd = 14,
 	trava = 0.5,
 	andar = 0,
 	alcance = 7,
 	standModo = "frente",
-	animU = "comando",
+	animU = "pose_josuke",
 	animS = "agarrar",
 	golpeAgarra = { t = 0.22, caixa = V(6, 6.5, 7), frente = 4.2 },
 	agarrao = {
@@ -458,13 +473,13 @@ G.CHORINHO_4 = {
 		animU = "comando_aponta",
 		animS = "guarda",
 		sequencia = {},
-		final = { t = 1.4, dano = 13, empurrar = { frente = 50, cima = 22, dur = 0.2 }, ragdoll = 1.2, quebra = 1, som = "pedra", vfx = "estilhaco", tremor = 0.6, animS = "soco_pesado" },
+		final = { t = 1.4, dano = 13, empurrar = { frente = 40, cima = 18, dur = 0.14 }, ragdoll = 1.1, quebra = 1, som = "pedra", vfx = "estilhaco", tremor = 0.6, animS = "soco_pesado" },
 	},
 }
 
-G.CHORINHO_ULT = {
-	nome = "SAUDADE",
-	desc = "Restaura o mapa inteiro em volta, prende todos os inimigos perto em pedra e o Stand bate em cada um. Você se cura.",
+G.CRAZY_DIAMOND_ULT = {
+	nome = "FÚRIA DE DIAMANTE",
+	desc = "Restaura o mapa inteiro em volta, prende todos os inimigos perto em pedra e o Crazy Diamond soca cada um com DORA.",
 	tipo = "especial",
 	especial = "saudade",
 	ult = true,
@@ -473,107 +488,120 @@ G.CHORINHO_ULT = {
 	andar = 0,
 	alcance = 40,
 	standModo = "acima",
-	animU = "conjurar",
+	animU = "pose_josuke",
 	animS = "conjurar",
 	iframes = { 0, 2.4 },
-	saudade = { raioMapa = 110, raio = 40, preso = 2.2, dano = 8, final = 10, cura = 30 },
-	onomatopeia = "VOLTA!!",
+	voz = "DORA",
+	vozT = 0.9,
+	saudade = { raioMapa = 110, raio = 40, preso = 2.2, dano = 9, final = 11, cura = 0 },
+	onomatopeia = "DORARARA!!",
 }
 
------------------------------------------------------------------------------------------------ FUNK
-G.FUNK_1 = {
-	nome = "Grave",
-	desc = "Um estouro de grave em cone: arremessa longe e estoura os vidros em volta.",
-	tipo = "area",
-	cd = 11,
-	trava = 0.6,
-	andar = 0.2,
-	alcance = 18,
-	standModo = "frente",
-	animU = "sopro",
-	animS = "sopro",
-	animImpacto = 0.3,
-	onomatopeia = "BOOOM!",
-	areas = {
-		{ t = 0.3, centro = "si", cone = { angulo = 34, alcance = 23 }, dano = 9, empurrar = { frente = 82, cima = 20, dur = 0.26 }, ragdoll = 1.2, quebra = 2, quebraVidroRaio = 32, som = "grave", vfx = "onda_som", tremor = 0.5 },
-	},
-}
-
-G.FUNK_2 = {
-	nome = "Paredão",
-	desc = "Levanta um paredão de caixas de som na sua frente: segura tiros, bloqueia a passagem e empurra quem chega perto.",
+----------------------------------------------------------------------------------------------- KILLER QUEEN
+G.KILLER_QUEEN_1 = {
+	nome = "Primeira Bomba",
+	desc = "A Killer Queen toca o inimigo e ele VIRA BOMBA: um segundo depois, explode.",
 	tipo = "especial",
-	especial = "paredao",
-	cd = 18,
-	trava = 0.6,
-	andar = 0.3,
-	alcance = 14,
+	especial = "bomba",
+	cd = 12,
+	trava = 0.55,
+	andar = 0.2,
+	alcance = 7,
 	standModo = "frente",
-	animU = "conjurar",
-	animS = "pisao",
-	paredao = { t = 0.35, dist = 7, largura = 15, altura = 10, duracao = 5.5, pulso = 0.6, raioPulso = 13, dano = 2, empurrar = { frente = 38, cima = 10, dur = 0.12 } },
+	animU = "detonar",
+	animS = "soco_d",
+	animImpacto = 0.25,
+	voz = "KQ_BOMBA",
+	vozT = 0.6,
+	bomba = { t = 0.25, caixa = V(6, 6, 7), frente = 4.2, toque = { dano = 2, atordoar = 0.5 }, atraso = 1.2, explosao = { raio = 9, dano = 13, empurrar = { radial = true, frente = 44, cima = 22, dur = 0.14 }, ragdoll = 1.2, quebra = 2, som = "explosao", vfx = "explosao_fogo", tremor = 0.6 } },
 }
 
-G.FUNK_3 = {
-	nome = "Batidão",
-	desc = "Três pisões que soltam anéis de som em volta. O último joga para cima.",
-	tipo = "area",
-	cd = 13,
-	trava = 1.25,
-	andar = 0.1,
-	alcance = 14,
-	standModo = "costas",
-	animU = "pisao",
-	animS = "pisao",
-	onomatopeia = "TUTS TUTS TUTS!",
-	areas = {
-		{ t = 0.3, centro = "si", raio = 12, dano = 4, atordoar = 0.7, empurrar = { radial = true, frente = 14, cima = 6, dur = 0.1 }, som = "sub", vfx = "anel_som", tremor = 0.3 },
-		{ t = 0.65, centro = "si", raio = 15, dano = 4, atordoar = 0.7, empurrar = { radial = true, frente = 16, cima = 8, dur = 0.1 }, som = "sub", vfx = "anel_som", tremor = 0.35 },
-		{ t = 1.0, centro = "si", raio = 18, dano = 5, empurrar = { radial = true, frente = 22, cima = 58, dur = 0.2 }, ragdoll = 1.2, quebra = 1, raioQuebra = 12, som = "grave", vfx = "anel_som_grande", tremor = 0.6 },
-	},
-	animRepetir = { 0.3, 0.65, 1.0 },
-}
-
-G.FUNK_4 = {
-	nome = "Pancadão",
-	desc = "Uma bola de som grande e lenta que explode quando encosta em alguém.",
+G.KILLER_QUEEN_2 = {
+	nome = "Sheer Heart Attack",
+	desc = "O tanquinho-bomba da mão esquerda: persegue o inimigo mais quente e explode. \"Olhe aqui!\"",
 	tipo = "projetil",
 	cd = 14,
-	trava = 0.6,
+	trava = 0.5,
 	andar = 0.4,
 	alcance = 60,
-	standModo = "frente",
-	animU = "lancar",
-	animS = "soco_pesado",
-	animImpacto = 0.32,
+	standModo = "lado",
+	animU = "detonar",
+	animS = "lancar",
+	animImpacto = 0.25,
 	proj = {
-		t = 0.32,
+		t = 0.25,
 		n = 1,
-		vel = 46,
-		alcance = 72,
-		raio = 4.2,
-		visual = "bola_som",
-		somLancar = "sub",
-		explosao = { raio = 14, dano = 13, empurrar = { radial = true, frente = 72, cima = 30, dur = 0.24 }, ragdoll = 1.4, quebra = 3, som = "grave", vfx = "explosao_som", tremor = 0.7 },
+		vel = 38,
+		alcance = 150,
+		raio = 2,
+		visual = "tanque",
+		guiado = 2.6,
+		somLancar = "metal",
+		explosao = { raio = 9, dano = 12, empurrar = { radial = true, frente = 42, cima = 26, dur = 0.14 }, ragdoll = 1.2, quebra = 2, som = "explosao", vfx = "explosao_fogo", tremor = 0.6 },
 	},
 }
 
-G.FUNK_ULT = {
-	nome = "BAILE",
-	desc = "Um paredão gigante nasce atrás de você e o grave pulsa no ritmo: cada batida mais forte, a última destrói tudo em volta.",
+G.KILLER_QUEEN_3 = {
+	nome = "Moeda Bomba",
+	desc = "Joga uma moeda que virou bomba. Explode no que encostar (ou no fim do voo).",
+	tipo = "projetil",
+	cd = 9,
+	trava = 0.45,
+	andar = 0.5,
+	alcance = 50,
+	standModo = "costas",
+	animU = "lancar",
+	animS = "s_ocioso",
+	animImpacto = 0.26,
+	proj = {
+		t = 0.26,
+		n = 1,
+		vel = 72,
+		alcance = 55,
+		raio = 1.2,
+		visual = "moeda",
+		explodeNoFim = true,
+		somLancar = "whoosh",
+		explosao = { raio = 8, dano = 9, empurrar = { radial = true, frente = 36, cima = 18, dur = 0.12 }, ragdoll = 0.9, quebra = 2, som = "explosao", vfx = "explosao_fogo", tremor = 0.5 },
+	},
+}
+
+G.KILLER_QUEEN_4 = {
+	nome = "Soco Detonador",
+	desc = "Um soco rápido que marca o inimigo; um instante depois a marca explode.",
+	tipo = "golpe",
+	cd = 12,
+	trava = 0.5,
+	andar = 0.2,
+	alcance = 8,
+	standModo = "frente",
+	animU = "comando",
+	animS = "soco_d",
+	animImpacto = 0.2,
+	eco = { atraso = 0.45, dano = 8, empurrar = { frente = 44, cima = 22, dur = 0.14 }, ragdoll = 1.1, quebra = 2, som = "explosao", vfx = "explosao_fogo" },
+	hits = {
+		{ t = 0.2, dano = 5, atordoar = 0.9, caixa = V(6, 6, 7), frente = 4.5, empurrar = { frente = 6, cima = 0, dur = 0.06 }, som = "soco", vfx = "impacto_rosa", marcar = true },
+	},
+}
+
+G.KILLER_QUEEN_ULT = {
+	nome = "BITES THE DUST",
+	desc = "O tempo volta 5 segundos: você volta para onde estava, com a vida que tinha, e quem te bateu nesse tempo EXPLODE.",
 	tipo = "especial",
-	especial = "baile",
+	especial = "rebobinar",
 	ult = true,
 	cd = 1,
-	trava = 3.3,
+	trava = 1.2,
 	andar = 0,
-	alcance = 45,
-	standModo = "acima",
-	animU = "pose2",
+	alcance = 40,
+	standModo = "costas",
+	animU = "detonar",
 	animS = "conjurar",
-	armadura = { 0, 3.3 },
-	baile = { inicio = 0.6, batidas = 5, intervalo = 0.5, raio = 44, dano = 4.5, empurrarBatida = { radial = true, frente = 18, cima = 34, dur = 0.12 }, final = { dano = 15, empurrar = { radial = true, frente = 104, cima = 46, dur = 0.3 }, ragdoll = 2, quebra = 4 } },
-	onomatopeia = "TUTS TUTS!!",
+	iframes = { 0, 1.4 },
+	voz = "BITES_THE_DUST",
+	vozT = 0.05,
+	rebobinar = { t = 0.7, segundos = 5, memoria = 8, raio = 60, dano = 18, empurrar = { radial = true, frente = 48, cima = 26, dur = 0.14 }, ragdoll = 1.4, quebra = 2 },
+	onomatopeia = "BITES THE DUST",
 }
 
 -- utilitários --------------------------------------------------------------------------------------
@@ -603,7 +631,6 @@ function Golpes.doSlot(stand: any, slot: any)
 	return G[id], id
 end
 
--- maior tempo de golpe dentro do golpe (para saber quando acaba)
 function Golpes.duracao(g: any): number
 	return g.trava or 0.5
 end

@@ -16,6 +16,7 @@ Fisica.GRUPOS = {
 }
 
 local remotoPrivado: RemoteEvent? = nil
+Fisica.VEL_MAX = 95
 
 function Fisica.iniciar(privado: RemoteEvent?)
 	remotoPrivado = privado
@@ -76,6 +77,10 @@ function Fisica.empurrar(lut: any, vel: Vector3, dur: number)
 	if raiz.Anchored then
 		return
 	end
+	local maximo = Fisica.VEL_MAX or 95
+	if vel.Magnitude > maximo then
+		vel = vel.Unit * maximo
+	end
 	Fisica.limparEmpurroes(raiz)
 	local lv = Instance.new("LinearVelocity")
 	lv.Name = "BB_Empurrao"
@@ -93,20 +98,114 @@ function Fisica.empurrar(lut: any, vel: Vector3, dur: number)
 	end
 end
 
--- ragdoll: marca, troca o grupo de colisão (atravessa paredes quebráveis) e deita
+-- ragdoll de verdade (AJUSTE-2): as juntas soltam (BallSocket) em todos os celulares, o corpo cai
+-- mole e levanta sozinho depois. As juntas de reserva são criadas uma vez por personagem.
+local LIMITES = {
+	Neck = 35,
+	["Left Shoulder"] = 100,
+	["Right Shoulder"] = 100,
+	["Left Hip"] = 70,
+	["Right Hip"] = 70,
+	LeftShoulder = 100,
+	RightShoulder = 100,
+	LeftHip = 70,
+	RightHip = 70,
+	LeftElbow = 80,
+	RightElbow = 80,
+	LeftKnee = 80,
+	RightKnee = 80,
+	Waist = 30,
+}
+
+local function ehRaiz(m: Motor6D): boolean
+	return m.Name == "RootJoint" or m.Name == "Root"
+end
+
+local function prepararRagdoll(modelo: Model)
+	if modelo:GetAttribute("BB_RagdollPronto") then
+		return
+	end
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") and p:GetAttribute("BB_ColOrig") == nil then
+			p:SetAttribute("BB_ColOrig", p.CanCollide)
+		end
+	end
+	for _, m in modelo:GetDescendants() do
+		if m:IsA("Motor6D") and not ehRaiz(m) and m.Part0 and m.Part1 and LIMITES[m.Name] then
+			local a0 = Instance.new("Attachment")
+			a0.Name = "BB_RA0_" .. m.Name
+			a0.CFrame = m.C0
+			a0.Parent = m.Part0
+			local a1 = Instance.new("Attachment")
+			a1.Name = "BB_RA1_" .. m.Name
+			a1.CFrame = m.C1
+			a1.Parent = m.Part1
+			local bs = Instance.new("BallSocketConstraint")
+			bs.Name = "BB_Junta_" .. m.Name
+			bs.Attachment0 = a0
+			bs.Attachment1 = a1
+			bs.LimitsEnabled = true
+			bs.UpperAngle = LIMITES[m.Name]
+			bs.TwistLimitsEnabled = false
+			bs.Enabled = false
+			bs.Parent = m.Part1
+		end
+	end
+	modelo:SetAttribute("BB_RagdollPronto", true)
+end
+Fisica.prepararRagdoll = prepararRagdoll
+
+local function juntasSoltas(modelo: Model, soltar: boolean)
+	for _, d in modelo:GetDescendants() do
+		if d:IsA("Motor6D") and not ehRaiz(d) and LIMITES[d.Name] then
+			d.Enabled = not soltar
+		elseif d:IsA("BallSocketConstraint") and string.sub(d.Name, 1, 9) == "BB_Junta_" then
+			d.Enabled = soltar
+		end
+	end
+end
+
 function Fisica.derrubar(lut: any, ate: number)
 	local m = lut.modelo
+	local jaDeitado = (m:GetAttribute("BB_Ragdoll") or 0) > workspace:GetServerTimeNow()
 	m:SetAttribute("BB_Ragdoll", ate)
+	if jaDeitado then
+		return
+	end
+	prepararRagdoll(m)
+	juntasSoltas(m, true)
+	for _, p in m:GetChildren() do
+		if p:IsA("BasePart") then
+			p.CanCollide = p.Name ~= "HumanoidRootPart"
+		end
+	end
 	Fisica.grupo(m, Fisica.GRUPOS.voando)
-	if not lut.jogador then
+	if lut.jogador then
+		-- cada pedaço solto continua sendo simulado pelo celular do dono
+		for _, p in m:GetChildren() do
+			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+				pcall(function()
+					p:SetNetworkOwner(lut.jogador)
+				end)
+			end
+		end
+	else
 		pcall(function()
 			lut.hum:ChangeState(Enum.HumanoidStateType.Physics)
 		end)
-		for _, nome in { "UpperTorso", "LowerTorso", "Head", "Torso" } do
-			local p = m:FindFirstChild(nome) :: BasePart?
-			if p then
-				p.CanCollide = true
-			end
+	end
+end
+
+-- bots caídos: o Humanoid do servidor tenta desligar a colisão dos braços e pernas
+local MEMBROS = { "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" }
+function Fisica.manterRagdoll(lut: any)
+	if lut.jogador then
+		return
+	end
+	for _, nome in MEMBROS do
+		local p = lut.modelo:FindFirstChild(nome)
+		if p and p:IsA("BasePart") and not p.CanCollide then
+			p.CanCollide = true
 		end
 	end
 end
@@ -114,6 +213,15 @@ end
 function Fisica.levantar(lut: any)
 	local m = lut.modelo
 	m:SetAttribute("BB_Ragdoll", 0)
+	juntasSoltas(m, false)
+	for _, p in m:GetDescendants() do
+		if p:IsA("BasePart") then
+			local orig = p:GetAttribute("BB_ColOrig")
+			if orig ~= nil then
+				p.CanCollide = orig
+			end
+		end
+	end
 	Fisica.grupo(m, Fisica.GRUPOS.lutador)
 	if not lut.jogador and lut.hum.Health > 0 then
 		pcall(function()
@@ -134,9 +242,26 @@ function Fisica.impulsoProprio(lut: any, dir: Vector3, frente: number, cima: num
 	Fisica.empurrar(lut, v * frente + Vector3.new(0, cima, 0), dur)
 end
 
+Fisica.carregarRegiao = nil :: ((Player, Vector3) -> ())?
+
 -- teleporta (jogador: pede para o celular dele; bot: move direto)
 function Fisica.moverPara(lut: any, cf: CFrame)
 	if lut.jogador then
+		local longe = lut.raiz and (lut.raiz.Position - cf.Position).Magnitude > 220
+		if longe and Fisica.carregarRegiao then
+			-- longe demais: primeiro o celular recebe o lugar novo (senão cai no vazio)
+			local carregar = Fisica.carregarRegiao
+			task.spawn(function()
+				carregar(lut.jogador, cf.Position)
+				if remotoPrivado then
+					remotoPrivado:FireClient(lut.jogador, "mover", { cf = cf })
+				end
+				pcall(function()
+					lut.modelo:PivotTo(cf)
+				end)
+			end)
+			return
+		end
 		if remotoPrivado then
 			remotoPrivado:FireClient(lut.jogador, "mover", { cf = cf })
 		end

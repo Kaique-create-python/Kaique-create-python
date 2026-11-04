@@ -98,6 +98,85 @@ function Som.tocar(nome: string?, pos: Vector3?, opcoes: any?): Sound?
 	return snd
 end
 
+-- vozes dos Stands (ORA, MUDA, DORA...): um áudio só com todos os gritos, enviado pelo
+-- instalador (o número dele fica em ReplicatedStorage.BB_Vozes). Enquanto o Roblox não liberar
+-- o áudio, toca o grito da biblioteca no lugar (nunca fica mudo).
+local vozesEstado = "?" -- "?" ainda não conferiu, "ok", "nao"
+local vozesId = ""
+local function conferirVozes()
+	if vozesEstado ~= "?" then
+		return
+	end
+	vozesEstado = "nao"
+	local v = BB.Parent:FindFirstChild("BB_Vozes")
+	local id = if v and v:IsA("StringValue") then string.match(v.Value, "^%s*(%d+)") else nil
+	if not id then
+		return
+	end
+	vozesId = id
+	task.spawn(function()
+		local teste = Instance.new("Sound")
+		teste.SoundId = "rbxassetid://" .. id
+		local ok = false
+		pcall(function()
+			ContentProvider:PreloadAsync({ teste }, function(_, status)
+				ok = status == Enum.AssetFetchStatus.Success
+			end)
+		end)
+		if ok or teste.IsLoaded then
+			vozesEstado = "ok"
+		end
+		teste:Destroy()
+	end)
+end
+
+function Som.vozesProntas(): boolean
+	conferirVozes()
+	return vozesEstado == "ok"
+end
+
+function Som.voz(nome: string?, pos: Vector3?, opcoes: any?): Sound?
+	if not nome then
+		return nil
+	end
+	conferirVozes()
+	local trecho = Sons.VOZES[nome]
+	if vozesEstado ~= "ok" or not trecho then
+		return Som.tocar("grito", pos, { vol = 0.8 })
+	end
+	local o = opcoes or {}
+	local chave = "voz_" .. nome
+	if (contagem[chave] or 0) >= 2 then
+		return nil
+	end
+	contagem[chave] = (contagem[chave] or 0) + 1
+	local snd = Instance.new("Sound")
+	snd.SoundId = "rbxassetid://" .. vozesId
+	snd.PlaybackRegionsEnabled = true
+	snd.PlaybackRegion = NumberRange.new(trecho[1], trecho[1] + trecho[2])
+	snd.Volume = (trecho[3] or 1) * (o.vol or 1)
+	snd.SoundGroup = grupoEfeitos
+	snd.RollOffMaxDistance = o.alcance or 320
+	snd.RollOffMinDistance = 18
+	local suporte: Instance
+	if pos then
+		local a = Instance.new("Attachment")
+		a.WorldPosition = pos
+		a.Parent = workspace.Terrain
+		snd.Parent = a
+		suporte = a
+	else
+		snd.Parent = pastaSons
+		suporte = snd
+	end
+	snd:Play()
+	task.delay(trecho[2] + 0.6, function()
+		contagem[chave] = math.max(0, (contagem[chave] or 1) - 1)
+		suporte:Destroy()
+	end)
+	return snd
+end
+
 -- som preso numa peça (acompanha quem se mexe)
 function Som.naPeca(nome: string?, peca: BasePart?, opcoes: any?): Sound?
 	if not nome or not peca then
