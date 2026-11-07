@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-label="Missão atual de desenvolvimento">
+<style>text{font-family:JetBrains Mono,Segoe UI,Arial,sans-serif}.title{font-size:19px;font-weight:800;fill:#00D9FF}.sub{font-size:11px;fill:#8B949E}.name{font-size:12px;font-weight:700;fill:#F0F6FC}.status{font-size:10px;font-weight:700;fill:#00D9FF}.desc{font-size:11px;fill:#C9D1D9}.prompt{font-size:10px;fill:#8B949E}</style>
+<rect width="960" height="300" rx="12" fill="#0D1117"/>
+<rect x="1" y="1" width="958" height="298" rx="11" fill="none" stroke="#00D9FF" stroke-opacity=".3"/>
+<text x="34" y="38" class="title">CURRENT MISSION // BUILD A SOLID TECHNICAL PORTFOLIO</text>
+<text x="34" y="59" class="sub">Plano ativo de estudo e construção</text>
+<rect x="34" y="68" width="892" height="40" rx="6" fill="#161B22"/>
+<text x="52" y="92" class="name">PYTHON CORE</text>
+<rect x="292" y="75" width="142" height="26" rx="5" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="363" y="92" text-anchor="middle" class="status">EVOLUINDO</text>
+<text x="466" y="92" class="desc">Código sólido, orientação a objetos e algoritmos</text>
+<rect x="34" y="116" width="892" height="40" rx="6" fill="#161B22"/>
+<text x="52" y="140" class="name">BACKEND</text>
+<rect x="292" y="123" width="142" height="26" rx="5" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="363" y="140" text-anchor="middle" class="status">EM FOCO</text>
+<text x="466" y="140" class="desc">APIs, integração de sistemas e automações</text>
+<rect x="34" y="164" width="892" height="40" rx="6" fill="#161B22"/>
+<text x="52" y="188" class="name">INTELIGÊNCIA ARTIFICIAL</text>
+<rect x="292" y="171" width="142" height="26" rx="5" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="363" y="188" text-anchor="middle" class="status">PESQUISANDO</text>
+<text x="466" y="188" class="desc">LLMs locais e aplicações práticas</text>
+<rect x="34" y="212" width="892" height="40" rx="6" fill="#161B22"/>
+<text x="52" y="236" class="name">MATEMÁTICA APLICADA</text>
+<rect x="292" y="219" width="142" height="26" rx="5" fill="#0D1117" stroke="#00D9FF" stroke-opacity=".35"/>
+<text x="363" y="236" text-anchor="middle" class="status">FORTALECENDO</text>
+<text x="466" y="236" class="desc">Vetores, matrizes e plano cartesiano</text>
+<text x="34" y="281" class="prompt">kaique@dev:~$ mission --status active</text>
+</svg>
