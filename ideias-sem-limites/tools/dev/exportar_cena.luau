@@ -17,7 +17,7 @@ local env = Harness.load(placePath)
 local shapes = {}
 local function export(inst)
 	for _, d in inst:GetDescendants() do
-		if d:IsA("BasePart") and d.Transparency < 0.98 then
+		if d:IsA("BasePart") and d.ClassName ~= "Terrain" and d.Transparency < 0.98 then
 			local shape = "Block"
 			if d.ClassName == "Part" then
 				shape = d.Shape.Name
@@ -88,7 +88,24 @@ elseif mode == "mapa" then
 	local ws = env.game:GetService("Workspace")
 	Map.build({ fast = true })
 	export(ws)
-	print(serde.encode("json", { parts = shapes, terrain = Harness.terrainLog }))
+	local terr = {}
+	for _, op in Harness.terrainLog do
+		local args = {}
+		for _, a in op.args do
+			local t = typeof(a)
+			if t == "CFrame" then
+				table.insert(args, { a:GetComponents() })
+			elseif t == "Vector3" then
+				table.insert(args, { a.X, a.Y, a.Z })
+			elseif t == "EnumItem" then
+				table.insert(args, a.Name)
+			else
+				table.insert(args, a)
+			end
+		end
+		table.insert(terr, { method = op.method, args = args })
+	end
+	print(serde.encode("json", { parts = shapes, terrain = terr }))
 	return
 end
 

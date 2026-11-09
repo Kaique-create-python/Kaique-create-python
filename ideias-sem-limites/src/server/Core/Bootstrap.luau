@@ -44,6 +44,7 @@ function Bootstrap.start(opts: { map: boolean?, remotes: boolean?, progress: boo
 		local ok, stats = pcall(MapBuilder.build, {})
 		if ok then
 			Bootstrap.mapStats = stats
+			require(Server.Map.MapRuntime).start()
 		else
 			warn("[Ideias] falha ao gerar o mapa: " .. tostring(stats))
 		end
