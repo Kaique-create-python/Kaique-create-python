@@ -68,6 +68,41 @@ if group == "map" or group == "all" then
 	end
 end
 
+if group == "server" or group == "all" then
+	section("Servidor completo (todos os conceitos executados)")
+	Harness.enableServerEvents()
+	local server = env.find("ServerScriptService.IdeiasServer")
+	local ok, Spec = pcall(env.require, server.Tests.ServerSpec)
+	if not ok then
+		print("  FALHOU ao carregar: " .. tostring(Spec))
+		totalFailed += 1
+	else
+		local t0 = os.clock()
+		local okRun, r = pcall(Spec.run, { quick = true, map = true })
+		if not okRun then
+			print("  FALHOU: " .. tostring(r))
+			totalFailed += 1
+		else
+			for i, f in r.failures do
+				if i <= 60 then
+					print("  FALHOU: " .. f)
+				end
+			end
+			print(string.format("  %d passaram, %d falharam (%.2fs)", r.passed, r.failed, os.clock() - t0))
+			if r.stats.perHandler then
+				local parts = {}
+				for h, n in r.stats.perHandler do
+					table.insert(parts, h .. "=" .. n)
+				end
+				table.sort(parts)
+				print("  conceitos por executor: " .. table.concat(parts, ", "))
+			end
+			print(string.format("  estresse: máx. %s acontecimentos, %s NPCs simultâneos", tostring(r.stats.stressMaxEvents), tostring(r.stats.stressMaxNpcs)))
+			totalFailed += r.failed
+		end
+	end
+end
+
 if #Harness.warnings > 0 then
 	print(string.format("\n%d avisos (warn) durante os testes; primeiros:", #Harness.warnings))
 	for i = 1, math.min(5, #Harness.warnings) do

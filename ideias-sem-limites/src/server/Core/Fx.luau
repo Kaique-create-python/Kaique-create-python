@@ -40,8 +40,10 @@ function Fx.near(pos: Vector3?, radius: number?, kind: string, data: { [string]:
 			ok = root ~= nil and (root.Position - pos).Magnitude <= radius
 		end
 		if ok then
-			r:FireClient(player, data)
-			Fx.sent += 1
+			-- pcall: o jogador pode ter saído entre a checagem e o envio
+			if pcall(r.FireClient, r, player, data) then
+				Fx.sent += 1
+			end
 		end
 	end
 end
@@ -50,8 +52,9 @@ function Fx.to(player: Player, kind: string, data: { [string]: any })
 	local r = getRemote()
 	if r then
 		data.k = kind
-		r:FireClient(player, data)
-		Fx.sent += 1
+		if pcall(r.FireClient, r, player, data) then
+			Fx.sent += 1
+		end
 	end
 end
 

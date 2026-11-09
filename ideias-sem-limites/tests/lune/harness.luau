@@ -170,6 +170,36 @@ local function installStubs()
 	roblox.implementMethod("ParticleEmitter", "Clear", function() end)
 end
 
+-- O Lune não calcula propriedades derivadas (BasePart.Position,
+-- AssemblyLinearVelocity...). Só nos testes, reescrevemos as leituras para
+-- funções auxiliares que usam CFrame; atribuições físicas viram no-op.
+local function preprocess(source: string): string
+	local out = {}
+	for line in string.gmatch(source .. "\n", "([^\n]*)\n") do
+		local indent, target, kind, rhs = string.match(line, "^(%s*)([%a_][%w_%.]*)%.Assembly(%a+)Velocity%s*%+?=%s*(.+)$")
+		if indent then
+			line = indent .. "__noop(" .. target .. ", " .. rhs .. ")"
+		else
+			local lhs, rest = string.match(line, "^(%s*[%a_][%w_%.]*%.Position%s*=)([^=].*)$")
+			local function rewrite(text: string): string
+				text = string.gsub(text, "([%a_][%w_%.]*)%.Position([^%w_])", "__pos(%1)%2")
+				text = string.gsub(text, "([%a_][%w_%.]*)%.Position$", "__pos(%1)")
+				text = string.gsub(text, "([%a_][%w_%.]*)%.AssemblyLinearVelocity", "__vel(%1)")
+				text = string.gsub(text, "([%a_][%w_%.]*)%.AssemblyMass", "__mass(%1)")
+				return text
+			end
+			if lhs then
+				line = lhs .. rewrite(rest)
+			else
+				line = rewrite(line)
+			end
+		end
+		table.insert(out, line)
+	end
+	return table.concat(out, "\n")
+end
+Harness.preprocess = preprocess
+
 local function makeRandomClass()
 	local R = {}
 	R.__index = R
@@ -194,9 +224,78 @@ local function makeRandomClass()
 	return R
 end
 
+-- Emula eventos de instância (o Lune não tem sinais): cada acesso devolve um
+-- sinal que aceita Connect/Once/Wait. Suficiente para executar o servidor.
+local EVENTS = {
+	Humanoid = { "Died", "HealthChanged", "Running", "StateChanged", "Touched" },
+	ProximityPrompt = { "Triggered", "TriggerEnded", "PromptShown", "PromptHidden" },
+	Tool = { "Activated", "Deactivated", "Equipped", "Unequipped" },
+	Players = { "PlayerAdded", "PlayerRemoving" },
+	RunService = { "Heartbeat", "Stepped", "RenderStepped", "PreSimulation", "PostSimulation" },
+	Lighting = { "ChildAdded", "Changed" },
+	Workspace = { "ChildAdded", "DescendantAdded" },
+	Folder = { "ChildAdded", "DescendantAdded", "ChildRemoved" },
+	RemoteEvent = { "OnServerEvent" },
+}
+
+function Harness.enableServerEvents()
+	for cls, list in EVENTS do
+		for _, ev in list do
+			pcall(function()
+				roblox.implementProperty(cls, ev, function()
+					return signalStub()
+				end)
+			end)
+		end
+	end
+	for _, cls in PART_CLASSES do
+		pcall(function()
+			roblox.implementProperty(cls, "Touched", function()
+				return signalStub()
+			end)
+		end)
+		roblox.implementMethod(cls, "GetJoints", function()
+			return {}
+		end)
+	end
+	roblox.implementMethod("CollectionService", "GetTagged", function(_self, tag)
+		local out = {}
+		if Harness.game then
+			for _, d in Harness.game:GetDescendants() do
+				if d:HasTag(tag) then
+					table.insert(out, d)
+				end
+			end
+		end
+		return out
+	end)
+	roblox.implementMethod("CollectionService", "GetInstanceAddedSignal", function()
+		return signalStub()
+	end)
+	roblox.implementMethod("CollectionService", "GetInstanceRemovedSignal", function()
+		return signalStub()
+	end)
+	roblox.implementMethod("DataModel", "BindToClose", function() end)
+	for _, cls in { "RemoteEvent", "UnreliableRemoteEvent" } do
+		roblox.implementMethod(cls, "FireClient", function() end)
+		roblox.implementMethod(cls, "FireAllClients", function() end)
+	end
+	roblox.implementMethod("VehicleSeat", "Sit", function() end)
+	roblox.implementMethod("Seat", "Sit", function() end)
+	for _, cls in { "Humanoid", "Model", "Part", "Folder", "Workspace" } do
+		roblox.implementMethod(cls, "GetPropertyChangedSignal", function()
+			return signalStub()
+		end)
+		roblox.implementMethod(cls, "GetAttributeChangedSignal", function()
+			return signalStub()
+		end)
+	end
+end
+
 function Harness.load(placePath: string)
 	installStubs()
 	local game = roblox.deserializePlace(fs.readFile(placePath))
+	Harness.game = game
 	local cache = {}
 	local loading = {}
 	local env
@@ -251,6 +350,23 @@ function Harness.load(placePath: string)
 			end,
 		},
 		Random = makeRandomClass(),
+		__pos = function(x)
+			if typeof(x) == "Instance" then
+				if x:IsA("BasePart") then
+					return x.CFrame.Position
+				elseif x:IsA("Model") then
+					return (if x.PrimaryPart then x.PrimaryPart.CFrame else x.WorldPivot).Position
+				end
+			end
+			return x.Position
+		end,
+		__vel = function(_x)
+			return roblox.Vector3.zero
+		end,
+		__mass = function(x)
+			return if typeof(x) == "Instance" and x:IsA("BasePart") then x.Size.X * x.Size.Y * x.Size.Z * 0.7 else 1
+		end,
+		__noop = function() end,
 		DateTime = {
 			now = function()
 				return { UnixTimestamp = os.time(), UnixTimestampMillis = os.time() * 1000 }
@@ -274,7 +390,7 @@ function Harness.load(placePath: string)
 		local moduleEnv = table.clone(globals)
 		moduleEnv.script = mod
 		moduleEnv.require = requireModule
-		local chunk = luau.load(mod.Source, { debugName = mod:GetFullName(), environment = moduleEnv })
+		local chunk = luau.load(preprocess(mod.Source), { debugName = mod:GetFullName(), environment = moduleEnv })
 		local result = chunk()
 		loading[mod] = nil
 		cache[mod] = result
