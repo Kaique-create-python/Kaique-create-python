@@ -270,7 +270,10 @@ function Harness.load(placePath: string)
 		end
 		assert(mod.ClassName == "ModuleScript", "não é ModuleScript: " .. mod:GetFullName())
 		loading[mod] = true
-		local moduleEnv = setmetatable({ script = mod, require = requireModule }, { __index = env })
+		-- o Lune copia só as chaves diretas do ambiente: montamos uma cópia completa
+		local moduleEnv = table.clone(globals)
+		moduleEnv.script = mod
+		moduleEnv.require = requireModule
 		local chunk = luau.load(mod.Source, { debugName = mod:GetFullName(), environment = moduleEnv })
 		local result = chunk()
 		loading[mod] = nil

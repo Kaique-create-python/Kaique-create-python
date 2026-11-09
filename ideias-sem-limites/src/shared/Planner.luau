@@ -83,6 +83,9 @@ function Planner.applyMods(def: any, mods: { any }): { [string]: any }
 				p.hpMul *= value
 			elseif key == "speed" then
 				p.speedMul *= value
+			elseif key == "element" then
+				p.element = value
+				p.elementMod = true -- elemento pedido pelo jogador (tinge o modelo)
 			else
 				p[key] = value
 			end
