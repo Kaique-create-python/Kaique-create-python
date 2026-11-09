@@ -29,6 +29,20 @@ bash ideias.sh auditar 4         # (opcional) lista o conteúdo da versão 4 (V1
 bash ideias.sh publicar ~/storage/downloads/IdeiasSemLimites/V3/IdeiasSemLimites_V3.rbxl   # só quando você decidir
 ```
 
+**Sem o GitHub (pelo `IdeiasSemLimites_V3.zip`):** com o .zip na pasta Download, troque o
+`curl` e o `baixar` acima por:
+
+```bash
+pkg install unzip -y
+cd ~/storage/downloads
+unzip -o IdeiasSemLimites_V3.zip                 # cria a pasta ideias-sem-limites/
+cp ideias-sem-limites/termux/ideias.sh .
+bash ideias.sh configurar
+IDEIAS_RAW="file://$HOME/storage/downloads/ideias-sem-limites" bash ideias.sh baixar   # copia do .zip e confere o SHA-256
+```
+
+Depois siga com `backup`, `diagnosticar`, `enviar`, `testar` normalmente.
+
 Permissões da chave (Creator Dashboard → Credenciais → editar a chave, só para este universo):
 
 | Uso | Permissão |
