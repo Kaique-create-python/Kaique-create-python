@@ -348,16 +348,29 @@ function Efeitos.punhos(standModelo: Model?, dur: number, cor: Color3)
 		return
 	end
 	local fim = os.clock() + dur
+	-- AJUSTE-4: braços fantasmas do próprio Stand (o "mil socos" da JoJo), com a cor dele e brilho
+	local molde = (standModelo:FindFirstChild("Right Arm") or standModelo:FindFirstChild("RightHand")) :: BasePart?
+	local tamBraco = if molde then molde.Size else Vector3.new(1, 2, 1)
+	local corBraco = if molde then molde.Color else cor
 	task.spawn(function()
+		local i = 0
 		while os.clock() < fim and raiz.Parent do
 			for _ = 1, (if qualidadeAlta then 3 else 1) do
-				local base = raiz.CFrame * CFrame.new(rng:NextNumber(-1.8, 1.8), rng:NextNumber(-0.2, 1.8), -1.2)
-				local p = parte(Vector3.new(0.9, 0.9, 1.1), base, cor, Enum.Material.Neon)
-				p.Transparency = 0.35
-				tween(p, 0.12, { CFrame = base * CFrame.new(0, 0, -2.6), Transparency = 1 })
-				Debris:AddItem(p, 0.15)
+				i += 1
+				local x = rng:NextNumber(-2, 2)
+				local y = rng:NextNumber(0, 2.2)
+				-- o braço deitado apontando para frente (o punho na ponta)
+				local base = raiz.CFrame * CFrame.new(x, y, -1) * CFrame.Angles(math.rad(-90), 0, 0)
+				local p = parte(tamBraco * 0.92, base, if i % 3 == 0 then cor else corBraco, if i % 3 == 0 then Enum.Material.Neon else Enum.Material.SmoothPlastic)
+				p.Transparency = if i % 3 == 0 then 0.35 else 0.2
+				tween(p, 0.11, { CFrame = base * CFrame.new(0, -2.8, 0), Transparency = 1 })
+				Debris:AddItem(p, 0.14)
+				if i % 4 == 0 and qualidadeAlta then
+					local ponta = (base * CFrame.new(0, -3.6, 0)).Position
+					Efeitos.particulas(ponta, cor, { n = 3, vel = 10, tam = 0.5, vida = 0.15 })
+				end
 			end
-			task.wait(0.035)
+			task.wait(0.03)
 		end
 	end)
 end
@@ -1104,6 +1117,7 @@ function Efeitos.despertar(d: any)
 	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
 	StandVisual.acao(modelo, { modo = "costas", clipe = "stand_ruge", dur = 1.6 })
 	local s = Stands.get(d.stand)
+	require(script.Parent:WaitForChild("Cinematica")).despertar(modelo, s)
 	if s and s.grito then
 		task.delay(0.35, function()
 			Som.voz(s.grito, raiz.Position)

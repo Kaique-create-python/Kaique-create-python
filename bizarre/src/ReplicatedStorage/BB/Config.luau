@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.REVISAO = "AJUSTE-3"
+Config.REVISAO = "AJUSTE-4"
 Config.NOME_JOGO = "BIZARRE BATTLEGROUNDS"
 
 -- dono e ADMs (o dono sempre é ADM; quem criou a experiência também)

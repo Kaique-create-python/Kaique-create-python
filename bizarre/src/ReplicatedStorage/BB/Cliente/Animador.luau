@@ -190,6 +190,77 @@ function Animador.pausarTudo(dur: number)
 	pausaGlobal = math.max(pausaGlobal, os.clock() + dur)
 end
 
+-- AJUSTE-4: jeito de andar e de ficar parado de cada usuário de Stand (pose de JoJo)
+-- bE/bD = braços parados (ombro), balanco = quanto os braços balançam, inclina = tronco para trás,
+-- cabeca = queixo para cima, passo = tamanho do passo, gingado = o quadril/tronco girando
+local ESTILOS = {
+	STAR_PLATINUM = { -- Jotaro: mãos no bolso, passo firme, cabeça um pouco baixa
+		bE = { -10, 0, -2 }, bD = { -10, 0, 2 }, balanco = 0.12, inclina = -2, cabeca = -6, passo = 34, gingado = 6,
+		parado = { Root = { 0, 14, 0 }, Neck = { -8, -14, 0 }, LH = { 5, 0, -7 }, RH = { -6, 0, 5 } },
+	},
+	THE_WORLD = { -- DIO: peito estufado, braços abertos, queixo para cima
+		bE = { 0, 0, -14 }, bD = { 0, 0, 14 }, balanco = 1.1, inclina = -9, cabeca = 10, passo = 30, gingado = 10,
+		parado = { Root = { -6, 24, 0 }, Neck = { 12, -10, 0 }, LS = { 74, 0, 36 }, RS = { 68, 0, -36 }, LH = { 2, 0, -10 }, RH = { -2, 0, 10 } },
+	},
+	MAGICIANS_RED = { -- Avdol: mãos para trás, passo calmo
+		bE = { -24, 0, -4 }, bD = { -24, 0, 4 }, balanco = 0.1, inclina = -3, cabeca = 2, passo = 26, gingado = 3,
+		parado = { Neck = { 4, 0, 0 }, LH = { 0, 0, -6 }, RH = { 0, 0, 6 } },
+	},
+	SILVER_CHARIOT = { -- Polnareff: animado, braços balançando alto
+		bE = { 0, 0, -6 }, bD = { 0, 0, 6 }, balanco = 1.4, inclina = 2, cabeca = 4, passo = 40, gingado = 8,
+		parado = { Root = { 0, -12, 0 }, RS = { 40, 0, 10 }, LS = { 0, 0, -24 }, LH = { 8, 0, -4 }, RH = { -8, 0, 8 } },
+	},
+	CRAZY_DIAMOND = { -- Josuke: uma mão no bolso, gingado de malandro
+		bE = { -10, 0, -2 }, bD = { 0, 0, 8 }, balanco = 0.9, inclina = -5, cabeca = 4, passo = 34, gingado = 12, soDireito = true,
+		parado = { Root = { 0, -16, 4 }, Neck = { 2, 12, -6 }, RS = { 12, 0, 18 }, LH = { 4, 0, -8 }, RH = { -4, 0, 4 } },
+	},
+	KILLER_QUEEN = { -- Kira: executivo, postura reta, balanço curto
+		bE = { 0, 0, -3 }, bD = { 0, 0, 3 }, balanco = 0.5, inclina = 0, cabeca = 0, passo = 28, gingado = 2,
+		parado = { Neck = { -2, 6, 0 }, RS = { 20, 0, -22 } },
+	},
+}
+local ESTILO_PADRAO = { bE = { 0, 0, -6 }, bD = { 0, 0, 6 }, balanco = 1, inclina = -3, cabeca = 2, passo = 34, gingado = 6, parado = {} }
+Animador.ESTILOS = ESTILOS
+
+local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean): { [string]: { number } }
+	if noAr then
+		return Poses.P.no_ar
+	end
+	local est = ESTILOS[a.modelo:GetAttribute("BB_Stand") or ""] or ESTILO_PADRAO
+	local tt = os.clock()
+	local k = math.clamp(plano / 16, 0, 1.6)
+	a.fase += dt * (4 + plano * 0.4)
+	local s = math.sin(a.fase)
+	local resp = math.sin(tt * 1.8) * 2
+	local parado = math.clamp(1 - k * 1.5, 0, 1)
+	local correndo = math.clamp((k - 1.05) / 0.4, 0, 1)
+	local balanco = 40 * k * est.balanco * (1 - correndo) + 62 * k * correndo
+	local p: { [string]: { number } } = {
+		Root = { est.inclina * (1 - correndo) - 14 * correndo + resp * 0.3 * parado, s * est.gingado * k * (1 - correndo), 0 },
+		Neck = { est.cabeca + 8 * correndo + resp * 0.5 * parado, -s * 4 * k, 0 },
+		LS = { est.bE[1] - s * balanco, est.bE[2], est.bE[3] },
+		RS = { est.bD[1] + s * balanco * (if est.soDireito then 1.3 else 1), est.bD[2], est.bD[3] },
+		LH = { s * est.passo * k, 0, 0 },
+		RH = { -s * est.passo * k, 0, 0 },
+	}
+	if est.soDireito then
+		p.LS = { est.bE[1] - s * balanco * 0.15, est.bE[2], est.bE[3] }
+	end
+	-- parado: a pose de JoJo de cada um (mistura suave com o andar)
+	if parado > 0.01 then
+		for junta, v in est.parado do
+			local atual = p[junta] or { 0, 0, 0 }
+			p[junta] = {
+				atual[1] + (v[1] - atual[1]) * parado,
+				atual[2] + (v[2] - atual[2]) * parado,
+				atual[3] + (v[3] - atual[3]) * parado,
+			}
+		end
+	end
+	return p
+end
+Animador.andarJoJo = andarJoJo
+
 -- camada de baixo dos bots e Stands: parado, andando, correndo, no ar
 local function locomocao(a: any, dt: number): { [string]: { number } }
 	local m = a.modelo
@@ -215,7 +286,12 @@ local function locomocao(a: any, dt: number): { [string]: { number } }
 		return { Waist = { math.sin(os.clock() * 1.5) * 1, 0, 0 } }
 	end
 	local estado = hum:GetState()
-	if estado == Enum.HumanoidStateType.Freefall or estado == Enum.HumanoidStateType.Jumping then
+	local noAr = estado == Enum.HumanoidStateType.Freefall or estado == Enum.HumanoidStateType.Jumping
+	-- jogadores e bots com Stand andam no estilo JoJo
+	if a.tipo == "jogador" or m:GetAttribute("BB_Stand") then
+		return andarJoJo(a, dt, plano, noAr)
+	end
+	if noAr then
 		return Poses.P.no_ar
 	end
 	local k = math.clamp(plano / 16, 0, 1.4)
@@ -295,7 +371,8 @@ local function aplicar(a: any, dt: number)
 			acao, giro = Poses.amostrar(clipe, a.t)
 		end
 	end
-	local base = if a.tipo ~= "jogador" then locomocao(a, dt) else nil
+	-- jogador: o andar do Roblox foi trocado (StarterCharacterScripts/Animate); o andar é o nosso
+	local base = if a.tipo ~= "jogador" or not a.temTrilhas then locomocao(a, dt) else nil
 	if a.r6 then
 		acao = paraR6(acao)
 		base = paraR6(base)

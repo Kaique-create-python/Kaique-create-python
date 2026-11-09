@@ -37,6 +37,8 @@ Som.iniciar()
 Animador.iniciar()
 HUD.iniciar(Jogador)
 Efeitos.iniciar(HUD.gui())
+local Cinematica = require(Cliente:WaitForChild("Cinematica"))
+Cinematica.iniciar(HUD.gui())
 Camera.iniciar()
 StandVisual.iniciar()
 Jogador.iniciar(remotos, { aviso = HUD.aviso, combo = HUD.combo, cd = HUD.atualizarCds })
@@ -111,7 +113,7 @@ local function estadoVisual(m: Model, agora: number)
 	for _ in a.juntas do
 		nJuntas += 1
 	end
-	if nJuntas < 15 and os.clock() - (a.relido or 0) > 0.5 then
+	if nJuntas < (if a.r6 then 6 else 15) and os.clock() - (a.relido or 0) > 0.5 then
 		a.relido = os.clock()
 		Animador.atualizarJuntas(m)
 	end

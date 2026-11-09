@@ -283,6 +283,25 @@ teste("todo clipe amostra sem erro (início, meio e fim)", function()
 	end
 end)
 
+teste("andar JoJo: cada Stand tem estilo e as poses saem válidas (parado, andando, correndo)", function()
+	local Animador = H.modulo("ReplicatedStorage/BB/Cliente/Animador")
+	for _, id in Stands.ORDEM do
+		assert(Animador.ESTILOS[id], "sem estilo de andar: " .. id)
+		local falso = { fase = 0, modelo = { GetAttribute = function(_, nome)
+			return if nome == "BB_Stand" then id else nil
+		end } }
+		for _, vel in { 0, 8, 16, 26 } do
+			local p = Animador.andarJoJo(falso, 1 / 60, vel, false)
+			for junta, v in p do
+				assert(Poses.JUNTAS[junta], id .. ": junta " .. junta)
+				assert(#v == 3 and v[1] == v[1] and math.abs(v[1]) < 180, id .. ": valor ruim em " .. junta)
+			end
+			local r6 = Animador.paraR6(p)
+			assert(r6 and r6.LS and r6.RH, id .. ": R6")
+		end
+	end
+end)
+
 teste("poses usam só juntas do R15 e espelhar troca os lados", function()
 	for nome, p in Poses.P do
 		for junta in p do

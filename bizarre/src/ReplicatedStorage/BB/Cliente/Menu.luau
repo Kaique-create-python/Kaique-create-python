@@ -103,8 +103,15 @@ local function selecionar(id: string)
 	end
 	detalhe.nome.Text = "『" .. s.nome .. "』"
 	detalhe.nome.TextColor3 = s.aura
-	detalhe.titulo.Text = s.titulo
-	detalhe.tipo.Text = s.tipo .. "   ·   dificuldade " .. estrelas(s.dificuldade)
+	detalhe.titulo.Text = string.format("%s · %s (%s)", tostring(s.usuario), tostring(s.parte), s.titulo)
+	-- AJUSTE-4: os status oficiais de Stand da JoJo (letras de A a E)
+	local CORES_LETRA = { A = "#FFCE40", B = "#5BE08A", C = "#5AAAFF", D = "#B0A8C0", E = "#FF5A64" }
+	local CURTO = { "PODER", "VELOC.", "ALCANCE", "RESIST.", "PRECISÃO", "POTENC." }
+	local partes = {}
+	for i, letra in s.stats or {} do
+		table.insert(partes, string.format('%s <font color="%s"><b>%s</b></font>', CURTO[i] or "?", CORES_LETRA[letra] or "#FFFFFF", letra))
+	end
+	detalhe.tipo.Text = table.concat(partes, "   ")
 	detalhe.desc.Text = s.desc
 	detalhe.passiva.Text = "PASSIVA — " .. s.passiva.nome .. ": " .. s.passiva.desc
 	for i, linha in detalhe.golpes do
@@ -248,7 +255,8 @@ local function criar()
 	UI.borda(p, UI.CORES.roxo, 2, 0.2)
 	detalhe.nome = UI.texto(p, "", UDim2.new(1, -24, 0, 56), UDim2.fromOffset(12, 8), { contornoEsp = 3, alinhar = Enum.TextXAlignment.Left })
 	detalhe.titulo = UI.texto(p, "", UDim2.new(1, -24, 0, 26), UDim2.fromOffset(14, 62), { cor = UI.CORES.branco, alinhar = Enum.TextXAlignment.Left })
-	detalhe.tipo = UI.texto(p, "", UDim2.new(1, -24, 0, 22), UDim2.fromOffset(14, 90), { cor = UI.CORES.dourado, alinhar = Enum.TextXAlignment.Left, limite = 20 })
+	detalhe.tipo = UI.texto(p, "", UDim2.new(1, -24, 0, 22), UDim2.fromOffset(14, 90), { cor = UI.CORES.branco, alinhar = Enum.TextXAlignment.Left, limite = 18 })
+	detalhe.tipo.RichText = true
 	detalhe.desc = UI.texto(p, "", UDim2.new(1, -28, 0, 56), UDim2.fromOffset(14, 116), { fonte = UI.FONTE_TEXTO, quebrar = true, alinhar = Enum.TextXAlignment.Left, alinharY = Enum.TextYAlignment.Top, limite = 16 })
 	detalhe.passiva = UI.texto(p, "", UDim2.new(1, -28, 0, 22), UDim2.fromOffset(14, 176), { fonte = UI.FONTE_TEXTO, cor = Color3.fromRGB(150, 230, 190), alinhar = Enum.TextXAlignment.Left, limite = 15 })
 	detalhe.golpes = {}

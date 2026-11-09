@@ -215,6 +215,8 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	if g.ult then
 		Efeitos.ameaca(modelo, 1.5, cor)
 		Som.tocar("gongo", raiz.Position, { alcance = 400 })
+		-- cena de anime: câmera de cinema para quem usou, nome do golpe para quem está perto
+		require(script.Parent:WaitForChild("Cinematica")).ult(modelo, s, g)
 	end
 end
 
