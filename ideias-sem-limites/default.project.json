@@ -1,0 +1,93 @@
+{
+  "name": "IdeiasSemLimites",
+  "servePort": 34872,
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "IdeiasShared": { "$path": "src/shared" },
+      "IdeiasRemotes": {
+        "$className": "Folder",
+        "Criar": { "$className": "RemoteFunction" },
+        "Estado": { "$className": "RemoteEvent" },
+        "Acao": { "$className": "RemoteEvent" },
+        "Fx": { "$className": "UnreliableRemoteEvent" }
+      }
+    },
+
+    "ServerScriptService": {
+      "IdeiasServer": { "$path": "src/server" }
+    },
+
+    "StarterPlayer": {
+      "$properties": {
+        "CameraMaxZoomDistance": 180,
+        "CharacterWalkSpeed": 18,
+        "CharacterJumpHeight": 8.5
+      },
+      "StarterPlayerScripts": {
+        "IdeiasClient": { "$path": "src/client" }
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true,
+        "StreamingTargetRadius": 640,
+        "StreamingMinRadius": 96,
+        "FallenPartsDestroyHeight": -300
+      },
+      "PlataformaInicial": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Size": [40, 4, 40],
+          "CFrame": [0, -2, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+          "Material": "Slate",
+          "Color": [0.32, 0.34, 0.42],
+          "TopSurface": "Smooth",
+          "BottomSurface": "Smooth"
+        }
+      },
+      "SpawnCentral": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Anchored": true,
+          "Size": [10, 1, 10],
+          "CFrame": [0, 0.5, 34, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+          "Material": "Neon",
+          "Color": [0.25, 0.85, 1.0],
+          "Transparency": 0.35,
+          "Duration": 0,
+          "TopSurface": "Smooth",
+          "BottomSurface": "Smooth"
+        }
+      }
+    },
+
+    "Lighting": {
+      "$properties": {
+        "Technology": "ShadowMap",
+        "ClockTime": 14.2,
+        "Brightness": 2.4,
+        "EnvironmentDiffuseScale": 0.6,
+        "EnvironmentSpecularScale": 0.6,
+        "OutdoorAmbient": [0.5, 0.5, 0.56],
+        "Ambient": [0.18, 0.18, 0.22],
+        "GlobalShadows": true
+      }
+    },
+
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    },
+
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": true
+      }
+    }
+  }
+}
