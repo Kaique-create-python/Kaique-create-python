@@ -100,6 +100,7 @@ local function sound(id: string, at: Vector3, volume: number?)
 	Debris:AddItem(p, 5)
 end
 
+local spriteState = "unknown" -- unknown | loading | ok | failed
 -- som de um efeito: trecho do sprite do ElevenLabs ou som embutido (fallback)
 local function cue(name: string, at: Vector3?, volume: number?)
 	if not Settings.values.sounds then
@@ -112,7 +113,27 @@ local function cue(name: string, at: Vector3?, volume: number?)
 	local sp = Config.SoundSprite
 	local s = Instance.new("Sound")
 	local region = c.sprite and sp.Regions[c.sprite]
-	if sp.Id ~= 0 and region then
+	-- se o áudio do ElevenLabs ainda não foi aprovado/carregado, usa o som embutido
+	if sp.Id ~= 0 and spriteState == "unknown" then
+		spriteState = "loading"
+		task.spawn(function()
+			local probe = Instance.new("Sound")
+			probe.SoundId = "rbxassetid://" .. tostring(sp.Id)
+			local ok = pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ probe }, function(_id, status)
+					spriteState = if status == Enum.AssetFetchStatus.Success then "ok" else "failed"
+				end)
+			end)
+			if not ok or spriteState == "loading" then
+				spriteState = if probe.IsLoaded then "ok" else "failed"
+			end
+			if spriteState == "failed" then
+				warn("[Ideias] áudio " .. tostring(sp.Id) .. " não carregou (moderação ou permissão); usando sons embutidos")
+			end
+			probe:Destroy()
+		end)
+	end
+	if sp.Id ~= 0 and region and spriteState == "ok" then
 		s.SoundId = "rbxassetid://" .. tostring(sp.Id)
 		s.PlaybackRegionsEnabled = true
 		s.PlaybackRegion = NumberRange.new(region[1], region[2])
