@@ -2443,6 +2443,9 @@ Config.SoundSprite = {
 		laser = { 7.339, 8.139 },
 		roar = { 8.439, 10.239 },
 		fart = { 10.539, 11.639 },
+		achievement = { 11.939, 12.701 },
+		bark = { 13.001, 14.201 },
+		click = { 14.501, 14.851 },
 	},
 }
 
@@ -2463,6 +2466,9 @@ Config.SoundCues = {
 	crack = { fallback = "rbxasset://sounds/glassbreak.wav", volume = 0.6 },
 	hiss = { fallback = "rbxasset://sounds/snap.wav", volume = 0.6 },
 	holy = { sprite = "create", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.7, speed = 0.7 },
+	achievement = { sprite = "achievement", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.8 },
+	bark = { sprite = "bark", fallback = "rbxasset://sounds/swoosh.wav", volume = 0.8 },
+	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
 }
 
@@ -15708,7 +15714,13 @@ function H.spawn(ctx: any): any
 		end)
 	end
 
-	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
+	local snd = "create"
+	if def.id == "dog" or def.id == "wolf" or (params.fusionHead and params.fusionHead.id == "dog") then
+		snd = "bark"
+	elseif hostile and (def.tagSet.monster or def.tagSet.beast) then
+		snd = "roar"
+	end
+	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, snd = snd, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
 
 	return {
 		npcs = npcs,
@@ -20302,7 +20314,7 @@ H.spawn = function(d)
 	local col = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(40, 3, 3) * (d.s or 1), CFrame = CFrame.new(d.p + Vector3.new(0, 20, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = d.c, Transparency = 0.35 })
 	tween(col, 0.7, { Size = Vector3.new(40, 0.2, 0.2) * (d.s or 1), Transparency = 1 })
 	Debris:AddItem(col, 0.8)
-	cue("create", d.p, 0.8)
+	cue(d.snd or "create", d.p, 0.8)
 end
 
 H.build = function(d)
@@ -20981,8 +20993,10 @@ estado.OnClientEvent:Connect(function(kind, data)
 		Drawer.refresh()
 	elseif kind == "conquista" then
 		Hud.banner("🏆 " .. data.title, data.desc .. "  +" .. data.reward .. " ✨")
+		Effects.cue("achievement", nil, 1)
 	elseif kind == "segredo" then
 		Hud.banner("🔮 Combinação secreta: " .. data.title, data.hint .. "  +" .. data.reward .. " ✨")
+		Effects.cue("achievement", nil, 1)
 	elseif kind == "missao" then
 		Hud.toast("🎯 Missão cumprida: " .. data.title .. "  +" .. data.reward .. " ✨", Color3.fromRGB(255, 220, 110))
 	elseif kind == "regiao" then
@@ -21570,13 +21584,13 @@ local function sound(name: string)
 		return
 	end
 	-- criar/erro usam os sons do ElevenLabs quando o sprite está no jogo
-	if name ~= "Click" and Config.SoundSprite and Config.SoundSprite.Id ~= 0 then
+	if Config.SoundSprite and Config.SoundSprite.Id ~= 0 then
 		if not Effects then
 			local ok, mod = pcall(require, script.Parent.Parent.FX.Effects)
 			Effects = if ok then mod else false
 		end
 		if Effects and Effects.cue then
-			Effects.cue(if name == "Error" then "error" else "create", nil, 1)
+			Effects.cue(if name == "Error" then "error" elseif name == "Click" then "click" elseif name == "Achievement" then "achievement" else "create", nil, 1)
 			return
 		end
 	end

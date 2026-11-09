@@ -268,7 +268,7 @@ H.spawn = function(d)
 	local col = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(40, 3, 3) * (d.s or 1), CFrame = CFrame.new(d.p + Vector3.new(0, 20, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = d.c, Transparency = 0.35 })
 	tween(col, 0.7, { Size = Vector3.new(40, 0.2, 0.2) * (d.s or 1), Transparency = 1 })
 	Debris:AddItem(col, 0.8)
-	cue("create", d.p, 0.8)
+	cue(d.snd or "create", d.p, 0.8)
 end
 
 H.build = function(d)

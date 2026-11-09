@@ -1,6 +1,6 @@
 {
  "arquivo": "IdeiasSons.ogg",
- "duracao": 11.939,
+ "duracao": 15.151,
  "regioes": {
   "explosion": [
    0.0,
@@ -37,6 +37,18 @@
   "fart": [
    10.539,
    11.639
+  ],
+  "achievement": [
+   11.939,
+   12.701
+  ],
+  "bark": [
+   13.001,
+   14.201
+  ],
+  "click": [
+   14.501,
+   14.851
   ]
  }
 }

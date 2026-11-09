@@ -44,13 +44,13 @@ local function sound(name: string)
 		return
 	end
 	-- criar/erro usam os sons do ElevenLabs quando o sprite está no jogo
-	if name ~= "Click" and Config.SoundSprite and Config.SoundSprite.Id ~= 0 then
+	if Config.SoundSprite and Config.SoundSprite.Id ~= 0 then
 		if not Effects then
 			local ok, mod = pcall(require, script.Parent.Parent.FX.Effects)
 			Effects = if ok then mod else false
 		end
 		if Effects and Effects.cue then
-			Effects.cue(if name == "Error" then "error" else "create", nil, 1)
+			Effects.cue(if name == "Error" then "error" elseif name == "Click" then "click" elseif name == "Achievement" then "achievement" else "create", nil, 1)
 			return
 		end
 	end

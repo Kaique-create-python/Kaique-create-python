@@ -94,6 +94,9 @@ Config.SoundSprite = {
 		laser = { 7.339, 8.139 },
 		roar = { 8.439, 10.239 },
 		fart = { 10.539, 11.639 },
+		achievement = { 11.939, 12.701 },
+		bark = { 13.001, 14.201 },
+		click = { 14.501, 14.851 },
 	},
 }
 
@@ -114,6 +117,9 @@ Config.SoundCues = {
 	crack = { fallback = "rbxasset://sounds/glassbreak.wav", volume = 0.6 },
 	hiss = { fallback = "rbxasset://sounds/snap.wav", volume = 0.6 },
 	holy = { sprite = "create", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.7, speed = 0.7 },
+	achievement = { sprite = "achievement", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.8 },
+	bark = { sprite = "bark", fallback = "rbxasset://sounds/swoosh.wav", volume = 0.8 },
+	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
 }
 

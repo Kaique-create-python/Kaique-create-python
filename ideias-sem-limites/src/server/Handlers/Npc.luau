@@ -257,7 +257,13 @@ function H.spawn(ctx: any): any
 		end)
 	end
 
-	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
+	local snd = "create"
+	if def.id == "dog" or def.id == "wolf" or (params.fusionHead and params.fusionHead.id == "dog") then
+		snd = "bark"
+	elseif hostile and (def.tagSet.monster or def.tagSet.beast) then
+		snd = "roar"
+	end
+	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, snd = snd, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
 
 	return {
 		npcs = npcs,

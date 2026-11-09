@@ -80,8 +80,10 @@ estado.OnClientEvent:Connect(function(kind, data)
 		Drawer.refresh()
 	elseif kind == "conquista" then
 		Hud.banner("🏆 " .. data.title, data.desc .. "  +" .. data.reward .. " ✨")
+		Effects.cue("achievement", nil, 1)
 	elseif kind == "segredo" then
 		Hud.banner("🔮 Combinação secreta: " .. data.title, data.hint .. "  +" .. data.reward .. " ✨")
+		Effects.cue("achievement", nil, 1)
 	elseif kind == "missao" then
 		Hud.toast("🎯 Missão cumprida: " .. data.title .. "  +" .. data.reward .. " ✨", Color3.fromRGB(255, 220, 110))
 	elseif kind == "regiao" then
