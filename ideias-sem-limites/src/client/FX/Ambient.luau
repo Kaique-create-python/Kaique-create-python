@@ -104,7 +104,7 @@ local function setWeather(clima: string)
 end
 
 -- ANIMAÇÃO PROCEDURAL -------------------------------------------------------------------
-type Motor = { m: Motor6D, kind: string, axis: string, amp: number, phase: number, speed: number, acc: number }
+type Motor = { m: Motor6D, kind: string, axis: string, amp: number, phase: number, speed: number, acc: number, cur: number }
 type Rig = { model: Model, root: BasePart?, motors: { Motor } }
 
 local rigs: { [Model]: Rig } = {}
@@ -124,6 +124,7 @@ local function collect(model: Model)
 				phase = (d:GetAttribute("AnimPhase") :: number?) or 0,
 				speed = (d:GetAttribute("AnimSpeed") :: number?) or 1,
 				acc = 0,
+				cur = 0,
 			})
 		end
 	end
@@ -164,22 +165,34 @@ local function animate(dt: number)
 		end
 		local vel = root.AssemblyLinearVelocity
 		local speed = Vector3.new(vel.X, 0, vel.Z).Magnitude
-		local move = math.clamp(speed / 10, 0.12, 1)
+		-- movimento suavizado: sem "tremedeira" parado e sem trancos ao começar a andar
+		local rawMove = math.clamp(speed / 10, 0, 1)
+		local prevMove = (rig :: any).move or 0
+		local move = prevMove + (rawMove - prevMove) * math.min(1, dt * 6)
+		;(rig :: any).move = move
 		local dancing = model:GetAttribute("Dancando") == true
 		local hitAt = model:GetAttribute("GolpeEm") :: number?
-		local hitting = hitAt ~= nil and serverT - hitAt < 0.45
+		local hitK = if hitAt then (serverT - hitAt) / 0.45 else 2
+		local hitting = hitK >= 0 and hitK < 1
+		local smooth = math.min(1, dt * 12)
 		for _, mo in rig.motors do
 			local k = mo.kind
 			local a = 0
 			if k == "leg" or k == "arm" then
 				local f = 1.7 * mo.speed * (0.6 + move)
 				a = math.sin(t * f * math.pi * 2 + mo.phase) * mo.amp * move
+				if k == "arm" and move < 0.3 then
+					-- respiração: braços balançam de leve parados
+					a += math.sin(t * 1.6 + mo.phase) * 0.05
+				end
 				if dancing then
 					a = math.sin(t * 8 + mo.phase) * mo.amp * 1.2
 				elseif hitting and k == "arm" then
-					a = -mo.amp * 1.6
+					-- golpe com preparação (recua) e soco (avança)
+					a = if hitK < 0.3 then mo.amp * 0.8 * (hitK / 0.3) else -mo.amp * 1.8 * math.sin((hitK - 0.3) / 0.7 * math.pi)
 				end
-				mo.m.Transform = rot(mo.axis, a)
+				mo.cur += (a - mo.cur) * smooth
+				mo.m.Transform = rot(mo.axis, mo.cur)
 			elseif k == "wing" then
 				a = math.sin(t * 2 * math.pi * 1.1 * mo.speed + mo.phase) * mo.amp
 				mo.m.Transform = rot(mo.axis, a)

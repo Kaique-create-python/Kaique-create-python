@@ -26,9 +26,9 @@ end
 return {
 	-- PODERES ----------------------------------------------------------------
 	pw("power", "heal", "Cura", "f", { "cura", "curar", "heal", "healing", "vida", "life", "saude", "health", "regenerar", "remedio", "pocao de vida", "medkit", "kit medico" }, { kind = "heal" }, { "good" }),
-	pw("power", "power_speed", "Super Velocidade", "f", { "velocidade", "speed", "super velocidade", "correr", "run", "corrida", "flash", "sonic", "supersonico" }, { kind = "speed" }, { "good" }),
+	pw("power", "power_speed", "Super Velocidade", "f", { "velocidade", "speed", "super velocidade", "correr", "run", "corrida", "flash", "supersonico" }, { kind = "speed" }, { "good" }),
 	pw("power", "super_jump", "Super Pulo", "m", { "super pulo", "pulo", "jump", "pular", "salto", "super jump", "mola nos pes", "pernas de mola" }, { kind = "jump" }, { "good" }),
-	pw("power", "power_fly", "Voo", "m", { "voar", "voo", "fly", "flight", "levitar", "levitacao", "superman", "jetpack", "mochila a jato", "asas", "wings" }, { kind = "fly" }, { "good", "flying" }),
+	pw("power", "power_fly", "Voo", "m", { "voar", "voo", "fly", "flight", "levitar", "levitacao", "jetpack", "mochila a jato", "asas", "wings" }, { kind = "fly" }, { "good", "flying" }),
 	pw("power", "power_giant", "Ficar Gigante", "m", { "crescer", "grow", "aumentar", "ficar gigante", "ficar grande", "growth" }, { kind = "giant" }, { "good" }),
 	pw("power", "power_tiny", "Ficar Pequeno", "m", { "encolher", "shrink", "diminuir", "ficar pequeno", "formiga humana", "homem formiga" }, { kind = "tiny" }, { "good" }),
 	pw("power", "invisible", "Invisibilidade", "f", { "invisivel", "invisibilidade", "invisible", "invisibility", "sumir de vista", "camuflagem", "camouflage", "furtividade" }, { kind = "invisible" }, { "magic" }),
@@ -38,7 +38,7 @@ return {
 	pw("power", "time_stop", "Parar o Tempo", "m", { "parar o tempo", "pausar", "pause", "time stop", "congelar o tempo", "the world", "zawarudo", "tempo parado" }, { kind = "time_stop" }, { "magic", "time" }, { lifetime = 8 }),
 	pw("power", "slowmo", "Câmera Lenta", "f", { "camera lenta", "slow motion", "slowmo", "tempo lento", "matrix", "bullet time" }, { kind = "slowmo" }, { "magic", "time" }, { lifetime = 12 }),
 	pw("power", "pet", "Mascote", "m", { "mascote", "bichinho de estimacao", "animal de estimacao", "companheiro", "companion", "parceiro", "sidekick" }, { kind = "pet" }, { "good", "cute" }),
-	pw("power", "aura", "Aura Brilhante", "f", { "aura", "brilho", "glow", "brilhar", "super saiyajin", "super sayajin", "poder maximo", "power up", "energia", "energy" }, { kind = "aura" }, { "good", "magic" }, { lifetime = 30 }),
+	pw("power", "aura", "Aura Brilhante", "f", { "aura", "brilho", "glow", "brilhar", "poder maximo", "power up", "energia", "energy" }, { kind = "aura" }, { "good", "magic" }, { lifetime = 30 }),
 	pw("power", "cape", "Capa de Herói", "f", { "capa", "cape", "manto", "cloak", "uniforme de heroi" }, { kind = "cape" }, { "good", "clothing" }, { lifetime = 60 }),
 	pw("power", "potion", "Poção Misteriosa", "f", { "pocao", "potion", "elixir", "pocao magica", "frasco", "veneno magico" }, { kind = "potion" }, { "magic" }),
 

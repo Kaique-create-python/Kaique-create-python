@@ -24,6 +24,44 @@ local function icon(plan: any): string
 	return if info then info.icon else "💡"
 end
 
+-- Nomes digitados ("verity") só aparecem depois do filtro de texto do Roblox.
+-- Se o filtro falhar ou cortar o nome, vira "Personagem Misterioso".
+local function filterNames(plan: any, player: Player)
+	local changed = false
+	local function visit(ev: any, depth: number)
+		local name = ev.params and ev.params.customName
+		if name then
+			local ok, filtered = pcall(function()
+				local TextService = game:GetService("TextService")
+				local res = TextService:FilterStringAsync(name, player.UserId, Enum.TextFilterContext.PublicChat)
+				return res:GetNonChatStringForBroadcastAsync()
+			end)
+			local safe = "Personagem Misterioso"
+			if ok and type(filtered) == "string" and #filtered > 0 and not string.find(filtered, "#", 1, true) then
+				safe = filtered
+			end
+			ev.params.customName = safe
+			ev.baseLabel = safe
+			changed = true
+		end
+		if depth < 6 then
+			for _, a in ev.actions or {} do
+				if a.node then
+					visit(a.node, depth + 1)
+				end
+			end
+		end
+	end
+	for _, ev in plan.events do
+		visit(ev, 1)
+	end
+	if changed then
+		Planner.relabel(plan)
+	end
+end
+
+Requests.filterNames = filterNames
+
 function Requests.handle(player: Player, raw: any): { [string]: any }
 	local verdict = RequestGate.check(player, raw)
 	if not verdict.ok then
@@ -39,6 +77,7 @@ function Requests.handle(player: Player, raw: any): { [string]: any }
 		warn("[Ideias] interpretador falhou: " .. tostring(plan))
 		return { ok = false, reason = "invalid", message = "Não entendi essa ideia." }
 	end
+	filterNames(plan, player)
 	local result = EventManager.executePlan(plan, player)
 	if #Requests.log > 50 then
 		table.remove(Requests.log, 1)

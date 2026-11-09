@@ -50,6 +50,10 @@ class H(BaseHTTPRequestHandler):
                 return self._send(400, {"code": "InvalidRequest", "message": "Invalid Content stream"})
             STATE["version"] += 1
             return self._send(200, {"versionNumber": STATE["version"]})
+        if self.path == "/assets/v1/assets":
+            entry["audio"] = b'"assetType": "Audio"' in body and b"OggS" in body
+            json.dump(LOG, open("mock_log.json", "w"), indent=1)
+            return self._send(200, {"path": "operations/aud1", "done": False})
         if self.path.endswith("/luau-execution-session-tasks"):
             data = json.loads(body)
             if "script" not in data or len(data["script"]) < 10:
@@ -80,6 +84,8 @@ class H(BaseHTTPRequestHandler):
             if STATE["polls"] < 2:
                 return self._send(200, {"state": "PROCESSING"})
             return self._send(200, {"state": "COMPLETE", "output": {"results": [{"ok": True, "interpretador": {"passou": 2454, "falhou": 0}}]}})
+        if self.path.endswith("/operations/aud1"):
+            return self._send(200, {"path": "operations/aud1", "done": True, "response": {"assetId": "123456", "assetType": "Audio"}})
         if self.path.endswith("/operations/op123"):
             return self._send(200, {"path": "operations/op123", "done": True, "response": {"path": "assets/1", "revisionId": "7", "isPublished": False}})
         self._send(404, {"message": "rota desconhecida"})

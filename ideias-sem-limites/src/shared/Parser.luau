@@ -33,6 +33,7 @@ export type Item = {
 	unknown: boolean?,
 	ofFlag: boolean?,
 	plural: boolean?,
+	verb: string?,
 }
 
 export type Group = {
@@ -44,6 +45,8 @@ export type Group = {
 	relToPrev: string?,
 	ofPending: boolean?,
 	unknown: { string },
+	actions: { any },
+	chainFrom: any?,
 }
 
 export type GroupSpec = {
@@ -56,6 +59,10 @@ export type GroupSpec = {
 	heavy: boolean?,
 	relToPrev: string?,
 	words: { string },
+	actions: { { verb: string, word: string, target: number? } }?,
+	chainTarget: boolean?,
+	fusion: any?,
+	customName: string?,
 }
 
 export type ParseResult = {
@@ -105,6 +112,7 @@ function Parser.match(tokens: { string }): ({ Item }, { { from: string, to: stri
 					intensifier = e.intensifier,
 					self = e.self,
 					stop = e.stop,
+					verb = e.verb,
 				}
 				-- plural ("dragões", "zumbis") sem número explícito vira um pequeno grupo
 				if n == 1 and e.concept then
@@ -159,11 +167,73 @@ end
 
 -- 2) agrupamento ------------------------------------------------------------
 local function newGroup(): Group
-	return { items = {}, intensify = 0, unknown = {} }
+	return { items = {}, intensify = 0, unknown = {}, actions = {} }
 end
 
 local function hasContent(g: Group): boolean
-	return #g.items > 0
+	return #g.items > 0 or #g.unknown > 0
+end
+
+-- Palavras desconhecidas que parecem um nome ("verity", "joao pedro"): viram um
+-- personagem com esse nome. Sequências impronunciáveis ("xyzqwe") não.
+local VOWELS = { a = true, e = true, i = true, o = true, u = true }
+function Parser.nameLike(words: { string }): boolean
+	if #words == 0 or #words > 3 then
+		return false
+	end
+	local total = 0
+	for _, w in words do
+		if not string.match(w, "^%a+$") then
+			return false
+		end
+		local n = #w
+		if n < 2 or n > 14 then
+			return false
+		end
+		total += n + 1
+		local vowels, run, maxRun = 0, 0, 0
+		for i = 1, n do
+			local ch = string.sub(w, i, i)
+			if VOWELS[ch] or (ch == "y" and i == n) then
+				vowels += 1
+				run = 0
+			else
+				run += 1
+				maxRun = math.max(maxRun, run)
+			end
+		end
+		if vowels == 0 or maxRun > 3 or vowels / n < 0.2 then
+			return false
+		end
+	end
+	return total <= 26
+end
+
+function Parser.displayName(words: { string }): string
+	local out = {}
+	for _, w in words do
+		table.insert(out, string.upper(string.sub(w, 1, 1)) .. string.sub(w, 2))
+	end
+	return table.concat(out, " ")
+end
+
+-- Duas ideias na mesma frase sem palavra de ligação podem virar um híbrido:
+-- "gato tubarão", "homem tubarão", "macaco banana", "crocodilo avião".
+local FUSE_WITH_CREATURE = { creature = true, food = true, object = true, nature = true, vehicle = true }
+function Parser.fusable(a: any, b: any): boolean
+	if a == b or a.sacred or b.sacred or a.handler == "composite" or b.handler == "composite" then
+		return false
+	end
+	if a.noFusion or b.noFusion then
+		return false
+	end
+	if a.category == "creature" then
+		return FUSE_WITH_CREATURE[b.category] == true and b.handler ~= "world"
+	end
+	if b.category == "creature" then
+		return FUSE_WITH_CREATURE[a.category] == true and a.handler ~= "world"
+	end
+	return false
 end
 
 local UPGRADE = { giant = "colossal", small = "tiny" }
@@ -215,6 +285,10 @@ local function resolveGroup(g: Group, extraGroups: { GroupSpec }): GroupSpec
 	end
 	local rawMods = {}
 	local headItem = chooseHead(conceptItems)
+	-- "verity gigante": o nome é a ideia; "gigante" vira modificador
+	if headItem and headItem.modifier and #g.unknown > 0 and Parser.nameLike(g.unknown) then
+		headItem = nil
+	end
 	if headItem then
 		spec.head = headItem.concept
 		if headItem.plural and not spec.count then
@@ -231,6 +305,8 @@ local function resolveGroup(g: Group, extraGroups: { GroupSpec }): GroupSpec
 					table.insert(rawMods, Catalog.ModifierById[c.asModifier])
 				elseif it.ofFlag and spec.head and spec.head.params.payload and not spec.payload then
 					spec.payload = c
+				elseif not spec.fusion and spec.head and Parser.fusable(spec.head, c) then
+					spec.fusion = c
 				else
 					-- conceito independente na mesma frase: vira outra ideia
 					table.insert(extraGroups, {
@@ -248,6 +324,12 @@ local function resolveGroup(g: Group, extraGroups: { GroupSpec }): GroupSpec
 		if it.extraModifier then
 			table.insert(rawMods, Catalog.ModifierById[it.extraModifier])
 		end
+	end
+
+	-- nada reconhecido, mas há um nome ("verity"): personagem com esse nome
+	if not spec.head and #g.unknown > 0 and Parser.nameLike(g.unknown) and Catalog.ById.mystery_person then
+		spec.head = Catalog.ById.mystery_person
+		spec.customName = Parser.displayName(g.unknown)
 	end
 
 	-- só modificadores: palavra isolada vira conceito ("gigante" -> poder de crescer)
@@ -314,6 +396,7 @@ function Parser.parse(raw: string): ParseResult
 	local cur = newGroup()
 	local locationMode = false
 	local danglingGuard = false
+	local refGroup: Group? = nil -- "o cachorro" já citado antes, sujeito do próximo verbo
 
 	local function push()
 		if hasContent(cur) then
@@ -322,7 +405,66 @@ function Parser.parse(raw: string): ParseResult
 		cur = newGroup()
 	end
 
-	for _, it in items do
+	local function nextMeaningful(from: number): Item?
+		for j = from + 1, #items do
+			local n = items[j]
+			if not (n.stop and not n.concept and not n.modifier and not n.verb) then
+				return n
+			end
+		end
+		return nil
+	end
+
+	local function groupWith(concept: any): Group?
+		for _, it in cur.items do
+			if it.concept == concept then
+				return cur
+			end
+		end
+		for gi = #groups, 1, -1 do
+			for _, it in groups[gi].items do
+				if it.concept == concept then
+					return groups[gi]
+				end
+			end
+		end
+		return nil
+	end
+
+	for idx, it in items do
+		-- verbo de ação com sujeito: monta a cadeia ("arma que atira cachorro")
+		if it.verb then
+			local subject: Group? = refGroup or (if #cur.items > 0 then cur else nil) or groups[#groups]
+			if subject and not subject.chainFrom and #subject.items == 0 then
+				subject = nil
+			end
+			if subject then
+				local kind = it.verb :: string
+				if Catalog.Grammar.TransitiveVerbs[kind] then
+					if hasContent(cur) then
+						push()
+					end
+					cur.relToPrev = nil
+					cur.chainFrom = { group = subject, verb = kind }
+					table.insert(subject.actions, { verb = kind, word = it.text, target = cur })
+				else
+					table.insert(subject.actions, { verb = kind, word = it.text })
+				end
+				refGroup = nil
+				continue
+			end
+		end
+		-- "...e o cachorro caga...": o cachorro é o mesmo citado antes
+		if it.concept and not it.verb then
+			local nxt = nextMeaningful(idx)
+			if nxt and nxt.verb then
+				local found = groupWith(it.concept)
+				if found then
+					refGroup = found
+					continue
+				end
+			end
+		end
 		if it.unknown then
 			table.insert(result.unknown, it.text)
 			table.insert(cur.unknown, it.text)
@@ -359,7 +501,7 @@ function Parser.parse(raw: string): ParseResult
 				if hasContent(cur) then
 					push()
 					cur.relToPrev = rel
-				elseif #groups > 0 then
+				elseif #groups > 0 and not cur.chainFrom then
 					cur.relToPrev = rel
 				end
 			end
@@ -393,13 +535,19 @@ function Parser.parse(raw: string): ParseResult
 	end
 
 	local specs: { GroupSpec } = {}
+	local specOf: { [Group]: number } = {}
 	for gi, g in groups do
 		local extras: { GroupSpec } = {}
 		local spec = resolveGroup(g, extras)
 		if gi == 1 then
 			spec.relToPrev = nil
 		end
+		if g.chainFrom then
+			spec.chainTarget = true
+			spec.relToPrev = nil
+		end
 		table.insert(specs, spec)
+		specOf[g] = #specs
 		for _, extra in extras do
 			table.insert(specs, extra)
 		end
@@ -409,6 +557,21 @@ function Parser.parse(raw: string): ParseResult
 	end
 	while #specs > Config.Request.MaxGroups do
 		table.remove(specs)
+	end
+	-- ações: índices dos grupos-alvo (cadeias)
+	for g, si in specOf do
+		local spec = specs[si]
+		if spec and #g.actions > 0 then
+			local acts = {}
+			for _, a in g.actions do
+				local target = if a.target then specOf[a.target] else nil
+				if a.target and (not target or not specs[target]) then
+					continue -- verbo sem objeto ("arma que atira")
+				end
+				table.insert(acts, { verb = a.verb, word = a.word, target = target })
+			end
+			spec.actions = acts
+		end
 	end
 	result.groups = specs
 	return result

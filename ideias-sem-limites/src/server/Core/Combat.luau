@@ -35,6 +35,9 @@ function Combat.canHurt(attacker: any?, victim: any): boolean
 	if attacker == victim then
 		return false
 	end
+	if victim.invulnerable then
+		return false -- personagens sagrados nunca tomam dano
+	end
 	if attacker and attacker.faction == "player" and victim.faction == "player" then
 		return Config.Combat.PvP
 	end

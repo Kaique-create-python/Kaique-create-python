@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Settings = require(script.Parent.Parent.Settings)
+local Config = require(game:GetService("ReplicatedStorage").IdeiasShared.Config)
 
 local Effects = {}
 
@@ -98,6 +99,40 @@ local function sound(id: string, at: Vector3, volume: number?)
 	s:Play()
 	Debris:AddItem(p, 5)
 end
+
+-- som de um efeito: trecho do sprite do ElevenLabs ou som embutido (fallback)
+local function cue(name: string, at: Vector3?, volume: number?)
+	if not Settings.values.sounds then
+		return
+	end
+	local c = Config.SoundCues[name]
+	if not c then
+		return
+	end
+	local sp = Config.SoundSprite
+	local s = Instance.new("Sound")
+	local region = c.sprite and sp.Regions[c.sprite]
+	if sp.Id ~= 0 and region then
+		s.SoundId = "rbxassetid://" .. tostring(sp.Id)
+		s.PlaybackRegionsEnabled = true
+		s.PlaybackRegion = NumberRange.new(region[1], region[2])
+	else
+		s.SoundId = c.fallback
+	end
+	s.Volume = (volume or 1) * (c.volume or 0.7)
+	s.PlaybackSpeed = c.speed or 1
+	s.RollOffMaxDistance = 450
+	if at then
+		local holder = part({ Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(at), Transparency = 1 })
+		s.Parent = holder
+		Debris:AddItem(holder, 6)
+	else
+		s.Parent = game:GetService("SoundService")
+		Debris:AddItem(s, 6)
+	end
+	s:Play()
+end
+Effects.cue = cue
 
 local shakeAmount = 0
 local function shake(intensity: number)
@@ -217,18 +252,23 @@ H.boom = function(d)
 	Debris:AddItem(p, 0.6)
 	burst(d.p, TEX_FIRE, { Color3.fromRGB(255, 220, 90), Color3.fromRGB(255, 80, 20) }, 30, 30 * s, 3 * s, 0.9)
 	burst(d.p, TEX_SMOKE, { Color3.fromRGB(90, 85, 80) }, 20, 14 * s, 5 * s, 2.5, Vector3.new(0, 6, 0))
-	sound("rbxasset://sounds/collide.wav", d.p, 1)
+	cue("explosion", d.p, 1)
 	shake(0.8 * s * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
 end
 
 H.poof = function(d)
 	burst(d.p, TEX_SMOKE, { Color3.fromRGB(240, 240, 250) }, 18, 10 * (d.s or 1), 2.5 * (d.s or 1), 1.2)
+	cue("poof", d.p, 0.6)
 end
 
 H.spawn = function(d)
 	ring(d.p, 10 * (d.s or 1), d.c, 0.8)
 	burst(d.p + Vector3.new(0, 2, 0), TEX_SPARK, { d.c, Color3.new(1, 1, 1) }, 24, 16, 0.8, 1)
-	sound("rbxasset://sounds/electronicpingshort.wav", d.p, 0.5)
+	-- coluna de luz rápida: o "portal" de onde a ideia sai
+	local col = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(40, 3, 3) * (d.s or 1), CFrame = CFrame.new(d.p + Vector3.new(0, 20, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = d.c, Transparency = 0.35 })
+	tween(col, 0.7, { Size = Vector3.new(40, 0.2, 0.2) * (d.s or 1), Transparency = 1 })
+	Debris:AddItem(col, 0.8)
+	cue("create", d.p, 0.8)
 end
 
 H.build = function(d)
@@ -260,7 +300,7 @@ H.lightning = function(d)
 	zigzag(top, d.p, Color3.fromRGB(220, 240, 255), 0.8, 0.35)
 	H.flash({ p = d.p, c = Color3.fromRGB(220, 235, 255), s = 30 })
 	tint(Color3.fromRGB(230, 240, 255), 0.08)
-	sound("rbxasset://sounds/collide.wav", d.p, 1)
+	cue("explosion", d.p, 0.8)
 	shake(0.5 * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
 end
 
@@ -345,6 +385,179 @@ H.shootingstar = function(_d)
 	local from = cam + Vector3.new(math.random(-300, 300), 260, math.random(-300, 300))
 	local to = from + Vector3.new(math.random(-200, 200), -80, math.random(-200, 200))
 	H.bolt({ a = from, b = to, c = Color3.fromRGB(255, 255, 230), v = 260, w = 1 })
+end
+
+-- EFEITOS DOS NOVOS PODERES --------------------------------------------------------
+H.charge = function(d)
+	local s = d.s or 1
+	local ball = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(d.p + Vector3.new(0, 1.5 * s, 0)), Color = d.c, Transparency = 0.2 })
+	tween(ball, d.d or 0.9, { Size = Vector3.new(5, 5, 5) * s, Transparency = 0.5 })
+	Debris:AddItem(ball, (d.d or 0.9) + 0.1)
+	ring(d.p, 7 * s, d.c, d.d or 0.9)
+	burst(d.p, TEX_SPARK, { d.c, Color3.new(1, 1, 1) }, 40, 8, 0.7, 0.9, Vector3.new(0, 20, 0))
+	cue("charge", d.p, 1)
+end
+
+H.kame = function(d)
+	local mid = (d.a + d.b) / 2
+	local len = (d.b - d.a).Magnitude
+	local w = d.w or 2.5
+	local cf = CFrame.lookAt(mid, d.b) * CFrame.Angles(0, math.rad(90), 0)
+	local outer = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(len, w * 2.2, w * 2.2), CFrame = cf, Color = d.c, Transparency = 0.35 })
+	local core = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(len, w, w), CFrame = cf, Color = Color3.new(1, 1, 1), Transparency = 0 })
+	tween(outer, 1.1, { Size = Vector3.new(len, 0.3, 0.3), Transparency = 1 })
+	tween(core, 1.1, { Size = Vector3.new(len, 0.1, 0.1), Transparency = 1 })
+	Debris:AddItem(outer, 1.2)
+	Debris:AddItem(core, 1.2)
+	H.flash({ p = d.b, c = d.c, s = 18 })
+	burst(d.b, TEX_SPARK, { d.c, Color3.new(1, 1, 1) }, 50, 40, 1.2, 1)
+	cue("beam", d.a, 1)
+end
+
+H.punch = function(d)
+	local s = d.s or 1
+	ring(d.p, 16 * s, Color3.fromRGB(255, 255, 255), 0.5)
+	ring(d.p + Vector3.new(0, 2, 0), 10 * s, Color3.fromRGB(255, 230, 120), 0.35)
+	H.flash({ p = d.p, c = Color3.fromRGB(255, 250, 220), s = 14 * s })
+	burst(d.p, TEX_SMOKE, { Color3.fromRGB(230, 225, 215) }, 25, 35, 3, 1)
+	cue("punch", d.p, 1)
+	shake(1.2 * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
+end
+
+H.web = function(d)
+	zigzag(d.a, d.b, Color3.fromRGB(245, 245, 250), 0.15, 0.6)
+	for k = 0, 3 do
+		local p = part({ Size = Vector3.new(0.1, 0.1, 5), CFrame = CFrame.new(d.b) * CFrame.Angles(0, k * math.pi / 4, 0), Color = Color3.fromRGB(245, 245, 250), Material = Enum.Material.SmoothPlastic })
+		tween(p, 2.5, { Transparency = 1 })
+		Debris:AddItem(p, 2.6)
+	end
+	cue("launch", d.a, 0.5)
+end
+
+H.lasereyes = function(d)
+	for _, off in { -0.25, 0.25 } do
+		local a = d.a + Vector3.new(off, 0, 0)
+		local mid = (a + d.b) / 2
+		local len = (d.b - a).Magnitude
+		local p = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(len, 0.35, 0.35), CFrame = CFrame.lookAt(mid, d.b) * CFrame.Angles(0, math.rad(90), 0), Color = d.c })
+		tween(p, 0.4, { Transparency = 1 })
+		Debris:AddItem(p, 0.5)
+	end
+	burst(d.b, TEX_FIRE, { d.c, Color3.fromRGB(255, 220, 90) }, 14, 12, 1, 0.6)
+	cue("laser", d.a, 0.9)
+end
+
+H.holy = function(d)
+	local dur = d.d or 10
+	local pillar = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(400, 14, 14), CFrame = CFrame.new(d.p + Vector3.new(0, 200, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(255, 240, 190), Transparency = 0.55 })
+	local l = Instance.new("PointLight")
+	l.Color = Color3.fromRGB(255, 240, 190)
+	l.Range = 60
+	l.Brightness = 3
+	l.Parent = pillar
+	tween(pillar, dur, { Transparency = 1, Size = Vector3.new(400, 4, 4) })
+	Debris:AddItem(pillar, dur + 0.2)
+	ring(d.p, d.r or 40, Color3.fromRGB(255, 235, 170), 2)
+	burst(d.p + Vector3.new(0, 4, 0), TEX_SPARK, { Color3.fromRGB(255, 250, 220), Color3.fromRGB(255, 225, 140) }, 80, 12, 1, 3, Vector3.new(0, 6, 0))
+	-- pombas brancas circulando
+	for i = 1, 6 do
+		local dove = part({ Size = Vector3.new(1.2, 0.3, 0.8), Color = Color3.fromRGB(250, 250, 255), Material = Enum.Material.SmoothPlastic, CFrame = CFrame.new(d.p) })
+		local t0 = os.clock()
+		local conn
+		conn = RunService.RenderStepped:Connect(function()
+			local t = os.clock() - t0
+			if t > dur or not dove.Parent then
+				conn:Disconnect()
+				dove:Destroy()
+				return
+			end
+			local a = t * 0.9 + i * math.pi / 3
+			local pos = d.p + Vector3.new(math.cos(a) * 14, 12 + math.sin(t * 2 + i) * 2, math.sin(a) * 14)
+			dove.CFrame = CFrame.lookAt(pos, pos + Vector3.new(-math.sin(a), 0, math.cos(a)))
+		end)
+	end
+	tint(Color3.fromRGB(255, 245, 220), 1.2)
+	cue("holy", d.p, 1)
+end
+
+H.calm = function(d)
+	burst(d.p + Vector3.new(0, 4, 0), TEX_SPARK, { Color3.fromRGB(255, 240, 200), Color3.fromRGB(255, 200, 230) }, 12, 4, 0.6, 1.5, Vector3.new(0, 4, 0))
+end
+
+H.poop = function(d)
+	burst(d.p, TEX_SMOKE, { Color3.fromRGB(120, 85, 50), Color3.fromRGB(160, 120, 70) }, 22, 10 * (d.s or 1), 2.5 * (d.s or 1), 1.4)
+	cue("fart", d.p, 1)
+end
+
+H.launch = function(d)
+	local t = d.t or 0.8
+	local ball = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(1.4, 1.4, 1.4), CFrame = CFrame.new(d.a), Color = d.c or Color3.fromRGB(255, 220, 120) })
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, 0.5, 0)
+	a0.Parent = ball
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -0.5, 0)
+	a1.Parent = ball
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Lifetime = 0.35
+	trail.Color = ColorSequence.new(d.c or Color3.fromRGB(255, 220, 120))
+	trail.LightEmission = 1
+	trail.Parent = ball
+	local t0 = os.clock()
+	local h = math.max(8, (d.b - d.a).Magnitude * 0.35)
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local k = math.clamp((os.clock() - t0) / t, 0, 1)
+		ball.CFrame = CFrame.new(d.a:Lerp(d.b, k) + Vector3.new(0, math.sin(k * math.pi) * h, 0))
+		if k >= 1 then
+			conn:Disconnect()
+			ball:Destroy()
+			H.poof({ p = d.b, s = 1.2 })
+		end
+	end)
+	cue("launch", d.a, 1)
+end
+
+H.notes = function(d)
+	for i = 1, 6 do
+		task.delay(i * 0.2, function()
+			local p = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(0.6, 0.6, 0.6), CFrame = CFrame.new(d.p + Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))), Color = RAINBOW[(i % #RAINBOW) + 1] })
+			tween(p, 1.4, { CFrame = p.CFrame + Vector3.new(math.random(-2, 2), 7, math.random(-2, 2)), Transparency = 1 })
+			Debris:AddItem(p, 1.5)
+		end)
+	end
+end
+
+H.fuse = function(d)
+	local dur = d.d or 1.1
+	local p = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(3, 3, 3), CFrame = CFrame.new(d.p + Vector3.new(0, 2, 0)), Color = Color3.fromRGB(255, 60, 40), Transparency = 0.5 })
+	task.spawn(function()
+		local t0 = os.clock()
+		while os.clock() - t0 < dur and p.Parent do
+			p.Transparency = if p.Transparency > 0.6 then 0.3 else 0.85
+			task.wait(0.12)
+		end
+		p:Destroy()
+	end)
+	cue("hiss", d.p, 1)
+end
+
+H.petrify = function(d)
+	H.flash({ p = d.p, c = Color3.fromRGB(170, 170, 160), s = 10 })
+	burst(d.p, TEX_SMOKE, { Color3.fromRGB(150, 150, 145) }, 16, 8, 2, 1.2)
+	cue("crack", d.p, 1)
+end
+
+H.drum = function(d)
+	for k = 0, 2 do
+		task.delay(k * 0.35, function()
+			ring(d.p, (d.r or 14) * (0.6 + k * 0.2), Color3.fromRGB(200, 150, 90), 0.4)
+			cue("drum", d.p, 1)
+			shake(0.35 * math.clamp(1 - (camPos() - d.p).Magnitude / 200, 0, 1))
+		end)
+	end
 end
 
 function Effects.handle(data: any)

@@ -54,6 +54,7 @@ local HANDLERS = {
 	power = true,
 	tool = true,
 	composite = true,
+	blessing = true,
 }
 
 Catalog.Concepts = {} :: { any }
@@ -67,6 +68,7 @@ local sources = {
 	require(script.Objects),
 	require(script.Phenomena),
 	require(script.Powers),
+	require(script.Characters),
 }
 
 for _, list in sources do

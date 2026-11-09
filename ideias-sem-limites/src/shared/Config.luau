@@ -10,10 +10,10 @@ Config.WorldSeed = 20261109
 -- Pedidos dos jogadores ------------------------------------------------------
 Config.Request = {
 	Cooldown = 3.0, -- segundos entre ideias do mesmo jogador
-	MaxTextLength = 60, -- caracteres aceitos depois da limpeza
+	MaxTextLength = 120, -- caracteres aceitos depois da limpeza (frases com cadeias de ação)
 	MaxRawLength = 200, -- acima disso o pedido é descartado sem processar
-	MaxTokens = 12, -- palavras analisadas por pedido
-	MaxGroups = 3, -- ideias combinadas em um único pedido
+	MaxTokens = 24, -- palavras analisadas por pedido
+	MaxGroups = 4, -- ideias combinadas em um único pedido (inclui elos de cadeia)
 	SpamWindow = 10, -- janela (s) para detectar spam de RemoteEvent
 	SpamMaxRequests = 7, -- pedidos permitidos na janela antes do bloqueio
 	SpamMute = 15, -- bloqueio temporário (s) após spam
@@ -77,6 +77,44 @@ Config.Sounds = {
 	Splat = "rbxasset://sounds/splat.wav",
 	Hit = "rbxasset://sounds/hit.wav",
 	Snap = "rbxasset://sounds/snap.wav",
+}
+
+-- Efeitos sonoros gerados no ElevenLabs, juntos num único áudio ("sprite").
+-- `bash ideias.sh sons` envia o arquivo ao Roblox e grava o ID aqui (marcador).
+-- Com Id = 0 o jogo usa os sons embutidos do Roblox (fallback de cada efeito).
+Config.SoundSprite = {
+	Id = 0, --@@SPRITE_ID@@
+	Regions = {
+		explosion = { 0.0, 1.0 },
+		create = { 1.3, 2.3 },
+		error = { 2.6, 3.6 },
+		punch = { 3.9, 4.546 },
+		charge = { 4.846, 5.739 },
+		beam = { 6.039, 7.039 },
+		laser = { 7.339, 8.139 },
+		roar = { 8.439, 10.239 },
+		fart = { 10.539, 11.639 },
+	},
+}
+
+-- efeito -> trecho do sprite (sprite) ou som embutido (fallback)
+Config.SoundCues = {
+	explosion = { sprite = "explosion", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
+	create = { sprite = "create", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.55 },
+	error = { sprite = "error", fallback = "rbxasset://sounds/button.wav", volume = 0.45 },
+	punch = { sprite = "punch", fallback = "rbxasset://sounds/swordlunge.wav", volume = 0.9 },
+	charge = { sprite = "charge", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.8 },
+	beam = { sprite = "beam", fallback = "rbxasset://sounds/Rocket shot.wav", volume = 0.9 },
+	laser = { sprite = "laser", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.6 },
+	roar = { sprite = "roar", fallback = "rbxasset://sounds/HalloweenGhost.wav", volume = 0.8 },
+	fart = { sprite = "fart", fallback = "rbxasset://sounds/splat.wav", volume = 0.8 },
+	poof = { fallback = "rbxasset://sounds/swoosh.wav", volume = 0.4 },
+	launch = { fallback = "rbxasset://sounds/swoosh.wav", volume = 0.8 },
+	splash = { fallback = "rbxasset://sounds/impact_water.mp3", volume = 0.7 },
+	crack = { fallback = "rbxasset://sounds/glassbreak.wav", volume = 0.6 },
+	hiss = { fallback = "rbxasset://sounds/snap.wav", volume = 0.6 },
+	holy = { sprite = "create", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.7, speed = 0.7 },
+	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
 }
 
 Config.Textures = {

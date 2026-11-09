@@ -61,6 +61,12 @@ bash "$S" enviar-assets >"$WORK/assets.log" 2>&1 || { cat "$WORK/assets.log"; fa
 check "Assets API salvou sem publicar" 'grep -q "revisão 7" "$WORK/assets.log"'
 check "multipart com published=false" 'python3 -c "import json;l=json.load(open(\"$WORK/mock_log.json\"));exit(0 if any(e.get(\"has_request\") for e in l) else 1)"'
 
+echo "== sons (áudio do ElevenLabs -> asset -> ID gravado no lugar)"
+printf '999\n' | bash "$S" sons >"$WORK/sons.log" 2>&1 || { cat "$WORK/sons.log"; false; }
+check "áudio enviado como Audio/ogg" 'python3 -c "import json;l=json.load(open(\"$WORK/mock_log.json\"));exit(0 if any(e.get(\"audio\") for e in l) else 1)"'
+check "ID do áudio gravado no lugar" 'grep -q "Id = 123456, --@@SPRITE_ID@@" "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3_sons.rbxlx"'
+check "lugar com sons salvo (Saved)" 'grep -q "versão" "$WORK/sons.log"'
+
 echo "== publicar exige confirmação"
 if echo "nao" | bash "$S" publicar "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3.rbxl" >/dev/null 2>&1; then r=1; else r=0; fi
 check "publicação cancelada sem PUBLICAR" '[[ $r == 0 ]]'

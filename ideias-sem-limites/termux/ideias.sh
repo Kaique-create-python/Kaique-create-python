@@ -161,7 +161,7 @@ cmd_baixar() {
 	local dest="$PASTA/V3"
 	mkdir -p "$dest/ferramentas" "$dest/testes"
 	info "Baixando a V3 do GitHub (ramo $RAMO)"
-	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/SHA256SUMS")
+	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/SHA256SUMS")
 	for f in "${arquivos[@]}"; do
 		curl -fL --retry 3 -o "$dest/$(basename "$f")" "$RAW/$f" || morre "Falha ao baixar $f"
 	done
@@ -411,6 +411,74 @@ cmd_publicar() {
 	enviar_legado "$arq" "Published"
 }
 
+cmd_sons() {
+	# Envia o áudio com os efeitos sonoros (ElevenLabs) como UM asset de áudio,
+	# grava o ID numa cópia do .rbxlx e envia essa cópia como SALVA (Saved).
+	precisa curl python3 sha256sum
+	garantir_pastas
+	carregar_config
+	local audio="${1:-$PASTA/V3/IdeiasSons.ogg}"
+	local lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
+	[[ -s "$audio" ]] || morre "Áudio não encontrado: $audio (rode 'bash ideias.sh baixar')"
+	[[ -s "$lugar" ]] || morre "Lugar não encontrado: $lugar (rode 'bash ideias.sh baixar')"
+	local uid="${USER_ID:-}"
+	if [[ -z "$uid" ]]; then
+		read -r -p "Seu User ID do Roblox (número do seu perfil): " uid
+		[[ "$uid" =~ ^[0-9]+$ ]] || morre "User ID deve ser um número."
+		printf 'USER_ID="%s"\n' "$uid" >>"$CONF"
+	fi
+	info "Enviando áudio ($(wc -c <"$audio") bytes) — permissão 'asset' Read+Write"
+	cabecalho_chave
+	local resp code
+	resp=$(mktemp)
+	code=$(curl -sS -o "$resp" -w '%{http_code}' -X POST -H @"$HDR" \
+		--form "request={\"assetType\": \"Audio\", \"displayName\": \"Ideias Sem Limites Sons\", \"description\": \"Efeitos sonoros do jogo\", \"creationContext\": {\"creator\": {\"userId\": \"${uid}\"}}}" \
+		--form "fileContent=@${audio};type=audio/ogg" \
+		"$API/assets/v1/assets") || true
+	if [[ "$code" != "200" ]]; then
+		limpar
+		erro "HTTP $code"
+		cat "$resp"
+		echo
+		rm -f "$resp"
+		return 1
+	fi
+	local op asset i=0 done_
+	op=$(json_campo path <"$resp")
+	info "Operação: $op — aguardando o Roblox processar o áudio..."
+	while [[ $i -lt 40 ]]; do
+		sleep 3
+		curl -sS -o "$resp" -H @"$HDR" "$API/assets/v1/${op}" || true
+		done_=$(json_campo done <"$resp")
+		if [[ "$done_" == "True" || "$done_" == "true" ]]; then
+			break
+		fi
+		i=$((i + 1))
+	done
+	limpar
+	asset=$(json_campo response.assetId <"$resp")
+	if [[ ! "$asset" =~ ^[0-9]+$ ]]; then
+		erro "Sem ID do áudio: $(json_campo error.message <"$resp")"
+		rm -f "$resp"
+		return 1
+	fi
+	rm -f "$resp"
+	ok "Áudio criado: asset $asset"
+	echo "$asset" >"$CONF_DIR/audio_id"
+	local saida="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
+	python3 - "$lugar" "$saida" "$asset" <<'PYEOF' || morre "Não consegui gravar o ID no lugar."
+import sys
+src, dst, asset = sys.argv[1], sys.argv[2], sys.argv[3]
+data = open(src, encoding="utf-8").read()
+marker = "Id = 0, --@@SPRITE_ID@@"
+if marker not in data:
+    sys.exit("marcador não encontrado")
+open(dst, "w", encoding="utf-8").write(data.replace(marker, "Id = %d, --@@SPRITE_ID@@" % int(asset), 1))
+PYEOF
+	ok "Lugar com sons: $saida"
+	cmd_enviar "$saida"
+}
+
 cmd_status() {
 	garantir_pastas
 	carregar_config
@@ -427,12 +495,14 @@ ajuda() {
 	echo "  bash ideias.sh diagnosticar          # entende o erro da V2"
 	echo "  bash ideias.sh enviar                # salva a V3 (não publica)"
 	echo "  bash ideias.sh testar                # testes na nuvem"
+	echo "  bash ideias.sh sons                  # envia os sons (ElevenLabs) e salva a V3 com eles"
 	echo "  bash ideias.sh publicar ARQUIVO      # só quando você decidir"
 }
 
 case "${1:-}" in
 configurar) cmd_configurar ;;
 baixar) cmd_baixar ;;
+sons) cmd_sons "${2:-}" ;;
 backup) cmd_backup ;;
 diagnosticar) cmd_diagnosticar "${2:-}" ;;
 enviar) cmd_enviar "${2:-}" ;;

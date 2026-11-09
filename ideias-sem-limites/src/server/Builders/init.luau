@@ -8,6 +8,8 @@ local Monsters = require(script.Monsters)
 local Vehicles = require(script.Vehicles)
 local Buildings = require(script.Buildings)
 local Props = require(script.Props)
+local Memes = require(script.Memes)
+local Fusion = require(script.Fusion)
 
 local Builders = {}
 
@@ -32,17 +34,40 @@ local CREATURES: { [string]: (CFrame, { [string]: any }, string) -> any } = {
 	ghost = Monsters.ghost,
 	robot = Monsters.robot,
 	ufo = Monsters.ufo,
+	meme = Memes.build,
 }
 
 Builders.Creatures = CREATURES
 
-function Builders.creature(origin: CFrame, params: { [string]: any }): any
+local function plainCreature(origin: CFrame, params: { [string]: any }): any
 	local f = CREATURES[params.model] or Figures.build
 	return f(origin, params, params.variant or "villager")
 end
 
+Builders.Fusion = Fusion
+
+function Builders.creature(origin: CFrame, params: { [string]: any }): any
+	local rig = plainCreature(origin, params)
+	local fh = params.fusionHead
+	if fh then
+		local ok, err = pcall(Fusion.ontoRig, rig, fh, params, { creature = plainCreature, prop = Builders.prop })
+		if not ok then
+			warn("[Ideias] híbrido falhou: " .. tostring(err))
+		end
+	end
+	return rig
+end
+
 function Builders.vehicle(origin: CFrame, params: { [string]: any }): any
-	return Vehicles.build(origin, params, params.variant or "car")
+	local v = Vehicles.build(origin, params, params.variant or "car")
+	local fh = params.fusionHead
+	if fh and v and v.model then
+		local ok, err = pcall(Fusion.ontoVehicle, v.model, fh, params, { creature = plainCreature, prop = Builders.prop })
+		if not ok then
+			warn("[Ideias] híbrido de veículo falhou: " .. tostring(err))
+		end
+	end
+	return v
 end
 
 function Builders.building(origin: CFrame, params: { [string]: any }): any

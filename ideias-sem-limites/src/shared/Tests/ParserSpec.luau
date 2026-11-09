@@ -52,7 +52,8 @@ Spec.cases = {
 	{ input = "laranja", expect = { events = { { concept = "orange_fruit" } } } },
 
 	-- palavras sozinhas que são modificadores
-	{ input = "gigante", expect = { events = { { concept = "power_giant" } } } },
+	{ input = "gigante", expect = { events = { { concept = "giant" } } } },
+	{ input = "ficar gigante", expect = { events = { { concept = "power_giant" } } } },
 	{ input = "fogo", expect = { events = { { concept = "fire" } } } },
 	{ input = "gelo", expect = { events = { { concept = "ice_burst" } } } },
 	{ input = "voador", expect = { events = { { concept = "power_fly" } } } },
@@ -85,12 +86,65 @@ Spec.cases = {
 	{ input = "robô dinossauro", expect = { events = { { concept = "dinosaur", mods = { "robotic" } } }, secrets = { "mechasaur" } } },
 	{ input = "dinossauro robô", expect = { events = { { concept = "dinosaur", mods = { "robotic" } } } } },
 	{ input = "tornado de tubarões", expect = { events = { { concept = "tornado", payload = "shark" } }, secrets = { "sharknado" } } },
-	{ input = "dragão, robô, zumbi, fantasma", expect = { eventCount = 3 } },
+	{ input = "dragão, robô, zumbi, fantasma", expect = { eventCount = 4 } },
 	{ input = "dragão no vulcão", expect = { events = { { concept = "dragon" } }, location = "volcano" } },
 	{ input = "praia", expect = { events = { { concept = "teleport" } }, location = "beach" } },
 	{ input = "invasão alienígena", expect = { events = { { concept = "ufo" }, { concept = "alien" } } } },
 	{ input = "vaca voadora", expect = { events = { { concept = "cow", mods = { "flying" } } }, secrets = { "flying_cow" } } },
 	{ input = "cachorro de estimação", expect = { events = { { concept = "dog", mods = { "pet" } } } } },
+
+	-- personagens pelo nome (versões originais, sem nome/visual oficial)
+	{ input = "Goku", expect = { events = { { concept = "energy_warrior" } } } },
+	{ input = "Naruto", expect = { events = { { concept = "shadow_ninja" } } } },
+	{ input = "Saitama", expect = { events = { { concept = "bald_hero" } } } },
+	{ input = "homem aranha", expect = { events = { { concept = "spider_hero" } } } },
+	{ input = "skibidi toilet", expect = { events = { { concept = "singing_toilet" } }, eventCount = 1 } },
+	{ input = "Tung Tung sahur", expect = { events = { { concept = "tum_tum_log" } }, eventCount = 1 } },
+	{ input = "tung tung tung sahur", expect = { events = { { concept = "tum_tum_log" } }, eventCount = 1 } },
+	{ input = "Tralalelo tralala", expect = { events = { { concept = "skate_shark" } }, eventCount = 1 } },
+	{ input = "tralalero tralala", expect = { events = { { concept = "skate_shark" } }, eventCount = 1 } },
+	{ input = "bombardiro crocodilo", expect = { events = { { concept = "croco_bomber" } }, eventCount = 1 } },
+	{ input = "goku contra freeza", expect = { links = { { type = "rivals" } }, secrets = { "energy_clash" } } },
+
+	-- sagrado: respeitoso, sem combate, sem modificadores
+	{ input = "Jesus", expect = { events = { { concept = "jesus" } }, eventCount = 1 } },
+	{ input = "jesus explode", expect = { events = { { concept = "jesus", chain = {} } }, eventCount = 1 } },
+	{ input = "jesus de fogo gigante", expect = { events = { { concept = "jesus", modCount = 0 } } } },
+	{ input = "jesus contra demônio", expect = { events = { { concept = "jesus" }, { concept = "demon" } }, noLinks = true } },
+	{ input = "jesus tubarão", expect = { events = { { concept = "jesus" } } } },
+	{ input = "arma que atira jesus", expect = { events = { { concept = "blaster", chain = {} } }, eventCount = 1 } },
+	{ input = "deus", expect = { events = { { concept = "sacred_light" } }, eventCount = 1 } },
+
+	-- nomes desconhecidos viram um personagem com o nome
+	{ input = "verity", expect = { events = { { concept = "mystery_person", name = "Verity" } }, label = "Verity" } },
+	{ input = "Verity gigante", expect = { events = { { concept = "mystery_person", name = "Verity", mods = { "giant" } } } } },
+	{ input = "verity contra dragão", expect = { events = { { concept = "mystery_person" }, { concept = "dragon" } }, links = { { type = "rivals" } } } },
+	{ input = "ana beatriz", expect = { events = { { concept = "mystery_person", name = "Ana Beatriz" } } } },
+	{ input = "quero algo legal", expect = { surprise = true } },
+
+	-- cadeias de ação
+	{ input = "arma que atira cachorro", expect = { events = { { concept = "blaster", chain = { "shoot:dog" } } }, eventCount = 1, secrets = { "dog_launcher" } } },
+	{
+		input = "Arma que atira cachorro e o cachorro caga elefante que o elefante explode",
+		expect = { events = { { concept = "blaster", chain = { "shoot:dog", "spawn:elephant", "explode" } } }, eventCount = 1, secrets = { "absurd_chain" } },
+	},
+	{ input = "cachorro explode", expect = { events = { { concept = "dog", chain = { "explode" } } }, eventCount = 1 } },
+	{ input = "galinha que bota dinossauro", expect = { events = { { concept = "chicken", chain = { "spawn:dinosaur" } } }, eventCount = 1 } },
+	{ input = "vaca que vira dragão", expect = { events = { { concept = "cow", chain = { "transform:dragon" } } }, eventCount = 1 } },
+	{ input = "dragão que cospe gelo", expect = { events = { { concept = "dragon", element = "ice" } }, eventCount = 1 } },
+	{ input = "arma que atira fogo", expect = { events = { { concept = "blaster", element = "fire" } }, eventCount = 1 } },
+	{ input = "robô dança", expect = { events = { { concept = "robot", chain = { "dance" } } }, eventCount = 1 } },
+	{ input = "zumbis que explodem", expect = { events = { { concept = "zombie", chain = { "explode" } } }, eventCount = 1 } },
+	{ input = "explode", expect = { events = { { concept = "explosion" } } } },
+	{ input = "cria um dragão", expect = { events = { { concept = "dragon" } }, eventCount = 1 } },
+
+	-- híbridos
+	{ input = "gato tubarão", expect = { events = { { concept = "cat", fusion = "shark" } }, label = "Gato-Tubarão", secrets = { "mad_lab" } } },
+	{ input = "homem tubarão", expect = { events = { { concept = "villager", fusion = "shark" } }, label = "Tubarão Humanoide" } },
+	{ input = "macaco pizza", expect = { events = { { concept = "monkey", fusion = "pizza" } }, eventCount = 1 } },
+	{ input = "pizza macaco", expect = { events = { { concept = "monkey", fusion = "pizza" } }, eventCount = 1 } },
+	{ input = "crocodilo avião", expect = { events = { { concept = "plane", fusion = "crocodile" } }, eventCount = 1 } },
+	{ input = "cachorro e gato", expect = { events = { { concept = "dog" }, { concept = "cat" } } } },
 
 	-- palavras desconhecidas: surpresa determinística
 	{ input = "xyzqwe", expect = { surprise = true } },
@@ -140,8 +194,43 @@ function Spec.check(plan: any, expect: any): { string }
 				if e.faction and ev.params.faction ~= e.faction then
 					table.insert(fails, string.format("evento %d: facção %s, esperado %s", i, tostring(ev.params.faction), e.faction))
 				end
+				if e.chain then
+					local flat = {}
+					local function walk(x: any, depth: number)
+						for _, a in x.actions or {} do
+							if a.node then
+								table.insert(flat, a.verb .. ":" .. a.node.concept.id)
+								if depth < 6 then
+									walk(a.node, depth + 1)
+								end
+							else
+								table.insert(flat, a.verb)
+							end
+						end
+					end
+					walk(ev, 1)
+					local got, want = table.concat(flat, ","), table.concat(e.chain, ",")
+					if got ~= want then
+						table.insert(fails, string.format("evento %d: cadeia '%s', esperado '%s'", i, got, want))
+					end
+				end
+				if e.fusion and (not ev.fusion or ev.fusion.id ~= e.fusion) then
+					table.insert(fails, string.format("evento %d: híbrido com %s, esperado %s", i, ev.fusion and ev.fusion.id or "nada", e.fusion))
+				end
+				if e.name and ev.params.customName ~= e.name then
+					table.insert(fails, string.format("evento %d: nome '%s', esperado '%s'", i, tostring(ev.params.customName), e.name))
+				end
+				if e.element and ev.params.element ~= e.element then
+					table.insert(fails, string.format("evento %d: elemento %s, esperado %s", i, tostring(ev.params.element), e.element))
+				end
+				if e.modCount and #ev.mods ~= e.modCount then
+					table.insert(fails, string.format("evento %d: %d modificadores, esperado %d", i, #ev.mods, e.modCount))
+				end
 			end
 		end
+	end
+	if expect.noLinks and #plan.links > 0 then
+		table.insert(fails, string.format("%d vínculos, esperado nenhum", #plan.links))
 	end
 	if expect.eventCount and #plan.events ~= expect.eventCount then
 		table.insert(fails, string.format("%d eventos, esperado %d", #plan.events, expect.eventCount))

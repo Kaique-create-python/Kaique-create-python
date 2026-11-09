@@ -113,11 +113,98 @@ function Spec.run(opts: { map: boolean?, quick: boolean? }?): Result
 		"guerra medieval",
 		"fogo e gelo",
 		"xyzqwe palavra estranha",
+		"arma que atira cachorro e o cachorro caga elefante que o elefante explode",
+		"cachorro explode",
+		"vaca que vira dragão",
+		"dragão que cospe gelo",
+		"zumbis que se multiplicam",
+		"gato tubarão",
+		"crocodilo avião",
+		"macaco pizza",
+		"goku contra freeza",
+		"jesus contra demônio",
+		"deus",
+		"verity",
+		"tung tung tung sahur e tralalero tralala",
+		"bombardiro crocodilo",
+		"saitama contra kaiju",
+		"naruto",
 	}
 	for _, text in combos do
 		local plan = Planner.plan(text)
 		local ok, res = pcall(EventManager.executePlan, plan, owner)
 		check("combinação '" .. text .. "'", ok and res.ok, if ok then table.concat(res.notes, "; ") else tostring(res))
+		EventManager.clearAll()
+	end
+
+	-- 3b) cadeias, híbridos, nomes e personagens sagrados -------------------------
+	do
+		local Chains = require(script.Parent.Parent.Core.Chains)
+		local Combat = require(script.Parent.Parent.Core.Combat)
+		local Rng = require(ReplicatedStorage.IdeiasShared.Util.Rng)
+		local Requests = require(script.Parent.Parent.Core.Requests)
+
+		-- lançador: o elo "cachorro" nasce dentro do acontecimento da arma
+		local plan = Planner.plan("arma que atira cachorro e o cachorro caga elefante que o elefante explode")
+		local ok, res = pcall(EventManager.executePlan, plan, owner)
+		local rec = ok and res.records[1]
+		check("arma lançadora criada", rec ~= nil and rec.def.id == "blaster", if ok then table.concat(res.notes, "; ") else tostring(res))
+		if rec then
+			local node = plan.events[1].actions[1].node
+			local ctx = { id = rec.id, record = rec, folder = rec.folder, manager = EventManager, rng = Rng.new(7), owner = owner, lifetime = 60, plan = plan, spec = rec.spec }
+			local before = Budget.used().npcs
+			local h = Chains.spawnNode(ctx, node, CFrame.new(0, 3, 20))
+			check("elo da cadeia nasce (cachorro)", h ~= nil and h.npcs ~= nil and #h.npcs == 1)
+			check("elo usa o orçamento de NPCs", Budget.used().npcs == before + 1, tostring(Budget.used().npcs) .. " vs " .. tostring(before + 1))
+			check("elo fica na pasta da arma", rec.folder:FindFirstChild("Elo_dog") ~= nil)
+			check("elo herda as ações (caga elefante)", h ~= nil and h.npcs[1].ctx ~= nil and node.actions ~= nil and #node.actions >= 1)
+			local spawned = 0
+			for _ = 1, 40 do
+				if Chains.spawnNode(ctx, node, CFrame.new(0, 3, 20)) then
+					spawned += 1
+				end
+			end
+			check("limite de elos por cadeia", (rec.chain.total :: number) <= Chains.MAX_TOTAL and rec.chain.alive <= Chains.MAX_ALIVE, tostring(rec.chain.total))
+			EventManager.remove(rec, "teste")
+			check("remover a raiz remove os elos", Budget.used().npcs == 0 and countChildren() == 0, "npcs=" .. Budget.used().npcs)
+		end
+		EventManager.clearAll()
+
+		-- híbridos
+		local p2 = Planner.plan("gato tubarão")
+		local ok2, res2 = pcall(EventManager.executePlan, p2, owner)
+		local npc2 = ok2 and res2.records[1] and res2.records[1].handle.npcs and res2.records[1].handle.npcs[1]
+		check("híbrido gato-tubarão montado", npc2 ~= nil and npc2.model:GetAttribute("Hibrido") == "shark")
+		EventManager.clearAll()
+		local p3 = Planner.plan("crocodilo avião")
+		local ok3, res3 = pcall(EventManager.executePlan, p3, owner)
+		local hasHybrid = false
+		if ok3 and res3.records[1] then
+			for _, d in res3.records[1].folder:GetDescendants() do
+				if d:IsA("Model") and d:GetAttribute("Hibrido") == "crocodile" then
+					hasHybrid = true
+				end
+			end
+		end
+		check("avião com cabeça de crocodilo", hasHybrid)
+		EventManager.clearAll()
+
+		-- nome digitado passa pelo filtro (offline: vira "Personagem Misterioso")
+		local p4 = Planner.plan("verity")
+		Requests.filterNames(p4, owner)
+		check("nome filtrado antes de aparecer", p4.events[1].params.customName == "Personagem Misterioso" or p4.events[1].params.customName == "Verity", tostring(p4.events[1].params.customName))
+		check("rótulo usa o nome filtrado", p4.label == p4.events[1].params.customName, p4.label)
+
+		-- Jesus: aparece, cura, não pode ser atacado
+		local p5 = Planner.plan("jesus")
+		local ok5, res5 = pcall(EventManager.executePlan, p5, owner)
+		local jesus = ok5 and res5.records[1] and res5.records[1].handle.npcs and res5.records[1].handle.npcs[1]
+		check("Jesus aparece como personagem", jesus ~= nil and jesus.model.Name == "Jesus")
+		if jesus then
+			local hp = jesus.humanoid.Health
+			local hurt = Combat.damage(jesus, 500, nil, "fire")
+			check("Jesus não toma dano", hurt == false and jesus.humanoid.Health == hp)
+		end
 		EventManager.clearAll()
 	end
 

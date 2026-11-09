@@ -38,9 +38,21 @@ local banner: Frame
 local cooldownUntil = 0
 local sounds: { [string]: Sound } = {}
 
+local Effects: any = nil
 local function sound(name: string)
 	if not Settings.values.sounds then
 		return
+	end
+	-- criar/erro usam os sons do ElevenLabs quando o sprite está no jogo
+	if name ~= "Click" and Config.SoundSprite and Config.SoundSprite.Id ~= 0 then
+		if not Effects then
+			local ok, mod = pcall(require, script.Parent.Parent.FX.Effects)
+			Effects = if ok then mod else false
+		end
+		if Effects and Effects.cue then
+			Effects.cue(if name == "Error" then "error" else "create", nil, 1)
+			return
+		end
 	end
 	local s = sounds[name]
 	if s then

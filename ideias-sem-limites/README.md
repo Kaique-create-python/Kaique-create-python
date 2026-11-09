@@ -1,5 +1,28 @@
 # Ideias Sem Limites — V3
 
+## Novidades (V3.1)
+
+* **Personagens pelo nome:** "goku", "naruto", "saitama", "homem aranha", "batman", "hulk",
+  "mario", "sonic", "pikachu", "thor", "freeza", "medusa"... O jogo reconhece o nome e cria uma
+  **versão original** com poderes parecidos (raio de energia, clones, soco supremo, teia, olhos de
+  laser, raio do céu). Visual e nome oficiais não são usados porque o Roblox pode remover o jogo
+  por direitos autorais.
+* **Memes:** "tung tung tung sahur" (Tronco Tum-Tum), "tralalero tralala" (Tubarão Patinador),
+  "bombardiro crocodilo", "ballerina cappuccina", "chimpanzini bananini", "lirili larila",
+  "skibidi toilet", "creeper", "huggy wuggy", "freddy", "noob".
+* **Jesus** aparece como personagem (túnica, luz suave): cura e acalma monstros. Ninguém consegue
+  atacá-lo, explodi-lo ou misturá-lo com outras coisas. "deus" gera a Luz Celestial.
+* **"gigante"** cria um gigante. Para você crescer, use "ficar gigante" ou "crescer".
+* **Qualquer nome** ("verity", "ana beatriz") vira um personagem com esse nome. A aparência vem do
+  nome, e o texto passa pelo filtro do Roblox antes de aparecer.
+* **Cadeias de ação:** "arma que atira cachorro e o cachorro caga elefante que o elefante explode",
+  "vaca que vira dragão", "dragão que cospe gelo", "zumbis que se multiplicam", "robô dança".
+* **Híbridos:** "gato tubarão", "homem tubarão", "macaco pizza", "crocodilo avião".
+* **Efeitos e sons:** carga de energia, raio, soco com onda de choque, teia, coluna de luz com
+  pombas, pum, lançamento em arco, pavio piscando, tambor. 9 sons do ElevenLabs estão num único
+  áudio (`assets/sons`). Para ativá-los: `bash ideias.sh sons` (permissão `asset` Read+Write; pede
+  seu User ID uma vez). A frase pode ter até 120 caracteres.
+
 Jogo Roblox em que **qualquer palavra digitada vira um acontecimento no mundo**.
 Universe `10774214423` · Place `122033314086516`.
 
@@ -148,12 +171,12 @@ Resultado atual (offline, Lune 0.11.1 + Rojo 7.7.1):
 
 | Suíte | Resultado |
 |---|---|
-| Sintaxe dos 87 scripts | 0 erros |
-| Interpretador (casos, rótulo↔conceito de todos, todos os aliases, determinismo, entradas maliciosas) | 2454/2454 |
-| Construtores: 246 modelos × 9 combinações de modificadores, validados na reflexão do Roblox | 2214/2214 |
+| Sintaxe dos 92 scripts | 0 erros |
+| Interpretador (casos, rótulo↔conceito de todos, todos os aliases, determinismo, entradas maliciosas) | 2841/2841 |
+| Construtores: 279 modelos × 9 combinações de modificadores, validados na reflexão do Roblox | 2511/2511 |
 | Mapa completo (orçamento por região, luzes, teleportes) | ok |
-| Servidor: **cada conceito executado e limpo**, combinações, estresse com 5 jogadores, porteiro, fluxo do RemoteFunction | 358/358 |
-| `ideias.sh` contra Open Cloud simulado | 18/18 |
+| Servidor: **cada conceito executado e limpo**, cadeias, híbridos, nomes, estresse com 5 jogadores, porteiro | 421/421 |
+| `ideias.sh` contra Open Cloud simulado (inclui `sons`) | 21/21 |
 
 Na nuvem, `bash ideias.sh testar` roda o interpretador e a suíte do servidor no motor real.
 

@@ -61,7 +61,7 @@ return {
 	npc("zombie", "Zumbi", "m", { "zumbi", "zombie", "zumbie", "walker", "morto", "mortos vivos", "zumbis" }, {
 		model = "figure", variant = "zombie", faction = H, hp = 90, speed = 10, dmg = 10, attacks = { "melee" },
 	}, { "undead", "evil", "monster", "humanoid" }, { maxCount = 14, asModifier = "undead", preferModifier = true }),
-	npc("skeleton", "Esqueleto", "m", { "esqueleto", "skeleton", "caveira", "ossada" }, {
+	npc("skeleton", "Esqueleto", "m", { "esqueleto", "skeleton", "caveira", "ossada", "sans", "papyrus" }, {
 		model = "figure", variant = "skeleton", faction = H, hp = 70, speed = 14, dmg = 9, attacks = { "melee", "bolt" }, element = "shadow",
 	}, { "undead", "evil", "monster", "humanoid" }, { maxCount = 12 }),
 	npc("mummy", "Múmia", "f", { "mumia", "mummy", "farao", "pharaoh" }, {
@@ -73,7 +73,7 @@ return {
 	npc("werewolf", "Lobisomem", "m", { "lobisomem", "werewolf", "lobis homem", "homem lobo" }, {
 		model = "figure", variant = "werewolf", faction = H, hp = 260, speed = 22, dmg = 16, attacks = { "melee", "charge" },
 	}, { "beast", "evil", "monster", "humanoid", "predator", "folklore" }, { maxCount = 6 }),
-	npc("ghost", "Fantasma", "m", { "fantasma", "ghost", "assombracao", "espirito", "alma penada", "boo" }, {
+	npc("ghost", "Fantasma", "m", { "fantasma", "ghost", "assombracao", "espirito", "alma penada", "boo", "gasparzinho", "casper" }, {
 		model = "ghost", variant = "ghost", faction = H, hp = 120, speed = 14, dmg = 8, fly = true, element = "shadow", attacks = { "melee", "bolt" },
 	}, { "undead", "evil", "flying", "spirit" }, { maxCount = 10, asModifier = "ghostly", preferModifier = true }),
 	npc("demon", "Demônio", "m", { "demonio", "demon", "diabo", "capeta", "diabinho", "devil", "satan", "satanas", "imp" }, {
@@ -85,7 +85,7 @@ return {
 	npc("goblin", "Goblin", "m", { "goblin", "duende", "gnomo", "gremlin" }, {
 		model = "figure", variant = "goblin", faction = H, hp = 60, speed = 20, dmg = 7, attacks = { "melee" }, size = 0.7,
 	}, { "evil", "monster", "humanoid" }, { maxCount = 12 }),
-	npc("troll", "Troll", "m", { "troll", "ogro", "ogre", "orc", "orco" }, {
+	npc("troll", "Troll", "m", { "troll", "ogro", "ogre", "orc", "orco", "shrek" }, {
 		model = "figure", variant = "troll", faction = H, hp = 520, speed = 11, dmg = 24, attacks = { "melee", "stomp" }, size = 1.8,
 	}, { "evil", "monster", "humanoid", "giant" }, { maxCount = 4 }),
 	npc("golem", "Golem", "m", { "golem", "gigante de pedra", "colosso de pedra", "titan de pedra" }, {
@@ -97,7 +97,7 @@ return {
 	npc("yeti", "Yeti", "m", { "yeti", "abominavel", "pe grande", "bigfoot", "sasquatch", "abominavel homem das neves" }, {
 		model = "figure", variant = "yeti", faction = H, hp = 480, speed = 15, dmg = 20, element = "ice", attacks = { "melee", "stomp" }, size = 1.7,
 	}, { "beast", "monster", "humanoid", "ice" }, { maxCount = 3 }),
-	npc("alien", "Alienígena", "m", { "alienigena", "alien", "et", "extraterrestre", "marciano", "aliens", "ets" }, {
+	npc("alien", "Alienígena", "m", { "alienigena", "alien", "et", "extraterrestre", "marciano", "aliens", "ets", "et bilu", "stitch" }, {
 		model = "figure", variant = "alien", faction = H, hp = 110, speed = 16, dmg = 9, element = "electric", attacks = { "bolt" },
 	}, { "alien", "evil", "humanoid" }, { maxCount = 10 }),
 	npc("ufo", "Disco Voador", "m", { "disco voador", "ovni", "ufo", "nave alienigena", "flying saucer" }, {
@@ -114,7 +114,7 @@ return {
 	npc("knight", "Cavaleiro", "m", { "cavaleiro", "knight", "paladino", "paladin", "guerreiro", "warrior", "templario" }, {
 		model = "figure", variant = "knight", faction = A, hp = 420, speed = 16, dmg = 20, attacks = { "melee" },
 	}, { "good", "humanoid", "hero", "medieval" }, { maxCount = 6 }),
-	npc("wizard", "Mago", "m", { "mago", "wizard", "feiticeiro", "merlin", "maga", "mage", "sorcerer" }, {
+	npc("wizard", "Mago", "m", { "mago", "wizard", "feiticeiro", "merlin", "maga", "mage", "sorcerer", "harry potter", "gandalf", "dumbledore", "hermione", "voldemort", "merlim" }, {
 		model = "figure", variant = "wizard", faction = A, hp = 260, speed = 15, dmg = 18, element = "electric", attacks = { "bolt" },
 	}, { "good", "magic", "humanoid" }, { maxCount = 5 }),
 	npc("angel", "Anjo", "m", { "anjo", "angel", "querubim", "arcanjo" }, {
@@ -123,10 +123,10 @@ return {
 	npc("fairy", "Fada", "f", { "fada", "fairy", "pixie", "sininho" }, {
 		model = "figure", variant = "fairy", faction = A, hp = 80, speed = 22, dmg = 4, fly = true, element = "light", attacks = { "heal" }, size = 0.45,
 	}, { "good", "flying", "magic" }, { maxCount = 6 }),
-	npc("robot", "Robô", "m", { "robo", "robot", "robos", "androide", "android", "automato", "bot", "ciborgue" }, {
+	npc("robot", "Robô", "m", { "robo", "robot", "robos", "androide", "android", "automato", "bot", "ciborgue", "wall e", "walle" }, {
 		model = "robot", variant = "robot", faction = A, hp = 380, speed = 16, dmg = 16, element = "electric", attacks = { "bolt", "melee" },
 	}, { "machine", "humanoid", "good" }, { maxCount = 8, asModifier = "robotic", preferModifier = true }),
-	npc("mech", "Mecha", "m", { "mecha", "mech", "robo gigante", "megazord", "transformer", "exoesqueleto" }, {
+	npc("mech", "Mecha", "m", { "mecha", "mech", "robo gigante", "megazord", "transformer", "exoesqueleto", "optimus prime" }, {
 		model = "robot", variant = "mech", faction = H, hp = 1800, speed = 12, dmg = 30, element = "electric", attacks = { "bolt", "stomp" }, size = 2.6,
 	}, { "machine", "giant", "evil" }, { maxCount = 1, lifetime = 85 }),
 	npc("drone", "Drone", "m", { "drone", "drones", "quadricoptero", "quadcopter" }, {
@@ -156,19 +156,19 @@ return {
 	npc("king", "Rei", "m", { "rei", "king", "monarca", "imperador", "emperor", "rainha", "queen", "imperatriz" }, {
 		model = "figure", variant = "king", faction = N, hp = 300, speed = 14, dmg = 10, attacks = { "melee" },
 	}, { "humanoid", "royal" }, { maxCount = 2, asModifier = "boss", preferModifier = true }),
-	npc("princess", "Princesa", "f", { "princesa", "princess", "principe", "prince" }, {
+	npc("princess", "Princesa", "f", { "princesa", "princess", "principe", "prince", "rapunzel", "cinderela", "branca de neve", "bela adormecida" }, {
 		model = "figure", variant = "princess", faction = N, hp = 160, speed = 15, dmg = 4, attacks = { "heal" },
 	}, { "humanoid", "royal", "good" }, { maxCount = 3 }),
 	npc("santa", "Papai Noel", "m", { "papai noel", "santa", "santa claus", "noel", "bom velhinho" }, {
 		model = "figure", variant = "santa", faction = A, hp = 400, speed = 15, dmg = 2, attacks = { "gift" },
 	}, { "good", "humanoid", "holiday" }, { maxCount = 1 }),
-	npc("clown", "Palhaço", "m", { "palhaco", "clown", "palhacos", "bozo", "coringa" }, {
+	npc("clown", "Palhaço", "m", { "palhaco", "clown", "palhacos", "bozo", "coringa", "pennywise", "it a coisa" }, {
 		model = "figure", variant = "clown", faction = N, hp = 150, speed = 18, dmg = 6, attacks = { "melee" },
 	}, { "humanoid", "funny" }, { maxCount = 6 }),
 	npc("chef", "Chef", "m", { "chef", "cozinheiro", "cozinheira", "cook", "padeiro", "confeiteiro" }, {
 		model = "figure", variant = "chef", faction = N, hp = 150, speed = 15, dmg = 4, attacks = { "gift" }, giftKind = "food",
 	}, { "humanoid", "food" }, { maxCount = 3 }),
-	npc("astronaut", "Astronauta", "m", { "astronauta", "astronaut", "cosmonauta", "spaceman" }, {
+	npc("astronaut", "Astronauta", "m", { "astronauta", "astronaut", "cosmonauta", "spaceman", "among us", "amogus", "impostor", "tripulante" }, {
 		model = "figure", variant = "astronaut", faction = N, hp = 200, speed = 13, dmg = 6, attacks = { "melee" },
 	}, { "humanoid", "space" }, { maxCount = 5 }),
 	npc("scientist", "Cientista", "m", { "cientista", "scientist", "professor", "inventor", "nerd", "genio" }, {
@@ -180,7 +180,7 @@ return {
 	npc("villager", "Aldeão", "m", { "aldeao", "villager", "pessoa", "pessoas", "humano", "human", "homem", "mulher", "cidadao", "npc", "fazendeiro", "crianca", "menino", "menina" }, {
 		model = "figure", variant = "villager", faction = N, hp = 100, speed = 15, dmg = 3, attacks = { "melee" },
 	}, { "humanoid", "prey" }, { maxCount = 12 }),
-	npc("footballer", "Jogador de Futebol", "m", { "jogador de futebol", "jogador", "futebolista", "craque", "footballer", "soccer player", "atacante", "goleiro" }, {
+	npc("footballer", "Jogador de Futebol", "m", { "jogador de futebol", "jogador", "futebolista", "craque", "footballer", "soccer player", "atacante", "goleiro", "neymar", "messi", "cristiano ronaldo", "cr7", "ronaldo", "pele", "mbappe", "vini jr", "vinicius junior", "haaland", "ronaldinho" }, {
 		model = "figure", variant = "footballer", faction = N, hp = 160, speed = 22, dmg = 4, attacks = { "gift" }, giftKind = "ball",
 	}, { "humanoid", "sport" }, { maxCount = 6 }),
 
@@ -202,10 +202,10 @@ return {
 	}, { "folklore", "beast", "evil", "fire" }, { maxCount = 2 }),
 
 	-- ANIMAIS ----------------------------------------------------------------
-	npc("dog", "Cachorro", "m", { "cachorro", "cao", "dog", "doguinho", "puppy", "vira lata", "caramelo", "dogue" }, {
+	npc("dog", "Cachorro", "m", { "cachorro", "cao", "dog", "doguinho", "puppy", "vira lata", "caramelo", "dogue", "scooby", "scooby doo", "snoopy", "bidu" }, {
 		model = "quadruped", variant = "dog", faction = "pet", hp = 120, speed = 20, dmg = 8, attacks = { "melee" }, size = 0.8,
 	}, { "animal", "pet" }, { maxCount = 8 }),
-	npc("cat", "Gato", "m", { "gato", "gata", "cat", "kitty", "felino", "bichano" }, {
+	npc("cat", "Gato", "m", { "gato", "gata", "cat", "kitty", "felino", "bichano", "garfield" }, {
 		model = "quadruped", variant = "cat", faction = "pet", hp = 80, speed = 20, dmg = 6, attacks = { "melee" }, size = 0.6,
 	}, { "animal", "pet", "predator" }, { maxCount = 8 }),
 	npc("wolf", "Lobo", "m", { "lobo", "loba", "wolf", "lobos" }, {
@@ -229,7 +229,7 @@ return {
 	npc("cow", "Vaca", "f", { "vaca", "cow", "boi", "touro", "bull", "bezerro", "gado", "ox" }, {
 		model = "quadruped", variant = "cow", faction = N, hp = 200, speed = 10, dmg = 10, attacks = { "charge" }, size = 1.1,
 	}, { "animal", "prey", "farm" }, { maxCount = 8 }),
-	npc("pig", "Porco", "m", { "porco", "porca", "pig", "leitao", "piggy", "suino" }, {
+	npc("pig", "Porco", "m", { "porco", "porca", "pig", "leitao", "piggy", "suino", "peppa", "peppa pig" }, {
 		model = "quadruped", variant = "pig", faction = N, hp = 120, speed = 12, dmg = 5, attacks = { "melee" }, size = 0.75,
 	}, { "animal", "prey", "farm" }, { maxCount = 10 }),
 	npc("sheep", "Ovelha", "f", { "ovelha", "sheep", "carneiro", "cordeiro", "lamb", "bode", "cabra", "goat" }, {
@@ -259,7 +259,7 @@ return {
 	npc("rabbit", "Coelho", "m", { "coelho", "coelha", "rabbit", "bunny", "lebre", "hare" }, {
 		model = "quadruped", variant = "rabbit", faction = N, hp = 50, speed = 20, dmg = 2, attacks = { "melee" }, size = 0.5,
 	}, { "animal", "prey", "cute" }, { maxCount = 12 }),
-	npc("mouse", "Rato", "m", { "rato", "ratazana", "camundongo", "mouse", "rat", "ratinho", "hamster" }, {
+	npc("mouse", "Rato", "m", { "rato", "ratazana", "camundongo", "mouse", "rat", "ratinho", "hamster", "jerry", "mickey", "minnie", "stuart little" }, {
 		model = "quadruped", variant = "mouse", faction = N, hp = 30, speed = 18, dmg = 2, attacks = { "melee" }, size = 0.35,
 	}, { "animal", "prey" }, { maxCount = 14 }),
 	npc("capybara", "Capivara", "f", { "capivara", "capybara", "capi" }, {
@@ -303,7 +303,7 @@ return {
 	npc("chicken", "Galinha", "f", { "galinha", "galo", "chicken", "rooster", "pintinho", "frango", "hen", "chick", "peru", "turkey" }, {
 		model = "bird", variant = "chicken", faction = N, hp = 30, speed = 14, dmg = 2, fly = false, attacks = { "melee" }, size = 0.55,
 	}, { "animal", "prey", "farm", "funny" }, { maxCount = 14 }),
-	npc("duck", "Pato", "m", { "pato", "pata", "duck", "patinho", "ganso", "goose", "marreco" }, {
+	npc("duck", "Pato", "m", { "pato", "pata", "duck", "patinho", "ganso", "goose", "marreco", "donald", "pato donald", "patolino", "daffy" }, {
 		model = "bird", variant = "duck", faction = N, hp = 30, speed = 14, dmg = 2, fly = false, attacks = { "melee" }, size = 0.55,
 	}, { "animal", "prey", "funny" }, { maxCount = 14 }),
 	npc("penguin", "Pinguim", "m", { "pinguim", "penguin", "pinguins" }, {

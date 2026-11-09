@@ -23,6 +23,13 @@ function Factions.hostileTo(a: Actor, b: Actor): boolean
 	if a.eventId and b.eventId and a.eventId == b.eventId then
 		return false
 	end
+	if (b :: any).invulnerable or (a :: any).invulnerable then
+		return false -- ninguém briga com personagens sagrados (e eles não brigam)
+	end
+	local calm = (a :: any).calmUntil
+	if calm and now() < calm then
+		return false -- acalmado pela Luz Celestial / presença de Jesus
+	end
 	if b.eventId and a.enemies and a.enemies[b.eventId] then
 		return true
 	end

@@ -20,6 +20,7 @@ export type Entry = {
 	intensifier: boolean?,
 	self: boolean?,
 	stop: boolean?,
+	verb: string?,
 }
 
 local Lexicon = {}
@@ -99,6 +100,11 @@ do
 	end
 	for _, w in G.Stopwords do
 		addRole(w, "stop", true, "stop")
+	end
+	for kind, list in G.Verbs do
+		for _, phrase in list do
+			addRole(phrase, "verb", kind, "verb")
+		end
 	end
 end
 

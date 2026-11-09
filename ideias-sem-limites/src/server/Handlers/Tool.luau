@@ -92,15 +92,24 @@ function H.spawn(ctx: any): any
 	end
 	local kind = ctx.params.kind
 	local params = ctx.params
-	local tool, handle = buildHandle(kind, params)
-	tool.Name = ctx.def.label
-	tool.ToolTip = ctx.def.label
+	-- "arma que atira cachorro": a ferramenta vira um lançador do elo da cadeia
+	local launchNode = nil
+	for _, a in (ctx.spec and ctx.spec.actions) or {} do
+		if a.verb == "shoot" and a.node then
+			launchNode = a.node
+			break
+		end
+	end
+	local tool, handle = buildHandle(if launchNode and (kind == "sword" or kind == "hammer") then "blaster" else kind, params)
+	local toolName = if launchNode then ctx.def.label .. " de " .. (launchNode.baseLabel or launchNode.label) else ctx.def.label
+	tool.Name = toolName
+	tool.ToolTip = toolName
 	local backpack = player:FindFirstChildOfClass("Backpack")
 	tool.Parent = backpack or player.Character
 	local dmg = (params.dmg or 20) * math.max(1, (params.scale or 1) ^ 0.5)
 	local element = params.element
 	local color = (element and Kit.Elements[element] and Kit.Elements[element].color) or Color3.fromRGB(255, 255, 255)
-	local cd = COOLDOWN[kind] or 0.6
+	local cd = if launchNode then 1.3 else (COOLDOWN[kind] or 0.6)
 	local nextUse = 0
 
 	tool.Activated:Connect(function()
@@ -116,6 +125,34 @@ function H.spawn(ctx: any): any
 			return
 		end
 		local me = Actors.playerActor(player)
+		if launchNode then
+			local target = autoAim(player, root, 75)
+			local landing: Vector3
+			if target then
+				landing = target.root.Position
+			else
+				local ahead = root.Position + root.CFrame.LookVector * 32 + Vector3.new(0, 25, 0)
+				local rp = RaycastParams.new()
+				rp.FilterType = Enum.RaycastFilterType.Exclude
+				rp.FilterDescendantsInstances = { char :: Instance }
+				local ok, hit = pcall(function()
+					return workspace:Raycast(ahead, Vector3.new(0, -90, 0), rp)
+				end)
+				landing = if ok and hit then hit.Position else root.Position + root.CFrame.LookVector * 32
+			end
+			local from = handle.Position
+			local flight = math.clamp((landing - from).Magnitude / 55, 0.35, 1.4)
+			Fx.near(from, 400, "launch", { a = from, b = landing, t = flight, c = color })
+			task.delay(flight, function()
+				if ctx.folder.Parent then
+					local Chains = require(script.Parent.Parent.Core.Chains)
+					if not Chains.spawnNode(ctx, launchNode, CFrame.new(landing + Vector3.new(0, 1, 0))) then
+						Fx.to(player, "toast", { t = "Mundo cheio: espere um pouco para lançar mais.", c = Color3.fromRGB(255, 200, 120) })
+					end
+				end
+			end)
+			return
+		end
 		if kind == "sword" or kind == "hammer" then
 			local reach = if kind == "sword" then 8 else 11
 			local center = root.Position + root.CFrame.LookVector * (reach * 0.6)
@@ -176,7 +213,7 @@ function H.spawn(ctx: any): any
 		end
 	end)
 
-	Fx.to(player, "toast", { t = "🎒 " .. ctx.def.label .. " na mochila! Toque para usar.", c = Color3.fromRGB(255, 230, 140) })
+	Fx.to(player, "toast", { t = "🎒 " .. toolName .. " na mochila! Toque para usar.", c = Color3.fromRGB(255, 230, 140) })
 	return {
 		position = ctx.origin.Position,
 		elements = { element },

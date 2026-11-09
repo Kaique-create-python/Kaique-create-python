@@ -46,6 +46,13 @@ local secrets: { Secret } = {
 	{ id = "cheese_moon", title = "Lua de Queijo", hint = "Diziam que era feita disso.", reward = 30, match = { concepts = { "moon", "cheese" } } },
 	{ id = "lava_shark", title = "Tubarão Vulcânico", hint = "Nadando no magma.", reward = 30, match = { concept = "shark", mods = { "lava" } } },
 	{ id = "tiny_whale", title = "Baleia de Bolso", hint = "O maior animal, bem pequeno.", reward = 30, match = { concept = "whale", mods = { "tiny" } } },
+	-- cadeias, híbridos e personagens por nome
+	{ id = "absurd_chain", title = "Reação em Cadeia", hint = "Uma coisa que solta outra, que solta outra...", reward = 40, match = { chainDepth = 3 } },
+	{ id = "dog_launcher", title = "Lança-Cachorro", hint = "Uma arma com munição de quatro patas.", reward = 30, match = { action = { verb = "shoot", target = "dog" } } },
+	{ id = "mad_lab", title = "Laboratório Maluco", hint = "Misture dois bichos numa palavra só.", reward = 25, match = { fusion = true } },
+	{ id = "energy_clash", title = "Choque de Energia", hint = "Dois guerreiros de energia frente a frente.", reward = 35, match = { concepts = { "energy_warrior", "energy_tyrant" }, link = "rivals" } },
+	{ id = "one_punch", title = "Um Soco Basta", hint = "O herói careca contra um monstro gigante.", reward = 35, match = { concepts = { "bald_hero", "kaiju" }, link = "rivals" } },
+	{ id = "brainrot_party", title = "Festa Absurda", hint = "Junte dois memes absurdos.", reward = 30, match = { concepts = { "tum_tum_log", "skate_shark" } } },
 }
 
 return secrets

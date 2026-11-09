@@ -114,7 +114,7 @@ function H.spawn(ctx: any): any
 		p2.rng = ctx.rng:fork(i)
 		local rig = Builders.creature(origin, p2)
 		local model: Model = rig.model
-		model.Name = def.label
+		model.Name = if params.customName then params.customName elseif params.isClone then def.label .. " (clone)" else def.label
 		model:SetAttribute("Criatura", def.id)
 		model:SetAttribute("Faccao", faction)
 		model:SetAttribute("Voa", flying)
@@ -131,6 +131,25 @@ function H.spawn(ctx: any): any
 		if params.elementMod then
 			Kit.elementEffects(rig.root, params.element, math.min(size, 2.5))
 		end
+		if params.aura then
+			local fx = Kit.elementEffects(rig.root, params.element or "electric", 1.6 * math.min(size, 2))
+			for _, inst in fx do
+				if inst:IsA("ParticleEmitter") then
+					inst.Rate = 28
+					inst.Speed = NumberRange.new(3, 7)
+					inst.Acceleration = Vector3.new(0, 14, 0)
+				end
+			end
+		end
+		if params.glow then
+			local fx = Kit.elementEffects(rig.root, "light", 1.2)
+			for _, inst in fx do
+				if inst:IsA("PointLight") then
+					inst.Range = 18
+					inst.Brightness = 1.6
+				end
+			end
+		end
 		local attacks = params.attacks or { "melee" }
 		local emitter = nil
 		if table.find(attacks, "breath") then
@@ -141,6 +160,15 @@ function H.spawn(ctx: any): any
 			label = "👑 " .. label
 		end
 		local bar = healthBar(model, rig.root, rig.height, label, boss, hostile)
+		if params.invulnerable then
+			-- personagens sagrados: só o nome, sem barra de vida
+			local back = bar.Parent :: Frame
+			back.Visible = false
+			local nameLabel = (back.Parent :: Instance):FindFirstChildOfClass("TextLabel")
+			if nameLabel then
+				nameLabel.TextColor3 = Color3.fromRGB(255, 235, 170)
+			end
+		end
 		local npc: any = {
 			kind = "npc",
 			eventId = ctx.id,
@@ -166,6 +194,11 @@ function H.spawn(ctx: any): any
 			behavior = params.behavior,
 			hover = if flying then 8 + 5 * size else nil,
 			enemies = {},
+			invulnerable = params.invulnerable == true,
+			calmAura = params.calmAura,
+			isClone = params.isClone == true,
+			boltColor = params.boltColor,
+			ctx = ctx,
 		}
 		if params.giftKind or table.find(attacks, "gift") then
 			npc.spawnGift = function(_npc: any, near: Vector3)
@@ -206,7 +239,9 @@ function H.spawn(ctx: any): any
 				npc.align.Enabled = false
 				npc.alignOri.Enabled = false
 			end
-			Fx.near(rig.root.Position, 300, "poof", { p = rig.root.Position, s = size })
+			if not npc.silentDeath then
+				Fx.near(rig.root.Position, 300, "poof", { p = rig.root.Position, s = size })
+			end
 			for _, d in model:GetDescendants() do
 				if d:IsA("Motor6D") then
 					d:SetAttribute("Anim", nil)

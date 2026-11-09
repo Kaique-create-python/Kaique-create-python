@@ -60,7 +60,7 @@ return {
 	prop(O, "campfire", "Fogueira", "f", { "fogueira", "campfire", "lareira", "fireplace", "churrasqueira", "churrasco", "bbq", "barbecue" }, { model = "prop", variant = "campfire", interact = "heal" }, { "fire", "cozy" }),
 	prop(O, "bench", "Banco", "m", { "banco", "banco de praca", "bench", "banquinho de madeira" }, { model = "prop", variant = "bench" }, { "furniture" }),
 	prop(O, "flag", "Bandeira", "f", { "bandeira", "flag", "estandarte", "bandeira do brasil" }, { model = "prop", variant = "flag" }, { "decor" }),
-	prop(O, "toilet", "Privada", "f", { "privada", "vaso sanitario", "toilet", "banheiro", "skibidi" }, { model = "prop", variant = "toilet" }, { "funny" }),
+	prop(O, "toilet", "Privada", "f", { "privada", "vaso sanitario", "toilet", "banheiro" }, { model = "prop", variant = "toilet" }, { "funny" }),
 	prop(O, "umbrella", "Guarda-chuva", "m", { "guarda chuva", "umbrella", "sombrinha", "guarda sol", "parasol" }, { model = "prop", variant = "umbrella" }, { "decor" }),
 	prop(O, "rubber_duck", "Pato de Borracha", "m", { "pato de borracha", "rubber duck", "patinho de borracha", "patinho de banho" }, { model = "prop", variant = "rubber_duck", physics = true }, { "funny", "cute" }),
 	prop(O, "teddy", "Ursinho de Pelúcia", "m", { "ursinho de pelucia", "urso de pelucia", "teddy bear", "pelucia", "plush", "boneca", "doll", "boneco" }, { model = "prop", variant = "teddy", physics = true }, { "cute", "toy" }),

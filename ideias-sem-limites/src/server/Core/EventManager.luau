@@ -156,6 +156,10 @@ function EventManager.remove(rec: Record, reason: string?)
 	if idx then
 		table.remove(active, idx)
 	end
+	if (rec :: any).chain then
+		local Chains = require(script.Parent.Chains)
+		pcall(Chains.cleanup, rec)
+	end
 	if rec.handle and rec.handle.stop then
 		local ok, err = pcall(rec.handle.stop)
 		if not ok then
@@ -366,6 +370,13 @@ function EventManager.executePlan(plan: any, owner: Player?): ExecResult
 			continue
 		end
 		rec.handle = handleOrErr
+		if spec.actions and #spec.actions > 0 then
+			local Chains = require(script.Parent.Chains)
+			local okC, errC = pcall(Chains.afterSpawn, handleOrErr, ctx)
+			if not okC then
+				warn("[Ideias] cadeia falhou: " .. tostring(errC))
+			end
+		end
 		table.insert(active, rec)
 		byIndex[index] = rec
 		table.insert(result.records, rec)

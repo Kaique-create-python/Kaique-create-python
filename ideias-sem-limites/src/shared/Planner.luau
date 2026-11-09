@@ -25,6 +25,8 @@ export type EventSpec = {
 	heavy: boolean,
 	payload: any?,
 	label: string,
+	baseLabel: string?,
+	actions: { any }?,
 }
 
 export type Link = { type: string, a: number, b: number }
@@ -252,7 +254,210 @@ local function makeEvent(def: any, mods: { any }, requested: number, rain: boole
 		heavy = heavy,
 		payload = payload,
 		label = label,
+		baseLabel = label,
 	}
+end
+
+-- Dica por terminação ("megassauro" -> dinossauro); nil se não houver
+function Planner.suffixHint(word: string): any?
+	local h = Hash.str(word)
+	for _, hint in SUFFIX_HINTS do
+		local suffix = hint[1]
+		if #word > #suffix + 1 and string.sub(word, -#suffix) == suffix then
+			local list = hint[2]
+			return Catalog.ById[list[(h % #list) + 1]]
+		end
+	end
+	return nil
+end
+
+-- Conceitos que, como objeto de "atira/cospe/solta", viram o elemento do sujeito
+local ELEMENT_OF_CONCEPT = {
+	fire = "fire",
+	ice_burst = "ice",
+	blizzard = "ice",
+	lightning = "electric",
+	laser_storm = "electric",
+	acid_rain = "poison",
+	lava_pool = "lava",
+	volcano_eruption = "lava",
+	tornado = "wind",
+	wind = "wind",
+	tsunami = "water",
+	rain = "water",
+	rainbow = "rainbow",
+}
+Planner.ElementOfConcept = ELEMENT_OF_CONCEPT
+
+local MAX_ATTACKS = 4
+
+local function mergeAttacks(a: { string }?, b: { string }?): { string }
+	local out = {}
+	for _, list in { a or {}, b or {} } do
+		for _, atk in list do
+			if not table.find(out, atk) and #out < MAX_ATTACKS then
+				table.insert(out, atk)
+			end
+		end
+	end
+	return out
+end
+
+-- Personagem com nome digitado: aparência e poderes derivados do próprio nome
+local NAMED_ATTACKS = { { "melee" }, { "bolt", "melee" }, { "melee", "charge" }, { "heal", "bolt" }, { "bolt" }, { "melee", "stomp" } }
+local NAMED_ELEMENTS = { "fire", "ice", "electric", "poison", "light", "shadow", "water", "nature", "rainbow" }
+function Planner.applyName(ev: EventSpec, name: string)
+	local h = Hash.str(string.lower(name))
+	ev.params.customName = name
+	ev.params.seed = h
+	if not ev.params.attacksFromMods then
+		ev.params.attacks = NAMED_ATTACKS[(h % #NAMED_ATTACKS) + 1]
+	end
+	if not ev.params.element and (h // 7) % 3 ~= 0 then
+		ev.params.element = NAMED_ELEMENTS[((h // 13) % #NAMED_ELEMENTS) + 1]
+	end
+	ev.baseLabel = name
+	ev.label = name
+end
+
+-- Híbrido: corpo de A com a cabeça (ou o corpo inteiro, para objetos) de B
+function Planner.applyFusion(ev: EventSpec, other: any)
+	local a = ev.concept
+	local p = ev.params
+	local op = other.params or {}
+	p.fusionHead = {
+		id = other.id,
+		category = other.category,
+		model = op.model,
+		variant = op.variant,
+		size = op.size,
+		element = op.element,
+	}
+	if a.category == "creature" and other.category == "creature" then
+		p.attacks = mergeAttacks(p.attacks, op.attacks)
+		p.fly = p.fly == true or op.fly == true
+		p.element = p.element or op.element
+		p.hp = math.max(p.hp or 100, op.hp or 100)
+		p.dmg = math.max(p.dmg or 8, op.dmg or 8)
+		p.speed = ((p.speed or 16) + (op.speed or 16)) / 2
+		if p.faction == "neutral" and op.faction == "hostile" then
+			p.faction = "hostile"
+		end
+	end
+	local label
+	if a.id == "villager" then
+		label = other.label .. " Humanoide"
+	else
+		label = a.label .. "-" .. other.label
+	end
+	ev.baseLabel = label
+	ev.label = if ev.count > 1 then string.format("%d× %s", ev.count, label) else label
+	ev.fusion = other
+end
+
+-- Liga um verbo da frase ao acontecimento (cadeia de ações)
+local function attachAction(ev: EventSpec, act: any, nodeOf: { [number]: EventSpec })
+	if ev.concept.sacred then
+		return
+	end
+	local kind = act.verb
+	ev.actions = ev.actions or {}
+	if Catalog.Grammar.TransitiveVerbs[kind] then
+		local target = act.target and nodeOf[act.target]
+		if not target or target.concept.sacred then
+			return
+		end
+		local element = ELEMENT_OF_CONCEPT[target.concept.id]
+		if element and (kind == "shoot" or kind == "spawn") then
+			-- "dragão que cospe fogo", "arma que atira gelo": o elemento vira o poder
+			ev.params.element = element
+			ev.params.elementMod = true
+			if ev.handler == "npc" then
+				local atk = table.clone(ev.params.attacks or { "melee" })
+				if not table.find(atk, "bolt") and not table.find(atk, "breath") then
+					table.insert(atk, 1, if kind == "spawn" then "breath" else "bolt")
+				end
+				ev.params.attacks = atk
+			end
+			table.insert((ev.actions :: any), { verb = kind, word = act.word, label = target.concept.label, elementOnly = true })
+			return
+		end
+		table.insert((ev.actions :: any), { verb = kind, word = act.word, node = target })
+	else
+		local p = ev.params
+		if kind == "fly" then
+			p.fly = true
+		elseif kind == "dance" then
+			p.behavior = "dance"
+		elseif kind == "burn" then
+			p.element = "fire"
+			p.elementMod = true
+		elseif kind == "freeze" then
+			p.element = "ice"
+			p.elementMod = true
+		elseif kind == "sing" and ev.handler == "npc" then
+			local atk = table.clone(p.attacks or { "melee" })
+			if not table.find(atk, "sing") then
+				table.insert(atk, 1, "sing")
+			end
+			p.attacks = atk
+		end
+		table.insert((ev.actions :: any), { verb = kind, word = act.word })
+	end
+end
+
+local function chainParts(ev: any, depth: number, out: { string })
+	for _, a in ev.actions or {} do
+		local verb = a.word or Catalog.Grammar.VerbLabels[a.verb] or a.verb
+		if a.node then
+			table.insert(out, verb .. " " .. (a.node.baseLabel or a.node.label))
+			if depth < 5 then
+				chainParts(a.node, depth + 1, out)
+			end
+		elseif a.label then
+			table.insert(out, verb .. " " .. a.label)
+		else
+			table.insert(out, verb)
+		end
+	end
+end
+
+-- profundidade da cadeia (1 = "cachorro explode", 3 = arma -> cachorro -> elefante)
+function Planner.chainDepth(ev: any, depth: number?): number
+	local d = depth or 0
+	local best = d
+	for _, a in ev.actions or {} do
+		if a.node then
+			best = math.max(best, Planner.chainDepth(a.node, d + 1))
+		else
+			best = math.max(best, d + 1)
+		end
+	end
+	return best
+end
+
+-- Recalcula rótulos (usado depois que o servidor filtra nomes digitados)
+function Planner.relabel(plan: any)
+	local labels = {}
+	for _, ev in plan.events do
+		local base = ev.baseLabel or ev.label
+		if ev.count > 1 and not ev.rain and not string.find(base, "×", 1, true) then
+			base = string.format("%d× %s", ev.count, base)
+		elseif ev.rain and not string.find(base, "^Chuva de ") then
+			base = "Chuva de " .. base
+		end
+		local parts = {}
+		chainParts(ev, 1, parts)
+		ev.label = if #parts > 0 then base .. " → " .. table.concat(parts, " → ") else base
+		table.insert(labels, ev.label)
+	end
+	plan.label = table.concat(labels, " + ")
+	if plan.surprise then
+		plan.label = "Surpresa: " .. plan.label
+	end
+	if plan.location and not (#plan.events == 1 and plan.events[1].concept.id == "teleport") then
+		plan.label ..= " (" .. plan.location.label .. ")"
+	end
 end
 
 function Planner.plan(raw: string): Plan
@@ -275,11 +480,35 @@ function Planner.plan(raw: string): Plan
 	-- índice do evento "principal" de cada grupo (para vínculos)
 	local groupEvent: { [number]: number } = {}
 	local pendingRel: { { gi: number, rel: string } } = {}
+	local nodeOf: { [number]: EventSpec } = {} -- todo grupo vira um "nó" (inclusive elos de cadeia)
 
 	for gi, g in parsed.groups do
 		local head = g.head
 		local mods = g.mods
 		local rain = g.rain == true
+		local customName = g.customName
+		-- nome com terminação conhecida ("megassauro") vira dica, não nome
+		if head and customName and not string.find(customName, " ") then
+			local hinted = Planner.suffixHint(string.lower(customName))
+			if hinted then
+				head = hinted
+				customName = nil
+				plan.surprise = true
+			end
+		end
+		-- híbrido: a criatura é o corpo; com veículo, o veículo é o corpo
+		local fusionWith = g.fusion
+		if head and fusionWith then
+			if head.category ~= "creature" and fusionWith.category == "creature" and head.category ~= "vehicle" then
+				head, fusionWith = fusionWith, head
+			elseif head.category == "creature" and fusionWith.category == "vehicle" then
+				head, fusionWith = fusionWith, head
+			end
+		end
+		if head and head.sacred then
+			mods = {}
+			rain = false
+		end
 		if head and rain and head.params.rainAs then
 			head = Catalog.ById[head.params.rainAs]
 		end
@@ -332,11 +561,26 @@ function Planner.plan(raw: string): Plan
 					table.insert(plan.links, { type = link.type, a = link.a, b = link.b })
 				end
 				groupEvent[gi] = base + 1
+				nodeOf[gi] = plan.events[base + 1]
 			else
-				table.insert(plan.events, makeEvent(head, mods, g.count or 1, rain, g.heavy == true, g.payload, plan.notes))
-				groupEvent[gi] = #plan.events
+				local count = g.count or 1
+				if g.chainTarget then
+					count = math.min(count, 3) -- cada disparo/cria gera no máximo 3
+				end
+				local ev = makeEvent(head, mods, count, rain and not g.chainTarget, g.heavy == true, if head.sacred then nil else g.payload, plan.notes)
+				if customName then
+					Planner.applyName(ev, customName)
+				end
+				if fusionWith then
+					Planner.applyFusion(ev, fusionWith)
+				end
+				nodeOf[gi] = ev
+				if not g.chainTarget then
+					table.insert(plan.events, ev)
+					groupEvent[gi] = #plan.events
+				end
 			end
-			if g.relToPrev then
+			if g.relToPrev and not g.chainTarget then
 				table.insert(pendingRel, { gi = gi, rel = g.relToPrev })
 			end
 		end
@@ -352,7 +596,7 @@ function Planner.plan(raw: string): Plan
 				break
 			end
 		end
-		if aIdx and bIdx then
+		if aIdx and bIdx and not plan.events[aIdx].concept.sacred and not plan.events[bIdx].concept.sacred then
 			local a = plan.events[aIdx].concept
 			local b = plan.events[bIdx].concept
 			local link, swapped = Planner.interaction(pr.rel, a, b)
@@ -381,6 +625,7 @@ function Planner.plan(raw: string): Plan
 		table.insert(plan.events, makeEvent(Catalog.ById.teleport, {}, 1, false, false, nil, plan.notes))
 		plan.events[1].params.region = plan.location.id
 		plan.events[1].label = "Viagem: " .. plan.location.label
+		plan.events[1].baseLabel = plan.events[1].label
 	end
 
 	-- nada reconhecido: surpresa determinística
@@ -409,17 +654,17 @@ function Planner.plan(raw: string): Plan
 		plan.surprise = true
 	end
 
-	local labels = {}
-	for _, ev in plan.events do
-		table.insert(labels, ev.label)
+	-- cadeias de ação ("arma que atira cachorro", "cachorro caga elefante", "explode")
+	for gi, g in parsed.groups do
+		local ev = nodeOf[gi]
+		if ev and g.actions then
+			for _, act in g.actions do
+				attachAction(ev, act, nodeOf)
+			end
+		end
 	end
-	plan.label = table.concat(labels, " + ")
-	if plan.surprise then
-		plan.label = "Surpresa: " .. plan.label
-	end
-	if plan.location and not (#plan.events == 1 and plan.events[1].concept.id == "teleport") then
-		plan.label ..= " (" .. plan.location.label .. ")"
-	end
+
+	Planner.relabel(plan)
 	plan.secrets = Planner.matchSecrets(plan)
 	return plan
 end
@@ -472,6 +717,33 @@ function Planner.matchSecrets(plan: Plan): { string }
 				end
 				ok = linked
 			end
+		end
+		if ok and m.chainDepth then
+			local best = 0
+			for _, ev in plan.events do
+				best = math.max(best, Planner.chainDepth(ev))
+			end
+			ok = best >= m.chainDepth
+		end
+		if ok and m.action then
+			local hit = false
+			for _, ev in plan.events do
+				for _, a in ev.actions or {} do
+					if a.verb == m.action.verb and a.node and a.node.concept.id == m.action.target then
+						hit = true
+					end
+				end
+			end
+			ok = hit
+		end
+		if ok and m.fusion then
+			local hit = false
+			for _, ev in plan.events do
+				if ev.fusion then
+					hit = true
+				end
+			end
+			ok = hit
 		end
 		if ok then
 			table.insert(found, secret.id)

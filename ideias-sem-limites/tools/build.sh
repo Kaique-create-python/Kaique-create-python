@@ -19,6 +19,7 @@ if [[ "${1:-}" != "--sem-testes" ]]; then
 fi
 
 cp "build/$NAME.rbxl" "build/$NAME.rbxlx" dist/
-( cd dist && sha256sum "$NAME.rbxl" "$NAME.rbxlx" > SHA256SUMS )
+cp assets/sons/IdeiasSons.ogg dist/
+( cd dist && sha256sum "$NAME.rbxl" "$NAME.rbxlx" IdeiasSons.ogg > SHA256SUMS )
 echo "Arquivos prontos em dist/:"
 ls -la dist/
