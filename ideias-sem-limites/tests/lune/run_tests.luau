@@ -15,6 +15,24 @@ local function section(title)
 	print("\n== " .. title .. " ==")
 end
 
+if group == "syntax" or group == "all" then
+	section("Sintaxe de todos os scripts (compilador Luau)")
+	local luau = require("@lune/luau")
+	local n, bad = 0, 0
+	for _, d in env.game:GetDescendants() do
+		if d:IsA("LuaSourceContainer") then
+			n += 1
+			local ok, err = pcall(luau.compile, d.Source)
+			if not ok then
+				bad += 1
+				print("  FALHOU: " .. d:GetFullName() .. ": " .. tostring(err))
+			end
+		end
+	end
+	print(string.format("  %d scripts compilados, %d com erro", n, bad))
+	totalFailed += bad
+end
+
 if group == "parser" or group == "all" then
 	section("Interpretador de palavras")
 	local shared = env.find("ReplicatedStorage.IdeiasShared")
