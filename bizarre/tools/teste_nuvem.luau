@@ -245,14 +245,24 @@ for _, id in Stands.ORDEM do
 			end
 			local antes = #logsRuins
 			Combate.golpe(atk, slot, {})
-			task.wait(math.min(5, (g.trava or 1) + 0.9 + ((g.tempo and g.tempo.duracao) or 0)))
+			-- AJUSTE-8: espera o golpe inteiro (rajadas e tempo parado duram o som do anime) e vê se o
+			-- boneco ficou parado no tempo
+			local espera = math.min(8.5, (g.trava or 1) + 0.9 + ((g.tempo and (g.tempo.t + g.tempo.duracao)) or 0))
+			local congelou = false
+			local fimEspera = os.clock() + espera
+			while os.clock() < fimEspera do
+				if vit.modelo:GetAttribute("BB_Congelado") then
+					congelou = true
+				end
+				task.wait(0.1)
+			end
 			local dano = vit.hum.MaxHealth - vit.hum.Health
 			local curou = if g.tipo == "cura" then atk.hum.Health - 50 else 0
-			golpesInfo[gid] = if g.tipo == "cura" then string.format("curou %.0f", curou) else string.format("%.1f", dano)
+			golpesInfo[gid] = if g.tipo == "cura" then string.format("curou %.0f", curou) elseif congelou then string.format("%.1f (parou o tempo)", dano) else string.format("%.1f", dano)
 			if #logsRuins > antes then
 				falha("golpe " .. gid .. " deu erro: " .. logsRuins[#logsRuins])
 			end
-			if g.tipo ~= "cura" and dano <= 0 and g.tipo ~= "contra" and g.tipo ~= "buff" then
+			if g.tipo ~= "cura" and dano <= 0 and not congelou and g.tipo ~= "contra" and g.tipo ~= "buff" then
 				aviso(gid .. " não acertou o boneco de teste")
 			end
 			atk.estado.despertoAte = 0
@@ -285,6 +295,7 @@ checar("clash de rajadas", function()
 	vit.dirT = workspace:GetServerTimeNow()
 	Combate.golpe(atk, 1, {})
 	Combate.golpe(vit, 1, {})
+	local inicioClash = os.clock()
 	task.wait(1.3)
 	local danoV = vit.hum.MaxHealth - vit.hum.Health
 	local danoA = atk.hum.MaxHealth - atk.hum.Health
@@ -292,7 +303,9 @@ checar("clash de rajadas", function()
 	if danoA > 1 or danoV > 1 then
 		aviso("clash: as rajadas não se anularam (" .. res.info.clash .. ")")
 	end
-	task.wait(1)
+	-- AJUSTE-8: as rajadas duram o som do anime: espera as duas acabarem antes do próximo teste
+	local fimRajadas = math.max(Golpes.STAR_PLATINUM_1.trava, Golpes.THE_WORLD_1.trava) + 0.6
+	task.wait(math.max(0.2, fimRajadas - (os.clock() - inicioClash)))
 end)
 
 -- AJUSTE7: dois tempos parados ao mesmo tempo (donos longe um do outro, um alvo no meio)
@@ -308,17 +321,28 @@ checar("congelamentos sobrepostos", function()
 		l.estado.despertar = Config.DESPERTAR.max
 		Regras.despertar(l.estado, agoraS(workspace))
 	end
-	Combate.golpe(atk, "ult", {}) -- para o tempo por 3 s (começa em 0,75 s)
-	task.wait(1)
-	Combate.golpe(terc, "ult", {}) -- para o tempo por 5 s (começa em 0,95 s)
-	task.wait(1.5)
+	-- AJUSTE-8: os tempos vêm dos golpes (o tempo para junto com o som do anime)
+	local tp1 = Golpes.STAR_PLATINUM_ULT.tempo
+	local tp2 = Golpes.THE_WORLD_ULT.tempo
+	local t0 = os.clock()
+	local function ate(t: number)
+		local falta = t0 + t - os.clock()
+		if falta > 0 then
+			task.wait(falta)
+		end
+	end
+	Combate.golpe(atk, "ult", {}) -- 1ª: para o tempo em tp1.t por tp1.duracao
+	ate(1)
+	Combate.golpe(terc, "ult", {}) -- 2ª: começa 1 s depois
+	ate(tp1.t + 0.3)
 	local s1 = meio.modelo:GetAttribute("BB_SessaoTempo")
 	assert((meio.modelo:GetAttribute("BB_Congelado") or 0) > agoraS(workspace) and s1, "o alvo do meio devia estar parado pela 1ª ULT")
-	task.wait(0.6) -- a 2ª ULT já começou: o alvo continua sendo da 1ª
+	ate(1 + tp2.t + 0.4) -- a 2ª ULT já começou: o alvo continua sendo da 1ª
 	assert(meio.modelo:GetAttribute("BB_SessaoTempo") == s1, "a 2ª ULT sobrescreveu o alvo da 1ª")
-	task.wait(1.4) -- a 1ª acabou; a 2ª continua
+	assert(tp1.t + tp1.duracao + 0.5 < 1 + tp2.t + tp2.duracao, "teste: a 1ª ULT precisa acabar antes da 2ª")
+	ate(tp1.t + tp1.duracao + 0.5) -- a 1ª acabou; a 2ª continua
 	assert(meio.modelo:GetAttribute("BB_Congelado") == nil and not meio.raiz.Anchored, "o alvo da 1ª ULT não foi solto quando ela acabou")
-	task.wait(3.6)
+	ate(1 + tp2.t + tp2.duracao + 0.8)
 	for _, l in { atk, vit, terc, meio } do
 		assert(l.modelo:GetAttribute("BB_Congelado") == nil and not l.raiz.Anchored, l.nome .. " ficou preso no tempo")
 	end

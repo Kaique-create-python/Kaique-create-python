@@ -55,6 +55,18 @@ MANIFESTO = __MANIFESTO__
 # impressões digitais (tamanho:adler32) de todos os scripts de todas as versões deste jogo
 CONHECIDOS = __CONHECIDOS__
 SEMPRE_CONHECIDOS = ("ReplicatedStorage.MoriohManifest",)
+# AJUSTE-8: o servidor do Roblox coloca sozinho os scripts padrão do jogador (câmera, controles, sons
+# do personagem) em StarterPlayerScripts quando o jogo não traz os seus. Não são de ninguém: ignorar.
+PADRAO_DO_ROBLOX = (
+    "StarterPlayer.StarterPlayerScripts.PlayerModule",
+    "StarterPlayer.StarterPlayerScripts.PlayerScriptsLoader",
+    "StarterPlayer.StarterPlayerScripts.RbxCharacterSounds",
+    "StarterPlayer.StarterCharacterScripts.Health",
+)
+
+
+def do_roblox(nome):
+    return any(nome == p or nome.startswith(p + ".") for p in PADRAO_DO_ROBLOX)
 PAYLOAD_SHA256 = "__PAYLOAD_SHA__"
 PAYLOAD = """
 __PAYLOAD__
@@ -655,7 +667,7 @@ def analisar_no_ar(dados):
     desconhecidos = []
     for item in dados.get("scripts") or []:
         nome = str(item.get("c"))
-        if nome in SEMPRE_CONHECIDOS:
+        if nome in SEMPRE_CONHECIDOS or do_roblox(nome):
             continue
         digitais = CONHECIDOS.get(nome)
         if digitais is None:
@@ -687,6 +699,10 @@ def conferir_no_ar(chave, universe, place, substituir):
             raise Falha("Parei para não apagar nada por engano. Nada foi enviado.")
         return
     n = len(dados.get("scripts") or [])
+    padrao = sum(1 for item in dados.get("scripts") or [] if do_roblox(str(item.get("c"))))
+    if padrao:
+        ok("%d scripts padrão do próprio Roblox (câmera e controles do jogador): ignorados" % padrao)
+        n -= padrao
     desconhecidos = analisar_no_ar(dados)
     if not dados.get("legivel", True):
         aviso("o Roblox não deixou ler o texto dos scripts: conferi só pelos nomes.")

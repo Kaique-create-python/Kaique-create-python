@@ -113,21 +113,22 @@ G.THE_WORLD_1 = {
 	desc = "MUDA MUDA MUDA! A rajada do DIO, e o último soco arremessa.",
 	tipo = "barragem",
 	cd = 15,
-	trava = 4.3,
+	trava = 4.6,
 	andar = 0.3,
 	alcance = 8,
 	standModo = "frente",
 	animU = "pose_dio",
 	animS = "barragem",
-	-- AJUSTE-8: MUDA MUDA MUDA do anime (rajada 0,3-3,5 s, MUDAAA final em 4,05 s)
+	-- AJUSTE-8: MUDA MUDA MUDA do anime. Termina junto com o ORA Rush (no ORA x MUDA os dois socos
+	-- finais chegam juntos, em 4,35 s, dentro do MUDAAA final do som)
 	voz = { "MUDA_ANIME", "MUDA" },
 	vozComFinal = "MUDA_ANIME",
 	inicio = 0.2,
-	fim = 3.5,
+	fim = 3.7,
 	intervalo = 0.12,
 	onomatopeia = "MUDA MUDA MUDA!",
-	hit = { dano = 0.47, atordoar = 0.42, caixa = V(6.5, 6.5, 7.5), frente = 5, empurrar = { frente = 4, cima = 0, dur = 0.06 }, som = "soco_rapido", vfx = "barragem" },
-	final = { t = 4.05, dano = 6, caixa = V(7, 7, 8), frente = 5.2, empurrar = { frente = 54, cima = 18, dur = 0.15 }, ragdoll = 1.1, quebra = 2, som = "soco_forte", vfx = "impacto_forte", tremor = 0.5, voz = "MUDA_FINAL" },
+	hit = { dano = 0.44, atordoar = 0.42, caixa = V(6.5, 6.5, 7.5), frente = 5, empurrar = { frente = 4, cima = 0, dur = 0.06 }, som = "soco_rapido", vfx = "barragem" },
+	final = { t = 4.35, dano = 6, caixa = V(7, 7, 8), frente = 5.2, empurrar = { frente = 54, cima = 18, dur = 0.15 }, ragdoll = 1.1, quebra = 2, som = "soco_forte", vfx = "impacto_forte", tremor = 0.5, voz = "MUDA_FINAL" },
 }
 
 G.THE_WORLD_2 = {

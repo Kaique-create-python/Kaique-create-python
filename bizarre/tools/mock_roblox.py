@@ -56,7 +56,11 @@ class H(BaseHTTPRequestHandler):
             if t["consultas"] < 2:
                 return self.responder(200, {"path": m.group(1), "state": "PROCESSING"})
             if "BB_PREFLIGHT" in t["script"]:
-                scripts = [{"c": "ReplicatedStorage.MoriohManifest", "n": 10, "h": 1}]
+                scripts = [{"c": "ReplicatedStorage.MoriohManifest", "n": 10, "h": 1},
+                           # o servidor do Roblox coloca estes sozinho (o instalador tem que ignorar)
+                           {"c": "StarterPlayer.StarterPlayerScripts.PlayerModule", "n": 500, "h": 9},
+                           {"c": "StarterPlayer.StarterPlayerScripts.PlayerModule.CameraModule", "n": 900, "h": 8},
+                           {"c": "StarterPlayer.StarterPlayerScripts.RbxCharacterSounds", "n": 300, "h": 7}]
                 if "--desconhecido" in ARGS:
                     scripts += [{"c": "ServerScriptService.OutroJogo.Camera", "n": 900, "h": 77},
                                 {"c": "ReplicatedStorage.BB.Config", "n": 5, "h": 1}]
