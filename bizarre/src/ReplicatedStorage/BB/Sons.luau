@@ -68,6 +68,14 @@ Sons.VOZES = {
 	ZA_WARUDO = { 7.870, 2.925, 1.00, 5 },
 } :: { [string]: { number } }
 
+-- AJUSTE-8: sons do anime mandados pelo dono (áudio separado: se o Roblox recusar, os de cima ficam)
+Sons.VOZES_ANIME = {
+	MUDA_ANIME = { 0.000, 4.935, 1.00, 1 },
+	ORA_ANIME = { 5.185, 5.243, 1.00, 2 },
+	SP_TEMPO = { 10.678, 3.489, 1.00, 3 },
+	TW_TEMPO = { 14.416, 4.017, 1.00, 4 },
+} :: { [string]: { number } }
+
 -- músicas (APM). O menu tem samba; a luta tem rock/percussão.
 Sons.MUSICAS = {
 	menu = { 1846271148, 1835572198 }, -- Samba Viva, Samba Do Jazz

@@ -232,7 +232,7 @@ teste("todo golpe tem executor, animação, sons e efeitos que existem", functio
 			assert(g.buff and g.buff.dur and g.buff.dur > 0, gid .. ": buff")
 		end
 		if g.voz then
-			assert(type(g.voz) == "string", gid .. ": voz")
+			assert(type(g.voz) == "string" or (type(g.voz) == "table" and #g.voz > 0), gid .. ": voz")
 		end
 		if g.tipo == "barragem" then
 			assert(g.inicio < g.fim and g.fim <= g.trava + 0.5 and g.hit and g.final, gid .. ": barragem")

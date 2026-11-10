@@ -40,16 +40,18 @@ local function vivo(modelo: Model, tk: number): () -> boolean
 	end
 end
 
-local function falar(modelo: Model, tk: number, nome: string?, pos: Vector3)
+-- nome = um grito ou uma lista em ordem de preferência; devolve o nome que tocou
+local function falar(modelo: Model, tk: number, nome: any, pos: Vector3): string?
 	if (tokens[modelo] or 0) ~= tk then
-		return
+		return nil
 	end
-	local snd = Som.voz(nome, pos)
+	local snd, usado = Som.voz(nome, pos)
 	if snd then
 		local l = vozes[modelo] or {}
 		table.insert(l, snd)
 		vozes[modelo] = l
 	end
+	return usado
 end
 
 function Acoes.interromper(modelo: Model?)
@@ -182,6 +184,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	Som.tocar("whoosh_forte", raiz.Position)
 	local cor = Efeitos.corStand(s and s.id)
 	-- barragem: punhos fantasmas e grito
+	local vozBarragem: string? = nil
 	if g.tipo == "barragem" then
 		task.delay(g.inicio or 0.1, function()
 			if token(modelo) ~= tk then
@@ -190,7 +193,24 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			if clipeS == "barragem" then
 				Efeitos.punhos(StandVisual.modelo(modelo), (g.fim or 1) - (g.inicio or 0), cor, vivo(modelo, tk))
 			end
-			falar(modelo, tk, g.voz or (s and s.grito), raiz.Position)
+			local usado = falar(modelo, tk, g.voz or (s and s.grito), raiz.Position)
+			vozBarragem = usado
+			-- AJUSTE-8: o som do anime cobre a rajada inteira; um grito curto repete até o fim
+			local total = (g.fim or 1) - (g.inicio or 0)
+			local d = Som.duracaoVoz(usado)
+			if usado and d > 0.3 and d < total - 0.4 then
+				task.spawn(function()
+					local feito = d
+					while feito < total - 0.3 do
+						task.wait(d)
+						feito += d
+						if token(modelo) ~= tk then
+							return
+						end
+						falar(modelo, tk, usado, raiz.Position)
+					end
+				end)
+			end
 			if g.onomatopeia then
 				Efeitos.onomatopeia(raiz.Position + raiz.CFrame.LookVector * 5, g.onomatopeia, cor, 1.2)
 			end
@@ -228,6 +248,10 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	end
 	if g.final and g.final.voz then
 		task.delay(g.final.t or 1, function()
+			-- o som do anime já tem o grito final (ORAAA / MUDAAA)
+			if vozBarragem and vozBarragem == g.vozComFinal then
+				return
+			end
 			falar(modelo, tk, g.final.voz, raiz.Position)
 		end)
 	end

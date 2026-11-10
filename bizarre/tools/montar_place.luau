@@ -15,6 +15,9 @@ local SAIDA = "bizarre/dist/BB_place.rbxl"
 local MAPA = "bizarre/assets/morioh.rbxl"
 -- o instalador troca este texto pelo número do áudio das vozes (mesmo tamanho: 64 letras)
 local MARCADOR_VOZES = "BBVOZ" .. string.rep("_", 59)
+-- AJUSTE-8: o áudio dos sons do anime (separado) e as imagens do Canva ("logo fundo carregando")
+local MARCADOR_ANIME = "BBVZA" .. string.rep("_", 59)
+local MARCADOR_IMAGENS = "BBIMG" .. string.rep("_", 59)
 
 local game
 local comMapa = fs.isFile(MAPA)
@@ -180,6 +183,12 @@ local vozes = Instance.new("StringValue")
 vozes.Name = "BB_Vozes"
 vozes.Value = MARCADOR_VOZES
 vozes.Parent = game:GetService("ReplicatedStorage")
+for nome, marcador in { BB_VozesAnime = MARCADOR_ANIME, BB_Imagens = MARCADOR_IMAGENS } do
+	local v = Instance.new("StringValue")
+	v.Name = nome
+	v.Value = marcador
+	v.Parent = game:GetService("ReplicatedStorage")
+end
 
 for _, nome in { "ServerStorage", "Teams", "Chat", "TextChatService", "LocalizationService", "TestService" } do
 	pcall(function()

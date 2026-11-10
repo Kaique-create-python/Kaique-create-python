@@ -206,32 +206,34 @@ end
 -- bE/bD = braços parados (ombro), balanco = quanto os braços balançam, inclina = tronco para trás,
 -- cabeca = queixo para cima, passo = tamanho do passo, gingado = o quadril/tronco girando
 local ESTILOS = {
-	STAR_PLATINUM = { -- Jotaro: mãos no bolso, passo firme, cabeça um pouco baixa
-		bE = { -10, 0, -2 }, bD = { -10, 0, 2 }, balanco = 0.12, inclina = -2, cabeca = -6, passo = 34, gingado = 6,
-		parado = { Root = { 0, 14, 0 }, Neck = { -8, -14, 0 }, LH = { 5, 0, -7 }, RH = { -6, 0, 5 } },
+	-- R6 não tem cotovelo nem joelho: o estilo aparece no tronco (torção, inclinação, rolar do
+	-- quadril), no tamanho do passo e no arco dos braços. Nada de braço parado colado no corpo.
+	STAR_PLATINUM = { -- Jotaro: pesado e confiante, peito aberto, passo firme
+		bE = { 0, 0, -7 }, bD = { 0, 0, 7 }, balanco = 0.8, abre = 7, inclina = -8, cabeca = -3, passo = 42, gingado = 13, quadril = 5,
+		parado = { Root = { -3, 22, 0 }, Neck = { -6, -20, 0 }, LS = { 4, 0, -12 }, RS = { -6, 0, 10 }, LH = { 7, 0, -9 }, RH = { -8, 0, 6 } },
 	},
-	THE_WORLD = { -- DIO: peito estufado, braços abertos, queixo para cima
-		bE = { 0, 0, -14 }, bD = { 0, 0, 14 }, balanco = 1.1, inclina = -9, cabeca = 10, passo = 30, gingado = 10,
-		parado = { Root = { -6, 24, 0 }, Neck = { 12, -10, 0 }, LS = { 74, 0, 36 }, RS = { 68, 0, -36 }, LH = { 2, 0, -10 }, RH = { -2, 0, 10 } },
+	THE_WORLD = { -- DIO: arrogante, peito estufado, braços abertos, queixo para cima
+		bE = { 0, 0, -14 }, bD = { 0, 0, 14 }, balanco = 1.15, abre = 12, inclina = -12, cabeca = 10, passo = 44, gingado = 17, quadril = 6,
+		parado = { Root = { -6, 26, 0 }, Neck = { 12, -14, 0 }, LS = { 74, 0, 36 }, RS = { 68, 0, -36 }, LH = { 3, 0, -11 }, RH = { -3, 0, 10 } },
 	},
-	MAGICIANS_RED = { -- Avdol: mãos para trás, passo calmo
-		bE = { -24, 0, -4 }, bD = { -24, 0, 4 }, balanco = 0.1, inclina = -3, cabeca = 2, passo = 26, gingado = 3,
-		parado = { Neck = { 4, 0, 0 }, LH = { 0, 0, -6 }, RH = { 0, 0, 6 } },
+	MAGICIANS_RED = { -- Avdol: calmo e sério, passo regular
+		bE = { -4, 0, -6 }, bD = { -4, 0, 6 }, balanco = 0.65, abre = 5, inclina = -4, cabeca = 2, passo = 36, gingado = 7, quadril = 3,
+		parado = { Root = { 0, 10, 0 }, Neck = { 4, -6, 0 }, LS = { -14, 0, -8 }, RS = { -14, 0, 8 }, LH = { 0, 0, -7 }, RH = { 0, 0, 7 } },
 	},
 	SILVER_CHARIOT = { -- Polnareff: animado, braços balançando alto
-		bE = { 0, 0, -6 }, bD = { 0, 0, 6 }, balanco = 1.4, inclina = 2, cabeca = 4, passo = 40, gingado = 8,
-		parado = { Root = { 0, -12, 0 }, RS = { 40, 0, 10 }, LS = { 0, 0, -24 }, LH = { 8, 0, -4 }, RH = { -8, 0, 8 } },
+		bE = { 0, 0, -8 }, bD = { 0, 0, 8 }, balanco = 1.4, abre = 9, inclina = 0, cabeca = 5, passo = 46, gingado = 11, quadril = 5,
+		parado = { Root = { 0, -14, 0 }, RS = { 40, 0, 12 }, LS = { 0, 0, -26 }, LH = { 9, 0, -5 }, RH = { -8, 0, 8 } },
 	},
-	CRAZY_DIAMOND = { -- Josuke: uma mão no bolso, gingado de malandro
-		bE = { -10, 0, -2 }, bD = { 0, 0, 8 }, balanco = 0.9, inclina = -5, cabeca = 4, passo = 34, gingado = 12, soDireito = true,
-		parado = { Root = { 0, -16, 4 }, Neck = { 2, 12, -6 }, RS = { 12, 0, 18 }, LH = { 4, 0, -8 }, RH = { -4, 0, 4 } },
+	CRAZY_DIAMOND = { -- Josuke: gingado de malandro, ombros rolando
+		bE = { 0, 0, -9 }, bD = { 0, 0, 10 }, balanco = 1.0, abre = 10, inclina = -6, cabeca = 4, passo = 42, gingado = 19, quadril = 7,
+		parado = { Root = { 0, -18, 5 }, Neck = { 2, 14, -7 }, RS = { 12, 0, 20 }, LS = { -4, 0, -10 }, LH = { 5, 0, -9 }, RH = { -5, 0, 5 } },
 	},
-	KILLER_QUEEN = { -- Kira: executivo, postura reta, balanço curto
-		bE = { 0, 0, -3 }, bD = { 0, 0, 3 }, balanco = 0.5, inclina = 0, cabeca = 0, passo = 28, gingado = 2,
-		parado = { Neck = { -2, 6, 0 }, RS = { 20, 0, -22 } },
+	KILLER_QUEEN = { -- Kira: executivo, postura reta, passo elegante
+		bE = { 0, 0, -4 }, bD = { 0, 0, 4 }, balanco = 0.6, abre = 4, inclina = -2, cabeca = 0, passo = 36, gingado = 5, quadril = 3,
+		parado = { Neck = { -2, 8, 0 }, RS = { 22, 0, -24 }, LS = { 0, 0, -6 }, LH = { 0, 0, -5 }, RH = { 0, 0, 5 } },
 	},
 }
-local ESTILO_PADRAO = { bE = { 0, 0, -6 }, bD = { 0, 0, 6 }, balanco = 1, inclina = -3, cabeca = 2, passo = 34, gingado = 6, parado = {} }
+local ESTILO_PADRAO = { bE = { 0, 0, -8 }, bD = { 0, 0, 8 }, balanco = 1, abre = 8, inclina = -5, cabeca = 2, passo = 40, gingado = 10, quadril = 5, parado = {} }
 Animador.ESTILOS = ESTILOS
 Animador.aoPasso = nil :: ((Model, number) -> ())? -- poeira nos pés quando corre (Main liga)
 
@@ -304,9 +306,10 @@ local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean, vLoca
 			la = plan.X / plan.Magnitude
 		end
 	end
-	a.fase += dt * (3.2 + vs * 0.42)
+	a.fase += dt * (3.4 + vs * 0.4)
 	local s = math.sin(a.fase)
-	local sb = math.sin(a.fase - 0.35) -- os braços vêm um pouco atrasados (balanço solto)
+	local c = math.cos(a.fase)
+	local sb = math.sin(a.fase - 0.45) -- braços atrasados em relação às pernas (balanço solto)
 	local passoAgora = math.floor(a.fase / math.pi)
 	if passoAgora ~= a.ultimoPasso then
 		a.ultimoPasso = passoAgora
@@ -314,28 +317,35 @@ local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean, vLoca
 			Animador.aoPasso(a.modelo, k)
 		end
 	end
-	local resp = math.sin(tt * 1.8) * 2
-	local parado = math.clamp(1 - k * 1.6, 0, 1)
+	local resp = math.sin(tt * 1.8)
+	local andando = math.clamp(k * 1.6, 0, 1) -- 0 parado ... 1 andando
+	local parado = 1 - andando
 	local correndo = math.clamp((k - 1.05) / 0.4, 0, 1)
-	local balanco = (40 * est.balanco * (1 - correndo) + 64 * correndo) * k * math.max(0.35, math.abs(fr))
+	local kk = math.min(k, 1.25)
+	-- braços: arco grande, abrindo para fora no meio do balanço (gingado, não "boneco de pau")
+	local amp = (46 * est.balanco * (1 - correndo) + 72 * correndo) * kk * math.max(0.35, math.abs(fr))
+	local abre = (est.abre or 8) * kk
 	local giro = math.clamp(-(giroY or 0) * 2.6, -11, 11) * math.min(k, 1)
 	local inclinaAcel = math.clamp(-acel * 0.22, -9, 4)
-	local quique = -math.abs(math.sin(a.fase)) * (0.16 + 0.12 * correndo) * math.min(k, 1.3)
+	local quique = -math.abs(c) * (0.22 + 0.14 * correndo) * kk
 	local pouso = if a.pousoAte and tt < a.pousoAte then -0.38 * ((a.pousoAte - tt) / 0.22) else 0
-	local gingado = s * est.gingado * k * (1 - correndo * 0.6)
+	local torcao = s * est.gingado * kk * (1 - correndo * 0.5) -- ombros vão para frente com o braço
+	local rolar = -c * (est.quadril or 5) * kk -- quadril desce do lado da perna que pisa
+	local passo = (est.passo * (1 - correndo) + 56 * correndo) * kk
 	local p: { [string]: { number } } = {
-		Root = { est.inclina * (1 - correndo) - 14 * correndo + inclinaAcel + resp * 0.3 * parado, gingado, giro },
-		RootPos = { 0, quique + pouso + resp * 0.012 * parado, 0 },
-		-- a cabeça compensa o gingado (o olhar fica firme)
-		Neck = { est.cabeca + 8 * correndo + resp * 0.5 * parado, -gingado * 0.8, -giro * 0.5 },
-		LS = { est.bE[1] - sb * balanco, est.bE[2], est.bE[3] - math.abs(sb) * 4 * k },
-		RS = { est.bD[1] + sb * balanco * (if est.soDireito then 1.3 else 1), est.bD[2], est.bD[3] + math.abs(sb) * 4 * k },
-		LH = { s * est.passo * k * fr, 0, -s * est.passo * 0.45 * k * la },
-		RH = { -s * est.passo * k * fr, 0, s * est.passo * 0.45 * k * la },
+		Root = {
+			(est.inclina * (1 - correndo) - 16 * correndo) * andando + inclinaAcel + resp * 1.2 * parado,
+			torcao,
+			rolar + giro,
+		},
+		RootPos = { 0, quique + pouso + resp * 0.03 * parado, 0 },
+		-- a cabeça compensa o tronco (o olhar fica firme) e acompanha o passo
+		Neck = { (est.cabeca + 10 * correndo) * andando - math.abs(c) * 3 * kk + resp * 1.5 * parado, -torcao * 0.75, -rolar * 0.6 },
+		LS = { est.bE[1] - sb * amp, est.bE[2], est.bE[3] - abre * (0.6 + 0.4 * math.abs(sb)) },
+		RS = { est.bD[1] + sb * amp, est.bD[2], est.bD[3] + abre * (0.6 + 0.4 * math.abs(sb)) },
+		LH = { s * passo * fr, 0, -s * passo * 0.45 * la - 2 * kk },
+		RH = { -s * passo * fr, 0, s * passo * 0.45 * la + 2 * kk },
 	}
-	if est.soDireito then
-		p.LS = { est.bE[1] - sb * balanco * 0.15, est.bE[2], est.bE[3] }
-	end
 	-- parado: a pose de JoJo de cada um (mistura suave com o andar)
 	if parado > 0.01 then
 		for junta, v in est.parado do

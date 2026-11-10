@@ -433,6 +433,17 @@ checar("vozes", function()
 	local v = ReplicatedStorage:FindFirstChild("BB_Vozes")
 	local id = v and string.match(v.Value, "^%s*(%d+)")
 	res.info.vozes = if id then "áudio " .. id else "sem áudio (usa o grito da biblioteca)"
+	local va = ReplicatedStorage:FindFirstChild("BB_VozesAnime")
+	local ida = va and string.match(va.Value, "^%s*(%d+)")
+	res.info.vozesAnime = if ida and ida ~= "0" then "áudio " .. ida else "sem os sons do anime (usa as vozes geradas)"
+	local im = ReplicatedStorage:FindFirstChild("BB_Imagens")
+	local n = 0
+	for id in string.gmatch(if im then im.Value else "", "%d+") do
+		if id ~= "0" then
+			n += 1
+		end
+	end
+	res.info.imagens = n .. " de 3 artes do Canva no place"
 end)
 
 -- limpeza

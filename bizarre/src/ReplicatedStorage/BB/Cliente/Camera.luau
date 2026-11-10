@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Registro = require(script.Parent:WaitForChild("Registro"))
 
 local Camera = {}
 
@@ -86,16 +87,26 @@ local DIST_TRAVA, ZOOM_MIN, ZOOM_MAX = 11, 7.5, 18
 Camera.preferida = nil :: number? -- distância escolhida nos AJUSTES (nil = padrão)
 local DIST_LIVRE_MIN, DIST_LIVRE_MAX = 4, 32
 local atrasParede = 0
+-- AJUSTE-8: câmera que GRUDA. A trava pode vir do botão MIRA ou sozinha (quando você bate ou
+-- apanha). A automática solta depois de uns segundos sem luta; a do botão só no botão.
+local travaAuto = false
+local ultimoCombate = 0
+local FORCA_TRAVA = 20 -- quanto a câmera puxa para o alvo por segundo (era 12)
+local SEGUNDOS_PAREDE = 3 -- alvo escondido atrás de parede por mais que isso: solta
+local SEGUNDOS_SEM_LUTA = 7 -- trava automática sem golpes e longe: solta
+Camera.miraAuto = true
 local function zoomPara(min: number, max: number)
 	local plr = Players.LocalPlayer
 	plr.CameraMinZoomDistance = min
 	plr.CameraMaxZoomDistance = max
 end
 
-function Camera.travar(alvo: Model?)
+function Camera.travar(alvo: Model?, automatica: boolean?)
 	local antes = alvoTrava
 	alvoTrava = alvo
 	atrasParede = 0
+	travaAuto = alvo ~= nil and automatica == true
+	ultimoCombate = os.clock()
 	mostrarMarca(alvo)
 	if alvo and alvo ~= antes then
 		local d = math.clamp(Camera.preferida or DIST_TRAVA, ZOOM_MIN, ZOOM_MAX)
@@ -186,19 +197,75 @@ local function paramsCenario(): RaycastParams
 	return paramsParede :: RaycastParams
 end
 
--- solta sozinho: alvo morreu, sumiu, ficou longe demais ou o dono caiu no ragdoll
+-- o inimigo vivo mais perto (para a trava passar de um para o outro numa luta em grupo)
+local function inimigoMaisPerto(limite: number, menos: Model?): Model?
+	local eu = Players.LocalPlayer.Character
+	local raiz = eu and eu:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not raiz then
+		return nil
+	end
+	local melhor, menor = nil, limite
+	for m in Registro.lutadores() do
+		if m ~= eu and m ~= menos then
+			local r = m:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local h = m:FindFirstChildOfClass("Humanoid")
+			if r and h and h.Health > 0 then
+				local d = (r.Position - raiz.Position).Magnitude
+				if d < menor then
+					melhor, menor = m, d
+				end
+			end
+		end
+	end
+	return melhor
+end
+
+-- AJUSTE-8: bateu em alguém ou apanhou sem estar travado: a câmera gruda nele sozinha
+function Camera.aoAcerto(d: any)
+	local eu = Players.LocalPlayer.Character
+	if not eu or type(d) ~= "table" then
+		return
+	end
+	local outro = if d.a == eu then d.v elseif d.v == eu then d.a else nil
+	if typeof(outro) ~= "Instance" or not outro:IsA("Model") or outro == eu then
+		return
+	end
+	if alvoTrava == outro then
+		ultimoCombate = os.clock()
+		return
+	end
+	if alvoTrava or not Camera.miraAuto or dono ~= "jogo" then
+		return
+	end
+	local h = outro:FindFirstChildOfClass("Humanoid")
+	if h and h.Health > 0 and outro:GetAttribute("BB_Lutador") and outro:FindFirstChild("HumanoidRootPart") then
+		Camera.travar(outro, true)
+	end
+end
+
+-- solta sozinho: alvo sumiu, ficou longe demais, ou (trava automática) a luta acabou.
+-- Alvo caiu: passa para o inimigo mais perto, se tiver alguém lutando por perto.
 local DISTANCIA_MAXIMA = 130
 function Camera.travado(): Model?
 	if alvoTrava and (not alvoTrava.Parent or not alvoTrava:FindFirstChild("HumanoidRootPart")) then
-		Camera.travar(nil)
+		Camera.travar(inimigoMaisPerto(40, alvoTrava), travaAuto)
 	end
 	if alvoTrava then
 		local hum = alvoTrava:FindFirstChildOfClass("Humanoid")
 		local eu = Players.LocalPlayer.Character
 		local raiz = eu and eu:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local r = alvoTrava:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if (hum and hum.Health <= 0) or (raiz and r and (r.Position - raiz.Position).Magnitude > DISTANCIA_MAXIMA) then
+		local dist = if raiz and r then (r.Position - raiz.Position).Magnitude else 0
+		if hum and hum.Health <= 0 then
+			Camera.travar(inimigoMaisPerto(40, alvoTrava), travaAuto)
+		elseif dist > DISTANCIA_MAXIMA then
 			Camera.travar(nil)
+		elseif travaAuto then
+			if dist < 24 then
+				ultimoCombate = os.clock()
+			elseif os.clock() - ultimoCombate > SEGUNDOS_SEM_LUTA then
+				Camera.travar(nil)
+			end
 		end
 	end
 	if marca and marca.Parent then
@@ -231,14 +298,14 @@ function Camera.iniciar()
 		local alvo = Camera.travado()
 		local eu = Players.LocalPlayer.Character
 		local raiz = eu and eu:FindFirstChild("HumanoidRootPart") :: BasePart?
-		-- alvo atrás de parede por 1,5 s: solta a trava
+		-- alvo atrás de parede por 3 s: solta a trava
 		if alvo and raiz then
 			local r0 = alvo:FindFirstChild("HumanoidRootPart") :: BasePart
 			local v = r0.Position - raiz.Position
 			local hit = workspace:Raycast(raiz.Position + Vector3.new(0, 1.5, 0), v, paramsCenario())
 			if hit and (hit.Position - raiz.Position).Magnitude < v.Magnitude - 2 then
 				atrasParede += dt
-				if atrasParede > 1.5 then
+				if atrasParede > SEGUNDOS_PAREDE then
 					Camera.travar(nil)
 					alvo = nil
 				end
@@ -263,7 +330,7 @@ function Camera.iniciar()
 				if bate then
 					posCam = bate.Position - volta.Unit * 0.6
 				end
-				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(posCam, r.Position + Vector3.new(0, 0.5, 0)), math.min(1, dt * 12))
+				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(posCam, r.Position + Vector3.new(0, 0.5, 0)), math.min(1, dt * FORCA_TRAVA))
 			end
 		end
 		-- volta suave depois da cena de cinema

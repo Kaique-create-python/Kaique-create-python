@@ -17,6 +17,8 @@ ESTADO = {"versao": 40, "tarefas": {}, "places": [], "falhar": "--falhar" in ARG
 UNIVERSE = "10774214555"
 ID_AUDIO = "777000111"
 MARCADOR = b"BBVOZ" + b"_" * 59
+MARCADORES = [MARCADOR, b"BBVZA" + b"_" * 59, b"BBIMG" + b"_" * 59]
+OPERACOES = {}  # operação -> número do asset (cada envio ganha um número)
 
 
 class H(BaseHTTPRequestHandler):
@@ -41,7 +43,8 @@ class H(BaseHTTPRequestHandler):
         if self.headers.get("x-api-key") != "CHAVE-DE-TESTE":
             return self.responder(401, {"message": "chave errada"})
         if self.path.startswith("/assets/v1/operations/"):
-            return self.responder(200, {"done": True, "response": {"assetId": ID_AUDIO, "moderationResult": {"moderationState": "Approved"}}})
+            op = self.path.rsplit("/", 1)[-1]
+            return self.responder(200, {"done": True, "response": {"assetId": OPERACOES.get(op, ID_AUDIO), "moderationResult": {"moderationState": "Approved"}}})
         if self.path.startswith("/assets/v1/assets/"):
             return self.responder(200, {"moderationResult": {"moderationState": "Approved"}})
         if self.path.endswith("/logs?maxPageSize=200"):
@@ -102,10 +105,17 @@ class H(BaseHTTPRequestHandler):
             if ESTADO["sem_audio"]:
                 return self.responder(403, {"message": "Insufficient scope: asset:write"})
             assert self.headers.get("Content-Type", "").startswith("multipart/form-data; boundary="), self.headers
-            assert b'"assetType": "Audio"' in corpo and b"OggS" in corpo, "áudio estranho"
-            ESTADO["audios"] += 1
-            print("MOCK audio", len(corpo), "bytes", flush=True)
-            return self.responder(200, {"path": "operations/op1", "operationId": "op1", "done": False})
+            if b'"assetType": "Image"' in corpo:
+                assert (b"\x89PNG" in corpo and b"image/png" in corpo) or (b"\xff\xd8\xff" in corpo and b"image/jpeg" in corpo), "imagem estranha"
+                tipo = "imagem"
+            else:
+                assert b'"assetType": "Audio"' in corpo and b"OggS" in corpo, "áudio estranho"
+                ESTADO["audios"] += 1
+                tipo = "audio"
+            op = "op%d" % (len(OPERACOES) + 1)
+            OPERACOES[op] = ID_AUDIO if not OPERACOES else str(int(ID_AUDIO) + 111 * len(OPERACOES))
+            print("MOCK", tipo, len(corpo), "bytes ->", OPERACOES[op], flush=True)
+            return self.responder(200, {"path": "operations/" + op, "operationId": op, "done": False})
         m = re.match(r"/universes/v1/(\d+)/places/(\d+)/versions\?versionType=(\w+)", self.path)
         if m:
             assert self.headers.get("Content-Type") == "application/octet-stream", self.headers.get("Content-Type")
@@ -113,6 +123,8 @@ class H(BaseHTTPRequestHandler):
             assert corpo[:8] == b"<roblox!", "place não é binário"
             if not ESTADO["sem_audio"]:
                 assert MARCADOR not in corpo and (ID_AUDIO.encode() + b" ") in corpo, "o número das vozes não entrou no place"
+                for mk in MARCADORES:
+                    assert mk not in corpo, "o marcador %s ficou no place" % mk[:5]
             ESTADO["ultimo_place"] = corpo
             ESTADO["versao"] += 1
             ESTADO["places"].append(m.group(3))

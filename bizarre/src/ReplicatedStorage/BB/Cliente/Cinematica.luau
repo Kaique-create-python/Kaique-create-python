@@ -314,7 +314,8 @@ function Cinematica.ult(dono: Model?, s: any, g: any)
 	local corAura = if s and s.aura then s.aura else RGB(170, 90, 230)
 	local nome = g.onomatopeia or g.nome or "ULT"
 	if dono == eu then
-		local dur = DURACAO_MAX
+		-- AJUSTE-8: o tempo parado dura o grito do anime (a cena acaba quando o tempo para)
+		local dur = math.clamp(if g.cinema then g.cinema else DURACAO_MAX, 0.5, 1.8)
 		tocandoAte = os.clock() + dur
 		barras(dur)
 		cameraCinema(dono, dur, if s and (s.id == "THE_WORLD" or s.id == "KILLER_QUEEN") then "baixo" else nil)

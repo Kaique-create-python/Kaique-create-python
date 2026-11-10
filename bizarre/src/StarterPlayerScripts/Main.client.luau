@@ -64,7 +64,10 @@ local TRATADORES = {
 	acao = function(d)
 		Acoes.tocar(d.quem, d)
 	end,
-	acerto = Efeitos.acerto,
+	acerto = function(d)
+		Efeitos.acerto(d)
+		Camera.aoAcerto(d) -- AJUSTE-8: a câmera gruda em quem você bate (ou em quem te bate)
+	end,
 	quebra = Efeitos.quebra,
 	restaura = Efeitos.restaura,
 	proj = Efeitos.proj,

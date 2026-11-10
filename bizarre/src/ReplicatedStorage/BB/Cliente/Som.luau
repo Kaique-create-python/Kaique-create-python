@@ -101,24 +101,28 @@ end
 -- vozes dos Stands (ORA, MUDA, DORA...): um áudio só com todos os gritos, enviado pelo
 -- instalador (o número dele fica em ReplicatedStorage.BB_Vozes). Enquanto o Roblox não liberar
 -- o áudio, toca o grito da biblioteca no lugar (nunca fica mudo).
-local vozesEstado = "?" -- "?" ainda não conferiu, "ok", "nao"
-local vozesId = ""
-local vozesTrechos = math.huge -- quantos trechos o áudio enviado tem ("id quantos")
-local function conferirVozes()
-	if vozesEstado ~= "?" then
+-- AJUSTE-8: dois áudios. "BB_Vozes" = gritos gerados; "BB_VozesAnime" = sons do anime mandados
+-- pelo dono. Cada um é conferido sozinho: se o Roblox recusar um, o outro continua.
+local AUDIOS: { any } = {
+	{ valor = "BB_Vozes", tabela = Sons.VOZES, estado = "?", id = "", trechos = math.huge },
+	{ valor = "BB_VozesAnime", tabela = Sons.VOZES_ANIME or {}, estado = "?", id = "", trechos = math.huge },
+}
+
+local function conferirAudio(a: any)
+	if a.estado ~= "?" then
 		return
 	end
-	vozesEstado = "nao"
-	local v = BB.Parent:FindFirstChild("BB_Vozes")
+	a.estado = "nao"
+	local v = BB.Parent:FindFirstChild(a.valor)
 	local id, qtd = nil, nil
 	if v and v:IsA("StringValue") then
 		id, qtd = string.match(v.Value, "^%s*(%d+)%s*(%d*)")
 	end
-	if not id then
+	if not id or id == "0" then
 		return
 	end
-	vozesId = id
-	vozesTrechos = tonumber(qtd) or math.huge
+	a.id = id
+	a.trechos = tonumber(qtd) or math.huge
 	task.spawn(function()
 		local teste = Instance.new("Sound")
 		teste.SoundId = "rbxassetid://" .. id
@@ -129,37 +133,69 @@ local function conferirVozes()
 			end)
 		end)
 		if ok or teste.IsLoaded then
-			vozesEstado = "ok"
+			a.estado = "ok"
 		end
 		teste:Destroy()
 	end)
 end
 
-function Som.vozesProntas(): boolean
-	conferirVozes()
-	return vozesEstado == "ok"
+-- o primeiro áudio carregado que tem esse trecho
+local function trechoDe(nome: string): (any, { number }?)
+	for _, a in AUDIOS do
+		conferirAudio(a)
+		local t = a.tabela[nome]
+		if t and a.estado == "ok" and (t[4] or 1) <= a.trechos then
+			return a, t
+		end
+	end
+	return nil, nil
 end
 
-function Som.voz(nome: string?, pos: Vector3?, opcoes: any?): Sound?
+function Som.vozesProntas(): boolean
+	conferirAudio(AUDIOS[1])
+	return AUDIOS[1].estado == "ok"
+end
+
+-- este trecho já pode tocar? (ex.: o som de parar o tempo do anime)
+function Som.vozPronta(nome: string?): boolean
 	if not nome then
-		return nil
+		return false
 	end
-	conferirVozes()
-	local trecho = Sons.VOZES[nome]
-	if trecho and (trecho[4] or 1) > vozesTrechos then
-		trecho = nil -- o áudio no ar é mais antigo e ainda não tem esta voz
+	local _, t = trechoDe(nome)
+	return t ~= nil
+end
+
+function Som.duracaoVoz(nome: string?): number
+	local _, t = trechoDe(nome or "")
+	return if t then t[2] else 0
+end
+
+-- nomes = um nome ou uma lista em ordem de preferência ({ "ORA_ANIME", "ORA" }).
+-- Devolve o som e o nome que tocou (nil = tocou o grito da biblioteca).
+function Som.voz(nomes: any, pos: Vector3?, opcoes: any?): (Sound?, string?)
+	if not nomes then
+		return nil, nil
 	end
-	if vozesEstado ~= "ok" or not trecho then
-		return Som.tocar("grito", pos, { vol = 0.8 })
+	local lista = if type(nomes) == "table" then nomes else { nomes }
+	local audio, trecho, nome = nil, nil, nil
+	for _, n in lista do
+		audio, trecho = trechoDe(n)
+		if trecho then
+			nome = n
+			break
+		end
+	end
+	if not audio or not trecho or not nome then
+		return Som.tocar("grito", pos, { vol = 0.8 }), nil
 	end
 	local o = opcoes or {}
 	local chave = "voz_" .. nome
 	if (contagem[chave] or 0) >= 2 then
-		return nil
+		return nil, nil
 	end
 	contagem[chave] = (contagem[chave] or 0) + 1
 	local snd = Instance.new("Sound")
-	snd.SoundId = "rbxassetid://" .. vozesId
+	snd.SoundId = "rbxassetid://" .. audio.id
 	snd.PlaybackRegionsEnabled = true
 	snd.PlaybackRegion = NumberRange.new(trecho[1], trecho[1] + trecho[2])
 	snd.Volume = (trecho[3] or 1) * (o.vol or 1)
@@ -182,7 +218,7 @@ function Som.voz(nome: string?, pos: Vector3?, opcoes: any?): Sound?
 		contagem[chave] = math.max(0, (contagem[chave] or 1) - 1)
 		suporte:Destroy()
 	end)
-	return snd
+	return snd, nome
 end
 
 -- som preso numa peça (acompanha quem se mexe)

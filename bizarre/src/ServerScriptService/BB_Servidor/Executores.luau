@@ -686,7 +686,7 @@ ESPECIAL.tempoParado = function(ctx)
 		Combate.atualizarMovimento(l)
 	end
 	Projeteis.congelar(fim, lut)
-	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = lut.standId, sessao = sessao.id })
+	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = lut.standId, sessao = sessao.id, somProprio = tp.somProprio })
 	lut.estado.acaoAte = t + 0.15
 	Combate.atualizarMovimento(lut)
 	local donoOk = true

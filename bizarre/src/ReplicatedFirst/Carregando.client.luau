@@ -51,7 +51,7 @@ local function texto(t: string, tam: UDim2, pos: UDim2, cor: Color3, rot: number
 end
 
 local titulo = texto("BIZARRE", UDim2.fromScale(0.6, 0.2), UDim2.fromScale(0.5, 0.33), Color3.fromRGB(255, 206, 64), -4)
-texto("BATTLEGROUNDS", UDim2.fromScale(0.5, 0.1), UDim2.fromScale(0.5, 0.47), Color3.fromRGB(255, 255, 255), -2)
+local subtitulo = texto("BATTLEGROUNDS", UDim2.fromScale(0.5, 0.1), UDim2.fromScale(0.5, 0.47), Color3.fromRGB(255, 255, 255), -2)
 local status = texto("", UDim2.fromScale(0.7, 0.055), UDim2.fromScale(0.5, 0.7), Color3.fromRGB(230, 220, 255), 0, Enum.Font.GothamBold)
 local dicas = {
 	"Dica: aperte BLOQ bem na hora do golpe para dar PARRY.",
@@ -129,6 +129,77 @@ task.spawn(function()
 	end
 end)
 
+-- AJUSTE-8: arte do Canva (dois lutadores com os Stands) e o logo, se o Roblox já liberou as imagens
+-- (ReplicatedStorage.BB_Imagens = "logo fundo carregando"). Sem elas, fica a tela de texto.
+task.spawn(function()
+	local ContentProvider = game:GetService("ContentProvider")
+	local v = ReplicatedStorage:WaitForChild("BB_Imagens", 15)
+	if not v or not v:IsA("StringValue") then
+		return
+	end
+	local ids = {}
+	for id in string.gmatch(v.Value, "%d+") do
+		table.insert(ids, id)
+	end
+	local function arte(id: string?, ajustar: any, aoCarregar: any)
+		if not id or id == "0" or not gui.Parent then
+			return
+		end
+		local img = Instance.new("ImageLabel")
+		img.BackgroundTransparency = 1
+		img.ImageTransparency = 1
+		img.Image = "rbxassetid://" .. id
+		ajustar(img)
+		img.Parent = fundo
+		local ok = false
+		pcall(function()
+			ContentProvider:PreloadAsync({ img }, function(_, status)
+				ok = status == Enum.AssetFetchStatus.Success
+			end)
+		end)
+		if (ok or img.IsLoaded) and gui.Parent then
+			TweenService:Create(img, TweenInfo.new(0.5), { ImageTransparency = 0 }):Play()
+			aoCarregar()
+		else
+			img:Destroy()
+		end
+	end
+	task.spawn(arte, ids[3], function(img)
+		img.Size = UDim2.fromScale(1, 1)
+		img.ScaleType = Enum.ScaleType.Crop
+		img.ZIndex = 0
+	end, function()
+		-- o resto da tela passa para a frente da arte, com uma sombra para ler bem
+		for _, d in fundo:GetChildren() do
+			if d:IsA("GuiObject") and not d:IsA("ImageLabel") then
+				d.ZIndex = math.max(d.ZIndex, 3)
+			end
+		end
+		local sombra = Instance.new("Frame")
+		sombra.Size = UDim2.fromScale(1, 1)
+		sombra.BackgroundColor3 = Color3.fromRGB(4, 2, 10)
+		sombra.BorderSizePixel = 0
+		sombra.ZIndex = 1
+		local g = Instance.new("UIGradient")
+		g.Rotation = 90
+		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.7), NumberSequenceKeypoint.new(0.5, 0.6), NumberSequenceKeypoint.new(1, 0.15) })
+		g.Parent = sombra
+		sombra.Parent = fundo
+	end)
+	arte(ids[1], function(img)
+		img.Size = UDim2.fromScale(0.66, 0.4)
+		img.Position = UDim2.fromScale(0.5, 0.36)
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.ZIndex = 4
+		local prop = Instance.new("UIAspectRatioConstraint")
+		prop.AspectRatio = 2
+		prop.Parent = img
+	end, function()
+		titulo.Visible = false
+		subtitulo.Visible = false
+	end)
+end)
+
 -- etapas: { texto, pronto?(), limite em segundos, obrigatória }
 local function standsProntos(): boolean
 	local pasta = ReplicatedStorage:FindFirstChild("BB_Stands")
@@ -188,6 +259,8 @@ for _, d in fundo:GetDescendants() do
 		TweenService:Create(d, TweenInfo.new(0.5), { TextTransparency = 1 }):Play()
 	elseif d:IsA("UIStroke") then
 		TweenService:Create(d, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+	elseif d:IsA("ImageLabel") then
+		TweenService:Create(d, TweenInfo.new(0.5), { ImageTransparency = 1 }):Play()
 	elseif d:IsA("Frame") then
 		TweenService:Create(d, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
 	end

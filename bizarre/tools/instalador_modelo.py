@@ -69,6 +69,8 @@ NOMES_STANDS = {
     "KILLER_QUEEN": "KILLER QUEEN",
 }
 MARCADOR_VOZES = b"BBVOZ" + b"_" * 59  # o place guarda o número do áudio das vozes aqui
+MARCADOR_ANIME = b"BBVZA" + b"_" * 59  # AJUSTE-8: áudio dos sons do anime (separado)
+MARCADOR_IMAGENS = b"BBIMG" + b"_" * 59  # AJUSTE-8: artes do Canva ("logo fundo carregando")
 
 
 # --------------------------------------------------------------------- saída
@@ -269,10 +271,10 @@ def consultar_moderacao(chave, asset_id):
 TRADUZ = {"Approved": "APROVADO", "Reviewing": "em análise", "Rejected": "RECUSADO"}
 
 
-def enviar_audio(chave, criador, nome, info, dados, recibos):
-    """Envia um áudio (uma vez só: o recibo guarda o ID). Nunca trava: devolve 0 se não deu."""
+def enviar_audio(chave, criador, nome, info, dados, recibos, tipo="Audio", mime="audio/ogg", gaveta_nome="audio"):
+    """Envia um áudio ou imagem (uma vez só: o recibo guarda o ID). Nunca trava: devolve 0 se não deu."""
     sha = info["sha256"]
-    gaveta = recibos.setdefault("audio", {})
+    gaveta = recibos.setdefault(gaveta_nome, {})
     r = gaveta.get(sha) or {}
     rotulo = info.get("rotulo", nome)
     if r.get("assetId"):
@@ -282,7 +284,7 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
             gaveta[sha] = r
             gravar_recibos(recibos)
         if estado == "Rejected":
-            aviso("%s: o Roblox RECUSOU na moderação (ID %s); o jogo segue com o grito da biblioteca." % (rotulo, r["assetId"]))
+            aviso("%s: o Roblox RECUSOU na moderação (ID %s); o jogo segue sem isso." % (rotulo, r["assetId"]))
             return 0
         ok("%s: já enviado antes (ID %s) - moderação: %s" % (rotulo, r["assetId"], TRADUZ.get(estado, estado or "?")))
         return int(r["assetId"])
@@ -304,20 +306,20 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
         aviso("%s: o Roblox ainda está processando o envio anterior; seguindo sem ele por enquanto." % rotulo)
         return 0
     pedido = {
-        "assetType": "Audio",
-        "displayName": ("BIZARRE vozes dos Stands %s" % REVISAO)[:50],
-        "description": "Gritos dos Stands do jogo BIZARRE BATTLEGROUNDS (vozes geradas). Enviado pelo instalador.",
+        "assetType": tipo,
+        "displayName": ("BIZARRE %s %s" % (rotulo, REVISAO))[:50],
+        "description": "BIZARRE BATTLEGROUNDS: %s. Enviado pelo instalador." % rotulo,
         "creationContext": {"creator": criador},
     }
-    corpo, tipo = multipart([
+    corpo, tipo_corpo = multipart([
         ("request", json.dumps(pedido).encode("utf-8"), None, "application/json"),
-        ("fileContent", dados, nome.split("/")[-1], "audio/ogg"),
+        ("fileContent", dados, nome.split("/")[-1], mime),
     ])
     try:
-        _, resp = http("POST", API + "/assets/v1/assets", chave, corpo, tipo, tentativas=3, espera_max=300)
+        _, resp = http("POST", API + "/assets/v1/assets", chave, corpo, tipo_corpo, tentativas=3, espera_max=300)
     except ErroHTTP as e:
         aviso("%s: %s" % (rotulo, explicar(e, "audio")))
-        aviso("Seguindo sem as vozes (o jogo usa o grito da biblioteca no lugar).")
+        aviso("Seguindo sem isso por enquanto (é opcional: o jogo funciona sem).")
         return 0
     except Falha as f:
         aviso(str(f))
@@ -328,12 +330,12 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
         op = {}
     op_id = op.get("operationId") or (op.get("path") or "").split("/")[-1]
     if not op_id:
-        aviso("%s: resposta inesperada do Roblox; seguindo sem as vozes." % rotulo)
+        aviso("%s: resposta inesperada do Roblox; seguindo sem isso." % rotulo)
         return 0
     r = {"nome": nome, "operationId": op_id, "enviadoEm": int(time.time()), "trechos": info.get("trechos", 0)}
     gaveta[sha] = r
     gravar_recibos(recibos)
-    print("   ...enviado, esperando o Roblox processar as vozes", end="", flush=True)
+    print("   ...%s enviado, esperando o Roblox processar" % rotulo, end="", flush=True)
     inicio = time.time()
     while time.time() - inicio < 120:
         time.sleep(4)
@@ -349,22 +351,22 @@ def enviar_audio(chave, criador, nome, info, dados, recibos):
             r.update({"assetId": str(asset_id), "estado": estado})
             gravar_recibos(recibos)
             if estado == "Rejected":
-                aviso("%s: o Roblox recusou na moderação; seguindo sem as vozes." % rotulo)
+                aviso("%s: o Roblox recusou na moderação; seguindo sem isso." % rotulo)
                 return 0
             ok("%s: ID %s (moderação: %s)" % (rotulo, asset_id, TRADUZ.get(estado, estado or "em análise")))
             if estado != "Approved":
-                aviso("   enquanto estiver 'em análise' o jogo usa o grito da biblioteca (o Roblox libera sozinho depois).")
+                aviso("   enquanto estiver 'em análise' o jogo usa o que já tem (o Roblox libera sozinho depois).")
             return int(asset_id)
     print("")
-    aviso("%s: ainda processando. Rode o instalador de novo daqui a uns minutos para incluir as vozes." % rotulo)
+    aviso("%s: ainda processando. Rode o instalador de novo daqui a uns minutos para incluir." % rotulo)
     return 0
 
 
-def liberar_audio(chave, universe, asset_id, recibos):
+def liberar_audio(chave, universe, asset_id, recibos, rotulo="vozes"):
     """Dá ao jogo a permissão de USAR o áudio (sem isso o Roblox deixa mudo). Nunca trava."""
     lib = recibos.setdefault("liberados", {})
     if int(asset_id) in lib.get(str(universe), []):
-        ok("vozes já liberadas para o jogo")
+        ok("%s: já liberado para o jogo" % rotulo)
         return True
     pedido = {"subjectType": "Universe", "subjectId": str(universe), "action": "Use", "requests": [{"assetId": int(asset_id)}]}
     corpo = json.dumps(pedido).encode("utf-8")
@@ -380,7 +382,7 @@ def liberar_audio(chave, universe, asset_id, recibos):
         if e.codigo == 403:
             aviso("A chave não tem a permissão de liberar áudios para o jogo (%s)." % PERMISSOES["liberar"])
         else:
-            aviso("O Roblox não deixou liberar as vozes agora (%s)." % e.resumo())
+            aviso("O Roblox não deixou liberar %s agora (%s)." % (rotulo, e.resumo()))
         return False
     except Falha as f:
         aviso(str(f))
@@ -396,9 +398,9 @@ def liberar_audio(chave, universe, asset_id, recibos):
     if int(asset_id) in feitos:
         lib[str(universe)] = sorted(set(lib.get(str(universe), [])) | {int(asset_id)})
         gravar_recibos(recibos)
-        ok("vozes LIBERADAS para o jogo")
+        ok("%s: LIBERADO para o jogo" % rotulo)
         return True
-    aviso("o Roblox não confirmou a liberação das vozes (o jogo usa o grito da biblioteca se ficar mudo).")
+    aviso("o Roblox não confirmou a liberação de %s (o jogo segue sem isso se ficar mudo)." % rotulo)
     return False
 
 
@@ -412,6 +414,25 @@ def vozes_antigas(recibos):
     if melhor:
         return int(melhor["assetId"]), int(melhor["trechos"])
     return 0, 0
+
+
+def colocar_marcador(place, marcador, texto):
+    """troca um marcador do place por um texto do mesmo tamanho (o arquivo continua válido)"""
+    if place.count(marcador) != 1:
+        raise Falha("o marcador %s não está no place (pacote estranho)" % marcador[:5].decode())
+    valor = texto.encode("ascii")
+    if len(valor) > len(marcador):
+        raise Falha("texto grande demais para o marcador %s" % marcador[:5].decode())
+    return place.replace(marcador, valor.ljust(len(marcador), b" "))
+
+
+def colocar_extras(place, anime, trechos_anime, imagens):
+    """AJUSTE-8: sons do anime e artes do Canva no place (0 = sem)"""
+    if anime:
+        place = colocar_marcador(place, MARCADOR_ANIME, "%d %d" % (int(anime), int(trechos_anime or 0)))
+    if imagens and any(imagens):
+        place = colocar_marcador(place, MARCADOR_IMAGENS, " ".join(str(int(i or 0)) for i in imagens))
+    return place
 
 
 def colocar_vozes(place, asset_id, trechos=0):
@@ -511,6 +532,10 @@ def mostrar_relatorio(res):
         print("        (isso é o SERVIDOR; o FPS do seu celular só dá para ver jogando)")
     if inf.get("vozes"):
         ok("vozes: %s" % inf["vozes"])
+    if inf.get("vozesAnime"):
+        ok("sons do anime: %s" % inf["vozesAnime"])
+    if inf.get("imagens"):
+        ok("artes: %s" % inf["imagens"])
     stands = inf.get("stands") or {}
     for sid in NOMES_STANDS:
         txt = stands.get(sid)
@@ -737,6 +762,37 @@ def preparar(args):
         else:
             aviso("sem as vozes por enquanto: o jogo usa o grito da biblioteca do Roblox.")
 
+    passo("4b", "Sons do anime e artes do Canva (opcionais: não travam a instalação)")
+    id_anime, trechos_anime = 0, 0
+    if "vozes_anime.ogg" in arquivos:
+        info_a = MANIFESTO["vozes_anime.ogg"]
+        try:
+            id_anime = enviar_audio(chave, criador, "vozes_anime.ogg", info_a, arquivos["vozes_anime.ogg"], recibos, gaveta_nome="audio_anime")
+        except Exception as e:
+            aviso("sons do anime: %s (seguindo sem eles)" % type(e).__name__)
+            id_anime = 0
+        trechos_anime = info_a.get("trechos", 0)
+        if id_anime:
+            try:
+                liberar_audio(chave, universe, id_anime, recibos, "sons do anime")
+            except Exception as e:
+                aviso("liberar sons do anime: %s (seguindo)" % type(e).__name__)
+        else:
+            aviso("sem os sons do anime por enquanto: o jogo usa as vozes geradas no lugar.")
+    imagens = [0, 0, 0]
+    ordem_img = {"logo": 0, "fundo": 1, "carregando": 2}
+    for nome, info_i in MANIFESTO.items():
+        if info_i.get("imagem") in ordem_img and nome in arquivos:
+            mime = "image/png" if nome.endswith(".png") else "image/jpeg"
+            try:
+                imagens[ordem_img[info_i["imagem"]]] = enviar_audio(chave, criador, nome, info_i, arquivos[nome], recibos,
+                                                                    tipo="Image", mime=mime, gaveta_nome="imagem")
+            except Exception as e:
+                aviso("%s: %s (seguindo sem)" % (info_i.get("rotulo", nome), type(e).__name__))
+    if not any(imagens):
+        aviso("sem as artes do Canva por enquanto: o menu usa o visual de texto.")
+    place_bin = colocar_extras(place_bin, id_anime, trechos_anime, imagens)
+
     passo(5, "Teste isolado na nuvem (versão salva, NÃO publicada)")
     try:
         v_teste = publicar(chave, universe, place, place_bin, "Saved")
@@ -769,7 +825,8 @@ def preparar(args):
         mostrar_relatorio(res)
     # teste aprovado: fica anotado. Se a publicação cair no meio, "publicar" termina sem refazer tudo
     recibos["pendente"] = {"revisao": REVISAO, "pacote": PAYLOAD_SHA256, "teste": v_teste, "vozes": id_vozes,
-                           "trechos": trechos, "universe": universe, "place": place, "quando": int(time.time())}
+                           "trechos": trechos, "anime": id_anime, "trechos_anime": trechos_anime, "imagens": imagens,
+                           "universe": universe, "place": place, "quando": int(time.time())}
     gravar_recibos(recibos)
     return {"chave": chave, "universe": universe, "place": place, "place_bin": place_bin, "recibos": recibos,
             "v_teste": v_teste, "id_vozes": id_vozes}
@@ -842,6 +899,7 @@ def cmd_publicar(args):
     place_bin = arquivos["place.rbxl"]
     if p.get("vozes"):
         place_bin = colocar_vozes(place_bin, p["vozes"], p.get("trechos", 0))
+    place_bin = colocar_extras(place_bin, p.get("anime", 0), p.get("trechos_anime", 0), p.get("imagens") or [])
     ok("teste aprovado em %s (versão de teste %s)" % (time.strftime("%d/%m %H:%M", time.localtime(p["quando"])), p.get("teste")))
     chave = getpass.getpass("   Cole a chave da Open Cloud (fica escondida) e Enter: ").strip()
     if not chave:

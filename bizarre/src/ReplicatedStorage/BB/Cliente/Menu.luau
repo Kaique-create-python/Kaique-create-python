@@ -37,7 +37,7 @@ local botaoLutar: TextButton
 local botaoVoltar: TextButton
 local painelControles: Frame
 local painelAjustes: Frame
-local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "auto", tremor = 1, camera = 12.5 }
+local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "auto", tremor = 1, camera = 12.5, mira = true }
 
 local function estrelas(n: number): string
 	return string.rep("★", n) .. string.rep("☆", 3 - n)
@@ -208,8 +208,9 @@ local OPCOES = {
 	qualidade = { { "AUTOMÁTICA", "auto" }, { "BAIXA (celular fraco)", "baixa" }, { "ALTA", "alta" } },
 	tremor = { { "NORMAL", 1 }, { "FORTE", 1.4 }, { "LEVE", 0.5 }, { "DESLIGADO", 0 } },
 	camera = { { "NORMAL", 12.5 }, { "LONGE", 16 }, { "MUITO LONGE", 20 }, { "PERTO", 9 } },
+	mira = { { "GRUDA SOZINHA", true }, { "SÓ NO BOTÃO MIRA", false } },
 }
-local LINHAS = { { "musica", "MÚSICA" }, { "efeitos", "VOLUME DOS EFEITOS" }, { "qualidade", "QUALIDADE" }, { "tremor", "TREMOR DA CÂMERA" }, { "camera", "DISTÂNCIA DA CÂMERA" } }
+local LINHAS = { { "musica", "MÚSICA" }, { "efeitos", "VOLUME DOS EFEITOS" }, { "qualidade", "QUALIDADE" }, { "tremor", "TREMOR DA CÂMERA" }, { "camera", "DISTÂNCIA DA CÂMERA" }, { "mira", "MIRA NA LUTA" } }
 
 local function rotuloDe(chave: string): string
 	for _, o in OPCOES[chave] do
@@ -255,9 +256,114 @@ local function aplicarAjustes(a: any, chave: string?)
 	Efeitos.modoQualidade(a.qualidade)
 	Camera.ligarTremor(a.tremor > 0)
 	Camera.forcaTremor = a.tremor
+	Camera.miraAuto = a.mira ~= false
 	if chave == "camera" then
 		Camera.distancia(a.camera)
 	end
+end
+
+-- AJUSTE-8: tela de abertura (só na primeira vez): arte do Canva, logo grande, raios de mangá,
+-- ゴゴゴ e "TOQUE PARA LUTAR". Sem as imagens (moderação), fica o logo de texto por cima de Morioh.
+local function criarAbertura()
+	local a = Instance.new("TextButton")
+	a.Name = "Abertura"
+	a.Size = UDim2.fromScale(1, 1)
+	a.BackgroundColor3 = Color3.fromRGB(14, 8, 26)
+	a.BackgroundTransparency = 0.3
+	a.BorderSizePixel = 0
+	a.AutoButtonColor = false
+	a.Text = ""
+	a.ZIndex = 50
+	a.Parent = gui
+	UI.gradiente(a, Color3.fromRGB(120, 60, 200), Color3.fromRGB(20, 10, 34), 70)
+	local arte = UI.imagemOpcional(a, "fundo", { Size = UDim2.fromScale(1, 1), ScaleType = Enum.ScaleType.Crop, ZIndex = 1 }, function()
+		a.BackgroundTransparency = 0
+	end)
+	if arte then
+		UI.zoomLento(arte, 0.08, 14)
+	end
+	-- escurece embaixo e nas bordas (o texto sempre aparece bem)
+	local sombra = UI.frame(a, UDim2.fromScale(1, 1), UDim2.new(), Color3.fromRGB(6, 2, 12), 0)
+	sombra.ZIndex = 2
+	local gs = Instance.new("UIGradient")
+	gs.Rotation = 90
+	gs.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(0.45, 0.85), NumberSequenceKeypoint.new(0.75, 0.55), NumberSequenceKeypoint.new(1, 0.1) })
+	gs.Parent = sombra
+	-- raios de mangá girando atrás do logo
+	local raios = {}
+	for i = 1, 16 do
+		local r = UI.frame(a, UDim2.new(1.7, 0, 0, if i % 2 == 0 then 10 else 4), UDim2.fromScale(0.5, 0.4), if i % 3 == 0 then UI.CORES.dourado else Color3.fromRGB(190, 110, 255), 0.35)
+		r.AnchorPoint = Vector2.new(0.5, 0.5)
+		r.ZIndex = 3
+		local g = Instance.new("UIGradient")
+		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.53, 1), NumberSequenceKeypoint.new(0.6, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		g.Parent = r
+		table.insert(raios, r)
+	end
+	-- logo: imagem do Canva; até ela carregar, o logo de texto
+	local t1 = UI.texto(a, "BIZARRE", UDim2.fromScale(0.62, 0.2), UDim2.fromScale(0.19, 0.2), { cor = UI.CORES.dourado, contornoEsp = 5, z = 6 })
+	t1.Rotation = -5
+	UI.gradiente(t1, Color3.fromRGB(255, 246, 190), Color3.fromRGB(255, 160, 20), 90)
+	local t2 = UI.texto(a, "BATTLEGROUNDS", UDim2.fromScale(0.5, 0.1), UDim2.fromScale(0.26, 0.41), { contornoEsp = 4, z = 6 })
+	t2.Rotation = -4
+	local logo = UI.imagemOpcional(a, "logo", { Size = UDim2.fromScale(0.72, 0.62), Position = UDim2.fromScale(0.5, 0.36), AnchorPoint = Vector2.new(0.5, 0.5), ZIndex = 7 }, function()
+		t1.Visible = false
+		t2.Visible = false
+	end)
+	if logo then
+		local prop = Instance.new("UIAspectRatioConstraint")
+		prop.AspectRatio = 2
+		prop.Parent = logo
+		UI.zoomLento(logo, 0.035, 1.6)
+	end
+	-- ゴゴゴ nas bordas
+	local gogo = {}
+	for i = 1, 8 do
+		local esq = i <= 4
+		local l = UI.texto(a, "ゴ", UDim2.fromScale(0.07, 0.11), UDim2.fromScale(if esq then 0.03 + (i % 2) * 0.05 else 0.86 + (i % 2) * 0.05, 0.12 + ((i - 1) % 4) * 0.18), { cor = Color3.fromRGB(200, 120, 255), contornoEsp = 3, z = 8, fonte = Enum.Font.GothamBlack })
+		table.insert(gogo, l)
+	end
+	local toque = UI.texto(a, "TOQUE PARA LUTAR", UDim2.fromScale(0.5, 0.075), UDim2.fromScale(0.25, 0.76), { contornoEsp = 3, contornoCor = Color3.fromRGB(60, 20, 90), z = 9 })
+	UI.texto(a, "versão " .. tostring(Config.REVISAO), UDim2.fromScale(0.2, 0.035), UDim2.fromScale(0.78, 0.94), { cor = Color3.fromRGB(200, 190, 230), z = 9, fonte = UI.FONTE_TEXTO, alinhar = Enum.TextXAlignment.Right })
+	local t0 = os.clock()
+	local con = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - t0
+		for i, r in raios do
+			r.Rotation = (i / #raios) * 360 + t * 6
+		end
+		for i, l in gogo do
+			l.Rotation = math.sin(t * 2.4 + i) * 12
+			l.TextTransparency = 0.15 + (math.sin(t * 3 + i * 1.7) * 0.5 + 0.5) * 0.5
+		end
+		toque.TextTransparency = 0.1 + (math.sin(t * 4) * 0.5 + 0.5) * 0.55
+	end)
+	local saindo = false
+	a.Activated:Connect(function()
+		if saindo then
+			return
+		end
+		saindo = true
+		Som.tocar("gongo", nil)
+		local brilho = UI.frame(a, UDim2.fromScale(1, 1), UDim2.new(), Color3.fromRGB(255, 255, 255), 0.1)
+		brilho.ZIndex = 20
+		local info = TweenInfo.new(0.45)
+		for _, d in a:GetDescendants() do
+			if d:IsA("TextLabel") then
+				TweenService:Create(d, info, { TextTransparency = 1 }):Play()
+			elseif d:IsA("UIStroke") then
+				TweenService:Create(d, info, { Transparency = 1 }):Play()
+			elseif d:IsA("ImageLabel") then
+				TweenService:Create(d, info, { ImageTransparency = 1 }):Play()
+			elseif d:IsA("Frame") then
+				TweenService:Create(d, info, { BackgroundTransparency = 1 }):Play()
+			end
+		end
+		TweenService:Create(a, info, { BackgroundTransparency = 1 }):Play()
+		task.delay(0.5, function()
+			con:Disconnect()
+			a:Destroy()
+		end)
+	end)
 end
 
 local function criar()
@@ -292,10 +398,22 @@ local function criar()
 	g.Rotation = 0
 	g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(0.55, 0.35), NumberSequenceKeypoint.new(1, 0.15) })
 	g.Parent = fundo
+	-- AJUSTE-8: arte do Canva atrás do menu (sem ela, o voo por Morioh continua aparecendo)
+	local arte = UI.imagemOpcional(gui, "fundo", { Size = UDim2.fromScale(1, 1), ScaleType = Enum.ScaleType.Crop, ZIndex = 0 }, function()
+		fundo.BackgroundTransparency = 0.3
+	end)
+	if arte then
+		UI.zoomLento(arte, 0.06, 18)
+	end
 	-- título
 	local titulo = UI.texto(conteudo, "BIZARRE", UDim2.fromOffset(330, 70), UDim2.fromOffset(24, 8), { cor = UI.CORES.dourado, contornoEsp = 4, alinhar = Enum.TextXAlignment.Left })
 	titulo.Rotation = -3
-	UI.texto(conteudo, "BATTLEGROUNDS", UDim2.fromOffset(330, 40), UDim2.fromOffset(30, 66), { cor = UI.CORES.branco, contornoEsp = 3, alinhar = Enum.TextXAlignment.Left })
+	local subtitulo = UI.texto(conteudo, "BATTLEGROUNDS", UDim2.fromOffset(330, 40), UDim2.fromOffset(30, 66), { cor = UI.CORES.branco, contornoEsp = 3, alinhar = Enum.TextXAlignment.Left })
+	-- AJUSTE-8: logo do jogo (recortado da imagem 1024x512) no lugar do texto, quando carregar
+	UI.imagemOpcional(conteudo, "logo", { Size = UDim2.fromOffset(272, 128), Position = UDim2.fromOffset(16, -12), ImageRectOffset = Vector2.new(40, 26), ImageRectSize = Vector2.new(980, 460), ZIndex = 6 }, function()
+		titulo.Visible = false
+		subtitulo.Visible = false
+	end)
 	UI.texto(conteudo, "escolha o seu Stand", UDim2.fromOffset(250, 24), UDim2.fromOffset(372, 82), { cor = Color3.fromRGB(210, 190, 255), alinhar = Enum.TextXAlignment.Left })
 	-- cartões
 	for i, id in Stands.ORDEM do
@@ -328,6 +446,7 @@ local function criar()
 	criarControles()
 	criarAjustes(aplicarAjustes)
 	statusTxt = UI.texto(conteudo, "", UDim2.fromOffset(500, 24), UDim2.fromOffset(580, 574), { cor = UI.CORES.dourado, limite = 20 })
+	criarAbertura()
 	-- AJUSTE7: o menu só fecha quando o servidor responde "ok" para ESTE pedido
 	local function entrar(modo: string)
 		local id = pedido.pedir(os.clock())

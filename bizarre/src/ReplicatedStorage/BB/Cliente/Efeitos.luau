@@ -1072,7 +1072,10 @@ function Efeitos.tempo(d: any)
 	tween(domo, 0.6, { Size = Vector3.new(d.raio * 2, d.raio * 2, d.raio * 2), Transparency = 1 }, Enum.EasingStyle.Quart)
 	Debris:AddItem(domo, 0.7)
 	if primeira then
-		Som.tocar("tempo_para", nil)
+		-- AJUSTE-8: o som de parar o tempo do anime já está tocando no grito da ULT
+		if not Som.vozPronta(d.somProprio) then
+			Som.tocar("tempo_para", nil)
+		end
 		Som.abafar(true)
 	end
 	Efeitos.onomatopeia(d.centro + Vector3.new(0, 4, 0), "O TEMPO PAROU", RGB(255, 220, 90), 1.6)

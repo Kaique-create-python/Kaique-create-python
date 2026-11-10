@@ -1,6 +1,7 @@
 -- BIZARRE BATTLEGROUNDS :: peças de interface reaproveitadas (botões, cantos, textos com contorno)
 
 local TweenService = game:GetService("TweenService")
+local ContentProvider = game:GetService("ContentProvider")
 
 local UI = {}
 
@@ -139,6 +140,78 @@ function UI.escalaTela(gui: ScreenGui, larguraBase: number, alturaBase: number, 
 	end
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(atualizar)
 	atualizar()
+	return esc
+end
+
+-- AJUSTE-8: artes do Canva (logo, fundo do menu e tela de carregamento). O instalador envia as
+-- imagens e grava os números em ReplicatedStorage.BB_Imagens ("logo fundo carregando"; 0 = sem).
+-- Enquanto o Roblox não liberar (moderação) a imagem não aparece e a interface de texto fica.
+UI.IMAGENS = { logo = 1, fundo = 2, carregando = 3 }
+
+function UI.imagem(nome: string): string?
+	local v = game:GetService("ReplicatedStorage"):FindFirstChild("BB_Imagens")
+	local n = UI.IMAGENS[nome]
+	if not v or not v:IsA("StringValue") or not n then
+		return nil
+	end
+	local i = 0
+	for id in string.gmatch(v.Value, "%d+") do
+		i += 1
+		if i == n then
+			return if id ~= "0" then "rbxassetid://" .. id else nil
+		end
+	end
+	return nil
+end
+
+-- imagem que só aparece quando carregou de verdade (se falhar, some sem deixar buraco)
+function UI.imagemOpcional(pai: Instance, nome: string, props: { [string]: any }, aoCarregar: any?): ImageLabel?
+	local id = UI.imagem(nome)
+	if not id then
+		return nil
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = "Arte_" .. nome
+	img.BackgroundTransparency = 1
+	local alvo: any = img
+	local transpFinal = 0
+	for k, v in props do
+		if k == "ImageTransparency" then
+			transpFinal = v
+		else
+			alvo[k] = v
+		end
+	end
+	img.Image = id
+	img.ImageTransparency = 1
+	img.Parent = pai
+	task.spawn(function()
+		local ok = false
+		pcall(function()
+			ContentProvider:PreloadAsync({ img }, function(_, status)
+				ok = status == Enum.AssetFetchStatus.Success
+			end)
+		end)
+		if not img.Parent then
+			return
+		end
+		if ok or img.IsLoaded then
+			TweenService:Create(img, TweenInfo.new(0.6), { ImageTransparency = transpFinal }):Play()
+			if aoCarregar then
+				aoCarregar(img)
+			end
+		else
+			img:Destroy()
+		end
+	end)
+	return img
+end
+
+-- zoom lento sem parar (a arte parece viva)
+function UI.zoomLento(obj: GuiObject, quanto: number?, dur: number?)
+	local esc = Instance.new("UIScale")
+	esc.Parent = obj
+	TweenService:Create(esc, TweenInfo.new(dur or 16, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1 + (quanto or 0.06) }):Play()
 	return esc
 end
 

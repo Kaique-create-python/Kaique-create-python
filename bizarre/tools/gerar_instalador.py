@@ -21,6 +21,8 @@ import zlib
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(RAIZ)
 MARCADOR_VOZES = b"BBVOZ" + b"_" * 59  # igual ao de montar_place.luau (64 letras)
+# AJUSTE-8: mais dois marcadores (sons do anime e imagens do Canva), todos no mesmo pedaço
+MARCADORES = [MARCADOR_VOZES, b"BBVZA" + b"_" * 59, b"BBIMG" + b"_" * 59]
 
 
 def lz4_bloco(src, tamanho):
@@ -82,24 +84,26 @@ def pedacos(dados):
 
 
 def descomprimir_marcador(dados):
-    """deixa sem compressão o pedaço que tem o marcador (o resto do arquivo fica igual)"""
+    """deixa sem compressão os pedaços que têm os marcadores (o resto do arquivo fica igual)"""
     saida = bytearray(dados[:32])
-    achou = 0
+    achou = {m: 0 for m in MARCADORES}
     for off, nome, clen, ulen, ini in pedacos(dados):
         bruto = dados[ini:ini + (clen if clen else ulen)]
         if clen and nome == b"PROP" and clen < 2_000_000:
             if bruto[:4] == b"\x28\xb5\x2f\xfd":
                 raise SystemExit("pedaço em ZSTD: atualize o gerador")
             cru = lz4_bloco(bruto, ulen)
-            if MARCADOR_VOZES in cru:
-                achou += cru.count(MARCADOR_VOZES)
+            if any(m in cru for m in MARCADORES):
+                for m in MARCADORES:
+                    achou[m] += cru.count(m)
                 saida += nome + struct.pack("<III", 0, len(cru), 0) + cru
                 continue
         saida += dados[off:ini] + bruto
-    if achou != 1:
-        raise SystemExit("o marcador das vozes apareceu %d vezes (precisa ser 1)" % achou)
-    if bytes(saida).count(MARCADOR_VOZES) != 1:
-        raise SystemExit("o marcador não ficou visível no arquivo")
+    for m, n in achou.items():
+        if n != 1:
+            raise SystemExit("o marcador %s apareceu %d vezes (precisa ser 1)" % (m[:5].decode(), n))
+        if bytes(saida).count(m) != 1:
+            raise SystemExit("o marcador %s não ficou visível no arquivo" % m[:5].decode())
     return bytes(saida)
 
 
@@ -160,6 +164,15 @@ def main():
     if os.path.isfile(vozes):
         ordem = json.load(open(os.path.join(RAIZ, "assets", "vozes_ordem.json")))
         entradas.append(("vozes.ogg", open(vozes, "rb").read(), {"audio": "vozes", "rotulo": "vozes dos Stands", "trechos": len(ordem)}))
+    # AJUSTE-8: sons do anime (áudio separado) e as artes do Canva (opcionais: nunca travam)
+    anime = os.path.join(RAIZ, "assets", "vozes_anime.ogg")
+    if os.path.isfile(anime):
+        ordem = json.load(open(os.path.join(RAIZ, "assets", "vozes_anime_ordem.json")))
+        entradas.append(("vozes_anime.ogg", open(anime, "rb").read(), {"audio": "anime", "rotulo": "sons do anime (ORA, MUDA, ZA WARUDO)", "trechos": len(ordem)}))
+    for arq, chave, rotulo in (("logo.png", "logo", "logo do jogo"), ("fundo_menu.jpg", "fundo", "fundo do menu"), ("carregando.jpg", "carregando", "tela de carregamento")):
+        caminho = os.path.join(RAIZ, "assets", "imagens", arq)
+        if os.path.isfile(caminho):
+            entradas.append((arq, open(caminho, "rb").read(), {"imagem": chave, "rotulo": rotulo}))
     manifesto = {}
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
