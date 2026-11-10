@@ -106,6 +106,19 @@ Spec.cases = {
 	{ input = "bombardiro crocodilo", expect = { events = { { concept = "croco_bomber" } }, eventCount = 1 } },
 	{ input = "goku contra freeza", expect = { links = { { type = "rivals" } }, secrets = { "energy_clash" } } },
 
+	{ input = "luffy", expect = { events = { { concept = "rubber_pirate" } } } },
+	{ input = "tanjiro", expect = { events = { { concept = "demon_hunter" } } } },
+	{ input = "gojo", expect = { events = { { concept = "curse_sorcerer" } } } },
+	{ input = "ataque dos titãs", expect = { events = { { concept = "titan_giant" } } } },
+	{ input = "bob esponja e patrick", expect = { events = { { concept = "sea_sponge" }, { concept = "starfish" } }, secrets = { "beach_buddies" } } },
+	{ input = "ben 10", expect = { events = { { concept = "alien_watch_hero" } }, eventCount = 1 } },
+	{ input = "enderman", expect = { events = { { concept = "tall_shadow" } } } },
+	{ input = "vingadores", expect = { events = { { concept = "caped_flyer" } } } },
+	{ input = "circo", expect = { events = { { concept = "clown" } } } },
+	{ input = "tanjiro contra titã", expect = { links = { { type = "rivals" } }, secrets = { "titan_slayer" } } },
+	{ input = "zebra", expect = { events = { { concept = "zebra" } } } },
+	{ input = "pernalonga", expect = { events = { { concept = "rabbit" } } } },
+
 	-- sagrado: respeitoso, sem combate, sem modificadores
 	{ input = "Jesus", expect = { events = { { concept = "jesus" } }, eventCount = 1 } },
 	{ input = "jesus explode", expect = { events = { { concept = "jesus", chain = {} } }, eventCount = 1 } },

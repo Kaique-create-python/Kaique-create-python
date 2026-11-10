@@ -215,6 +215,129 @@ return {
 		model = "figure", variant = "giant_man", faction = N, hp = 2600, speed = 14, dmg = 32, size = 3, attacks = { "stomp", "melee" },
 	}, { "humanoid", "giant" }, { maxCount = 2, lifetime = 80 }),
 
+	-- MAIS ANIME (versões originais) -----------------------------------------------
+	npc("rubber_pirate", "Pirata Elástico", "m", { "pirata elastico", "luffy", "one piece", "monkey d luffy", "zoro", "nami", "pirata de borracha", "homem borracha" }, {
+		model = "figure", variant = "rubber_pirate", faction = A, hp = 900, speed = 24, dmg = 22, attacks = { "stretch_punch", "melee", "charge" },
+	}, { "good", "humanoid", "hero", "anime" }, { maxCount = 3 }),
+	npc("demon_hunter", "Caçador de Demônios", "m", { "cacador de demonios", "demon slayer", "kimetsu", "kimetsu no yaiba", "tanjiro", "nezuko", "zenitsu", "inosuke", "hashira" }, {
+		model = "figure", variant = "demon_hunter", faction = A, hp = 800, speed = 26, dmg = 22, element = "water", attacks = { "water_slash", "melee", "charge" },
+	}, { "good", "humanoid", "warrior", "anime" }, { maxCount = 3 }),
+	npc("curse_sorcerer", "Feiticeiro Amaldiçoado", "m", { "feiticeiro amaldicoado", "jujutsu kaisen", "jujutsu", "jjk", "gojo", "satoru gojo", "itadori", "yuji itadori", "sukuna", "megumi" }, {
+		model = "figure", variant = "curse_sorcerer", faction = A, hp = 1000, speed = 24, dmg = 24, element = "shadow", attacks = { "energy_beam", "blink", "melee" }, aura = true,
+	}, { "good", "humanoid", "magic", "anime" }, { maxCount = 2 }),
+	npc("titan_giant", "Titã Colossal", "m", { "tita colossal", "tita", "titan", "titas", "ataque dos titas", "attack on titan", "shingeki", "shingeki no kyojin", "eren", "eren yeager" }, {
+		model = "figure", variant = "titan_giant", faction = H, hp = 4200, speed = 12, dmg = 40, size = 4, attacks = { "stomp", "melee" },
+	}, { "evil", "humanoid", "giant", "monster", "anime" }, { maxCount = 1, lifetime = 90 }),
+	npc("hero_student", "Aluno Herói", "m", { "aluno heroi", "my hero academia", "boku no hero", "deku", "izuku", "all might", "bakugo", "todoroki", "escola de herois" }, {
+		model = "figure", variant = "hero_student", faction = A, hp = 800, speed = 26, dmg = 22, element = "electric", attacks = { "stretch_punch", "charge", "melee" }, aura = true,
+	}, { "good", "humanoid", "hero", "anime" }, { maxCount = 3 }),
+	npc("soul_reaper", "Ceifador de Almas", "m", { "ceifador de almas", "bleach", "ichigo", "ichigo kurosaki", "ceifador", "shinigami", "zanpakuto" }, {
+		model = "figure", variant = "soul_reaper", faction = A, hp = 1000, speed = 26, dmg = 24, element = "shadow", attacks = { "energy_beam", "water_slash", "melee" },
+	}, { "good", "humanoid", "warrior", "anime" }, { maxCount = 2 }),
+	npc("moon_warrior", "Guerreira da Lua", "f", { "guerreira da lua", "sailor moon", "guerreira lunar", "garota magica", "magical girl" }, {
+		model = "figure", variant = "moon_warrior", faction = A, hp = 600, speed = 24, dmg = 18, element = "light", attacks = { "bolt", "heal" }, fly = true,
+	}, { "good", "humanoid", "magic", "anime" }, { maxCount = 3 }),
+	npc("robot_cat", "Gato Robô do Futuro", "m", { "gato robo do futuro", "gato robo", "doraemon", "gato do futuro" }, {
+		model = "figure", variant = "robot_cat", faction = "pet", hp = 500, speed = 18, dmg = 10, attacks = { "gift", "bolt" }, giftKind = "food",
+	}, { "good", "machine", "cute" }, { maxCount = 2 }),
+	npc("chainsaw_man", "Homem Motosserra", "m", { "homem motosserra", "chainsaw man", "denji", "motosserra humana" }, {
+		model = "figure", variant = "chainsaw_man", faction = A, hp = 900, speed = 24, dmg = 26, attacks = { "melee", "charge" },
+	}, { "humanoid", "warrior", "anime" }, { maxCount = 2 }),
+	npc("monster_trainer", "Treinador de Monstrinhos", "m", { "treinador de monstrinhos", "treinador pokemon", "treinador de pokemon", "ash", "ash ketchum", "mestre pokemon" }, {
+		model = "figure", variant = "monster_trainer", faction = A, hp = 300, speed = 20, dmg = 6, attacks = { "summon", "melee" }, summon = { "electric_mouse", "dragon", "turtle", "fox" },
+	}, { "good", "humanoid", "anime" }, { maxCount = 2 }),
+	npc("nine_tail_fox", "Raposa de Nove Caudas", "f", { "raposa de nove caudas", "kurama", "kyuubi", "nove caudas", "raposa demonio" }, {
+		model = "quadruped", variant = "fox", faction = H, hp = 2600, speed = 26, dmg = 30, size = 3, element = "fire", attacks = { "breath", "charge", "melee" },
+	}, { "beast", "monster", "evil", "anime" }, { maxCount = 1, lifetime = 85 }),
+
+	-- DESENHOS (versões originais) ----------------------------------------------------
+	npc("alien_watch_hero", "Herói Alienígena", "m", { "heroi alienigena", "ben 10", "ben ten", "omnitrix", "relogio alienigena" }, {
+		model = "figure", variant = "alien_watch_hero", faction = A, hp = 500, speed = 22, dmg = 16, attacks = { "summon", "melee" }, summon = { "alien", "golem", "werewolf", "dinosaur", "robot" },
+	}, { "good", "humanoid", "hero" }, { maxCount = 2 }),
+	npc("sea_sponge", "Esponja do Mar", "f", { "esponja do mar", "bob esponja", "spongebob", "esponja" }, {
+		model = "meme", variant = "sea_sponge", faction = N, hp = 300, speed = 20, dmg = 8, element = "water", attacks = { "bolt", "sing" },
+	}, { "funny", "water", "cute" }, { maxCount = 4 }),
+	npc("starfish", "Estrela-do-Mar", "f", { "estrela do mar", "patrick", "patrick estrela", "starfish" }, {
+		model = "meme", variant = "starfish", faction = N, hp = 260, speed = 12, dmg = 10, attacks = { "melee" },
+	}, { "funny", "water", "animal" }, { maxCount = 6 }),
+	npc("woodpecker", "Pica-Pau Maluco", "m", { "pica pau maluco", "pica pau", "woodpecker", "passaro maluco" }, {
+		model = "bird", variant = "woodpecker", faction = N, hp = 120, speed = 26, dmg = 8, fly = true, attacks = { "melee", "charge" }, size = 0.9,
+	}, { "animal", "flying", "funny" }, { maxCount = 6 }),
+	npc("bunny_girl", "Menina do Coelhinho", "f", { "menina do coelhinho", "monica", "turma da monica", "sansao", "menina forte" }, {
+		model = "figure", variant = "bunny_girl", faction = A, hp = 600, speed = 22, dmg = 30, attacks = { "super_punch", "melee" },
+	}, { "good", "humanoid", "funny" }, { maxCount = 2 }),
+
+	-- GAMES DE TERROR (versões originais) ------------------------------------------------
+	npc("tall_shadow", "Sombra Alta", "m", { "sombra alta", "enderman", "slenderman", "slender", "siren head", "homem alto", "sombra" }, {
+		model = "figure", variant = "tall_shadow", faction = H, hp = 600, speed = 18, dmg = 18, element = "shadow", attacks = { "blink", "melee" }, size = 1.4,
+	}, { "evil", "monster", "humanoid" }, { maxCount = 3 }),
+	npc("scary_granny", "Vovó Assustadora", "f", { "vovo assustadora", "granny", "vovo malvada", "velha assustadora" }, {
+		model = "figure", variant = "scary_granny", faction = H, hp = 500, speed = 16, dmg = 20, attacks = { "melee", "charge" },
+	}, { "evil", "monster", "humanoid" }, { maxCount = 2 }),
+
+	-- VIDA REAL ---------------------------------------------------------------------------
+	npc("boxer", "Lutador de Boxe", "m", { "lutador de boxe", "boxeador", "boxe", "lutador", "lutador de mma", "mma", "ufc", "boxer", "fighter" }, {
+		model = "figure", variant = "boxer", faction = A, hp = 700, speed = 22, dmg = 26, attacks = { "melee", "charge" },
+	}, { "good", "humanoid", "sport" }, { maxCount = 4 }),
+	npc("singer", "Cantor", "m", { "cantor", "cantora", "rockstar", "estrela do rock", "rapper", "funkeiro", "mc", "pop star", "popstar", "artista" }, {
+		model = "figure", variant = "singer", faction = N, hp = 250, speed = 18, dmg = 6, attacks = { "sing" },
+	}, { "humanoid", "music", "funny" }, { maxCount = 3 }),
+	npc("dj", "DJ", "m", { "dj", "deejay", "dj de festa" }, {
+		model = "figure", variant = "dj", faction = N, hp = 250, speed = 16, dmg = 6, attacks = { "sing" }, behavior = "dance",
+	}, { "humanoid", "music" }, { maxCount = 2 }),
+	npc("skater", "Skatista", "m", { "skatista", "skater" }, {
+		model = "figure", variant = "skater", faction = N, hp = 220, speed = 32, dmg = 8, attacks = { "charge", "melee" },
+	}, { "humanoid", "sport" }, { maxCount = 5 }),
+	npc("surfer", "Surfista", "m", { "surfista", "surf", "surfer", "prancha de surf" }, {
+		model = "figure", variant = "surfer", faction = N, hp = 220, speed = 22, dmg = 8, element = "water", attacks = { "melee" },
+	}, { "humanoid", "sport", "water" }, { maxCount = 5 }),
+	npc("magician", "Mágico", "m", { "magico", "ilusionista", "magician", "magico de cartola" }, {
+		model = "figure", variant = "magician", faction = A, hp = 300, speed = 18, dmg = 12, element = "light", attacks = { "summon", "bolt" }, summon = { "rabbit", "bird", "dog" },
+	}, { "good", "humanoid", "magic" }, { maxCount = 3 }),
+	npc("gamer", "Gamer", "m", { "gamer", "youtuber", "streamer", "influencer", "tiktoker", "jogador de videogame", "pro player" }, {
+		model = "figure", variant = "gamer", faction = N, hp = 200, speed = 20, dmg = 6, attacks = { "gift", "melee" }, giftKind = "food",
+	}, { "humanoid", "funny" }, { maxCount = 4 }),
+	npc("builder", "Pedreiro", "m", { "pedreiro", "construtor", "engenheiro", "obreiro", "trabalhador" }, {
+		model = "figure", variant = "builder", faction = N, hp = 300, speed = 16, dmg = 14, attacks = { "melee" },
+	}, { "humanoid" }, { maxCount = 5 }),
+	npc("ballerina", "Bailarina", "f", { "bailarina", "ballerina", "bailarino", "dancarina de bale" }, {
+		model = "figure", variant = "ballerina", faction = N, hp = 220, speed = 22, dmg = 8, attacks = { "whirlwind" },
+	}, { "humanoid", "music", "cute" }, { maxCount = 4 }),
+	npc("basketball_player", "Jogador de Basquete", "m", { "jogador de basquete", "basquete", "basquetebol", "nba", "michael jordan", "lebron", "lebron james" }, {
+		model = "figure", variant = "basketball_player", faction = N, hp = 260, speed = 26, dmg = 6, attacks = { "gift" }, giftKind = "ball",
+	}, { "humanoid", "sport" }, { maxCount = 5 }),
+	npc("grandma", "Vovó", "f", { "vovo", "avo", "vovozinha", "grandma", "vovo fofa", "avozinha" }, {
+		model = "figure", variant = "grandma", faction = A, hp = 200, speed = 10, dmg = 2, attacks = { "gift", "heal" }, giftKind = "food",
+	}, { "good", "humanoid", "cute" }, { maxCount = 2 }),
+	npc("giant_baby", "Bebê Gigante", "m", { "bebe gigante", "bebezao", "nenem gigante", "giant baby" }, {
+		model = "figure", variant = "giant_baby", faction = N, hp = 1500, speed = 10, dmg = 20, size = 2.6, attacks = { "stomp" },
+	}, { "humanoid", "giant", "funny" }, { maxCount = 1 }),
+
+	-- MAIS ANIMAIS -----------------------------------------------------------------------
+	npc("zebra", "Zebra", "f", { "zebra", "zebras" }, { model = "quadruped", variant = "zebra", faction = N, hp = 240, speed = 26, dmg = 10, attacks = { "charge" }, size = 1.1 }, { "animal", "prey" }, { maxCount = 8 }),
+	npc("hippo", "Hipopótamo", "m", { "hipopotamo", "hipo", "hippo", "hipopotamos" }, { model = "quadruped", variant = "hippo", faction = N, hp = 900, speed = 12, dmg = 22, attacks = { "charge", "melee" }, size = 1.5 }, { "animal", "giant", "water" }, { maxCount = 3 }),
+	npc("koala", "Coala", "m", { "coala", "koala", "coalas" }, { model = "quadruped", variant = "koala", faction = N, hp = 120, speed = 8, dmg = 3, attacks = { "melee" }, size = 0.6 }, { "animal", "cute" }, { maxCount = 8 }),
+	npc("camel", "Camelo", "m", { "camelo", "dromedario", "camel", "camelos" }, { model = "quadruped", variant = "camel", faction = N, hp = 400, speed = 18, dmg = 8, attacks = { "charge" }, size = 1.3 }, { "animal", "desert" }, { maxCount = 5 }),
+	npc("llama", "Lhama", "f", { "lhama", "alpaca", "llama", "lhamas" }, { model = "quadruped", variant = "llama", faction = N, hp = 200, speed = 18, dmg = 4, attacks = { "bolt", "melee" }, size = 1 }, { "animal", "cute" }, { maxCount = 8 }),
+	npc("hyena", "Hiena", "f", { "hiena", "hyena", "hienas" }, { model = "quadruped", variant = "hyena", faction = H, hp = 160, speed = 24, dmg = 11, attacks = { "melee", "charge" }, size = 0.95 }, { "animal", "beast", "predator" }, { maxCount = 8 }),
+	npc("cheetah", "Guepardo", "m", { "guepardo", "chita", "cheetah", "guepardos" }, { model = "quadruped", variant = "cheetah", faction = H, hp = 200, speed = 40, dmg = 14, attacks = { "charge", "melee" }, size = 1 }, { "animal", "beast", "predator" }, { maxCount = 5 }),
+	npc("anteater", "Tamanduá", "m", { "tamandua", "tamandua bandeira", "anteater" }, { model = "quadruped", variant = "anteater", faction = N, hp = 260, speed = 12, dmg = 10, attacks = { "melee" }, size = 1 }, { "animal", "brazil" }, { maxCount = 5 }),
+	npc("armadillo", "Tatu", "m", { "tatu", "tatu bola", "armadillo", "tatus" }, { model = "quadruped", variant = "armadillo", faction = N, hp = 300, speed = 14, dmg = 6, attacks = { "charge" }, size = 0.7 }, { "animal", "brazil", "cute" }, { maxCount = 8 }),
+
+	-- COMBINAÇÕES PRONTAS --------------------------------------------------------------
+	{ id = "circus", label = "Circo", gender = "m", category = "disaster", handler = "composite", aliases = { "circo", "circus", "show de circo", "picadeiro" },
+		params = { compose = { { id = "clown", count = 3 }, { id = "lion", count = 1 }, { id = "elephant", count = 1 }, { id = "party", count = 1 } } }, tags = { "fun" }, maxCount = 1, lifetime = 70 },
+	{ id = "world_cup", label = "Copa do Mundo", gender = "f", category = "disaster", handler = "composite", aliases = { "copa do mundo", "copa", "final da copa", "partida de futebol", "jogo de futebol" },
+		params = { compose = { { id = "footballer", count = 6 }, { id = "fireworks", count = 1 } } }, tags = { "sport" }, maxCount = 1, lifetime = 70 },
+	{ id = "anime_battle", label = "Batalha de Anime", gender = "f", category = "disaster", handler = "composite", aliases = { "batalha de anime", "luta de anime", "anime battle", "torneio de anime" },
+		params = { compose = { { id = "energy_warrior", count = 1 }, { id = "energy_tyrant", count = 1 } }, links = { { type = "rivals", a = 1, b = 2 } } }, tags = { "anime" }, maxCount = 1, lifetime = 80 },
+	{ id = "birthday_party", label = "Festa de Aniversário", gender = "f", category = "disaster", handler = "composite", aliases = { "festa de aniversario", "parabens", "parabens pra voce", "happy birthday" },
+		params = { compose = { { id = "cake", count = 1 }, { id = "party", count = 1 }, { id = "gift", count = 3 } } }, tags = { "fun" }, maxCount = 1, lifetime = 60 },
+	{ id = "meme_apocalypse", label = "Apocalipse dos Memes", gender = "m", category = "disaster", handler = "composite", aliases = { "apocalipse dos memes", "brainrot", "italian brainrot", "memes italianos", "invasao de memes" },
+		params = { compose = { { id = "tum_tum_log", count = 2 }, { id = "skate_shark", count = 1 }, { id = "croco_bomber", count = 1 } } }, tags = { "funny" }, maxCount = 1, lifetime = 70 },
+	{ id = "hero_team", label = "Equipe de Heróis", gender = "f", category = "disaster", handler = "composite", aliases = { "equipe de herois", "vingadores", "avengers", "liga da justica", "justice league", "time de herois" },
+		params = { compose = { { id = "caped_flyer", count = 1 }, { id = "bat_hero", count = 1 }, { id = "amazon_warrior", count = 1 }, { id = "spider_hero", count = 1 } } }, tags = { "hero" }, maxCount = 1, lifetime = 80 },
+
 	-- NOME DESCONHECIDO: personagem com o nome digitado (filtrado pelo Roblox) --
 	npc("mystery_person", "Personagem Misterioso", "m", { "personagem misterioso", "personagem", "pessoa misteriosa", "desconhecido" }, {
 		model = "figure", variant = "custom", faction = N, hp = 260, speed = 18, dmg = 10, attacks = { "melee" },

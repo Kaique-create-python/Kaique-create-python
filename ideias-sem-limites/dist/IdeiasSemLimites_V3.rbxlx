@@ -512,6 +512,129 @@ return {
 		model = "figure", variant = "giant_man", faction = N, hp = 2600, speed = 14, dmg = 32, size = 3, attacks = { "stomp", "melee" },
 	}, { "humanoid", "giant" }, { maxCount = 2, lifetime = 80 }),
 
+	-- MAIS ANIME (versões originais) -----------------------------------------------
+	npc("rubber_pirate", "Pirata Elástico", "m", { "pirata elastico", "luffy", "one piece", "monkey d luffy", "zoro", "nami", "pirata de borracha", "homem borracha" }, {
+		model = "figure", variant = "rubber_pirate", faction = A, hp = 900, speed = 24, dmg = 22, attacks = { "stretch_punch", "melee", "charge" },
+	}, { "good", "humanoid", "hero", "anime" }, { maxCount = 3 }),
+	npc("demon_hunter", "Caçador de Demônios", "m", { "cacador de demonios", "demon slayer", "kimetsu", "kimetsu no yaiba", "tanjiro", "nezuko", "zenitsu", "inosuke", "hashira" }, {
+		model = "figure", variant = "demon_hunter", faction = A, hp = 800, speed = 26, dmg = 22, element = "water", attacks = { "water_slash", "melee", "charge" },
+	}, { "good", "humanoid", "warrior", "anime" }, { maxCount = 3 }),
+	npc("curse_sorcerer", "Feiticeiro Amaldiçoado", "m", { "feiticeiro amaldicoado", "jujutsu kaisen", "jujutsu", "jjk", "gojo", "satoru gojo", "itadori", "yuji itadori", "sukuna", "megumi" }, {
+		model = "figure", variant = "curse_sorcerer", faction = A, hp = 1000, speed = 24, dmg = 24, element = "shadow", attacks = { "energy_beam", "blink", "melee" }, aura = true,
+	}, { "good", "humanoid", "magic", "anime" }, { maxCount = 2 }),
+	npc("titan_giant", "Titã Colossal", "m", { "tita colossal", "tita", "titan", "titas", "ataque dos titas", "attack on titan", "shingeki", "shingeki no kyojin", "eren", "eren yeager" }, {
+		model = "figure", variant = "titan_giant", faction = H, hp = 4200, speed = 12, dmg = 40, size = 4, attacks = { "stomp", "melee" },
+	}, { "evil", "humanoid", "giant", "monster", "anime" }, { maxCount = 1, lifetime = 90 }),
+	npc("hero_student", "Aluno Herói", "m", { "aluno heroi", "my hero academia", "boku no hero", "deku", "izuku", "all might", "bakugo", "todoroki", "escola de herois" }, {
+		model = "figure", variant = "hero_student", faction = A, hp = 800, speed = 26, dmg = 22, element = "electric", attacks = { "stretch_punch", "charge", "melee" }, aura = true,
+	}, { "good", "humanoid", "hero", "anime" }, { maxCount = 3 }),
+	npc("soul_reaper", "Ceifador de Almas", "m", { "ceifador de almas", "bleach", "ichigo", "ichigo kurosaki", "ceifador", "shinigami", "zanpakuto" }, {
+		model = "figure", variant = "soul_reaper", faction = A, hp = 1000, speed = 26, dmg = 24, element = "shadow", attacks = { "energy_beam", "water_slash", "melee" },
+	}, { "good", "humanoid", "warrior", "anime" }, { maxCount = 2 }),
+	npc("moon_warrior", "Guerreira da Lua", "f", { "guerreira da lua", "sailor moon", "guerreira lunar", "garota magica", "magical girl" }, {
+		model = "figure", variant = "moon_warrior", faction = A, hp = 600, speed = 24, dmg = 18, element = "light", attacks = { "bolt", "heal" }, fly = true,
+	}, { "good", "humanoid", "magic", "anime" }, { maxCount = 3 }),
+	npc("robot_cat", "Gato Robô do Futuro", "m", { "gato robo do futuro", "gato robo", "doraemon", "gato do futuro" }, {
+		model = "figure", variant = "robot_cat", faction = "pet", hp = 500, speed = 18, dmg = 10, attacks = { "gift", "bolt" }, giftKind = "food",
+	}, { "good", "machine", "cute" }, { maxCount = 2 }),
+	npc("chainsaw_man", "Homem Motosserra", "m", { "homem motosserra", "chainsaw man", "denji", "motosserra humana" }, {
+		model = "figure", variant = "chainsaw_man", faction = A, hp = 900, speed = 24, dmg = 26, attacks = { "melee", "charge" },
+	}, { "humanoid", "warrior", "anime" }, { maxCount = 2 }),
+	npc("monster_trainer", "Treinador de Monstrinhos", "m", { "treinador de monstrinhos", "treinador pokemon", "treinador de pokemon", "ash", "ash ketchum", "mestre pokemon" }, {
+		model = "figure", variant = "monster_trainer", faction = A, hp = 300, speed = 20, dmg = 6, attacks = { "summon", "melee" }, summon = { "electric_mouse", "dragon", "turtle", "fox" },
+	}, { "good", "humanoid", "anime" }, { maxCount = 2 }),
+	npc("nine_tail_fox", "Raposa de Nove Caudas", "f", { "raposa de nove caudas", "kurama", "kyuubi", "nove caudas", "raposa demonio" }, {
+		model = "quadruped", variant = "fox", faction = H, hp = 2600, speed = 26, dmg = 30, size = 3, element = "fire", attacks = { "breath", "charge", "melee" },
+	}, { "beast", "monster", "evil", "anime" }, { maxCount = 1, lifetime = 85 }),
+
+	-- DESENHOS (versões originais) ----------------------------------------------------
+	npc("alien_watch_hero", "Herói Alienígena", "m", { "heroi alienigena", "ben 10", "ben ten", "omnitrix", "relogio alienigena" }, {
+		model = "figure", variant = "alien_watch_hero", faction = A, hp = 500, speed = 22, dmg = 16, attacks = { "summon", "melee" }, summon = { "alien", "golem", "werewolf", "dinosaur", "robot" },
+	}, { "good", "humanoid", "hero" }, { maxCount = 2 }),
+	npc("sea_sponge", "Esponja do Mar", "f", { "esponja do mar", "bob esponja", "spongebob", "esponja" }, {
+		model = "meme", variant = "sea_sponge", faction = N, hp = 300, speed = 20, dmg = 8, element = "water", attacks = { "bolt", "sing" },
+	}, { "funny", "water", "cute" }, { maxCount = 4 }),
+	npc("starfish", "Estrela-do-Mar", "f", { "estrela do mar", "patrick", "patrick estrela", "starfish" }, {
+		model = "meme", variant = "starfish", faction = N, hp = 260, speed = 12, dmg = 10, attacks = { "melee" },
+	}, { "funny", "water", "animal" }, { maxCount = 6 }),
+	npc("woodpecker", "Pica-Pau Maluco", "m", { "pica pau maluco", "pica pau", "woodpecker", "passaro maluco" }, {
+		model = "bird", variant = "woodpecker", faction = N, hp = 120, speed = 26, dmg = 8, fly = true, attacks = { "melee", "charge" }, size = 0.9,
+	}, { "animal", "flying", "funny" }, { maxCount = 6 }),
+	npc("bunny_girl", "Menina do Coelhinho", "f", { "menina do coelhinho", "monica", "turma da monica", "sansao", "menina forte" }, {
+		model = "figure", variant = "bunny_girl", faction = A, hp = 600, speed = 22, dmg = 30, attacks = { "super_punch", "melee" },
+	}, { "good", "humanoid", "funny" }, { maxCount = 2 }),
+
+	-- GAMES DE TERROR (versões originais) ------------------------------------------------
+	npc("tall_shadow", "Sombra Alta", "m", { "sombra alta", "enderman", "slenderman", "slender", "siren head", "homem alto", "sombra" }, {
+		model = "figure", variant = "tall_shadow", faction = H, hp = 600, speed = 18, dmg = 18, element = "shadow", attacks = { "blink", "melee" }, size = 1.4,
+	}, { "evil", "monster", "humanoid" }, { maxCount = 3 }),
+	npc("scary_granny", "Vovó Assustadora", "f", { "vovo assustadora", "granny", "vovo malvada", "velha assustadora" }, {
+		model = "figure", variant = "scary_granny", faction = H, hp = 500, speed = 16, dmg = 20, attacks = { "melee", "charge" },
+	}, { "evil", "monster", "humanoid" }, { maxCount = 2 }),
+
+	-- VIDA REAL ---------------------------------------------------------------------------
+	npc("boxer", "Lutador de Boxe", "m", { "lutador de boxe", "boxeador", "boxe", "lutador", "lutador de mma", "mma", "ufc", "boxer", "fighter" }, {
+		model = "figure", variant = "boxer", faction = A, hp = 700, speed = 22, dmg = 26, attacks = { "melee", "charge" },
+	}, { "good", "humanoid", "sport" }, { maxCount = 4 }),
+	npc("singer", "Cantor", "m", { "cantor", "cantora", "rockstar", "estrela do rock", "rapper", "funkeiro", "mc", "pop star", "popstar", "artista" }, {
+		model = "figure", variant = "singer", faction = N, hp = 250, speed = 18, dmg = 6, attacks = { "sing" },
+	}, { "humanoid", "music", "funny" }, { maxCount = 3 }),
+	npc("dj", "DJ", "m", { "dj", "deejay", "dj de festa" }, {
+		model = "figure", variant = "dj", faction = N, hp = 250, speed = 16, dmg = 6, attacks = { "sing" }, behavior = "dance",
+	}, { "humanoid", "music" }, { maxCount = 2 }),
+	npc("skater", "Skatista", "m", { "skatista", "skater" }, {
+		model = "figure", variant = "skater", faction = N, hp = 220, speed = 32, dmg = 8, attacks = { "charge", "melee" },
+	}, { "humanoid", "sport" }, { maxCount = 5 }),
+	npc("surfer", "Surfista", "m", { "surfista", "surf", "surfer", "prancha de surf" }, {
+		model = "figure", variant = "surfer", faction = N, hp = 220, speed = 22, dmg = 8, element = "water", attacks = { "melee" },
+	}, { "humanoid", "sport", "water" }, { maxCount = 5 }),
+	npc("magician", "Mágico", "m", { "magico", "ilusionista", "magician", "magico de cartola" }, {
+		model = "figure", variant = "magician", faction = A, hp = 300, speed = 18, dmg = 12, element = "light", attacks = { "summon", "bolt" }, summon = { "rabbit", "bird", "dog" },
+	}, { "good", "humanoid", "magic" }, { maxCount = 3 }),
+	npc("gamer", "Gamer", "m", { "gamer", "youtuber", "streamer", "influencer", "tiktoker", "jogador de videogame", "pro player" }, {
+		model = "figure", variant = "gamer", faction = N, hp = 200, speed = 20, dmg = 6, attacks = { "gift", "melee" }, giftKind = "food",
+	}, { "humanoid", "funny" }, { maxCount = 4 }),
+	npc("builder", "Pedreiro", "m", { "pedreiro", "construtor", "engenheiro", "obreiro", "trabalhador" }, {
+		model = "figure", variant = "builder", faction = N, hp = 300, speed = 16, dmg = 14, attacks = { "melee" },
+	}, { "humanoid" }, { maxCount = 5 }),
+	npc("ballerina", "Bailarina", "f", { "bailarina", "ballerina", "bailarino", "dancarina de bale" }, {
+		model = "figure", variant = "ballerina", faction = N, hp = 220, speed = 22, dmg = 8, attacks = { "whirlwind" },
+	}, { "humanoid", "music", "cute" }, { maxCount = 4 }),
+	npc("basketball_player", "Jogador de Basquete", "m", { "jogador de basquete", "basquete", "basquetebol", "nba", "michael jordan", "lebron", "lebron james" }, {
+		model = "figure", variant = "basketball_player", faction = N, hp = 260, speed = 26, dmg = 6, attacks = { "gift" }, giftKind = "ball",
+	}, { "humanoid", "sport" }, { maxCount = 5 }),
+	npc("grandma", "Vovó", "f", { "vovo", "avo", "vovozinha", "grandma", "vovo fofa", "avozinha" }, {
+		model = "figure", variant = "grandma", faction = A, hp = 200, speed = 10, dmg = 2, attacks = { "gift", "heal" }, giftKind = "food",
+	}, { "good", "humanoid", "cute" }, { maxCount = 2 }),
+	npc("giant_baby", "Bebê Gigante", "m", { "bebe gigante", "bebezao", "nenem gigante", "giant baby" }, {
+		model = "figure", variant = "giant_baby", faction = N, hp = 1500, speed = 10, dmg = 20, size = 2.6, attacks = { "stomp" },
+	}, { "humanoid", "giant", "funny" }, { maxCount = 1 }),
+
+	-- MAIS ANIMAIS -----------------------------------------------------------------------
+	npc("zebra", "Zebra", "f", { "zebra", "zebras" }, { model = "quadruped", variant = "zebra", faction = N, hp = 240, speed = 26, dmg = 10, attacks = { "charge" }, size = 1.1 }, { "animal", "prey" }, { maxCount = 8 }),
+	npc("hippo", "Hipopótamo", "m", { "hipopotamo", "hipo", "hippo", "hipopotamos" }, { model = "quadruped", variant = "hippo", faction = N, hp = 900, speed = 12, dmg = 22, attacks = { "charge", "melee" }, size = 1.5 }, { "animal", "giant", "water" }, { maxCount = 3 }),
+	npc("koala", "Coala", "m", { "coala", "koala", "coalas" }, { model = "quadruped", variant = "koala", faction = N, hp = 120, speed = 8, dmg = 3, attacks = { "melee" }, size = 0.6 }, { "animal", "cute" }, { maxCount = 8 }),
+	npc("camel", "Camelo", "m", { "camelo", "dromedario", "camel", "camelos" }, { model = "quadruped", variant = "camel", faction = N, hp = 400, speed = 18, dmg = 8, attacks = { "charge" }, size = 1.3 }, { "animal", "desert" }, { maxCount = 5 }),
+	npc("llama", "Lhama", "f", { "lhama", "alpaca", "llama", "lhamas" }, { model = "quadruped", variant = "llama", faction = N, hp = 200, speed = 18, dmg = 4, attacks = { "bolt", "melee" }, size = 1 }, { "animal", "cute" }, { maxCount = 8 }),
+	npc("hyena", "Hiena", "f", { "hiena", "hyena", "hienas" }, { model = "quadruped", variant = "hyena", faction = H, hp = 160, speed = 24, dmg = 11, attacks = { "melee", "charge" }, size = 0.95 }, { "animal", "beast", "predator" }, { maxCount = 8 }),
+	npc("cheetah", "Guepardo", "m", { "guepardo", "chita", "cheetah", "guepardos" }, { model = "quadruped", variant = "cheetah", faction = H, hp = 200, speed = 40, dmg = 14, attacks = { "charge", "melee" }, size = 1 }, { "animal", "beast", "predator" }, { maxCount = 5 }),
+	npc("anteater", "Tamanduá", "m", { "tamandua", "tamandua bandeira", "anteater" }, { model = "quadruped", variant = "anteater", faction = N, hp = 260, speed = 12, dmg = 10, attacks = { "melee" }, size = 1 }, { "animal", "brazil" }, { maxCount = 5 }),
+	npc("armadillo", "Tatu", "m", { "tatu", "tatu bola", "armadillo", "tatus" }, { model = "quadruped", variant = "armadillo", faction = N, hp = 300, speed = 14, dmg = 6, attacks = { "charge" }, size = 0.7 }, { "animal", "brazil", "cute" }, { maxCount = 8 }),
+
+	-- COMBINAÇÕES PRONTAS --------------------------------------------------------------
+	{ id = "circus", label = "Circo", gender = "m", category = "disaster", handler = "composite", aliases = { "circo", "circus", "show de circo", "picadeiro" },
+		params = { compose = { { id = "clown", count = 3 }, { id = "lion", count = 1 }, { id = "elephant", count = 1 }, { id = "party", count = 1 } } }, tags = { "fun" }, maxCount = 1, lifetime = 70 },
+	{ id = "world_cup", label = "Copa do Mundo", gender = "f", category = "disaster", handler = "composite", aliases = { "copa do mundo", "copa", "final da copa", "partida de futebol", "jogo de futebol" },
+		params = { compose = { { id = "footballer", count = 6 }, { id = "fireworks", count = 1 } } }, tags = { "sport" }, maxCount = 1, lifetime = 70 },
+	{ id = "anime_battle", label = "Batalha de Anime", gender = "f", category = "disaster", handler = "composite", aliases = { "batalha de anime", "luta de anime", "anime battle", "torneio de anime" },
+		params = { compose = { { id = "energy_warrior", count = 1 }, { id = "energy_tyrant", count = 1 } }, links = { { type = "rivals", a = 1, b = 2 } } }, tags = { "anime" }, maxCount = 1, lifetime = 80 },
+	{ id = "birthday_party", label = "Festa de Aniversário", gender = "f", category = "disaster", handler = "composite", aliases = { "festa de aniversario", "parabens", "parabens pra voce", "happy birthday" },
+		params = { compose = { { id = "cake", count = 1 }, { id = "party", count = 1 }, { id = "gift", count = 3 } } }, tags = { "fun" }, maxCount = 1, lifetime = 60 },
+	{ id = "meme_apocalypse", label = "Apocalipse dos Memes", gender = "m", category = "disaster", handler = "composite", aliases = { "apocalipse dos memes", "brainrot", "italian brainrot", "memes italianos", "invasao de memes" },
+		params = { compose = { { id = "tum_tum_log", count = 2 }, { id = "skate_shark", count = 1 }, { id = "croco_bomber", count = 1 } } }, tags = { "funny" }, maxCount = 1, lifetime = 70 },
+	{ id = "hero_team", label = "Equipe de Heróis", gender = "f", category = "disaster", handler = "composite", aliases = { "equipe de herois", "vingadores", "avengers", "liga da justica", "justice league", "time de herois" },
+		params = { compose = { { id = "caped_flyer", count = 1 }, { id = "bat_hero", count = 1 }, { id = "amazon_warrior", count = 1 }, { id = "spider_hero", count = 1 } } }, tags = { "hero" }, maxCount = 1, lifetime = 80 },
+
 	-- NOME DESCONHECIDO: personagem com o nome digitado (filtrado pelo Roblox) --
 	npc("mystery_person", "Personagem Misterioso", "m", { "personagem misterioso", "personagem", "pessoa misteriosa", "desconhecido" }, {
 		model = "figure", variant = "custom", faction = N, hp = 260, speed = 18, dmg = 10, attacks = { "melee" },
@@ -579,7 +702,7 @@ return {
 		model = "dragon", variant = "hydra", faction = H, hp = 1300, speed = 18, dmg = 16, fly = false, element = "poison",
 		attacks = { "breath", "melee" }, size = 1.5,
 	}, { "beast", "monster", "evil" }, { maxCount = 2, lifetime = 80 }),
-	npc("dinosaur", "Dinossauro", "m", { "dinossauro", "dinosaur", "dino", "tiranossauro", "t rex", "trex", "tiranossauro rex", "rex" }, {
+	npc("dinosaur", "Dinossauro", "m", { "dinossauro", "dinosaur", "dino", "tiranossauro", "t rex", "trex", "tiranossauro rex", "rex", "yoshi" }, {
 		model = "theropod", variant = "trex", faction = H, hp = 700, speed = 20, dmg = 22, attacks = { "melee", "stomp" }, size = 1.3,
 	}, { "beast", "monster", "predator" }, { maxCount = 4, lifetime = 75 }),
 	npc("raptor", "Velociraptor", "m", { "raptor", "velociraptor", "velociraptors" }, {
@@ -721,7 +844,7 @@ return {
 	npc("cowboy", "Caubói", "m", { "cowboy", "caubói", "vaqueiro", "cangaceiro", "peao" }, {
 		model = "figure", variant = "cowboy", faction = A, hp = 220, speed = 18, dmg = 12, attacks = { "bolt" },
 	}, { "humanoid", "good" }, { maxCount = 6 }),
-	npc("villager", "Aldeão", "m", { "aldeao", "villager", "pessoa", "pessoas", "humano", "human", "homem", "mulher", "cidadao", "npc", "fazendeiro", "crianca", "menino", "menina" }, {
+	npc("villager", "Aldeão", "m", { "aldeao", "villager", "pessoa", "pessoas", "humano", "human", "homem", "mulher", "cidadao", "npc", "fazendeiro", "crianca", "menino", "menina", "steve", "minecraft" }, {
 		model = "figure", variant = "villager", faction = N, hp = 100, speed = 15, dmg = 3, attacks = { "melee" },
 	}, { "humanoid", "prey" }, { maxCount = 12 }),
 	npc("footballer", "Jogador de Futebol", "m", { "jogador de futebol", "jogador", "futebolista", "craque", "footballer", "soccer player", "atacante", "goleiro", "neymar", "messi", "cristiano ronaldo", "cr7", "ronaldo", "pele", "mbappe", "vini jr", "vinicius junior", "haaland", "ronaldinho" }, {
@@ -749,10 +872,10 @@ return {
 	npc("dog", "Cachorro", "m", { "cachorro", "cao", "dog", "doguinho", "puppy", "vira lata", "caramelo", "dogue", "scooby", "scooby doo", "snoopy", "bidu" }, {
 		model = "quadruped", variant = "dog", faction = "pet", hp = 120, speed = 20, dmg = 8, attacks = { "melee" }, size = 0.8,
 	}, { "animal", "pet" }, { maxCount = 8 }),
-	npc("cat", "Gato", "m", { "gato", "gata", "cat", "kitty", "felino", "bichano", "garfield" }, {
+	npc("cat", "Gato", "m", { "gato", "gata", "cat", "kitty", "felino", "bichano", "garfield", "frajola", "gato de botas" }, {
 		model = "quadruped", variant = "cat", faction = "pet", hp = 80, speed = 20, dmg = 6, attacks = { "melee" }, size = 0.6,
 	}, { "animal", "pet", "predator" }, { maxCount = 8 }),
-	npc("wolf", "Lobo", "m", { "lobo", "loba", "wolf", "lobos" }, {
+	npc("wolf", "Lobo", "m", { "lobo", "loba", "wolf", "lobos", "coiote", "coyote" }, {
 		model = "quadruped", variant = "wolf", faction = H, hp = 140, speed = 24, dmg = 11, attacks = { "melee", "charge" }, size = 0.95,
 	}, { "animal", "beast", "predator" }, { maxCount = 8 }),
 	npc("lion", "Leão", "m", { "leao", "leoa", "lion", "lioness", "rei da selva" }, {
@@ -773,7 +896,7 @@ return {
 	npc("cow", "Vaca", "f", { "vaca", "cow", "boi", "touro", "bull", "bezerro", "gado", "ox" }, {
 		model = "quadruped", variant = "cow", faction = N, hp = 200, speed = 10, dmg = 10, attacks = { "charge" }, size = 1.1,
 	}, { "animal", "prey", "farm" }, { maxCount = 8 }),
-	npc("pig", "Porco", "m", { "porco", "porca", "pig", "leitao", "piggy", "suino", "peppa", "peppa pig" }, {
+	npc("pig", "Porco", "m", { "porco", "porca", "pig", "leitao", "piggy", "suino", "peppa", "peppa pig", "porquinho" }, {
 		model = "quadruped", variant = "pig", faction = N, hp = 120, speed = 12, dmg = 5, attacks = { "melee" }, size = 0.75,
 	}, { "animal", "prey", "farm" }, { maxCount = 10 }),
 	npc("sheep", "Ovelha", "f", { "ovelha", "sheep", "carneiro", "cordeiro", "lamb", "bode", "cabra", "goat" }, {
@@ -800,7 +923,7 @@ return {
 	npc("fox", "Raposa", "f", { "raposa", "fox" }, {
 		model = "quadruped", variant = "fox", faction = N, hp = 90, speed = 22, dmg = 7, attacks = { "melee" }, size = 0.7,
 	}, { "animal", "predator" }, { maxCount = 8 }),
-	npc("rabbit", "Coelho", "m", { "coelho", "coelha", "rabbit", "bunny", "lebre", "hare" }, {
+	npc("rabbit", "Coelho", "m", { "coelho", "coelha", "rabbit", "bunny", "lebre", "hare", "pernalonga", "coelho da pascoa" }, {
 		model = "quadruped", variant = "rabbit", faction = N, hp = 50, speed = 20, dmg = 2, attacks = { "melee" }, size = 0.5,
 	}, { "animal", "prey", "cute" }, { maxCount = 12 }),
 	npc("mouse", "Rato", "m", { "rato", "ratazana", "camundongo", "mouse", "rat", "ratinho", "hamster", "jerry", "mickey", "minnie", "stuart little" }, {
@@ -824,12 +947,12 @@ return {
 	npc("frog", "Sapo", "m", { "sapo", "ra", "frog", "toad", "perereca" }, {
 		model = "quadruped", variant = "frog", faction = N, hp = 40, speed = 16, dmg = 2, attacks = { "melee" }, size = 0.45,
 	}, { "animal", "prey" }, { maxCount = 12 }),
-	npc("monkey", "Macaco", "m", { "macaco", "macaca", "monkey", "mico", "gorila", "gorilla", "chimpanze", "orangotango", "king kong" }, {
+	npc("monkey", "Macaco", "m", { "macaco", "macaca", "monkey", "mico", "gorila", "gorilla", "chimpanze", "orangotango", "king kong", "donkey kong" }, {
 		model = "quadruped", variant = "monkey", faction = N, hp = 140, speed = 20, dmg = 8, attacks = { "melee" }, size = 0.8,
 	}, { "animal" }, { maxCount = 8 }),
 
 	-- AVES -------------------------------------------------------------------
-	npc("bird", "Pássaro", "m", { "passaro", "bird", "ave", "pomba", "pombo", "pigeon", "sabia", "andorinha", "corvo", "crow", "gaivota" }, {
+	npc("bird", "Pássaro", "m", { "passaro", "bird", "ave", "pomba", "pombo", "pigeon", "sabia", "andorinha", "corvo", "crow", "gaivota", "piu piu", "papa leguas", "canario" }, {
 		model = "bird", variant = "bird", faction = N, hp = 30, speed = 22, dmg = 2, fly = true, attacks = { "melee" }, size = 0.5,
 	}, { "animal", "flying", "prey" }, { maxCount = 14 }),
 	npc("eagle", "Águia", "f", { "aguia", "eagle", "falcao", "falcon", "gaviao", "hawk", "condor" }, {
@@ -1881,7 +2004,7 @@ return {
 	prop(O, "tv", "Televisão", "f", { "televisao", "tv", "televisor", "television", "telinha", "smart tv" }, { model = "prop", variant = "tv" }, { "electronic" }),
 	prop(O, "computer", "Computador", "m", { "computador", "computer", "pc", "notebook", "laptop", "monitor", "desktop" }, { model = "prop", variant = "computer" }, { "electronic" }),
 	prop(O, "phone", "Celular", "m", { "celular", "telefone", "smartphone", "phone", "iphone", "tablet" }, { model = "prop", variant = "phone" }, { "electronic" }),
-	prop(O, "videogame", "Videogame", "m", { "videogame", "video game", "console", "fliperama", "arcade", "controle", "joystick", "gamer" }, { model = "prop", variant = "arcade" }, { "electronic", "fun" }),
+	prop(O, "videogame", "Videogame", "m", { "videogame", "video game", "console", "fliperama", "arcade", "controle", "joystick" }, { model = "prop", variant = "arcade" }, { "electronic", "fun" }),
 	prop(O, "table", "Mesa", "f", { "mesa", "table", "escrivaninha", "bancada" }, { model = "prop", variant = "table" }, { "furniture" }),
 	prop(O, "chair", "Cadeira", "f", { "cadeira", "chair", "banquinho", "trono", "throne", "poltrona" }, { model = "prop", variant = "chair" }, { "furniture" }),
 	prop(O, "sofa", "Sofá", "m", { "sofa", "couch", "divan" }, { model = "prop", variant = "sofa" }, { "furniture" }),
@@ -1900,7 +2023,7 @@ return {
 	prop(O, "coin", "Moeda", "f", { "moeda", "coin", "moedas", "dinheiro", "money", "grana", "cash", "dolar", "real", "robux" }, { model = "prop", variant = "coin", physics = true }, { "treasure" }, { maxCount = 10 }),
 	prop(O, "diamond", "Diamante", "m", { "diamante", "joia", "gem", "gema", "rubi", "ruby", "esmeralda", "emerald", "safira", "sapphire" }, { model = "prop", variant = "gem" }, { "treasure" }),
 	prop(O, "crown", "Coroa", "f", { "coroa", "crown", "tiara", "diadema" }, { model = "prop", variant = "crown" }, { "treasure", "royal" }),
-	prop(O, "trophy", "Troféu", "m", { "trofeu", "trophy", "taca", "medalha", "medal", "copa do mundo" }, { model = "prop", variant = "trophy" }, { "treasure", "sport" }),
+	prop(O, "trophy", "Troféu", "m", { "trofeu", "trophy", "taca", "medalha", "medal" }, { model = "prop", variant = "trophy" }, { "treasure", "sport" }),
 	prop(O, "barrel", "Barril Explosivo", "m", { "barril", "barrel", "tonel", "barril explosivo" }, { model = "prop", variant = "barrel", physics = true, interact = "explode" }, { "explosive" }),
 	prop(O, "crate", "Caixa", "f", { "caixa", "crate", "caixote", "box", "caixa de madeira" }, { model = "prop", variant = "crate", physics = true }, { "furniture" }, { maxCount = 8 }),
 	prop(O, "tnt", "Dinamite", "f", { "dinamite", "tnt", "explosivo", "explosive", "c4", "polvora" }, { model = "prop", variant = "tnt", interact = "explode", fuse = 4 }, { "explosive" }),
@@ -1922,7 +2045,7 @@ return {
 	prop(O, "mirror", "Espelho Mágico", "m", { "espelho", "mirror", "espelho magico" }, { model = "prop", variant = "mirror" }, { "magic" }),
 	prop(O, "robot_vacuum", "Aspirador", "m", { "aspirador", "vacuum", "aspirador de po", "roomba" }, { model = "prop", variant = "vacuum", interact = "magnet" }, { "electronic", "funny" }),
 	prop(O, "fan", "Ventilador", "m", { "ventilador", "fan", "ventilador gigante", "turbina" }, { model = "prop", variant = "fan", interact = "wind" }, { "electronic", "wind" }),
-	prop(O, "speaker", "Caixa de Som", "f", { "caixa de som", "speaker", "som", "radio", "jukebox", "dj", "paredao" }, { model = "prop", variant = "speaker", interact = "party" }, { "music", "party" }),
+	prop(O, "speaker", "Caixa de Som", "f", { "caixa de som", "speaker", "som", "radio", "jukebox", "paredao" }, { model = "prop", variant = "speaker", interact = "party" }, { "music", "party" }),
 	prop(O, "sign", "Placa", "f", { "placa", "sign", "letreiro", "outdoor", "billboard", "cartaz" }, { model = "prop", variant = "sign" }, { "decor" }),
 
 	-- COMIDAS ----------------------------------------------------------------
@@ -2284,6 +2407,10 @@ local secrets: { Secret } = {
 	{ id = "mad_lab", title = "Laboratório Maluco", hint = "Misture dois bichos numa palavra só.", reward = 25, match = { fusion = true } },
 	{ id = "energy_clash", title = "Choque de Energia", hint = "Dois guerreiros de energia frente a frente.", reward = 35, match = { concepts = { "energy_warrior", "energy_tyrant" }, link = "rivals" } },
 	{ id = "one_punch", title = "Um Soco Basta", hint = "O herói careca contra um monstro gigante.", reward = 35, match = { concepts = { "bald_hero", "kaiju" }, link = "rivals" } },
+	{ id = "anime_squad", title = "Esquadrão Anime", hint = "Junte dois heróis de anime.", reward = 30, match = { concepts = { "energy_warrior", "shadow_ninja" } } },
+	{ id = "beach_buddies", title = "Amigos do Fundo do Mar", hint = "A esponja e a estrela.", reward = 30, match = { concepts = { "sea_sponge", "starfish" } } },
+	{ id = "title_fight", title = "Luta pelo Cinturão", hint = "Um boxeador contra o herói careca.", reward = 35, match = { concepts = { "boxer", "bald_hero" }, link = "rivals" } },
+	{ id = "titan_slayer", title = "Caçador de Titãs", hint = "Um caçador de demônios contra um titã.", reward = 40, match = { concepts = { "demon_hunter", "titan_giant" }, link = "rivals" } },
 	{ id = "brainrot_party", title = "Festa Absurda", hint = "Junte dois memes absurdos.", reward = 30, match = { concepts = { "tum_tum_log", "skate_shark" } } },
 }
 
@@ -2446,6 +2573,7 @@ Config.SoundSprite = {
 		achievement = { 11.939, 12.701 },
 		bark = { 13.001, 14.201 },
 		click = { 14.501, 14.851 },
+		thunder = { 15.151, 16.151 },
 	},
 }
 
@@ -2469,6 +2597,7 @@ Config.SoundCues = {
 	achievement = { sprite = "achievement", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.8 },
 	bark = { sprite = "bark", fallback = "rbxasset://sounds/swoosh.wav", volume = 0.8 },
 	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
+	thunder = { sprite = "thunder", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
 }
 
@@ -4288,6 +4417,19 @@ Spec.cases = {
 	{ input = "bombardiro crocodilo", expect = { events = { { concept = "croco_bomber" } }, eventCount = 1 } },
 	{ input = "goku contra freeza", expect = { links = { { type = "rivals" } }, secrets = { "energy_clash" } } },
 
+	{ input = "luffy", expect = { events = { { concept = "rubber_pirate" } } } },
+	{ input = "tanjiro", expect = { events = { { concept = "demon_hunter" } } } },
+	{ input = "gojo", expect = { events = { { concept = "curse_sorcerer" } } } },
+	{ input = "ataque dos titãs", expect = { events = { { concept = "titan_giant" } } } },
+	{ input = "bob esponja e patrick", expect = { events = { { concept = "sea_sponge" }, { concept = "starfish" } }, secrets = { "beach_buddies" } } },
+	{ input = "ben 10", expect = { events = { { concept = "alien_watch_hero" } }, eventCount = 1 } },
+	{ input = "enderman", expect = { events = { { concept = "tall_shadow" } } } },
+	{ input = "vingadores", expect = { events = { { concept = "caped_flyer" } } } },
+	{ input = "circo", expect = { events = { { concept = "clown" } } } },
+	{ input = "tanjiro contra titã", expect = { links = { { type = "rivals" } }, secrets = { "titan_slayer" } } },
+	{ input = "zebra", expect = { events = { { concept = "zebra" } } } },
+	{ input = "pernalonga", expect = { events = { { concept = "rabbit" } } } },
+
 	-- sagrado: respeitoso, sem combate, sem modificadores
 	{ input = "Jesus", expect = { events = { { concept = "jesus" } }, eventCount = 1 } },
 	{ input = "jesus explode", expect = { events = { { concept = "jesus", chain = {} } }, eventCount = 1 } },
@@ -5573,6 +5715,77 @@ function impl.launch(npc: any, target: any, dist: number, now: number): boolean
 	return true
 end
 
+-- Pirata Elástico / Aluno Herói: soco que estica longe
+function impl.stretch_punch(npc: any, target: any, dist: number, now: number): boolean
+	if dist > 34 or dist < 5 then
+		return false
+	end
+	mark(npc, "punch")
+	face(npc, target.root.Position)
+	local from = npc.root.Position + Vector3.new(0, 0.5, 0)
+	local to = target.root.Position
+	Fx.near(from, 400, "kame", { a = from, b = to, c = Color3.fromRGB(240, 190, 150), w = 0.6 })
+	Fx.near(to, 400, "punch", { p = to, s = 0.9 })
+	lineHit(npc, from, to, 2, npc.dmg * 1.6, 80)
+	cooldown(npc, "stretch_punch", now, 3)
+	return true
+end
+
+-- Caçador de Demônios / Ceifador: corte que vira uma onda
+function impl.water_slash(npc: any, target: any, dist: number, now: number): boolean
+	if dist > 38 then
+		return false
+	end
+	mark(npc, "melee")
+	face(npc, target.root.Position)
+	local from = npc.root.Position
+	local to = target.root.Position
+	Fx.near(from, 400, "kame", { a = from, b = to, c = elementColor(npc.element or "water"), w = 1.2 })
+	Fx.near(to, 300, "slash", { p = to, c = elementColor(npc.element or "water") })
+	lineHit(npc, from, to, 3, npc.dmg * 1.5, 40)
+	cooldown(npc, "water_slash", now, 3.5)
+	return true
+end
+
+-- Treinador / Herói Alienígena / Mágico: chama um ajudante por 20 segundos
+function impl.summon(npc: any, _target: any, dist: number, now: number): boolean
+	if dist > 80 or not npc.ctx or not npc.params.summon or (npc.summoned or 0) >= 3 then
+		return false
+	end
+	cooldown(npc, "summon", now, 15)
+	local Catalog = require(game:GetService("ReplicatedStorage").IdeiasShared.Catalog)
+	local list = npc.params.summon
+	local def = Catalog.ById[list[math.random(1, #list)]]
+	if not def or def.handler ~= "npc" then
+		return false
+	end
+	local p = table.clone(def.params)
+	p.faction = if npc.faction == "hostile" then "hostile" else "ally"
+	p.size = math.min(p.size or 1, 1.2)
+	local node = { concept = def, handler = "npc", params = p, count = 1, label = def.label, mods = {} }
+	local cf = npc.root.CFrame * CFrame.new(5, 0, -3)
+	Fx.near(cf.Position, 400, "spawn", { p = cf.Position, s = 1, c = Color3.fromRGB(255, 230, 120) })
+	local Chains = require(script.Parent.Parent.Core.Chains)
+	if Chains.spawnNode(npc.ctx, node, CFrame.new(cf.Position), { ttl = 20 }) then
+		npc.summoned = (npc.summoned or 0) + 1
+		mark(npc, "summon")
+	end
+	return false
+end
+
+-- Sombra Alta / Feiticeiro: some e aparece atrás do alvo
+function impl.blink(npc: any, target: any, dist: number, now: number): boolean
+	if dist < 12 or dist > 70 or npc.flying then
+		return false
+	end
+	local behind = target.root.CFrame * CFrame.new(0, 0, 4 + (target.radius or 2))
+	Fx.near(npc.root.Position, 300, "poof", { p = npc.root.Position, s = npc.scale })
+	npc.root.CFrame = CFrame.lookAt(behind.Position, target.root.Position)
+	Fx.near(behind.Position, 300, "poof", { p = behind.Position, s = npc.scale })
+	cooldown(npc, "blink", now, 6)
+	return false
+end
+
 -- suporte: cura aliados e jogadores próximos (não precisa de alvo inimigo)
 function Abilities.support(npc: any, now: number)
 	local attacks = npc.attacks
@@ -6201,6 +6414,15 @@ local QUAD: { [string]: Quad } = {
 	fox = { body = V(1.3, 1.2, 2.6), legH = 1.2, legW = 0.4, neck = 0.5, head = V(1.0, 0.9, 1.0), snout = V(0.45, 0.4, 0.8), ears = "point_big", tail = "fox", color = rgb(235, 110, 40), color2 = rgb(250, 245, 240) },
 	rabbit = { body = V(1.2, 1.2, 1.7), legH = 0.6, legW = 0.4, neck = 0.2, head = V(1.0, 1.0, 1.0), snout = V(0.4, 0.3, 0.2), ears = "bunny", tail = "cotton", color = rgb(230, 225, 220), color2 = rgb(255, 255, 255) },
 	mouse = { body = V(1.0, 0.9, 1.6), legH = 0.4, legW = 0.25, neck = 0.1, head = V(0.8, 0.7, 0.9), snout = V(0.3, 0.3, 0.4), ears = "mouse", tail = "thin_long", color = rgb(160, 160, 165), color2 = rgb(255, 190, 200) },
+	zebra = { body = V(1.8, 1.9, 3.8), legH = 2.6, legW = 0.55, neck = 1.4, head = V(0.85, 0.95, 1.9), snout = V(0.75, 0.75, 0.5), ears = "point", tail = "tuft", color = rgb(248, 248, 248), color2 = rgb(25, 25, 28), extras = { "stripes", "mane_strip" } },
+	hippo = { body = V(3.0, 2.4, 4.4), legH = 1.2, legW = 1.0, neck = 0.2, head = V(1.9, 1.5, 2.2), snout = V(1.8, 1.2, 0.8), ears = "tiny", tail = "stub", color = rgb(150, 120, 135), color2 = rgb(230, 170, 170) },
+	koala = { body = V(1.6, 1.7, 1.8), legH = 0.9, legW = 0.5, neck = 0.2, head = V(1.5, 1.3, 1.2), snout = V(0.5, 0.6, 0.3), ears = "round", tail = "none", color = rgb(150, 150, 160), color2 = rgb(235, 235, 240), mat = Enum.Material.Fabric },
+	camel = { body = V(2.0, 2.2, 4.0), legH = 3.0, legW = 0.55, neck = 2.0, head = V(0.9, 0.9, 1.9), snout = V(0.8, 0.7, 0.6), ears = "tiny", tail = "tuft", color = rgb(210, 170, 110), color2 = rgb(190, 150, 95), extras = { "back_ridges" } },
+	llama = { body = V(1.6, 1.8, 3.0), legH = 2.4, legW = 0.45, neck = 2.4, head = V(0.8, 0.9, 1.3), snout = V(0.6, 0.6, 0.5), ears = "point_big", tail = "stub", color = rgb(245, 240, 225), color2 = rgb(180, 140, 100), mat = Enum.Material.Fabric, extras = { "wool" } },
+	hyena = { body = V(1.7, 1.7, 3.2), legH = 1.8, legW = 0.55, neck = 0.6, head = V(1.2, 1.1, 1.2), snout = V(0.7, 0.6, 0.8), ears = "round", tail = "bushy", color = rgb(190, 160, 110), color2 = rgb(90, 70, 50), extras = { "spots" } },
+	cheetah = { body = V(1.5, 1.4, 3.6), legH = 2.0, legW = 0.45, neck = 0.5, head = V(1.1, 1.0, 1.0), snout = V(0.6, 0.45, 0.4), ears = "round", tail = "thin", color = rgb(240, 200, 110), color2 = rgb(250, 245, 230), extras = { "spots" } },
+	anteater = { body = V(1.7, 1.7, 3.4), legH = 1.3, legW = 0.55, neck = 0.5, head = V(0.7, 0.7, 1.0), snout = V(0.35, 0.35, 2.2), ears = "tiny", tail = "bushy", color = rgb(110, 90, 70), color2 = rgb(230, 225, 215) },
+	armadillo = { body = V(1.6, 1.0, 2.4), legH = 0.5, legW = 0.4, neck = 0.3, head = V(0.6, 0.6, 0.9), snout = V(0.35, 0.3, 0.6), ears = "point", tail = "thin", color = rgb(160, 130, 100), color2 = rgb(120, 95, 70), low = true, extras = { "shell", "armor_plates" } },
 	capybara = { body = V(2.0, 1.8, 3.0), legH = 0.9, legW = 0.6, neck = 0.3, head = V(1.3, 1.3, 1.7), snout = V(1.1, 0.9, 0.5), ears = "tiny", tail = "none", color = rgb(150, 105, 65), color2 = rgb(120, 85, 50), mat = Enum.Material.Fabric },
 	sloth = { body = V(1.6, 1.8, 2.2), legH = 1.4, legW = 0.4, neck = 0.3, head = V(1.1, 1.0, 1.0), snout = V(0.5, 0.4, 0.3), ears = "none", tail = "stub", color = rgb(150, 125, 95), color2 = rgb(220, 200, 170), mat = Enum.Material.Fabric, extras = { "sloth_mask", "claws_long" } },
 	crocodile = { body = V(1.9, 1.0, 4.2), legH = 0.7, legW = 0.5, neck = 0.1, head = V(1.2, 0.8, 1.2), snout = V(0.9, 0.5, 2.0), ears = "none", tail = "croc", color = rgb(70, 110, 60), color2 = rgb(170, 180, 120), low = true, extras = { "croc_teeth", "back_ridges" } },
@@ -6588,6 +6810,7 @@ local BIRDS = {
 	bird = { body = V(1.0, 1.0, 1.6), color = rgb(140, 100, 70), color2 = rgb(230, 200, 160), beak = rgb(240, 180, 50), wing = 2.4, legs = false },
 	eagle = { body = V(1.4, 1.4, 2.4), color = rgb(100, 70, 40), color2 = rgb(250, 250, 250), beak = rgb(250, 200, 40), wing = 4.4, headColor = rgb(250, 250, 250) },
 	parrot = { body = V(1.0, 1.2, 1.6), color = rgb(220, 40, 40), color2 = rgb(40, 120, 230), beak = rgb(240, 230, 210), wing = 2.6, wingColor = rgb(40, 120, 230), tailColor = rgb(250, 210, 40) },
+	woodpecker = { body = V(1.0, 1.3, 1.6), color = rgb(40, 90, 200), color2 = rgb(250, 250, 245), beak = rgb(250, 200, 40), wing = 2.4, wingColor = rgb(40, 90, 200), tailColor = rgb(250, 60, 40) },
 	toucan = { body = V(1.1, 1.3, 1.6), color = rgb(25, 25, 30), color2 = rgb(250, 250, 240), beak = rgb(255, 140, 20), wing = 2.4, bigBeak = true },
 	owl = { body = V(1.4, 1.6, 1.4), color = rgb(150, 110, 70), color2 = rgb(230, 210, 170), beak = rgb(240, 200, 60), wing = 2.6, owl = true },
 	chicken = { body = V(1.3, 1.3, 1.8), color = rgb(250, 250, 245), color2 = rgb(240, 240, 235), beak = rgb(250, 180, 40), wing = 1.2, legs = true, comb = true },
@@ -7737,6 +7960,32 @@ local OUTFITS: { [string]: Outfit } = {
 	plumber = { shirt = rgb(250, 140, 30), pants = rgb(90, 90, 100), shoes = rgb(90, 55, 30), hair = rgb(70, 40, 20), gloves = rgb(245, 245, 245), accent = rgb(250, 140, 30), acc = { "cap", "mustache_big", "overalls" } },
 	noob = { skin = rgb(245, 205, 50), shirt = rgb(15, 110, 200), pants = rgb(75, 150, 70), shoes = rgb(75, 150, 70), acc = { "noob_smile" } },
 	jesus = { skin = rgb(205, 160, 120), shirt = rgb(248, 246, 240), pants = rgb(248, 246, 240), robe = rgb(248, 246, 240), shoes = rgb(140, 100, 60), hair = rgb(90, 60, 35), hairStyle = "long", accent = rgb(170, 40, 45), glow = rgb(255, 240, 190), acc = { "beard_brown", "robe_stole", "halo" } },
+	rubber_pirate = { shirt = rgb(240, 130, 40), pants = rgb(245, 245, 240), shoes = rgb(150, 100, 60), hair = rgb(30, 25, 20), accent = rgb(250, 210, 60), acc = { "bandana_top", "belt" } },
+	demon_hunter = { shirt = rgb(30, 35, 50), pants = rgb(30, 35, 50), shoes = rgb(240, 240, 240), hair = rgb(120, 40, 40), cape = rgb(60, 120, 190), accent = rgb(60, 120, 190), acc = { "cape", "sword", "belt" } },
+	curse_sorcerer = { shirt = rgb(25, 25, 40), pants = rgb(25, 25, 40), shoes = rgb(20, 20, 25), hair = rgb(240, 240, 250), hairStyle = "spiky", accent = rgb(120, 80, 220), acc = { "glasses_dark" } },
+	titan_giant = { skin = rgb(220, 150, 130), shirt = rgb(220, 150, 130), pants = rgb(200, 120, 105), shoes = rgb(200, 120, 105), hair = rgb(60, 40, 30), glowEyes = true, eye = rgb(255, 230, 120), bulk = 0.6, acc = { "muscle_lines", "brow" } },
+	hero_student = { shirt = rgb(220, 60, 60), pants = rgb(245, 245, 245), shoes = rgb(220, 60, 60), gloves = rgb(245, 245, 245), hair = rgb(40, 110, 60), hairStyle = "wild", accent = rgb(250, 210, 60), acc = { "belt", "boots" } },
+	soul_reaper = { shirt = rgb(20, 20, 25), pants = rgb(20, 20, 25), robe = rgb(20, 20, 25), shoes = rgb(240, 240, 240), hair = rgb(210, 215, 225), hairStyle = "spiky", acc = { "sword_big" } },
+	moon_warrior = { shirt = rgb(250, 160, 210), pants = rgb(250, 160, 210), robe = rgb(255, 180, 220), hair = rgb(250, 220, 120), hairStyle = "puffs", accent = rgb(255, 230, 120), acc = { "tiara", "dress", "staff" } },
+	robot_cat = { skin = rgb(250, 160, 60), shirt = rgb(250, 160, 60), pants = rgb(250, 160, 60), shoes = rgb(245, 245, 245), headSize = 1.5, bulk = 0.3, eye = rgb(20, 20, 25), accent = rgb(250, 60, 60), acc = { "cat_ears", "pocket", "collar_bell" } },
+	chainsaw_man = { shirt = rgb(245, 245, 245), pants = rgb(30, 30, 35), shoes = rgb(30, 30, 35), hair = rgb(240, 200, 90), accent = rgb(250, 140, 30), acc = { "chainsaw_head", "chainsaw_hand" } },
+	monster_trainer = { shirt = rgb(40, 110, 200), pants = rgb(50, 60, 90), shoes = rgb(220, 60, 60), hair = rgb(30, 25, 20), accent = rgb(220, 60, 60), acc = { "cap", "backpack" } },
+	alien_watch_hero = { shirt = rgb(245, 245, 245), pants = rgb(60, 140, 70), shoes = rgb(30, 30, 30), hair = rgb(90, 60, 35), accent = rgb(80, 230, 90), acc = { "watch", "stripes" } },
+	bunny_girl = { shirt = rgb(250, 210, 60), pants = rgb(250, 210, 60), robe = rgb(250, 210, 60), hair = rgb(30, 25, 20), hairStyle = "short", acc = { "dress", "bunny_plush" } },
+	tall_shadow = { skin = rgb(20, 20, 25), shirt = rgb(20, 20, 25), pants = rgb(20, 20, 25), shoes = rgb(20, 20, 25), glowEyes = true, eye = rgb(200, 90, 255), tall = 1, bulk = -0.3, acc = {} },
+	scary_granny = { skin = rgb(220, 210, 200), shirt = rgb(150, 140, 160), pants = rgb(150, 140, 160), robe = rgb(150, 140, 160), hair = rgb(235, 235, 240), hairStyle = "puffs", glowEyes = true, eye = rgb(255, 40, 40), acc = { "dress", "club" } },
+	boxer = { shirt = rgb(220, 185, 150), pants = rgb(200, 30, 40), shoes = rgb(245, 245, 245), hair = rgb(30, 25, 20), gloves = rgb(200, 30, 40), accent = rgb(250, 210, 60), acc = { "big_gloves", "belt" } },
+	singer = { shirt = rgb(150, 40, 200), pants = rgb(30, 30, 40), shoes = rgb(245, 245, 245), hair = rgb(250, 90, 160), hairStyle = "wild", accent = rgb(255, 220, 60), acc = { "glasses_dark", "mic" } },
+	dj = { shirt = rgb(30, 30, 40), pants = rgb(40, 40, 60), shoes = rgb(80, 230, 255), hair = rgb(30, 25, 20), accent = rgb(80, 230, 255), acc = { "headphones", "stripes" } },
+	skater = { shirt = rgb(60, 180, 220), pants = rgb(70, 70, 80), shoes = rgb(245, 245, 245), hair = rgb(200, 140, 60), accent = rgb(250, 120, 40), acc = { "cap", "board_back" } },
+	surfer = { shirt = rgb(250, 220, 120), pants = rgb(40, 160, 200), shoes = rgb(220, 190, 150), hair = rgb(250, 220, 120), hairStyle = "long", accent = rgb(250, 120, 60), acc = { "surfboard_back" } },
+	magician = { shirt = rgb(30, 30, 40), pants = rgb(30, 30, 40), shoes = rgb(20, 20, 20), hair = rgb(30, 25, 20), cape = rgb(150, 20, 40), accent = rgb(255, 255, 255), acc = { "top_hat", "cape", "staff", "mustache" } },
+	gamer = { shirt = rgb(90, 60, 200), pants = rgb(40, 40, 60), shoes = rgb(245, 245, 245), hair = rgb(30, 25, 20), accent = rgb(80, 255, 140), acc = { "headphones" } },
+	builder = { shirt = rgb(250, 140, 30), pants = rgb(40, 70, 130), shoes = rgb(90, 60, 30), hair = rgb(60, 40, 25), accent = rgb(250, 220, 60), acc = { "hard_hat", "stripes", "hammer_hand" } },
+	ballerina = { shirt = rgb(255, 170, 210), pants = rgb(255, 210, 230), shoes = rgb(255, 120, 170), hair = rgb(120, 70, 40), hairStyle = "puffs", acc = { "tutu" } },
+	basketball_player = { shirt = rgb(250, 140, 30), pants = rgb(250, 140, 30), shoes = rgb(245, 245, 245), hair = rgb(30, 25, 20), accent = rgb(30, 30, 40), acc = { "socks" } },
+	grandma = { skin = rgb(240, 210, 190), shirt = rgb(180, 120, 200), pants = rgb(180, 120, 200), robe = rgb(180, 120, 200), hair = rgb(235, 235, 240), hairStyle = "puffs", accent = rgb(250, 250, 250), acc = { "dress", "glasses_round" } },
+	giant_baby = { shirt = rgb(150, 210, 255), pants = rgb(250, 250, 250), shoes = rgb(150, 210, 255), headSize = 1.4, bulk = 0.4, acc = { "pacifier" } },
 	giant_man = { shirt = rgb(130, 100, 70), pants = rgb(90, 70, 50), shoes = rgb(100, 75, 50), hair = rgb(120, 70, 35), hairStyle = "wild", bulk = 0.5, acc = { "beard_brown", "belt", "club" } },
 }
 
@@ -7790,7 +8039,7 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		acc[a] = true
 	end
 
-	local legH, torsoH = 2, 2
+	local legH, torsoH = 2 + (o.tall or 0) * 1.6, 2 + (o.tall or 0) * 0.6
 	local hipY = legH
 	local torsoY = hipY + torsoH / 2
 	local shoulderY = hipY + torsoH * 0.9
@@ -7837,6 +8086,9 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		local armCf = CFrame.new(shoulder) * armPose * CFrame.new(0, -0.9, 0)
 		b:box(Vector3.new(0.9 * bulk, 1.9, 0.9 * bulk), armCf, shirt, { role = "primary", material = mat, name = "Braco" })
 		b:box(Vector3.new(0.85 * bulk, 0.5, 0.85 * bulk), armCf * CFrame.new(0, -1, 0), o.gloves or skin, { role = "fixed", material = mat })
+		if acc.big_gloves then
+			b:ball(1.05, armCf * CFrame.new(0, -1.15, -0.05), o.gloves or rgb(200, 30, 40), { role = "accent" })
+		end
 		if acc.wristbands then
 			b:box(Vector3.new(0.95 * bulk, 0.25, 0.95 * bulk), armCf * CFrame.new(0, -0.65, 0), o.accent or rgb(200, 40, 40), { role = "accent" })
 		end
@@ -8143,6 +8395,51 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 			b:box(Vector3.new(0.08, 0.15, 0.05), CFrame.new(side * 0.26, headY - 0.24, -0.61), rgb(20, 20, 20), { role = "fixed" })
 		end
 	end
+	if acc.glasses_dark or acc.glasses_round then
+		local gc = if acc.glasses_dark then rgb(15, 15, 20) else rgb(200, 200, 210)
+		for _, side in { -1, 1 } do
+			b:box(Vector3.new(0.42, 0.3, 0.06) * headS, CFrame.new(side * 0.27 * headS, headY + 0.1, -0.66 * headS), gc, { role = "fixed", material = if acc.glasses_dark then Enum.Material.Glass else Enum.Material.Metal, transparency = if acc.glasses_round then 0.4 else 0 })
+		end
+		b:box(Vector3.new(0.2, 0.06, 0.06), CFrame.new(0, headY + 0.15, -0.66 * headS), gc, { role = "fixed" })
+	end
+	if acc.top_hat then
+		b:part("cyl", Vector3.new(0.12, 2.0, 2.0), CFrame.new(0, top + 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)), rgb(20, 20, 25), { role = "fixed" })
+		b:cylY(1.5, 1.2, CFrame.new(0, top + 0.8, 0), rgb(20, 20, 25), { role = "fixed" })
+		b:cylY(0.25, 1.22, CFrame.new(0, top + 0.25, 0), rgb(160, 20, 40), { role = "accent" })
+	end
+	if acc.headphones then
+		b:box(Vector3.new(1.4, 0.15, 0.25) * headS, CFrame.new(0, top + 0.08, 0), rgb(30, 30, 35), { role = "fixed" })
+		for _, side in { -1, 1 } do
+			b:part("cyl", Vector3.new(0.3, 0.7, 0.7), CFrame.new(side * 0.7 * headS, headY + 0.05, 0), o.accent or rgb(80, 230, 255), { role = "accent", material = Enum.Material.Neon })
+		end
+	end
+	if acc.hard_hat then
+		b:part("ball", Vector3.new(1.5, 1.0, 1.5) * headS, CFrame.new(0, top - 0.05, 0), rgb(250, 210, 40), { role = "fixed" })
+		b:part("cyl", Vector3.new(0.1, 1.9, 1.9), CFrame.new(0, top - 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), rgb(250, 210, 40), { role = "fixed" })
+	end
+	if acc.cat_ears then
+		for _, side in { -1, 1 } do
+			b:part("wedge", Vector3.new(0.25, 0.6, 0.45) * headS, CFrame.new(side * 0.42 * headS, top + 0.2, 0), skin, { role = "fixed" })
+		end
+		for _, side in { -1, 1 } do
+			for k = -1, 1 do
+				b:box(Vector3.new(0.5, 0.04, 0.04), CFrame.new(side * 0.55 * headS, headY - 0.15 + k * 0.1, -0.62 * headS) * CFrame.Angles(0, 0, side * k * 0.2), rgb(30, 30, 30), { role = "fixed" })
+			end
+		end
+	end
+	if acc.bandana_top then
+		b:box(Vector3.new(1.3, 0.3, 1.3) * headS, CFrame.new(0, top - 0.05, 0), o.accent or rgb(250, 210, 60), { role = "accent", material = Enum.Material.Fabric })
+		b:part("wedge", Vector3.new(0.2, 0.5, 0.6), CFrame.new(0.3, top - 0.25, 0.75), o.accent or rgb(250, 210, 60), { role = "accent", material = Enum.Material.Fabric })
+	end
+	if acc.chainsaw_head then
+		b:box(Vector3.new(0.25, 0.9, 1.6), CFrame.new(0, top + 0.4, -0.2), rgb(190, 195, 205), { role = "fixed", material = Enum.Material.Metal })
+		for k = -3, 3 do
+			b:part("wedge", Vector3.new(0.26, 0.15, 0.15), CFrame.new(0, top + 0.9, -0.2 + k * 0.22), rgb(60, 60, 65), { role = "fixed" })
+		end
+	end
+	if acc.pacifier then
+		b:part("cyl", Vector3.new(0.12, 0.45, 0.45), CFrame.new(0, headY - 0.3, -0.66 * headS) * CFrame.Angles(0, math.rad(90), 0), rgb(150, 210, 255), { role = "fixed" })
+	end
 	if acc.brow then
 		b:box(Vector3.new(1.25, 0.2, 0.25) * headS, CFrame.new(0, headY + 0.32 * headS, -0.55 * headS), Kit.darker(skin, 0.15), { role = "fixed" })
 	end
@@ -8261,6 +8558,30 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		b:part("cyl", Vector3.new(1, 2.2 * bulk, 2.2 * bulk), CFrame.new(0, 2.4, 0) * CFrame.Angles(0, 0, math.rad(90)), col, { role = "primary" })
 	end
 
+	if acc.muscle_lines then
+		for k = 0, 3 do
+			b:box(Vector3.new(2.05 * bulk, 0.08, 1.05 * bulk), CFrame.new(0, torsoY + 0.7 - k * 0.45, 0), rgb(170, 60, 60), { role = "fixed" })
+		end
+	end
+	if acc.pocket then
+		b:part("cyl", Vector3.new(0.08, 1.2, 1.2), CFrame.new(0, torsoY - 0.3, -0.56 * bulk) * CFrame.Angles(0, math.rad(90), 0), rgb(250, 250, 250), { role = "fixed" })
+	end
+	if acc.collar_bell then
+		b:box(Vector3.new(2.05 * bulk, 0.25, 1.05 * bulk), CFrame.new(0, shoulderY + 0.1, 0), o.accent or rgb(250, 60, 60), { role = "accent" })
+		b:ball(0.4, CFrame.new(0, shoulderY - 0.15, -0.58 * bulk), rgb(250, 210, 50), { role = "fixed", material = Enum.Material.Foil })
+	end
+	if acc.tutu then
+		b:part("cyl", Vector3.new(0.3, 3.4, 3.4), CFrame.new(0, hipY + 0.1, 0) * CFrame.Angles(0, 0, math.rad(90)), Kit.lighter(shirt, 0.3), { role = "secondary", material = Enum.Material.Fabric })
+	end
+	if acc.watch then
+		local lx = -(1 + 0.5) * bulk
+		b:box(Vector3.new(0.95 * bulk, 0.35, 0.95 * bulk), CFrame.new(lx, shoulderY - 1.4, 0), rgb(40, 40, 45), { role = "fixed" })
+		b:box(Vector3.new(0.5, 0.36, 0.5), CFrame.new(lx, shoulderY - 1.4, -0.3), o.accent or rgb(80, 230, 90), { role = "accent", material = Enum.Material.Neon })
+	end
+	if acc.board_back or acc.surfboard_back then
+		local len = if acc.surfboard_back then 5.5 else 2.6
+		b:part("ball", Vector3.new(if acc.surfboard_back then 1.6 else 0.9, len, 0.2), CFrame.new(0, torsoY + (if acc.surfboard_back then 0.6 else 0), back + 0.25), o.accent or rgb(250, 120, 40), { role = "accent" })
+	end
 	if acc.gi_belt then
 		b:box(Vector3.new(2.05 * bulk, 0.3, 1.05 * bulk), CFrame.new(0, hipY + 0.2, 0), o.accent or rgb(30, 120, 140), { role = "accent" })
 		b:box(Vector3.new(0.25, 0.7, 0.1), CFrame.new(0.4, hipY - 0.2, -0.54 * bulk), o.accent or rgb(30, 120, 140), { role = "accent" })
@@ -8398,6 +8719,32 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 				b:part("wedge", Vector3.new(0.15, 0.9, 1), CFrame.new(hand + Vector3.new(0, 1.8, -0.9)), rgb(190, 190, 200), { role = "fixed", material = Enum.Material.Metal })
 			else
 				b:ball(1.1, CFrame.new(hand + Vector3.new(0, 2.1, -0.4)), rgb(110, 75, 40), { role = "fixed", material = Enum.Material.Wood })
+			end
+		end)
+	end
+	if acc.mic then
+		inHand(function()
+			b:part("cyl", Vector3.new(0.9, 0.2, 0.2), CFrame.new(hand + Vector3.new(0, 0.3, -0.3)) * CFrame.Angles(0, 0, math.rad(90)), rgb(30, 30, 35), { role = "fixed" })
+			b:ball(0.4, CFrame.new(hand + Vector3.new(0, 0.85, -0.3)), rgb(190, 190, 200), { role = "fixed", material = Enum.Material.Metal })
+		end)
+	end
+	if acc.sword_big then
+		inHand(function()
+			b:box(Vector3.new(0.25, 0.9, 5.5), CFrame.new(hand) * CFrame.new(0, 0, -2.9), rgb(25, 25, 30), { role = "accent", material = Enum.Material.Metal })
+			b:box(Vector3.new(0.8, 0.25, 0.3), CFrame.new(hand) * CFrame.new(0, 0, -0.1), rgb(150, 120, 60), { role = "fixed" })
+		end)
+	end
+	if acc.chainsaw_hand then
+		inHand(function()
+			b:box(Vector3.new(0.4, 0.7, 1.0), CFrame.new(hand) * CFrame.new(0, 0, -0.3), o.accent or rgb(250, 140, 30), { role = "accent" })
+			b:box(Vector3.new(0.2, 0.5, 2.6), CFrame.new(hand) * CFrame.new(0, 0, -2.0), rgb(190, 195, 205), { role = "fixed", material = Enum.Material.Metal })
+		end)
+	end
+	if acc.bunny_plush then
+		inHand(function()
+			b:ball(0.9, CFrame.new(hand + Vector3.new(0, 0.2, -0.3)), rgb(255, 150, 200), { role = "fixed", material = Enum.Material.Fabric })
+			for _, side in { -1, 1 } do
+				b:part("ball", Vector3.new(0.2, 0.8, 0.2), CFrame.new(hand + Vector3.new(side * 0.2, 0.9, -0.3)), rgb(255, 150, 200), { role = "fixed", material = Enum.Material.Fabric })
 			end
 		end)
 	end
@@ -9536,6 +9883,62 @@ B.electric_mouse = function(origin, params)
 	end
 	legs(R, body, { -0.4, 0.4 }, legH, legH, 0.4, fur, fur)
 	return R:finish({ hp = params.hp or 260, speed = params.speed or 24, hipHeight = legH, height = hy + 2, radius = 1.1 })
+end
+
+-- ESPONJA DO MAR: esponja verde-água, cheia de furinhos -------------------------------
+B.sea_sponge = function(origin, params)
+	local R = Rig.new("EsponjaDoMar", origin, params)
+	local b = R.b
+	local sponge = rgb(170, 230, 190)
+	local legH = 1.2
+	local cy = legH + 1.4
+	local root = R:makeRoot(V(2.4, 2.8, 1.4), cy)
+	local body = b:box(V(2.6, 2.8, 1.3), CF(0, cy, 0), sponge, { role = "primary", material = Enum.Material.Fabric, name = "Esponja" })
+	R:join(body, root)
+	for k = 0, 9 do
+		local x = ((k * 37) % 21) / 10 - 1.0
+		local y = ((k * 53) % 23) / 10 - 1.1
+		b:part("cyl", V(0.06, 0.3 + (k % 3) * 0.1, 0.3 + (k % 3) * 0.1), CF(x, cy + y, -0.66) * CFrame.Angles(0, math.rad(90), 0), Kit.darker(sponge, 0.25), { role = "secondary" })
+	end
+	eyes(b, V(0, cy + 0.6, -0.72), 0.5, 0.6, rgb(40, 120, 200))
+	b:box(V(1.2, 0.18, 0.06), CF(0, cy - 0.1, -0.68), rgb(150, 40, 50), { role = "fixed" })
+	b:box(V(2.65, 0.7, 1.35), CF(0, legH + 0.3, 0), rgb(120, 80, 50), { role = "fixed" })
+	R.head = body
+	R:setMouth(body, V(0, -0.1, -0.7))
+	for _, side in { -1, 1 } do
+		arm(R, body, V(side * 1.45, cy + 0.2, 0), 1.4, 0.3, sponge, sponge, side)
+	end
+	legs(R, body, { -0.6, 0.6 }, legH, legH, 0.3, sponge, rgb(30, 30, 30))
+	return R:finish({ hp = params.hp or 300, speed = params.speed or 20, hipHeight = legH, height = cy + 1.5, radius = 1.4 })
+end
+
+-- ESTRELA-DO-MAR: cinco pontas e cara sorridente ------------------------------------------
+B.starfish = function(origin, params)
+	local R = Rig.new("EstrelaDoMar", origin, params)
+	local b = R.b
+	local pink = rgb(250, 130, 150)
+	local cy = 2.6
+	local root = R:makeRoot(V(1.6, 2.4, 1), cy)
+	local body = b:part("ball", V(1.8, 1.8, 0.9), CF(0, cy, 0), pink, { role = "primary", name = "Estrela" })
+	R:join(body, root)
+	-- pontas: cima, braços e pernas (pernas animadas)
+	b:part("wedge", V(0.8, 1.4, 0.8), CF(0, cy + 1.4, 0), pink, { role = "primary" })
+	for _, side in { -1, 1 } do
+		local m = R:mark()
+		b:part("wedge", V(0.7, 1.4, 0.8), CF(side * 1.4, cy + 0.3, 0) * CFrame.Angles(0, 0, side * math.rad(-70)), pink, { role = "primary" })
+		R:group(m, body, V(side * 0.8, cy + 0.2, 0), { kind = "arm", axis = "Z", amp = 0.35, phase = if side < 0 then 0 else math.pi })
+	end
+	for i, side in { -1, 1 } do
+		local m = R:mark()
+		b:part("wedge", V(0.7, 1.9, 0.8), CF(side * 0.6, cy - 1.6, 0) * CFrame.Angles(math.rad(180), 0, side * math.rad(-15)), pink, { role = "primary" })
+		R:group(m, body, V(side * 0.4, cy - 0.7, 0), { kind = "leg", axis = "X", amp = 0.6, phase = if i == 2 then math.pi else 0 })
+	end
+	eyes(b, V(0, cy + 0.3, -0.5), 0.3, 0.42)
+	b:box(V(0.6, 0.08, 0.05), CF(0, cy - 0.25, -0.46), rgb(150, 40, 60), { role = "fixed" })
+	b:box(V(1.7, 0.6, 0.95), CF(0, cy - 0.65, 0), rgb(120, 200, 90), { role = "fixed" })
+	R.head = body
+	R:setMouth(body, V(0, -0.25, -0.5))
+	return R:finish({ hp = params.hp or 260, speed = params.speed or 12, hipHeight = cy - 1.2, height = cy + 2.2, radius = 1.2 })
 end
 
 Memes.Variants = B
@@ -20367,7 +20770,7 @@ H.lightning = function(d)
 	zigzag(top, d.p, Color3.fromRGB(220, 240, 255), 0.8, 0.35)
 	H.flash({ p = d.p, c = Color3.fromRGB(220, 235, 255), s = 30 })
 	tint(Color3.fromRGB(230, 240, 255), 0.08)
-	cue("explosion", d.p, 0.8)
+	cue("thunder", d.p, 1)
 	shake(0.5 * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
 end
 

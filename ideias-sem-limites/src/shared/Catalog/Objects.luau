@@ -31,7 +31,7 @@ return {
 	prop(O, "tv", "Televisão", "f", { "televisao", "tv", "televisor", "television", "telinha", "smart tv" }, { model = "prop", variant = "tv" }, { "electronic" }),
 	prop(O, "computer", "Computador", "m", { "computador", "computer", "pc", "notebook", "laptop", "monitor", "desktop" }, { model = "prop", variant = "computer" }, { "electronic" }),
 	prop(O, "phone", "Celular", "m", { "celular", "telefone", "smartphone", "phone", "iphone", "tablet" }, { model = "prop", variant = "phone" }, { "electronic" }),
-	prop(O, "videogame", "Videogame", "m", { "videogame", "video game", "console", "fliperama", "arcade", "controle", "joystick", "gamer" }, { model = "prop", variant = "arcade" }, { "electronic", "fun" }),
+	prop(O, "videogame", "Videogame", "m", { "videogame", "video game", "console", "fliperama", "arcade", "controle", "joystick" }, { model = "prop", variant = "arcade" }, { "electronic", "fun" }),
 	prop(O, "table", "Mesa", "f", { "mesa", "table", "escrivaninha", "bancada" }, { model = "prop", variant = "table" }, { "furniture" }),
 	prop(O, "chair", "Cadeira", "f", { "cadeira", "chair", "banquinho", "trono", "throne", "poltrona" }, { model = "prop", variant = "chair" }, { "furniture" }),
 	prop(O, "sofa", "Sofá", "m", { "sofa", "couch", "divan" }, { model = "prop", variant = "sofa" }, { "furniture" }),
@@ -50,7 +50,7 @@ return {
 	prop(O, "coin", "Moeda", "f", { "moeda", "coin", "moedas", "dinheiro", "money", "grana", "cash", "dolar", "real", "robux" }, { model = "prop", variant = "coin", physics = true }, { "treasure" }, { maxCount = 10 }),
 	prop(O, "diamond", "Diamante", "m", { "diamante", "joia", "gem", "gema", "rubi", "ruby", "esmeralda", "emerald", "safira", "sapphire" }, { model = "prop", variant = "gem" }, { "treasure" }),
 	prop(O, "crown", "Coroa", "f", { "coroa", "crown", "tiara", "diadema" }, { model = "prop", variant = "crown" }, { "treasure", "royal" }),
-	prop(O, "trophy", "Troféu", "m", { "trofeu", "trophy", "taca", "medalha", "medal", "copa do mundo" }, { model = "prop", variant = "trophy" }, { "treasure", "sport" }),
+	prop(O, "trophy", "Troféu", "m", { "trofeu", "trophy", "taca", "medalha", "medal" }, { model = "prop", variant = "trophy" }, { "treasure", "sport" }),
 	prop(O, "barrel", "Barril Explosivo", "m", { "barril", "barrel", "tonel", "barril explosivo" }, { model = "prop", variant = "barrel", physics = true, interact = "explode" }, { "explosive" }),
 	prop(O, "crate", "Caixa", "f", { "caixa", "crate", "caixote", "box", "caixa de madeira" }, { model = "prop", variant = "crate", physics = true }, { "furniture" }, { maxCount = 8 }),
 	prop(O, "tnt", "Dinamite", "f", { "dinamite", "tnt", "explosivo", "explosive", "c4", "polvora" }, { model = "prop", variant = "tnt", interact = "explode", fuse = 4 }, { "explosive" }),
@@ -72,7 +72,7 @@ return {
 	prop(O, "mirror", "Espelho Mágico", "m", { "espelho", "mirror", "espelho magico" }, { model = "prop", variant = "mirror" }, { "magic" }),
 	prop(O, "robot_vacuum", "Aspirador", "m", { "aspirador", "vacuum", "aspirador de po", "roomba" }, { model = "prop", variant = "vacuum", interact = "magnet" }, { "electronic", "funny" }),
 	prop(O, "fan", "Ventilador", "m", { "ventilador", "fan", "ventilador gigante", "turbina" }, { model = "prop", variant = "fan", interact = "wind" }, { "electronic", "wind" }),
-	prop(O, "speaker", "Caixa de Som", "f", { "caixa de som", "speaker", "som", "radio", "jukebox", "dj", "paredao" }, { model = "prop", variant = "speaker", interact = "party" }, { "music", "party" }),
+	prop(O, "speaker", "Caixa de Som", "f", { "caixa de som", "speaker", "som", "radio", "jukebox", "paredao" }, { model = "prop", variant = "speaker", interact = "party" }, { "music", "party" }),
 	prop(O, "sign", "Placa", "f", { "placa", "sign", "letreiro", "outdoor", "billboard", "cartaz" }, { model = "prop", variant = "sign" }, { "decor" }),
 
 	-- COMIDAS ----------------------------------------------------------------

@@ -52,6 +52,10 @@ local secrets: { Secret } = {
 	{ id = "mad_lab", title = "Laboratório Maluco", hint = "Misture dois bichos numa palavra só.", reward = 25, match = { fusion = true } },
 	{ id = "energy_clash", title = "Choque de Energia", hint = "Dois guerreiros de energia frente a frente.", reward = 35, match = { concepts = { "energy_warrior", "energy_tyrant" }, link = "rivals" } },
 	{ id = "one_punch", title = "Um Soco Basta", hint = "O herói careca contra um monstro gigante.", reward = 35, match = { concepts = { "bald_hero", "kaiju" }, link = "rivals" } },
+	{ id = "anime_squad", title = "Esquadrão Anime", hint = "Junte dois heróis de anime.", reward = 30, match = { concepts = { "energy_warrior", "shadow_ninja" } } },
+	{ id = "beach_buddies", title = "Amigos do Fundo do Mar", hint = "A esponja e a estrela.", reward = 30, match = { concepts = { "sea_sponge", "starfish" } } },
+	{ id = "title_fight", title = "Luta pelo Cinturão", hint = "Um boxeador contra o herói careca.", reward = 35, match = { concepts = { "boxer", "bald_hero" }, link = "rivals" } },
+	{ id = "titan_slayer", title = "Caçador de Titãs", hint = "Um caçador de demônios contra um titã.", reward = 40, match = { concepts = { "demon_hunter", "titan_giant" }, link = "rivals" } },
 	{ id = "brainrot_party", title = "Festa Absurda", hint = "Junte dois memes absurdos.", reward = 30, match = { concepts = { "tum_tum_log", "skate_shark" } } },
 }
 

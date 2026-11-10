@@ -1,6 +1,6 @@
 {
  "arquivo": "IdeiasSons.ogg",
- "duracao": 15.151,
+ "duracao": 16.451,
  "regioes": {
   "explosion": [
    0.0,
@@ -49,6 +49,10 @@
   "click": [
    14.501,
    14.851
+  ],
+  "thunder": [
+   15.151,
+   16.151
   ]
  }
 }

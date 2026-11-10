@@ -1,5 +1,20 @@
 # Ideias Sem Limites — V3
 
+## Novidades (V3.3)
+
+* **Mais anime:** "luffy" (Pirata Elástico, soco que estica), "tanjiro" (Caçador de Demônios, corte de
+  água), "gojo" (Feiticeiro Amaldiçoado, teleporte), "ataque dos titãs" (Titã Colossal), "deku",
+  "ichigo", "sailor moon", "doraemon", "chainsaw man", "ash" (chama monstrinhos), "kurama".
+* **Desenhos:** "ben 10" (chama alienígenas), "bob esponja", "patrick", "pica pau", "monica",
+  "pernalonga", "frajola", "piu piu", "papa léguas".
+* **Terror:** "enderman"/"slenderman" (Sombra Alta, teleporta), "granny".
+* **Vida real:** boxeador, cantor, DJ, skatista, surfista, mágico, gamer, pedreiro, bailarina,
+  jogador de basquete, vovó (dá comida e cura), bebê gigante.
+* **Animais novos:** zebra, hipopótamo, coala, camelo, lhama, hiena, guepardo, tamanduá, tatu.
+* **Combinações prontas:** circo, copa do mundo, batalha de anime, festa de aniversário,
+  apocalipse dos memes, equipe de heróis ("vingadores", "liga da justiça").
+* **Som novo:** trovão do ElevenLabs (13 efeitos no total).
+
 ## Novidades (V3.1)
 
 * **Personagens pelo nome:** "goku", "naruto", "saitama", "homem aranha", "batman", "hulk",
@@ -172,10 +187,10 @@ Resultado atual (offline, Lune 0.11.1 + Rojo 7.7.1):
 | Suíte | Resultado |
 |---|---|
 | Sintaxe dos 92 scripts | 0 erros |
-| Interpretador (casos, rótulo↔conceito de todos, todos os aliases, determinismo, entradas maliciosas) | 2841/2841 |
-| Construtores: 279 modelos × 9 combinações de modificadores, validados na reflexão do Roblox | 2511/2511 |
+| Interpretador (casos, rótulo↔conceito de todos, todos os aliases, determinismo, entradas maliciosas) | 3143/3143 |
+| Construtores: 318 modelos × 9 combinações de modificadores, validados na reflexão do Roblox | 2862/2862 |
 | Mapa completo (orçamento por região, luzes, teleportes) | ok |
-| Servidor: **cada conceito executado e limpo**, cadeias, híbridos, nomes, estresse com 5 jogadores, porteiro | 421/421 |
+| Servidor: **cada conceito executado e limpo**, cadeias, híbridos, nomes, estresse com 5 jogadores, porteiro | 466/466 |
 | `ideias.sh` contra Open Cloud simulado (inclui `sons`) | 21/21 |
 
 Na nuvem, `bash ideias.sh testar` roda o interpretador e a suíte do servidor no motor real.

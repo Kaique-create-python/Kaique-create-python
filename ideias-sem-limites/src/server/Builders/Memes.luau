@@ -476,6 +476,62 @@ B.electric_mouse = function(origin, params)
 	return R:finish({ hp = params.hp or 260, speed = params.speed or 24, hipHeight = legH, height = hy + 2, radius = 1.1 })
 end
 
+-- ESPONJA DO MAR: esponja verde-água, cheia de furinhos -------------------------------
+B.sea_sponge = function(origin, params)
+	local R = Rig.new("EsponjaDoMar", origin, params)
+	local b = R.b
+	local sponge = rgb(170, 230, 190)
+	local legH = 1.2
+	local cy = legH + 1.4
+	local root = R:makeRoot(V(2.4, 2.8, 1.4), cy)
+	local body = b:box(V(2.6, 2.8, 1.3), CF(0, cy, 0), sponge, { role = "primary", material = Enum.Material.Fabric, name = "Esponja" })
+	R:join(body, root)
+	for k = 0, 9 do
+		local x = ((k * 37) % 21) / 10 - 1.0
+		local y = ((k * 53) % 23) / 10 - 1.1
+		b:part("cyl", V(0.06, 0.3 + (k % 3) * 0.1, 0.3 + (k % 3) * 0.1), CF(x, cy + y, -0.66) * CFrame.Angles(0, math.rad(90), 0), Kit.darker(sponge, 0.25), { role = "secondary" })
+	end
+	eyes(b, V(0, cy + 0.6, -0.72), 0.5, 0.6, rgb(40, 120, 200))
+	b:box(V(1.2, 0.18, 0.06), CF(0, cy - 0.1, -0.68), rgb(150, 40, 50), { role = "fixed" })
+	b:box(V(2.65, 0.7, 1.35), CF(0, legH + 0.3, 0), rgb(120, 80, 50), { role = "fixed" })
+	R.head = body
+	R:setMouth(body, V(0, -0.1, -0.7))
+	for _, side in { -1, 1 } do
+		arm(R, body, V(side * 1.45, cy + 0.2, 0), 1.4, 0.3, sponge, sponge, side)
+	end
+	legs(R, body, { -0.6, 0.6 }, legH, legH, 0.3, sponge, rgb(30, 30, 30))
+	return R:finish({ hp = params.hp or 300, speed = params.speed or 20, hipHeight = legH, height = cy + 1.5, radius = 1.4 })
+end
+
+-- ESTRELA-DO-MAR: cinco pontas e cara sorridente ------------------------------------------
+B.starfish = function(origin, params)
+	local R = Rig.new("EstrelaDoMar", origin, params)
+	local b = R.b
+	local pink = rgb(250, 130, 150)
+	local cy = 2.6
+	local root = R:makeRoot(V(1.6, 2.4, 1), cy)
+	local body = b:part("ball", V(1.8, 1.8, 0.9), CF(0, cy, 0), pink, { role = "primary", name = "Estrela" })
+	R:join(body, root)
+	-- pontas: cima, braços e pernas (pernas animadas)
+	b:part("wedge", V(0.8, 1.4, 0.8), CF(0, cy + 1.4, 0), pink, { role = "primary" })
+	for _, side in { -1, 1 } do
+		local m = R:mark()
+		b:part("wedge", V(0.7, 1.4, 0.8), CF(side * 1.4, cy + 0.3, 0) * CFrame.Angles(0, 0, side * math.rad(-70)), pink, { role = "primary" })
+		R:group(m, body, V(side * 0.8, cy + 0.2, 0), { kind = "arm", axis = "Z", amp = 0.35, phase = if side < 0 then 0 else math.pi })
+	end
+	for i, side in { -1, 1 } do
+		local m = R:mark()
+		b:part("wedge", V(0.7, 1.9, 0.8), CF(side * 0.6, cy - 1.6, 0) * CFrame.Angles(math.rad(180), 0, side * math.rad(-15)), pink, { role = "primary" })
+		R:group(m, body, V(side * 0.4, cy - 0.7, 0), { kind = "leg", axis = "X", amp = 0.6, phase = if i == 2 then math.pi else 0 })
+	end
+	eyes(b, V(0, cy + 0.3, -0.5), 0.3, 0.42)
+	b:box(V(0.6, 0.08, 0.05), CF(0, cy - 0.25, -0.46), rgb(150, 40, 60), { role = "fixed" })
+	b:box(V(1.7, 0.6, 0.95), CF(0, cy - 0.65, 0), rgb(120, 200, 90), { role = "fixed" })
+	R.head = body
+	R:setMouth(body, V(0, -0.25, -0.5))
+	return R:finish({ hp = params.hp or 260, speed = params.speed or 12, hipHeight = cy - 1.2, height = cy + 2.2, radius = 1.2 })
+end
+
 Memes.Variants = B
 
 function Memes.build(origin: CFrame, params: { [string]: any }, variant: string): Rig.RigResult

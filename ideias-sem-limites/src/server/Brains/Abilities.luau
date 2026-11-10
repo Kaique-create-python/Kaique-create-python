@@ -436,6 +436,77 @@ function impl.launch(npc: any, target: any, dist: number, now: number): boolean
 	return true
 end
 
+-- Pirata Elástico / Aluno Herói: soco que estica longe
+function impl.stretch_punch(npc: any, target: any, dist: number, now: number): boolean
+	if dist > 34 or dist < 5 then
+		return false
+	end
+	mark(npc, "punch")
+	face(npc, target.root.Position)
+	local from = npc.root.Position + Vector3.new(0, 0.5, 0)
+	local to = target.root.Position
+	Fx.near(from, 400, "kame", { a = from, b = to, c = Color3.fromRGB(240, 190, 150), w = 0.6 })
+	Fx.near(to, 400, "punch", { p = to, s = 0.9 })
+	lineHit(npc, from, to, 2, npc.dmg * 1.6, 80)
+	cooldown(npc, "stretch_punch", now, 3)
+	return true
+end
+
+-- Caçador de Demônios / Ceifador: corte que vira uma onda
+function impl.water_slash(npc: any, target: any, dist: number, now: number): boolean
+	if dist > 38 then
+		return false
+	end
+	mark(npc, "melee")
+	face(npc, target.root.Position)
+	local from = npc.root.Position
+	local to = target.root.Position
+	Fx.near(from, 400, "kame", { a = from, b = to, c = elementColor(npc.element or "water"), w = 1.2 })
+	Fx.near(to, 300, "slash", { p = to, c = elementColor(npc.element or "water") })
+	lineHit(npc, from, to, 3, npc.dmg * 1.5, 40)
+	cooldown(npc, "water_slash", now, 3.5)
+	return true
+end
+
+-- Treinador / Herói Alienígena / Mágico: chama um ajudante por 20 segundos
+function impl.summon(npc: any, _target: any, dist: number, now: number): boolean
+	if dist > 80 or not npc.ctx or not npc.params.summon or (npc.summoned or 0) >= 3 then
+		return false
+	end
+	cooldown(npc, "summon", now, 15)
+	local Catalog = require(game:GetService("ReplicatedStorage").IdeiasShared.Catalog)
+	local list = npc.params.summon
+	local def = Catalog.ById[list[math.random(1, #list)]]
+	if not def or def.handler ~= "npc" then
+		return false
+	end
+	local p = table.clone(def.params)
+	p.faction = if npc.faction == "hostile" then "hostile" else "ally"
+	p.size = math.min(p.size or 1, 1.2)
+	local node = { concept = def, handler = "npc", params = p, count = 1, label = def.label, mods = {} }
+	local cf = npc.root.CFrame * CFrame.new(5, 0, -3)
+	Fx.near(cf.Position, 400, "spawn", { p = cf.Position, s = 1, c = Color3.fromRGB(255, 230, 120) })
+	local Chains = require(script.Parent.Parent.Core.Chains)
+	if Chains.spawnNode(npc.ctx, node, CFrame.new(cf.Position), { ttl = 20 }) then
+		npc.summoned = (npc.summoned or 0) + 1
+		mark(npc, "summon")
+	end
+	return false
+end
+
+-- Sombra Alta / Feiticeiro: some e aparece atrás do alvo
+function impl.blink(npc: any, target: any, dist: number, now: number): boolean
+	if dist < 12 or dist > 70 or npc.flying then
+		return false
+	end
+	local behind = target.root.CFrame * CFrame.new(0, 0, 4 + (target.radius or 2))
+	Fx.near(npc.root.Position, 300, "poof", { p = npc.root.Position, s = npc.scale })
+	npc.root.CFrame = CFrame.lookAt(behind.Position, target.root.Position)
+	Fx.near(behind.Position, 300, "poof", { p = behind.Position, s = npc.scale })
+	cooldown(npc, "blink", now, 6)
+	return false
+end
+
 -- suporte: cura aliados e jogadores próximos (não precisa de alvo inimigo)
 function Abilities.support(npc: any, now: number)
 	local attacks = npc.attacks

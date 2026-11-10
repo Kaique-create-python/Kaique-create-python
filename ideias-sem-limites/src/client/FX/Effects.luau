@@ -321,7 +321,7 @@ H.lightning = function(d)
 	zigzag(top, d.p, Color3.fromRGB(220, 240, 255), 0.8, 0.35)
 	H.flash({ p = d.p, c = Color3.fromRGB(220, 235, 255), s = 30 })
 	tint(Color3.fromRGB(230, 240, 255), 0.08)
-	cue("explosion", d.p, 0.8)
+	cue("thunder", d.p, 1)
 	shake(0.5 * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
 end
 

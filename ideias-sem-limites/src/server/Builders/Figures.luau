@@ -93,6 +93,32 @@ local OUTFITS: { [string]: Outfit } = {
 	plumber = { shirt = rgb(250, 140, 30), pants = rgb(90, 90, 100), shoes = rgb(90, 55, 30), hair = rgb(70, 40, 20), gloves = rgb(245, 245, 245), accent = rgb(250, 140, 30), acc = { "cap", "mustache_big", "overalls" } },
 	noob = { skin = rgb(245, 205, 50), shirt = rgb(15, 110, 200), pants = rgb(75, 150, 70), shoes = rgb(75, 150, 70), acc = { "noob_smile" } },
 	jesus = { skin = rgb(205, 160, 120), shirt = rgb(248, 246, 240), pants = rgb(248, 246, 240), robe = rgb(248, 246, 240), shoes = rgb(140, 100, 60), hair = rgb(90, 60, 35), hairStyle = "long", accent = rgb(170, 40, 45), glow = rgb(255, 240, 190), acc = { "beard_brown", "robe_stole", "halo" } },
+	rubber_pirate = { shirt = rgb(240, 130, 40), pants = rgb(245, 245, 240), shoes = rgb(150, 100, 60), hair = rgb(30, 25, 20), accent = rgb(250, 210, 60), acc = { "bandana_top", "belt" } },
+	demon_hunter = { shirt = rgb(30, 35, 50), pants = rgb(30, 35, 50), shoes = rgb(240, 240, 240), hair = rgb(120, 40, 40), cape = rgb(60, 120, 190), accent = rgb(60, 120, 190), acc = { "cape", "sword", "belt" } },
+	curse_sorcerer = { shirt = rgb(25, 25, 40), pants = rgb(25, 25, 40), shoes = rgb(20, 20, 25), hair = rgb(240, 240, 250), hairStyle = "spiky", accent = rgb(120, 80, 220), acc = { "glasses_dark" } },
+	titan_giant = { skin = rgb(220, 150, 130), shirt = rgb(220, 150, 130), pants = rgb(200, 120, 105), shoes = rgb(200, 120, 105), hair = rgb(60, 40, 30), glowEyes = true, eye = rgb(255, 230, 120), bulk = 0.6, acc = { "muscle_lines", "brow" } },
+	hero_student = { shirt = rgb(220, 60, 60), pants = rgb(245, 245, 245), shoes = rgb(220, 60, 60), gloves = rgb(245, 245, 245), hair = rgb(40, 110, 60), hairStyle = "wild", accent = rgb(250, 210, 60), acc = { "belt", "boots" } },
+	soul_reaper = { shirt = rgb(20, 20, 25), pants = rgb(20, 20, 25), robe = rgb(20, 20, 25), shoes = rgb(240, 240, 240), hair = rgb(210, 215, 225), hairStyle = "spiky", acc = { "sword_big" } },
+	moon_warrior = { shirt = rgb(250, 160, 210), pants = rgb(250, 160, 210), robe = rgb(255, 180, 220), hair = rgb(250, 220, 120), hairStyle = "puffs", accent = rgb(255, 230, 120), acc = { "tiara", "dress", "staff" } },
+	robot_cat = { skin = rgb(250, 160, 60), shirt = rgb(250, 160, 60), pants = rgb(250, 160, 60), shoes = rgb(245, 245, 245), headSize = 1.5, bulk = 0.3, eye = rgb(20, 20, 25), accent = rgb(250, 60, 60), acc = { "cat_ears", "pocket", "collar_bell" } },
+	chainsaw_man = { shirt = rgb(245, 245, 245), pants = rgb(30, 30, 35), shoes = rgb(30, 30, 35), hair = rgb(240, 200, 90), accent = rgb(250, 140, 30), acc = { "chainsaw_head", "chainsaw_hand" } },
+	monster_trainer = { shirt = rgb(40, 110, 200), pants = rgb(50, 60, 90), shoes = rgb(220, 60, 60), hair = rgb(30, 25, 20), accent = rgb(220, 60, 60), acc = { "cap", "backpack" } },
+	alien_watch_hero = { shirt = rgb(245, 245, 245), pants = rgb(60, 140, 70), shoes = rgb(30, 30, 30), hair = rgb(90, 60, 35), accent = rgb(80, 230, 90), acc = { "watch", "stripes" } },
+	bunny_girl = { shirt = rgb(250, 210, 60), pants = rgb(250, 210, 60), robe = rgb(250, 210, 60), hair = rgb(30, 25, 20), hairStyle = "short", acc = { "dress", "bunny_plush" } },
+	tall_shadow = { skin = rgb(20, 20, 25), shirt = rgb(20, 20, 25), pants = rgb(20, 20, 25), shoes = rgb(20, 20, 25), glowEyes = true, eye = rgb(200, 90, 255), tall = 1, bulk = -0.3, acc = {} },
+	scary_granny = { skin = rgb(220, 210, 200), shirt = rgb(150, 140, 160), pants = rgb(150, 140, 160), robe = rgb(150, 140, 160), hair = rgb(235, 235, 240), hairStyle = "puffs", glowEyes = true, eye = rgb(255, 40, 40), acc = { "dress", "club" } },
+	boxer = { shirt = rgb(220, 185, 150), pants = rgb(200, 30, 40), shoes = rgb(245, 245, 245), hair = rgb(30, 25, 20), gloves = rgb(200, 30, 40), accent = rgb(250, 210, 60), acc = { "big_gloves", "belt" } },
+	singer = { shirt = rgb(150, 40, 200), pants = rgb(30, 30, 40), shoes = rgb(245, 245, 245), hair = rgb(250, 90, 160), hairStyle = "wild", accent = rgb(255, 220, 60), acc = { "glasses_dark", "mic" } },
+	dj = { shirt = rgb(30, 30, 40), pants = rgb(40, 40, 60), shoes = rgb(80, 230, 255), hair = rgb(30, 25, 20), accent = rgb(80, 230, 255), acc = { "headphones", "stripes" } },
+	skater = { shirt = rgb(60, 180, 220), pants = rgb(70, 70, 80), shoes = rgb(245, 245, 245), hair = rgb(200, 140, 60), accent = rgb(250, 120, 40), acc = { "cap", "board_back" } },
+	surfer = { shirt = rgb(250, 220, 120), pants = rgb(40, 160, 200), shoes = rgb(220, 190, 150), hair = rgb(250, 220, 120), hairStyle = "long", accent = rgb(250, 120, 60), acc = { "surfboard_back" } },
+	magician = { shirt = rgb(30, 30, 40), pants = rgb(30, 30, 40), shoes = rgb(20, 20, 20), hair = rgb(30, 25, 20), cape = rgb(150, 20, 40), accent = rgb(255, 255, 255), acc = { "top_hat", "cape", "staff", "mustache" } },
+	gamer = { shirt = rgb(90, 60, 200), pants = rgb(40, 40, 60), shoes = rgb(245, 245, 245), hair = rgb(30, 25, 20), accent = rgb(80, 255, 140), acc = { "headphones" } },
+	builder = { shirt = rgb(250, 140, 30), pants = rgb(40, 70, 130), shoes = rgb(90, 60, 30), hair = rgb(60, 40, 25), accent = rgb(250, 220, 60), acc = { "hard_hat", "stripes", "hammer_hand" } },
+	ballerina = { shirt = rgb(255, 170, 210), pants = rgb(255, 210, 230), shoes = rgb(255, 120, 170), hair = rgb(120, 70, 40), hairStyle = "puffs", acc = { "tutu" } },
+	basketball_player = { shirt = rgb(250, 140, 30), pants = rgb(250, 140, 30), shoes = rgb(245, 245, 245), hair = rgb(30, 25, 20), accent = rgb(30, 30, 40), acc = { "socks" } },
+	grandma = { skin = rgb(240, 210, 190), shirt = rgb(180, 120, 200), pants = rgb(180, 120, 200), robe = rgb(180, 120, 200), hair = rgb(235, 235, 240), hairStyle = "puffs", accent = rgb(250, 250, 250), acc = { "dress", "glasses_round" } },
+	giant_baby = { shirt = rgb(150, 210, 255), pants = rgb(250, 250, 250), shoes = rgb(150, 210, 255), headSize = 1.4, bulk = 0.4, acc = { "pacifier" } },
 	giant_man = { shirt = rgb(130, 100, 70), pants = rgb(90, 70, 50), shoes = rgb(100, 75, 50), hair = rgb(120, 70, 35), hairStyle = "wild", bulk = 0.5, acc = { "beard_brown", "belt", "club" } },
 }
 
@@ -146,7 +172,7 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		acc[a] = true
 	end
 
-	local legH, torsoH = 2, 2
+	local legH, torsoH = 2 + (o.tall or 0) * 1.6, 2 + (o.tall or 0) * 0.6
 	local hipY = legH
 	local torsoY = hipY + torsoH / 2
 	local shoulderY = hipY + torsoH * 0.9
@@ -193,6 +219,9 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		local armCf = CFrame.new(shoulder) * armPose * CFrame.new(0, -0.9, 0)
 		b:box(Vector3.new(0.9 * bulk, 1.9, 0.9 * bulk), armCf, shirt, { role = "primary", material = mat, name = "Braco" })
 		b:box(Vector3.new(0.85 * bulk, 0.5, 0.85 * bulk), armCf * CFrame.new(0, -1, 0), o.gloves or skin, { role = "fixed", material = mat })
+		if acc.big_gloves then
+			b:ball(1.05, armCf * CFrame.new(0, -1.15, -0.05), o.gloves or rgb(200, 30, 40), { role = "accent" })
+		end
 		if acc.wristbands then
 			b:box(Vector3.new(0.95 * bulk, 0.25, 0.95 * bulk), armCf * CFrame.new(0, -0.65, 0), o.accent or rgb(200, 40, 40), { role = "accent" })
 		end
@@ -499,6 +528,51 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 			b:box(Vector3.new(0.08, 0.15, 0.05), CFrame.new(side * 0.26, headY - 0.24, -0.61), rgb(20, 20, 20), { role = "fixed" })
 		end
 	end
+	if acc.glasses_dark or acc.glasses_round then
+		local gc = if acc.glasses_dark then rgb(15, 15, 20) else rgb(200, 200, 210)
+		for _, side in { -1, 1 } do
+			b:box(Vector3.new(0.42, 0.3, 0.06) * headS, CFrame.new(side * 0.27 * headS, headY + 0.1, -0.66 * headS), gc, { role = "fixed", material = if acc.glasses_dark then Enum.Material.Glass else Enum.Material.Metal, transparency = if acc.glasses_round then 0.4 else 0 })
+		end
+		b:box(Vector3.new(0.2, 0.06, 0.06), CFrame.new(0, headY + 0.15, -0.66 * headS), gc, { role = "fixed" })
+	end
+	if acc.top_hat then
+		b:part("cyl", Vector3.new(0.12, 2.0, 2.0), CFrame.new(0, top + 0.05, 0) * CFrame.Angles(0, 0, math.rad(90)), rgb(20, 20, 25), { role = "fixed" })
+		b:cylY(1.5, 1.2, CFrame.new(0, top + 0.8, 0), rgb(20, 20, 25), { role = "fixed" })
+		b:cylY(0.25, 1.22, CFrame.new(0, top + 0.25, 0), rgb(160, 20, 40), { role = "accent" })
+	end
+	if acc.headphones then
+		b:box(Vector3.new(1.4, 0.15, 0.25) * headS, CFrame.new(0, top + 0.08, 0), rgb(30, 30, 35), { role = "fixed" })
+		for _, side in { -1, 1 } do
+			b:part("cyl", Vector3.new(0.3, 0.7, 0.7), CFrame.new(side * 0.7 * headS, headY + 0.05, 0), o.accent or rgb(80, 230, 255), { role = "accent", material = Enum.Material.Neon })
+		end
+	end
+	if acc.hard_hat then
+		b:part("ball", Vector3.new(1.5, 1.0, 1.5) * headS, CFrame.new(0, top - 0.05, 0), rgb(250, 210, 40), { role = "fixed" })
+		b:part("cyl", Vector3.new(0.1, 1.9, 1.9), CFrame.new(0, top - 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), rgb(250, 210, 40), { role = "fixed" })
+	end
+	if acc.cat_ears then
+		for _, side in { -1, 1 } do
+			b:part("wedge", Vector3.new(0.25, 0.6, 0.45) * headS, CFrame.new(side * 0.42 * headS, top + 0.2, 0), skin, { role = "fixed" })
+		end
+		for _, side in { -1, 1 } do
+			for k = -1, 1 do
+				b:box(Vector3.new(0.5, 0.04, 0.04), CFrame.new(side * 0.55 * headS, headY - 0.15 + k * 0.1, -0.62 * headS) * CFrame.Angles(0, 0, side * k * 0.2), rgb(30, 30, 30), { role = "fixed" })
+			end
+		end
+	end
+	if acc.bandana_top then
+		b:box(Vector3.new(1.3, 0.3, 1.3) * headS, CFrame.new(0, top - 0.05, 0), o.accent or rgb(250, 210, 60), { role = "accent", material = Enum.Material.Fabric })
+		b:part("wedge", Vector3.new(0.2, 0.5, 0.6), CFrame.new(0.3, top - 0.25, 0.75), o.accent or rgb(250, 210, 60), { role = "accent", material = Enum.Material.Fabric })
+	end
+	if acc.chainsaw_head then
+		b:box(Vector3.new(0.25, 0.9, 1.6), CFrame.new(0, top + 0.4, -0.2), rgb(190, 195, 205), { role = "fixed", material = Enum.Material.Metal })
+		for k = -3, 3 do
+			b:part("wedge", Vector3.new(0.26, 0.15, 0.15), CFrame.new(0, top + 0.9, -0.2 + k * 0.22), rgb(60, 60, 65), { role = "fixed" })
+		end
+	end
+	if acc.pacifier then
+		b:part("cyl", Vector3.new(0.12, 0.45, 0.45), CFrame.new(0, headY - 0.3, -0.66 * headS) * CFrame.Angles(0, math.rad(90), 0), rgb(150, 210, 255), { role = "fixed" })
+	end
 	if acc.brow then
 		b:box(Vector3.new(1.25, 0.2, 0.25) * headS, CFrame.new(0, headY + 0.32 * headS, -0.55 * headS), Kit.darker(skin, 0.15), { role = "fixed" })
 	end
@@ -617,6 +691,30 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		b:part("cyl", Vector3.new(1, 2.2 * bulk, 2.2 * bulk), CFrame.new(0, 2.4, 0) * CFrame.Angles(0, 0, math.rad(90)), col, { role = "primary" })
 	end
 
+	if acc.muscle_lines then
+		for k = 0, 3 do
+			b:box(Vector3.new(2.05 * bulk, 0.08, 1.05 * bulk), CFrame.new(0, torsoY + 0.7 - k * 0.45, 0), rgb(170, 60, 60), { role = "fixed" })
+		end
+	end
+	if acc.pocket then
+		b:part("cyl", Vector3.new(0.08, 1.2, 1.2), CFrame.new(0, torsoY - 0.3, -0.56 * bulk) * CFrame.Angles(0, math.rad(90), 0), rgb(250, 250, 250), { role = "fixed" })
+	end
+	if acc.collar_bell then
+		b:box(Vector3.new(2.05 * bulk, 0.25, 1.05 * bulk), CFrame.new(0, shoulderY + 0.1, 0), o.accent or rgb(250, 60, 60), { role = "accent" })
+		b:ball(0.4, CFrame.new(0, shoulderY - 0.15, -0.58 * bulk), rgb(250, 210, 50), { role = "fixed", material = Enum.Material.Foil })
+	end
+	if acc.tutu then
+		b:part("cyl", Vector3.new(0.3, 3.4, 3.4), CFrame.new(0, hipY + 0.1, 0) * CFrame.Angles(0, 0, math.rad(90)), Kit.lighter(shirt, 0.3), { role = "secondary", material = Enum.Material.Fabric })
+	end
+	if acc.watch then
+		local lx = -(1 + 0.5) * bulk
+		b:box(Vector3.new(0.95 * bulk, 0.35, 0.95 * bulk), CFrame.new(lx, shoulderY - 1.4, 0), rgb(40, 40, 45), { role = "fixed" })
+		b:box(Vector3.new(0.5, 0.36, 0.5), CFrame.new(lx, shoulderY - 1.4, -0.3), o.accent or rgb(80, 230, 90), { role = "accent", material = Enum.Material.Neon })
+	end
+	if acc.board_back or acc.surfboard_back then
+		local len = if acc.surfboard_back then 5.5 else 2.6
+		b:part("ball", Vector3.new(if acc.surfboard_back then 1.6 else 0.9, len, 0.2), CFrame.new(0, torsoY + (if acc.surfboard_back then 0.6 else 0), back + 0.25), o.accent or rgb(250, 120, 40), { role = "accent" })
+	end
 	if acc.gi_belt then
 		b:box(Vector3.new(2.05 * bulk, 0.3, 1.05 * bulk), CFrame.new(0, hipY + 0.2, 0), o.accent or rgb(30, 120, 140), { role = "accent" })
 		b:box(Vector3.new(0.25, 0.7, 0.1), CFrame.new(0.4, hipY - 0.2, -0.54 * bulk), o.accent or rgb(30, 120, 140), { role = "accent" })
@@ -754,6 +852,32 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 				b:part("wedge", Vector3.new(0.15, 0.9, 1), CFrame.new(hand + Vector3.new(0, 1.8, -0.9)), rgb(190, 190, 200), { role = "fixed", material = Enum.Material.Metal })
 			else
 				b:ball(1.1, CFrame.new(hand + Vector3.new(0, 2.1, -0.4)), rgb(110, 75, 40), { role = "fixed", material = Enum.Material.Wood })
+			end
+		end)
+	end
+	if acc.mic then
+		inHand(function()
+			b:part("cyl", Vector3.new(0.9, 0.2, 0.2), CFrame.new(hand + Vector3.new(0, 0.3, -0.3)) * CFrame.Angles(0, 0, math.rad(90)), rgb(30, 30, 35), { role = "fixed" })
+			b:ball(0.4, CFrame.new(hand + Vector3.new(0, 0.85, -0.3)), rgb(190, 190, 200), { role = "fixed", material = Enum.Material.Metal })
+		end)
+	end
+	if acc.sword_big then
+		inHand(function()
+			b:box(Vector3.new(0.25, 0.9, 5.5), CFrame.new(hand) * CFrame.new(0, 0, -2.9), rgb(25, 25, 30), { role = "accent", material = Enum.Material.Metal })
+			b:box(Vector3.new(0.8, 0.25, 0.3), CFrame.new(hand) * CFrame.new(0, 0, -0.1), rgb(150, 120, 60), { role = "fixed" })
+		end)
+	end
+	if acc.chainsaw_hand then
+		inHand(function()
+			b:box(Vector3.new(0.4, 0.7, 1.0), CFrame.new(hand) * CFrame.new(0, 0, -0.3), o.accent or rgb(250, 140, 30), { role = "accent" })
+			b:box(Vector3.new(0.2, 0.5, 2.6), CFrame.new(hand) * CFrame.new(0, 0, -2.0), rgb(190, 195, 205), { role = "fixed", material = Enum.Material.Metal })
+		end)
+	end
+	if acc.bunny_plush then
+		inHand(function()
+			b:ball(0.9, CFrame.new(hand + Vector3.new(0, 0.2, -0.3)), rgb(255, 150, 200), { role = "fixed", material = Enum.Material.Fabric })
+			for _, side in { -1, 1 } do
+				b:part("ball", Vector3.new(0.2, 0.8, 0.2), CFrame.new(hand + Vector3.new(side * 0.2, 0.9, -0.3)), rgb(255, 150, 200), { role = "fixed", material = Enum.Material.Fabric })
 			end
 		end)
 	end

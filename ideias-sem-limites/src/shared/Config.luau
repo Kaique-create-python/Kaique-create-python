@@ -97,6 +97,7 @@ Config.SoundSprite = {
 		achievement = { 11.939, 12.701 },
 		bark = { 13.001, 14.201 },
 		click = { 14.501, 14.851 },
+		thunder = { 15.151, 16.151 },
 	},
 }
 
@@ -120,6 +121,7 @@ Config.SoundCues = {
 	achievement = { sprite = "achievement", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.8 },
 	bark = { sprite = "bark", fallback = "rbxasset://sounds/swoosh.wav", volume = 0.8 },
 	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
+	thunder = { sprite = "thunder", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
 }
 

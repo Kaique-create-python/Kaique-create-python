@@ -35,7 +35,7 @@ return {
 		model = "dragon", variant = "hydra", faction = H, hp = 1300, speed = 18, dmg = 16, fly = false, element = "poison",
 		attacks = { "breath", "melee" }, size = 1.5,
 	}, { "beast", "monster", "evil" }, { maxCount = 2, lifetime = 80 }),
-	npc("dinosaur", "Dinossauro", "m", { "dinossauro", "dinosaur", "dino", "tiranossauro", "t rex", "trex", "tiranossauro rex", "rex" }, {
+	npc("dinosaur", "Dinossauro", "m", { "dinossauro", "dinosaur", "dino", "tiranossauro", "t rex", "trex", "tiranossauro rex", "rex", "yoshi" }, {
 		model = "theropod", variant = "trex", faction = H, hp = 700, speed = 20, dmg = 22, attacks = { "melee", "stomp" }, size = 1.3,
 	}, { "beast", "monster", "predator" }, { maxCount = 4, lifetime = 75 }),
 	npc("raptor", "Velociraptor", "m", { "raptor", "velociraptor", "velociraptors" }, {
@@ -177,7 +177,7 @@ return {
 	npc("cowboy", "Caubói", "m", { "cowboy", "caubói", "vaqueiro", "cangaceiro", "peao" }, {
 		model = "figure", variant = "cowboy", faction = A, hp = 220, speed = 18, dmg = 12, attacks = { "bolt" },
 	}, { "humanoid", "good" }, { maxCount = 6 }),
-	npc("villager", "Aldeão", "m", { "aldeao", "villager", "pessoa", "pessoas", "humano", "human", "homem", "mulher", "cidadao", "npc", "fazendeiro", "crianca", "menino", "menina" }, {
+	npc("villager", "Aldeão", "m", { "aldeao", "villager", "pessoa", "pessoas", "humano", "human", "homem", "mulher", "cidadao", "npc", "fazendeiro", "crianca", "menino", "menina", "steve", "minecraft" }, {
 		model = "figure", variant = "villager", faction = N, hp = 100, speed = 15, dmg = 3, attacks = { "melee" },
 	}, { "humanoid", "prey" }, { maxCount = 12 }),
 	npc("footballer", "Jogador de Futebol", "m", { "jogador de futebol", "jogador", "futebolista", "craque", "footballer", "soccer player", "atacante", "goleiro", "neymar", "messi", "cristiano ronaldo", "cr7", "ronaldo", "pele", "mbappe", "vini jr", "vinicius junior", "haaland", "ronaldinho" }, {
@@ -205,10 +205,10 @@ return {
 	npc("dog", "Cachorro", "m", { "cachorro", "cao", "dog", "doguinho", "puppy", "vira lata", "caramelo", "dogue", "scooby", "scooby doo", "snoopy", "bidu" }, {
 		model = "quadruped", variant = "dog", faction = "pet", hp = 120, speed = 20, dmg = 8, attacks = { "melee" }, size = 0.8,
 	}, { "animal", "pet" }, { maxCount = 8 }),
-	npc("cat", "Gato", "m", { "gato", "gata", "cat", "kitty", "felino", "bichano", "garfield" }, {
+	npc("cat", "Gato", "m", { "gato", "gata", "cat", "kitty", "felino", "bichano", "garfield", "frajola", "gato de botas" }, {
 		model = "quadruped", variant = "cat", faction = "pet", hp = 80, speed = 20, dmg = 6, attacks = { "melee" }, size = 0.6,
 	}, { "animal", "pet", "predator" }, { maxCount = 8 }),
-	npc("wolf", "Lobo", "m", { "lobo", "loba", "wolf", "lobos" }, {
+	npc("wolf", "Lobo", "m", { "lobo", "loba", "wolf", "lobos", "coiote", "coyote" }, {
 		model = "quadruped", variant = "wolf", faction = H, hp = 140, speed = 24, dmg = 11, attacks = { "melee", "charge" }, size = 0.95,
 	}, { "animal", "beast", "predator" }, { maxCount = 8 }),
 	npc("lion", "Leão", "m", { "leao", "leoa", "lion", "lioness", "rei da selva" }, {
@@ -229,7 +229,7 @@ return {
 	npc("cow", "Vaca", "f", { "vaca", "cow", "boi", "touro", "bull", "bezerro", "gado", "ox" }, {
 		model = "quadruped", variant = "cow", faction = N, hp = 200, speed = 10, dmg = 10, attacks = { "charge" }, size = 1.1,
 	}, { "animal", "prey", "farm" }, { maxCount = 8 }),
-	npc("pig", "Porco", "m", { "porco", "porca", "pig", "leitao", "piggy", "suino", "peppa", "peppa pig" }, {
+	npc("pig", "Porco", "m", { "porco", "porca", "pig", "leitao", "piggy", "suino", "peppa", "peppa pig", "porquinho" }, {
 		model = "quadruped", variant = "pig", faction = N, hp = 120, speed = 12, dmg = 5, attacks = { "melee" }, size = 0.75,
 	}, { "animal", "prey", "farm" }, { maxCount = 10 }),
 	npc("sheep", "Ovelha", "f", { "ovelha", "sheep", "carneiro", "cordeiro", "lamb", "bode", "cabra", "goat" }, {
@@ -256,7 +256,7 @@ return {
 	npc("fox", "Raposa", "f", { "raposa", "fox" }, {
 		model = "quadruped", variant = "fox", faction = N, hp = 90, speed = 22, dmg = 7, attacks = { "melee" }, size = 0.7,
 	}, { "animal", "predator" }, { maxCount = 8 }),
-	npc("rabbit", "Coelho", "m", { "coelho", "coelha", "rabbit", "bunny", "lebre", "hare" }, {
+	npc("rabbit", "Coelho", "m", { "coelho", "coelha", "rabbit", "bunny", "lebre", "hare", "pernalonga", "coelho da pascoa" }, {
 		model = "quadruped", variant = "rabbit", faction = N, hp = 50, speed = 20, dmg = 2, attacks = { "melee" }, size = 0.5,
 	}, { "animal", "prey", "cute" }, { maxCount = 12 }),
 	npc("mouse", "Rato", "m", { "rato", "ratazana", "camundongo", "mouse", "rat", "ratinho", "hamster", "jerry", "mickey", "minnie", "stuart little" }, {
@@ -280,12 +280,12 @@ return {
 	npc("frog", "Sapo", "m", { "sapo", "ra", "frog", "toad", "perereca" }, {
 		model = "quadruped", variant = "frog", faction = N, hp = 40, speed = 16, dmg = 2, attacks = { "melee" }, size = 0.45,
 	}, { "animal", "prey" }, { maxCount = 12 }),
-	npc("monkey", "Macaco", "m", { "macaco", "macaca", "monkey", "mico", "gorila", "gorilla", "chimpanze", "orangotango", "king kong" }, {
+	npc("monkey", "Macaco", "m", { "macaco", "macaca", "monkey", "mico", "gorila", "gorilla", "chimpanze", "orangotango", "king kong", "donkey kong" }, {
 		model = "quadruped", variant = "monkey", faction = N, hp = 140, speed = 20, dmg = 8, attacks = { "melee" }, size = 0.8,
 	}, { "animal" }, { maxCount = 8 }),
 
 	-- AVES -------------------------------------------------------------------
-	npc("bird", "Pássaro", "m", { "passaro", "bird", "ave", "pomba", "pombo", "pigeon", "sabia", "andorinha", "corvo", "crow", "gaivota" }, {
+	npc("bird", "Pássaro", "m", { "passaro", "bird", "ave", "pomba", "pombo", "pigeon", "sabia", "andorinha", "corvo", "crow", "gaivota", "piu piu", "papa leguas", "canario" }, {
 		model = "bird", variant = "bird", faction = N, hp = 30, speed = 22, dmg = 2, fly = true, attacks = { "melee" }, size = 0.5,
 	}, { "animal", "flying", "prey" }, { maxCount = 14 }),
 	npc("eagle", "Águia", "f", { "aguia", "eagle", "falcao", "falcon", "gaviao", "hawk", "condor" }, {
