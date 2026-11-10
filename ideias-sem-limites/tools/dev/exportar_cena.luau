@@ -22,7 +22,7 @@ local function export(inst)
 			if d.ClassName == "Part" then
 				shape = d.Shape.Name
 				local sm = d:FindFirstChildOfClass("SpecialMesh")
-				if sm and sm.MeshType == roblox.Enum.MeshType.Sphere then
+				if sm and (sm.MeshType == roblox.Enum.MeshType.Sphere or sm.MeshType == roblox.Enum.MeshType.Head) then
 					shape = "Ellipsoid"
 				end
 			elseif d.ClassName == "WedgePart" then

@@ -151,8 +151,9 @@ local function quadruped(origin: CFrame, params: { [string]: any }, variant: str
 		local m = R:mark()
 		local x, z, ph = l[1], l[2], l[3]
 		local legCol = if variant == "panda" or variant == "sheep" then c2 else c1
-		b:box(V(q.legW, legH, q.legW), CF(x, legH / 2, z), legCol, { role = "primary", material = mat })
-		b:box(V(q.legW * 1.1, 0.25, q.legW * 1.2), CF(x, 0.12, z - 0.05), Kit.darker(legCol, 0.35), { role = "secondary" })
+		b:cylY(legH, q.legW, CF(x, legH / 2 + 0.05, z), legCol, { role = "primary", material = mat })
+		b:ball(q.legW * 1.15, CF(x, legH - 0.05, z), legCol, { role = "primary", material = mat })
+		b:part("ball", V(q.legW * 1.2, 0.4, q.legW * 1.35), CF(x, 0.16, z - 0.06), Kit.darker(legCol, 0.35), { role = "secondary" })
 		if ex.claws_long then
 			b:part("wedge", V(0.2, 0.4, 0.5), CF(x, 0.3, z - 0.45), rgb(240, 235, 220), { role = "fixed" })
 		end
@@ -186,13 +187,13 @@ local function quadruped(origin: CFrame, params: { [string]: any }, variant: str
 				end
 			end
 		end
-		headPart = b:box(q.head, CF(headPos), if variant == "panda" then c1 else c1, { role = "primary", material = mat, name = "Cabeca" })
+		headPart = b:part("ball", q.head * 1.12, CF(headPos), if variant == "panda" then c1 else c1, { role = "primary", material = mat, name = "Cabeca" })
 		local front = headPos.Z - q.head.Z / 2
 		local snoutPos = V(0, headPos.Y - q.head.Y * 0.15, front)
 		if q.snout then
 			local sn = q.snout
 			snoutPos = V(0, headPos.Y - q.head.Y * 0.2, front - sn.Z / 2 + 0.05)
-			b:box(sn, CF(snoutPos), if variant == "pig" or variant == "cow" then c2 else Kit.lighter(c1, 0.15), { role = "secondary", material = mat })
+			b:part("ball", sn * 1.15, CF(snoutPos), if variant == "pig" or variant == "cow" then c2 else Kit.lighter(c1, 0.15), { role = "secondary", material = mat })
 			b:box(V(sn.X * 0.5, sn.Y * 0.35, 0.1), CF(0, snoutPos.Y + sn.Y * 0.2, snoutPos.Z - sn.Z / 2), rgb(30, 25, 25), { role = "fixed", name = "Nariz" })
 		end
 		-- olhos
@@ -205,7 +206,11 @@ local function quadruped(origin: CFrame, params: { [string]: any }, variant: str
 				if variant == "panda" then
 					b:part("ball", V(0.45, 0.5, 0.2), CF(eyeX, headPos.Y + 0.1, front + 0.02), c2, { role = "fixed" })
 				end
-				b:box(V(0.18, 0.2, 0.08), CF(eyeX, headPos.Y + q.head.Y * 0.15, front - 0.03), if variant == "panda" then rgb(240, 240, 240) else rgb(20, 20, 25), { role = "eye" })
+				local ey = headPos.Y + q.head.Y * 0.15
+				local ez = front + 0.05
+				b:ball(math.max(0.26, q.head.X * 0.2), CF(eyeX, ey, ez), rgb(250, 250, 252), { role = "fixed" })
+				b:ball(math.max(0.15, q.head.X * 0.12), CF(eyeX * 1.02, ey - 0.01, ez - math.max(0.09, q.head.X * 0.07)), if variant == "panda" then rgb(20, 20, 25) else rgb(25, 22, 22), { role = "eye" })
+				b:ball(0.06, CF(eyeX * 0.96, ey + 0.05, ez - math.max(0.15, q.head.X * 0.11)), rgb(255, 255, 255), { role = "fixed", material = Enum.Material.Neon })
 			end
 		end
 		-- orelhas
@@ -221,9 +226,9 @@ local function quadruped(origin: CFrame, params: { [string]: any }, variant: str
 				local d = if ears == "mouse" then 0.6 else 0.45
 				b:part("cyl", V(0.15, d, d), CF(ex2 * (if ears == "monkey" then 1.5 else 1), if ears == "monkey" then headPos.Y else earY + 0.1, headPos.Z) * ANG(0, rad(90), 0), earCol, { role = "secondary" })
 			elseif ears == "flop" or ears == "side" then
-				b:box(V(0.2, 0.7, 0.45), CF(side * (q.head.X / 2 + 0.1), headPos.Y + 0.05, headPos.Z) * ANG(0, 0, side * rad(25)), Kit.darker(c1, 0.25), { role = "secondary" })
+				b:part("ball", V(0.22, 0.8, 0.5), CF(side * (q.head.X / 2 + 0.1), headPos.Y + 0.05, headPos.Z) * ANG(0, 0, side * rad(25)), Kit.darker(c1, 0.25), { role = "secondary" })
 			elseif ears == "bunny" then
-				b:box(V(0.22, 1.4, 0.35), CF(side * 0.22, earY + 0.65, headPos.Z + 0.1) * ANG(rad(-10), 0, side * rad(8)), c1, { role = "primary" })
+				b:part("ball", V(0.26, 1.5, 0.4), CF(side * 0.22, earY + 0.65, headPos.Z + 0.1) * ANG(rad(-10), 0, side * rad(8)), c1, { role = "primary" })
 			elseif ears == "elephant" then
 				b:box(V(0.15, 2.0, 1.8), CF(side * (q.head.X / 2 + 0.3), headPos.Y, headPos.Z + 0.4) * ANG(0, side * rad(25), 0), c2, { role = "secondary" })
 			elseif ears == "tiny" then

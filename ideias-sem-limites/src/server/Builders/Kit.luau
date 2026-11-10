@@ -121,7 +121,9 @@ function Builder.part(self: Builder, shape: string, size: Vector3, localCf: CFra
 	-- No Roblox uma "Ball" usa sempre o MENOR eixo como diâmetro. Para elipsoides
 	-- (corpos, cabeças, folhagens) usamos bloco + SpecialMesh esférico.
 	local ellipsoid = shape == "ball" and (math.max(size.X, size.Y, size.Z) - math.min(size.X, size.Y, size.Z)) > 0.02
-	if ellipsoid then
+	-- "head"/"torso": malhas nativas do Roblox (cabeça arredondada, tronco afinado na cintura)
+	local nativeMesh = if shape == "head" then Enum.MeshType.Head elseif shape == "torso" then Enum.MeshType.Torso else nil
+	if ellipsoid or nativeMesh then
 		kind = Enum.PartType.Block
 	end
 	if kind == "WedgePart" then
@@ -153,6 +155,10 @@ function Builder.part(self: Builder, shape: string, size: Vector3, localCf: CFra
 	if ellipsoid then
 		local mesh = Instance.new("SpecialMesh")
 		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = part
+	elseif nativeMesh then
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = nativeMesh
 		mesh.Parent = part
 	end
 	part.Parent = o.parent or self.model

@@ -74,6 +74,9 @@ end
 
 function Hud.build(parent: Instance): ScreenGui
 	makeSounds()
+	Theme.onClick = function()
+		sound("Click")
+	end
 	gui = new("ScreenGui", {
 		Name = "IdeiasHud",
 		ResetOnSpawn = false,

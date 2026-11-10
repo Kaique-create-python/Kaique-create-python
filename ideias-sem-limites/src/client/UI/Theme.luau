@@ -100,20 +100,48 @@ function Theme.button(props: { [string]: any }): TextButton
 	end
 	local b = Theme.new("TextButton", p, { Theme.corner(10) })
 	local base = b.BackgroundColor3
+	-- volume: luz em cima, sombra embaixo, contorno suave
+	local grad = Instance.new("UIGradient")
+	grad.Rotation = 90
+	grad.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(205, 205, 215))
+	grad.Parent = b
+	if not b:FindFirstChildOfClass("UIStroke") then
+		local st = Instance.new("UIStroke")
+		st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		st.Color = Color3.new(1, 1, 1)
+		st.Transparency = 0.82
+		st.Thickness = 1
+		st.Parent = b
+	end
+	local scale = Instance.new("UIScale")
+	scale.Name = "Aperto"
+	scale.Parent = b
 	b.MouseEnter:Connect(function()
-		Theme.tween(b, 0.12, { BackgroundColor3 = base:Lerp(Color3.new(1, 1, 1), 0.08) })
+		Theme.tween(b, 0.12, { BackgroundColor3 = base:Lerp(Color3.new(1, 1, 1), 0.1) })
+		Theme.tween(scale, 0.15, { Scale = 1.04 })
 	end)
 	b.MouseLeave:Connect(function()
 		Theme.tween(b, 0.12, { BackgroundColor3 = base })
+		Theme.tween(scale, 0.15, { Scale = 1 })
 	end)
 	b.MouseButton1Down:Connect(function()
 		Theme.tween(b, 0.06, { BackgroundColor3 = base:Lerp(Color3.new(0, 0, 0), 0.15) })
+		Theme.tween(scale, 0.07, { Scale = 0.9 })
 	end)
 	b.MouseButton1Up:Connect(function()
 		Theme.tween(b, 0.1, { BackgroundColor3 = base })
+		Theme.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	end)
+	b.Activated:Connect(function()
+		if Theme.onClick then
+			Theme.onClick()
+		end
 	end)
 	return b
 end
+
+-- definido pela HUD: toca o som de clique em todos os botões
+Theme.onClick = nil :: (() -> ())?
 
 function Theme.tween(inst: Instance, t: number, goals: { [string]: any }, style: Enum.EasingStyle?, dir: Enum.EasingDirection?): Tween
 	local tw = TweenService:Create(inst, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), goals)

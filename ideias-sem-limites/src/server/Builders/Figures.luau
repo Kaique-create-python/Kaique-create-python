@@ -180,7 +180,7 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 	local root = R:makeRoot(Vector3.new(2 * bulk, 2, 1), torsoY)
 
 	-- tronco
-	local torso = b:box(Vector3.new(2 * bulk, torsoH, 1 * bulk), CFrame.new(0, torsoY, 0), shirt, { role = "primary", material = mat, name = "Tronco" })
+	local torso = b:part("torso", Vector3.new(2 * bulk, torsoH, 1 * bulk), CFrame.new(0, torsoY, 0), shirt, { role = "primary", material = mat, name = "Tronco" })
 	R:join(torso, root)
 	-- pescoço e quadril arredondados: corpo menos "caixote"
 	local neck = b:cylY(0.45, 0.75 * math.min(headS, 1.3), CFrame.new(0, hipY + torsoH + 0.15, 0), skin, { role = "fixed", material = mat })
@@ -196,7 +196,8 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		end
 		local m = R:mark()
 		local x = side * 0.5 * bulk
-		b:box(Vector3.new(0.95 * bulk, legH, 0.95 * bulk), CFrame.new(x, legH / 2, 0), o.pants, { role = "secondary", material = mat, name = "Perna" })
+		b:part("ball", Vector3.new(0.98 * bulk, legH + 0.35, 0.98 * bulk), CFrame.new(x, legH / 2 + 0.1, 0), o.pants, { role = "secondary", material = mat, name = "Perna" })
+		b:ball(0.62 * bulk, CFrame.new(x, legH * 0.5, -0.12), Kit.darker(o.pants, 0.06), { role = "secondary", material = mat })
 		local footZ = if acc.backward_feet then 0.35 else -0.2
 		b:box(Vector3.new(1 * bulk, 0.35, 1.3), CFrame.new(x, 0.18, footZ), o.shoes or Kit.darker(o.pants, 0.3), { role = "secondary", material = mat })
 		b:part("ball", Vector3.new(1 * bulk, 0.42, 0.7), CFrame.new(x, 0.2, footZ - 0.6), o.shoes or Kit.darker(o.pants, 0.3), { role = "secondary", material = mat })
@@ -223,7 +224,7 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		local x = side * (1 + 0.5) * bulk
 		local shoulder = Vector3.new(x, shoulderY, 0)
 		local armCf = CFrame.new(shoulder) * armPose * CFrame.new(0, -0.9, 0)
-		b:box(Vector3.new(0.9 * bulk, 1.9, 0.9 * bulk), armCf, shirt, { role = "primary", material = mat, name = "Braco" })
+		b:part("ball", Vector3.new(0.92 * bulk, 2.15, 0.92 * bulk), armCf, shirt, { role = "primary", material = mat, name = "Braco" })
 		b:ball(0.82 * bulk, armCf * CFrame.new(0, -1.08, 0), o.gloves or skin, { role = "fixed", material = mat })
 		b:ball(0.98 * bulk, CFrame.new(shoulder) * CFrame.new(0, -0.05, 0), shirt, { role = "primary", material = mat })
 		if acc.big_gloves then
@@ -244,7 +245,14 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 
 	-- cabeça
 	local hm = R:mark()
-	local head = b:box(Vector3.new(1.2 * headS, 1.2 * headS, 1.2 * headS), CFrame.new(0, headY, 0), skin, { role = "fixed", material = mat, name = "Cabeca" })
+	local head = b:part("head", Vector3.new(1.3 * headS, 1.25 * headS, 1.25 * headS), CFrame.new(0, headY, 0), skin, { role = "fixed", material = mat, name = "Cabeca" })
+	-- orelhas, nariz e bochechas: o rosto deixa de ser um cubo liso
+	if not acc.space_helmet and not acc.spider_mask and not acc.visor and not acc.bull_head and not acc.wolf_head then
+		for _, side in { -1, 1 } do
+			b:part("ball", Vector3.new(0.18, 0.38, 0.28) * headS, CFrame.new(side * 0.66 * headS, headY - 0.02, 0.02), Kit.darker(skin, 0.06), { role = "fixed", material = mat })
+		end
+		b:part("ball", Vector3.new(0.2, 0.22, 0.2) * headS, CFrame.new(0, headY - 0.1, -0.64 * headS), Kit.darker(skin, 0.05), { role = "fixed", material = mat })
+	end
 	R.head = head
 	local eyeColor = o.eye or rgb(25, 25, 30)
 	local eyeMat = if o.glowEyes then Enum.Material.Neon else Enum.Material.SmoothPlastic
@@ -284,10 +292,12 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 	if o.hair and not acc.space_helmet then
 		local hairStyle = o.hairStyle or "short"
 		if hairStyle == "short" then
-			b:box(Vector3.new(1.3, 0.35, 1.3) * headS, CFrame.new(0, headY + 0.6 * headS, 0.05), o.hair, { role = "fixed" })
+			-- cabelo arredondado (calota) com franja
+			b:part("ball", Vector3.new(1.42, 0.85, 1.42) * headS, CFrame.new(0, headY + 0.42 * headS, 0.06), o.hair, { role = "fixed" })
+			b:part("ball", Vector3.new(1.0, 0.3, 0.35) * headS, CFrame.new(0.12, headY + 0.5 * headS, -0.55 * headS) * CFrame.Angles(0, 0, -0.2), o.hair, { role = "fixed" })
 		elseif hairStyle == "long" then
-			b:box(Vector3.new(1.3, 0.35, 1.3) * headS, CFrame.new(0, headY + 0.6 * headS, 0.05), o.hair, { role = "fixed" })
-			b:box(Vector3.new(1.3, 1.5, 0.35) * headS, CFrame.new(0, headY - 0.1, 0.62 * headS), o.hair, { role = "fixed" })
+			b:part("ball", Vector3.new(1.42, 0.85, 1.42) * headS, CFrame.new(0, headY + 0.42 * headS, 0.06), o.hair, { role = "fixed" })
+			b:part("ball", Vector3.new(1.35, 1.7, 0.5) * headS, CFrame.new(0, headY - 0.15, 0.55 * headS), o.hair, { role = "fixed" })
 		elseif hairStyle == "wild" then
 			for k = 0, 5 do
 				local a = k / 6 * math.pi * 2
