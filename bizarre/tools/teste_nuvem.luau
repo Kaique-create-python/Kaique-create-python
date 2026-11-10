@@ -304,7 +304,7 @@ checar("clash de rajadas", function()
 		aviso("clash: as rajadas não se anularam (" .. res.info.clash .. ")")
 	end
 	-- AJUSTE-8: as rajadas duram o som do anime: espera as duas acabarem antes do próximo teste
-	local fimRajadas = math.max(Golpes.STAR_PLATINUM_1.trava, Golpes.THE_WORLD_1.trava) + 0.6
+	local fimRajadas = math.max(Golpes.get("STAR_PLATINUM_1").trava, Golpes.get("THE_WORLD_1").trava) + 0.6
 	task.wait(math.max(0.2, fimRajadas - (os.clock() - inicioClash)))
 end)
 
@@ -322,8 +322,8 @@ checar("congelamentos sobrepostos", function()
 		Regras.despertar(l.estado, agoraS(workspace))
 	end
 	-- AJUSTE-8: os tempos vêm dos golpes (o tempo para junto com o som do anime)
-	local tp1 = Golpes.STAR_PLATINUM_ULT.tempo
-	local tp2 = Golpes.THE_WORLD_ULT.tempo
+	local tp1 = Golpes.get("STAR_PLATINUM_ULT").tempo
+	local tp2 = Golpes.get("THE_WORLD_ULT").tempo
 	local t0 = os.clock()
 	local function ate(t: number)
 		local falta = t0 + t - os.clock()
