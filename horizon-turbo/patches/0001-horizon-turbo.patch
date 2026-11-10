@@ -1,0 +1,1510 @@
+diff --git a/crates/horizon-client/src/android_main.rs b/crates/horizon-client/src/android_main.rs
+index 81db8b8..faa6590 100644
+--- a/crates/horizon-client/src/android_main.rs
++++ b/crates/horizon-client/src/android_main.rs
+@@ -116,6 +116,14 @@ pub(crate) fn save_input_mode() {
+         }
+     });
+ }
++/// The desktop game's allocator (`main.rs`), on Android too: world
++/// generation, meshing, lighting and the tick allocate and free small blocks
++/// on every worker at once, which the system heap (Scudo since Android 11,
++/// jemalloc before) serialises; mimalloc keeps a heap per thread. Only the
++/// engine's own Rust allocations use it: drivers and the JVM keep theirs.
++#[global_allocator]
++static ALLOCATOR: horizon_threads::Allocator = horizon_threads::Allocator;
++
+ pub(crate) const PUBLIC_BUILD: bool = match option_env!("HORIZON_ANDROID_PUBLIC") {
+     Some(value) => value.len() == 1 && value.as_bytes()[0] == b'1',
+     None => false,
+@@ -123,6 +131,9 @@ pub(crate) const PUBLIC_BUILD: bool = match option_env!("HORIZON_ANDROID_PUBLIC"
+ 
+ #[unsafe(no_mangle)]
+ fn android_on_create(state: &winit::platform::android::activity::OnCreateState<'_>) {
++    // Free pages go back to the system at once, as on desktop (first thing,
++    // before the engine allocates much).
++    horizon_threads::configure_allocator();
+     init_logging();
+     horizon_protocol::install_system_srv_lookup(android_dns::query_srv);
+     if let Err(error) =
+@@ -198,6 +209,7 @@ fn init_logging() {
+ 
+ #[unsafe(no_mangle)]
+ fn android_main(app: AndroidApp) {
++    horizon_threads::configure_allocator();
+     use winit::platform::android::activity::input::Axis;
+     for axis in [
+         Axis::Vscroll,
+diff --git a/crates/horizon-client/src/game.rs b/crates/horizon-client/src/game.rs
+index d8ef79e..a3af329 100644
+--- a/crates/horizon-client/src/game.rs
++++ b/crates/horizon-client/src/game.rs
+@@ -21086,6 +21086,56 @@ impl ApplicationHandler for App {
+ /// Every launch reads the prepared game files (`horizon-prepare`'s output, whose
+ /// manifest is `horizon-resources.json`): without them, say where they were
+ /// looked for and how to get them, before a window or a loader starts.
++/// Horizon Turbo for PC has no launcher. When the prepared files are missing
++/// and the engine tables ship beside the program (`engine-data.zip`), the
++/// game installs its files the way the Android app does: Minecraft 26.3
++/// straight from Mojang's servers, checked against the engine's pins, then
++/// the world data rebuilt from it, all in the game folder (the working
++/// directory), once. Progress goes to the console. None: not that package.
++#[cfg(not(target_os = "android"))]
++fn install_standalone() -> Result<Option<PathBuf>> {
++    use horizon_client::official_install::{self, InstallStage};
++    let Some(tables) = std::env::current_exe()?
++        .parent()
++        .map(|dir| dir.join("engine-data.zip"))
++        .filter(|path| path.is_file())
++    else {
++        return Ok(None);
++    };
++    let home = std::env::current_dir()?;
++    let installed = home
++        .join(".local/horizon-client")
++        .join(horizon_core::VANILLA_VERSION);
++    if official_install::ready(&home) {
++        return Ok(Some(installed));
++    }
++    // The installer reads the tables from the game folder, as on Android.
++    std::fs::copy(&tables, home.join("engine-data.zip"))?;
++    println!(
++        "Horizon Turbo: installing the game files of Minecraft {} from Mojang \
++         (about 500 MiB, only the first time)...",
++        horizon_core::VANILLA_VERSION
++    );
++    let shown = std::sync::Mutex::new((Instant::now(), None::<InstallStage>, 0u64));
++    official_install::install_with_progress(&home, |p| {
++        let mut last = shown.lock().unwrap_or_else(|e| e.into_inner());
++        let percent = (p.done * 100).checked_div(p.total).unwrap_or(0);
++        if last.1 == Some(p.stage) && (last.0.elapsed() < Duration::from_secs(2) || last.2 == percent)
++        {
++            return;
++        }
++        *last = (Instant::now(), Some(p.stage), percent);
++        if p.total > 0 {
++            println!("  {:?}: {percent}% ({} / {})", p.stage, p.done, p.total);
++        } else {
++            println!("  {:?}...", p.stage);
++        }
++    })
++    .map_err(|e| format!("Couldn't install Minecraft's game files: {e}"))?;
++    println!("Horizon Turbo: the game files are ready.");
++    Ok(Some(installed))
++}
++
+ fn missing_resources(root: &std::path::Path) -> Option<String> {
+     if root.join("horizon-resources.json").is_file() {
+         return None;
+@@ -21261,6 +21311,17 @@ pub fn run() -> Result<()> {
+     }
+     let started = Instant::now();
+     horizon_client::spans::enable(options.spikes.is_some());
++    // Horizon Turbo's PC package has no launcher: the game installs its files
++    // itself (`install_standalone`) when they are missing.
++    #[cfg(not(target_os = "android"))]
++    if missing_resources(&options.resources).is_some()
++        && options.execution_role.is_client()
++        && options.dedicated.is_none()
++        && !options.offscreen
++        && let Some(installed) = install_standalone()?
++    {
++        options.resources = installed;
++    }
+     let vanilla_root = options.resources.clone();
+     if let Some(error) = missing_resources(&vanilla_root) {
+         // The game build started by hand (the release's zip), not by the
+diff --git a/crates/horizon-client/src/game/friends.rs b/crates/horizon-client/src/game/friends.rs
+index fa13293..8f7cf3f 100644
+--- a/crates/horizon-client/src/game/friends.rs
++++ b/crates/horizon-client/src/game/friends.rs
+@@ -90,6 +90,9 @@ impl Game<'_> {
+                 // Both ends on one machine (tests).
+                 loopback: env_flag("HORIZON_FRIENDS_LOOPBACK", false),
+             },
++            // The public tunnel (bore.pub unless the player picks another
++            // server, or `none`): friends behind any NAT, mobile data too.
++            tunnel: horizon_client::net::friends_tunnel_setting(),
+         }) {
+             Ok(h) => h,
+             Err(e) => {
+@@ -235,9 +238,21 @@ impl Game<'_> {
+         let state = s.host.state();
+         let mut status = if s.code.is_none() {
+             "Finding how friends can reach you…".to_owned()
++        } else if let Some(public) = &state.tunnel {
++            format!(
++                "Friends anywhere can join with this code, on mobile data or behind any router: \
++                 it also goes through the public tunnel {public} (end-to-end encrypted)."
++            )
+         } else {
+             state.summary.clone()
+         };
++        if state.tunnel.is_none()
++            && s.code.is_some()
++            && let Some(problem) = &state.tunnel_problem
++        {
++            status.push(' ');
++            status.push_str(problem);
++        }
+         if let Some(short) = &state.short {
+             status.push_str(&format!(" Short code for the relay: {short}."));
+         }
+@@ -248,7 +263,8 @@ impl Game<'_> {
+         let reachable = matches!(
+             state.verdict,
+             Some(reach::Verdict::Mapped(_) | reach::Verdict::Public)
+-        ) || state.short.is_some();
++        ) || state.short.is_some()
++            || state.tunnel.is_some();
+         FriendsView {
+             shown: true,
+             sharing: true,
+@@ -291,6 +307,8 @@ impl Game<'_> {
+                     "reachable": view.reachable,
+                     "verdict": state.as_ref().and_then(|s| s.verdict.as_ref().map(|v| format!("{v:?}"))),
+                     "direct_port": state.as_ref().map(|s| s.port),
++                    "tunnel": state.as_ref().and_then(|s| s.tunnel.clone()),
++                    "tunnel_problem": state.as_ref().and_then(|s| s.tunnel_problem.clone()),
+                     "sessions": self.friends.as_ref().map_or(0, |s| s.host.sessions()),
+                     "direct": self.friends.as_ref().map_or(0, |s| s.paths.0),
+                     "relayed": self.friends.as_ref().map_or(0, |s| s.paths.1),
+diff --git a/crates/horizon-client/src/net.rs b/crates/horizon-client/src/net.rs
+index f557980..5d66049 100644
+--- a/crates/horizon-client/src/net.rs
++++ b/crates/horizon-client/src/net.rs
+@@ -365,6 +365,23 @@ pub fn friends_relay_setting() -> Option<String> {
+         .filter(|r| !r.is_empty())
+         .or_else(horizon_friends::relay_url)
+ }
++/// The public tunnel Play with Friends shares through: `HORIZON_TUNNEL`,
++/// else `friendsTunnel` in horizon.txt, else bore.pub; `none` turns it off.
++/// A self-hosted server's secret: `HORIZON_TUNNEL_SECRET` or
++/// `friendsTunnelSecret`.
++pub fn friends_tunnel_setting() -> Option<horizon_friends::tunnel::TunnelConfig> {
++    let dir = std::env::current_dir().ok();
++    let setting = |env: &str, key: &str| {
++        std::env::var(env).ok().or_else(|| {
++            dir.as_deref()
++                .and_then(|d| crate::ui_theme::preference(d, key))
++        })
++    };
++    horizon_friends::tunnel::TunnelConfig::from_setting(
++        setting("HORIZON_TUNNEL", "friendsTunnel").as_deref(),
++        setting("HORIZON_TUNNEL_SECRET", "friendsTunnelSecret").as_deref(),
++    )
++}
+ /// Remember the relay typed on Join a friend (empty forgets it).
+ pub fn save_friends_relay(relay: &str) {
+     if let Ok(dir) = std::env::current_dir() {
+diff --git a/crates/horizon-friends/src/host.rs b/crates/horizon-friends/src/host.rs
+index 8268ba7..4676cee 100644
+--- a/crates/horizon-friends/src/host.rs
++++ b/crates/horizon-friends/src/host.rs
+@@ -13,6 +13,7 @@ use crate::{
+     invite::{Invite, RelayRef},
+     reach::{self, Reach, Verdict},
+     resolve_relay, session,
++    tunnel::{self, TunnelConfig},
+     wire::{self, FromRelay, ToRelay},
+ };
+ use std::{
+@@ -53,6 +54,9 @@ pub struct HostConfig {
+     /// The direct port to ask for (0: any).
+     pub port: u16,
+     pub reach: reach::Options,
++    /// A public tunnel server (bore) that carries the direct port for
++    /// friends no direct address reaches (`tunnel`).
++    pub tunnel: Option<TunnelConfig>,
+ }
+ 
+ /// What the host's game shows.
+@@ -68,6 +72,11 @@ pub struct HostState {
+     /// Why the relay isn't serving, when one is configured.
+     pub relay_problem: Option<String>,
+     pub port: u16,
++    /// The public tunnel's address friends dial (`bore.pub:41234`), while
++    /// it is open.
++    pub tunnel: Option<String>,
++    /// Why the public tunnel isn't open, when one is configured.
++    pub tunnel_problem: Option<String>,
+ }
+ 
+ #[derive(Debug)]
+@@ -104,6 +113,10 @@ struct Shared {
+     wrong: AtomicU32,
+     relay_wrong: AtomicU32,
+     reach: Mutex<Option<Reach>>,
++    /// The public tunnel's endpoint in the code, while the tunnel is open.
++    tunnel: Mutex<Option<SocketAddr>>,
++    /// The tunnel's control connection (shut down to stop).
++    tunnel_control: Mutex<Option<TcpStream>>,
+ }
+ impl Shared {
+     fn emit(&self, e: HostEvent) {
+@@ -136,6 +149,39 @@ impl Shared {
+         }
+         self.emit(HostEvent::Code(text));
+     }
++    /// The public tunnel opened (with its endpoint) or closed: the code gets
++    /// or loses its endpoint, keeping its secret, so a code already sent
++    /// still works on every other path.
++    fn set_tunnel(&self, endpoint: Option<SocketAddr>) {
++        {
++            let mut invite = self.invite.lock().unwrap();
++            let previous = {
++                let mut current = self.tunnel.lock().unwrap();
++                if *current == endpoint {
++                    return;
++                }
++                std::mem::replace(&mut *current, endpoint)
++            };
++            // Before the first code, `share` puts the endpoint in it.
++            let Some(inv) = invite.as_mut() else { return };
++            if let Some(old) = previous {
++                inv.endpoints.retain(|e| *e != old);
++            }
++            if let Some(new) = endpoint {
++                with_tunnel(&mut inv.endpoints, new);
++            }
++        }
++        let short = self.state.lock().unwrap().short.clone();
++        self.publish(short);
++    }
++}
++
++/// The tunnel's endpoint leads the code's list: guests dial every endpoint
++/// at once, so the order only decides which ones a full list keeps.
++fn with_tunnel(endpoints: &mut Vec<SocketAddr>, tunnel: SocketAddr) {
++    endpoints.retain(|e| *e != tunnel);
++    endpoints.insert(0, tunnel);
++    endpoints.truncate(crate::invite::MAX_ENDPOINTS);
+ }
+ 
+ pub struct Host {
+@@ -166,6 +212,8 @@ impl Host {
+             wrong: AtomicU32::new(0),
+             relay_wrong: AtomicU32::new(0),
+             reach: Mutex::new(None),
++            tunnel: Mutex::new(None),
++            tunnel_control: Mutex::new(None),
+         });
+         let mut threads = Vec::new();
+         let s = shared.clone();
+@@ -204,6 +252,9 @@ impl Host {
+         if let Some(c) = self.shared.control.lock().unwrap().take() {
+             let _ = c.shutdown(Shutdown::Both);
+         }
++        if let Some(c) = self.shared.tunnel_control.lock().unwrap().take() {
++            let _ = c.shutdown(Shutdown::Both);
++        }
+         for t in self.threads.drain(..) {
+             let _ = t.join();
+         }
+@@ -222,6 +273,20 @@ impl Drop for Host {
+ /// serve the relay when there is one.
+ fn share(shared: Arc<Shared>, port: u16) {
+     let config = &shared.config;
++    // The public tunnel opens while the addresses are found, so the first
++    // code can already carry it.
++    let tunnel = match &config.tunnel {
++        Some(t) if config.path == PathMode::Auto => {
++            let (first, opened) = channel();
++            let (s, t) = (shared.clone(), t.clone());
++            std::thread::Builder::new()
++                .name("horizon-friends-tunnel".into())
++                .spawn(move || run_tunnel(s, t, port, first))
++                .ok()
++                .map(|_| opened)
++        }
++        _ => None,
++    };
+     let reach = if config.path == PathMode::RelayOnly {
+         Reach {
+             port,
+@@ -235,10 +300,22 @@ fn share(shared: Arc<Shared>, port: u16) {
+     } else {
+         reach.endpoints()
+     };
+-    let invite = match Invite::new(port, endpoints, None) {
+-        Ok(i) => i,
+-        Err(_) => return,
+-    };
++    if let Some(opened) = &tunnel {
++        // A few seconds more at most: a tunnel that opens later changes the
++        // code then.
++        let _ = opened.recv_timeout(Duration::from_secs(6));
++    }
++    {
++        let mut slot = shared.invite.lock().unwrap();
++        let mut endpoints = endpoints;
++        if let Some(t) = *shared.tunnel.lock().unwrap() {
++            with_tunnel(&mut endpoints, t);
++        }
++        match Invite::new(port, endpoints, None) {
++            Ok(i) => *slot = Some(i),
++            Err(_) => return,
++        }
++    }
+     {
+         let mut s = shared.state.lock().unwrap();
+         s.summary = if config.path == PathMode::RelayOnly {
+@@ -248,7 +325,6 @@ fn share(shared: Arc<Shared>, port: u16) {
+         };
+         s.verdict = Some(reach.verdict());
+     }
+-    *shared.invite.lock().unwrap() = Some(invite);
+     *shared.reach.lock().unwrap() = Some(reach);
+     if shared.stopped() {
+         return;
+@@ -280,6 +356,80 @@ fn share(shared: Arc<Shared>, port: u16) {
+     if let Some(t) = relay {
+         let _ = t.join();
+     }
++    // The tunnel's thread ends on its own once stopped (`Host::stop` closes
++    // its control connection); an opening still in progress isn't waited
++    // for, so stopping never stalls the game.
++    drop(tunnel);
++}
++
++/// Keep the public tunnel open until stopped: open it, put its endpoint in
++/// the code, carry its visitors to the direct port, and open it again (a
++/// new port, so a new code) when the server drops it. `first` hears the
++/// first attempt's outcome.
++fn run_tunnel(shared: Arc<Shared>, config: TunnelConfig, port: u16, first: Sender<()>) {
++    let local = SocketAddr::from(([127, 0, 0, 1], port));
++    let mut first = Some(first);
++    let mut backoff = Duration::from_secs(2);
++    while !shared.stopped() {
++        match tunnel::open(&config) {
++            Ok(control) => {
++                backoff = Duration::from_secs(2);
++                if let Ok(c) = control.closer() {
++                    *shared.tunnel_control.lock().unwrap() = Some(c);
++                }
++                if shared.stopped() {
++                    if let Some(c) = shared.tunnel_control.lock().unwrap().take() {
++                        let _ = c.shutdown(Shutdown::Both);
++                    }
++                    break;
++                }
++                let public = control.public;
++                {
++                    let mut s = shared.state.lock().unwrap();
++                    s.tunnel = Some(format!("{}:{}", config.host(), public.port()));
++                    s.tunnel_problem = None;
++                }
++                shared.set_tunnel(Some(public));
++                if let Some(f) = first.take() {
++                    let _ = f.send(());
++                }
++                let ended = control.serve(local, &shared.stop);
++                shared.tunnel_control.lock().unwrap().take();
++                if shared.stopped() {
++                    break;
++                }
++                shared.state.lock().unwrap().tunnel = None;
++                shared.set_tunnel(None);
++                shared.state.lock().unwrap().tunnel_problem = Some(match ended {
++                    Ok(()) => format!(
++                        "The public tunnel through {} closed; opening it again…",
++                        config.host()
++                    ),
++                    Err(e) => format!(
++                        "The public tunnel through {} closed ({e}); opening it again…",
++                        config.host()
++                    ),
++                });
++            }
++            Err(e) => {
++                if shared.stopped() {
++                    break;
++                }
++                shared.state.lock().unwrap().tunnel_problem = Some(format!(
++                    "Couldn't open the public tunnel through {} ({e}); trying again…",
++                    config.host()
++                ));
++                if let Some(f) = first.take() {
++                    let _ = f.send(());
++                }
++            }
++        }
++        let until = Instant::now() + backoff;
++        while Instant::now() < until && !shared.stopped() {
++            std::thread::sleep(Duration::from_millis(50));
++        }
++        backoff = (backoff * 2).min(Duration::from_secs(60));
++    }
+ }
+ 
+ /// Inbound streams on the direct port: a relayed session's direct race, or
+diff --git a/crates/horizon-friends/src/lib.rs b/crates/horizon-friends/src/lib.rs
+index 0a0c2d1..e343309 100644
+--- a/crates/horizon-friends/src/lib.rs
++++ b/crates/horizon-friends/src/lib.rs
+@@ -18,6 +18,7 @@ pub mod portmap;
+ pub mod reach;
+ mod session;
+ pub mod stun;
++pub mod tunnel;
+ pub mod wire;
+ 
+ pub use code::Code;
+diff --git a/crates/horizon-friends/src/tunnel.rs b/crates/horizon-friends/src/tunnel.rs
+new file mode 100644
+index 0000000..afbbf2d
+--- /dev/null
++++ b/crates/horizon-friends/src/tunnel.rs
+@@ -0,0 +1,524 @@
++//! The public tunnel: friends anywhere reach the host's direct port through a
++//! bore server (`bore.pub` by default, or one the player runs with
++//! `bore server`), however many NATs are in the way, mobile data and a
++//! provider's carrier-grade NAT (CGNAT) included, because the host only ever
++//! dials out. The host keeps one control connection; the server gives it a
++//! public TCP port and announces each visitor, for whom the host opens one
++//! more outbound connection and joins it to the direct port. What goes
++//! through is the same end-to-end encrypted session as a direct one, keyed
++//! by the code's secret: the server sees addresses and encrypted bytes,
++//! never the game. The invite code carries the server's address with the
++//! public port as one more endpoint, so a guest needs no setting, and a
++//! guest whose game doesn't know about tunnels dials it like any endpoint.
++//!
++//! The protocol is bore's (github.com/ekzhang/bore, MIT): JSON messages
++//! ending in a NUL byte on TCP port 7835. `{"Hello":0}` asks for a port; the
++//! server answers `{"Hello":port}`, then sends `"Heartbeat"` twice a second
++//! and `{"Connection":id}` per visitor; `{"Accept":id}` on a new connection
++//! takes that visitor, and the bytes that follow are the visitor's. A server
++//! started with `--secret` first sends `{"Challenge":uuid}`, answered with
++//! `{"Authenticate":hex(HMAC-SHA256(SHA-256(secret), the uuid's 16 bytes))}`.
++use serde::{Deserialize, Serialize};
++use sha2::{Digest, Sha256};
++use std::{
++    io::{self, BufRead, BufReader, Read, Write},
++    net::{IpAddr, Shutdown, SocketAddr, TcpStream, ToSocketAddrs},
++    sync::{
++        Arc,
++        atomic::{AtomicBool, AtomicUsize, Ordering},
++    },
++    time::Duration,
++};
++
++/// The server used when the player sets none: bore's own public one.
++pub const DEFAULT_SERVER: &str = "bore.pub";
++/// bore's control port.
++pub const CONTROL_PORT: u16 = 7835;
++/// bore's longest message.
++const MAX_FRAME: usize = 256;
++/// Connecting, and the answers during the opening (bore itself waits 3 s).
++const TIMEOUT: Duration = Duration::from_secs(5);
++/// The server sends a heartbeat every half second: this long without a
++/// message and the control connection is dead.
++const SILENCE: Duration = Duration::from_secs(20);
++/// Visitors carried at once (each holds two connections and two threads);
++/// more are left to the server, which drops them after ten seconds.
++const MAX_VISITORS: usize = 32;
++
++/// Where the tunnel goes.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct TunnelConfig {
++    /// The server: `host`, `host:port` or `[v6]:port` (its control port,
++    /// 7835 when left out).
++    pub server: String,
++    /// The server's `--secret`, when it was started with one.
++    pub secret: Option<String>,
++}
++
++impl TunnelConfig {
++    /// From the player's settings: nothing or an empty text means the default
++    /// server, `none` (or `off`, `0`, `false`) no tunnel.
++    pub fn from_setting(server: Option<&str>, secret: Option<&str>) -> Option<Self> {
++        let server = server.map(str::trim).unwrap_or("");
++        if matches!(
++            server.to_ascii_lowercase().as_str(),
++            "none" | "off" | "0" | "false" | "no"
++        ) {
++            return None;
++        }
++        let server = server.trim_start_matches("tcp://").trim_end_matches('/');
++        Some(Self {
++            server: if server.is_empty() {
++                DEFAULT_SERVER.to_owned()
++            } else {
++                server.to_owned()
++            },
++            secret: secret
++                .map(str::trim)
++                .filter(|s| !s.is_empty())
++                .map(str::to_owned),
++        })
++    }
++
++    /// The server's name as the player reads it, without its port.
++    pub fn host(&self) -> &str {
++        let s = self.server.as_str();
++        if let Some(rest) = s.strip_prefix('[') {
++            return rest.split(']').next().unwrap_or(rest);
++        }
++        match s.rsplit_once(':') {
++            Some((host, port)) if !host.contains(':') && port.parse::<u16>().is_ok() => host,
++            _ => s,
++        }
++    }
++
++    /// The server's addresses, IPv4 first: bore opens the public ports on
++    /// IPv4 (`--bind-tunnels 0.0.0.0` by default), and most phones' networks
++    /// only have IPv4 anyway.
++    fn addresses(&self) -> io::Result<Vec<SocketAddr>> {
++        let s = self.server.as_str();
++        let with_port = if s.parse::<SocketAddr>().is_ok() {
++            s.to_owned()
++        } else if s.parse::<IpAddr>().is_ok_and(|ip| ip.is_ipv6()) {
++            format!("[{s}]:{CONTROL_PORT}")
++        } else if s.starts_with('[') {
++            if s.contains("]:") {
++                s.to_owned()
++            } else {
++                format!("{s}:{CONTROL_PORT}")
++            }
++        } else if s
++            .rsplit_once(':')
++            .is_some_and(|(host, port)| !host.contains(':') && port.parse::<u16>().is_ok())
++        {
++            s.to_owned()
++        } else {
++            format!("{s}:{CONTROL_PORT}")
++        };
++        let mut found: Vec<SocketAddr> = with_port.to_socket_addrs()?.collect();
++        found.sort_by_key(|a| a.is_ipv6());
++        found.dedup();
++        if found.is_empty() {
++            return Err(io::Error::new(
++                io::ErrorKind::NotFound,
++                "the tunnel server's name didn't resolve",
++            ));
++        }
++        Ok(found)
++    }
++}
++
++/// A message to the server.
++#[derive(Debug, Serialize)]
++enum ToServer {
++    Authenticate(String),
++    Hello(u16),
++    Accept(String),
++}
++
++/// A message from the server.
++#[derive(Debug, Deserialize)]
++enum FromServer {
++    Challenge(String),
++    Hello(u16),
++    Heartbeat,
++    Connection(String),
++    Error(String),
++}
++
++fn invalid(what: impl Into<String>) -> io::Error {
++    io::Error::new(io::ErrorKind::InvalidData, what.into())
++}
++
++fn send(stream: &mut impl Write, message: &ToServer) -> io::Result<()> {
++    let mut bytes = serde_json::to_vec(message).map_err(io::Error::other)?;
++    bytes.push(0);
++    stream.write_all(&bytes)?;
++    stream.flush()
++}
++
++/// The next message: the bytes up to the next NUL (taken from `reader`'s
++/// buffer, so nothing after it is lost).
++fn recv(reader: &mut impl BufRead) -> io::Result<FromServer> {
++    let mut frame = Vec::new();
++    let n = (&mut *reader)
++        .take(MAX_FRAME as u64 + 1)
++        .read_until(0, &mut frame)?;
++    if n == 0 {
++        return Err(io::ErrorKind::UnexpectedEof.into());
++    }
++    if frame.last() != Some(&0) {
++        return Err(if n > MAX_FRAME {
++            invalid("the tunnel server sent a message that is too long")
++        } else {
++            io::ErrorKind::UnexpectedEof.into()
++        });
++    }
++    frame.pop();
++    serde_json::from_slice(&frame)
++        .map_err(|e| invalid(format!("the tunnel server said something unknown ({e})")))
++}
++
++/// HMAC-SHA256 (RFC 2104), the only MAC bore's authentication uses.
++fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
++    const BLOCK: usize = 64;
++    let mut block = [0u8; BLOCK];
++    if key.len() > BLOCK {
++        block[..32].copy_from_slice(&Sha256::digest(key));
++    } else {
++        block[..key.len()].copy_from_slice(key);
++    }
++    let mut inner = Sha256::new();
++    inner.update(block.map(|b| b ^ 0x36));
++    inner.update(message);
++    let inner = inner.finalize();
++    let mut outer = Sha256::new();
++    outer.update(block.map(|b| b ^ 0x5c));
++    outer.update(inner);
++    outer.finalize().into()
++}
++
++/// A UUID's 16 bytes from its text (`8-4-4-4-12` hex digits, or 32 in a row).
++fn uuid_bytes(text: &str) -> Option<[u8; 16]> {
++    let digits: Vec<u8> = text.bytes().filter(|&b| b != b'-').collect();
++    if digits.len() != 32 {
++        return None;
++    }
++    let mut out = [0u8; 16];
++    for (i, pair) in digits.chunks(2).enumerate() {
++        out[i] = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
++    }
++    Some(out)
++}
++
++/// The answer to a challenge: bore's `Authenticator::answer`.
++fn answer(secret: &str, challenge: &str) -> io::Result<String> {
++    let id =
++        uuid_bytes(challenge).ok_or_else(|| invalid("the tunnel server sent a bad challenge"))?;
++    let key = Sha256::digest(secret.as_bytes());
++    Ok(hmac_sha256(&key, &id)
++        .iter()
++        .map(|b| format!("{b:02x}"))
++        .collect())
++}
++
++/// Answer the server's challenge, first thing on a connection.
++fn authenticate(reader: &mut impl BufRead, stream: &mut TcpStream, secret: &str) -> io::Result<()> {
++    match recv(reader)? {
++        FromServer::Challenge(id) => send(stream, &ToServer::Authenticate(answer(secret, &id)?)),
++        FromServer::Error(e) => Err(io::Error::other(format!("the tunnel server refused: {e}"))),
++        _ => Err(invalid(
++            "the tunnel server didn't ask for the secret: leave the secret empty",
++        )),
++    }
++}
++
++/// The control connection of an open tunnel.
++pub struct Control {
++    reader: BufReader<TcpStream>,
++    stream: TcpStream,
++    /// Where friends dial: the server's (IPv4) address with the port it gave.
++    pub public: SocketAddr,
++    /// The address the control connection reached, where visitors are taken.
++    server: SocketAddr,
++    secret: Option<String>,
++}
++
++/// Ask the server for a public port.
++pub fn open(config: &TunnelConfig) -> io::Result<Control> {
++    let addresses = config.addresses()?;
++    // The public port is reached on the server's IPv4 address even when the
++    // control connection went over IPv6.
++    let public_ip = addresses.iter().find(|a| a.is_ipv4()).map(SocketAddr::ip);
++    let mut last = io::Error::other("no address");
++    for server in addresses {
++        match open_at(server, public_ip, config.secret.as_deref()) {
++            Ok(control) => return Ok(control),
++            Err(e) => last = e,
++        }
++    }
++    Err(last)
++}
++
++fn open_at(
++    server: SocketAddr,
++    public_ip: Option<IpAddr>,
++    secret: Option<&str>,
++) -> io::Result<Control> {
++    let mut stream = TcpStream::connect_timeout(&server, TIMEOUT)?;
++    let _ = stream.set_nodelay(true);
++    stream.set_read_timeout(Some(TIMEOUT))?;
++    let mut reader = BufReader::new(stream.try_clone()?);
++    if let Some(secret) = secret {
++        authenticate(&mut reader, &mut stream, secret)?;
++    }
++    send(&mut stream, &ToServer::Hello(0))?;
++    loop {
++        match recv(&mut reader)? {
++            FromServer::Hello(0) => return Err(invalid("the tunnel server gave no port")),
++            FromServer::Hello(port) => {
++                return Ok(Control {
++                    reader,
++                    stream,
++                    public: SocketAddr::new(public_ip.unwrap_or(server.ip()), port),
++                    server,
++                    secret: secret.map(str::to_owned),
++                });
++            }
++            FromServer::Heartbeat => {}
++            FromServer::Error(e) => {
++                return Err(io::Error::other(format!("the tunnel server refused: {e}")));
++            }
++            FromServer::Challenge(_) => {
++                return Err(io::Error::new(
++                    io::ErrorKind::PermissionDenied,
++                    "the tunnel server needs its secret (friendsTunnelSecret)",
++                ));
++            }
++            FromServer::Connection(_) => return Err(invalid("a visitor came before the port")),
++        }
++    }
++}
++
++impl Control {
++    /// A handle that ends [`Control::serve`] from another thread (shut it down).
++    pub fn closer(&self) -> io::Result<TcpStream> {
++        self.stream.try_clone()
++    }
++
++    /// Take each visitor and carry it to `local` until the control
++    /// connection ends (the error says why) or `stop` is set.
++    pub fn serve(mut self, local: SocketAddr, stop: &AtomicBool) -> io::Result<()> {
++        self.stream.set_read_timeout(Some(SILENCE))?;
++        let visitors = Arc::new(AtomicUsize::new(0));
++        loop {
++            if stop.load(Ordering::Relaxed) {
++                let _ = self.stream.shutdown(Shutdown::Both);
++                return Ok(());
++            }
++            let message = match recv(&mut self.reader) {
++                Ok(m) => m,
++                Err(_) if stop.load(Ordering::Relaxed) => return Ok(()),
++                Err(e)
++                    if matches!(
++                        e.kind(),
++                        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
++                    ) =>
++                {
++                    return Err(io::Error::new(
++                        io::ErrorKind::TimedOut,
++                        "the tunnel server went silent",
++                    ));
++                }
++                Err(e) => return Err(e),
++            };
++            match message {
++                FromServer::Heartbeat => {}
++                FromServer::Connection(id) => {
++                    if visitors.fetch_add(1, Ordering::Relaxed) >= MAX_VISITORS {
++                        visitors.fetch_sub(1, Ordering::Relaxed);
++                        continue;
++                    }
++                    let (server, secret, count) =
++                        (self.server, self.secret.clone(), visitors.clone());
++                    let spawned = std::thread::Builder::new()
++                        .name("horizon-tunnel-visitor".into())
++                        .spawn(move || {
++                            let _ = take_visitor(server, secret.as_deref(), &id, local);
++                            count.fetch_sub(1, Ordering::Relaxed);
++                        });
++                    if spawned.is_err() {
++                        visitors.fetch_sub(1, Ordering::Relaxed);
++                    }
++                }
++                FromServer::Error(e) => {
++                    return Err(io::Error::other(format!(
++                        "the tunnel server ended the tunnel: {e}"
++                    )));
++                }
++                FromServer::Hello(_) | FromServer::Challenge(_) => {
++                    return Err(invalid("the tunnel server sent an unexpected message"));
++                }
++            }
++        }
++    }
++}
++
++/// One visitor: a new connection to the server that accepts it, joined to
++/// `local` both ways.
++fn take_visitor(
++    server: SocketAddr,
++    secret: Option<&str>,
++    id: &str,
++    local: SocketAddr,
++) -> io::Result<()> {
++    let mut remote = TcpStream::connect_timeout(&server, TIMEOUT)?;
++    let _ = remote.set_nodelay(true);
++    remote.set_read_timeout(Some(TIMEOUT))?;
++    // Bytes the reader took past the challenge belong to the visitor (none
++    // in practice: the server waits for the answer before it carries any).
++    let mut early = Vec::new();
++    if let Some(secret) = secret {
++        let mut reader = BufReader::new(remote.try_clone()?);
++        authenticate(&mut reader, &mut remote, secret)?;
++        early.extend_from_slice(reader.buffer());
++    }
++    send(&mut remote, &ToServer::Accept(id.to_owned()))?;
++    let mut local = TcpStream::connect_timeout(&local, TIMEOUT)?;
++    let _ = local.set_nodelay(true);
++    if !early.is_empty() {
++        local.write_all(&early)?;
++    }
++    remote.set_read_timeout(None)?;
++    join(remote, local)
++}
++
++/// Copy both ways until either side ends, then close both.
++fn join(a: TcpStream, b: TcpStream) -> io::Result<()> {
++    let (mut a_in, mut b_out) = (a.try_clone()?, b.try_clone()?);
++    let up = std::thread::Builder::new()
++        .name("horizon-tunnel-copy".into())
++        .spawn(move || {
++            let _ = io::copy(&mut a_in, &mut b_out);
++            let _ = b_out.shutdown(Shutdown::Both);
++            let _ = a_in.shutdown(Shutdown::Both);
++        })?;
++    let (mut b_in, mut a_out) = (b, a);
++    let _ = io::copy(&mut b_in, &mut a_out);
++    let _ = a_out.shutdown(Shutdown::Both);
++    let _ = b_in.shutdown(Shutdown::Both);
++    let _ = up.join();
++    Ok(())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn hmac_matches_rfc_4231() {
++        // Test case 2: key "Jefe".
++        let mac = hmac_sha256(b"Jefe", b"what do ya want for nothing?");
++        let hex: String = mac.iter().map(|b| format!("{b:02x}")).collect();
++        assert_eq!(
++            hex,
++            "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
++        );
++        // Test case 6: a key longer than the block is hashed first.
++        let mac = hmac_sha256(
++            &[0xaa; 131],
++            b"Test Using Larger Than Block-Size Key - Hash Key First",
++        );
++        let hex: String = mac.iter().map(|b| format!("{b:02x}")).collect();
++        assert_eq!(
++            hex,
++            "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54"
++        );
++    }
++
++    #[test]
++    fn the_answer_is_bores() {
++        // bore: HMAC keyed by SHA-256 of the secret over the uuid's bytes.
++        let id = "67e55044-10b1-426f-9247-bb680e5fe0c8";
++        let key = Sha256::digest(b"secret");
++        let expected: String = hmac_sha256(&key, &uuid_bytes(id).unwrap())
++            .iter()
++            .map(|b| format!("{b:02x}"))
++            .collect();
++        assert_eq!(answer("secret", id).unwrap(), expected);
++        assert_eq!(answer("secret", id).unwrap().len(), 64);
++        assert_eq!(
++            uuid_bytes(id).unwrap(),
++            uuid_bytes("67e5504410b1426f9247bb680e5fe0c8").unwrap()
++        );
++        assert!(uuid_bytes("not-a-uuid").is_none());
++    }
++
++    #[test]
++    fn messages_are_bores_json() {
++        assert_eq!(
++            serde_json::to_string(&ToServer::Hello(0)).unwrap(),
++            r#"{"Hello":0}"#
++        );
++        assert_eq!(
++            serde_json::to_string(&ToServer::Accept("a-b".into())).unwrap(),
++            r#"{"Accept":"a-b"}"#
++        );
++        let mut input: &[u8] =
++            b"{\"Hello\":41234}\0\"Heartbeat\"\0{\"Connection\":\"x\"}\0{\"Error\":\"no\"}\0";
++        assert!(matches!(
++            recv(&mut input).unwrap(),
++            FromServer::Hello(41234)
++        ));
++        assert!(matches!(recv(&mut input).unwrap(), FromServer::Heartbeat));
++        assert!(matches!(recv(&mut input).unwrap(), FromServer::Connection(id) if id == "x"));
++        assert!(matches!(recv(&mut input).unwrap(), FromServer::Error(e) if e == "no"));
++        assert_eq!(
++            recv(&mut input).unwrap_err().kind(),
++            io::ErrorKind::UnexpectedEof
++        );
++        let long = [b'x'; 300];
++        assert_eq!(
++            recv(&mut &long[..]).unwrap_err().kind(),
++            io::ErrorKind::InvalidData
++        );
++    }
++
++    #[test]
++    fn settings() {
++        assert_eq!(
++            TunnelConfig::from_setting(None, None).unwrap().server,
++            "bore.pub"
++        );
++        assert_eq!(
++            TunnelConfig::from_setting(Some(" "), None).unwrap().server,
++            "bore.pub"
++        );
++        assert!(TunnelConfig::from_setting(Some("none"), None).is_none());
++        assert!(TunnelConfig::from_setting(Some("OFF"), None).is_none());
++        let own =
++            TunnelConfig::from_setting(Some("tcp://example.org:9000/"), Some(" s3 ")).unwrap();
++        assert_eq!(own.server, "example.org:9000");
++        assert_eq!(own.secret.as_deref(), Some("s3"));
++        assert_eq!(own.host(), "example.org");
++        assert_eq!(
++            TunnelConfig::from_setting(Some("bore.pub"), None)
++                .unwrap()
++                .host(),
++            "bore.pub"
++        );
++        assert_eq!(
++            TunnelConfig::from_setting(Some("[::1]:7835"), None)
++                .unwrap()
++                .host(),
++            "::1"
++        );
++        let local = TunnelConfig::from_setting(Some("127.0.0.1"), None).unwrap();
++        assert_eq!(
++            local.addresses().unwrap(),
++            vec![SocketAddr::from(([127, 0, 0, 1], CONTROL_PORT))]
++        );
++        let v6 = TunnelConfig::from_setting(Some("::1"), None).unwrap();
++        assert_eq!(v6.addresses().unwrap()[0].port(), CONTROL_PORT);
++    }
++}
+diff --git a/crates/horizon-friends/tests/public_tunnel.rs b/crates/horizon-friends/tests/public_tunnel.rs
+new file mode 100644
+index 0000000..d54b011
+--- /dev/null
++++ b/crates/horizon-friends/tests/public_tunnel.rs
+@@ -0,0 +1,357 @@
++//! The public tunnel end to end on loopback: a host shares through a
++//! bore-compatible server (a small one in this file, written from bore's
++//! protocol; `HORIZON_TEST_BORE=host[:port]` runs the first test against a
++//! real `bore server` instead), and a guest whose code holds nothing but the
++//! tunnel's endpoint joins through it, end-to-end encrypted as always.
++use horizon_friends::{
++    Host, HostConfig, PathMode,
++    guest::{self, GuestConfig},
++    invite::{self, Invite, Parsed},
++    reach,
++    tunnel::TunnelConfig,
++};
++use serde_json::json;
++use std::{
++    collections::HashMap,
++    io::{self, BufRead, BufReader, Read, Write},
++    net::{Shutdown, SocketAddr, TcpListener, TcpStream},
++    sync::{
++        Arc, Mutex,
++        atomic::{AtomicUsize, Ordering},
++    },
++    thread,
++    time::{Duration, Instant},
++};
++
++const PROTOCOL: i32 = 777;
++
++/// Echoes every connection back until it closes.
++fn echo_server() -> SocketAddr {
++    let l = TcpListener::bind("127.0.0.1:0").unwrap();
++    let a = l.local_addr().unwrap();
++    thread::spawn(move || {
++        for s in l.incoming() {
++            let Ok(mut s) = s else { continue };
++            thread::spawn(move || {
++                let mut out = s.try_clone().unwrap();
++                let _ = io::copy(&mut s, &mut out);
++            });
++        }
++    });
++    a
++}
++
++// ----- A bore-compatible server ---------------------------------------------------------------
++
++#[derive(Clone, Default)]
++struct Bore {
++    control: Option<SocketAddr>,
++    /// Hosts whose control connection is open.
++    hosts: Arc<AtomicUsize>,
++    /// Visitors carried so far.
++    carried: Arc<AtomicUsize>,
++}
++
++fn send_frame(s: &mut TcpStream, v: serde_json::Value) -> io::Result<()> {
++    let mut b = serde_json::to_vec(&v).unwrap();
++    b.push(0);
++    s.write_all(&b)
++}
++
++fn read_frame(r: &mut impl BufRead) -> Option<serde_json::Value> {
++    let mut f = Vec::new();
++    if r.read_until(0, &mut f).ok()? == 0 || f.pop() != Some(0) {
++        return None;
++    }
++    serde_json::from_slice(&f).ok()
++}
++
++fn uuid(n: usize) -> String {
++    format!("6f1d0c2a-0000-4000-8000-{n:012x}")
++}
++
++/// bore's answer, computed apart from the client's code: HMAC-SHA256 keyed
++/// by SHA-256 of the secret, over the uuid's 16 bytes, in hex.
++fn expected_answer(secret: &str, challenge: &str) -> String {
++    use sha2::{Digest, Sha256};
++    let hex: String = challenge.chars().filter(|c| *c != '-').collect();
++    let id: Vec<u8> = (0..16)
++        .map(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap())
++        .collect();
++    let mut key = [0u8; 64];
++    key[..32].copy_from_slice(&Sha256::digest(secret.as_bytes()));
++    let pad = |x: u8| key.iter().map(|b| b ^ x).collect::<Vec<u8>>();
++    let inner = Sha256::new()
++        .chain_update(pad(0x36))
++        .chain_update(&id)
++        .finalize();
++    let outer = Sha256::new()
++        .chain_update(pad(0x5c))
++        .chain_update(inner)
++        .finalize();
++    outer.iter().map(|b| format!("{b:02x}")).collect()
++}
++
++/// bore's server: `Hello(0)` gets a port and heartbeats, each visitor a
++/// `Connection(id)`, and `Accept(id)` on a new connection carries it.
++fn bore_server(secret: Option<&'static str>) -> Bore {
++    let l = TcpListener::bind("127.0.0.1:0").unwrap();
++    let bore = Bore {
++        control: Some(l.local_addr().unwrap()),
++        ..Bore::default()
++    };
++    let pending: Arc<Mutex<HashMap<String, TcpStream>>> = Arc::default();
++    let next = Arc::new(AtomicUsize::new(1));
++    let b = bore.clone();
++    thread::spawn(move || {
++        for s in l.incoming() {
++            let Ok(s) = s else { continue };
++            let (b, pending, next) = (b.clone(), pending.clone(), next.clone());
++            thread::spawn(move || {
++                let _ = serve(s, &b, &pending, &next, secret);
++            });
++        }
++    });
++    bore
++}
++
++fn serve(
++    mut s: TcpStream,
++    bore: &Bore,
++    pending: &Mutex<HashMap<String, TcpStream>>,
++    next: &AtomicUsize,
++    secret: Option<&str>,
++) -> io::Result<()> {
++    s.set_read_timeout(Some(Duration::from_secs(3)))?;
++    let mut r = BufReader::new(s.try_clone()?);
++    if let Some(secret) = secret {
++        let challenge = uuid(next.fetch_add(1, Ordering::Relaxed));
++        send_frame(&mut s, json!({ "Challenge": challenge }))?;
++        let answer = read_frame(&mut r);
++        if answer.as_ref().and_then(|v| v["Authenticate"].as_str())
++            != Some(expected_answer(secret, &challenge).as_str())
++        {
++            // bore: "invalid secret", and the connection ends.
++            return Ok(());
++        }
++    }
++    let first = read_frame(&mut r).ok_or_else(|| io::Error::other("no first message"))?;
++    if let Some(port) = first.get("Hello").and_then(|p| p.as_u64()) {
++        assert_eq!(port, 0, "the host asks for any port");
++        let visitors = TcpListener::bind("127.0.0.1:0")?;
++        visitors.set_nonblocking(true)?;
++        send_frame(&mut s, json!({ "Hello": visitors.local_addr()?.port() }))?;
++        bore.hosts.fetch_add(1, Ordering::Relaxed);
++        let ended = (|| -> io::Result<()> {
++            loop {
++                send_frame(&mut s, json!("Heartbeat"))?;
++                let until = Instant::now() + Duration::from_millis(500);
++                while Instant::now() < until {
++                    match visitors.accept() {
++                        Ok((v, _)) => {
++                            v.set_nonblocking(false)?;
++                            let id = uuid(next.fetch_add(1, Ordering::Relaxed));
++                            pending.lock().unwrap().insert(id.clone(), v);
++                            send_frame(&mut s, json!({ "Connection": id }))?;
++                        }
++                        Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
++                            thread::sleep(Duration::from_millis(10));
++                        }
++                        Err(e) => return Err(e),
++                    }
++                }
++            }
++        })();
++        bore.hosts.fetch_sub(1, Ordering::Relaxed);
++        return ended;
++    }
++    if let Some(id) = first.get("Accept").and_then(|i| i.as_str()) {
++        let Some(mut visitor) = pending.lock().unwrap().remove(id) else {
++            return Ok(());
++        };
++        visitor.write_all(r.buffer())?;
++        s.set_read_timeout(None)?;
++        bore.carried.fetch_add(1, Ordering::Relaxed);
++        let (mut from_host, mut to_visitor) = (s.try_clone()?, visitor.try_clone()?);
++        let up = thread::spawn(move || {
++            let _ = io::copy(&mut from_host, &mut to_visitor);
++            let _ = to_visitor.shutdown(Shutdown::Both);
++        });
++        let _ = io::copy(&mut visitor, &mut s);
++        let _ = s.shutdown(Shutdown::Both);
++        let _ = up.join();
++    }
++    Ok(())
++}
++
++// ----- The game's ends ------------------------------------------------------------------------
++
++fn start(tunnel: TunnelConfig) -> Host {
++    Host::start(HostConfig {
++        lan: echo_server(),
++        protocol: PROTOCOL,
++        game: "26.3".into(),
++        relay: None,
++        path: PathMode::Auto,
++        port: 0,
++        reach: reach::Options {
++            map_port: false,
++            stun: Vec::new(),
++            loopback: false,
++        },
++        tunnel: Some(tunnel),
++    })
++    .unwrap()
++}
++
++fn long(code: &str) -> Invite {
++    match invite::parse(code) {
++        Some(Parsed::Long(i)) => i,
++        other => panic!("{other:?}"),
++    }
++}
++
++/// The code once it holds the tunnel's endpoint, and that endpoint.
++fn tunnel_code(host: &Host) -> (String, SocketAddr) {
++    let deadline = Instant::now() + Duration::from_secs(20);
++    loop {
++        let s = host.state();
++        if let (Some(code), Some(address)) = (s.invite, s.tunnel) {
++            let port: u16 = address.rsplit(':').next().unwrap().parse().unwrap();
++            if let Some(e) = long(&code).endpoints.iter().find(|e| e.port() == port) {
++                return (code, *e);
++            }
++        }
++        assert!(
++            Instant::now() < deadline,
++            "no tunnel: {:?}",
++            host.state().tunnel_problem
++        );
++        thread::sleep(Duration::from_millis(20));
++    }
++}
++
++/// The same code with nothing but the tunnel's endpoint: only the tunnel
++/// can carry a guest that has it.
++fn only_through(code: &str, endpoint: SocketAddr) -> String {
++    let mut invite = long(code);
++    invite.endpoints = vec![endpoint];
++    invite.relay = None;
++    invite.encode()
++}
++
++fn join(code: &str) -> guest::Tunnel {
++    guest::join(&GuestConfig {
++        code: code.to_owned(),
++        relay: None,
++        protocol: PROTOCOL,
++        game: "26.3".into(),
++        path: PathMode::Auto,
++    })
++    .unwrap()
++}
++
++/// What the game's client does: connect to the loopback port, send, read
++/// the echo back.
++fn round_trip(tunnel: guest::Tunnel, payload: &[u8]) {
++    let (port, done) = tunnel.serve_loopback().unwrap();
++    let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
++    s.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
++    let mut w = s.try_clone().unwrap();
++    let send = payload.to_vec();
++    let writer = thread::spawn(move || w.write_all(&send).unwrap());
++    let mut got = vec![0u8; payload.len()];
++    s.read_exact(&mut got).unwrap();
++    writer.join().unwrap();
++    assert!(got == payload, "echo differs");
++    drop(s);
++    done.join().unwrap();
++}
++
++fn payload(n: usize) -> Vec<u8> {
++    (0..n).map(|i| (i * 7 + i / 251) as u8).collect()
++}
++
++fn wait_until(what: &str, mut f: impl FnMut() -> bool) {
++    let deadline = Instant::now() + Duration::from_secs(20);
++    while !f() {
++        assert!(Instant::now() < deadline, "{what}");
++        thread::sleep(Duration::from_millis(20));
++    }
++}
++
++#[test]
++fn friends_join_through_the_public_tunnel() {
++    let real = std::env::var("HORIZON_TEST_BORE").ok();
++    let bore = if real.is_some() {
++        Bore::default()
++    } else {
++        bore_server(None)
++    };
++    let server = real.unwrap_or_else(|| bore.control.unwrap().to_string());
++    let mut host = start(TunnelConfig::from_setting(Some(&server), None).unwrap());
++    let (code, endpoint) = tunnel_code(&host);
++    assert!(
++        long(&code).endpoints[0] == endpoint,
++        "the tunnel leads the code"
++    );
++    assert!(host.state().tunnel_problem.is_none());
++    let code = only_through(&code, endpoint);
++    round_trip(join(&code), &payload(1 << 20));
++    // Two guests at once.
++    let (a, b) = (join(&code), join(&code));
++    let ta = thread::spawn(move || round_trip(a, &payload(50_000)));
++    round_trip(b, &payload(70_000));
++    ta.join().unwrap();
++    if bore.control.is_some() {
++        assert!(bore.carried.load(Ordering::Relaxed) >= 3);
++        // Stopping closes the tunnel at the server.
++        host.stop();
++        wait_until("the tunnel stays open", || {
++            bore.hosts.load(Ordering::Relaxed) == 0
++        });
++    }
++}
++
++#[test]
++fn a_server_with_a_secret_takes_only_its_secret() {
++    let bore = bore_server(Some("s3cret"));
++    let server = bore.control.unwrap().to_string();
++    let host = start(TunnelConfig::from_setting(Some(&server), Some("s3cret")).unwrap());
++    let (code, endpoint) = tunnel_code(&host);
++    round_trip(join(&only_through(&code, endpoint)), &payload(10_000));
++    for secret in [Some("wrong"), None] {
++        let host = start(TunnelConfig::from_setting(Some(&server), secret).unwrap());
++        wait_until("no problem shown", || {
++            let s = host.state();
++            s.tunnel_problem.is_some() && s.invite.is_some()
++        });
++        let state = host.state();
++        assert!(state.tunnel.is_none(), "{secret:?}");
++        // The code still comes, for every other path, without a tunnel port.
++        let ports = long(&state.invite.unwrap()).endpoints;
++        assert!(ports.iter().all(|e| e.port() == state.port), "{ports:?}");
++    }
++}
++
++#[test]
++fn an_unreachable_server_leaves_the_code_to_the_other_paths() {
++    // A port nothing listens on any more.
++    let dead = TcpListener::bind("127.0.0.1:0")
++        .unwrap()
++        .local_addr()
++        .unwrap();
++    let host = start(TunnelConfig::from_setting(Some(&dead.to_string()), None).unwrap());
++    wait_until("no code", || {
++        let s = host.state();
++        s.invite.is_some() && s.tunnel_problem.is_some()
++    });
++    let state = host.state();
++    assert!(state.tunnel.is_none());
++    assert!(
++        !long(&state.invite.unwrap())
++            .endpoints
++            .iter()
++            .any(|e| e.port() == dead.port() && e.ip().is_loopback())
++    );
++}
+diff --git a/crates/horizon-relay/tests/tunnel.rs b/crates/horizon-relay/tests/tunnel.rs
+index e59f48d..1b0fcf2 100644
+--- a/crates/horizon-relay/tests/tunnel.rs
++++ b/crates/horizon-relay/tests/tunnel.rs
+@@ -63,6 +63,7 @@ fn start(relay: Option<&str>, path: PathMode) -> Host {
+             stun: Vec::new(),
+             loopback: true,
+         },
++        tunnel: None,
+     })
+     .unwrap()
+ }
+diff --git a/docs/play-with-friends.md b/docs/play-with-friends.md
+index ae80f3f..82120e8 100644
+--- a/docs/play-with-friends.md
++++ b/docs/play-with-friends.md
+@@ -108,6 +108,34 @@ UUID, skin and cape. A host playing under an offline name runs it in offline mod
+ with the name their game uses. Either way the host's own profile is reserved. Every tunnelled guest
+ reaches the integrated server from `127.0.0.1`.
+ 
++## The public tunnel (Horizon Turbo)
++
++Phones on mobile data, and many homes, sit behind the provider's carrier-grade NAT (CGNAT): no
++router setting can open them, so without a relay friends on the internet couldn't reach the
++host. Horizon Turbo also shares the direct port through a public **bore** server
++([github.com/ekzhang/bore](https://github.com/ekzhang/bore), MIT), `bore.pub` by default:
++
++1. while it finds its addresses, the host opens one outbound connection to the server's control
++   port (TCP 7835) and asks for a public port (`{"Hello":0}`);
++2. the server answers with a random public port, and the code gets `server-address:port` as one
++   more endpoint, first in the list (an ordinary IPv4 endpoint: a Horizon guest without this
++   change dials it too);
++3. for each friend who dials it, the server announces the visitor and the host opens one more
++   outbound connection that joins it to the direct port.
++
++Everything that goes through is the session the code already protects (SPAKE2, then
++ChaCha20-Poly1305): the server sees the addresses and the size of encrypted frames, never the
++secret or the game. Both ends only dial out, so it works behind any number of NATs. Guests dial
++every endpoint at once, so on a LAN, a VPN or with an open router port the direct path still wins.
++If the server can't be reached the code works as before and Play with Friends says why; when the
++server drops the tunnel the host opens a new one, and the code changes.
++
++Settings: `HORIZON_TUNNEL` or `friendsTunnel:host[:port]` in `horizon.txt` picks another server
++(`bore server` runs anywhere: a PC with a forwarded port, a VPS); `none` turns the tunnel off.
++A server started with `--secret` takes `HORIZON_TUNNEL_SECRET` or `friendsTunnelSecret:...`.
++Tests: `crates/horizon-friends/tests/public_tunnel.rs` (a bore-compatible server in the test, or a
++real one with `HORIZON_TEST_BORE=host`).
++
+ ## Relays (optional)
+ 
+ For networks nothing can reach (CGNAT on both sides, no VPN), a **relay** carries the session: one small
+diff --git a/packaging/android/AndroidManifest.xml b/packaging/android/AndroidManifest.xml
+index ca9714a..9d3b4f0 100644
+--- a/packaging/android/AndroidManifest.xml
++++ b/packaging/android/AndroidManifest.xml
+@@ -7,7 +7,7 @@
+     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+     <uses-feature android:name="android.software.leanback" android:required="false" />
+-    <application android:label="Horizon Android" android:appCategory="game" android:icon="@drawable/launcher_icon" android:banner="@drawable/tv_banner" android:extractNativeLibs="true" android:usesCleartextTraffic="false">
++    <application android:label="${appLabel}" android:appCategory="game" android:icon="@drawable/launcher_icon" android:banner="@drawable/tv_banner" android:extractNativeLibs="true" android:usesCleartextTraffic="false">
+         <provider android:name="dev.horizon.android.HorizonDocumentsProvider" android:authorities="${applicationId}.documents" android:exported="true" android:grantUriPermissions="true" android:permission="android.permission.MANAGE_DOCUMENTS">
+             <intent-filter>
+                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+diff --git a/packaging/android/build.gradle b/packaging/android/build.gradle
+index 7b89932..7df6dd7 100644
+--- a/packaging/android/build.gradle
++++ b/packaging/android/build.gradle
+@@ -7,8 +7,10 @@ android {
+         applicationId providers.gradleProperty('appId').getOrElse('dev.horizon.android')
+         minSdk providers.gradleProperty('minSdk').getOrElse('28').toInteger()
+         targetSdk 35
+-        versionCode providers.gradleProperty('devVersionCode').getOrElse('30').toInteger()
+-        versionName '0.7.8' + (providers.gradleProperty('devVersionCode').isPresent() ? '-dev.' + providers.gradleProperty('devBuild').get() : '')
++        versionCode providers.gradleProperty('devVersionCode').orElse(providers.gradleProperty('versionCodeOverride')).getOrElse('30').toInteger()
++        versionName providers.gradleProperty('versionNameOverride').getOrElse('0.7.8') + (providers.gradleProperty('devVersionCode').isPresent() ? '-dev.' + providers.gradleProperty('devBuild').get() : '')
++        // A separately installed fork names itself (`-PappLabel`).
++        manifestPlaceholders['appLabel'] = providers.gradleProperty('appLabel').getOrElse('Horizon Android')
+         ndk { abiFilters providers.gradleProperty('abi').get() }
+     }
+     signingConfigs {
+diff --git a/tools/android_build.py b/tools/android_build.py
+index ed2d68c..5465374 100644
+--- a/tools/android_build.py
++++ b/tools/android_build.py
+@@ -111,7 +111,20 @@ def main():
+     parser.add_argument('--check', action='store_true', help='Only type-check the Android target')
+     parser.add_argument('--clippy', action='store_true', help='Run Android Clippy with warnings denied')
+     parser.add_argument('--bootstrap', type=Path, help=argparse.SUPPRESS)  # Old scripts: no longer used.
++    parser.add_argument('--app-id', help='Android package of a separately installed build (default dev.horizon.android)')
++    parser.add_argument('--app-label', help='Launcher name of a separately installed build')
++    parser.add_argument('--version-name', help='Visible version of a separately installed build')
++    parser.add_argument('--version-code', type=int, help='Android versionCode of a separately installed build')
++    parser.add_argument('--engine-data', type=Path, help='Prebuilt engine-data archive (from engine_data()) instead of the local prepared tables')
+     args = parser.parse_args()
++    if args.app_id is not None and not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', args.app_id):
++        parser.error('--app-id must be an Android package name')
++    if args.app_id is not None and args.dev_build is not None:
++        parser.error('--app-id and --dev-build both choose the package')
++    if args.version_code is not None and not 1 <= args.version_code <= 2100000000:
++        parser.error('--version-code must be in 1..2100000000')
++    if args.engine_data is not None and not args.engine_data.is_file():
++        parser.error('--engine-data must be an existing file')
+     if args.dev_build is not None:
+         if not args.public or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]{0,63}', args.dev_build):
+             parser.error('--dev-build requires --public and a short alphanumeric/dot/dash label')
+@@ -204,7 +217,7 @@ def main():
+     assets.mkdir(parents=True, exist_ok=True)
+     shutil.copyfile(ROOT / 'LICENSE', assets / 'LICENSE.txt')
+     shutil.copyfile(ROOT / 'THIRD_PARTY_NOTICES.md', assets / 'THIRD_PARTY_NOTICES.md')
+-    shutil.copyfile(engine_data(args.public), assets / 'engine-data.zip')
++    shutil.copyfile(args.engine_data or engine_data(args.public), assets / 'engine-data.zip')
+     controls = ROOT / '.local/android/bedrock-controls.zip'
+     if not args.public and not controls.is_file():
+         import sys
+@@ -226,6 +239,14 @@ def main():
+     variant = 'release' if args.release_candidate else 'debug'
+     dev_properties = (['-PappId=dev.horizon.android.dev', '-PdevBuild=' + args.dev_build,
+                        '-PdevVersionCode=' + str(args.dev_version_code)] if args.dev_build else [])
++    if args.app_id:
++        dev_properties.append('-PappId=' + args.app_id)
++    if args.app_label:
++        dev_properties.append('-PappLabel=' + args.app_label)
++    if args.version_name:
++        dev_properties.append('-PversionNameOverride=' + args.version_name)
++    if args.version_code:
++        dev_properties.append('-PversionCodeOverride=' + str(args.version_code))
+     run([gradle, '--no-daemon', '-p', ROOT / 'packaging/android', '-Pabi=' + args.abi, '-PminSdk=' + str(min_sdk), *dev_properties, 'assemble' + variant.title()], cwd=ROOT, env=environment)
+     apk = output / ('horizon-android-public.apk' if args.public else 'horizon-android-release.apk' if args.release_candidate else 'horizon-android.apk')
+     shutil.copyfile(ROOT / f'.local/android/gradle-build/outputs/apk/{variant}/HorizonAndroid-{variant}.apk', apk)
+@@ -234,7 +255,7 @@ def main():
+     run([*signer, 'verify', '--verbose', apk])
+     if args.release_candidate:
+         import sys
+-        run([sys.executable, ROOT / 'tools/check_android_release.py', apk, '--aapt2', tools / ('aapt2' + suffix), *(['--public'] if args.public else []), *(['--app-id', 'dev.horizon.android.dev'] if args.dev_build else [])], cwd=ROOT)
++        run([sys.executable, ROOT / 'tools/check_android_release.py', apk, '--aapt2', tools / ('aapt2' + suffix), *(['--public'] if args.public else []), *(['--app-id', 'dev.horizon.android.dev'] if args.dev_build else ['--app-id', args.app_id] if args.app_id else [])], cwd=ROOT)
+     print(f'APK: {apk}', flush=True)
+ 
+ 
+diff --git a/tools/check_android_release.py b/tools/check_android_release.py
+index adfa092..9673b14 100644
+--- a/tools/check_android_release.py
++++ b/tools/check_android_release.py
+@@ -101,13 +101,20 @@ def audit(path, aapt2, public=False, app_id='dev.horizon.android'):
+     return report
+ 
+ 
++def app_id(value):
++    """An Android package name: dot-separated Java identifiers, at least two."""
++    if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', value):
++        raise argparse.ArgumentTypeError(f'not an Android package name: {value}')
++    return value
++
++
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('apk', type=Path)
+     parser.add_argument('--aapt2', required=True, type=Path)
+     parser.add_argument('--report', type=Path)
+     parser.add_argument('--public', action='store_true')
+-    parser.add_argument('--app-id', choices=['dev.horizon.android', 'dev.horizon.android.dev'], default='dev.horizon.android')
++    parser.add_argument('--app-id', type=app_id, default='dev.horizon.android')
+     args = parser.parse_args()
+     report = audit(args.apk, args.aapt2, args.public, args.app_id)
+     if args.report:
