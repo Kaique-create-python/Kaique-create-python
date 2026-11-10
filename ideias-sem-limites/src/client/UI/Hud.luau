@@ -161,6 +161,116 @@ function Hud.build(parent: Instance): ScreenGui
 		Parent = createBtn,
 	}, { Theme.corner(20) })
 
+	-- borda arco-íris girando na barra e botão CRIAR pulsando quando pronto
+	local glowStroke = bar:FindFirstChildOfClass("UIStroke")
+	if glowStroke then
+		glowStroke.Transparency = 0.1
+		glowStroke.Thickness = 2.5
+		glowStroke.Color = Color3.new(1, 1, 1)
+		local rainbow = new("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 230, 255)),
+				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(190, 130, 255)),
+				ColorSequenceKeypoint.new(0.66, Color3.fromRGB(255, 120, 200)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 230, 255)),
+			}),
+			Parent = glowStroke,
+		})
+		task.spawn(function()
+			while rainbow.Parent do
+				rainbow.Rotation = (rainbow.Rotation + 2) % 360
+				local ready = os.clock() >= cooldownUntil
+				local k = 1 + (if ready then math.sin(os.clock() * 4) * 0.035 else 0)
+				local sc = createBtn:FindFirstChild("Pulso") :: UIScale?
+				if sc then
+					sc.Scale = k
+				end
+				task.wait(1 / 30)
+			end
+		end)
+	end
+	new("UIScale", { Name = "Pulso", Parent = createBtn })
+
+	-- sugestões rápidas: toque para usar
+	local IDEAS = {
+		"dragão de fogo gigante", "arma que atira cachorro", "goku contra freeza", "buraco negro", "tung tung tung sahur",
+		"chuva de pizza", "meteoro", "terremoto", "bomba nuclear", "gato tubarão", "jesus", "titã colossal",
+		"tralalero tralala", "circo", "vingadores", "naruto", "dinossauro robô", "vaca que vira dragão",
+	}
+	local chips = new("Frame", {
+		Name = "Sugestoes",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 90),
+		Size = UDim2.new(0.62, 0, 0, 30),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, {
+		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 6) }),
+		new("UISizeConstraint", { MaxSize = Vector2.new(640, 30) }),
+	})
+	local function fillChips()
+		for _, c in chips:GetChildren() do
+			if c:IsA("TextButton") then
+				c:Destroy()
+			end
+		end
+		local used = {}
+		for _ = 1, 3 do
+			local idea
+			repeat
+				idea = IDEAS[math.random(1, #IDEAS)]
+			until not used[idea]
+			used[idea] = true
+			local b = Theme.button({ Text = "✨ " .. idea, TextSize = 13, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 28), BackgroundColor3 = C.bg, BackgroundTransparency = 0.25, Parent = chips })
+			new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), Parent = b })
+			b.Activated:Connect(function()
+				box.Text = idea
+				Hud.updatePreview()
+				sound("Click")
+			end)
+		end
+	end
+	fillChips()
+	task.spawn(function()
+		while chips.Parent do
+			task.wait(9)
+			chips.Visible = box.Text == ""
+			if chips.Visible then
+				fillChips()
+			end
+		end
+	end)
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		chips.Visible = box.Text == ""
+	end)
+
+	-- abertura: logo animado ao entrar no jogo (imagem do Canva se enviada)
+	task.spawn(function()
+		local splash = new("Frame", { Name = "Abertura", BackgroundColor3 = Color3.fromRGB(8, 10, 24), BackgroundTransparency = 0.15, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = gui })
+		local logoId = Config.UiImages and Config.UiImages.Logo or 0
+		local logo: GuiObject
+		if logoId ~= 0 then
+			logo = new("ImageLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.5, 0.5), Image = "rbxthumb://type=Asset&id=" .. tostring(logoId) .. "&w=420&h=420", ScaleType = Enum.ScaleType.Fit, ZIndex = 21, Parent = splash })
+		else
+			logo = Theme.label({ Text = "IDEIAS SEM LIMITES", TextScaled = true, FontFace = Theme.FontHeavy, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.16), ZIndex = 21, Parent = splash })
+			Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(255, 120, 200), 0).Parent = logo
+			Theme.stroke(Color3.new(0, 0, 0), 3, 0).Parent = logo
+		end
+		local sub = Theme.label({ Text = "Escreva qualquer coisa. Ela vira realidade.", TextSize = 20, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.8, 0.06), ZIndex = 21, Parent = splash })
+		local sc = new("UIScale", { Scale = 0.6, Parent = logo })
+		Theme.tween(sc, 0.8, { Scale = 1 }, Enum.EasingStyle.Back)
+		task.wait(2.6)
+		Theme.tween(splash, 0.6, { BackgroundTransparency = 1 })
+		Theme.tween(sub, 0.6, { TextTransparency = 1 })
+		if logo:IsA("TextLabel") then
+			Theme.tween(logo, 0.6, { TextTransparency = 1 })
+		else
+			Theme.tween(logo, 0.6, { ImageTransparency = 1 })
+		end
+		task.wait(0.7)
+		splash:Destroy()
+	end)
+
 	-- prévia + retorno logo abaixo da barra
 	previewLabel = Theme.label({
 		Name = "Previa",

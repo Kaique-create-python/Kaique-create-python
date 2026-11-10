@@ -104,6 +104,8 @@ function Impact.meteor(ctx: any): any
 			Combat.area(target, radius * 1.6, 45 * scale, nil, element, 80 * math.min(scale, 3))
 			Destruction.blast(target, radius * 2, 100 * math.min(scale, 3))
 			crater(ctx, target, radius, element)
+			local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+			TerrainScars.crater(target, radius * 0.9, element, 45)
 			if payloadDef and payloadDef.handler == "prop" and ctx.rng:chance(0.6) then
 				local pp = table.clone(payloadDef.params)
 				pp.scale = 0.7
@@ -222,6 +224,10 @@ function Impact.explosion(ctx: any): any
 	task.delay(1, function()
 		if ctx.folder.Parent then
 			PropActions.explode(pos, power, nil)
+			if power >= 1.5 then
+				local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+				TerrainScars.crater(pos - Vector3.new(0, 2, 0), math.min(5 * power, 40), element, 50)
+			end
 			if power >= 3 then
 				Fx.near(pos, 2000, "nuke", { p = pos, s = power })
 			end

@@ -1,5 +1,25 @@
 # Ideias Sem Limites — V3
 
+## Novidades (V3.4)
+
+* **Cenas de cinema:** quando algo grande aparece (demônio, titã, kaiju, Jesus, buraco negro,
+  meteoro, nuke, terremoto), a câmera voa até lá com faixas pretas e o nome gigante na tela
+  (toque para pular; dá para desligar em Ajustes).
+* **Mapa que quebra:** meteoro e explosões grandes cavam crateras de verdade no terreno com lava
+  no fundo; o terremoto abre rachaduras com lava e levanta placas de pedra. Tudo volta ao normal
+  sozinho depois de ~45 s.
+* **Desastres caprichados:** buraco negro com disco de acreção em 3 camadas, anel de luz
+  (estilo filme), destroços espiralando e a tela escurecendo perto; meteoro com rocha irregular,
+  rastro de fogo e luz; bomba nuclear com clarão, bola de fogo, cogumelo subindo e onda de
+  choque; explosões soltam destroços de verdade.
+* **Monstros grandes chegam com portal, raios e clarão.**
+* **Modelos melhores:** todos os humanoides ganharam pescoço, ombros e mãos redondos e bico no
+  sapato; demônio com chifres curvos e rachaduras de lava brilhando.
+* **Interface:** borda arco-íris animada, botão CRIAR pulsando, sugestões rápidas para tocar,
+  abertura com o logo (feito no Canva; `bash ideias.sh imagens` envia o logo).
+* **Sons garantidos:** o jogo testa se o áudio do ElevenLabs carregou de verdade; se não, usa os
+  sons do Roblox. Em Ajustes: status dos sons, botão "Testar som" e escolha ElevenLabs/Roblox.
+
 ## Novidades (V3.3)
 
 * **Mais anime:** "luffy" (Pirata Elástico, soco que estica), "tanjiro" (Caçador de Demônios, corte de

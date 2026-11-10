@@ -263,7 +263,8 @@ function H.spawn(ctx: any): any
 	elseif hostile and (def.tagSet.monster or def.tagSet.beast) then
 		snd = "roar"
 	end
-	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, snd = snd, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
+	local big = size >= 1.5 or def.tagSet.boss == true or def.tagSet.giant == true or (hostile and def.tagSet.monster == true and (params.hp or 0) >= 400) or def.sacred == true
+	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, snd = snd, big = big, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
 
 	return {
 		npcs = npcs,

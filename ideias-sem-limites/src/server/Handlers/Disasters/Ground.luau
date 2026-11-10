@@ -51,7 +51,16 @@ function Ground.earthquake(ctx: any): any
 		local r = ctx.rng:range(5, 40)
 		b:box(Vector3.new(ctx.rng:range(0.8, 2), 0.3, ctx.rng:range(10, 24)), CFrame.new(math.cos(a) * r, 0.15, math.sin(a) * r) * CFrame.Angles(0, a, 0), Color3.fromRGB(30, 22, 18), { role = "fixed" })
 	end
+	-- placas de pedra levantadas ao redor
+	for k = 0, 7 do
+		local a = ctx.rng:range(0, math.pi * 2)
+		local r = ctx.rng:range(10, 45)
+		b:box(Vector3.new(ctx.rng:range(4, 9), ctx.rng:range(1.5, 3), ctx.rng:range(5, 10)), CFrame.new(math.cos(a) * r, 0.8, math.sin(a) * r) * CFrame.Angles(ctx.rng:range(-0.5, 0.5), a, ctx.rng:range(-0.4, 0.4)), Color3.fromRGB(95, 85, 75), { role = "fixed", material = Enum.Material.Slate })
+	end
 	b:finish().Parent = ctx.folder
+	local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+	TerrainScars.cracks(center, 5, 55 * math.min(scale, 1.3), ctx.rng, 40)
+	Fx.near(center, 800, "quake", { p = center, r = 60 * math.min(scale, 1.5), d = 14 })
 	local stop = loop(ctx, 14, 0.4, function()
 		Fx.shake(center, 1.1 * math.min(scale, 3), 350)
 		local p = center + Vector3.new(ctx.rng:range(-80, 80), 0, ctx.rng:range(-80, 80))

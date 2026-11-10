@@ -386,6 +386,22 @@ function EventManager.executePlan(plan: any, owner: Player?): ExecResult
 		end
 	end
 
+	-- cena cinematográfica para a ideia mais "épica" do pedido (só para quem criou)
+	if owner then
+		local Fx = require(script.Parent.Fx)
+		for _, rec in result.records do
+			local kind = EventManager.cutsceneKind(rec)
+			if kind then
+				local h = rec.handle
+				local npc = h and h.npcs and h.npcs[1]
+				local pos = if npc and npc.root then npc.root.Position else (h and h.position) or rec.origin.Position
+				local height = if npc then npc.height or 8 else 30
+				Fx.to(owner, "cutscene", { p = pos, h = height, t = rec.label, k = kind, evil = rec.def.tagSet.evil == true })
+				break
+			end
+		end
+	end
+
 	-- vínculos entre as ideias (rivais, guarda, montaria...)
 	local Links = require(script.Parent.Links)
 	for _, link in plan.links or {} do
@@ -401,6 +417,24 @@ function EventManager.executePlan(plan: any, owner: Player?): ExecResult
 
 	result.ok = #result.records > 0
 	return result
+end
+
+local BIG_DISASTERS = { black_hole = true, nuke = true, meteor_shower = true, meteor = true, end_of_world = true, volcano_eruption = true, tsunami = true, earthquake = true, tornado = true }
+
+-- "monster" (criatura grande/chefe/sagrada) | "disaster" | nil
+function EventManager.cutsceneKind(rec: any): string?
+	local def = rec.def
+	local p = rec.spec.params
+	if def.handler == "npc" then
+		local size = (p.size or 1) * (p.scale or 1)
+		local t = def.tagSet
+		if size >= 1.5 or t.boss or t.giant or (t.evil and t.monster and (p.hp or 0) >= 400) or def.sacred or p.boss then
+			return "monster"
+		end
+	elseif BIG_DISASTERS[def.id] or (def.id == "explosion" and (p.scale or 1) >= 2) then
+		return "disaster"
+	end
+	return nil
 end
 
 function EventManager.capacity(): { [string]: any }

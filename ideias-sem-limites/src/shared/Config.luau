@@ -97,7 +97,8 @@ Config.SoundSprite = {
 		achievement = { 11.939, 12.701 },
 		bark = { 13.001, 14.201 },
 		click = { 14.501, 14.851 },
-		thunder = { 15.151, 16.151 },
+		rumble = { sprite = "roar", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.4 },
+	thunder = { 15.151, 16.151 },
 	},
 }
 
@@ -123,6 +124,11 @@ Config.SoundCues = {
 	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
 	thunder = { sprite = "thunder", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
+}
+
+-- Imagens da interface feitas no Canva (`bash ideias.sh imagens` grava o ID aqui).
+Config.UiImages = {
+	Logo = 0, --@@LOGO_ID@@
 }
 
 Config.Textures = {

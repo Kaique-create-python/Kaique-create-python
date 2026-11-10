@@ -45,7 +45,7 @@ Hud.onSubmit = function(text)
 		if ok then
 			Hud.result(res)
 			-- câmera cinemática: olha para a ideia criada por alguns segundos
-			if type(res) == "table" and res.ok and Settings.values.camera == "cinematica" then
+			if type(res) == "table" and res.ok and Settings.values.camera == "cinematica" and not Effects.busy() then
 				local cam = Workspace.CurrentCamera
 				local char = player.Character
 				local head = char and char:FindFirstChild("Head")

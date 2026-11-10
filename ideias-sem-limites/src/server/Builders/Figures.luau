@@ -57,7 +57,7 @@ local OUTFITS: { [string]: Outfit } = {
 	king = { shirt = rgb(170, 30, 40), pants = rgb(120, 20, 30), robe = rgb(170, 30, 40), hair = rgb(120, 90, 50), accent = rgb(255, 200, 40), acc = { "crown", "ermine", "scepter", "beard_brown" } },
 	princess = { shirt = rgb(255, 150, 200), pants = rgb(255, 150, 200), robe = rgb(255, 130, 190), hair = rgb(250, 220, 120), hairStyle = "long", acc = { "tiara", "dress" } },
 	alien = { skin = rgb(140, 200, 140), shirt = rgb(150, 160, 175), pants = rgb(130, 140, 155), shoes = rgb(90, 95, 110), headSize = 1.7, bulk = -0.35, eye = rgb(10, 10, 15), acc = { "alien_eyes", "antenna", "raygun" } },
-	demon = { skin = rgb(190, 40, 35), shirt = rgb(150, 30, 30), pants = rgb(60, 20, 20), shoes = rgb(40, 15, 15), glowEyes = true, eye = rgb(255, 220, 60), bulk = 0.3, acc = { "horns", "wings_bat", "tail_demon", "trident" } },
+	demon = { skin = rgb(190, 40, 35), shirt = rgb(150, 30, 30), pants = rgb(60, 20, 20), shoes = rgb(40, 15, 15), glowEyes = true, eye = rgb(255, 220, 60), bulk = 0.3, acc = { "horns_big", "lava_cracks", "wings_bat", "tail_demon", "trident" } },
 	angel = { shirt = rgb(250, 250, 255), pants = rgb(245, 245, 250), robe = rgb(250, 250, 255), hair = rgb(255, 225, 140), hairStyle = "long", acc = { "halo", "wings_feather" } },
 	golem = { skin = rgb(120, 118, 115), shirt = rgb(110, 108, 105), pants = rgb(100, 98, 95), shoes = rgb(90, 88, 85), mat = Enum.Material.Slate, bulk = 0.9, headSize = 0.85, glowEyes = true, eye = rgb(90, 220, 255), acc = { "runes", "moss" } },
 	yeti = { skin = rgb(130, 170, 220), shirt = rgb(240, 245, 250), pants = rgb(235, 240, 248), shoes = rgb(230, 235, 245), mat = Enum.Material.Fabric, bulk = 0.8, acc = { "fur_head", "horns_small" } },
@@ -182,6 +182,11 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 	-- tronco
 	local torso = b:box(Vector3.new(2 * bulk, torsoH, 1 * bulk), CFrame.new(0, torsoY, 0), shirt, { role = "primary", material = mat, name = "Tronco" })
 	R:join(torso, root)
+	-- pescoço e quadril arredondados: corpo menos "caixote"
+	local neck = b:cylY(0.45, 0.75 * math.min(headS, 1.3), CFrame.new(0, hipY + torsoH + 0.15, 0), skin, { role = "fixed", material = mat })
+	R:join(neck, torso)
+	local hips = b:part("ball", Vector3.new(2.05 * bulk, 0.7, 1.05 * bulk), CFrame.new(0, hipY + 0.1, 0), o.pants, { role = "secondary", material = mat })
+	R:join(hips, torso)
 
 	-- pernas
 	local legs = {}
@@ -194,6 +199,7 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		b:box(Vector3.new(0.95 * bulk, legH, 0.95 * bulk), CFrame.new(x, legH / 2, 0), o.pants, { role = "secondary", material = mat, name = "Perna" })
 		local footZ = if acc.backward_feet then 0.35 else -0.2
 		b:box(Vector3.new(1 * bulk, 0.35, 1.3), CFrame.new(x, 0.18, footZ), o.shoes or Kit.darker(o.pants, 0.3), { role = "secondary", material = mat })
+		b:part("ball", Vector3.new(1 * bulk, 0.42, 0.7), CFrame.new(x, 0.2, footZ - 0.6), o.shoes or Kit.darker(o.pants, 0.3), { role = "secondary", material = mat })
 		if acc.big_shoes then
 			b:box(Vector3.new(1.2, 0.5, 2.2), CFrame.new(x, 0.25, -0.5), o.shoes or rgb(255, 60, 60), { role = "accent" })
 		end
@@ -218,7 +224,8 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		local shoulder = Vector3.new(x, shoulderY, 0)
 		local armCf = CFrame.new(shoulder) * armPose * CFrame.new(0, -0.9, 0)
 		b:box(Vector3.new(0.9 * bulk, 1.9, 0.9 * bulk), armCf, shirt, { role = "primary", material = mat, name = "Braco" })
-		b:box(Vector3.new(0.85 * bulk, 0.5, 0.85 * bulk), armCf * CFrame.new(0, -1, 0), o.gloves or skin, { role = "fixed", material = mat })
+		b:ball(0.82 * bulk, armCf * CFrame.new(0, -1.08, 0), o.gloves or skin, { role = "fixed", material = mat })
+		b:ball(0.98 * bulk, CFrame.new(shoulder) * CFrame.new(0, -0.05, 0), shirt, { role = "primary", material = mat })
 		if acc.big_gloves then
 			b:ball(1.05, armCf * CFrame.new(0, -1.15, -0.05), o.gloves or rgb(200, 30, 40), { role = "accent" })
 		end
@@ -573,6 +580,14 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 	if acc.pacifier then
 		b:part("cyl", Vector3.new(0.12, 0.45, 0.45), CFrame.new(0, headY - 0.3, -0.66 * headS) * CFrame.Angles(0, math.rad(90), 0), rgb(150, 210, 255), { role = "fixed" })
 	end
+	if acc.horns_big then
+		for _, side in { -1, 1 } do
+			for k = 0, 3 do
+				local f = k / 3
+				b:part("wedge", Vector3.new(0.32 - f * 0.18, 0.7, 0.4 - f * 0.2), CFrame.new(side * (0.5 + f * 0.55) * headS, top + 0.1 + f * 0.75, 0.1 - f * 0.25) * CFrame.Angles(math.rad(-15 * f), 0, side * (-0.4 - f * 0.5)), rgb(35, 25, 25), { role = "fixed" })
+			end
+		end
+	end
 	if acc.brow then
 		b:box(Vector3.new(1.25, 0.2, 0.25) * headS, CFrame.new(0, headY + 0.32 * headS, -0.55 * headS), Kit.darker(skin, 0.15), { role = "fixed" })
 	end
@@ -691,6 +706,14 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		b:part("cyl", Vector3.new(1, 2.2 * bulk, 2.2 * bulk), CFrame.new(0, 2.4, 0) * CFrame.Angles(0, 0, math.rad(90)), col, { role = "primary" })
 	end
 
+	if acc.lava_cracks then
+		for k = 0, 4 do
+			local y = torsoY + 0.7 - k * 0.35
+			b:box(Vector3.new(0.9, 0.1, 0.06), CFrame.new(((k % 2) - 0.5) * 0.6, y, -0.53 * bulk) * CFrame.Angles(0, 0, (k % 2 - 0.5) * 0.9), rgb(255, 120, 30), { role = "fixed", material = Enum.Material.Neon })
+		end
+		local core = b:ball(0.5, CFrame.new(0, torsoY + 0.3, -0.5 * bulk), rgb(255, 160, 40), { role = "fixed", material = Enum.Material.Neon })
+		b:light(core, rgb(255, 120, 40), 12, 2)
+	end
 	if acc.muscle_lines then
 		for k = 0, 3 do
 			b:box(Vector3.new(2.05 * bulk, 0.08, 1.05 * bulk), CFrame.new(0, torsoY + 0.7 - k * 0.45, 0), rgb(170, 60, 60), { role = "fixed" })

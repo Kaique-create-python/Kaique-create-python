@@ -100,7 +100,43 @@ local function sound(id: string, at: Vector3, volume: number?)
 	Debris:AddItem(p, 5)
 end
 
-local spriteState = "unknown" -- unknown | loading | ok | failed
+local spriteState = "unknown" -- unknown | loading | ok | failed | off
+
+-- confere se o áudio do ElevenLabs carregou de verdade (aprovado na moderação e com
+-- duração). Enquanto não, os sons embutidos do Roblox são usados.
+function Effects.checkSprite()
+	local sp = Config.SoundSprite
+	if sp.Id == 0 then
+		spriteState = "off"
+		return
+	end
+	if spriteState == "loading" then
+		return
+	end
+	spriteState = "loading"
+	task.spawn(function()
+		local probe = Instance.new("Sound")
+		probe.SoundId = "rbxassetid://" .. tostring(sp.Id)
+		probe.Volume = 0
+		probe.Parent = game:GetService("SoundService")
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync({ probe })
+		end)
+		local t0 = os.clock()
+		while not probe.IsLoaded and os.clock() - t0 < 10 do
+			task.wait(0.25)
+		end
+		spriteState = if probe.IsLoaded and probe.TimeLength > 1 then "ok" else "failed"
+		if spriteState == "failed" then
+			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação/permissão): usando sons do Roblox")
+		end
+		probe:Destroy()
+	end)
+end
+
+function Effects.soundStatus(): string
+	return spriteState
+end
 -- som de um efeito: trecho do sprite do ElevenLabs ou som embutido (fallback)
 local function cue(name: string, at: Vector3?, volume: number?)
 	if not Settings.values.sounds then
@@ -113,27 +149,10 @@ local function cue(name: string, at: Vector3?, volume: number?)
 	local sp = Config.SoundSprite
 	local s = Instance.new("Sound")
 	local region = c.sprite and sp.Regions[c.sprite]
-	-- se o áudio do ElevenLabs ainda não foi aprovado/carregado, usa o som embutido
-	if sp.Id ~= 0 and spriteState == "unknown" then
-		spriteState = "loading"
-		task.spawn(function()
-			local probe = Instance.new("Sound")
-			probe.SoundId = "rbxassetid://" .. tostring(sp.Id)
-			local ok = pcall(function()
-				game:GetService("ContentProvider"):PreloadAsync({ probe }, function(_id, status)
-					spriteState = if status == Enum.AssetFetchStatus.Success then "ok" else "failed"
-				end)
-			end)
-			if not ok or spriteState == "loading" then
-				spriteState = if probe.IsLoaded then "ok" else "failed"
-			end
-			if spriteState == "failed" then
-				warn("[Ideias] áudio " .. tostring(sp.Id) .. " não carregou (moderação ou permissão); usando sons embutidos")
-			end
-			probe:Destroy()
-		end)
+	if spriteState == "unknown" then
+		Effects.checkSprite()
 	end
-	if sp.Id ~= 0 and region and spriteState == "ok" then
+	if sp.Id ~= 0 and region and spriteState == "ok" and Settings.values.soundSource ~= "roblox" then
 		s.SoundId = "rbxassetid://" .. tostring(sp.Id)
 		s.PlaybackRegionsEnabled = true
 		s.PlaybackRegion = NumberRange.new(region[1], region[2])
@@ -275,6 +294,16 @@ H.boom = function(d)
 	burst(d.p, TEX_SMOKE, { Color3.fromRGB(90, 85, 80) }, 20, 14 * s, 5 * s, 2.5, Vector3.new(0, 6, 0))
 	cue("explosion", d.p, 1)
 	shake(0.8 * s * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
+	ring(d.p - Vector3.new(0, 1, 0), 18 * s, Color3.fromRGB(190, 170, 150), 0.7)
+	debrisBurst(d.p, math.floor(6 + 6 * s), 0.8 + 0.4 * s, Color3.fromRGB(90, 80, 72))
+	local l = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(d.p), Transparency = 1 })
+	local pl = Instance.new("PointLight")
+	pl.Color = Color3.fromRGB(255, 160, 70)
+	pl.Range = math.min(30 * s, 60)
+	pl.Brightness = 6
+	pl.Parent = l
+	tween(pl, 1.2, { Brightness = 0 })
+	Debris:AddItem(l, 1.3)
 end
 
 H.poof = function(d)
@@ -290,6 +319,26 @@ H.spawn = function(d)
 	tween(col, 0.7, { Size = Vector3.new(40, 0.2, 0.2) * (d.s or 1), Transparency = 1 })
 	Debris:AddItem(col, 0.8)
 	cue(d.snd or "create", d.p, 0.8)
+	if d.big then
+		local evil = d.c and d.c.R > 0.8 and d.c.G < 0.5
+		local col = if evil then Color3.fromRGB(255, 50, 40) else Color3.fromRGB(255, 230, 140)
+		ring(d.p, 26 * (d.s or 1), col, 1.4)
+		for i = 1, 3 do
+			task.delay(i * 0.18, function()
+				local top = d.p + Vector3.new(math.random(-20, 20), 140, math.random(-20, 20))
+				zigzag(top, d.p + Vector3.new(math.random(-6, 6), 0, math.random(-6, 6)), if evil then Color3.fromRGB(255, 90, 80) else Color3.fromRGB(220, 240, 255), 0.7, 0.3)
+			end)
+		end
+		local portal = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 2, 2), CFrame = CFrame.new(d.p + Vector3.new(0, 0.4, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = if evil then Color3.fromRGB(30, 0, 0) else Color3.fromRGB(255, 250, 220), Transparency = 0.1 })
+		tween(portal, 0.6, { Size = Vector3.new(0.6, 30 * (d.s or 1), 30 * (d.s or 1)) })
+		task.delay(1.6, function()
+			tween(portal, 0.8, { Transparency = 1 })
+		end)
+		Debris:AddItem(portal, 2.5)
+		burst(d.p, if evil then TEX_FIRE else TEX_SPARK, { col, Color3.new(1, 1, 1) }, 60, 30, 3, 1.6, Vector3.new(0, 20, 0))
+		shake(0.8 * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
+		H.flash({ p = d.p + Vector3.new(0, 6, 0), c = col, s = 40 })
+	end
 end
 
 H.build = function(d)
@@ -376,12 +425,42 @@ end
 
 H.nuke = function(d)
 	local s = d.s or 3
-	for k = 0, 4 do
-		local p = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(10, 10, 10), CFrame = CFrame.new(d.p + Vector3.new(0, k * 14 * s * 0.4, 0)), Color = Color3.fromRGB(120, 105, 95), Material = Enum.Material.SmoothPlastic, Transparency = 0.2 })
-		tween(p, 2.5, { Size = Vector3.new(30, 30, 30) * s * (if k == 4 then 1.6 else 0.6), Transparency = 1 })
-		Debris:AddItem(p, 2.6)
-	end
-	tint(Color3.fromRGB(255, 220, 190), 1.5)
+	local base = d.p
+	-- clarão que cega e som profundo
+	tint(Color3.fromRGB(255, 250, 235), 0.9)
+	cue("explosion", base, 1)
+	task.delay(0.25, function()
+		cue("rumble", base, 1)
+	end)
+	local fire = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(8, 8, 8), CFrame = CFrame.new(base), Color = Color3.fromRGB(255, 240, 200), Transparency = 0 })
+	tween(fire, 1.2, { Size = Vector3.new(60, 60, 60) * (s / 3), Color = Color3.fromRGB(255, 120, 30), Transparency = 0.3 })
+	Debris:AddItem(fire, 2.6)
+	task.delay(1.2, function()
+		tween(fire, 1.3, { Transparency = 1 })
+	end)
+	-- onda de choque rasteira
+	local wave = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(3, 10, 10), CFrame = CFrame.new(base + Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(255, 230, 200), Transparency = 0.2 })
+	tween(wave, 2.2, { Size = Vector3.new(3, 420 * (s / 3), 420 * (s / 3)), Transparency = 1 })
+	Debris:AddItem(wave, 2.3)
+	-- cogumelo: haste subindo + chapéu que cresce
+	local stem = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(10, 14, 14), CFrame = CFrame.new(base + Vector3.new(0, 5, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(150, 110, 90), Material = Enum.Material.SmoothPlastic, Transparency = 0.1 })
+	local cap = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(20, 20, 20), CFrame = CFrame.new(base + Vector3.new(0, 10, 0)), Color = Color3.fromRGB(255, 140, 60), Material = Enum.Material.SmoothPlastic, Transparency = 0.05 })
+	local height = 90 * (s / 3)
+	tween(stem, 4, { Size = Vector3.new(height, 18 * (s / 3), 18 * (s / 3)), CFrame = CFrame.new(base + Vector3.new(0, height / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(110, 95, 85) })
+	tween(cap, 4, { Size = Vector3.new(80, 45, 80) * (s / 3), CFrame = CFrame.new(base + Vector3.new(0, height, 0)), Color = Color3.fromRGB(120, 100, 90) })
+	burst(base + Vector3.new(0, height * 0.5, 0), TEX_SMOKE, { Color3.fromRGB(140, 120, 110), Color3.fromRGB(80, 70, 65) }, 80, 30, 18, 6, Vector3.new(0, 8, 0))
+	burst(base, TEX_FIRE, { Color3.fromRGB(255, 230, 120), Color3.fromRGB(255, 80, 20) }, 80, 60, 8, 2)
+	debrisBurst(base, 24, 2.5, Color3.fromRGB(80, 70, 60))
+	task.delay(4, function()
+		tween(stem, 4, { Transparency = 1 })
+		tween(cap, 4, { Transparency = 1 })
+	end)
+	Debris:AddItem(stem, 8.2)
+	Debris:AddItem(cap, 8.2)
+	shake(3)
+	task.delay(0.8, function()
+		shake(2)
+	end)
 end
 
 H.power = function(d)
@@ -581,6 +660,168 @@ H.drum = function(d)
 	end
 end
 
+-- CENA CINEMATOGRÁFICA: algo grande apareceu -------------------------------------------
+local inCutscene = false
+function Effects.busy(): boolean
+	return inCutscene
+end
+
+H.cutscene = function(d)
+	if inCutscene or Settings.values.cutscenes == false then
+		return
+	end
+	local cam = Workspace.CurrentCamera
+	local pg = player:FindFirstChildOfClass("PlayerGui")
+	if not cam or not pg then
+		return
+	end
+	inCutscene = true
+	local disaster = d.k == "disaster"
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "IdeiasCena"
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 50
+	gui.ResetOnSpawn = false
+	gui.Parent = pg
+	local bars = {}
+	for _, top in { true, false } do
+		local f = Instance.new("Frame")
+		f.BackgroundColor3 = Color3.new(0, 0, 0)
+		f.BorderSizePixel = 0
+		f.AnchorPoint = if top then Vector2.new(0, 0) else Vector2.new(0, 1)
+		f.Position = if top then UDim2.fromScale(0, 0) else UDim2.fromScale(0, 1)
+		f.Size = UDim2.new(1, 0, 0, 0)
+		f.Parent = gui
+		tween(f, 0.35, { Size = UDim2.new(1, 0, 0.11, 0) })
+		table.insert(bars, f)
+	end
+	local color = if d.evil then Color3.fromRGB(255, 70, 60) elseif disaster then Color3.fromRGB(255, 190, 80) else Color3.fromRGB(255, 240, 200)
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.AnchorPoint = Vector2.new(0.5, 0.5)
+	title.Position = UDim2.fromScale(0.5, 0.74)
+	title.Size = UDim2.fromScale(0.9, 0.11)
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.Text = string.upper(tostring(d.t or ""))
+	title.TextColor3 = color
+	title.TextTransparency = 1
+	title.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.Color = Color3.new(0, 0, 0)
+	stroke.Transparency = 1
+	stroke.Parent = title
+	local sub = title:Clone()
+	sub.Text = if disaster then "ESTÁ CHEGANDO!" else "APARECEU!"
+	sub.Position = UDim2.fromScale(0.5, 0.82)
+	sub.Size = UDim2.fromScale(0.6, 0.05)
+	sub.TextColor3 = Color3.new(1, 1, 1)
+	sub.Parent = gui
+	task.delay(0.45, function()
+		tween(title, 0.4, { TextTransparency = 0 })
+		tween(stroke, 0.4, { Transparency = 0 })
+		tween(sub, 0.4, { TextTransparency = 0 })
+		local s2 = sub:FindFirstChildOfClass("UIStroke")
+		if s2 then
+			tween(s2, 0.4, { Transparency = 0 })
+		end
+	end)
+	cue(if d.evil then "roar" elseif disaster then "rumble" else "create", nil, 1)
+	local old = cam.CFrame
+	local oldType = cam.CameraType
+	cam.CameraType = Enum.CameraType.Scriptable
+	local h = d.h or 8
+	local target = d.p + Vector3.new(0, h * 0.55, 0)
+	local dist = math.clamp(h * 2.6, 24, 150)
+	if disaster then
+		target = d.p + Vector3.new(0, 30, 0)
+		dist = 110
+	end
+	local rel = old.Position - target
+	local a0 = math.atan2(rel.Z, rel.X)
+	local t0 = os.clock()
+	local dur = 3.4
+	local skip = false
+	local conn = game:GetService("UserInputService").InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if os.clock() - t0 > 0.6 then
+				skip = true
+			end
+		end
+	end)
+	shake(0.6)
+	local function finish()
+		RunService:UnbindFromRenderStep("IdeiasCena")
+		conn:Disconnect()
+		pcall(function()
+			cam.CameraType = if oldType == Enum.CameraType.Scriptable then Enum.CameraType.Custom else oldType
+		end)
+		for _, f in bars do
+			tween(f, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
+		end
+		tween(title, 0.3, { TextTransparency = 1 })
+		tween(sub, 0.3, { TextTransparency = 1 })
+		Debris:AddItem(gui, 0.4)
+		inCutscene = false
+	end
+	RunService:BindToRenderStep("IdeiasCena", Enum.RenderPriority.Camera.Value + 2, function()
+		local k = (os.clock() - t0) / dur
+		if k >= 1 or skip then
+			finish()
+			return
+		end
+		local e = k * k * (3 - 2 * k)
+		local ang = a0 + math.rad(55) * e
+		local r = dist * (1.25 - 0.35 * e)
+		local pos = Vector3.new(target.X + math.cos(ang) * r, target.Y + dist * (0.35 - 0.2 * e), target.Z + math.sin(ang) * r)
+		local cf = CFrame.lookAt(pos, target)
+		if k < 0.18 then
+			cf = old:Lerp(cf, (k / 0.18) ^ 2)
+		end
+		cam.CFrame = cf
+	end)
+end
+
+-- TERREMOTO: poeira subindo das rachaduras e tremor contínuo --------------------------
+H.quake = function(d)
+	local dur = d.d or 12
+	for i = 0, math.floor(dur / 0.8) do
+		task.delay(i * 0.8, function()
+			local a = math.random() * math.pi * 2
+			local r = math.random() * (d.r or 50)
+			local p = d.p + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+			burst(p, TEX_SMOKE, { Color3.fromRGB(160, 140, 115), Color3.fromRGB(120, 105, 90) }, 14, 14, 4, 1.8, Vector3.new(0, 6, 0))
+			local dist = (camPos() - d.p).Magnitude
+			shake(0.25 * math.clamp(1 - dist / 400, 0, 1))
+			if i % 3 == 0 then
+				cue("rumble", d.p, 0.8)
+			end
+		end)
+	end
+	tint(Color3.fromRGB(200, 170, 140), 1.2)
+end
+
+-- destroços físicos voando (só no cliente: não pesa o servidor)
+local function debrisBurst(at: Vector3, n: number, size: number, color: Color3)
+	local q = math.max(1, math.floor(n * Settings.quality().particles))
+	for _ = 1, q do
+		local rock = Instance.new("Part")
+		rock.Size = Vector3.new(1, 1, 1) * size * (0.5 + math.random())
+		rock.Color = color
+		rock.Material = Enum.Material.Slate
+		rock.CanQuery = false
+		rock.CanTouch = false
+		rock.CFrame = CFrame.new(at + Vector3.new(0, 2, 0)) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+		rock.Parent = folder
+		local dir = Vector3.new(math.random() - 0.5, 0.6 + math.random() * 0.8, math.random() - 0.5).Unit
+		rock.AssemblyLinearVelocity = dir * (40 + math.random() * 50) * math.sqrt(size)
+		rock.AssemblyAngularVelocity = Vector3.new(math.random() * 10, math.random() * 10, math.random() * 10)
+		Debris:AddItem(rock, 4)
+	end
+end
+Effects.debrisBurst = debrisBurst
+
 function Effects.handle(data: any)
 	if type(data) ~= "table" then
 		return
@@ -597,6 +838,7 @@ end
 function Effects.init(hudModule: any, movementModule: any)
 	hud = hudModule
 	movement = movementModule
+	task.delay(3, Effects.checkSprite)
 	folder = Instance.new("Folder")
 	folder.Name = "EfeitosLocais"
 	folder.Parent = Workspace.CurrentCamera or Workspace

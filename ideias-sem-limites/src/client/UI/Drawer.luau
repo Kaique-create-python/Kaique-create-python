@@ -296,6 +296,23 @@ TABS.ajustes = function()
 	choice("Câmera", "camera", { { "Normal", "normal" }, { "1ª pessoa", "primeira" }, { "Cinemática", "cinematica" } })
 	choice("Tremor de câmera", "shake", { { "Ligado", true }, { "Desligado", false } })
 	choice("Sons", "sounds", { { "Ligados", true }, { "Desligados", false } })
+	choice("Sons do jogo", "soundSource", { { "ElevenLabs", "auto" }, { "Roblox", "roblox" } })
+	do
+		local ok, Effects = pcall(require, script.Parent.Parent.FX.Effects)
+		local st = if ok and Effects.soundStatus then Effects.soundStatus() else "?"
+		local txt = if st == "ok" then "✅ Sons do ElevenLabs carregados" elseif st == "off" then "ℹ️ Sons do ElevenLabs ainda não enviados (use ideias.sh sons)" elseif st == "failed" then "⏳ Áudio aguardando aprovação do Roblox: usando sons do Roblox" else "⏳ Verificando sons..."
+		Theme.label({ Text = txt, TextSize = 13, TextWrapped = true, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = nextOrder(), Parent = content })
+		local b = Theme.button({ Text = "🔊 Testar som", TextSize = 15, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = nextOrder(), Parent = content })
+		b.Activated:Connect(function()
+			if ok and Effects.cue then
+				Effects.cue("explosion", nil, 1)
+				task.delay(0.8, function()
+					Effects.cue("achievement", nil, 1)
+				end)
+			end
+		end)
+	end
+	choice("Cenas de cinema (coisas grandes)", "cutscenes", { { "Ligadas", true }, { "Desligadas", false } })
 	choice("Avisos", "notifications", { { "Ligados", true }, { "Desligados", false } })
 	choice("Tamanho da interface", "uiScale", { { "Menor", 0.85 }, { "Normal", 1 }, { "Maior", 1.15 } })
 	section("Ideias Sem Limites • V3")

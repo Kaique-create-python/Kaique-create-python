@@ -161,7 +161,7 @@ cmd_baixar() {
 	local dest="$PASTA/V3"
 	mkdir -p "$dest/ferramentas" "$dest/testes"
 	info "Baixando a V3 do GitHub (ramo $RAMO)"
-	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/SHA256SUMS")
+	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/IdeiasLogo.png" "dist/SHA256SUMS")
 	for f in "${arquivos[@]}"; do
 		curl -fL --retry 3 -o "$dest/$(basename "$f")" "$RAW/$f" || morre "Falha ao baixar $f"
 	done
@@ -479,6 +479,67 @@ PYEOF
 	cmd_enviar "$saida"
 }
 
+cmd_imagens() {
+	# Envia o logo (feito no Canva) como Decal e grava o ID no lugar com sons.
+	precisa curl python3
+	garantir_pastas
+	carregar_config
+	local img="${1:-$PASTA/V3/IdeiasLogo.png}"
+	local lugar="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
+	[[ -s "$lugar" ]] || lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
+	[[ -s "$img" ]] || morre "Imagem não encontrada: $img (rode 'bash ideias.sh baixar')"
+	local uid="${USER_ID:-}"
+	if [[ -z "$uid" ]]; then
+		read -r -p "Seu User ID do Roblox (número do seu perfil): " uid
+		[[ "$uid" =~ ^[0-9]+$ ]] || morre "User ID deve ser um número."
+		printf 'USER_ID="%s"\n' "$uid" >>"$CONF"
+	fi
+	info "Enviando logo ($(wc -c <"$img") bytes) — permissão 'asset' Read+Write"
+	cabecalho_chave
+	local resp code
+	resp=$(mktemp)
+	code=$(curl -sS -o "$resp" -w '%{http_code}' -X POST -H @"$HDR" \
+		--form "request={\"assetType\": \"Decal\", \"displayName\": \"Ideias Sem Limites Logo\", \"description\": \"Logo do jogo\", \"creationContext\": {\"creator\": {\"userId\": \"${uid}\"}}}" \
+		--form "fileContent=@${img};type=image/png" \
+		"$API/assets/v1/assets") || true
+	if [[ "$code" != "200" ]]; then
+		limpar
+		erro "HTTP $code"
+		cat "$resp"
+		echo
+		rm -f "$resp"
+		return 1
+	fi
+	local op asset i=0 done_
+	op=$(json_campo path <"$resp")
+	while [[ $i -lt 40 ]]; do
+		sleep 3
+		curl -sS -o "$resp" -H @"$HDR" "$API/assets/v1/${op}" || true
+		done_=$(json_campo done <"$resp")
+		if [[ "$done_" == "True" || "$done_" == "true" ]]; then
+			break
+		fi
+		i=$((i + 1))
+	done
+	limpar
+	asset=$(json_campo response.assetId <"$resp")
+	rm -f "$resp"
+	[[ "$asset" =~ ^[0-9]+$ ]] || morre "Sem ID da imagem."
+	ok "Logo criado: asset $asset"
+	local saida="$PASTA/V3/IdeiasSemLimites_V3_final.rbxlx"
+	python3 - "$lugar" "$saida" "$asset" <<'PYEOF' || morre "Não consegui gravar o ID no lugar."
+import sys
+src, dst, asset = sys.argv[1], sys.argv[2], sys.argv[3]
+data = open(src, encoding="utf-8").read()
+marker = "Logo = 0, --@@LOGO_ID@@"
+if marker not in data:
+    sys.exit("marcador não encontrado")
+open(dst, "w", encoding="utf-8").write(data.replace(marker, "Logo = %d, --@@LOGO_ID@@" % int(asset), 1))
+PYEOF
+	ok "Lugar com logo: $saida"
+	cmd_enviar "$saida"
+}
+
 cmd_status() {
 	garantir_pastas
 	carregar_config
@@ -496,6 +557,7 @@ ajuda() {
 	echo "  bash ideias.sh enviar                # salva a V3 (não publica)"
 	echo "  bash ideias.sh testar                # testes na nuvem"
 	echo "  bash ideias.sh sons                  # envia os sons (ElevenLabs) e salva a V3 com eles"
+	echo "  bash ideias.sh imagens               # envia o logo (Canva) e salva a V3 com ele"
 	echo "  bash ideias.sh publicar ARQUIVO      # só quando você decidir"
 }
 
@@ -503,6 +565,7 @@ case "${1:-}" in
 configurar) cmd_configurar ;;
 baixar) cmd_baixar ;;
 sons) cmd_sons "${2:-}" ;;
+imagens) cmd_imagens "${2:-}" ;;
 backup) cmd_backup ;;
 diagnosticar) cmd_diagnosticar "${2:-}" ;;
 enviar) cmd_enviar "${2:-}" ;;

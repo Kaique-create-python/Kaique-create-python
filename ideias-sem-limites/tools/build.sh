@@ -20,6 +20,7 @@ fi
 
 cp "build/$NAME.rbxl" "build/$NAME.rbxlx" dist/
 cp assets/sons/IdeiasSons.ogg dist/
-( cd dist && sha256sum "$NAME.rbxl" "$NAME.rbxlx" IdeiasSons.ogg > SHA256SUMS )
+cp assets/ui/IdeiasLogo.png dist/
+( cd dist && sha256sum "$NAME.rbxl" "$NAME.rbxlx" IdeiasSons.ogg IdeiasLogo.png > SHA256SUMS )
 echo "Arquivos prontos em dist/:"
 ls -la dist/

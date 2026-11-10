@@ -17,6 +17,8 @@ Settings.values = {
 	sounds = true,
 	notifications = true,
 	uiScale = 1,
+	cutscenes = true, -- câmera cinematográfica quando algo grande aparece
+	soundSource = "auto", -- auto (ElevenLabs quando aprovado) | roblox (sempre os embutidos)
 }
 
 local QUALITY = {

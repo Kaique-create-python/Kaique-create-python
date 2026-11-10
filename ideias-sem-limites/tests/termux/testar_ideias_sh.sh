@@ -67,6 +67,11 @@ check "áudio enviado como Audio/ogg" 'python3 -c "import json;l=json.load(open(
 check "ID do áudio gravado no lugar" 'grep -q "Id = 123456, --@@SPRITE_ID@@" "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3_sons.rbxlx"'
 check "lugar com sons salvo (Saved)" 'grep -q "versão" "$WORK/sons.log"'
 
+echo "== imagens (logo do Canva -> Decal -> ID gravado no lugar)"
+bash "$S" imagens >"$WORK/img.log" 2>&1 || { cat "$WORK/img.log"; false; }
+check "ID do logo gravado no lugar" 'grep -q "Logo = 123456, --@@LOGO_ID@@" "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3_final.rbxlx"'
+check "lugar com logo salvo (Saved)" 'grep -q "versão" "$WORK/img.log"'
+
 echo "== publicar exige confirmação"
 if echo "nao" | bash "$S" publicar "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3.rbxl" >/dev/null 2>&1; then r=1; else r=0; fi
 check "publicação cancelada sem PUBLICAR" '[[ $r == 0 ]]'

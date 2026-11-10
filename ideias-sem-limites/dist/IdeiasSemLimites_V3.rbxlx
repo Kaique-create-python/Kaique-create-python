@@ -2573,7 +2573,8 @@ Config.SoundSprite = {
 		achievement = { 11.939, 12.701 },
 		bark = { 13.001, 14.201 },
 		click = { 14.501, 14.851 },
-		thunder = { 15.151, 16.151 },
+		rumble = { sprite = "roar", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.4 },
+	thunder = { 15.151, 16.151 },
 	},
 }
 
@@ -2599,6 +2600,11 @@ Config.SoundCues = {
 	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
 	thunder = { sprite = "thunder", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
+}
+
+-- Imagens da interface feitas no Canva (`bash ideias.sh imagens` grava o ID aqui).
+Config.UiImages = {
+	Logo = 0, --@@LOGO_ID@@
 }
 
 Config.Textures = {
@@ -7924,7 +7930,7 @@ local OUTFITS: { [string]: Outfit } = {
 	king = { shirt = rgb(170, 30, 40), pants = rgb(120, 20, 30), robe = rgb(170, 30, 40), hair = rgb(120, 90, 50), accent = rgb(255, 200, 40), acc = { "crown", "ermine", "scepter", "beard_brown" } },
 	princess = { shirt = rgb(255, 150, 200), pants = rgb(255, 150, 200), robe = rgb(255, 130, 190), hair = rgb(250, 220, 120), hairStyle = "long", acc = { "tiara", "dress" } },
 	alien = { skin = rgb(140, 200, 140), shirt = rgb(150, 160, 175), pants = rgb(130, 140, 155), shoes = rgb(90, 95, 110), headSize = 1.7, bulk = -0.35, eye = rgb(10, 10, 15), acc = { "alien_eyes", "antenna", "raygun" } },
-	demon = { skin = rgb(190, 40, 35), shirt = rgb(150, 30, 30), pants = rgb(60, 20, 20), shoes = rgb(40, 15, 15), glowEyes = true, eye = rgb(255, 220, 60), bulk = 0.3, acc = { "horns", "wings_bat", "tail_demon", "trident" } },
+	demon = { skin = rgb(190, 40, 35), shirt = rgb(150, 30, 30), pants = rgb(60, 20, 20), shoes = rgb(40, 15, 15), glowEyes = true, eye = rgb(255, 220, 60), bulk = 0.3, acc = { "horns_big", "lava_cracks", "wings_bat", "tail_demon", "trident" } },
 	angel = { shirt = rgb(250, 250, 255), pants = rgb(245, 245, 250), robe = rgb(250, 250, 255), hair = rgb(255, 225, 140), hairStyle = "long", acc = { "halo", "wings_feather" } },
 	golem = { skin = rgb(120, 118, 115), shirt = rgb(110, 108, 105), pants = rgb(100, 98, 95), shoes = rgb(90, 88, 85), mat = Enum.Material.Slate, bulk = 0.9, headSize = 0.85, glowEyes = true, eye = rgb(90, 220, 255), acc = { "runes", "moss" } },
 	yeti = { skin = rgb(130, 170, 220), shirt = rgb(240, 245, 250), pants = rgb(235, 240, 248), shoes = rgb(230, 235, 245), mat = Enum.Material.Fabric, bulk = 0.8, acc = { "fur_head", "horns_small" } },
@@ -8049,6 +8055,11 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 	-- tronco
 	local torso = b:box(Vector3.new(2 * bulk, torsoH, 1 * bulk), CFrame.new(0, torsoY, 0), shirt, { role = "primary", material = mat, name = "Tronco" })
 	R:join(torso, root)
+	-- pescoço e quadril arredondados: corpo menos "caixote"
+	local neck = b:cylY(0.45, 0.75 * math.min(headS, 1.3), CFrame.new(0, hipY + torsoH + 0.15, 0), skin, { role = "fixed", material = mat })
+	R:join(neck, torso)
+	local hips = b:part("ball", Vector3.new(2.05 * bulk, 0.7, 1.05 * bulk), CFrame.new(0, hipY + 0.1, 0), o.pants, { role = "secondary", material = mat })
+	R:join(hips, torso)
 
 	-- pernas
 	local legs = {}
@@ -8061,6 +8072,7 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		b:box(Vector3.new(0.95 * bulk, legH, 0.95 * bulk), CFrame.new(x, legH / 2, 0), o.pants, { role = "secondary", material = mat, name = "Perna" })
 		local footZ = if acc.backward_feet then 0.35 else -0.2
 		b:box(Vector3.new(1 * bulk, 0.35, 1.3), CFrame.new(x, 0.18, footZ), o.shoes or Kit.darker(o.pants, 0.3), { role = "secondary", material = mat })
+		b:part("ball", Vector3.new(1 * bulk, 0.42, 0.7), CFrame.new(x, 0.2, footZ - 0.6), o.shoes or Kit.darker(o.pants, 0.3), { role = "secondary", material = mat })
 		if acc.big_shoes then
 			b:box(Vector3.new(1.2, 0.5, 2.2), CFrame.new(x, 0.25, -0.5), o.shoes or rgb(255, 60, 60), { role = "accent" })
 		end
@@ -8085,7 +8097,8 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		local shoulder = Vector3.new(x, shoulderY, 0)
 		local armCf = CFrame.new(shoulder) * armPose * CFrame.new(0, -0.9, 0)
 		b:box(Vector3.new(0.9 * bulk, 1.9, 0.9 * bulk), armCf, shirt, { role = "primary", material = mat, name = "Braco" })
-		b:box(Vector3.new(0.85 * bulk, 0.5, 0.85 * bulk), armCf * CFrame.new(0, -1, 0), o.gloves or skin, { role = "fixed", material = mat })
+		b:ball(0.82 * bulk, armCf * CFrame.new(0, -1.08, 0), o.gloves or skin, { role = "fixed", material = mat })
+		b:ball(0.98 * bulk, CFrame.new(shoulder) * CFrame.new(0, -0.05, 0), shirt, { role = "primary", material = mat })
 		if acc.big_gloves then
 			b:ball(1.05, armCf * CFrame.new(0, -1.15, -0.05), o.gloves or rgb(200, 30, 40), { role = "accent" })
 		end
@@ -8440,6 +8453,14 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 	if acc.pacifier then
 		b:part("cyl", Vector3.new(0.12, 0.45, 0.45), CFrame.new(0, headY - 0.3, -0.66 * headS) * CFrame.Angles(0, math.rad(90), 0), rgb(150, 210, 255), { role = "fixed" })
 	end
+	if acc.horns_big then
+		for _, side in { -1, 1 } do
+			for k = 0, 3 do
+				local f = k / 3
+				b:part("wedge", Vector3.new(0.32 - f * 0.18, 0.7, 0.4 - f * 0.2), CFrame.new(side * (0.5 + f * 0.55) * headS, top + 0.1 + f * 0.75, 0.1 - f * 0.25) * CFrame.Angles(math.rad(-15 * f), 0, side * (-0.4 - f * 0.5)), rgb(35, 25, 25), { role = "fixed" })
+			end
+		end
+	end
 	if acc.brow then
 		b:box(Vector3.new(1.25, 0.2, 0.25) * headS, CFrame.new(0, headY + 0.32 * headS, -0.55 * headS), Kit.darker(skin, 0.15), { role = "fixed" })
 	end
@@ -8558,6 +8579,14 @@ function Figures.build(origin: CFrame, params: { [string]: any }, variant: strin
 		b:part("cyl", Vector3.new(1, 2.2 * bulk, 2.2 * bulk), CFrame.new(0, 2.4, 0) * CFrame.Angles(0, 0, math.rad(90)), col, { role = "primary" })
 	end
 
+	if acc.lava_cracks then
+		for k = 0, 4 do
+			local y = torsoY + 0.7 - k * 0.35
+			b:box(Vector3.new(0.9, 0.1, 0.06), CFrame.new(((k % 2) - 0.5) * 0.6, y, -0.53 * bulk) * CFrame.Angles(0, 0, (k % 2 - 0.5) * 0.9), rgb(255, 120, 30), { role = "fixed", material = Enum.Material.Neon })
+		end
+		local core = b:ball(0.5, CFrame.new(0, torsoY + 0.3, -0.5 * bulk), rgb(255, 160, 40), { role = "fixed", material = Enum.Material.Neon })
+		b:light(core, rgb(255, 120, 40), 12, 2)
+	end
 	if acc.muscle_lines then
 		for k = 0, 3 do
 			b:box(Vector3.new(2.05 * bulk, 0.08, 1.05 * bulk), CFrame.new(0, torsoY + 0.7 - k * 0.45, 0), rgb(170, 60, 60), { role = "fixed" })
@@ -13281,6 +13310,22 @@ function EventManager.executePlan(plan: any, owner: Player?): ExecResult
 		end
 	end
 
+	-- cena cinematográfica para a ideia mais "épica" do pedido (só para quem criou)
+	if owner then
+		local Fx = require(script.Parent.Fx)
+		for _, rec in result.records do
+			local kind = EventManager.cutsceneKind(rec)
+			if kind then
+				local h = rec.handle
+				local npc = h and h.npcs and h.npcs[1]
+				local pos = if npc and npc.root then npc.root.Position else (h and h.position) or rec.origin.Position
+				local height = if npc then npc.height or 8 else 30
+				Fx.to(owner, "cutscene", { p = pos, h = height, t = rec.label, k = kind, evil = rec.def.tagSet.evil == true })
+				break
+			end
+		end
+	end
+
 	-- vínculos entre as ideias (rivais, guarda, montaria...)
 	local Links = require(script.Parent.Links)
 	for _, link in plan.links or {} do
@@ -13296,6 +13341,24 @@ function EventManager.executePlan(plan: any, owner: Player?): ExecResult
 
 	result.ok = #result.records > 0
 	return result
+end
+
+local BIG_DISASTERS = { black_hole = true, nuke = true, meteor_shower = true, meteor = true, end_of_world = true, volcano_eruption = true, tsunami = true, earthquake = true, tornado = true }
+
+-- "monster" (criatura grande/chefe/sagrada) | "disaster" | nil
+function EventManager.cutsceneKind(rec: any): string?
+	local def = rec.def
+	local p = rec.spec.params
+	if def.handler == "npc" then
+		local size = (p.size or 1) * (p.scale or 1)
+		local t = def.tagSet
+		if size >= 1.5 or t.boss or t.giant or (t.evil and t.monster and (p.hp or 0) >= 400) or def.sacred or p.boss then
+			return "monster"
+		end
+	elseif BIG_DISASTERS[def.id] or (def.id == "explosion" and (p.scale or 1) >= 2) then
+		return "disaster"
+	end
+	return nil
 end
 
 function EventManager.capacity(): { [string]: any }
@@ -14702,12 +14765,91 @@ return Status
 ]]></string>
           </Properties>
         </Item>
+        <Item class="ModuleScript" referent="72">
+          <Properties>
+            <string name="Name">TerrainScars</string>
+            <string name="Source"><![CDATA[--!strict
+-- Marcas no mapa: crateras de meteoro/nuke e rachaduras de terremoto cavadas
+-- no Terrain de verdade. Antes de cavar, a região é copiada (CopyRegion) e
+-- depois de alguns segundos é colada de volta (PasteRegion): o mapa se conserta
+-- sozinho. Limite de marcas simultâneas para não pesar.
+
+local Workspace = game:GetService("Workspace")
+
+local TerrainScars = {}
+
+TerrainScars.MAX_ACTIVE = 6
+local active = 0
+
+local function cell(v: Vector3): Vector3int16
+	return Vector3int16.new(math.floor(v.X / 4), math.floor(v.Y / 4), math.floor(v.Z / 4))
+end
+
+-- executa `carve` dentro de uma caixa (centro ± half), restaurando depois de `restoreAfter`
+function TerrainScars.scar(center: Vector3, half: Vector3, restoreAfter: number, carve: (Terrain) -> ()): boolean
+	if active >= TerrainScars.MAX_ACTIVE then
+		return false
+	end
+	local terrain = Workspace:FindFirstChildOfClass("Terrain")
+	if not terrain then
+		return false
+	end
+	local lo, hi = cell(center - half), cell(center + half)
+	local ok, region = pcall(function()
+		return terrain:CopyRegion(Region3int16.new(lo, hi))
+	end)
+	if not ok or not region then
+		return false
+	end
+	active += 1
+	pcall(carve, terrain)
+	task.delay(restoreAfter, function()
+		pcall(function()
+			terrain:PasteRegion(region, lo, true)
+		end)
+		active -= 1
+	end)
+	return true
+end
+
+-- cratera redonda com fundo de lava (ou gelo)
+function TerrainScars.crater(pos: Vector3, radius: number, element: string?, restoreAfter: number?): boolean
+	local r = math.clamp(radius, 4, 48)
+	return TerrainScars.scar(pos, Vector3.new(r + 8, r + 8, r + 8), restoreAfter or 45, function(t)
+		t:FillBall(pos, r, Enum.Material.Air)
+		local bottom = pos - Vector3.new(0, r * 0.75, 0)
+		t:FillBall(bottom, r * 0.45, if element == "ice" then Enum.Material.Glacier else Enum.Material.CrackedLava)
+		t:FillBall(pos - Vector3.new(0, r * 0.2, 0) + Vector3.new(r * 0.9, 0, 0), r * 0.25, Enum.Material.Basalt)
+		t:FillBall(pos - Vector3.new(0, r * 0.2, 0) - Vector3.new(r * 0.9, 0, 0), r * 0.25, Enum.Material.Basalt)
+	end)
+end
+
+-- rachaduras em linha saindo do centro (terremoto)
+function TerrainScars.cracks(center: Vector3, count: number, length: number, rng: any, restoreAfter: number?): boolean
+	local L = math.clamp(length, 20, 70)
+	return TerrainScars.scar(center, Vector3.new(L + 8, 26, L + 8), restoreAfter or 40, function(t)
+		for _ = 1, count do
+			local a = rng:range(0, math.pi * 2)
+			local len = rng:range(L * 0.5, L)
+			local dir = Vector3.new(math.cos(a), 0, math.sin(a))
+			local mid = center + dir * (len / 2 + 4)
+			local cf = CFrame.lookAt(mid, mid + dir)
+			t:FillBlock(cf, Vector3.new(rng:range(3, 6), 16, len), Enum.Material.Air)
+			t:FillBlock(cf * CFrame.new(0, -9, 0), Vector3.new(2, 3, len * 0.9), Enum.Material.CrackedLava)
+		end
+	end)
+end
+
+return TerrainScars
+]]></string>
+          </Properties>
+        </Item>
       </Item>
-      <Item class="Folder" referent="72">
+      <Item class="Folder" referent="73">
         <Properties>
           <string name="Name">Handlers</string>
         </Properties>
-        <Item class="ModuleScript" referent="73">
+        <Item class="ModuleScript" referent="74">
           <Properties>
             <string name="Name">Blessing</string>
             <string name="Source"><![CDATA[--!strict
@@ -14767,7 +14909,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="74">
+        <Item class="ModuleScript" referent="75">
           <Properties>
             <string name="Name">Building</string>
             <string name="Source"><![CDATA[--!strict
@@ -14939,7 +15081,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="75">
+        <Item class="ModuleScript" referent="76">
           <Properties>
             <string name="Name">Disaster</string>
             <string name="Source"><![CDATA[--!strict
@@ -15004,11 +15146,11 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="76">
+        <Item class="Folder" referent="77">
           <Properties>
             <string name="Name">Disasters</string>
           </Properties>
-          <Item class="ModuleScript" referent="77">
+          <Item class="ModuleScript" referent="78">
             <Properties>
               <string name="Name">Cosmic</string>
               <string name="Source"><![CDATA[--!strict
@@ -15114,7 +15256,7 @@ return Cosmic
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="78">
+          <Item class="ModuleScript" referent="79">
             <Properties>
               <string name="Name">Ground</string>
               <string name="Source"><![CDATA[--!strict
@@ -15170,7 +15312,16 @@ function Ground.earthquake(ctx: any): any
 		local r = ctx.rng:range(5, 40)
 		b:box(Vector3.new(ctx.rng:range(0.8, 2), 0.3, ctx.rng:range(10, 24)), CFrame.new(math.cos(a) * r, 0.15, math.sin(a) * r) * CFrame.Angles(0, a, 0), Color3.fromRGB(30, 22, 18), { role = "fixed" })
 	end
+	-- placas de pedra levantadas ao redor
+	for k = 0, 7 do
+		local a = ctx.rng:range(0, math.pi * 2)
+		local r = ctx.rng:range(10, 45)
+		b:box(Vector3.new(ctx.rng:range(4, 9), ctx.rng:range(1.5, 3), ctx.rng:range(5, 10)), CFrame.new(math.cos(a) * r, 0.8, math.sin(a) * r) * CFrame.Angles(ctx.rng:range(-0.5, 0.5), a, ctx.rng:range(-0.4, 0.4)), Color3.fromRGB(95, 85, 75), { role = "fixed", material = Enum.Material.Slate })
+	end
 	b:finish().Parent = ctx.folder
+	local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+	TerrainScars.cracks(center, 5, 55 * math.min(scale, 1.3), ctx.rng, 40)
+	Fx.near(center, 800, "quake", { p = center, r = 60 * math.min(scale, 1.5), d = 14 })
 	local stop = loop(ctx, 14, 0.4, function()
 		Fx.shake(center, 1.1 * math.min(scale, 3), 350)
 		local p = center + Vector3.new(ctx.rng:range(-80, 80), 0, ctx.rng:range(-80, 80))
@@ -15352,7 +15503,7 @@ return Ground
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="79">
+          <Item class="ModuleScript" referent="80">
             <Properties>
               <string name="Name">Impact</string>
               <string name="Source"><![CDATA[--!strict
@@ -15461,6 +15612,8 @@ function Impact.meteor(ctx: any): any
 			Combat.area(target, radius * 1.6, 45 * scale, nil, element, 80 * math.min(scale, 3))
 			Destruction.blast(target, radius * 2, 100 * math.min(scale, 3))
 			crater(ctx, target, radius, element)
+			local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+			TerrainScars.crater(target, radius * 0.9, element, 45)
 			if payloadDef and payloadDef.handler == "prop" and ctx.rng:chance(0.6) then
 				local pp = table.clone(payloadDef.params)
 				pp.scale = 0.7
@@ -15579,6 +15732,10 @@ function Impact.explosion(ctx: any): any
 	task.delay(1, function()
 		if ctx.folder.Parent then
 			PropActions.explode(pos, power, nil)
+			if power >= 1.5 then
+				local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+				TerrainScars.crater(pos - Vector3.new(0, 2, 0), math.min(5 * power, 40), element, 50)
+			end
 			if power >= 3 then
 				Fx.near(pos, 2000, "nuke", { p = pos, s = power })
 			end
@@ -15598,7 +15755,7 @@ return Impact
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="80">
+          <Item class="ModuleScript" referent="81">
             <Properties>
               <string name="Name">Storms</string>
               <string name="Source"><![CDATA[--!strict
@@ -15855,7 +16012,7 @@ return Storms
             </Properties>
           </Item>
         </Item>
-        <Item class="ModuleScript" referent="81">
+        <Item class="ModuleScript" referent="82">
           <Properties>
             <string name="Name">Npc</string>
             <string name="Source"><![CDATA[--!strict
@@ -16123,7 +16280,8 @@ function H.spawn(ctx: any): any
 	elseif hostile and (def.tagSet.monster or def.tagSet.beast) then
 		snd = "roar"
 	end
-	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, snd = snd, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
+	local big = size >= 1.5 or def.tagSet.boss == true or def.tagSet.giant == true or (hostile and def.tagSet.monster == true and (params.hp or 0) >= 400) or def.sacred == true
+	Fx.near(ctx.origin.Position, 400, "spawn", { p = ctx.origin.Position, s = size, snd = snd, big = big, c = if hostile then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(120, 220, 255) })
 
 	return {
 		npcs = npcs,
@@ -16146,7 +16304,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="82">
+        <Item class="ModuleScript" referent="83">
           <Properties>
             <string name="Name">Power</string>
             <string name="Source"><![CDATA[--!strict
@@ -16452,7 +16610,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="83">
+        <Item class="ModuleScript" referent="84">
           <Properties>
             <string name="Name">Prop</string>
             <string name="Source"><![CDATA[--!strict
@@ -16523,7 +16681,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="84">
+        <Item class="ModuleScript" referent="85">
           <Properties>
             <string name="Name">Rain</string>
             <string name="Source"><![CDATA[--!strict
@@ -16655,7 +16813,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="85">
+        <Item class="ModuleScript" referent="86">
           <Properties>
             <string name="Name">Tool</string>
             <string name="Source"><![CDATA[--!strict
@@ -16894,7 +17052,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="86">
+        <Item class="ModuleScript" referent="87">
           <Properties>
             <string name="Name">Vehicle</string>
             <string name="Source"><![CDATA[--!strict
@@ -17137,7 +17295,7 @@ return H
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="87">
+        <Item class="ModuleScript" referent="88">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[--!strict
@@ -17383,7 +17541,7 @@ return H
           </Properties>
         </Item>
       </Item>
-      <Item class="Script" referent="88">
+      <Item class="Script" referent="89">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
@@ -17394,11 +17552,11 @@ require(script.Parent.Core.Bootstrap).start()
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Folder" referent="89">
+      <Item class="Folder" referent="90">
         <Properties>
           <string name="Name">Map</string>
         </Properties>
-        <Item class="ModuleScript" referent="90">
+        <Item class="ModuleScript" referent="91">
           <Properties>
             <string name="Name">MapBuilder</string>
             <string name="Source"><![CDATA[--!strict
@@ -17545,7 +17703,7 @@ return MapBuilder
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="91">
+        <Item class="ModuleScript" referent="92">
           <Properties>
             <string name="Name">MapKit</string>
             <string name="Source"><![CDATA[--!strict
@@ -17829,7 +17987,7 @@ return MapKit
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="92">
+        <Item class="ModuleScript" referent="93">
           <Properties>
             <string name="Name">MapRuntime</string>
             <string name="Source"><![CDATA[--!strict
@@ -17915,11 +18073,11 @@ return MapRuntime
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="93">
+        <Item class="Folder" referent="94">
           <Properties>
             <string name="Name">Regions</string>
           </Properties>
-          <Item class="ModuleScript" referent="94">
+          <Item class="ModuleScript" referent="95">
             <Properties>
               <string name="Name">City</string>
               <string name="Source"><![CDATA[--!strict
@@ -18079,7 +18237,7 @@ return City
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="95">
+          <Item class="ModuleScript" referent="96">
             <Properties>
               <string name="Name">Forest</string>
               <string name="Source"><![CDATA[--!strict
@@ -18238,7 +18396,7 @@ return Forest
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="96">
+          <Item class="ModuleScript" referent="97">
             <Properties>
               <string name="Name">Glacier</string>
               <string name="Source"><![CDATA[--!strict
@@ -18328,7 +18486,7 @@ return Glacier
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="97">
+          <Item class="ModuleScript" referent="98">
             <Properties>
               <string name="Name">Hub</string>
               <string name="Source"><![CDATA[--!strict
@@ -18518,7 +18676,7 @@ return Hub
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="98">
+          <Item class="ModuleScript" referent="99">
             <Properties>
               <string name="Name">Outlands</string>
               <string name="Source"><![CDATA[--!strict
@@ -18721,7 +18879,7 @@ return { Desert = Desert, Beach = Beach, Sky = Sky, Arena = Arena }
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="99">
+          <Item class="ModuleScript" referent="100">
             <Properties>
               <string name="Name">Volcano</string>
               <string name="Source"><![CDATA[--!strict
@@ -18839,11 +18997,11 @@ return Volcano
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="100">
+      <Item class="Folder" referent="101">
         <Properties>
           <string name="Name">Progress</string>
         </Properties>
-        <Item class="ModuleScript" referent="101">
+        <Item class="ModuleScript" referent="102">
           <Properties>
             <string name="Name">Profiles</string>
             <string name="Source"><![CDATA[--!strict
@@ -19016,7 +19174,7 @@ return Profiles
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="102">
+        <Item class="ModuleScript" referent="103">
           <Properties>
             <string name="Name">Progress</string>
             <string name="Source"><![CDATA[--!strict
@@ -19399,11 +19557,11 @@ return Progress
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="103">
+      <Item class="Folder" referent="104">
         <Properties>
           <string name="Name">Tests</string>
         </Properties>
-        <Item class="ModuleScript" referent="104">
+        <Item class="ModuleScript" referent="105">
           <Properties>
             <string name="Name">ServerSpec</string>
             <string name="Source"><![CDATA[--!strict
@@ -19693,32 +19851,32 @@ return Spec
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="105">
+  <Item class="SoundService" referent="106">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="106">
+  <Item class="StarterPlayer" referent="107">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <float name="CameraMaxZoomDistance">180</float>
       <float name="CharacterJumpHeight">8.5</float>
       <float name="CharacterWalkSpeed">18</float>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="107">
+    <Item class="StarterPlayerScripts" referent="108">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="108">
+      <Item class="Folder" referent="109">
         <Properties>
           <string name="Name">IdeiasClient</string>
         </Properties>
-        <Item class="Folder" referent="109">
+        <Item class="Folder" referent="110">
           <Properties>
             <string name="Name">FX</string>
           </Properties>
-          <Item class="ModuleScript" referent="110">
+          <Item class="ModuleScript" referent="111">
             <Properties>
               <string name="Name">Ambient</string>
               <string name="Source"><![CDATA[--!strict
@@ -20082,7 +20240,7 @@ return Ambient
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="111">
+          <Item class="ModuleScript" referent="112">
             <Properties>
               <string name="Name">Disasters</string>
               <string name="Source"><![CDATA[--!strict
@@ -20191,6 +20349,31 @@ BUILD.meteor = function(folder, spec, model, color)
 		rock = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1) * spec.radius * 0.8, Color = Color3.fromRGB(70, 55, 50), Material = Enum.Material.Basalt })
 		local glow = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1) * spec.radius * 0.95, Color = color, Material = Enum.Material.Neon, Transparency = 0.55 })
 		glow.Name = "Brilho"
+		-- calombos de rocha (forma irregular) e rastro de fogo
+		for k = 1, 4 do
+			local lump = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1) * spec.radius * (0.35 + k * 0.06), Color = Color3.fromRGB(60, 48, 44), Material = Enum.Material.Basalt })
+			lump.Name = "Calombo" .. k
+		end
+		local a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(0, spec.radius * 0.45, 0)
+		a0.Parent = rock
+		local a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(0, -spec.radius * 0.45, 0)
+		a1.Parent = rock
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Lifetime = 0.9
+		trail.LightEmission = 1
+		trail.Color = ColorSequence.new(Color3.fromRGB(255, 240, 180), color)
+		trail.Transparency = NumberSequence.new(0, 1)
+		trail.WidthScale = NumberSequence.new(1, 0.2)
+		trail.Parent = rock
+		local pl = Instance.new("PointLight")
+		pl.Color = color
+		pl.Range = 40
+		pl.Brightness = 3
+		pl.Parent = rock
 	end
 	local fireE = emitter(rock, "rbxasset://textures/particles/fire_main.dds", color, 60, { speed = NumberRange.new(1, 3), size = NumberSequence.new(spec.radius * 0.6, spec.radius * 0.1), lifetime = NumberRange.new(0.4, 0.8), light = 1 })
 	local _ = fireE
@@ -20205,6 +20388,10 @@ BUILD.meteor = function(folder, spec, model, color)
 			if d:IsA("BasePart") and d.Name == "Brilho" then
 				d.CFrame = cf
 				d.Transparency = if visible then 0.55 else 1
+			elseif d:IsA("BasePart") and string.sub(d.Name, 1, 7) == "Calombo" then
+				local k = tonumber(string.sub(d.Name, 8)) or 1
+				d.CFrame = cf * CFrame.Angles(t * 2 + k, t * 3, 0) * CFrame.new(spec.radius * 0.28, 0, 0)
+				d.Transparency = if visible and not mold then 0 else 1
 			end
 		end
 		rock.Transparency = if visible and not mold then 0 else 1
@@ -20299,31 +20486,89 @@ BUILD.tsunami = function(folder, spec, model, color)
 end
 
 BUILD.black_hole = function(folder, spec, model, _color)
-	local core = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(5, 5, 8), Material = Enum.Material.SmoothPlastic })
-	local halo = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(120, 80, 220), Material = Enum.Material.ForceField, Transparency = 0.2 })
-	local disk = newPart(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 1, 1), Color = Color3.fromRGB(255, 160, 70), Material = Enum.Material.Neon, Transparency = 0.15 })
-	local disk2 = newPart(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 1, 1), Color = Color3.fromRGB(190, 120, 255), Material = Enum.Material.Neon, Transparency = 0.3 })
-	emitter(halo, "rbxasset://textures/particles/sparkles_main.dds", Color3.fromRGB(200, 160, 255), 50, { speed = NumberRange.new(-20, -10), size = NumberSequence.new(1.5), lifetime = NumberRange.new(1, 1.5), light = 1 })
+	-- horizonte de eventos preto, anel de fótons sempre de frente para a câmera
+	-- (efeito "Interstellar"), disco de acreção em três camadas girando e
+	-- destroços espiralando para dentro. Perto dele a tela escurece.
+	local core = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(0, 0, 0), Material = Enum.Material.SmoothPlastic })
+	local glow = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(255, 170, 90), Material = Enum.Material.ForceField, Transparency = 0.1 })
+	local SEG = 28
+	local function ringParts(n: number, color: Color3, thick: number)
+		local list = {}
+		for i = 1, n do
+			table.insert(list, newPart(model, { Size = Vector3.new(thick, thick * 0.35, 1), Color = color, Material = Enum.Material.Neon, Transparency = 0.05 }))
+		end
+		return list
+	end
+	local photon = ringParts(SEG, Color3.fromRGB(255, 235, 200), 1.1)
+	local disks = {
+		{ parts = ringParts(SEG, Color3.fromRGB(255, 220, 150), 1.6), r = 1.8, speed = 2.2 },
+		{ parts = ringParts(SEG, Color3.fromRGB(255, 140, 50), 1.9), r = 2.5, speed = 1.5 },
+		{ parts = ringParts(SEG, Color3.fromRGB(200, 70, 30), 2.2), r = 3.3, speed = 1.0 },
+	}
 	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(180, 120, 255)
+	light.Color = Color3.fromRGB(255, 170, 90)
 	light.Range = 60
-	light.Brightness = 3
-	light.Parent = disk
+	light.Brightness = 4
+	light.Parent = glow
+	emitter(glow, "rbxasset://textures/particles/sparkles_main.dds", Color3.fromRGB(255, 200, 150), 60, { speed = NumberRange.new(-26, -14), size = NumberSequence.new(1.6, 0.2), lifetime = NumberRange.new(1, 1.4), light = 1 })
+	local rocks = {}
+	for i = 1, 24 do
+		table.insert(rocks, { part = newPart(model, { Size = Vector3.new(1, 1, 1) * (0.8 + (i % 4) * 0.5), Color = Color3.fromRGB(90, 80, 75), Material = Enum.Material.Slate }), phase = i * 0.7, life = (i % 6) / 6 })
+	end
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Name = "IdeiasBuracoNegro"
+	cc.Parent = game:GetService("Lighting")
+	local blur = Instance.new("BlurEffect")
+	blur.Name = "IdeiasBuracoNegro"
+	blur.Size = 0
+	blur.Parent = game:GetService("Lighting")
+	model.Destroying:Connect(function()
+		cc:Destroy()
+		blur:Destroy()
+	end)
 	local clones = payloadClones(folder, model, 6)
+	local function placeRing(list: { BasePart }, center: CFrame, radius: number, spin: number)
+		local n = #list
+		local seg = 2 * math.pi * radius / n * 1.15
+		for i, p in list do
+			local a = spin + (i / n) * math.pi * 2
+			p.Size = Vector3.new(p.Size.X, p.Size.Y, math.max(seg, 0.2))
+			p.CFrame = center * CFrame.new(math.cos(a) * radius, 0, math.sin(a) * radius) * CFrame.Angles(0, -a, 0)
+		end
+	end
 	return function(t)
 		local p = FxPaths.progress(spec, t)
 		local grow = math.min(1, p * 5)
-		local collapse = if p > 0.95 then (1 - p) / 0.05 else 1
-		local r = spec.radius * grow * collapse
+		local collapse = if p > 0.95 then math.max((1 - p) / 0.05, 0) else 1
+		local r = math.max(spec.radius * grow * collapse, 0.05)
 		local c = spec.pos
 		core.CFrame = CFrame.new(c)
-		core.Size = Vector3.new(1, 1, 1) * math.max(r * 2, 0.1)
-		halo.CFrame = CFrame.new(c)
-		halo.Size = Vector3.new(1, 1, 1) * math.max(r * 2.6, 0.1)
-		disk.CFrame = CFrame.new(c) * CFrame.Angles(0.35, t * 2, 0) * CFrame.Angles(0, 0, math.rad(90))
-		disk.Size = Vector3.new(0.6, r * 5, r * 5)
-		disk2.CFrame = CFrame.new(c) * CFrame.Angles(0.35, -t * 3, 0) * CFrame.Angles(0, 0, math.rad(90))
-		disk2.Size = Vector3.new(0.4, r * 3.6, r * 3.6)
+		core.Size = Vector3.one * r * 2
+		glow.CFrame = CFrame.new(c)
+		glow.Size = Vector3.one * r * 2.25
+		local tilt = CFrame.new(c) * CFrame.Angles(math.rad(14), 0, math.rad(8))
+		for _, dsk in disks do
+			placeRing(dsk.parts, tilt, r * dsk.r, t * dsk.speed)
+		end
+		-- anel de fótons sempre de frente para a câmera
+		local cam = Workspace.CurrentCamera
+		if cam then
+			local face = CFrame.lookAt(c, cam.CFrame.Position) * CFrame.Angles(math.rad(90), 0, 0)
+			placeRing(photon, face, r * 1.32, -t * 0.6)
+			local dist = (cam.CFrame.Position - c).Magnitude
+			local near = math.clamp(1 - dist / (spec.radius * 14), 0, 1) * grow * collapse
+			cc.Saturation = -0.6 * near
+			cc.Contrast = 0.35 * near
+			cc.Brightness = -0.12 * near
+			blur.Size = 6 * near
+		end
+		for _, rk in rocks do
+			local life = (rk.life + t * 0.25) % 1
+			local a = rk.phase + t * (1.5 + life * 4)
+			local rr = r * (6 - life * 5.2)
+			rk.part.CFrame = CFrame.new(c + Vector3.new(math.cos(a) * rr, math.sin(a * 1.7) * r * 0.4 * (1 - life), math.sin(a) * rr)) * CFrame.Angles(a, a * 0.5, 0)
+			rk.part.Transparency = if life > 0.92 or grow < 0.3 then 1 else 0
+		end
 		for i, m in clones do
 			local a = t * 2 + i
 			local rr = r * (3 - (t % 3))
@@ -20444,7 +20689,7 @@ return Disasters
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="112">
+          <Item class="ModuleScript" referent="113">
             <Properties>
               <string name="Name">Effects</string>
               <string name="Source"><![CDATA[--!strict
@@ -20549,7 +20794,43 @@ local function sound(id: string, at: Vector3, volume: number?)
 	Debris:AddItem(p, 5)
 end
 
-local spriteState = "unknown" -- unknown | loading | ok | failed
+local spriteState = "unknown" -- unknown | loading | ok | failed | off
+
+-- confere se o áudio do ElevenLabs carregou de verdade (aprovado na moderação e com
+-- duração). Enquanto não, os sons embutidos do Roblox são usados.
+function Effects.checkSprite()
+	local sp = Config.SoundSprite
+	if sp.Id == 0 then
+		spriteState = "off"
+		return
+	end
+	if spriteState == "loading" then
+		return
+	end
+	spriteState = "loading"
+	task.spawn(function()
+		local probe = Instance.new("Sound")
+		probe.SoundId = "rbxassetid://" .. tostring(sp.Id)
+		probe.Volume = 0
+		probe.Parent = game:GetService("SoundService")
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync({ probe })
+		end)
+		local t0 = os.clock()
+		while not probe.IsLoaded and os.clock() - t0 < 10 do
+			task.wait(0.25)
+		end
+		spriteState = if probe.IsLoaded and probe.TimeLength > 1 then "ok" else "failed"
+		if spriteState == "failed" then
+			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação/permissão): usando sons do Roblox")
+		end
+		probe:Destroy()
+	end)
+end
+
+function Effects.soundStatus(): string
+	return spriteState
+end
 -- som de um efeito: trecho do sprite do ElevenLabs ou som embutido (fallback)
 local function cue(name: string, at: Vector3?, volume: number?)
 	if not Settings.values.sounds then
@@ -20562,27 +20843,10 @@ local function cue(name: string, at: Vector3?, volume: number?)
 	local sp = Config.SoundSprite
 	local s = Instance.new("Sound")
 	local region = c.sprite and sp.Regions[c.sprite]
-	-- se o áudio do ElevenLabs ainda não foi aprovado/carregado, usa o som embutido
-	if sp.Id ~= 0 and spriteState == "unknown" then
-		spriteState = "loading"
-		task.spawn(function()
-			local probe = Instance.new("Sound")
-			probe.SoundId = "rbxassetid://" .. tostring(sp.Id)
-			local ok = pcall(function()
-				game:GetService("ContentProvider"):PreloadAsync({ probe }, function(_id, status)
-					spriteState = if status == Enum.AssetFetchStatus.Success then "ok" else "failed"
-				end)
-			end)
-			if not ok or spriteState == "loading" then
-				spriteState = if probe.IsLoaded then "ok" else "failed"
-			end
-			if spriteState == "failed" then
-				warn("[Ideias] áudio " .. tostring(sp.Id) .. " não carregou (moderação ou permissão); usando sons embutidos")
-			end
-			probe:Destroy()
-		end)
+	if spriteState == "unknown" then
+		Effects.checkSprite()
 	end
-	if sp.Id ~= 0 and region and spriteState == "ok" then
+	if sp.Id ~= 0 and region and spriteState == "ok" and Settings.values.soundSource ~= "roblox" then
 		s.SoundId = "rbxassetid://" .. tostring(sp.Id)
 		s.PlaybackRegionsEnabled = true
 		s.PlaybackRegion = NumberRange.new(region[1], region[2])
@@ -20724,6 +20988,16 @@ H.boom = function(d)
 	burst(d.p, TEX_SMOKE, { Color3.fromRGB(90, 85, 80) }, 20, 14 * s, 5 * s, 2.5, Vector3.new(0, 6, 0))
 	cue("explosion", d.p, 1)
 	shake(0.8 * s * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
+	ring(d.p - Vector3.new(0, 1, 0), 18 * s, Color3.fromRGB(190, 170, 150), 0.7)
+	debrisBurst(d.p, math.floor(6 + 6 * s), 0.8 + 0.4 * s, Color3.fromRGB(90, 80, 72))
+	local l = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(d.p), Transparency = 1 })
+	local pl = Instance.new("PointLight")
+	pl.Color = Color3.fromRGB(255, 160, 70)
+	pl.Range = math.min(30 * s, 60)
+	pl.Brightness = 6
+	pl.Parent = l
+	tween(pl, 1.2, { Brightness = 0 })
+	Debris:AddItem(l, 1.3)
 end
 
 H.poof = function(d)
@@ -20739,6 +21013,26 @@ H.spawn = function(d)
 	tween(col, 0.7, { Size = Vector3.new(40, 0.2, 0.2) * (d.s or 1), Transparency = 1 })
 	Debris:AddItem(col, 0.8)
 	cue(d.snd or "create", d.p, 0.8)
+	if d.big then
+		local evil = d.c and d.c.R > 0.8 and d.c.G < 0.5
+		local col = if evil then Color3.fromRGB(255, 50, 40) else Color3.fromRGB(255, 230, 140)
+		ring(d.p, 26 * (d.s or 1), col, 1.4)
+		for i = 1, 3 do
+			task.delay(i * 0.18, function()
+				local top = d.p + Vector3.new(math.random(-20, 20), 140, math.random(-20, 20))
+				zigzag(top, d.p + Vector3.new(math.random(-6, 6), 0, math.random(-6, 6)), if evil then Color3.fromRGB(255, 90, 80) else Color3.fromRGB(220, 240, 255), 0.7, 0.3)
+			end)
+		end
+		local portal = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 2, 2), CFrame = CFrame.new(d.p + Vector3.new(0, 0.4, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = if evil then Color3.fromRGB(30, 0, 0) else Color3.fromRGB(255, 250, 220), Transparency = 0.1 })
+		tween(portal, 0.6, { Size = Vector3.new(0.6, 30 * (d.s or 1), 30 * (d.s or 1)) })
+		task.delay(1.6, function()
+			tween(portal, 0.8, { Transparency = 1 })
+		end)
+		Debris:AddItem(portal, 2.5)
+		burst(d.p, if evil then TEX_FIRE else TEX_SPARK, { col, Color3.new(1, 1, 1) }, 60, 30, 3, 1.6, Vector3.new(0, 20, 0))
+		shake(0.8 * math.clamp(1 - (camPos() - d.p).Magnitude / 300, 0, 1))
+		H.flash({ p = d.p + Vector3.new(0, 6, 0), c = col, s = 40 })
+	end
 end
 
 H.build = function(d)
@@ -20825,12 +21119,42 @@ end
 
 H.nuke = function(d)
 	local s = d.s or 3
-	for k = 0, 4 do
-		local p = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(10, 10, 10), CFrame = CFrame.new(d.p + Vector3.new(0, k * 14 * s * 0.4, 0)), Color = Color3.fromRGB(120, 105, 95), Material = Enum.Material.SmoothPlastic, Transparency = 0.2 })
-		tween(p, 2.5, { Size = Vector3.new(30, 30, 30) * s * (if k == 4 then 1.6 else 0.6), Transparency = 1 })
-		Debris:AddItem(p, 2.6)
-	end
-	tint(Color3.fromRGB(255, 220, 190), 1.5)
+	local base = d.p
+	-- clarão que cega e som profundo
+	tint(Color3.fromRGB(255, 250, 235), 0.9)
+	cue("explosion", base, 1)
+	task.delay(0.25, function()
+		cue("rumble", base, 1)
+	end)
+	local fire = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(8, 8, 8), CFrame = CFrame.new(base), Color = Color3.fromRGB(255, 240, 200), Transparency = 0 })
+	tween(fire, 1.2, { Size = Vector3.new(60, 60, 60) * (s / 3), Color = Color3.fromRGB(255, 120, 30), Transparency = 0.3 })
+	Debris:AddItem(fire, 2.6)
+	task.delay(1.2, function()
+		tween(fire, 1.3, { Transparency = 1 })
+	end)
+	-- onda de choque rasteira
+	local wave = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(3, 10, 10), CFrame = CFrame.new(base + Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(255, 230, 200), Transparency = 0.2 })
+	tween(wave, 2.2, { Size = Vector3.new(3, 420 * (s / 3), 420 * (s / 3)), Transparency = 1 })
+	Debris:AddItem(wave, 2.3)
+	-- cogumelo: haste subindo + chapéu que cresce
+	local stem = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(10, 14, 14), CFrame = CFrame.new(base + Vector3.new(0, 5, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(150, 110, 90), Material = Enum.Material.SmoothPlastic, Transparency = 0.1 })
+	local cap = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(20, 20, 20), CFrame = CFrame.new(base + Vector3.new(0, 10, 0)), Color = Color3.fromRGB(255, 140, 60), Material = Enum.Material.SmoothPlastic, Transparency = 0.05 })
+	local height = 90 * (s / 3)
+	tween(stem, 4, { Size = Vector3.new(height, 18 * (s / 3), 18 * (s / 3)), CFrame = CFrame.new(base + Vector3.new(0, height / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(110, 95, 85) })
+	tween(cap, 4, { Size = Vector3.new(80, 45, 80) * (s / 3), CFrame = CFrame.new(base + Vector3.new(0, height, 0)), Color = Color3.fromRGB(120, 100, 90) })
+	burst(base + Vector3.new(0, height * 0.5, 0), TEX_SMOKE, { Color3.fromRGB(140, 120, 110), Color3.fromRGB(80, 70, 65) }, 80, 30, 18, 6, Vector3.new(0, 8, 0))
+	burst(base, TEX_FIRE, { Color3.fromRGB(255, 230, 120), Color3.fromRGB(255, 80, 20) }, 80, 60, 8, 2)
+	debrisBurst(base, 24, 2.5, Color3.fromRGB(80, 70, 60))
+	task.delay(4, function()
+		tween(stem, 4, { Transparency = 1 })
+		tween(cap, 4, { Transparency = 1 })
+	end)
+	Debris:AddItem(stem, 8.2)
+	Debris:AddItem(cap, 8.2)
+	shake(3)
+	task.delay(0.8, function()
+		shake(2)
+	end)
 end
 
 H.power = function(d)
@@ -21030,6 +21354,168 @@ H.drum = function(d)
 	end
 end
 
+-- CENA CINEMATOGRÁFICA: algo grande apareceu -------------------------------------------
+local inCutscene = false
+function Effects.busy(): boolean
+	return inCutscene
+end
+
+H.cutscene = function(d)
+	if inCutscene or Settings.values.cutscenes == false then
+		return
+	end
+	local cam = Workspace.CurrentCamera
+	local pg = player:FindFirstChildOfClass("PlayerGui")
+	if not cam or not pg then
+		return
+	end
+	inCutscene = true
+	local disaster = d.k == "disaster"
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "IdeiasCena"
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 50
+	gui.ResetOnSpawn = false
+	gui.Parent = pg
+	local bars = {}
+	for _, top in { true, false } do
+		local f = Instance.new("Frame")
+		f.BackgroundColor3 = Color3.new(0, 0, 0)
+		f.BorderSizePixel = 0
+		f.AnchorPoint = if top then Vector2.new(0, 0) else Vector2.new(0, 1)
+		f.Position = if top then UDim2.fromScale(0, 0) else UDim2.fromScale(0, 1)
+		f.Size = UDim2.new(1, 0, 0, 0)
+		f.Parent = gui
+		tween(f, 0.35, { Size = UDim2.new(1, 0, 0.11, 0) })
+		table.insert(bars, f)
+	end
+	local color = if d.evil then Color3.fromRGB(255, 70, 60) elseif disaster then Color3.fromRGB(255, 190, 80) else Color3.fromRGB(255, 240, 200)
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.AnchorPoint = Vector2.new(0.5, 0.5)
+	title.Position = UDim2.fromScale(0.5, 0.74)
+	title.Size = UDim2.fromScale(0.9, 0.11)
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.Text = string.upper(tostring(d.t or ""))
+	title.TextColor3 = color
+	title.TextTransparency = 1
+	title.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.Color = Color3.new(0, 0, 0)
+	stroke.Transparency = 1
+	stroke.Parent = title
+	local sub = title:Clone()
+	sub.Text = if disaster then "ESTÁ CHEGANDO!" else "APARECEU!"
+	sub.Position = UDim2.fromScale(0.5, 0.82)
+	sub.Size = UDim2.fromScale(0.6, 0.05)
+	sub.TextColor3 = Color3.new(1, 1, 1)
+	sub.Parent = gui
+	task.delay(0.45, function()
+		tween(title, 0.4, { TextTransparency = 0 })
+		tween(stroke, 0.4, { Transparency = 0 })
+		tween(sub, 0.4, { TextTransparency = 0 })
+		local s2 = sub:FindFirstChildOfClass("UIStroke")
+		if s2 then
+			tween(s2, 0.4, { Transparency = 0 })
+		end
+	end)
+	cue(if d.evil then "roar" elseif disaster then "rumble" else "create", nil, 1)
+	local old = cam.CFrame
+	local oldType = cam.CameraType
+	cam.CameraType = Enum.CameraType.Scriptable
+	local h = d.h or 8
+	local target = d.p + Vector3.new(0, h * 0.55, 0)
+	local dist = math.clamp(h * 2.6, 24, 150)
+	if disaster then
+		target = d.p + Vector3.new(0, 30, 0)
+		dist = 110
+	end
+	local rel = old.Position - target
+	local a0 = math.atan2(rel.Z, rel.X)
+	local t0 = os.clock()
+	local dur = 3.4
+	local skip = false
+	local conn = game:GetService("UserInputService").InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if os.clock() - t0 > 0.6 then
+				skip = true
+			end
+		end
+	end)
+	shake(0.6)
+	local function finish()
+		RunService:UnbindFromRenderStep("IdeiasCena")
+		conn:Disconnect()
+		pcall(function()
+			cam.CameraType = if oldType == Enum.CameraType.Scriptable then Enum.CameraType.Custom else oldType
+		end)
+		for _, f in bars do
+			tween(f, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
+		end
+		tween(title, 0.3, { TextTransparency = 1 })
+		tween(sub, 0.3, { TextTransparency = 1 })
+		Debris:AddItem(gui, 0.4)
+		inCutscene = false
+	end
+	RunService:BindToRenderStep("IdeiasCena", Enum.RenderPriority.Camera.Value + 2, function()
+		local k = (os.clock() - t0) / dur
+		if k >= 1 or skip then
+			finish()
+			return
+		end
+		local e = k * k * (3 - 2 * k)
+		local ang = a0 + math.rad(55) * e
+		local r = dist * (1.25 - 0.35 * e)
+		local pos = Vector3.new(target.X + math.cos(ang) * r, target.Y + dist * (0.35 - 0.2 * e), target.Z + math.sin(ang) * r)
+		local cf = CFrame.lookAt(pos, target)
+		if k < 0.18 then
+			cf = old:Lerp(cf, (k / 0.18) ^ 2)
+		end
+		cam.CFrame = cf
+	end)
+end
+
+-- TERREMOTO: poeira subindo das rachaduras e tremor contínuo --------------------------
+H.quake = function(d)
+	local dur = d.d or 12
+	for i = 0, math.floor(dur / 0.8) do
+		task.delay(i * 0.8, function()
+			local a = math.random() * math.pi * 2
+			local r = math.random() * (d.r or 50)
+			local p = d.p + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+			burst(p, TEX_SMOKE, { Color3.fromRGB(160, 140, 115), Color3.fromRGB(120, 105, 90) }, 14, 14, 4, 1.8, Vector3.new(0, 6, 0))
+			local dist = (camPos() - d.p).Magnitude
+			shake(0.25 * math.clamp(1 - dist / 400, 0, 1))
+			if i % 3 == 0 then
+				cue("rumble", d.p, 0.8)
+			end
+		end)
+	end
+	tint(Color3.fromRGB(200, 170, 140), 1.2)
+end
+
+-- destroços físicos voando (só no cliente: não pesa o servidor)
+local function debrisBurst(at: Vector3, n: number, size: number, color: Color3)
+	local q = math.max(1, math.floor(n * Settings.quality().particles))
+	for _ = 1, q do
+		local rock = Instance.new("Part")
+		rock.Size = Vector3.new(1, 1, 1) * size * (0.5 + math.random())
+		rock.Color = color
+		rock.Material = Enum.Material.Slate
+		rock.CanQuery = false
+		rock.CanTouch = false
+		rock.CFrame = CFrame.new(at + Vector3.new(0, 2, 0)) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+		rock.Parent = folder
+		local dir = Vector3.new(math.random() - 0.5, 0.6 + math.random() * 0.8, math.random() - 0.5).Unit
+		rock.AssemblyLinearVelocity = dir * (40 + math.random() * 50) * math.sqrt(size)
+		rock.AssemblyAngularVelocity = Vector3.new(math.random() * 10, math.random() * 10, math.random() * 10)
+		Debris:AddItem(rock, 4)
+	end
+end
+Effects.debrisBurst = debrisBurst
+
 function Effects.handle(data: any)
 	if type(data) ~= "table" then
 		return
@@ -21046,6 +21532,7 @@ end
 function Effects.init(hudModule: any, movementModule: any)
 	hud = hudModule
 	movement = movementModule
+	task.delay(3, Effects.checkSprite)
 	folder = Instance.new("Folder")
 	folder.Name = "EfeitosLocais"
 	folder.Parent = Workspace.CurrentCamera or Workspace
@@ -21073,7 +21560,7 @@ return Effects
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="113">
+          <Item class="ModuleScript" referent="114">
             <Properties>
               <string name="Name">Movement</string>
               <string name="Source"><![CDATA[--!strict
@@ -21332,7 +21819,7 @@ return Movement
             </Properties>
           </Item>
         </Item>
-        <Item class="LocalScript" referent="114">
+        <Item class="LocalScript" referent="115">
           <Properties>
             <string name="Name">Main</string>
             <string name="Source"><![CDATA[-- Ideias Sem Limites V3 — cliente.
@@ -21382,7 +21869,7 @@ Hud.onSubmit = function(text)
 		if ok then
 			Hud.result(res)
 			-- câmera cinemática: olha para a ideia criada por alguns segundos
-			if type(res) == "table" and res.ok and Settings.values.camera == "cinematica" then
+			if type(res) == "table" and res.ok and Settings.values.camera == "cinematica" and not Effects.busy() then
 				local cam = Workspace.CurrentCamera
 				local char = player.Character
 				local head = char and char:FindFirstChild("Head")
@@ -21434,7 +21921,7 @@ Hud.toast("Bem-vindo ao Ideias Sem Limites! Digite qualquer coisa e toque em CRI
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="115">
+        <Item class="ModuleScript" referent="116">
           <Properties>
             <string name="Name">Settings</string>
             <string name="Source"><![CDATA[--!strict
@@ -21456,6 +21943,8 @@ Settings.values = {
 	sounds = true,
 	notifications = true,
 	uiScale = 1,
+	cutscenes = true, -- câmera cinematográfica quando algo grande aparece
+	soundSource = "auto", -- auto (ElevenLabs quando aprovado) | roblox (sempre os embutidos)
 }
 
 local QUALITY = {
@@ -21529,11 +22018,11 @@ return Settings
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="116">
+        <Item class="Folder" referent="117">
           <Properties>
             <string name="Name">UI</string>
           </Properties>
-          <Item class="ModuleScript" referent="117">
+          <Item class="ModuleScript" referent="118">
             <Properties>
               <string name="Name">Drawer</string>
               <string name="Source"><![CDATA[--!strict
@@ -21834,6 +22323,23 @@ TABS.ajustes = function()
 	choice("Câmera", "camera", { { "Normal", "normal" }, { "1ª pessoa", "primeira" }, { "Cinemática", "cinematica" } })
 	choice("Tremor de câmera", "shake", { { "Ligado", true }, { "Desligado", false } })
 	choice("Sons", "sounds", { { "Ligados", true }, { "Desligados", false } })
+	choice("Sons do jogo", "soundSource", { { "ElevenLabs", "auto" }, { "Roblox", "roblox" } })
+	do
+		local ok, Effects = pcall(require, script.Parent.Parent.FX.Effects)
+		local st = if ok and Effects.soundStatus then Effects.soundStatus() else "?"
+		local txt = if st == "ok" then "✅ Sons do ElevenLabs carregados" elseif st == "off" then "ℹ️ Sons do ElevenLabs ainda não enviados (use ideias.sh sons)" elseif st == "failed" then "⏳ Áudio aguardando aprovação do Roblox: usando sons do Roblox" else "⏳ Verificando sons..."
+		Theme.label({ Text = txt, TextSize = 13, TextWrapped = true, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = nextOrder(), Parent = content })
+		local b = Theme.button({ Text = "🔊 Testar som", TextSize = 15, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = nextOrder(), Parent = content })
+		b.Activated:Connect(function()
+			if ok and Effects.cue then
+				Effects.cue("explosion", nil, 1)
+				task.delay(0.8, function()
+					Effects.cue("achievement", nil, 1)
+				end)
+			end
+		end)
+	end
+	choice("Cenas de cinema (coisas grandes)", "cutscenes", { { "Ligadas", true }, { "Desligadas", false } })
 	choice("Avisos", "notifications", { { "Ligados", true }, { "Desligados", false } })
 	choice("Tamanho da interface", "uiScale", { { "Menor", 0.85 }, { "Normal", 1 }, { "Maior", 1.15 } })
 	section("Ideias Sem Limites • V3")
@@ -21959,7 +22465,7 @@ return Drawer
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="118">
+          <Item class="ModuleScript" referent="119">
             <Properties>
               <string name="Name">Hud</string>
               <string name="Source"><![CDATA[--!strict
@@ -22124,6 +22630,116 @@ function Hud.build(parent: Instance): ScreenGui
 		ZIndex = 2,
 		Parent = createBtn,
 	}, { Theme.corner(20) })
+
+	-- borda arco-íris girando na barra e botão CRIAR pulsando quando pronto
+	local glowStroke = bar:FindFirstChildOfClass("UIStroke")
+	if glowStroke then
+		glowStroke.Transparency = 0.1
+		glowStroke.Thickness = 2.5
+		glowStroke.Color = Color3.new(1, 1, 1)
+		local rainbow = new("UIGradient", {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 230, 255)),
+				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(190, 130, 255)),
+				ColorSequenceKeypoint.new(0.66, Color3.fromRGB(255, 120, 200)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 230, 255)),
+			}),
+			Parent = glowStroke,
+		})
+		task.spawn(function()
+			while rainbow.Parent do
+				rainbow.Rotation = (rainbow.Rotation + 2) % 360
+				local ready = os.clock() >= cooldownUntil
+				local k = 1 + (if ready then math.sin(os.clock() * 4) * 0.035 else 0)
+				local sc = createBtn:FindFirstChild("Pulso") :: UIScale?
+				if sc then
+					sc.Scale = k
+				end
+				task.wait(1 / 30)
+			end
+		end)
+	end
+	new("UIScale", { Name = "Pulso", Parent = createBtn })
+
+	-- sugestões rápidas: toque para usar
+	local IDEAS = {
+		"dragão de fogo gigante", "arma que atira cachorro", "goku contra freeza", "buraco negro", "tung tung tung sahur",
+		"chuva de pizza", "meteoro", "terremoto", "bomba nuclear", "gato tubarão", "jesus", "titã colossal",
+		"tralalero tralala", "circo", "vingadores", "naruto", "dinossauro robô", "vaca que vira dragão",
+	}
+	local chips = new("Frame", {
+		Name = "Sugestoes",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 90),
+		Size = UDim2.new(0.62, 0, 0, 30),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, {
+		new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 6) }),
+		new("UISizeConstraint", { MaxSize = Vector2.new(640, 30) }),
+	})
+	local function fillChips()
+		for _, c in chips:GetChildren() do
+			if c:IsA("TextButton") then
+				c:Destroy()
+			end
+		end
+		local used = {}
+		for _ = 1, 3 do
+			local idea
+			repeat
+				idea = IDEAS[math.random(1, #IDEAS)]
+			until not used[idea]
+			used[idea] = true
+			local b = Theme.button({ Text = "✨ " .. idea, TextSize = 13, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 28), BackgroundColor3 = C.bg, BackgroundTransparency = 0.25, Parent = chips })
+			new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), Parent = b })
+			b.Activated:Connect(function()
+				box.Text = idea
+				Hud.updatePreview()
+				sound("Click")
+			end)
+		end
+	end
+	fillChips()
+	task.spawn(function()
+		while chips.Parent do
+			task.wait(9)
+			chips.Visible = box.Text == ""
+			if chips.Visible then
+				fillChips()
+			end
+		end
+	end)
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		chips.Visible = box.Text == ""
+	end)
+
+	-- abertura: logo animado ao entrar no jogo (imagem do Canva se enviada)
+	task.spawn(function()
+		local splash = new("Frame", { Name = "Abertura", BackgroundColor3 = Color3.fromRGB(8, 10, 24), BackgroundTransparency = 0.15, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = gui })
+		local logoId = Config.UiImages and Config.UiImages.Logo or 0
+		local logo: GuiObject
+		if logoId ~= 0 then
+			logo = new("ImageLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.5, 0.5), Image = "rbxthumb://type=Asset&id=" .. tostring(logoId) .. "&w=420&h=420", ScaleType = Enum.ScaleType.Fit, ZIndex = 21, Parent = splash })
+		else
+			logo = Theme.label({ Text = "IDEIAS SEM LIMITES", TextScaled = true, FontFace = Theme.FontHeavy, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.16), ZIndex = 21, Parent = splash })
+			Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(255, 120, 200), 0).Parent = logo
+			Theme.stroke(Color3.new(0, 0, 0), 3, 0).Parent = logo
+		end
+		local sub = Theme.label({ Text = "Escreva qualquer coisa. Ela vira realidade.", TextSize = 20, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.8, 0.06), ZIndex = 21, Parent = splash })
+		local sc = new("UIScale", { Scale = 0.6, Parent = logo })
+		Theme.tween(sc, 0.8, { Scale = 1 }, Enum.EasingStyle.Back)
+		task.wait(2.6)
+		Theme.tween(splash, 0.6, { BackgroundTransparency = 1 })
+		Theme.tween(sub, 0.6, { TextTransparency = 1 })
+		if logo:IsA("TextLabel") then
+			Theme.tween(logo, 0.6, { TextTransparency = 1 })
+		else
+			Theme.tween(logo, 0.6, { ImageTransparency = 1 })
+		end
+		task.wait(0.7)
+		splash:Destroy()
+	end)
 
 	-- prévia + retorno logo abaixo da barra
 	previewLabel = Theme.label({
@@ -22421,7 +23037,7 @@ return Hud
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="119">
+          <Item class="ModuleScript" referent="120">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[--!strict
@@ -22573,7 +23189,7 @@ return Theme
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="120">
+  <Item class="Workspace" referent="121">
     <Properties>
       <string name="Name">Workspace</string>
       <float name="FallenPartsDestroyHeight">-300</float>
@@ -22582,7 +23198,7 @@ return Theme
       <int name="StreamingMinRadius">96</int>
       <int name="StreamingTargetRadius">640</int>
     </Properties>
-    <Item class="Part" referent="121">
+    <Item class="Part" referent="122">
       <Properties>
         <string name="Name">PlataformaInicial</string>
         <bool name="Anchored">true</bool>
@@ -22611,7 +23227,7 @@ return Theme
         <token name="TopSurface">0</token>
       </Properties>
     </Item>
-    <Item class="SpawnLocation" referent="122">
+    <Item class="SpawnLocation" referent="123">
       <Properties>
         <string name="Name">SpawnCentral</string>
         <bool name="Anchored">true</bool>

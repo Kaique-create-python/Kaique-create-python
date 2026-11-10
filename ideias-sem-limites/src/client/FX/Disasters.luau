@@ -104,6 +104,31 @@ BUILD.meteor = function(folder, spec, model, color)
 		rock = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1) * spec.radius * 0.8, Color = Color3.fromRGB(70, 55, 50), Material = Enum.Material.Basalt })
 		local glow = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1) * spec.radius * 0.95, Color = color, Material = Enum.Material.Neon, Transparency = 0.55 })
 		glow.Name = "Brilho"
+		-- calombos de rocha (forma irregular) e rastro de fogo
+		for k = 1, 4 do
+			local lump = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1) * spec.radius * (0.35 + k * 0.06), Color = Color3.fromRGB(60, 48, 44), Material = Enum.Material.Basalt })
+			lump.Name = "Calombo" .. k
+		end
+		local a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(0, spec.radius * 0.45, 0)
+		a0.Parent = rock
+		local a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(0, -spec.radius * 0.45, 0)
+		a1.Parent = rock
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Lifetime = 0.9
+		trail.LightEmission = 1
+		trail.Color = ColorSequence.new(Color3.fromRGB(255, 240, 180), color)
+		trail.Transparency = NumberSequence.new(0, 1)
+		trail.WidthScale = NumberSequence.new(1, 0.2)
+		trail.Parent = rock
+		local pl = Instance.new("PointLight")
+		pl.Color = color
+		pl.Range = 40
+		pl.Brightness = 3
+		pl.Parent = rock
 	end
 	local fireE = emitter(rock, "rbxasset://textures/particles/fire_main.dds", color, 60, { speed = NumberRange.new(1, 3), size = NumberSequence.new(spec.radius * 0.6, spec.radius * 0.1), lifetime = NumberRange.new(0.4, 0.8), light = 1 })
 	local _ = fireE
@@ -118,6 +143,10 @@ BUILD.meteor = function(folder, spec, model, color)
 			if d:IsA("BasePart") and d.Name == "Brilho" then
 				d.CFrame = cf
 				d.Transparency = if visible then 0.55 else 1
+			elseif d:IsA("BasePart") and string.sub(d.Name, 1, 7) == "Calombo" then
+				local k = tonumber(string.sub(d.Name, 8)) or 1
+				d.CFrame = cf * CFrame.Angles(t * 2 + k, t * 3, 0) * CFrame.new(spec.radius * 0.28, 0, 0)
+				d.Transparency = if visible and not mold then 0 else 1
 			end
 		end
 		rock.Transparency = if visible and not mold then 0 else 1
@@ -212,31 +241,89 @@ BUILD.tsunami = function(folder, spec, model, color)
 end
 
 BUILD.black_hole = function(folder, spec, model, _color)
-	local core = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(5, 5, 8), Material = Enum.Material.SmoothPlastic })
-	local halo = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(120, 80, 220), Material = Enum.Material.ForceField, Transparency = 0.2 })
-	local disk = newPart(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 1, 1), Color = Color3.fromRGB(255, 160, 70), Material = Enum.Material.Neon, Transparency = 0.15 })
-	local disk2 = newPart(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 1, 1), Color = Color3.fromRGB(190, 120, 255), Material = Enum.Material.Neon, Transparency = 0.3 })
-	emitter(halo, "rbxasset://textures/particles/sparkles_main.dds", Color3.fromRGB(200, 160, 255), 50, { speed = NumberRange.new(-20, -10), size = NumberSequence.new(1.5), lifetime = NumberRange.new(1, 1.5), light = 1 })
+	-- horizonte de eventos preto, anel de fótons sempre de frente para a câmera
+	-- (efeito "Interstellar"), disco de acreção em três camadas girando e
+	-- destroços espiralando para dentro. Perto dele a tela escurece.
+	local core = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(0, 0, 0), Material = Enum.Material.SmoothPlastic })
+	local glow = newPart(model, { Shape = Enum.PartType.Ball, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(255, 170, 90), Material = Enum.Material.ForceField, Transparency = 0.1 })
+	local SEG = 28
+	local function ringParts(n: number, color: Color3, thick: number)
+		local list = {}
+		for i = 1, n do
+			table.insert(list, newPart(model, { Size = Vector3.new(thick, thick * 0.35, 1), Color = color, Material = Enum.Material.Neon, Transparency = 0.05 }))
+		end
+		return list
+	end
+	local photon = ringParts(SEG, Color3.fromRGB(255, 235, 200), 1.1)
+	local disks = {
+		{ parts = ringParts(SEG, Color3.fromRGB(255, 220, 150), 1.6), r = 1.8, speed = 2.2 },
+		{ parts = ringParts(SEG, Color3.fromRGB(255, 140, 50), 1.9), r = 2.5, speed = 1.5 },
+		{ parts = ringParts(SEG, Color3.fromRGB(200, 70, 30), 2.2), r = 3.3, speed = 1.0 },
+	}
 	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(180, 120, 255)
+	light.Color = Color3.fromRGB(255, 170, 90)
 	light.Range = 60
-	light.Brightness = 3
-	light.Parent = disk
+	light.Brightness = 4
+	light.Parent = glow
+	emitter(glow, "rbxasset://textures/particles/sparkles_main.dds", Color3.fromRGB(255, 200, 150), 60, { speed = NumberRange.new(-26, -14), size = NumberSequence.new(1.6, 0.2), lifetime = NumberRange.new(1, 1.4), light = 1 })
+	local rocks = {}
+	for i = 1, 24 do
+		table.insert(rocks, { part = newPart(model, { Size = Vector3.new(1, 1, 1) * (0.8 + (i % 4) * 0.5), Color = Color3.fromRGB(90, 80, 75), Material = Enum.Material.Slate }), phase = i * 0.7, life = (i % 6) / 6 })
+	end
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Name = "IdeiasBuracoNegro"
+	cc.Parent = game:GetService("Lighting")
+	local blur = Instance.new("BlurEffect")
+	blur.Name = "IdeiasBuracoNegro"
+	blur.Size = 0
+	blur.Parent = game:GetService("Lighting")
+	model.Destroying:Connect(function()
+		cc:Destroy()
+		blur:Destroy()
+	end)
 	local clones = payloadClones(folder, model, 6)
+	local function placeRing(list: { BasePart }, center: CFrame, radius: number, spin: number)
+		local n = #list
+		local seg = 2 * math.pi * radius / n * 1.15
+		for i, p in list do
+			local a = spin + (i / n) * math.pi * 2
+			p.Size = Vector3.new(p.Size.X, p.Size.Y, math.max(seg, 0.2))
+			p.CFrame = center * CFrame.new(math.cos(a) * radius, 0, math.sin(a) * radius) * CFrame.Angles(0, -a, 0)
+		end
+	end
 	return function(t)
 		local p = FxPaths.progress(spec, t)
 		local grow = math.min(1, p * 5)
-		local collapse = if p > 0.95 then (1 - p) / 0.05 else 1
-		local r = spec.radius * grow * collapse
+		local collapse = if p > 0.95 then math.max((1 - p) / 0.05, 0) else 1
+		local r = math.max(spec.radius * grow * collapse, 0.05)
 		local c = spec.pos
 		core.CFrame = CFrame.new(c)
-		core.Size = Vector3.new(1, 1, 1) * math.max(r * 2, 0.1)
-		halo.CFrame = CFrame.new(c)
-		halo.Size = Vector3.new(1, 1, 1) * math.max(r * 2.6, 0.1)
-		disk.CFrame = CFrame.new(c) * CFrame.Angles(0.35, t * 2, 0) * CFrame.Angles(0, 0, math.rad(90))
-		disk.Size = Vector3.new(0.6, r * 5, r * 5)
-		disk2.CFrame = CFrame.new(c) * CFrame.Angles(0.35, -t * 3, 0) * CFrame.Angles(0, 0, math.rad(90))
-		disk2.Size = Vector3.new(0.4, r * 3.6, r * 3.6)
+		core.Size = Vector3.one * r * 2
+		glow.CFrame = CFrame.new(c)
+		glow.Size = Vector3.one * r * 2.25
+		local tilt = CFrame.new(c) * CFrame.Angles(math.rad(14), 0, math.rad(8))
+		for _, dsk in disks do
+			placeRing(dsk.parts, tilt, r * dsk.r, t * dsk.speed)
+		end
+		-- anel de fótons sempre de frente para a câmera
+		local cam = Workspace.CurrentCamera
+		if cam then
+			local face = CFrame.lookAt(c, cam.CFrame.Position) * CFrame.Angles(math.rad(90), 0, 0)
+			placeRing(photon, face, r * 1.32, -t * 0.6)
+			local dist = (cam.CFrame.Position - c).Magnitude
+			local near = math.clamp(1 - dist / (spec.radius * 14), 0, 1) * grow * collapse
+			cc.Saturation = -0.6 * near
+			cc.Contrast = 0.35 * near
+			cc.Brightness = -0.12 * near
+			blur.Size = 6 * near
+		end
+		for _, rk in rocks do
+			local life = (rk.life + t * 0.25) % 1
+			local a = rk.phase + t * (1.5 + life * 4)
+			local rr = r * (6 - life * 5.2)
+			rk.part.CFrame = CFrame.new(c + Vector3.new(math.cos(a) * rr, math.sin(a * 1.7) * r * 0.4 * (1 - life), math.sin(a) * rr)) * CFrame.Angles(a, a * 0.5, 0)
+			rk.part.Transparency = if life > 0.92 or grow < 0.3 then 1 else 0
+		end
 		for i, m in clones do
 			local a = t * 2 + i
 			local rr = r * (3 - (t % 3))
