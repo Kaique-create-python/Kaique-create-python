@@ -16,6 +16,7 @@ import struct
 import subprocess
 import sys
 import zipfile
+import zlib
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(RAIZ)
@@ -102,6 +103,44 @@ def descomprimir_marcador(dados):
     return bytes(saida)
 
 
+def nome_no_jogo(rel):
+    """bizarre/src/StarterPlayerScripts/Main.client.luau -> StarterPlayer.StarterPlayerScripts.Main"""
+    partes = rel.split("/")
+    partes[-1] = partes[-1][:-5]
+    for sufixo in (".server", ".client"):
+        if partes[-1].endswith(sufixo):
+            partes[-1] = partes[-1][:-len(sufixo)]
+    if partes[0] in ("StarterPlayerScripts", "StarterCharacterScripts"):
+        partes.insert(0, "StarterPlayer")
+    return ".".join(partes)
+
+
+def conhecidos():
+    """tamanho:adler32 de cada script, em todas as versões já feitas (git) e na atual"""
+    mapa = {}
+
+    def juntar(rel, dados):
+        mapa.setdefault(nome_no_jogo(rel), set()).add("%d:%d" % (len(dados), zlib.adler32(dados) & 0xFFFFFFFF))
+
+    base = os.path.join(RAIZ, "src")
+    for pasta, _, arquivos in os.walk(base):
+        for arq in arquivos:
+            if arq.endswith(".luau"):
+                caminho = os.path.join(pasta, arq)
+                juntar(os.path.relpath(caminho, base).replace(os.sep, "/"), open(caminho, "rb").read())
+    try:
+        commits = subprocess.run(["git", "log", "--format=%H", "--", "bizarre/src"], cwd=REPO, capture_output=True, text=True, check=True).stdout.split()
+        for c in commits:
+            lista = subprocess.run(["git", "ls-tree", "-r", "--name-only", c, "bizarre/src"], cwd=REPO, capture_output=True, text=True, check=True).stdout.split("\n")
+            for a in lista:
+                if a.endswith(".luau"):
+                    dados = subprocess.run(["git", "show", "%s:%s" % (c, a)], cwd=REPO, capture_output=True, check=True).stdout
+                    juntar(a[len("bizarre/src/"):], dados)
+    except Exception as e:  # sem git (ZIP das fontes): só a versão atual
+        print("aviso: sem histórico do git (%s); só a versão atual entra como conhecida" % type(e).__name__)
+    return {k: sorted(v) for k, v in sorted(mapa.items())}
+
+
 def main():
     revisao = sys.argv[1] if len(sys.argv) > 1 else "AJUSTE-2"
     numero = revisao.split("-")[-1]
@@ -139,6 +178,7 @@ def main():
     saida = (modelo.replace("__REVISAO__", revisao)
              .replace("__NOME_ARQUIVO__", nome_arquivo)
              .replace("__MANIFESTO__", json.dumps(manifesto, ensure_ascii=False, indent=1))
+             .replace("__CONHECIDOS__", json.dumps(conhecidos(), ensure_ascii=False))
              .replace("__PAYLOAD_SHA__", sha_zip)
              .replace("__PAYLOAD__", linhas))
     destino = os.path.join(RAIZ, "dist", nome_arquivo)

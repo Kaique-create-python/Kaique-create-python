@@ -1,5 +1,7 @@
 -- BIZARRE BATTLEGROUNDS :: estatísticas salvas (abates, mortes, melhor sequência) e placar
 -- NUNCA apaga nada: cada salvamento SOMA o que aconteceu na partida ao que já estava guardado.
+-- AJUSTE7: salvamentos em fila (um por vez por jogador) e cada lote tem número: se o autosave,
+-- a saída e o desligamento do servidor mandarem o mesmo lote, ele só soma UMA vez.
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -8,8 +10,45 @@ local RunService = game:GetService("RunService")
 local Dados = {}
 
 local NOME_STORE = "BB_Jogadores_v1"
-local store: DataStore? = nil
-local sessao: { [Player]: any } = {}
+local store: any = nil
+local sessao: { [any]: any } = {}
+local jobId = tostring(game.JobId or "")
+local servidorId = if jobId ~= "" then string.sub(jobId, 1, 12) else ("s" .. math.random(1, 1e9))
+local contadorLote = 0
+local LOTES_GUARDADOS = 30
+
+-- soma um lote nos dados salvos, uma vez só (os números dos últimos lotes ficam guardados)
+function Dados._aplicarLote(velho: any, lote: any): (any, boolean)
+	local v = if type(velho) == "table" then velho else {}
+	local lotes = if type(v.lotes) == "table" then v.lotes else {}
+	for _, id in lotes do
+		if id == lote.id then
+			return v, false
+		end
+	end
+	v.abates = (v.abates or 0) + lote.abates
+	v.mortes = (v.mortes or 0) + lote.mortes
+	v.dano = math.floor((v.dano or 0) + lote.dano)
+	v.melhorSequencia = math.max(v.melhorSequencia or 0, lote.melhor)
+	table.insert(lotes, lote.id)
+	while #lotes > LOTES_GUARDADOS do
+		table.remove(lotes, 1)
+	end
+	v.lotes = lotes
+	v.versao = 2
+	return v, true
+end
+
+-- testes: troca o DataStore por um falso e mexe na sessão
+function Dados._usarStore(s: any)
+	store = s
+end
+function Dados._sessao(jogador: any, s: any?)
+	if s then
+		sessao[jogador] = s
+	end
+	return sessao[jogador]
+end
 
 local function chave(jogador: Player): string
 	return "u_" .. jogador.UserId
@@ -47,7 +86,7 @@ local function placar(jogador: Player, s: any)
 		seq.Name = "Sequência"
 		seq.Parent = ls
 	end
-	abates.Value = (s.base.abates or 0) + s.delta.abates
+	abates.Value = (s.base.abates or 0) + s.delta.abates + (if s.pendente then s.pendente.abates else 0)
 	seq.Value = s.sequencia
 end
 
@@ -86,7 +125,7 @@ function Dados.carregar(jogador: Player)
 	end)
 end
 
-function Dados.salvar(jogador: Player)
+function Dados.salvar(jogador: any)
 	local s = sessao[jogador]
 	if not s or not s.carregou then
 		return
@@ -95,32 +134,67 @@ function Dados.salvar(jogador: Player)
 	if not ds then
 		return
 	end
-	local d = s.delta
-	if d.abates == 0 and d.mortes == 0 and d.dano == 0 and s.melhorSequencia <= (s.base.melhorSequencia or 0) then
+	-- um salvamento por vez: quem chega no meio pede para salvar de novo no fim
+	if s.salvando then
+		s.deNovo = true
 		return
 	end
-	local enviado = { abates = d.abates, mortes = d.mortes, dano = d.dano }
-	local melhor = s.melhorSequencia
-	local ok = pcall(function()
-		ds:UpdateAsync(chave(jogador), function(velho)
-			local v = if type(velho) == "table" then velho else {}
-			v.abates = (v.abates or 0) + enviado.abates
-			v.mortes = (v.mortes or 0) + enviado.mortes
-			v.dano = math.floor((v.dano or 0) + enviado.dano)
-			v.melhorSequencia = math.max(v.melhorSequencia or 0, melhor)
-			v.versao = 1
-			return v
+	s.salvando = true
+	repeat
+		s.deNovo = false
+		-- lote que falhou antes vai primeiro, com o MESMO número (não duplica se já tinha entrado)
+		local lote = s.pendente
+		if not lote then
+			local d = s.delta
+			if d.abates == 0 and d.mortes == 0 and d.dano == 0 and s.melhorSequencia <= (s.base.melhorSequencia or 0) then
+				break
+			end
+			contadorLote += 1
+			lote = {
+				id = string.format("%s:%s:%d", servidorId, tostring(jogador.UserId), contadorLote),
+				abates = d.abates,
+				mortes = d.mortes,
+				dano = d.dano,
+				melhor = s.melhorSequencia,
+			}
+			d.abates -= lote.abates
+			d.mortes -= lote.mortes
+			d.dano -= lote.dano
+			s.pendente = lote
+		end
+		local ok = pcall(function()
+			ds:UpdateAsync(chave(jogador), function(velho)
+				local v, aplicou = Dados._aplicarLote(velho, lote)
+				if not aplicou then
+					return nil -- já estava somado: não escreve de novo
+				end
+				return v
+			end)
 		end)
-	end)
-	if ok then
-		d.abates -= enviado.abates
-		d.mortes -= enviado.mortes
-		d.dano -= enviado.dano
-		s.base.abates = (s.base.abates or 0) + enviado.abates
-		s.base.mortes = (s.base.mortes or 0) + enviado.mortes
-		s.base.melhorSequencia = math.max(s.base.melhorSequencia or 0, melhor)
+		if ok then
+			s.pendente = nil
+			s.base.abates = (s.base.abates or 0) + lote.abates
+			s.base.mortes = (s.base.mortes or 0) + lote.mortes
+			s.base.melhorSequencia = math.max(s.base.melhorSequencia or 0, lote.melhor)
+		else
+			break -- fica pendente; o próximo salvamento manda o mesmo lote
+		end
+	until not s.deNovo
+	s.salvando = false
+end
+
+-- espera os salvamentos em andamento terminarem (saída e desligamento)
+local function esperarSalvar(jogador: any, limite: number)
+	local inicio = os.clock()
+	local s = sessao[jogador]
+	while s and (s.salvando or s.pendente) and os.clock() - inicio < limite do
+		if not s.salvando and s.pendente then
+			Dados.salvar(jogador)
+		end
+		task.wait(0.5)
 	end
 end
+Dados._esperarSalvar = esperarSalvar
 
 function Dados.abate(jogador: Player): number
 	local s = sessao[jogador]
@@ -164,8 +238,11 @@ function Dados.iniciar()
 		end
 	end
 	Players.PlayerRemoving:Connect(function(p)
-		Dados.salvar(p)
-		sessao[p] = nil
+		task.spawn(function()
+			Dados.salvar(p)
+			esperarSalvar(p, 20)
+			sessao[p] = nil
+		end)
 	end)
 	task.spawn(function()
 		while true do
@@ -179,8 +256,12 @@ function Dados.iniciar()
 		if RunService:IsStudio() then
 			return
 		end
-		for _, p in Players:GetPlayers() do
-			pcall(Dados.salvar, p)
+		for p in sessao do
+			task.spawn(pcall, Dados.salvar, p)
+		end
+		local inicio = os.clock()
+		for p in sessao do
+			esperarSalvar(p, math.max(1, 25 - (os.clock() - inicio)))
 		end
 	end)
 end

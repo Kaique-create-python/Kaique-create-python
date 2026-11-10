@@ -249,8 +249,45 @@ local function cfNoChao(x: number, y: number, z: number, olharPara: Vector3?): C
 	return CFrame.lookAt(pos, Vector3.new(alvo.X, pos.Y, alvo.Z))
 end
 
+-- AJUSTE7: microdetalhes sem colisão que pesam no celular. Feito ao ligar o servidor (o mapa
+-- original continua inteiro no arquivo do place): fica 1 de cada 3 lâminas de persiana por
+-- janela; saem as juntas de revestimento e os reflexos finos; detalhes pequenos sem sombra.
+local SEM_SOMBRA = {
+	Trim = true, Detail = true, Hardware = true, Cable = true, Decor = true, GlassHighlight = true,
+	RoadMarking = true, Crosswalk = true, RoadDetail = true, SidewalkDetail = true, SportMarking = true,
+	Electrical = true, Lighting = true, Curtain = true, Goods = true, Prop = true,
+}
+function Mapa.simplificar(morioh: Instance): (number, number)
+	local removidas, semSombra = 0, 0
+	local persianas: { [Instance]: number } = {}
+	for _, p in morioh:GetDescendants() do
+		if p:IsA("BasePart") and not p.CanCollide and p.Parent then
+			local nome = p.Name
+			if nome == "Junta_Revestimento" or nome == "Reflexo_fino" then
+				p:Destroy()
+				removidas += 1
+			elseif nome == "Lamina_Persiana" then
+				local pai = p.Parent :: Instance
+				local n = persianas[pai] or 0
+				persianas[pai] = n + 1
+				if n % 3 ~= 0 then
+					p:Destroy()
+					removidas += 1
+				end
+			elseif p.CastShadow and SEM_SOMBRA[p:GetAttribute("Role") or ""] then
+				p.CastShadow = false
+				semSombra += 1
+			end
+		end
+	end
+	return removidas, semSombra
+end
+
 local function construirMorioh(morioh: Instance)
 	Mapa.modo = "morioh"
+	local removidas, semSombra = Mapa.simplificar(morioh)
+	workspace:SetAttribute("BB_MapaRemovidas", removidas)
+	workspace:SetAttribute("BB_MapaSemSombra", semSombra)
 	Mapa.pasta = morioh
 	Mapa.pastaQuebravel = morioh
 	-- quem está voando atravessa (e quebra) as paredes: grupo de colisão nas peças quebráveis

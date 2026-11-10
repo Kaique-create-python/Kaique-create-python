@@ -11,6 +11,7 @@ local BB = script.Parent.Parent
 local Stands = require(BB:WaitForChild("Stands"))
 local Golpes = require(BB:WaitForChild("Golpes"))
 local Config = require(BB:WaitForChild("Config"))
+local Entrada = require(BB:WaitForChild("Entrada"))
 local UI = require(script.Parent:WaitForChild("Interface"))
 local Som = require(script.Parent:WaitForChild("Som"))
 local Efeitos = require(script.Parent:WaitForChild("Efeitos"))
@@ -21,6 +22,11 @@ local Menu = {}
 local plr = Players.LocalPlayer
 local gui: ScreenGui
 local remotos: any
+local conteudo: Frame
+local statusTxt: TextLabel
+local pedido = Entrada.novoCliente()
+local previas: { any } = {}
+local conexaoPrevias: RBXScriptConnection? = nil
 local aberto = false
 local selecionado = Stands.ORDEM[1]
 local cartoes: { [string]: any } = {}
@@ -31,10 +37,35 @@ local botaoLutar: TextButton
 local botaoVoltar: TextButton
 local painelControles: Frame
 local painelAjustes: Frame
-local ajustes = { musica = Config.VOLUME_MUSICA, efeitosAltos = true, tremor = true }
+local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "auto", tremor = 1, camera = 12.5 }
 
 local function estrelas(n: number): string
 	return string.rep("★", n) .. string.rep("☆", 3 - n)
+end
+
+-- AJUSTE7: todas as prévias giram numa atualização só, e ela para quando o menu está fechado
+local function animarPrevias(ligar: boolean)
+	if conexaoPrevias then
+		conexaoPrevias:Disconnect()
+		conexaoPrevias = nil
+	end
+	if not ligar then
+		return
+	end
+	local acum = 0
+	conexaoPrevias = RunService.Heartbeat:Connect(function(dt)
+		acum += dt
+		if acum < 1 / 30 then
+			return
+		end
+		for _, p in previas do
+			if p.vp.Parent and p.vp.Visible then
+				p.ang += acum * 0.6
+				p.modelo:PivotTo(CFrame.Angles(0, p.ang, 0))
+			end
+		end
+		acum = 0
+	end)
 end
 
 local function moldeStand(id: string): Model?
@@ -74,16 +105,7 @@ local function viewport(pai: Instance, id: string, tam: UDim2, pos: UDim2): View
 		local altura = tamanho.Y
 		cam.CFrame = CFrame.lookAt(Vector3.new(0, altura * 0.08, -altura * 2.05), Vector3.new(0, altura * 0.05, 0))
 		vp:SetAttribute("Pronto", true)
-		task.spawn(function()
-			local ang = math.random() * 6
-			while vp.Parent do
-				ang += 0.02
-				if vp.Visible and aberto then
-					m:PivotTo(CFrame.Angles(0, ang, 0))
-				end
-				task.wait(1 / 30)
-			end
-		end)
+		table.insert(previas, { vp = vp, modelo = m, ang = math.random() * 6 })
 		return true
 	end
 	task.spawn(function()
@@ -147,7 +169,7 @@ local function criarCartao(pai: Instance, id: string, pos: UDim2)
 end
 
 local function camadaPainel(titulo: string): Frame
-	local f = UI.frame(gui, UDim2.fromOffset(620, 420), UDim2.new(0.5, -310, 0.5, -210), UI.CORES.fundo, 0.05)
+	local f = UI.frame(conteudo, UDim2.fromOffset(620, 420), UDim2.new(0.5, -310, 0.5, -210), UI.CORES.fundo, 0.05)
 	UI.canto(f, 16)
 	UI.borda(f, UI.CORES.dourado, 3)
 	f.ZIndex = 20
@@ -179,49 +201,63 @@ local function criarControles()
 	local _ = t
 end
 
-local function criarAjustes(aoMudar: (any) -> ())
-	painelAjustes = camadaPainel("AJUSTES")
-	local y = 70
-	local function linha(rotulo: string, obter: () -> string, aoTocar: () -> ())
-		UI.texto(painelAjustes, rotulo, UDim2.fromOffset(300, 40), UDim2.fromOffset(30, y), { alinhar = Enum.TextXAlignment.Left, z = 21 })
-		local b = UI.botao(painelAjustes, obter(), UDim2.fromOffset(220, 46), UDim2.fromOffset(360, y - 3), UI.CORES.roxo, { z = 22 })
-		b.MouseButton1Click:Connect(function()
-			aoTocar()
-			local rot = b:FindFirstChild("Rotulo") :: TextLabel
-			rot.Text = obter()
-			Som.tocar("ui_clique", nil)
-			aoMudar(ajustes)
-		end)
-		y += 64
-	end
-	linha("MÚSICA", function()
-		return if ajustes.musica <= 0 then "DESLIGADA" else string.format("%d%%", math.floor(ajustes.musica / Config.VOLUME_MUSICA * 100 + 0.5))
-	end, function()
-		local passos = { Config.VOLUME_MUSICA, Config.VOLUME_MUSICA * 0.5, 0, Config.VOLUME_MUSICA * 1.6 }
-		local i = 1
-		for k, v in passos do
-			if math.abs(v - ajustes.musica) < 0.01 then
-				i = k
-			end
+-- AJUSTE7: ajustes completos (cada toque troca para a próxima opção)
+local OPCOES = {
+	musica = { { "100%", 1 }, { "50%", 0.5 }, { "DESLIGADA", 0 }, { "160%", 1.6 } },
+	efeitos = { { "100%", 1 }, { "70%", 0.7 }, { "40%", 0.4 }, { "SEM SOM", 0 } },
+	qualidade = { { "AUTOMÁTICA", "auto" }, { "BAIXA (celular fraco)", "baixa" }, { "ALTA", "alta" } },
+	tremor = { { "NORMAL", 1 }, { "FORTE", 1.4 }, { "LEVE", 0.5 }, { "DESLIGADO", 0 } },
+	camera = { { "NORMAL", 12.5 }, { "LONGE", 16 }, { "MUITO LONGE", 20 }, { "PERTO", 9 } },
+}
+local LINHAS = { { "musica", "MÚSICA" }, { "efeitos", "VOLUME DOS EFEITOS" }, { "qualidade", "QUALIDADE" }, { "tremor", "TREMOR DA CÂMERA" }, { "camera", "DISTÂNCIA DA CÂMERA" } }
+
+local function rotuloDe(chave: string): string
+	for _, o in OPCOES[chave] do
+		if o[2] == ajustes[chave] then
+			return o[1]
 		end
-		ajustes.musica = passos[i % #passos + 1]
-	end)
-	linha("EFEITOS", function()
-		return if ajustes.efeitosAltos then "ALTOS" else "LEVES (celular fraco)"
-	end, function()
-		ajustes.efeitosAltos = not ajustes.efeitosAltos
-	end)
-	linha("TREMOR DA CÂMERA", function()
-		return if ajustes.tremor then "LIGADO" else "DESLIGADO"
-	end, function()
-		ajustes.tremor = not ajustes.tremor
-	end)
+	end
+	return "?"
 end
 
-local function aplicarAjustes(a: any)
-	Som.volumeMusica(a.musica)
-	Efeitos.qualidade(a.efeitosAltos)
-	Camera.ligarTremor(a.tremor)
+local function proximaOpcao(chave: string)
+	local lista = OPCOES[chave]
+	local i = 1
+	for k, o in lista do
+		if o[2] == ajustes[chave] then
+			i = k
+		end
+	end
+	ajustes[chave] = lista[i % #lista + 1][2]
+end
+
+local function criarAjustes(aoMudar: (any, string?) -> ())
+	painelAjustes = camadaPainel("AJUSTES")
+	local y = 62
+	for _, def in LINHAS do
+		local chave = def[1]
+		UI.texto(painelAjustes, def[2], UDim2.fromOffset(290, 36), UDim2.fromOffset(30, y), { alinhar = Enum.TextXAlignment.Left, z = 21, limite = 24 })
+		local b = UI.botao(painelAjustes, rotuloDe(chave), UDim2.fromOffset(250, 42), UDim2.fromOffset(340, y - 3), UI.CORES.roxo, { z = 22, limite = 22 })
+		b.MouseButton1Click:Connect(function()
+			proximaOpcao(chave)
+			local rot = b:FindFirstChild("Rotulo") :: TextLabel
+			rot.Text = rotuloDe(chave)
+			Som.tocar("ui_clique", nil)
+			aoMudar(ajustes, chave)
+		end)
+		y += 56
+	end
+end
+
+local function aplicarAjustes(a: any, chave: string?)
+	Som.volumeMusica(Config.VOLUME_MUSICA * a.musica)
+	Som.volumeEfeitos(Config.VOLUME_EFEITOS * a.efeitos)
+	Efeitos.modoQualidade(a.qualidade)
+	Camera.ligarTremor(a.tremor > 0)
+	Camera.forcaTremor = a.tremor
+	if chave == "camera" then
+		Camera.distancia(a.camera)
+	end
 end
 
 local function criar()
@@ -232,25 +268,43 @@ local function criar()
 	gui.DisplayOrder = 10
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Parent = plr:WaitForChild("PlayerGui")
-	UI.escalaTela(gui, 1100, 600, 0.5, 1.2)
-	local fundo = UI.frame(gui, UDim2.fromScale(1, 1), UDim2.new(), Color3.fromRGB(10, 4, 24), 0.25)
+	local fundo = UI.frame(gui, UDim2.fromScale(1, 1), UDim2.new(), Color3.fromRGB(8, 6, 14), 0.2)
+	-- AJUSTE7: o menu fica num quadro de 1100x600 no MEIO da tela, que cresce ou encolhe junto
+	-- (celular, PC e TV com a mesma proporção; nada colado no canto)
+	conteudo = Instance.new("Frame")
+	conteudo.Name = "Conteudo"
+	conteudo.Size = UDim2.fromOffset(1100, 600)
+	conteudo.AnchorPoint = Vector2.new(0.5, 0.5)
+	conteudo.Position = UDim2.fromScale(0.5, 0.5)
+	conteudo.BackgroundTransparency = 1
+	conteudo.Parent = gui
+	local escala = Instance.new("UIScale")
+	escala.Parent = conteudo
+	local function ajustarEscala()
+		local tam = gui.AbsoluteSize
+		if tam.X >= 10 then
+			escala.Scale = math.clamp(math.min(tam.X / 1100, tam.Y / 600), 0.4, 1.8)
+		end
+	end
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(ajustarEscala)
+	ajustarEscala()
 	local g = Instance.new("UIGradient")
 	g.Rotation = 0
 	g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(0.55, 0.35), NumberSequenceKeypoint.new(1, 0.15) })
 	g.Parent = fundo
 	-- título
-	local titulo = UI.texto(gui, "BIZARRE", UDim2.fromOffset(330, 70), UDim2.fromOffset(24, 8), { cor = UI.CORES.dourado, contornoEsp = 4, alinhar = Enum.TextXAlignment.Left })
+	local titulo = UI.texto(conteudo, "BIZARRE", UDim2.fromOffset(330, 70), UDim2.fromOffset(24, 8), { cor = UI.CORES.dourado, contornoEsp = 4, alinhar = Enum.TextXAlignment.Left })
 	titulo.Rotation = -3
-	UI.texto(gui, "BATTLEGROUNDS", UDim2.fromOffset(330, 40), UDim2.fromOffset(30, 66), { cor = UI.CORES.branco, contornoEsp = 3, alinhar = Enum.TextXAlignment.Left })
-	UI.texto(gui, "escolha o seu Stand", UDim2.fromOffset(250, 24), UDim2.fromOffset(372, 82), { cor = Color3.fromRGB(210, 190, 255), alinhar = Enum.TextXAlignment.Left })
+	UI.texto(conteudo, "BATTLEGROUNDS", UDim2.fromOffset(330, 40), UDim2.fromOffset(30, 66), { cor = UI.CORES.branco, contornoEsp = 3, alinhar = Enum.TextXAlignment.Left })
+	UI.texto(conteudo, "escolha o seu Stand", UDim2.fromOffset(250, 24), UDim2.fromOffset(372, 82), { cor = Color3.fromRGB(210, 190, 255), alinhar = Enum.TextXAlignment.Left })
 	-- cartões
 	for i, id in Stands.ORDEM do
 		local col = (i - 1) % 3
 		local lin = math.floor((i - 1) / 3)
-		criarCartao(gui, id, UDim2.fromOffset(24 + col * 180, 116 + lin * 206))
+		criarCartao(conteudo, id, UDim2.fromOffset(24 + col * 180, 116 + lin * 206))
 	end
 	-- detalhes
-	local p = UI.frame(gui, UDim2.fromOffset(500, 470), UDim2.fromOffset(580, 18), UI.CORES.fundo, 0.12)
+	local p = UI.frame(conteudo, UDim2.fromOffset(500, 470), UDim2.fromOffset(580, 18), UI.CORES.fundo, 0.12)
 	UI.canto(p, 16)
 	UI.borda(p, UI.CORES.roxo, 2, 0.2)
 	detalhe.nome = UI.texto(p, "", UDim2.new(1, -24, 0, 56), UDim2.fromOffset(12, 8), { contornoEsp = 3, alinhar = Enum.TextXAlignment.Left })
@@ -265,18 +319,29 @@ local function criar()
 		detalhe.golpes[i] = t
 	end
 	-- botões
-	botaoLutar = UI.botao(gui, "LUTAR!", UDim2.fromOffset(240, 70), UDim2.fromOffset(580, 500), UI.CORES.dourado, { corTexto = Color3.fromRGB(40, 20, 10), limite = 44 })
-	local treinar = UI.botao(gui, "TREINAR", UDim2.fromOffset(150, 56), UDim2.fromOffset(830, 507), UI.CORES.roxo, { limite = 30 })
-	local controles = UI.botao(gui, "CONTROLES", UDim2.fromOffset(120, 40), UDim2.fromOffset(24, 540), Color3.fromRGB(60, 50, 90), { limite = 22 })
-	local ajustesB = UI.botao(gui, "AJUSTES", UDim2.fromOffset(110, 40), UDim2.fromOffset(152, 540), Color3.fromRGB(60, 50, 90), { limite = 22 })
-	botaoVoltar = UI.botao(gui, "VOLTAR", UDim2.fromOffset(100, 56), UDim2.fromOffset(988, 507), UI.CORES.vermelho, { limite = 26 })
+	botaoLutar = UI.botao(conteudo, "LUTAR!", UDim2.fromOffset(240, 70), UDim2.fromOffset(580, 500), UI.CORES.dourado, { corTexto = Color3.fromRGB(40, 20, 10), limite = 44 })
+	local treinar = UI.botao(conteudo, "TREINAR", UDim2.fromOffset(150, 56), UDim2.fromOffset(830, 507), UI.CORES.roxo, { limite = 30 })
+	local controles = UI.botao(conteudo, "CONTROLES", UDim2.fromOffset(120, 40), UDim2.fromOffset(24, 540), Color3.fromRGB(60, 50, 90), { limite = 22 })
+	local ajustesB = UI.botao(conteudo, "AJUSTES", UDim2.fromOffset(110, 40), UDim2.fromOffset(152, 540), Color3.fromRGB(60, 50, 90), { limite = 22 })
+	botaoVoltar = UI.botao(conteudo, "VOLTAR", UDim2.fromOffset(100, 56), UDim2.fromOffset(988, 507), UI.CORES.vermelho, { limite = 26 })
 	botaoVoltar.Visible = false
 	criarControles()
 	criarAjustes(aplicarAjustes)
+	statusTxt = UI.texto(conteudo, "", UDim2.fromOffset(500, 24), UDim2.fromOffset(580, 574), { cor = UI.CORES.dourado, limite = 20 })
+	-- AJUSTE7: o menu só fecha quando o servidor responde "ok" para ESTE pedido
 	local function entrar(modo: string)
+		local id = pedido.pedir(os.clock())
+		if not id then
+			return -- já tem um pedido indo (toque repetido não cria outra entrada)
+		end
 		Som.tocar("gongo", nil)
-		remotos.Entrar:FireServer({ stand = selecionado, modo = modo, bot = modo == "treino" })
-		Menu.fechar(true)
+		statusTxt.Text = "Entrando..."
+		remotos.Entrar:FireServer({ id = id, stand = selecionado, modo = modo, bot = modo == "treino" })
+		task.delay(Entrada.ESPERA_MAXIMA + 0.3, function()
+			if pedido.expirou(os.clock()) then
+				statusTxt.Text = "O servidor não respondeu. Toque de novo."
+			end
+		end)
 	end
 	botaoLutar.MouseButton1Click:Connect(function()
 		entrar("luta")
@@ -302,7 +367,7 @@ end
 
 local function cameraMenu()
 	local cam = workspace.CurrentCamera
-	cam.CameraType = Enum.CameraType.Scriptable
+	Camera.assumir("menu")
 	local t0 = os.clock()
 	if conexaoCamera then
 		conexaoCamera:Disconnect()
@@ -320,6 +385,8 @@ end
 function Menu.abrir(noJogo: boolean?)
 	aberto = true
 	gui.Enabled = true
+	statusTxt.Text = ""
+	animarPrevias(true)
 	botaoVoltar.Visible = noJogo == true
 	local rotulo = botaoLutar:FindFirstChild("Rotulo") :: TextLabel
 	rotulo.Text = if noJogo then "TROCAR!" else "LUTAR!"
@@ -338,10 +405,24 @@ function Menu.fechar(entrou: boolean)
 		conexaoCamera:Disconnect()
 		conexaoCamera = nil
 	end
-	local cam = workspace.CurrentCamera
-	cam.CameraType = Enum.CameraType.Custom
+	Camera.devolver("menu")
+	animarPrevias(false)
 	if aoFechar then
 		aoFechar(entrou)
+	end
+end
+
+-- resposta do servidor ao pedido de entrada ("entrada": id, ok, motivo)
+function Menu.respostaEntrada(msg: any)
+	local r = pedido.resposta(msg)
+	if r == "ok" then
+		statusTxt.Text = ""
+		if aberto then
+			Menu.fechar(true)
+		end
+	elseif r == "recusado" then
+		statusTxt.Text = tostring(msg.motivo or "Não deu para entrar agora.")
+		Som.tocar("ui_clique", nil)
 	end
 end
 

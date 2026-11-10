@@ -11,6 +11,8 @@ local Golpes = require(BB:WaitForChild("Golpes"))
 local Stands = require(BB:WaitForChild("Stands"))
 local UI = require(script.Parent:WaitForChild("Interface"))
 local Som = require(script.Parent:WaitForChild("Som"))
+local Registro = require(script.Parent:WaitForChild("Registro"))
+local Lighting = game:GetService("Lighting")
 
 local HUD = {}
 
@@ -387,18 +389,9 @@ end
 
 local function atualizarCabecas()
 	local vistos = {}
-	local lista = {}
-	for _, d in workspace:GetChildren() do
-		table.insert(lista, d)
-	end
-	local bots = workspace:FindFirstChild("BB_Bots")
-	if bots then
-		for _, d in bots:GetChildren() do
-			table.insert(lista, d)
-		end
-	end
-	for _, m in lista do
-		if m:IsA("Model") and m:GetAttribute("BB_Lutador") and m ~= plr.Character then
+	-- AJUSTE7: lista pronta do registro (sem varrer o workspace)
+	for m in Registro.lutadores() do
+		if m ~= plr.Character then
 			vistos[m] = true
 			cabeca(m)
 			local b = cabecas[m]
@@ -426,6 +419,39 @@ local function atualizarCabecas()
 	end
 end
 
+-- AJUSTE7: caiu? A seta "TO BE CONTINUED" entra de lado e a tela fica sépia até você voltar
+local setaContinua: Frame? = nil
+local corContinua: ColorCorrectionEffect? = nil
+function HUD.continua(sim: boolean)
+	if not setaContinua then
+		local ouro = Color3.fromRGB(236, 192, 62)
+		local marrom = Color3.fromRGB(58, 30, 10)
+		local f = UI.frame(gui, UDim2.fromOffset(430, 62), UDim2.new(0, -480, 1, -150), ouro, 0)
+		f.ZIndex = 30
+		UI.borda(f, marrom, 3)
+		local ponta = UI.frame(f, UDim2.fromOffset(44, 44), UDim2.fromOffset(-22, 9), ouro, 0)
+		ponta.Rotation = 45
+		ponta.ZIndex = 30
+		UI.texto(f, "TO BE CONTINUED", UDim2.new(1, -44, 1, -14), UDim2.fromOffset(30, 7), { cor = marrom, contorno = false, z = 31 })
+		setaContinua = f
+		local cc = Instance.new("ColorCorrectionEffect")
+		cc.Name = "BB_Continua"
+		cc.Parent = Lighting
+		corContinua = cc
+	end
+	local f = setaContinua :: Frame
+	local cc = corContinua :: ColorCorrectionEffect
+	if sim then
+		f.Position = UDim2.new(0, -480, 1, -150)
+		f.Visible = true
+		TweenService:Create(f, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0, 44, 1, -150) }):Play()
+		TweenService:Create(cc, TweenInfo.new(0.3), { Saturation = -0.75, Contrast = 0.18, TintColor = Color3.fromRGB(255, 226, 184) }):Play()
+	else
+		f.Visible = false
+		TweenService:Create(cc, TweenInfo.new(0.4), { Saturation = 0, Contrast = 0, TintColor = Color3.new(1, 1, 1) }):Play()
+	end
+end
+
 function HUD.mostrar(sim: boolean)
 	gui.Enabled = sim
 end
@@ -442,6 +468,10 @@ function HUD.iniciar(jogador: any)
 	gui.IgnoreGuiInset = true
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 5
+	-- respeita o recorte/câmera frontal do celular (nada fica escondido atrás do "notch")
+	pcall(function()
+		gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+	end)
 	gui.Parent = plr:WaitForChild("PlayerGui")
 	pastaCabecas = Instance.new("Folder")
 	pastaCabecas.Name = "BB_Cabecas"

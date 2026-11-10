@@ -103,6 +103,7 @@ checar("mapa", function()
 	assert(#destrutiveis > 50000, "poucas peças quebráveis: " .. #destrutiveis)
 	assert(#Mapa.spawns() >= 8 and Mapa.treino(), "spawns/treino")
 	res.info.streaming = workspace.StreamingEnabled
+	res.info.simplificado = string.format("%s enfeites sem colisão retirados, %s sem sombra", tostring(workspace:GetAttribute("BB_MapaRemovidas")), tostring(workspace:GetAttribute("BB_MapaSemSombra")))
 end)
 
 -- 4) os Stands (corpos do catálogo)
@@ -271,6 +272,119 @@ checar("contra-ataque", function()
 	local r = Combate.acertar(vit, atk, { dano = 5, tipo = "melee", atordoar = 0.5 }, { dir = Vector3.new(0, 0, 1) })
 	assert(r == "contra", "a postura de contra não pegou: " .. tostring(r))
 	task.wait(0.6)
+end)
+
+-- AJUSTE7: duas rajadas de frente se anulam (ORA x MUDA)
+checar("clash de rajadas", function()
+	Lutadores.trocarStand(atk, "STAR_PLATINUM")
+	Lutadores.trocarStand(vit, "THE_WORLD")
+	atk.estado.semRecarga = true
+	arrumar()
+	vit.estado.semRecarga = true
+	vit.dir = Vector3.new(0, 0, 1)
+	vit.dirT = workspace:GetServerTimeNow()
+	Combate.golpe(atk, 1, {})
+	Combate.golpe(vit, 1, {})
+	task.wait(1.3)
+	local danoV = vit.hum.MaxHealth - vit.hum.Health
+	local danoA = atk.hum.MaxHealth - atk.hum.Health
+	res.info.clash = string.format("durante o clash: %.1f e %.1f de dano", danoA, danoV)
+	if danoA > 1 or danoV > 1 then
+		aviso("clash: as rajadas não se anularam (" .. res.info.clash .. ")")
+	end
+	task.wait(1)
+end)
+
+-- AJUSTE7: dois tempos parados ao mesmo tempo (donos longe um do outro, um alvo no meio)
+checar("congelamentos sobrepostos", function()
+	arrumar()
+	local agoraS = workspace.GetServerTimeNow
+	local terc = lutador("TesteDio", Vector3.new(0, 3.2, -150), Vector3.new(0, 0, 1), "THE_WORLD")
+	local meio = lutador("TesteMeio", Vector3.new(0, 3.2, -50), Vector3.new(0, 0, 1), "CRAZY_DIAMOND")
+	meio.imortal = true
+	Lutadores.trocarStand(atk, "STAR_PLATINUM")
+	atk.estado.semRecarga = true
+	for _, l in { atk, terc } do
+		l.estado.despertar = Config.DESPERTAR.max
+		Regras.despertar(l.estado, agoraS(workspace))
+	end
+	Combate.golpe(atk, "ult", {}) -- para o tempo por 3 s (começa em 0,75 s)
+	task.wait(1)
+	Combate.golpe(terc, "ult", {}) -- para o tempo por 5 s (começa em 0,95 s)
+	task.wait(1.5)
+	local s1 = meio.modelo:GetAttribute("BB_SessaoTempo")
+	assert((meio.modelo:GetAttribute("BB_Congelado") or 0) > agoraS(workspace) and s1, "o alvo do meio devia estar parado pela 1ª ULT")
+	task.wait(0.6) -- a 2ª ULT já começou: o alvo continua sendo da 1ª
+	assert(meio.modelo:GetAttribute("BB_SessaoTempo") == s1, "a 2ª ULT sobrescreveu o alvo da 1ª")
+	task.wait(1.4) -- a 1ª acabou; a 2ª continua
+	assert(meio.modelo:GetAttribute("BB_Congelado") == nil and not meio.raiz.Anchored, "o alvo da 1ª ULT não foi solto quando ela acabou")
+	task.wait(3.6)
+	for _, l in { atk, vit, terc, meio } do
+		assert(l.modelo:GetAttribute("BB_Congelado") == nil and not l.raiz.Anchored, l.nome .. " ficou preso no tempo")
+	end
+	res.info.congelamentos = "2 tempos parados juntos: cada um soltou só os alvos dele"
+	for _, l in { terc, meio } do
+		Lutadores.remover(l.modelo)
+		l.modelo:Destroy()
+	end
+end)
+
+-- AJUSTE7: 12 lutadores batendo, usando golpes e ULTs e quebrando a cidade ao mesmo tempo
+checar("12 lutadores ao mesmo tempo", function()
+	arrumar()
+	local Stats = game:GetService("Stats")
+	local RunService = game:GetService("RunService")
+	local function medir(seg: number): (number, number)
+		local n, soma, pior = 0, 0, 0
+		local con = RunService.Heartbeat:Connect(function(dt)
+			n += 1
+			soma += dt
+			pior = math.max(pior, dt)
+		end)
+		task.wait(seg)
+		con:Disconnect()
+		return soma / math.max(1, n) * 1000, pior * 1000
+	end
+	local memAntes = Stats:GetTotalMemoryUsageMb()
+	local mediaAntes, piorAntes = medir(2)
+	local grupo = {}
+	for i = 1, 12 do
+		local ang = (i / 12) * math.pi * 2
+		local pos = Vector3.new(math.cos(ang) * 9, 3.2, 110 + math.sin(ang) * 9)
+		local l = lutador("Estresse" .. i, pos, Vector3.new(-math.cos(ang), 0, -math.sin(ang)), Stands.ORDEM[(i - 1) % #Stands.ORDEM + 1])
+		l.estado.semRecarga = true
+		table.insert(grupo, l)
+	end
+	task.wait(0.3)
+	local errosAntes = #logsRuins
+	task.spawn(function()
+		for _, slot in { 1, 3, "ult", 2, 4 } do
+			for _, l in grupo do
+				if l.modelo.Parent and l.hum.Health > 0 then
+					l.hum.Health = l.hum.MaxHealth
+					if slot == "ult" then
+						l.estado.despertar = Config.DESPERTAR.max
+						Regras.despertar(l.estado, workspace:GetServerTimeNow())
+					end
+					pcall(Combate.golpe, l, slot, {})
+				end
+			end
+			Mapa.quebrarArea(Vector3.new(0, 4, 110), 30, 2)
+			task.wait(1.2)
+		end
+	end)
+	local media, pior = medir(6.5)
+	local memDepois = Stats:GetTotalMemoryUsageMb()
+	res.info.estresse = string.format("servidor sem luta: %.1f ms por quadro (pior %.0f) | 12 lutadores com golpes, ULTs e destruição: %.1f ms por quadro (pior %.0f) | memória %d -> %d MB", mediaAntes, piorAntes, media, pior, memAntes, memDepois)
+	if #logsRuins > errosAntes then
+		falha("erro com 12 lutadores: " .. logsRuins[#logsRuins])
+	end
+	for _, l in grupo do
+		Lutadores.remover(l.modelo)
+		l.modelo:Destroy()
+	end
+	task.wait(0.5)
+	Mapa.restaurarTudo()
 end)
 
 -- 6) o mapa quebra e volta

@@ -168,6 +168,17 @@ function Bots.criar(perto: Vector3?, standId: string?, dificuldade: string?, don
 	return lut
 end
 
+-- quantos bots esse jogador já chamou (o treino não cria bot duplicado)
+function Bots.doDono(dono: Player): number
+	local n = 0
+	for _, b in bots do
+		if b.dono == dono and b.modelo.Parent and b.hum.Health > 0 then
+			n += 1
+		end
+	end
+	return n
+end
+
 function Bots.limpar(dono: Player?)
 	for i = #bots, 1, -1 do
 		local b = bots[i]

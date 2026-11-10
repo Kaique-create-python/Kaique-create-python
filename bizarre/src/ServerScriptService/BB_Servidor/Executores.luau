@@ -15,6 +15,7 @@ local Fisica = require(script.Parent.Fisica)
 local Mapa = require(script.Parent.Mapa)
 local Projeteis = require(script.Parent.Projeteis)
 local Combate = require(script.Parent.Combate)
+local TempoSessao = require(script.Parent.TempoSessao)
 
 local Executores = {}
 local EXEC: { [string]: (ctx: any) -> () } = {}
@@ -52,6 +53,8 @@ local function copiar(h: any, extra: any?): any
 	return r
 end
 
+local paredeEntre: (Vector3, Vector3) -> boolean
+
 -- bate numa caixa na frente (h.caixa/h.frente); devolve quem acertou de verdade
 local function bater(ctx: any, h: any, ignorar: { [any]: boolean }?): { any }
 	local lut = ctx.lut
@@ -60,6 +63,10 @@ local function bater(ctx: any, h: any, ignorar: { [any]: boolean }?): { any }
 	local acertados = {}
 	for _, alvo in Hitbox.caixa(cf, tam, lut) do
 		if ignorar and ignorar[alvo] then
+			continue
+		end
+		-- AJUSTE7: soco não atravessa parede (o servidor confere a linha de visão)
+		if paredeEntre(lut.raiz.Position, alvo.raiz.Position) then
 			continue
 		end
 		local hh = if h.tipo then h else copiar(h, { tipo = "melee" })
@@ -86,6 +93,32 @@ local function paramsCenario(): RaycastParams
 end
 Executores.paramsCenario = paramsCenario
 
+-- AJUSTE7: linha de visão (área e explosão não atravessam parede; o servidor confere)
+local function linhaLivre(de: Vector3, para: Vector3): boolean
+	local v = para - de
+	if v.Magnitude < 2 then
+		return true
+	end
+	local hit = workspace:Raycast(de, v, paramsCenario())
+	return hit == nil or (hit.Position - de).Magnitude >= v.Magnitude - 1.5
+end
+Executores.linhaLivre = linhaLivre
+
+-- parede de verdade no meio (peça grande): móveis e grades pequenas não seguram soco
+paredeEntre = function(de: Vector3, para: Vector3): boolean
+	local v = para - de
+	if v.Magnitude < 2.5 then
+		return false
+	end
+	local hit = workspace:Raycast(de, v, paramsCenario())
+	if not hit or (hit.Position - de).Magnitude >= v.Magnitude - 1.5 then
+		return false
+	end
+	local peca = hit.Instance
+	return peca:IsA("BasePart") and peca.Size.Magnitude > 10
+end
+Executores.paredeEntre = paredeEntre
+
 local function ondeOChao(pos: Vector3): Vector3
 	-- de 6 studs acima (não pega o telhado de cima de quem está dentro de casa)
 	local r = workspace:Raycast(pos + Vector3.new(0, 6, 0), Vector3.new(0, -60, 0), paramsCenario())
@@ -99,6 +132,9 @@ Executores.ondeOChao = ondeOChao
 -- explosão num ponto (bomba, moeda, tanquinho, Bites the Dust...)
 local function explosaoEm(lut: any, pos: Vector3, ex: any, dir: Vector3?, principal: any?)
 	for _, l in Hitbox.esfera(pos, ex.raio, lut) do
+		if l ~= principal and not linhaLivre(pos + Vector3.new(0, 1, 0), l.raiz.Position) then
+			continue -- atrás da parede: a parede segura a explosão
+		end
 		Combate.acertar(lut, l, {
 			dano = ex.dano,
 			empurrar = ex.empurrar,
@@ -211,16 +247,45 @@ EXEC.golpe = function(ctx)
 	end
 end
 
+-- AJUSTE7: ORA x MUDA! Duas rajadas de frente uma para a outra se anulam (ninguém leva dano
+-- dos socos da rajada) enquanto as duas durarem; o golpe final de cada uma acerta normal.
+local function emClash(lut: any, alvo: any): boolean
+	local r = alvo.rajada
+	if not r or r.ate < agora() or alvo.estado.token ~= r.token then
+		return false
+	end
+	local paraMim = Regras.achatar(lut.raiz.Position - alvo.raiz.Position)
+	return Regras.achatar(alvo.raiz.CFrame.LookVector):Dot(paraMim) > 0.3
+end
+Executores.emClash = emClash
+
 EXEC.barragem = function(ctx)
 	local g = ctx.g
+	local lut = ctx.lut
 	local t = g.inicio
+	lut.rajada = { token = ctx.token, ate = ctx.t0 + g.fim }
+	local ultimoAviso = 0
 	while t <= g.fim do
 		if not esperar(ctx, t) then
+			lut.rajada = nil
 			return
 		end
-		bater(ctx, g.hit)
+		local anulados = nil
+		local cf = Hitbox.cfFrente(lut.raiz, ctx.dir, g.hit.frente or 4, g.hit.cima, g.hit.lado)
+		for _, alvo in Hitbox.caixa(cf, g.hit.caixa or Vector3.new(5, 5, 6), lut) do
+			if emClash(lut, alvo) then
+				anulados = anulados or {}
+				anulados[alvo] = true
+				if agora() - ultimoAviso > 0.3 then
+					ultimoAviso = agora()
+					Combate.efeito("clash", { a = lut.modelo, v = alvo.modelo, pos = (lut.raiz.Position + alvo.raiz.Position) / 2, sa = lut.standId, sv = alvo.standId })
+				end
+			end
+		end
+		bater(ctx, g.hit, anulados)
 		t += g.intervalo
 	end
+	lut.rajada = nil
 	if g.final then
 		if not esperar(ctx, g.final.t) then
 			return
@@ -270,7 +335,9 @@ EXEC.area = function(ctx)
 			end
 			local h = copiar(a, { tipo = "area" })
 			for _, alvo in alvos do
-				Combate.acertar(lut, alvo, h, { dir = ctx.dir, origem = centro })
+				if linhaLivre(centro + Vector3.new(0, 1, 0), alvo.raiz.Position) then
+					Combate.acertar(lut, alvo, h, { dir = ctx.dir, origem = centro })
+				end
 			end
 			if (a.quebra or 0) > 0 then
 				if a.cone then
@@ -560,6 +627,43 @@ ESPECIAL.voo = function(ctx)
 	EXEC.area(ctx)
 end
 
+-- AJUSTE7: cada tempo parado é uma sessão (dono + número). Outra ULT não sobrescreve nem libera
+-- os alvos desta sessão; se o dono morrer ou sair, a sessão acaba na hora e solta só os dela.
+local function esperarSessao(sessao: any, ate: number): boolean
+	while agora() < ate do
+		if not TempoSessao.donoVivo(sessao) then
+			return false
+		end
+		task.wait(0.05)
+	end
+	return TempoSessao.donoVivo(sessao)
+end
+
+local function aplicarFila(lut: any, l: any, fila: { any })
+	local total = 0
+	local maior = nil
+	for _, item in fila do
+		total += item.h.dano or 0
+		local f = if item.h.empurrar then (item.h.empurrar.frente or 0) else 0
+		if not maior or f > ((maior.h.empurrar and maior.h.empurrar.frente) or 0) then
+			maior = item
+		end
+	end
+	local emp = if maior and maior.h.empurrar then copiar(maior.h.empurrar, { frente = math.max(50, maior.h.empurrar.frente or 0) * 1.2, cima = math.max(22, maior.h.empurrar.cima or 0) }) else { frente = 55, cima = 24, dur = 0.24 }
+	Combate.acertar(lut, l, {
+		dano = total,
+		tipo = "melee",
+		inbloqueavel = true,
+		ragdoll = 1.6,
+		empurrar = emp,
+		vfx = "impacto_enorme",
+		som = "soco_forte",
+		tremor = 0.9,
+		impactFrame = true,
+		quebra = 2,
+	}, { dir = if maior then maior.dir else nil })
+end
+
 ESPECIAL.tempoParado = function(ctx)
 	local lut = ctx.lut
 	local tp = ctx.g.tempo
@@ -568,82 +672,73 @@ ESPECIAL.tempoParado = function(ctx)
 	end
 	local t = agora()
 	local fim = t + tp.duracao
-	local congelados = {}
-	for _, l in Hitbox.esfera(lut.raiz.Position, tp.raio, lut) do
+	local sessao = TempoSessao.nova(lut, fim)
+	local candidatos = Hitbox.esfera(lut.raiz.Position, tp.raio, lut)
+	local congelados = TempoSessao.congelar(sessao, candidatos)
+	for _, l in congelados do
 		l.estado.congeladoAte = fim
 		l.congeladoPor = lut
 		l.filaTempo = {}
 		Regras.interromper(l.estado, t)
 		Fisica.prender(l)
 		l.modelo:SetAttribute("BB_Congelado", fim)
+		l.modelo:SetAttribute("BB_SessaoTempo", sessao.id)
 		Combate.atualizarMovimento(l)
-		table.insert(congelados, l)
 	end
 	Projeteis.congelar(fim, lut)
-	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = lut.standId })
+	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = lut.standId, sessao = sessao.id })
 	lut.estado.acaoAte = t + 0.15
 	Combate.atualizarMovimento(lut)
+	local donoOk = true
+	local alvoRolo = nil
 	-- DIO: "ROAD ROLLER DA!" cai em cima do congelado mais perto, pouco antes do tempo voltar
 	local rolo = tp.rolo
 	if rolo then
-		task.wait(math.max(0, tp.duracao - rolo.antes))
-		local alvo, melhor = nil, rolo.raio
-		for _, l in congelados do
-			local d = (l.raiz.Position - lut.raiz.Position).Magnitude
-			if l.hum.Health > 0 and d <= melhor then
-				alvo, melhor = l, d
+		donoOk = esperarSessao(sessao, fim - rolo.antes)
+		if donoOk then
+			local melhor = rolo.raio
+			for _, l in congelados do
+				local d = (l.raiz.Position - lut.raiz.Position).Magnitude
+				if l.hum.Health > 0 and l.sessaoTempo == sessao and d <= melhor then
+					alvoRolo, melhor = l, d
+				end
+			end
+			if alvoRolo then
+				Combate.efeito("rolo", { quem = lut.modelo, alvo = alvoRolo.modelo, pos = alvoRolo.raiz.Position, t = agora(), ate = fim, stand = lut.standId })
+				task.wait(0.35)
+				Combate.acertar(lut, alvoRolo, { dano = rolo.dano, tipo = "area", inbloqueavel = true, empurrar = rolo.empurrar, ragdoll = rolo.ragdoll, quebra = 3, vfx = "explosao_fogo", som = "soco_forte" }, { origem = alvoRolo.raiz.Position + Vector3.new(0, -1, 0) })
 			end
 		end
-		if alvo and lut.hum.Health > 0 then
-			Combate.efeito("rolo", { quem = lut.modelo, alvo = alvo.modelo, pos = alvo.raiz.Position, t = agora(), ate = fim, stand = lut.standId })
-			task.wait(0.35)
-			Combate.acertar(lut, alvo, { dano = rolo.dano, tipo = "area", inbloqueavel = true, empurrar = rolo.empurrar, ragdoll = rolo.ragdoll, quebra = 3, vfx = "explosao_fogo", som = "soco_forte" }, { origem = alvo.raiz.Position + Vector3.new(0, -1, 0) })
-		end
-		local falta = fim - agora()
-		if falta > 0 then
-			task.wait(falta)
-		end
-		if alvo then
-			Mapa.quebrarArea(alvo.raiz.Position, 9, 3)
-			Combate.efeito("explosao", { pos = alvo.raiz.Position, raio = 12, tipo = "explosao_fogo", som = "explosao_grande", tremor = 1.2, impactFrame = true })
-		end
-	else
-		task.wait(tp.duracao)
 	end
-	Combate.efeito("tempoVolta", { dono = lut.modelo })
-	for _, l in congelados do
-		l.modelo:SetAttribute("BB_Congelado", nil)
+	if donoOk then
+		donoOk = esperarSessao(sessao, fim)
+	end
+	-- fim da sessão (normal ou porque o dono caiu/saiu): solta SÓ os alvos desta sessão
+	local soltar = TempoSessao.encerrar(sessao)
+	Projeteis.descongelar(fim)
+	Combate.efeito("tempoVolta", { dono = lut.modelo, sessao = sessao.id })
+	if alvoRolo and alvoRolo.raiz.Parent then
+		Mapa.quebrarArea(alvoRolo.raiz.Position, 9, 3)
+		Combate.efeito("explosao", { pos = alvoRolo.raiz.Position, raio = 12, tipo = "explosao_fogo", som = "explosao_grande", tremor = 1.2, impactFrame = true })
+	end
+	for _, l in soltar do
+		if l.modelo.Parent then
+			l.modelo:SetAttribute("BB_Congelado", nil)
+			l.modelo:SetAttribute("BB_SessaoTempo", nil)
+		end
 		l.estado.congeladoAte = 0
 		l.congeladoPor = nil
-		if not l.agarradoPor then
+		if not l.agarradoPor and l.raiz.Parent then
 			Fisica.soltar(l)
 		end
 		local fila = l.filaTempo
 		l.filaTempo = nil
-		Combate.atualizarMovimento(l)
-		if fila and #fila > 0 and l.hum.Health > 0 then
-			local total = 0
-			local maior = nil
-			for _, item in fila do
-				total += item.h.dano or 0
-				local f = if item.h.empurrar then (item.h.empurrar.frente or 0) else 0
-				if not maior or f > ((maior.h.empurrar and maior.h.empurrar.frente) or 0) then
-					maior = item
-				end
-			end
-			local emp = if maior and maior.h.empurrar then copiar(maior.h.empurrar, { frente = math.max(50, maior.h.empurrar.frente or 0) * 1.2, cima = math.max(22, maior.h.empurrar.cima or 0) }) else { frente = 55, cima = 24, dur = 0.24 }
-			Combate.acertar(lut, l, {
-				dano = total,
-				tipo = "melee",
-				inbloqueavel = true,
-				ragdoll = 1.6,
-				empurrar = emp,
-				vfx = "impacto_enorme",
-				som = "soco_forte",
-				tremor = 0.9,
-				impactFrame = true,
-				quebra = 2,
-			}, { dir = if maior then maior.dir else nil })
+		if l.modelo.Parent then
+			Combate.atualizarMovimento(l)
+		end
+		-- os golpes guardados só chegam se o dono do tempo ainda estiver de pé
+		if donoOk and fila and #fila > 0 and l.hum.Health > 0 and l.modelo.Parent then
+			aplicarFila(lut, l, fila)
 		end
 	end
 end

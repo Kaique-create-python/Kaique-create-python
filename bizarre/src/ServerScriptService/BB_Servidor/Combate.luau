@@ -347,7 +347,13 @@ function Combate.m1(lut: any, dados: any)
 			folga += math.clamp(lut.raiz.AssemblyLinearVelocity:Dot(d) * 0.06, 0, 1.5)
 		end
 		local cf = Hitbox.cfFrente(lut.raiz, d, hb.frente + folga)
-		local alvos = Hitbox.caixa(cf, hb.tam, lut)
+		local alvos = {}
+		for _, alvo in Hitbox.caixa(cf, hb.tam, lut) do
+			-- soco não atravessa parede
+			if not (Executores and Executores.paredeEntre(lut.raiz.Position, alvo.raiz.Position)) then
+				table.insert(alvos, alvo)
+			end
+		end
 		local estilo = lut.stand.m1
 		local vfx = if estilo == "fogo" then "impacto_fogo" elseif estilo == "rapieira" then "corte_prata" else "impacto"
 		for _, alvo in alvos do

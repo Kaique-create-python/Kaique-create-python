@@ -33,6 +33,7 @@ local ragdollLocal = false
 local aoAviso: ((texto: string) -> ())? = nil
 local aoCombo: ((n: number) -> ())? = nil
 local aoCd: (() -> ())? = nil
+local aoEntrada: ((d: any) -> ())? = nil
 
 Jogador.cds = cds
 
@@ -338,7 +339,45 @@ function Jogador.dash()
 	if bloqueando then
 		Jogador.bloquear(false)
 	end
-	impulso(Regras.achatar(dirMundo) * def.vel, def.dur)
+	-- AJUSTE-5: com a mira travada o dash gruda no alvo (como no Jujutsu Shenanigans):
+	-- para frente encosta nele, de lado gira em volta dele, para trás se afasta
+	local travado = Camera.travado()
+	local rAlvo = travado and travado:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if rAlvo then
+		local paraAlvo = Regras.achatar(rAlvo.Position - raiz.Position)
+		local dist = (rAlvo.Position - raiz.Position).Magnitude
+		if tipo == "frente" then
+			dirMundo = paraAlvo
+			local dur = math.clamp((dist - 4) / def.vel, 0.05, def.dur)
+			impulso(paraAlvo * def.vel, dur)
+			ocupadoAte = os.clock() + dur
+		elseif tipo == "tras" then
+			dirMundo = -paraAlvo
+			impulso(-paraAlvo * def.vel, def.dur)
+		else
+			local sinal = if lado == "direita" then 1 else -1
+			local fimDash = os.clock() + def.dur
+			local raio = math.max(dist, 5)
+			impulso(paraAlvo:Cross(Vector3.new(0, 1, 0)) * sinal * def.vel, def.dur)
+			task.spawn(function()
+				while os.clock() < fimDash and rAlvo.Parent and raiz.Parent do
+					local lv = raiz:FindFirstChild("BB_Proprio") :: LinearVelocity?
+					if not lv then
+						break
+					end
+					local v = Regras.achatar(rAlvo.Position - raiz.Position)
+					local d = (rAlvo.Position - raiz.Position).Magnitude
+					local tangente = v:Cross(Vector3.new(0, 1, 0)) * sinal
+					-- mantém a mesma distância do alvo enquanto gira
+					lv.VectorVelocity = tangente * def.vel + v * (d - raio) * 6
+					raiz.CFrame = CFrame.lookAt(raiz.Position, raiz.Position + v)
+					task.wait()
+				end
+			end)
+		end
+	else
+		impulso(Regras.achatar(dirMundo) * def.vel, def.dur)
+	end
 	Acoes.tocar(c, { id = "dash", tipo = tipo, lado = lado })
 	remotos.Acao:FireServer("dash", { tipo = tipo, lado = lado, mov = dirMundo })
 	if aoCd then
@@ -427,6 +466,10 @@ local function aoPrivado(tipo: string, d: any)
 	elseif tipo == "aviso" then
 		if aoAviso then
 			aoAviso(d.texto)
+		end
+	elseif tipo == "entrada" then
+		if aoEntrada then
+			aoEntrada(d)
 		end
 	end
 end
@@ -547,6 +590,7 @@ function Jogador.iniciar(rem: any, ganchos: any)
 	aoAviso = ganchos.aviso
 	aoCombo = ganchos.combo
 	aoCd = ganchos.cd
+	aoEntrada = ganchos.entrada
 	rem.Privado.OnClientEvent:Connect(aoPrivado)
 	RunService.Heartbeat:Connect(passo)
 	plr.CharacterAdded:Connect(function()

@@ -7,6 +7,7 @@ local roblox = require("@lune/roblox")
 local task = require("@lune/task")
 
 local H = {}
+H.extras = {} :: { [string]: any }
 
 local RAIZ = "bizarre/src"
 
@@ -396,6 +397,10 @@ local function ambiente(no)
 		bit32 = bit32,
 		debug = debug,
 	}
+	-- ferramentas (prévia da interface) podem trocar peças do ambiente: Instance, workspace, game...
+	for k, v in H.extras do
+		env[k] = v
+	end
 	return env
 end
 

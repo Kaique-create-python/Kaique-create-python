@@ -7,11 +7,16 @@ Como usar no Termux:
     cp ~/storage/downloads/__NOME_ARQUIVO__ ~ && cd ~ && python __NOME_ARQUIVO__ install
 
 Outros comandos:
-    python __NOME_ARQUIVO__ testar     -> confere o pacote sem internet
-    python __NOME_ARQUIVO__ recibos    -> mostra as publicações já feitas
+    python __NOME_ARQUIVO__ testar        -> confere o pacote sem internet
+    python __NOME_ARQUIVO__ testar-nuvem  -> só o teste dentro do Roblox (NÃO publica)
+    python __NOME_ARQUIVO__ publicar      -> publica o que o testar-nuvem aprovou
+    python __NOME_ARQUIVO__ recibos       -> mostra as publicações já feitas
+(install = testar-nuvem + pergunta se publica)
 
 O que ele faz (nessa ordem):
   1) confere o próprio pacote (sha256 de cada arquivo)
+  1b) confere a versão que está NO AR: se tiver script que este instalador não conhece
+      (feito em outro lugar), ele PARA e avisa, para não apagar trabalho de ninguém
   2) envia as vozes dos Stands (ORA, ZA WARUDO, DORA...) - OPCIONAL: se o Roblox recusar,
      demorar ou a chave não tiver permissão, o jogo segue com o grito da biblioteca
   3) salva uma versão de TESTE (não publicada) e roda o teste isolado na nuvem:
@@ -47,6 +52,9 @@ ARQ_RECIBOS = os.path.join(PASTA_RECIBOS, "recibos.json")
 LIMITE_TAREFA = 200 * 1024
 
 MANIFESTO = __MANIFESTO__
+# impressões digitais (tamanho:adler32) de todos os scripts de todas as versões deste jogo
+CONHECIDOS = __CONHECIDOS__
+SEMPRE_CONHECIDOS = ("ReplicatedStorage.MoriohManifest",)
 PAYLOAD_SHA256 = "__PAYLOAD_SHA__"
 PAYLOAD = """
 __PAYLOAD__
@@ -445,7 +453,10 @@ def publicar(chave, universe, place, dados, tipo_versao):
 def rodar_luau(chave, universe, place, versao, script, limite_s=420, mensagem="...rodando na nuvem"):
     if len(script.encode("utf-8")) > LIMITE_TAREFA:
         raise Falha("Tarefa de teste maior que 200 kB.")
-    url = "%s/cloud/v2/universes/%s/places/%s/versions/%s/luau-execution-session-tasks" % (API, universe, place, versao)
+    if versao is None:  # a versão que está no ar agora
+        url = "%s/cloud/v2/universes/%s/places/%s/luau-execution-session-tasks" % (API, universe, place)
+    else:
+        url = "%s/cloud/v2/universes/%s/places/%s/versions/%s/luau-execution-session-tasks" % (API, universe, place, versao)
     tarefa = http_json("POST", url, chave, {"script": script, "timeout": "300s"}, tentativas=3)
     caminho = tarefa.get("path")
     if not caminho:
@@ -489,6 +500,15 @@ def mostrar_relatorio(res):
     ok("Morioh: %s peças quebráveis, %s pontos de nascer" % (inf.get("quebraveis"), inf.get("spawns")))
     if inf.get("quebraTeste"):
         ok("quebrar e reconstruir: %s" % inf["quebraTeste"])
+    if inf.get("simplificado"):
+        ok("Morioh mais leve: %s" % inf["simplificado"])
+    if inf.get("clash"):
+        ok("ORA x MUDA (rajadas se anulam): %s" % inf["clash"])
+    if inf.get("congelamentos"):
+        ok("tempo parado: %s" % inf["congelamentos"])
+    if inf.get("estresse"):
+        ok("servidor do Roblox: %s" % inf["estresse"])
+        print("        (isso é o SERVIDOR; o FPS do seu celular só dá para ver jogando)")
     if inf.get("vozes"):
         ok("vozes: %s" % inf["vozes"])
     stands = inf.get("stands") or {}
@@ -555,12 +575,114 @@ def cmd_recibos():
     titulo("Publicações (%s)" % ARQ_RECIBOS)
     if not r["publicacoes"]:
         print("   nenhuma publicação ainda")
+    if r.get("pendente"):
+        p = r["pendente"]
+        print("   PENDENTE: %s testada e aprovada (versão de teste %s), ainda não publicada -> rode 'publicar'" % (p.get("revisao"), p.get("teste")))
     for p in r["publicacoes"][-8:]:
         print("   %s: versão %s (teste %s) em %s" % (p.get("revisao"), p.get("versao"), p.get("teste"), time.strftime("%d/%m %H:%M", time.localtime(p.get("quando", 0)))))
 
 
-def cmd_install(pular_teste=False):
-    titulo("%s %s - instalador" % (JOGO, REVISAO))
+PREFLIGHT = """
+-- BB_PREFLIGHT: lista os scripts da versão que está no ar (nome, tamanho e soma do texto)
+local HttpService = game:GetService("HttpService")
+local r = { revisao = nil, scripts = {}, legivel = true }
+pcall(function()
+	r.revisao = require(game:GetService("ReplicatedStorage").BB.Config).REVISAO
+end)
+local function adler(s)
+	local a, b = 1, 0
+	for i = 1, #s, 4096 do
+		for _, x in { string.byte(s, i, math.min(#s, i + 4095)) } do
+			a = (a + x) % 65521
+			b = (b + a) % 65521
+		end
+	end
+	return b * 65536 + a
+end
+for _, nome in { "Workspace", "ReplicatedFirst", "ReplicatedStorage", "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack", "StarterPlayer", "Lighting", "SoundService" } do
+	local ok, svc = pcall(function()
+		return game:GetService(nome)
+	end)
+	if ok and svc then
+		for _, d in svc:GetDescendants() do
+			if d:IsA("LuaSourceContainer") then
+				local item = { c = d:GetFullName(), n = -1, h = 0 }
+				local okS, fonte = pcall(function()
+					return d.Source
+				end)
+				if okS and type(fonte) == "string" then
+					item.n = #fonte
+					item.h = adler(fonte)
+				else
+					r.legivel = false
+				end
+				table.insert(r.scripts, item)
+			end
+		end
+	end
+end
+return HttpService:JSONEncode(r)
+"""
+
+
+def analisar_no_ar(dados):
+    """separa os scripts da versão no ar em conhecidos e desconhecidos (nome novo ou texto alterado)"""
+    desconhecidos = []
+    for item in dados.get("scripts") or []:
+        nome = str(item.get("c"))
+        if nome in SEMPRE_CONHECIDOS:
+            continue
+        digitais = CONHECIDOS.get(nome)
+        if digitais is None:
+            desconhecidos.append(nome + "  (script que este instalador nunca criou)")
+        elif int(item.get("n", -1)) >= 0 and ("%d:%d" % (int(item["n"]), int(item["h"]))) not in digitais:
+            desconhecidos.append(nome + "  (alterado fora deste instalador)")
+    return desconhecidos
+
+
+def conferir_no_ar(chave, universe, place, substituir):
+    """AJUSTE7: antes de mexer, olha a versão que está no ar. Fonte desconhecida = para tudo."""
+    try:
+        tarefa, _ = rodar_luau(chave, universe, place, None, PREFLIGHT, 180, "...olhando a versão que está no ar")
+    except ErroHTTP as e:
+        if e.codigo in (400, 404):
+            ok("ainda não tem versão no ar para conferir (primeira instalação)")
+            return
+        if e.codigo == 403:
+            raise Falha(explicar(e, "luau") + "\n   Nada foi enviado.")
+        raise Falha("Não consegui conferir a versão no ar: " + explicar(e, "luau") + "\n   Nada foi enviado.")
+    resultados = (tarefa.get("output") or {}).get("results") or []
+    try:
+        dados = json.loads(resultados[0])
+    except Exception:
+        dados = None
+    if tarefa.get("state") != "COMPLETE" or not isinstance(dados, dict):
+        aviso("Não consegui ler a versão que está no ar.")
+        if not substituir and not perguntar("Continuar mesmo sem conferir? (s/n)", "n").lower().startswith("s"):
+            raise Falha("Parei para não apagar nada por engano. Nada foi enviado.")
+        return
+    n = len(dados.get("scripts") or [])
+    desconhecidos = analisar_no_ar(dados)
+    if not dados.get("legivel", True):
+        aviso("o Roblox não deixou ler o texto dos scripts: conferi só pelos nomes.")
+    if not desconhecidos:
+        ok("versão no ar: %s (%d scripts, todos feitos por este instalador)" % (dados.get("revisao") or "sem o jogo ainda", n))
+        return
+    erro("A versão que está no ar (%s) tem %d script(s) que este instalador NÃO conhece:" % (dados.get("revisao") or "?", len(desconhecidos)))
+    for nome in desconhecidos[:15]:
+        print("      - " + nome)
+    print("   Se eu publicar, esses scripts somem do jogo (o Roblox guarda a versão antiga no histórico,")
+    print("   em create.roblox.com > Experiência > Place > Version History, e dá para voltar).")
+    if substituir:
+        aviso("Você pediu --substituir: sigo e troco tudo pela versão %s." % REVISAO)
+        return
+    print("   Parei aqui. Nada foi enviado. Para trocar mesmo assim, rode:")
+    print("      python %s install --substituir" % os.path.basename(sys.argv[0]))
+    sys.exit(3)
+
+
+def preparar(args):
+    """passos 1 a 4: pacote, IDs e chave, versão no ar, vozes e teste na nuvem. Devolve o contexto."""
     passo(1, "Conferindo o pacote")
     arquivos = carregar_pacote()
     ok("%d arquivos íntegros (sha256 conferido)" % len(arquivos))
@@ -581,7 +703,6 @@ def cmd_install(pular_teste=False):
             aviso("O dono da experiência (%s) é diferente do UserId informado (%s)." % (ident, dono))
     else:
         aviso("Não consegui confirmar o dono da experiência (seguindo).")
-
     criador = {"userId": dono}
     if info and info[0] == "Group":
         criador = {"groupId": info[1]}
@@ -589,8 +710,11 @@ def cmd_install(pular_teste=False):
     place_bin = arquivos["place.rbxl"]
     conferir_binario(place_bin)
 
-    passo(3, "Vozes dos Stands (opcional: não trava a instalação)")
-    id_vozes = 0
+    passo(3, "Conferindo a versão que está no ar (para não apagar nada sem querer)")
+    conferir_no_ar(chave, universe, place, "--substituir" in args)
+
+    passo(4, "Vozes dos Stands (opcional: não trava a instalação)")
+    id_vozes, trechos = 0, 0
     if "vozes.ogg" in arquivos:
         try:
             id_vozes = enviar_audio(chave, criador, "vozes.ogg", MANIFESTO["vozes.ogg"], arquivos["vozes.ogg"], recibos)
@@ -612,20 +736,19 @@ def cmd_install(pular_teste=False):
             ok("place com as vozes (áudio %s)" % id_vozes)
         else:
             aviso("sem as vozes por enquanto: o jogo usa o grito da biblioteca do Roblox.")
-    place_xml = place_bin
 
-    passo(4, "Teste isolado na nuvem (versão salva, NÃO publicada)")
+    passo(5, "Teste isolado na nuvem (versão salva, NÃO publicada)")
     try:
-        v_teste = publicar(chave, universe, place, place_xml, "Saved")
+        v_teste = publicar(chave, universe, place, place_bin, "Saved")
     except ErroHTTP as e:
         raise Falha(explicar(e, "publicar"))
     ok("versão de teste salva: %d" % v_teste)
-    if pular_teste:
+    if "--pular-teste" in args:
         aviso("Teste na nuvem PULADO a seu pedido (--pular-teste).")
     else:
         try:
             tarefa, logs = rodar_luau(chave, universe, place, v_teste, arquivos["teste_nuvem.luau"].decode("utf-8"),
-                                      mensagem="...rodando na nuvem (abre Morioh e faz a luta de teste com todos os golpes; leva uns 3 minutos)")
+                                      mensagem="...rodando na nuvem (abre Morioh, luta com todos os golpes e 12 lutadores juntos; uns 4 minutos)")
         except ErroHTTP as e:
             if e.codigo == 403:
                 raise Falha(explicar(e, "luau") + "\n   Nada foi publicado. Depois de ajustar a chave, rode de novo.")
@@ -644,17 +767,28 @@ def cmd_install(pular_teste=False):
             print("\n   Copie estas mensagens e mande no chat para eu corrigir.")
             sys.exit(2)
         mostrar_relatorio(res)
+    # teste aprovado: fica anotado. Se a publicação cair no meio, "publicar" termina sem refazer tudo
+    recibos["pendente"] = {"revisao": REVISAO, "pacote": PAYLOAD_SHA256, "teste": v_teste, "vozes": id_vozes,
+                           "trechos": trechos, "universe": universe, "place": place, "quando": int(time.time())}
+    gravar_recibos(recibos)
+    return {"chave": chave, "universe": universe, "place": place, "place_bin": place_bin, "recibos": recibos,
+            "v_teste": v_teste, "id_vozes": id_vozes}
 
-    passo(5, "Publicando")
+
+def publicar_aprovado(ctx):
+    """passos 6 e 7: publica o que o teste aprovou e confere."""
+    chave, universe, place, recibos = ctx["chave"], ctx["universe"], ctx["place"], ctx["recibos"]
+    passo(6, "Publicando")
     try:
-        v_pub = publicar(chave, universe, place, place_xml, "Published")
+        v_pub = publicar(chave, universe, place, ctx["place_bin"], "Published")
     except ErroHTTP as e:
-        raise Falha(explicar(e, "publicar"))
+        raise Falha(explicar(e, "publicar") + "\n   O teste já passou: rode 'publicar' para tentar só a publicação de novo.")
     ok("publicado! versão %d" % v_pub)
-    recibos["publicacoes"].append({"revisao": REVISAO, "versao": v_pub, "teste": v_teste, "vozes": id_vozes, "quando": int(time.time())})
+    recibos["publicacoes"].append({"revisao": REVISAO, "versao": v_pub, "teste": ctx["v_teste"], "vozes": ctx["id_vozes"], "quando": int(time.time())})
+    recibos.pop("pendente", None)
     gravar_recibos(recibos)
 
-    passo(6, "Conferindo a versão publicada")
+    passo(7, "Conferindo a versão publicada")
     conferencia = (
         'local RS = game:GetService("ReplicatedStorage")\n'
         'local C = require(RS.BB.Config)\n'
@@ -685,8 +819,45 @@ def cmd_install(pular_teste=False):
     print("   Abra: https://www.roblox.com/games/%s" % place)
     print("   Você é ADM (botão vermelho ADM no canto de cima): crie bots, encha o DESPERTAR,")
     print("   tire as recargas e restaure o mapa para testar tudo rápido.")
-    if not id_vozes:
+    if not ctx["id_vozes"]:
         print("   (sem as vozes desta vez: rode o instalador de novo mais tarde para tentar enviar)")
+
+
+def cmd_testar_nuvem(args):
+    titulo("%s %s - teste na nuvem (NÃO publica)" % (JOGO, REVISAO))
+    preparar(args)
+    print("\n   Teste aprovado e anotado. Para colocar no ar:")
+    print("      python %s publicar" % os.path.basename(sys.argv[0]))
+
+
+def cmd_publicar(args):
+    titulo("%s %s - publicar o que o teste aprovou" % (JOGO, REVISAO))
+    recibos = ler_recibos()
+    p = recibos.get("pendente")
+    if not p or p.get("pacote") != PAYLOAD_SHA256 or p.get("revisao") != REVISAO:
+        raise Falha("Não tem teste aprovado deste arquivo. Rode primeiro: python %s testar-nuvem" % os.path.basename(sys.argv[0]))
+    if time.time() - p.get("quando", 0) > 24 * 3600:
+        raise Falha("O teste aprovado tem mais de 24 horas. Rode o testar-nuvem de novo.")
+    arquivos = carregar_pacote()
+    place_bin = arquivos["place.rbxl"]
+    if p.get("vozes"):
+        place_bin = colocar_vozes(place_bin, p["vozes"], p.get("trechos", 0))
+    ok("teste aprovado em %s (versão de teste %s)" % (time.strftime("%d/%m %H:%M", time.localtime(p["quando"])), p.get("teste")))
+    chave = getpass.getpass("   Cole a chave da Open Cloud (fica escondida) e Enter: ").strip()
+    if not chave:
+        raise Falha("Nenhuma chave informada.")
+    publicar_aprovado({"chave": chave, "universe": p["universe"], "place": p["place"], "place_bin": place_bin,
+                       "recibos": recibos, "v_teste": p.get("teste"), "id_vozes": p.get("vozes", 0)})
+
+
+def cmd_install(args):
+    titulo("%s %s - instalador" % (JOGO, REVISAO))
+    ctx = preparar(args)
+    print("")
+    if not perguntar("Teste aprovado. Publicar agora? (s/n)", "s").lower().startswith("s"):
+        print("   Tudo bem: nada foi publicado. Quando quiser: python %s publicar" % os.path.basename(sys.argv[0]))
+        return
+    publicar_aprovado(ctx)
 
 
 def main():
@@ -694,13 +865,17 @@ def main():
     cmd = args[0] if args else "install"
     try:
         if cmd in ("install", "instalar"):
-            cmd_install(pular_teste="--pular-teste" in args)
+            cmd_install(args)
+        elif cmd in ("testar-nuvem", "testar_nuvem", "nuvem"):
+            cmd_testar_nuvem(args)
+        elif cmd in ("publicar", "publish"):
+            cmd_publicar(args)
         elif cmd in ("testar", "check", "teste"):
             cmd_testar()
         elif cmd in ("recibos", "status"):
             cmd_recibos()
         else:
-            print("Comandos: install | testar | recibos")
+            print("Comandos: install | testar | testar-nuvem | publicar | recibos")
     except Falha as f:
         print("")
         erro(str(f))

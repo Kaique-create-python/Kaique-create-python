@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BB = ReplicatedStorage:WaitForChild("BB")
 local Config = require(BB:WaitForChild("Config"))
+local Entrada = require(BB:WaitForChild("Entrada"))
 local Stands = require(BB:WaitForChild("Stands"))
 local Regras = require(BB:WaitForChild("Regras"))
 
@@ -99,6 +100,14 @@ Admin.iniciar(remotos.Admin)
 
 -------------------------------------------------------------------------------- personagens
 local escolha: { [Player]: any } = {}
+local pedidos: { [Player]: any } = {} -- pedido de entrada em andamento (AJUSTE7)
+
+-- responde UMA vez o pedido de entrada pelo remoto privado
+local function responderEntrada(jogador: Player, id: string?, ok: boolean, motivo: string?)
+	if id then
+		remotos.Privado:FireClient(jogador, "entrada", { id = id, ok = ok, motivo = motivo })
+	end
+end
 
 local function melhorSpawn(modo: string?): CFrame
 	local treino = Mapa.treino()
@@ -124,6 +133,9 @@ local function prepararPersonagem(jogador: Player, personagem: Model)
 	local hum = personagem:WaitForChild("Humanoid", 10) :: Humanoid?
 	local raiz = personagem:WaitForChild("HumanoidRootPart", 10) :: BasePart?
 	if not hum or not raiz then
+		local p = pedidos[jogador]
+		pedidos[jogador] = nil
+		responderEntrada(jogador, p and p.id, false, "O personagem não carregou. Tente de novo.")
 		return
 	end
 	local e = escolha[jogador] or {}
@@ -149,6 +161,20 @@ local function prepararPersonagem(jogador: Player, personagem: Model)
 	local lut = Lutadores.criar(personagem, jogador, standId)
 	lut.estado.protecaoAte = agora() + Config.PROTECAO_SPAWN
 	Combate.sincronizar(lut)
+	-- personagem e região prontos: confirma o pedido de entrada (o menu fecha só agora)
+	local p = pedidos[jogador]
+	if p then
+		pedidos[jogador] = nil
+		responderEntrada(jogador, p.id, true)
+		if p.bot and Bots.doDono(jogador) < 1 then
+			task.delay(1.5, function()
+				local l = Lutadores.doJogador(jogador)
+				if l and Bots.doDono(jogador) < 1 then
+					Bots.criar(l.raiz.Position + l.raiz.CFrame.LookVector * 22, nil, "facil", jogador)
+				end
+			end)
+		end
+	end
 	hum.Died:Connect(function()
 		Combate.abate(lut)
 		task.delay(Config.RESPAWN, function()
@@ -172,47 +198,61 @@ end)
 
 Players.PlayerRemoving:Connect(function(jogador)
 	escolha[jogador] = nil
+	pedidos[jogador] = nil
 	Bots.limpar(jogador)
 end)
 
--- o menu do celular pede para entrar (ou trocar de Stand)
+-- o menu do celular pede para entrar (ou trocar de Stand). AJUSTE7: cada pedido tem número e
+-- recebe UMA resposta ("entrada": id, ok, motivo); a troca de Stand é validada antes de mudar
+-- a escolha; pedido repetido durante o carregamento não cria entrada nem bot duplicado.
 remotos.Entrar.OnServerEvent:Connect(function(jogador: Player, dados: any)
-	if type(dados) ~= "table" or not Stands.valido(dados.stand) then
+	local t = agora()
+	local lut = Lutadores.doJogador(jogador)
+	local vivo = lut ~= nil and lut.hum.Health > 0
+	local estado = {
+		pendente = pedidos[jogador],
+		vivo = vivo,
+		emCombate = vivo and (t - lut.estado.ultimoDanoT < Config.FORA_DE_COMBATE),
+		adm = Admin.eh(jogador),
+	}
+	-- o tempo do pedido pendente é contado no relógio do servidor
+	if estado.pendente then
+		estado.pendente = { id = estado.pendente.id, t = estado.pendente.t }
+	end
+	local ok, motivo, id = Entrada.validar(estado, dados, os.clock(), Stands.valido)
+	if not ok then
+		if motivo ~= "duplicado" then
+			responderEntrada(jogador, id, false, motivo)
+		end
 		return
 	end
 	local modo = if dados.modo == "treino" then "treino" else "luta"
 	escolha[jogador] = { stand = dados.stand, modo = modo }
 	jogador:SetAttribute("BB_Stand", dados.stand)
-	local lut = Lutadores.doJogador(jogador)
-	if lut and lut.hum.Health > 0 then
-		local t = agora()
-		if t - lut.estado.ultimoDanoT < Config.FORA_DE_COMBATE and not Admin.eh(jogador) then
-			remotos.Privado:FireClient(jogador, "aviso", { texto = "Saia do combate por alguns segundos para trocar de Stand." })
-			return
-		end
+	if vivo and lut then
+		-- já está lutando: só troca o Stand (e vai para o treino se pediu)
 		Lutadores.trocarStand(lut, dados.stand)
 		Combate.sincronizar(lut)
-		remotos.Privado:FireClient(jogador, "aviso", { texto = "Stand: " .. Stands.get(dados.stand).nome })
 		if modo == "treino" then
 			local treino = Mapa.treino()
 			if treino then
 				carregarRegiao(jogador, treino.spawn.Position)
-				jogador.Character:PivotTo(treino.spawn)
 				Fisica.moverPara(lut, treino.spawn)
 			end
 		end
+		remotos.Privado:FireClient(jogador, "aviso", { texto = "Stand: " .. Stands.get(dados.stand).nome })
+		responderEntrada(jogador, id, true)
 		return
 	end
-	if not jogador.Character then
+	pedidos[jogador] = { id = id, t = os.clock(), bot = dados.bot == true and modo == "treino" }
+	if not jogador.Character or not jogador.Character.Parent then
 		jogador:LoadCharacter()
-	end
-	if dados.bot == true and modo == "treino" then
-		task.delay(2, function()
-			local l = Lutadores.doJogador(jogador)
-			if l then
-				Bots.criar(l.raiz.Position + l.raiz.CFrame.LookVector * 22, nil, "facil", jogador)
-			end
-		end)
+	else
+		-- personagem morto esperando renascer: o renascimento confirma o pedido
+		local hum = jogador.Character:FindFirstChildOfClass("Humanoid")
+		if not hum or hum.Health > 0 then
+			jogador:LoadCharacter()
+		end
 	end
 end)
 

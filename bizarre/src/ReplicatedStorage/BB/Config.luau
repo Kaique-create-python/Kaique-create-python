@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.REVISAO = "AJUSTE-4"
+Config.REVISAO = "AJUSTE-7"
 Config.NOME_JOGO = "BIZARRE BATTLEGROUNDS"
 
 -- dono e ADMs (o dono sempre é ADM; quem criou a experiência também)
@@ -16,7 +16,7 @@ Config.PLACE_ID = 108061345551908
 Config.VIDA = 100
 Config.ANDAR = 18 -- velocidade normal
 Config.CORRER = 27 -- corrida automática (depois de andar um tempinho)
-Config.TEMPO_PARA_CORRER = 0.9
+Config.TEMPO_PARA_CORRER = 0.5
 Config.PULO = 7.6 -- altura do pulo (studs)
 Config.REGEN_ATRASO = 9 -- segundos sem levar dano para começar a curar
 Config.REGEN_POR_SEGUNDO = 2.5

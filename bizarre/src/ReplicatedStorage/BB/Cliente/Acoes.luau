@@ -23,6 +23,52 @@ local function standDe(m: Model): any
 end
 
 local M1_STAND = { "soco_e", "soco_d", "soco_e", "m1_4" }
+
+-- AJUSTE7: cada ação tem um número; atordoar/congelar/derrubar muda o número e tudo o que
+-- ainda ia acontecer (voz, punhos, chamas, raios) para junto
+local tokens: { [Model]: number } = {}
+local vozes: { [Model]: { Sound } } = {}
+local REACOES = { atordoado = true, atingido = true }
+
+local function token(modelo: Model): number
+	return tokens[modelo] or 0
+end
+
+local function vivo(modelo: Model, tk: number): () -> boolean
+	return function()
+		return (tokens[modelo] or 0) == tk
+	end
+end
+
+local function falar(modelo: Model, tk: number, nome: string?, pos: Vector3)
+	if (tokens[modelo] or 0) ~= tk then
+		return
+	end
+	local snd = Som.voz(nome, pos)
+	if snd then
+		local l = vozes[modelo] or {}
+		table.insert(l, snd)
+		vozes[modelo] = l
+	end
+end
+
+function Acoes.interromper(modelo: Model?)
+	if not modelo then
+		return
+	end
+	tokens[modelo] = (tokens[modelo] or 0) + 1
+	for _, snd in vozes[modelo] or {} do
+		pcall(function()
+			snd:Stop()
+		end)
+	end
+	vozes[modelo] = nil
+	local atual = Animador.tocando(modelo)
+	if atual and not REACOES[atual] then
+		Animador.cortar(modelo)
+	end
+	StandVisual.cancelar(modelo)
+end
 local M1_PROPRIO = { "m1_1", "m1_2", "m1_3", "m1_4" }
 
 -- dados = { id, n, variante, stand (bool), tipo, lado, resposta, ... }
@@ -37,6 +83,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	local id = dados.id
 	local s = standDe(modelo)
 	local agora = os.clock()
+	local tk = token(modelo)
 	if id == "m1" then
 		local n = dados.n or 1
 		local clipe = M1_PROPRIO[n] or "m1_1"
@@ -137,10 +184,13 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	-- barragem: punhos fantasmas e grito
 	if g.tipo == "barragem" then
 		task.delay(g.inicio or 0.1, function()
-			if clipeS == "barragem" then
-				Efeitos.punhos(StandVisual.modelo(modelo), (g.fim or 1) - (g.inicio or 0), cor)
+			if token(modelo) ~= tk then
+				return
 			end
-			Som.voz(g.voz or (s and s.grito), raiz.Position)
+			if clipeS == "barragem" then
+				Efeitos.punhos(StandVisual.modelo(modelo), (g.fim or 1) - (g.inicio or 0), cor, vivo(modelo, tk))
+			end
+			falar(modelo, tk, g.voz or (s and s.grito), raiz.Position)
 			if g.onomatopeia then
 				Efeitos.onomatopeia(raiz.Position + raiz.CFrame.LookVector * 5, g.onomatopeia, cor, 1.2)
 			end
@@ -173,18 +223,21 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	-- grito do Stand (ORA! MUDA! DORA!...) e o grito do golpe final da barragem
 	if g.voz and g.tipo ~= "barragem" then
 		task.delay(g.vozT or 0.1, function()
-			Som.voz(g.voz, raiz.Position)
+			falar(modelo, tk, g.voz, raiz.Position)
 		end)
 	end
 	if g.final and g.final.voz then
 		task.delay(g.final.t or 1, function()
-			Som.voz(g.final.voz, raiz.Position)
+			falar(modelo, tk, g.final.voz, raiz.Position)
 		end)
 	end
 	-- raio reto da mão do Stand (Star Finger, Red Bind)
 	if g.vfxLinha then
 		local l = g.vfxLinha
 		task.delay(l.t or 0.2, function()
+			if token(modelo) ~= tk then
+				return
+			end
 			local corL = if l.cor == "fogo" then Color3.fromRGB(255, 130, 30) else cor
 			Efeitos.linha(modelo, l.comp or 14, corL, l.dur or 0.3, l.cor == "fogo")
 		end)
@@ -193,6 +246,9 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	if g.vfxColuna then
 		local c = g.vfxColuna
 		task.delay(c.t or 0.2, function()
+			if token(modelo) ~= tk then
+				return
+			end
 			local r = raizDe(modelo)
 			if r then
 				Efeitos.coluna(r.Position + r.CFrame.LookVector * (c.dist or 10), c.raio or 6, Color3.fromRGB(255, 120, 30), math.max(0.2, (c.ate or 0.6) - (c.t or 0.2)))
@@ -201,7 +257,9 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	end
 	if g.vfxContinuo and g.vfxContinuo.tipo == "lanca_chamas" then
 		task.delay(g.vfxContinuo.de, function()
-			Efeitos.lancaChamas(modelo, g.vfxContinuo.ate - g.vfxContinuo.de)
+			if token(modelo) == tk then
+				Efeitos.lancaChamas(modelo, g.vfxContinuo.ate - g.vfxContinuo.de, vivo(modelo, tk))
+			end
 		end)
 	end
 	if g.investida and g.investida.rastro == "fogo" then

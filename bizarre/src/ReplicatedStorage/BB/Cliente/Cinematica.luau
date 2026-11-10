@@ -9,6 +9,8 @@ local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 
 local Cinematica = {}
+local Camera = require(script.Parent:WaitForChild("Camera"))
+local DURACAO_MAX = 0.9 -- AJUSTE7: cenas curtas
 
 local RGB = Color3.fromRGB
 local rng = Random.new()
@@ -244,14 +246,19 @@ local function cameraCinema(dono: Model, dur: number, estilo: string?)
 	if not raiz or not cabeca then
 		return
 	end
+	if Camera.dono() ~= "jogo" then
+		return -- o menu está com a câmera
+	end
 	local cam = workspace.CurrentCamera
-	local antes = cam.CameraType
-	cam.CameraType = Enum.CameraType.Scriptable
-	local inicio = cam.CFrame
+	Camera.assumir("cinema")
 	local t0 = os.clock()
 	local lado = if rng:NextNumber() < 0.5 then -1 else 1
 	local con
 	con = RunService.RenderStepped:Connect(function()
+		if Camera.dono() ~= "cinema" then
+			con:Disconnect() -- outro pegou a câmera (menu): a cena acaba sem mexer em nada
+			return
+		end
 		local t = math.clamp((os.clock() - t0) / dur, 0, 1)
 		if not raiz.Parent then
 			t = 1
@@ -284,8 +291,10 @@ local function cameraCinema(dono: Model, dur: number, estilo: string?)
 		cam.CFrame = CFrame.lookAt(pos, olhar)
 		if t >= 1 then
 			con:Disconnect()
-			cam.CameraType = if antes == Enum.CameraType.Scriptable then Enum.CameraType.Custom else antes
-			local _ = inicio
+			local final = cam.CFrame
+			Camera.devolver("cinema")
+			-- devolve a câmera devagar (sem pulo)
+			Camera.suavizarRetorno(final, 0.35)
 		end
 	end)
 end
@@ -305,14 +314,14 @@ function Cinematica.ult(dono: Model?, s: any, g: any)
 	local corAura = if s and s.aura then s.aura else RGB(170, 90, 230)
 	local nome = g.onomatopeia or g.nome or "ULT"
 	if dono == eu then
-		local dur = 1.15
+		local dur = DURACAO_MAX
 		tocandoAte = os.clock() + dur
 		barras(dur)
 		cameraCinema(dono, dur, if s and (s.id == "THE_WORLD" or s.id == "KILLER_QUEEN") then "baixo" else nil)
 		linhas(dur * 0.85, corAura:Lerp(RGB(255, 255, 255), 0.6))
 		corDramatica(dur, corAura)
 		titulo(string.upper(nome), if s then s.nome .. " · " .. tostring(s.usuario) else nil, corAura, dur)
-		ameaca(corAura, dur + 0.4, 10)
+		ameaca(corAura, dur + 0.3, 10)
 	elseif perto then
 		-- quem está perto: o nome do golpe e o ゴゴゴ (a câmera continua com o jogador)
 		titulo(string.upper(nome), if s then s.nome else nil, corAura, 0.9)
@@ -328,7 +337,7 @@ function Cinematica.despertar(dono: Model?, s: any)
 	local eu = Players.LocalPlayer.Character
 	local corAura = s.aura or RGB(170, 90, 230)
 	if dono == eu then
-		local dur = 1.0
+		local dur = DURACAO_MAX
 		tocandoAte = os.clock() + dur
 		barras(dur)
 		cameraCinema(dono, dur, "baixo")

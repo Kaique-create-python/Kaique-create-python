@@ -3,7 +3,12 @@
 Referência: Jujutsu Shenanigans (combate rápido, câmera de ombro, ragdoll, ULT com cena).
 Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste na nuvem passar.
 
-## Feito até o AJUSTE-4
+## Feito até o AJUSTE-7
+AJUSTE-7: câmera de mira a 11 studs com proteção de parede, botões que não travam, menu que só
+fecha com o servidor confirmando, ajustes (câmera, tremor, volume, qualidade), carregamento com
+etapas reais, ORA x MUDA, seta TO BE CONTINUED, Morioh mais leve, salvamento sem duplicar e
+instalador que confere a versão no ar. Detalhes em RELATORIO_AJUSTE7.md.
+
 | Área | O que já tem |
 |---|---|
 | Stands | 6 Stands da JoJo em R6, roupa e acessórios do catálogo, sólidos, sem colisão com ninguém |
@@ -19,7 +24,8 @@ Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste
 
 ## Próximos passos (ordem sugerida)
 1. **Vozes que faltam** — MUDA, HORA, Crossfire, DORA final e "Killer Queen" (o ElevenLabs estava ocupado).
-2. **Interface com arte (Canva)** — logo do jogo, fundo do menu e tela de carregamento desenhados no
+2. **Ajustes salvos** entre partidas (campo novo no DataStore, sem apagar nada).
+2b. **Interface com arte (Canva)** — logo do jogo, fundo do menu e tela de carregamento desenhados no
    Canva (arte original, sem copiar o anime), enviados pelo instalador como imagens opcionais
    (se o Roblox demorar para liberar, o menu de texto continua funcionando).
 3. **ULTs ainda mais cinematográficas** — câmera própria para cada ULT (ex.: ZA WARUDO mostra o

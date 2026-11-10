@@ -25,6 +25,7 @@ end)
 local function agora(): number
 	return workspace:GetServerTimeNow()
 end
+local filtroDe: any = nil
 
 function Projeteis.iniciar(efeito: RemoteEvent, acertar: any, explodir: any, contra: any)
 	remoto = efeito
@@ -120,6 +121,15 @@ local function terminar(p: any, pos: Vector3, explodiu: boolean)
 	end
 end
 
+-- AJUSTE7: o tempo voltou antes (dono caiu): solta os projéteis que aquela sessão parou
+function Projeteis.descongelar(ate: number)
+	for _, p in ativos do
+		if p.congeladoAte == ate then
+			p.congeladoAte = 0
+		end
+	end
+end
+
 function Projeteis.congelar(ate: number, exceto: any?)
 	for _, p in ativos do
 		if p.dono ~= exceto then
@@ -130,7 +140,13 @@ end
 
 function Projeteis.passo(dt: number)
 	local t = agora()
-	paramsRaio.FilterDescendantsInstances = Mapa.filtro()
+	if next(ativos) == nil then
+		return
+	end
+	if filtroDe ~= Mapa.pasta then
+		filtroDe = Mapa.pasta
+		paramsRaio.FilterDescendantsInstances = Mapa.filtro()
+	end
 	for _, p in ativos do
 		if t < p.congeladoAte then
 			continue

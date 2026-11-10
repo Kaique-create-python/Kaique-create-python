@@ -38,6 +38,7 @@ local Poses = H.modulo("ReplicatedStorage/BB/Poses")
 local Sons = H.modulo("ReplicatedStorage/BB/Sons")
 local Plano = H.modulo("ReplicatedStorage/BB/Mapa/Plano")
 local V = roblox.Vector3.new
+local Vector3 = roblox.Vector3
 
 print("== regras do combate")
 teste("combo de M1 vai de 1 a 4 e descansa", function()
@@ -291,9 +292,10 @@ teste("andar JoJo: cada Stand tem estilo e as poses saem válidas (parado, andan
 			return if nome == "BB_Stand" then id else nil
 		end } }
 		for _, vel in { 0, 8, 16, 26 } do
-			local p = Animador.andarJoJo(falso, 1 / 60, vel, false)
+			local p = Animador.andarJoJo(falso, 1 / 60, vel, false, Vector3.new(vel * 0.3, 0, -vel), 0.5, 0)
+			assert(p.RootPos and math.abs(p.RootPos[2]) < 1, id .. ": quique do corpo")
 			for junta, v in p do
-				assert(Poses.JUNTAS[junta], id .. ": junta " .. junta)
+				assert(Poses.JUNTAS[junta] or junta == "RootPos", id .. ": junta " .. junta)
 				assert(#v == 3 and v[1] == v[1] and math.abs(v[1]) < 180, id .. ": valor ruim em " .. junta)
 			end
 			local r6 = Animador.paraR6(p)
@@ -440,6 +442,182 @@ teste("Morioh: dano acumula, chão e estático não quebram, máximo por impacto
 	-- a bomba da Killer Queen acha o objeto mais perto (e não o chão)
 	local alvo = Mapa.maisPerto(roblox.CFrame.new(0, 3, 1), V(8, 8, 8))
 	assert(alvo == parede, "mais perto: " .. tostring(alvo))
+end)
+
+print("== AJUSTE7")
+local task = require("@lune/task")
+
+teste("toque interrompido: o botão solta quando o dedo sai da tela, perde o foco ou a tela gira", function()
+	local Toques = H.modulo("ReplicatedStorage/BB/Cliente/Toques")
+	local apertos, solturas = 0, 0
+	local t = Toques.novo(function()
+		apertos += 1
+	end, function()
+		solturas += 1
+	end)
+	local dedo1, dedo2 = { "dedo1" }, { "dedo2" }
+	t.comecar(dedo1, false)
+	Toques.terminou(dedo2, false) -- outro dedo saiu: continua segurando
+	assert(apertos == 1 and solturas == 0, "outro dedo não solta")
+	Toques.terminou(dedo1, false) -- o dedo certo saiu (mesmo fora do botão)
+	assert(solturas == 1, "soltou ao levantar o dedo")
+	Toques.terminou(dedo1, false)
+	assert(solturas == 1, "não solta duas vezes")
+	t.comecar(dedo1, false)
+	Toques.soltarTudo() -- perdeu o foco / abriu o menu
+	assert(solturas == 2, "foco perdido solta")
+	t.comecar(dedo1, false)
+	t.comecar(dedo2, false) -- apertou de novo sem soltar: solta o anterior primeiro
+	assert(apertos == 4 and solturas == 3, "aperto duplo")
+	Toques.esquecerTodos() -- tela girou: botões refeitos
+	assert(solturas == 4)
+	local m = Toques.novo(function() end, function()
+		solturas += 1
+	end)
+	m.comecar({ "clique" }, true)
+	Toques.terminou({ "outro objeto" }, true) -- mouse: o objeto do evento pode ser outro
+	assert(solturas == 5, "mouse solta")
+end)
+
+teste("entrada: recusas, pedido repetido e resposta duplicada", function()
+	local Entrada = H.modulo("ReplicatedStorage/BB/Entrada")
+	local livre = { pendente = nil, vivo = false, emCombate = false, adm = false }
+	local ok, motivo, id = Entrada.validar(livre, { id = "a1", stand = "STAR_PLATINUM" }, 10, Stands.valido)
+	assert(ok and id == "a1", "pedido bom")
+	ok, motivo = Entrada.validar(livre, { id = "a2", stand = "NAO_EXISTE" }, 10, Stands.valido)
+	assert(not ok and motivo == "Stand inválido", "Stand inválido recusado")
+	ok, motivo = Entrada.validar(livre, "lixo", 10, Stands.valido)
+	assert(not ok, "pedido que não é tabela")
+	local carregando = { pendente = { id = "a1", t = 10 }, vivo = false, emCombate = false, adm = false }
+	ok, motivo = Entrada.validar(carregando, { id = "a1", stand = "THE_WORLD" }, 12, Stands.valido)
+	assert(not ok and motivo == "duplicado", "mesmo pedido de novo é ignorado")
+	ok, motivo = Entrada.validar(carregando, { id = "b7", stand = "THE_WORLD" }, 12, Stands.valido)
+	assert(not ok and motivo ~= "duplicado", "outro pedido durante o carregamento é recusado")
+	ok = Entrada.validar(carregando, { id = "b7", stand = "THE_WORLD" }, 10 + Entrada.ESPERA_MAXIMA + 1, Stands.valido)
+	assert(ok, "pedido velho expira")
+	local lutando = { pendente = nil, vivo = true, emCombate = true, adm = false }
+	ok, motivo = Entrada.validar(lutando, { id = "c1", stand = "THE_WORLD" }, 10, Stands.valido)
+	assert(not ok and string.find(motivo, "combate"), "trocar de Stand em combate é recusado")
+	lutando.adm = true
+	assert(Entrada.validar(lutando, { id = "c2", stand = "THE_WORLD" }, 10, Stands.valido), "ADM pode")
+	-- celular
+	local c = Entrada.novoCliente()
+	local p1 = c.pedir(100)
+	assert(p1 and c.pedir(101) == nil, "toque repetido não cria outro pedido")
+	assert(c.resposta({ id = "outro", ok = true }) == nil, "resposta de outro pedido é ignorada")
+	assert(c.resposta({ id = p1, ok = false, motivo = "x" }) == "recusado")
+	assert(c.resposta({ id = p1, ok = true }) == nil, "resposta duplicada é ignorada")
+	local p2 = c.pedir(102)
+	assert(p2 and p2 ~= p1)
+	assert(not c.expirou(110) and c.expirou(102 + Entrada.ESPERA_MAXIMA + 1), "sem resposta: libera o botão")
+	assert(c.resposta({ id = p2, ok = true }) == nil, "resposta atrasada depois de expirar é ignorada")
+end)
+
+teste("congelamentos sobrepostos: cada tempo parado só solta os alvos dele", function()
+	local TS = H.modulo("ServerScriptService/BB_Servidor/TempoSessao")
+	local function lut(nome)
+		return { nome = nome, hum = { Health = 100 }, modelo = { Parent = true } }
+	end
+	local jotaro, dio, a, b, c = lut("jotaro"), lut("dio"), lut("a"), lut("b"), lut("c")
+	local s1 = TS.nova(jotaro, 3)
+	assert(#TS.congelar(s1, { a, b, dio }) == 3)
+	local s2 = TS.nova(dio, 5)
+	local novos = TS.congelar(s2, { a, b, c, jotaro })
+	assert(#novos == 2 and novos[1] == c and novos[2] == jotaro, "a outra ULT não toma os alvos da primeira")
+	assert(a.sessaoTempo == s1 and c.sessaoTempo == s2)
+	local soltos = TS.encerrar(s1)
+	assert(#soltos == 3 and a.sessaoTempo == nil and c.sessaoTempo == s2, "fim da 1ª: só os dela")
+	assert(#TS.encerrar(s1) == 0, "encerrar duas vezes não solta ninguém")
+	assert(#TS.congelar(s2, { a }) == 1, "livre de novo, pode ser pego pela 2ª")
+	dio.hum.Health = 0
+	assert(not TS.donoVivo(s2), "dono morto: a sessão tem que acabar")
+	assert(#TS.encerrar(s2) == 3 and c.sessaoTempo == nil and jotaro.sessaoTempo == nil)
+end)
+
+teste("salvamentos ao mesmo tempo (autosave + saída + desligamento) não duplicam nem perdem", function()
+	local Dados = H.moduloNovo("ServerScriptService/BB_Servidor/Dados")
+	local guardado: any = nil
+	local escritas, falhar = 0, 0
+	local store = {}
+	function store:UpdateAsync(_chave, fn)
+		task.wait(0.02) -- o DataStore de verdade demora: é aqui que os salvamentos se cruzam
+		local novo = fn(guardado)
+		if novo ~= nil then
+			guardado = novo
+			escritas += 1
+		end
+		if falhar > 0 then
+			falhar -= 1
+			error("erro de rede DEPOIS de gravar")
+		end
+		return guardado
+	end
+	Dados._usarStore(store)
+	local jogador = { UserId = 42 }
+	local s = { base = { abates = 5, mortes = 1, melhorSequencia = 2 }, delta = { abates = 3, mortes = 2, dano = 120 }, sequencia = 0, melhorSequencia = 4, carregou = true }
+	Dados._sessao(jogador, s)
+	guardado = { abates = 5, mortes = 1, dano = 0, melhorSequencia = 2 }
+	for _ = 1, 3 do
+		task.spawn(Dados.salvar, jogador)
+	end
+	s.delta.abates += 1 -- um abate chega no meio do salvamento
+	Dados._esperarSalvar(jogador, 5)
+	task.wait(0.2)
+	assert(guardado.abates == 9 and guardado.mortes == 3, string.format("somou certo: %d abates, %d mortes", guardado.abates, guardado.mortes))
+	assert(guardado.melhorSequencia == 4 and s.delta.abates == 0 and s.pendente == nil)
+	-- a gravação entra mas o Roblox responde erro: o MESMO lote é reenviado e não soma de novo
+	s.delta.abates = 2
+	falhar = 1
+	Dados.salvar(jogador)
+	assert(s.pendente ~= nil and guardado.abates == 11, "gravou, mas ficou pendente")
+	Dados.salvar(jogador)
+	assert(s.pendente == nil and guardado.abates == 11, "reenvio do lote não duplicou: " .. guardado.abates)
+	assert(#guardado.lotes <= 30 and guardado.versao == 2)
+	local v, aplicou = Dados._aplicarLote({ abates = 1, lotes = { "x" } }, { id = "x", abates = 9, mortes = 0, dano = 0, melhor = 0 })
+	assert(not aplicou and v.abates == 1, "lote já visto é ignorado")
+end)
+
+teste("Morioh mais leve: 1 de cada 3 lâminas, sem juntas e reflexos; o que colide fica", function()
+	local Mapa = H.moduloNovo("ServerScriptService/BB_Servidor/Mapa")
+	local morioh = roblox.Instance.new("Model")
+	morioh.Name = "Morioh"
+	local function peca(nome, pai, colide, papel)
+		local p = roblox.Instance.new("Part")
+		p.Name = nome
+		p.CanCollide = colide
+		p.Anchored = true
+		if papel then
+			p:SetAttribute("Role", papel)
+		end
+		p.Parent = pai
+		return p
+	end
+	for j = 1, 2 do
+		local janela = roblox.Instance.new("Model")
+		janela.Name = "Janela_Detalhada"
+		janela.Parent = morioh
+		for _ = 1, 10 do
+			peca("Lamina_Persiana", janela, false, "Trim")
+		end
+	end
+	for _ = 1, 4 do
+		peca("Junta_Revestimento", morioh, false, "Trim")
+	end
+	peca("Reflexo_fino", morioh, false, "GlassHighlight")
+	local parede = peca("Parede", morioh, true, "Wall")
+	local enfeite = peca("Ralo", morioh, false, "Detail")
+	local colide = peca("Junta_Revestimento", morioh, true, "Trim") -- com colisão: não mexe
+	local removidas, semSombra = Mapa.simplificar(morioh)
+	local laminas = 0
+	for _, d in morioh:GetDescendants() do
+		if d.Name == "Lamina_Persiana" then
+			laminas += 1
+		end
+	end
+	assert(laminas == 8, "fica 1 de cada 3 por janela (4 de 10): " .. laminas)
+	assert(removidas == 12 + 4 + 1, "removidas: " .. removidas)
+	assert(parede.Parent == morioh and colide.Parent == morioh, "peças com colisão ficam")
+	assert(enfeite.CastShadow == false and parede.CastShadow == true and semSombra >= 1, "sombra só sai dos enfeites")
 end)
 
 print("== instalador")

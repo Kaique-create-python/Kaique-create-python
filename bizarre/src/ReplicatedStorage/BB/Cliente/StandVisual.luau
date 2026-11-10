@@ -178,6 +178,18 @@ function StandVisual.acao(dono: Model, opcoes: any)
 	end
 end
 
+-- AJUSTE7: a ação do dono foi interrompida: o Stand para o golpe e volta para trás dele
+function StandVisual.cancelar(dono: Model)
+	local v = visuais[dono]
+	if not v then
+		return
+	end
+	v.acaoAte = math.min(v.acaoAte, os.clock() + 0.3)
+	v.modoAte = 0
+	v.visita = nil
+	Animador.cortar(v.modelo)
+end
+
 -- o Stand aparece em outro lugar (ex.: SAUDADE visita cada inimigo preso)
 function StandVisual.visitar(dono: Model, alvo: Model, dur: number)
 	local v = visuais[dono]
@@ -210,7 +222,7 @@ local function atualizar(v: any, dt: number)
 		local fora = dono:GetAttribute("BB_StandFora") == true
 		local desperto = (dono:GetAttribute("BB_Desperto") or 0) > agoraServidor()
 		local caido = (dono:GetAttribute("BB_Ragdoll") or 0) > agoraServidor()
-		v.alvoVis = if (fora or desperto or agora < v.acaoAte) and not caido then 1 else 0
+		v.alvoVis = if (fora or desperto or agora < v.acaoAte) and not caido and not v.longe then 1 else 0
 		-- o Humanoid liga a colisão do tronco/cabeça sozinho: desliga antes da câmera olhar
 		for _, nome in COLISAO_FORCADA do
 			local p = v.modelo:FindFirstChild(nome)
@@ -301,38 +313,39 @@ function StandVisual.passo(dt: number)
 			visuais[m] = nil
 		end
 	end
+	-- AJUSTE7: Stand longe atualiza menos vezes (o seu e o do alvo travado sempre em dia)
+	local cam = workspace.CurrentCamera
+	local eu = game:GetService("Players").LocalPlayer.Character
+	local Camera = require(script.Parent:WaitForChild("Camera"))
+	local alvo = Camera.travado()
 	for dono, v in visuais do
 		if not dono.Parent then
 			destruir(v)
 			visuais[dono] = nil
 		else
-			atualizar(v, dt)
+			local r = dono:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local dist = if r and cam then (r.Position - cam.CFrame.Position).Magnitude else 0
+			local prioridade = dono == eu or dono == alvo
+			v.acumulado = (v.acumulado or 0) + dt
+			local intervalo = if prioridade or dist < 150 then 0 elseif dist < 300 then 1 / 20 else 1 / 8
+			if v.acumulado >= intervalo then
+				v.longe = not prioridade and dist > 320
+				atualizar(v, v.acumulado)
+				v.acumulado = 0
+			end
 		end
 	end
 end
 
-local listaDonos: { Model } = {}
-local proximaBusca = 0
+-- AJUSTE7: donos vêm do registro (atualizado por eventos), sem varrer o workspace
+local Registro = require(script.Parent:WaitForChild("Registro"))
 function StandVisual.donos(): { Model }
-	if os.clock() < proximaBusca then
-		return listaDonos
-	end
-	proximaBusca = os.clock() + 0.5
 	local l = {}
-	for _, d in workspace:GetChildren() do
-		if d:IsA("Model") and d:GetAttribute("BB_Lutador") then
-			table.insert(l, d)
+	for m in Registro.lutadores() do
+		if not m:GetAttribute("BB_Boneco") then
+			table.insert(l, m)
 		end
 	end
-	local bots = workspace:FindFirstChild("BB_Bots")
-	if bots then
-		for _, d in bots:GetChildren() do
-			if d:IsA("Model") and d:GetAttribute("BB_Lutador") and not d:GetAttribute("BB_Boneco") then
-				table.insert(l, d)
-			end
-		end
-	end
-	listaDonos = l
 	return l
 end
 

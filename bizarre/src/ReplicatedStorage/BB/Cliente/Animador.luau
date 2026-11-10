@@ -70,7 +70,7 @@ local function paraR6(pose: { [string]: { number } }?): { [string]: { number } }
 	end
 	local p = {}
 	for k, v in pose do
-		if k == "LS" or k == "RS" or k == "LH" or k == "RH" or k == "Neck" or k == "Root" then
+		if k == "LS" or k == "RS" or k == "LH" or k == "RH" or k == "Neck" or k == "Root" or k == "RootPos" then
 			p[k] = v
 		end
 	end
@@ -171,6 +171,18 @@ function Animador.parar(modelo: Model?)
 	end
 end
 
+-- AJUSTE7: atordoado/congelado corta a ação NA HORA (sem esperar o peso cair)
+function Animador.cortar(modelo: Model?)
+	local a = modelo and anims[modelo]
+	if a then
+		a.pesoAlvo = 0
+		a.peso = 0
+		a.clipe = nil
+		a.nome = nil
+		a.ate = nil
+	end
+end
+
 function Animador.tocando(modelo: Model?): string?
 	local a = modelo and anims[modelo]
 	if a and a.pesoAlvo > 0 then
@@ -221,30 +233,108 @@ local ESTILOS = {
 }
 local ESTILO_PADRAO = { bE = { 0, 0, -6 }, bD = { 0, 0, 6 }, balanco = 1, inclina = -3, cabeca = 2, passo = 34, gingado = 6, parado = {} }
 Animador.ESTILOS = ESTILOS
+Animador.aoPasso = nil :: ((Model, number) -> ())? -- poeira nos pés quando corre (Main liga)
 
-local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean): { [string]: { number } }
-	if noAr then
-		return Poses.P.no_ar
+local function suavizar(a: any, p: { [string]: { number } }, dt: number): { [string]: { number } }
+	-- AJUSTE-5: cada junta segue o alvo com um amortecedor (nada de pose "pulando" de um quadro
+	-- para o outro: o andar fica mole e natural em vez de duro)
+	local s = a.suave
+	if not s then
+		s = {}
+		a.suave = s
 	end
+	local k = 1 - math.exp(-dt * 14)
+	local r = {}
+	for junta, v in p do
+		local atual = s[junta]
+		if not atual then
+			atual = { v[1], v[2], v[3] }
+			s[junta] = atual
+		else
+			atual[1] += (v[1] - atual[1]) * k
+			atual[2] += (v[2] - atual[2]) * k
+			atual[3] += (v[3] - atual[3]) * k
+		end
+		r[junta] = { atual[1], atual[2], atual[3] }
+	end
+	-- junta que saiu da pose volta para o neutro devagar
+	for junta, atual in s do
+		if not p[junta] then
+			atual[1] -= atual[1] * k
+			atual[2] -= atual[2] * k
+			atual[3] -= atual[3] * k
+			r[junta] = { atual[1], atual[2], atual[3] }
+		end
+	end
+	return r
+end
+
+-- vLocal = velocidade no espaço do corpo (frente = -Z), giroY = rotação (rad/s), velY = subida/queda
+local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean, vLocal: Vector3?, giroY: number?, velY: number?): { [string]: { number } }
 	local est = ESTILOS[a.modelo:GetAttribute("BB_Stand") or ""] or ESTILO_PADRAO
 	local tt = os.clock()
-	local k = math.clamp(plano / 16, 0, 1.6)
-	a.fase += dt * (4 + plano * 0.4)
+	-- velocidade suavizada (começar e parar de andar sem tranco)
+	local antes = a.velSuave or plano
+	a.velSuave = antes + (plano - antes) * math.min(1, dt * 7)
+	local vs = a.velSuave
+	local acel = (vs - antes) / math.max(dt, 1e-3)
+	-- pouso: afunda um pouquinho ao tocar o chão
+	if a.noArAntes and not noAr then
+		a.pousoAte = tt + 0.22
+	end
+	a.noArAntes = noAr
+	if noAr then
+		local p = {}
+		for j, v in Poses.P.no_ar do
+			p[j] = { v[1], v[2], v[3] }
+		end
+		if (velY or 0) < -8 then
+			-- caindo: braços abrem e sobem
+			p.LS = { 30, 0, -40 }
+			p.RS = { 30, 0, 40 }
+		end
+		return suavizar(a, p, dt)
+	end
+	local k = math.clamp(vs / 16, 0, 1.6)
+	local fr, la = 1, 0 -- quanto do passo é para frente e quanto é de lado
+	if vLocal and vLocal.Magnitude > 1 then
+		local plan = Vector3.new(vLocal.X, 0, vLocal.Z)
+		if plan.Magnitude > 0.5 then
+			fr = -plan.Z / plan.Magnitude -- negativo = andando de costas (mira travada)
+			la = plan.X / plan.Magnitude
+		end
+	end
+	a.fase += dt * (3.2 + vs * 0.42)
 	local s = math.sin(a.fase)
+	local sb = math.sin(a.fase - 0.35) -- os braços vêm um pouco atrasados (balanço solto)
+	local passoAgora = math.floor(a.fase / math.pi)
+	if passoAgora ~= a.ultimoPasso then
+		a.ultimoPasso = passoAgora
+		if k > 1.05 and Animador.aoPasso then
+			Animador.aoPasso(a.modelo, k)
+		end
+	end
 	local resp = math.sin(tt * 1.8) * 2
-	local parado = math.clamp(1 - k * 1.5, 0, 1)
+	local parado = math.clamp(1 - k * 1.6, 0, 1)
 	local correndo = math.clamp((k - 1.05) / 0.4, 0, 1)
-	local balanco = 40 * k * est.balanco * (1 - correndo) + 62 * k * correndo
+	local balanco = (40 * est.balanco * (1 - correndo) + 64 * correndo) * k * math.max(0.35, math.abs(fr))
+	local giro = math.clamp(-(giroY or 0) * 2.6, -11, 11) * math.min(k, 1)
+	local inclinaAcel = math.clamp(-acel * 0.22, -9, 4)
+	local quique = -math.abs(math.sin(a.fase)) * (0.16 + 0.12 * correndo) * math.min(k, 1.3)
+	local pouso = if a.pousoAte and tt < a.pousoAte then -0.38 * ((a.pousoAte - tt) / 0.22) else 0
+	local gingado = s * est.gingado * k * (1 - correndo * 0.6)
 	local p: { [string]: { number } } = {
-		Root = { est.inclina * (1 - correndo) - 14 * correndo + resp * 0.3 * parado, s * est.gingado * k * (1 - correndo), 0 },
-		Neck = { est.cabeca + 8 * correndo + resp * 0.5 * parado, -s * 4 * k, 0 },
-		LS = { est.bE[1] - s * balanco, est.bE[2], est.bE[3] },
-		RS = { est.bD[1] + s * balanco * (if est.soDireito then 1.3 else 1), est.bD[2], est.bD[3] },
-		LH = { s * est.passo * k, 0, 0 },
-		RH = { -s * est.passo * k, 0, 0 },
+		Root = { est.inclina * (1 - correndo) - 14 * correndo + inclinaAcel + resp * 0.3 * parado, gingado, giro },
+		RootPos = { 0, quique + pouso + resp * 0.012 * parado, 0 },
+		-- a cabeça compensa o gingado (o olhar fica firme)
+		Neck = { est.cabeca + 8 * correndo + resp * 0.5 * parado, -gingado * 0.8, -giro * 0.5 },
+		LS = { est.bE[1] - sb * balanco, est.bE[2], est.bE[3] - math.abs(sb) * 4 * k },
+		RS = { est.bD[1] + sb * balanco * (if est.soDireito then 1.3 else 1), est.bD[2], est.bD[3] + math.abs(sb) * 4 * k },
+		LH = { s * est.passo * k * fr, 0, -s * est.passo * 0.45 * k * la },
+		RH = { -s * est.passo * k * fr, 0, s * est.passo * 0.45 * k * la },
 	}
 	if est.soDireito then
-		p.LS = { est.bE[1] - s * balanco * 0.15, est.bE[2], est.bE[3] }
+		p.LS = { est.bE[1] - sb * balanco * 0.15, est.bE[2], est.bE[3] }
 	end
 	-- parado: a pose de JoJo de cada um (mistura suave com o andar)
 	if parado > 0.01 then
@@ -257,7 +347,7 @@ local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean): { [s
 			}
 		end
 	end
-	return p
+	return suavizar(a, p, dt)
 end
 Animador.andarJoJo = andarJoJo
 
@@ -289,7 +379,8 @@ local function locomocao(a: any, dt: number): { [string]: { number } }
 	local noAr = estado == Enum.HumanoidStateType.Freefall or estado == Enum.HumanoidStateType.Jumping
 	-- jogadores e bots com Stand andam no estilo JoJo
 	if a.tipo == "jogador" or m:GetAttribute("BB_Stand") then
-		return andarJoJo(a, dt, plano, noAr)
+		local vLocal = raiz.CFrame:VectorToObjectSpace(v)
+		return andarJoJo(a, dt, plano, noAr, vLocal, raiz.AssemblyAngularVelocity.Y, v.Y)
 	end
 	if noAr then
 		return Poses.P.no_ar
@@ -406,6 +497,11 @@ local function aplicar(a: any, dt: number)
 			end
 		else
 			local alvo = angulos(vb)
+			-- quique do corpo (o tronco sobe e desce a cada passo)
+			if curto == "Root" and base and base.RootPos then
+				local rp = base.RootPos
+				alvo = CFrame.new(rp[1], rp[2], rp[3]) * alvo
+			end
 			if va and peso > 0.001 then
 				alvo = alvo:Lerp(angulos(va), math.clamp(peso, 0, 1))
 			end

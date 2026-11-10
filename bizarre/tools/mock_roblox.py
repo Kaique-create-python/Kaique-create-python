@@ -3,6 +3,7 @@
 uso: python3 bizarre/tools/mock_roblox.py PORTA [--falhar] [--sem-audio] [--revisao AJUSTE-2]
   --falhar     o teste da nuvem devolve erro (o instalador NÃO pode publicar)
   --sem-audio  a chave não tem permissão de enviar áudio (o instalador tem que seguir sem as vozes)
+  --desconhecido  a versão no ar tem scripts feitos em outro lugar (o instalador tem que PARAR)
 """
 import json
 import re
@@ -51,7 +52,13 @@ class H(BaseHTTPRequestHandler):
             t["consultas"] += 1
             if t["consultas"] < 2:
                 return self.responder(200, {"path": m.group(1), "state": "PROCESSING"})
-            if "C.REVISAO" in t["script"]:
+            if "BB_PREFLIGHT" in t["script"]:
+                scripts = [{"c": "ReplicatedStorage.MoriohManifest", "n": 10, "h": 1}]
+                if "--desconhecido" in ARGS:
+                    scripts += [{"c": "ServerScriptService.OutroJogo.Camera", "n": 900, "h": 77},
+                                {"c": "ReplicatedStorage.BB.Config", "n": 5, "h": 1}]
+                res = json.dumps({"revisao": "AJUSTE-4", "legivel": True, "scripts": scripts})
+            elif "C.REVISAO" in t["script"]:
                 res = json.dumps({"revisao": REVISAO})
             elif ESTADO["falhar"]:
                 res = json.dumps({"ok": False, "erros": ["golpe KILLER_QUEEN_ULT deu erro: simulado"], "avisos": [], "info": {}})
@@ -60,6 +67,10 @@ class H(BaseHTTPRequestHandler):
                 res = json.dumps({"ok": True, "erros": [], "avisos": ["SILVER_CHARIOT_4 não acertou o boneco de teste"], "info": {
                     "modulos": 36, "revisao": REVISAO, "quebraveis": 148170, "spawns": 14, "streaming": True,
                     "quebraTeste": "40 peças quebraram e 40 voltaram",
+                    "simplificado": "7359 enfeites sem colisão retirados, 31000 sem sombra",
+                    "clash": "durante o clash: 0.0 e 0.0 de dano",
+                    "congelamentos": "2 tempos parados juntos: cada um soltou só os alvos dele",
+                    "estresse": "servidor sem luta: 16.7 ms por quadro (pior 20) | 12 lutadores com golpes, ULTs e destruição: 17.9 ms por quadro (pior 41) | memória 1500 -> 1540 MB",
                     "vozes": ("áudio " + ID_AUDIO) if tem_voz else "sem áudio (usa o grito da biblioteca)",
                     "stands": {"STAR_PLATINUM": "catálogo R6: roupa 2, acessórios 6/6, juntas 6",
                                "THE_WORLD": "catálogo R6: roupa 2, acessórios 5/5, juntas 6",
@@ -107,6 +118,13 @@ class H(BaseHTTPRequestHandler):
             ESTADO["places"].append(m.group(3))
             print("MOCK place", m.group(3), "versao", ESTADO["versao"], len(corpo), "bytes", flush=True)
             return self.responder(200, {"versionNumber": ESTADO["versao"]})
+        m0 = re.match(r"/cloud/v2/universes/(\d+)/places/(\d+)/luau-execution-session-tasks", self.path)
+        if m0:
+            d = json.loads(corpo)
+            tid = "t%d" % (len(ESTADO["tarefas"]) + 1)
+            ESTADO["tarefas"][tid] = {"consultas": 0, "script": d["script"]}
+            print("MOCK luau NO AR script", len(d["script"]), "bytes", flush=True)
+            return self.responder(200, {"path": "universes/%s/places/%s/luau-execution-sessions/s0/tasks/%s" % (m0.group(1), m0.group(2), tid), "state": "QUEUED"})
         m = re.match(r"/cloud/v2/universes/(\d+)/places/(\d+)/versions/(\d+)/luau-execution-session-tasks", self.path)
         if m:
             d = json.loads(corpo)

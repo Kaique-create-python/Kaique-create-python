@@ -12,6 +12,7 @@ local UserInputService = game:GetService("UserInputService")
 local BB = script.Parent.Parent
 local Config = require(BB:WaitForChild("Config"))
 local UI = require(script.Parent:WaitForChild("Interface"))
+local Toques = require(script.Parent:WaitForChild("Toques"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
 local Efeitos = require(script.Parent:WaitForChild("Efeitos"))
 
@@ -128,25 +129,27 @@ local function botaoRedondo(pai: Instance, texto: string, tam: number, centro: V
 	return b
 end
 
+-- AJUSTE7: o botão solta quando o dedo sai da tela em qualquer lugar (não só em cima dele),
+-- quando o jogo perde o foco, quando o menu abre e quando a tela gira (ver Toques)
 local function segurar(b: TextButton, aoApertar: () -> (), aoSoltar: (() -> ())?)
+	local t = Toques.novo(aoApertar, aoSoltar)
 	b.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			aoApertar()
-		end
-	end)
-	b.InputEnded:Connect(function(input)
-		if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and aoSoltar then
-			aoSoltar()
+		if input.UserInputType == Enum.UserInputType.Touch then
+			t.comecar(input, false)
+		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+			t.comecar(input, true)
 		end
 	end)
 end
 
-local function criarBotoesMoveis()
+local criarBotoesMoveis: () -> ()
+function criarBotoesMoveis()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "BB_Botoes"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
 	gui.DisplayOrder = 6
+	gui.Enabled = ativo
 	gui.Parent = plr:WaitForChild("PlayerGui")
 	guiMovel = gui
 	-- o botão de pulo do Roblox: pequeno (tela até 500 de altura) ou grande
@@ -245,17 +248,34 @@ local function atualizarBotaoDespertar()
 	end
 end
 
+local function soltarTudo()
+	Toques.soltarTudo()
+	segurandoM1 = false
+	if Jogador and Jogador.bloqueando() then
+		Jogador.bloquear(false)
+	end
+end
+Controles.soltarTudo = soltarTudo
+
 function Controles.ativar(sim: boolean)
 	ativo = sim
 	if guiMovel then
 		guiMovel.Enabled = sim
 	end
 	if not sim then
-		segurandoM1 = false
-		if Jogador.bloqueando() then
-			Jogador.bloquear(false)
-		end
+		soltarTudo()
 	end
+end
+
+-- a tela mudou de tamanho (girou, janela dividida): refaz os botões no lugar certo
+local function refazerBotoes()
+	soltarTudo()
+	if guiMovel then
+		guiMovel:Destroy()
+		guiMovel = nil
+	end
+	Toques.esquecerTodos()
+	criarBotoesMoveis()
 end
 
 function Controles.iniciar(jogador: any, hud: any)
@@ -264,7 +284,32 @@ function Controles.iniciar(jogador: any, hud: any)
 	ligarTeclas()
 	if UserInputService.TouchEnabled then
 		criarBotoesMoveis()
+		local cam = workspace.CurrentCamera
+		local ultimoTam = cam.ViewportSize
+		local pedido = 0
+		cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			pedido += 1
+			local meu = pedido
+			task.delay(0.4, function()
+				local novo = workspace.CurrentCamera.ViewportSize
+				if meu == pedido and (math.abs(novo.X - ultimoTam.X) > 8 or math.abs(novo.Y - ultimoTam.Y) > 8) then
+					ultimoTam = novo
+					refazerBotoes()
+				end
+			end)
+		end)
 	end
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			Toques.terminou(input, false)
+		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+			Toques.terminou(input, true)
+		end
+	end)
+	UserInputService.WindowFocusReleased:Connect(soltarTudo)
+	pcall(function()
+		GuiService.MenuOpened:Connect(soltarTudo)
+	end)
 	-- segurar o ataque continua o combo
 	local ultimo = 0
 	RunService.Heartbeat:Connect(function()

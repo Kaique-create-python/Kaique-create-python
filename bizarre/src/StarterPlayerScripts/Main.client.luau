@@ -39,14 +39,27 @@ HUD.iniciar(Jogador)
 Efeitos.iniciar(HUD.gui())
 local Cinematica = require(Cliente:WaitForChild("Cinematica"))
 Cinematica.iniciar(HUD.gui())
+-- correndo: poeirinha a cada passo
+Animador.aoPasso = function(modelo: Model, forca: number)
+	local r = modelo:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if r and Efeitos.altaQualidade() then
+		Efeitos.poeira(r.Position - Vector3.new(0, 2.7, 0) - r.CFrame.LookVector * 0.6, 0.9 + forca * 0.3, nil, 2)
+	end
+end
 Camera.iniciar()
 StandVisual.iniciar()
-Jogador.iniciar(remotos, { aviso = HUD.aviso, combo = HUD.combo, cd = HUD.atualizarCds })
+Jogador.iniciar(remotos, {
+	aviso = HUD.aviso,
+	combo = HUD.combo,
+	cd = HUD.atualizarCds,
+	entrada = function(d)
+		Menu.respostaEntrada(d)
+	end,
+})
 Controles.iniciar(Jogador, HUD)
 AdminCliente.iniciar(remotos.Admin)
 
 -------------------------------------------------------------------------------- efeitos do servidor
-local donoTempo: Model? = nil
 local TRATADORES = {
 	acao = function(d)
 		Acoes.tocar(d.quem, d)
@@ -66,14 +79,9 @@ local TRATADORES = {
 	explosao = Efeitos.explosao,
 	onda = Efeitos.onda,
 	sol = Efeitos.sol,
-	tempo = function(d)
-		donoTempo = d.dono
-		Efeitos.tempo(d)
-	end,
-	tempoVolta = function(d)
-		donoTempo = nil
-		Efeitos.tempoVolta(d)
-	end,
+	tempo = Efeitos.tempo,
+	tempoVolta = Efeitos.tempoVolta,
+	clash = Efeitos.clash,
 	despertar = Efeitos.despertar,
 	cura = Efeitos.cura,
 	teleporte = Efeitos.teleporte,
@@ -121,13 +129,21 @@ local function estadoVisual(m: Model, agora: number)
 	a.ragdoll = if ragdoll then 1 else 0
 	local pedra = (m:GetAttribute("BB_Pedra") or 0) > agora
 	local preso = (m:GetAttribute("BB_Preso") or 0) > agora
-	local tempo = Efeitos.tempoParadoAgora() and m ~= donoTempo
-	a.congelado = tempo or pedra or preso
+	-- AJUSTE7: quem está parado no tempo é o que o SERVIDOR marcou (cada sessão tem os seus alvos)
+	local tempo = (m:GetAttribute("BB_Congelado") or 0) > agora
+	local stun = (m:GetAttribute("BB_Stun") or 0) > agora
+	local travado = tempo or pedra or preso
+	a.congelado = travado
 	local x = extras[m]
 	if not x then
 		x = {}
 		extras[m] = x
 	end
+	-- atordoou, congelou ou caiu AGORA: o golpe, a voz e os efeitos dele param na mesma hora
+	if (stun and not x.stun) or (travado and not x.travado) or (ragdoll and not x.ragdoll) then
+		Acoes.interromper(m)
+	end
+	x.stun, x.travado, x.ragdoll = stun, travado, ragdoll
 	-- pedra/preso: corpo cinza ou rosado
 	local bomba = (m:GetAttribute("BB_Bomba") or 0) > agora -- a Killer Queen transformou em bomba
 	local querCor = if pedra then Color3.fromRGB(130, 128, 124) elseif preso or bomba then Color3.fromRGB(255, 150, 210) else nil
@@ -157,7 +173,7 @@ local function estadoVisual(m: Model, agora: number)
 		x.fogo:Destroy()
 		x.fogo = nil
 	end
-	return tempo
+	return travado
 end
 
 RunService.RenderStepped:Connect(function()
@@ -232,14 +248,21 @@ plr.CharacterAdded:Connect(function(c)
 	if hum then
 		hum.Died:Connect(function()
 			HUD.aviso("Você caiu! Voltando em 4...")
+			HUD.continua(true)
 			Camera.travar(nil)
+			Controles.soltarTudo()
+			Acoes.interromper(c)
 		end)
 	end
+	-- renasceu: tela normal e câmera de volta no personagem
+	HUD.continua(false)
+	Camera.recuperar()
 end)
 
 -- espera o mundo ficar pronto e abre o menu (a tela de carregamento some depois disso)
-local inicio = os.clock()
-while not workspace:GetAttribute("BB_Pronto") and os.clock() - inicio < 30 do
+-- (sem "pronto" de mentira: se o servidor não ligar, a tela de carregamento avisa e oferece
+-- tentar de novo; o menu só abre com o servidor de pé)
+while not workspace:GetAttribute("BB_Pronto") do
 	task.wait(0.2)
 end
 Menu.abrir(false)

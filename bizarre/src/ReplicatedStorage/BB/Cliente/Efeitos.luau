@@ -339,7 +339,7 @@ function Efeitos.destrocos(peca: BasePart, dir: Vector3, forca: number)
 end
 
 -- punhos fantasmas na frente do Stand durante a barragem ("mil socos")
-function Efeitos.punhos(standModelo: Model?, dur: number, cor: Color3)
+function Efeitos.punhos(standModelo: Model?, dur: number, cor: Color3, ativo: (() -> boolean)?)
 	if not standModelo then
 		return
 	end
@@ -354,7 +354,7 @@ function Efeitos.punhos(standModelo: Model?, dur: number, cor: Color3)
 	local corBraco = if molde then molde.Color else cor
 	task.spawn(function()
 		local i = 0
-		while os.clock() < fim and raiz.Parent do
+		while os.clock() < fim and raiz.Parent and (not ativo or ativo()) do
 			for _ = 1, (if qualidadeAlta then 3 else 1) do
 				i += 1
 				local x = rng:NextNumber(-2, 2)
@@ -551,6 +551,7 @@ function Efeitos.acerto(d: any)
 	if tipo == "bloqueio" then
 		Efeitos.faiscas(pos, RGB(160, 210, 255), 6, 4)
 		Efeitos.anel(pos, 2.4, RGB(160, 210, 255), 0.2, 0.2, d.dir)
+		Efeitos.bolha(pos, 2.4, RGB(150, 205, 255), 0.18, Enum.Material.ForceField)
 		Som.tocar("bloqueio", pos)
 		if d.v == eu then
 			Camera.tremer(0.12, 0.12)
@@ -561,6 +562,9 @@ function Efeitos.acerto(d: any)
 		Efeitos.anel(pos, 6, BRANCO, 0.3, 0.5)
 		Efeitos.luz(pos, BRANCO, 8, 18, 0.3)
 		Efeitos.onomatopeia(pos, "PARRY!", RGB(140, 220, 255), 1)
+		Efeitos.particulas(pos, BRANCO, { n = 22, vel = 38, tam = 1, vida = 0.3, cor2 = RGB(140, 220, 255) })
+		Animador.hitstop(d.a, 0.14)
+		Animador.hitstop(d.v, 0.14)
 		Som.tocar("parry", pos)
 		Animador.tocar(d.a, "atordoado", { ate = os.clock() + Config.BLOQUEIO.parryAtordoa })
 		if d.a == eu or d.v == eu then
@@ -1040,11 +1044,25 @@ end
 
 -- tempo parado: tudo cinza, um "domo" invertido se espalha e o relógio tiquetaqueia
 local corTempo: ColorCorrectionEffect? = nil
+-- AJUSTE7: cada tempo parado é uma sessão. A tela só volta ao normal quando a ÚLTIMA acaba.
+local sessoesTempo: { [any]: any } = {}
+
+local function recalcularTempo()
+	local ate, ini = 0, math.huge
+	for _, s in sessoesTempo do
+		ate = math.max(ate, s.fim)
+		ini = math.min(ini, s.inicio)
+	end
+	tempoParadoAte = ate
+	tempoInicio = if ini == math.huge then 0 else ini
+end
+
 function Efeitos.tempo(d: any)
 	local eu = Players.LocalPlayer.Character
-	tempoParadoAte = d.fim
-	tempoInicio = d.inicio
-	local dono = d.dono
+	local chave = d.sessao or d.dono
+	local primeira = next(sessoesTempo) == nil
+	sessoesTempo[chave] = { inicio = d.inicio, fim = d.fim, dono = d.dono }
+	recalcularTempo()
 	local cc = corTempo
 	if cc then
 		tween(cc, 0.35, { Saturation = -1, Contrast = 0.25, TintColor = RGB(220, 214, 255) })
@@ -1053,46 +1071,73 @@ function Efeitos.tempo(d: any)
 	domo.Transparency = 0.2
 	tween(domo, 0.6, { Size = Vector3.new(d.raio * 2, d.raio * 2, d.raio * 2), Transparency = 1 }, Enum.EasingStyle.Quart)
 	Debris:AddItem(domo, 0.7)
-	Som.tocar("tempo_para", nil)
-	Som.abafar(true)
-	Efeitos.onomatopeia(d.centro + Vector3.new(0, 4, 0), "O TEMPO PAROU", RGB(255, 220, 90), 1.6)
-	-- congela as animações e efeitos de todo mundo menos de quem parou
-	for modelo in pairs(Efeitos._modelosLutadores()) do
-		if modelo ~= dono then
-			local a = Animador.de(modelo)
-			if a then
-				a.congelado = true
-			end
-		end
+	if primeira then
+		Som.tocar("tempo_para", nil)
+		Som.abafar(true)
 	end
+	Efeitos.onomatopeia(d.centro + Vector3.new(0, 4, 0), "O TEMPO PAROU", RGB(255, 220, 90), 1.6)
 	task.spawn(function()
-		while workspace:GetServerTimeNow() < d.fim do
+		while sessoesTempo[chave] and workspace:GetServerTimeNow() < d.fim do
 			Som.tocar("relogio", nil, { vol = 0.6 })
 			task.wait(1)
 		end
+		-- rede de segurança: o aviso de volta não chegou (o dono saiu do jogo)
+		task.wait(0.8)
+		if sessoesTempo[chave] then
+			Efeitos.tempoVolta({ sessao = chave, dono = d.dono })
+		end
 	end)
-	if eu and eu ~= dono then
+	if eu and eu ~= d.dono then
 		Camera.tremer(0.3, 0.3)
 	end
 end
 
 function Efeitos.tempoVolta(d: any)
-	tempoParadoAte = 0
+	local chave = d.sessao or d.dono
+	if chave ~= nil then
+		if not sessoesTempo[chave] then
+			return -- aviso repetido ou de uma sessão que já acabou
+		end
+		sessoesTempo[chave] = nil
+	else
+		sessoesTempo = {}
+	end
+	recalcularTempo()
+	if next(sessoesTempo) ~= nil then
+		return -- outra ULT ainda está segurando o tempo
+	end
 	local cc = corTempo
 	if cc then
 		tween(cc, 0.5, { Saturation = 0.12, Contrast = 0.08, TintColor = RGB(255, 255, 255) })
 	end
 	Som.tocar("tempo_volta", nil)
 	Som.abafar(false)
-	for modelo in pairs(Efeitos._modelosLutadores()) do
-		local a = Animador.de(modelo)
-		if a then
-			a.congelado = false
-		end
-	end
 	local raiz = d.dono and d.dono:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if raiz then
 		Efeitos.bolha(raiz.Position, 40, RGB(255, 240, 200), 0.5)
+	end
+end
+
+-- ORA x MUDA: duas rajadas se anulando (faíscas no meio dos dois)
+local ultimoClash = 0
+local GRITOS = { KQ = "SHIBA", FOGO = "FOGO" }
+function Efeitos.clash(d: any)
+	local pos: Vector3 = d.pos
+	local ca, cv = corStand(d.sa), corStand(d.sv)
+	Efeitos.faiscas(pos, BRANCO, 10, 8)
+	Efeitos.particulas(pos, ca, { n = 8, vel = 26, tam = 0.9, vida = 0.25, cor2 = cv })
+	Efeitos.anel(pos, 5, cv, 0.22, 0.3)
+	Som.tocar("bloqueio", pos, { max = 3 })
+	if os.clock() - ultimoClash > 1 then
+		ultimoClash = os.clock()
+		local sa, sv = Stands.get(d.sa), Stands.get(d.sv)
+		local ga = if sa then (GRITOS[sa.grito] or sa.grito) else "ORA"
+		local gv = if sv then (GRITOS[sv.grito] or sv.grito) else "MUDA"
+		Efeitos.onomatopeia(pos + Vector3.new(0, 3, 0), ga .. " x " .. gv .. "!!", BRANCO, 1.3)
+	end
+	local eu = Players.LocalPlayer.Character
+	if d.a == eu or d.v == eu then
+		Camera.tremer(0.25, 0.15)
 	end
 end
 
@@ -1304,7 +1349,7 @@ function Efeitos.esquiva(d: any)
 end
 
 -- lança-chamas contínuo (AXÉ Labareda): sai da mão do Stand
-function Efeitos.lancaChamas(dono: Model, dur: number)
+function Efeitos.lancaChamas(dono: Model, dur: number, ativo: (() -> boolean)?)
 	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
 	local fim = os.clock() + dur
 	local raizDono = dono:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -1313,7 +1358,7 @@ function Efeitos.lancaChamas(dono: Model, dur: number)
 	end
 	local som = Som.naPeca("chama", raizDono, { loop = true })
 	task.spawn(function()
-		while os.clock() < fim and raizDono.Parent do
+		while os.clock() < fim and raizDono.Parent and (not ativo or ativo()) do
 			local st = StandVisual.modelo(dono)
 			local origemCf = raizDono.CFrame * CFrame.new(0, 0.8, -3.5)
 			local mao = st and (st:FindFirstChild("Right Arm") or st:FindFirstChild("RightHand")) :: BasePart?
@@ -1500,32 +1545,24 @@ function Efeitos.buff(d: any)
 end
 
 ------------------------------------------------------------------------------------- iniciar
-local lutadoresCache: { [Model]: boolean } = {}
+-- AJUSTE7: lista pronta (atualizada por eventos), sem varrer o workspace
+local Registro = require(script.Parent:WaitForChild("Registro"))
 function Efeitos._modelosLutadores(): { [Model]: boolean }
-	local r = {}
-	for _, d in workspace:GetChildren() do
-		if d:IsA("Model") and d:GetAttribute("BB_Lutador") then
-			r[d] = true
-		end
+	return Registro.todosModelos()
+end
+
+-- qualidade: "auto" mede o FPS e troca sozinho entre alta e baixa (com folga para não ficar pulando)
+local modoQualidade = "auto"
+function Efeitos.modoQualidade(modo: string)
+	modoQualidade = modo
+	if modo == "alta" then
+		qualidadeAlta = true
+	elseif modo == "baixa" then
+		qualidadeAlta = false
 	end
-	local bots = workspace:FindFirstChild("BB_Bots")
-	if bots then
-		for _, d in bots:GetChildren() do
-			if d:IsA("Model") then
-				r[d] = true
-			end
-		end
-	end
-	local sv = workspace:FindFirstChild("BB_StandsVisuais")
-	if sv then
-		for _, d in sv:GetChildren() do
-			if d:IsA("Model") then
-				r[d] = true
-			end
-		end
-	end
-	lutadoresCache = r
-	return r
+end
+function Efeitos.qualidadeAtual(): (string, boolean)
+	return modoQualidade, qualidadeAlta
 end
 
 function Efeitos.iniciar(gui: ScreenGui)
@@ -1556,7 +1593,25 @@ function Efeitos.iniciar(gui: ScreenGui)
 	cr.Parent = Lighting
 	corRebobinar = cr
 	game:GetService("RunService").PreRender:Connect(passoProjeteis)
-	local _ = lutadoresCache
+	Registro.iniciar()
+	-- qualidade automática: média de quadros dos últimos 2 s
+	local quadros, tempo = 0, 0
+	game:GetService("RunService").Heartbeat:Connect(function(dt)
+		if modoQualidade ~= "auto" then
+			return
+		end
+		quadros += 1
+		tempo += dt
+		if tempo >= 2 then
+			local fps = quadros / tempo
+			if qualidadeAlta and fps < 38 then
+				qualidadeAlta = false
+			elseif not qualidadeAlta and fps > 52 then
+				qualidadeAlta = true
+			end
+			quadros, tempo = 0, 0
+		end
+	end)
 end
 
 return Efeitos

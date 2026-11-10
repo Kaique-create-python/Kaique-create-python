@@ -20,11 +20,12 @@ function Camera.ligarTremor(sim: boolean)
 	tremorLigado = sim
 end
 
+Camera.forcaTremor = 1 -- ajuste do jogador (0 = desligado ... 1,4 = forte)
 function Camera.tremer(forca: number, dur: number)
-	if not tremorLigado then
+	if not tremorLigado or Camera.forcaTremor <= 0 then
 		return
 	end
-	intensidade = math.min(1.2, math.max(intensidade, forca))
+	intensidade = math.min(1.4, math.max(intensidade, forca * Camera.forcaTremor))
 	fimTremor = math.max(fimTremor, os.clock() + dur)
 end
 
@@ -80,9 +81,109 @@ local function mostrarMarca(alvo: Model?)
 	marca = b
 end
 
+-- AJUSTE7: com a mira travada a câmera começa a 11 studs e o zoom fica entre 7,5 e 18
+local DIST_TRAVA, ZOOM_MIN, ZOOM_MAX = 11, 7.5, 18
+Camera.preferida = nil :: number? -- distância escolhida nos AJUSTES (nil = padrão)
+local DIST_LIVRE_MIN, DIST_LIVRE_MAX = 4, 32
+local atrasParede = 0
+local function zoomPara(min: number, max: number)
+	local plr = Players.LocalPlayer
+	plr.CameraMinZoomDistance = min
+	plr.CameraMaxZoomDistance = max
+end
+
 function Camera.travar(alvo: Model?)
+	local antes = alvoTrava
 	alvoTrava = alvo
+	atrasParede = 0
 	mostrarMarca(alvo)
+	if alvo and alvo ~= antes then
+		local d = math.clamp(Camera.preferida or DIST_TRAVA, ZOOM_MIN, ZOOM_MAX)
+		zoomPara(d, d)
+		task.delay(0.12, function()
+			if alvoTrava == alvo then
+				zoomPara(ZOOM_MIN, ZOOM_MAX)
+			end
+		end)
+	elseif not alvo and antes then
+		zoomPara(DIST_LIVRE_MIN, DIST_LIVRE_MAX)
+	end
+end
+
+-- ajuste "distância da câmera" (fora da trava): põe o zoom nesse valor e libera de novo
+function Camera.distancia(valor: number)
+	Camera.preferida = valor
+	if alvoTrava then
+		return
+	end
+	zoomPara(valor, valor)
+	task.delay(0.12, function()
+		if not alvoTrava then
+			zoomPara(DIST_LIVRE_MIN, DIST_LIVRE_MAX)
+		end
+	end)
+end
+
+-- AJUSTE7: um dono só para a câmera. "jogo" = câmera normal; "menu" e "cinema" pegam emprestado
+-- e devolvem. Se alguém esquecer de devolver (morreu no meio da cena), a câmera se recupera.
+local dono = "jogo"
+function Camera.dono(): string
+	return dono
+end
+function Camera.assumir(quem: string)
+	dono = quem
+	workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+end
+function Camera.recuperar()
+	if dono ~= "jogo" then
+		return
+	end
+	local cam = workspace.CurrentCamera
+	if cam.CameraType ~= Enum.CameraType.Custom then
+		cam.CameraType = Enum.CameraType.Custom
+	end
+	local c = Players.LocalPlayer.Character
+	local hum = c and c:FindFirstChildOfClass("Humanoid")
+	if hum and cam.CameraSubject ~= hum then
+		cam.CameraSubject = hum
+	end
+end
+function Camera.devolver(quem: string)
+	if dono ~= quem then
+		return
+	end
+	dono = "jogo"
+	Camera.recuperar()
+end
+
+-- volta suave para a câmera do jogo depois de uma cena de cinema
+local retorno: any = nil
+function Camera.suavizarRetorno(de: CFrame, dur: number)
+	retorno = { de = de, t0 = os.clock(), dur = dur }
+end
+
+-- raios só contra o cenário (a câmera não entra na parede)
+local paramsParede: RaycastParams? = nil
+local paramsParedeT = 0
+local function paramsCenario(): RaycastParams
+	if not paramsParede or os.clock() - paramsParedeT > 5 then
+		local p = RaycastParams.new()
+		p.FilterType = Enum.RaycastFilterType.Include
+		local lista = {}
+		for _, nome in { "Morioh", "BB_Mapa", "BB_Temporarias" } do
+			local m = workspace:FindFirstChild(nome)
+			if m then
+				table.insert(lista, m)
+			end
+		end
+		p.FilterDescendantsInstances = lista
+		pcall(function()
+			p.RespectCanCollide = true
+		end)
+		paramsParede = p
+		paramsParedeT = os.clock()
+	end
+	return paramsParede :: RaycastParams
 end
 
 -- solta sozinho: alvo morreu, sumiu, ficou longe demais ou o dono caiu no ragdoll
@@ -122,10 +223,29 @@ function Camera.iniciar()
 	end)
 	RunService:BindToRenderStep("BB_Camera", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		cam = workspace.CurrentCamera
+		-- ninguém pediu a câmera e ela ficou presa (cena interrompida, renasceu): recupera
+		if dono == "jogo" and cam.CameraType == Enum.CameraType.Scriptable then
+			Camera.recuperar()
+		end
 		-- travar no inimigo: gira a câmera para olhar o alvo
 		local alvo = Camera.travado()
 		local eu = Players.LocalPlayer.Character
 		local raiz = eu and eu:FindFirstChild("HumanoidRootPart") :: BasePart?
+		-- alvo atrás de parede por 1,5 s: solta a trava
+		if alvo and raiz then
+			local r0 = alvo:FindFirstChild("HumanoidRootPart") :: BasePart
+			local v = r0.Position - raiz.Position
+			local hit = workspace:Raycast(raiz.Position + Vector3.new(0, 1.5, 0), v, paramsCenario())
+			if hit and (hit.Position - raiz.Position).Magnitude < v.Magnitude - 2 then
+				atrasParede += dt
+				if atrasParede > 1.5 then
+					Camera.travar(nil)
+					alvo = nil
+				end
+			else
+				atrasParede = 0
+			end
+		end
 		if alvo and raiz and cam.CameraType == Enum.CameraType.Custom then
 			local r = alvo:FindFirstChild("HumanoidRootPart") :: BasePart
 			local foco = cam.Focus.Position
@@ -136,7 +256,24 @@ function Camera.iniciar()
 				local olhar = CFrame.lookAt(foco, r.Position + Vector3.new(0, -2, 0))
 				local desejado = olhar * CFrame.new(1.4, 0, dist)
 				desejado = desejado + Vector3.new(0, 2.5, 0)
-				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(desejado.Position, r.Position + Vector3.new(0, 0.5, 0)), math.min(1, dt * 12))
+				-- proteção contra parede: a câmera para antes do que estiver entre ela e o jogador
+				local volta = desejado.Position - foco
+				local bate = workspace:Raycast(foco, volta, paramsCenario())
+				local posCam = desejado.Position
+				if bate then
+					posCam = bate.Position - volta.Unit * 0.6
+				end
+				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(posCam, r.Position + Vector3.new(0, 0.5, 0)), math.min(1, dt * 12))
+			end
+		end
+		-- volta suave depois da cena de cinema
+		if retorno and cam.CameraType == Enum.CameraType.Custom then
+			local k = (os.clock() - retorno.t0) / retorno.dur
+			if k >= 1 then
+				retorno = nil
+			else
+				local e = k * k * (3 - 2 * k)
+				cam.CFrame = retorno.de:Lerp(cam.CFrame, e)
 			end
 		end
 		-- tremor
