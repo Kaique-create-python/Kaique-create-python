@@ -270,6 +270,11 @@ BUILD.black_hole = function(folder, spec, model, _color)
 	for i = 1, 24 do
 		table.insert(rocks, { part = newPart(model, { Size = Vector3.new(1, 1, 1) * (0.8 + (i % 4) * 0.5), Color = Color3.fromRGB(90, 80, 75), Material = Enum.Material.Slate }), phase = i * 0.7, life = (i % 6) / 6 })
 	end
+	-- jatos de energia saindo dos polos (como os de um quasar)
+	local jets = {}
+	for _, dir in { 1, -1 } do
+		table.insert(jets, { part = newPart(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(190, 150, 255), Material = Enum.Material.Neon, Transparency = 0.35 }), dir = dir })
+	end
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "IdeiasBuracoNegro"
 	cc.Parent = game:GetService("Lighting")
@@ -304,6 +309,11 @@ BUILD.black_hole = function(folder, spec, model, _color)
 		local tilt = CFrame.new(c) * CFrame.Angles(math.rad(14), 0, math.rad(8))
 		for _, dsk in disks do
 			placeRing(dsk.parts, tilt, r * dsk.r, t * dsk.speed)
+		end
+		for _, j in jets do
+			local len = r * 9 * (0.85 + 0.15 * math.sin(t * 5))
+			j.part.Size = Vector3.new(len, r * 0.55, r * 0.55)
+			j.part.CFrame = tilt * CFrame.new(0, j.dir * len / 2, 0) * CFrame.Angles(0, 0, math.rad(90))
 		end
 		-- anel de fótons sempre de frente para a câmera
 		local cam = Workspace.CurrentCamera

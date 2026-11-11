@@ -94,13 +94,16 @@ local function sound(id: string, at: Vector3, volume: number?)
 	local s = Instance.new("Sound")
 	s.SoundId = id
 	s.Volume = volume or 0.7
-	s.RollOffMaxDistance = 400
+	s.RollOffMode = Enum.RollOffMode.InverseTapered
+	s.RollOffMinDistance = 35
+	s.RollOffMaxDistance = 600
 	s.Parent = p
 	s:Play()
 	Debris:AddItem(p, 5)
 end
 
 local spriteState = "unknown" -- unknown | loading | ok | failed | off
+local announced = false
 
 -- confere se o áudio do ElevenLabs carregou de verdade (aprovado na moderação e com
 -- duração). Enquanto não, os sons embutidos do Roblox são usados.
@@ -129,6 +132,14 @@ function Effects.checkSprite()
 		spriteState = if probe.IsLoaded and probe.TimeLength > 1 then "ok" else "failed"
 		if spriteState == "failed" then
 			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação/permissão): usando sons do Roblox")
+		end
+		if not announced and hud and hud.toast then
+			announced = true
+			if spriteState == "ok" then
+				hud.toast("🔊 Sons do jogo carregados!", Color3.fromRGB(110, 235, 150))
+			else
+				hud.toast("🔊 Áudio novo em análise no Roblox: tocando sons padrão por enquanto", Color3.fromRGB(255, 200, 90))
+			end
 		end
 		probe:Destroy()
 	end)
@@ -161,7 +172,9 @@ local function cue(name: string, at: Vector3?, volume: number?)
 	end
 	s.Volume = (volume or 1) * (c.volume or 0.7)
 	s.PlaybackSpeed = c.speed or 1
-	s.RollOffMaxDistance = 450
+	s.RollOffMode = Enum.RollOffMode.InverseTapered
+	s.RollOffMinDistance = 35
+	s.RollOffMaxDistance = 700
 	if at then
 		local holder = part({ Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(at), Transparency = 1 })
 		s.Parent = holder
@@ -322,6 +335,7 @@ H.spawn = function(d)
 	if d.big then
 		local evil = d.c and d.c.R > 0.8 and d.c.G < 0.5
 		local col = if evil then Color3.fromRGB(255, 50, 40) else Color3.fromRGB(255, 230, 140)
+		cue(if evil then "demon_spawn" else "hero_spawn", nil, 1)
 		ring(d.p, 26 * (d.s or 1), col, 1.4)
 		for i = 1, 3 do
 			task.delay(i * 0.18, function()
@@ -428,6 +442,7 @@ H.nuke = function(d)
 	local base = d.p
 	-- clarão que cega e som profundo
 	tint(Color3.fromRGB(255, 250, 235), 0.9)
+	cue("mega_impact", nil, 1)
 	cue("explosion", base, 1)
 	task.delay(0.25, function()
 		cue("rumble", base, 1)
@@ -727,7 +742,7 @@ H.cutscene = function(d)
 			tween(s2, 0.4, { Transparency = 0 })
 		end
 	end)
-	cue(if d.evil then "roar" elseif disaster then "rumble" else "create", nil, 1)
+	cue(if d.evil then "demon_spawn" elseif disaster then "rumble" else "hero_spawn", nil, 1)
 	local old = cam.CFrame
 	local oldType = cam.CameraType
 	cam.CameraType = Enum.CameraType.Scriptable
@@ -822,6 +837,43 @@ local function debrisBurst(at: Vector3, n: number, size: number, color: Color3)
 end
 Effects.debrisBurst = debrisBurst
 
+-- BURACO NEGRO: aviso (céu escurece, pedras sobem) e colapso final ---------------------
+H.bh_warn = function(d)
+	tint(Color3.fromRGB(120, 90, 180), d.d or 1.5)
+	cue("rumble", d.p, 1)
+	for i = 1, 24 do
+		task.delay(math.random() * (d.d or 1.5), function()
+			local at = d.p + Vector3.new(math.random(-80, 80), -30 + math.random(0, 10), math.random(-80, 80))
+			local rock = part({ Size = Vector3.new(1, 1, 1) * (0.8 + math.random() * 2), CFrame = CFrame.new(at) * CFrame.Angles(math.random() * 6, math.random() * 6, 0), Color = Color3.fromRGB(90, 85, 80), Material = Enum.Material.Slate })
+			tween(rock, 2.5 + math.random(), { CFrame = CFrame.new(d.p) * CFrame.Angles(math.random() * 6, 0, 0), Size = Vector3.new(0.1, 0.1, 0.1) }, Enum.EasingStyle.Quad)
+			Debris:AddItem(rock, 3.6)
+		end)
+	end
+end
+
+H.bh_collapse = function(d)
+	local s = d.s or 1
+	tint(Color3.fromRGB(230, 200, 255), 1.2)
+	cue("mega_impact", nil, 1)
+	cue("thunder", d.p, 1)
+	local core = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(30, 30, 30) * s, CFrame = CFrame.new(d.p), Color = Color3.fromRGB(255, 255, 255), Transparency = 0 })
+	tween(core, 0.35, { Size = Vector3.new(2, 2, 2) })
+	task.delay(0.35, function()
+		tween(core, 1.4, { Size = Vector3.new(260, 260, 260) * s, Transparency = 1, Color = Color3.fromRGB(180, 120, 255) })
+	end)
+	Debris:AddItem(core, 2)
+	for k = 1, 3 do
+		task.delay(0.35 + k * 0.12, function()
+			local ringP = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.5, 6, 6), CFrame = CFrame.new(d.p) * CFrame.Angles(math.random() * 3, math.random() * 3, math.rad(90)), Color = Color3.fromRGB(200, 160, 255), Transparency = 0.2 })
+			tween(ringP, 1.6, { Size = Vector3.new(1.5, 400 * s, 400 * s), Transparency = 1 })
+			Debris:AddItem(ringP, 1.7)
+		end)
+	end
+	burst(d.p, TEX_SPARK, { Color3.fromRGB(230, 200, 255), Color3.new(1, 1, 1) }, 120, 80, 2.5, 2.5)
+	debrisBurst(d.p, 30, 2, Color3.fromRGB(70, 60, 80))
+	shake(3)
+end
+
 function Effects.handle(data: any)
 	if type(data) ~= "table" then
 		return
@@ -839,6 +891,20 @@ function Effects.init(hudModule: any, movementModule: any)
 	hud = hudModule
 	movement = movementModule
 	task.delay(3, Effects.checkSprite)
+	task.spawn(function()
+		local seen, list = {}, {}
+		for _, c in Config.SoundCues do
+			if c.fallback and not seen[c.fallback] then
+				seen[c.fallback] = true
+				local snd = Instance.new("Sound")
+				snd.SoundId = c.fallback
+				table.insert(list, snd)
+			end
+		end
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync(list)
+		end)
+	end)
 	folder = Instance.new("Folder")
 	folder.Name = "EfeitosLocais"
 	folder.Parent = Workspace.CurrentCamera or Workspace

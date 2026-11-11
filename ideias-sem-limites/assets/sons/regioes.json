@@ -1,6 +1,6 @@
 {
  "arquivo": "IdeiasSons.ogg",
- "duracao": 16.451,
+ "duracao": 19.689,
  "regioes": {
   "explosion": [
    0.0,
@@ -48,11 +48,23 @@
   ],
   "click": [
    14.501,
-   14.851
+   14.565
   ],
   "thunder": [
-   15.151,
-   16.151
+   14.865,
+   15.865
+  ],
+  "hero_spawn": [
+   16.165,
+   17.165
+  ],
+  "demon_spawn": [
+   17.465,
+   18.089
+  ],
+  "mega_impact": [
+   18.389,
+   19.389
   ]
  }
 }

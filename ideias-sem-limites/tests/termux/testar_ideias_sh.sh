@@ -67,6 +67,15 @@ check "áudio enviado como Audio/ogg" 'python3 -c "import json;l=json.load(open(
 check "ID do áudio gravado no lugar" 'grep -q "Id = 123456, --@@SPRITE_ID@@" "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3_sons.rbxlx"'
 check "lugar com sons salvo (Saved)" 'grep -q "versão" "$WORK/sons.log"'
 
+echo "== verificar-sons (moderação) e áudio igual reaproveitado"
+bash "$S" verificar-sons >"$WORK/vs.log" 2>&1 || { cat "$WORK/vs.log"; false; }
+check "estado da moderação lido" 'grep -q "APROVADO" "$WORK/vs.log"'
+check "chave não aparece na consulta" '! grep -q "$KEY" "$WORK/vs.log"'
+n1=$(python3 -c "import json;print(sum(1 for e in json.load(open('$WORK/mock_log.json')) if e.get('audio')))")
+printf '999\n' | bash "$S" sons >"$WORK/sons2.log" 2>&1 || { cat "$WORK/sons2.log"; false; }
+n2=$(python3 -c "import json;print(sum(1 for e in json.load(open('$WORK/mock_log.json')) if e.get('audio')))")
+check "mesmo áudio não é enviado de novo" '[[ "$n1" == "$n2" ]] && grep -q "reaproveitado" "$WORK/sons2.log"'
+
 echo "== imagens (logo do Canva -> Decal -> ID gravado no lugar)"
 bash "$S" imagens >"$WORK/img.log" 2>&1 || { cat "$WORK/img.log"; false; }
 check "ID do logo gravado no lugar" 'grep -q "Logo = 123456, --@@LOGO_ID@@" "$IDEIAS_BASE/IdeiasSemLimites/V3/IdeiasSemLimites_V3_final.rbxlx"'

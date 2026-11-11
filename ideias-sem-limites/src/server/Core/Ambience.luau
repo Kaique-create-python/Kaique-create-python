@@ -21,12 +21,12 @@ local cycleStart = os.clock()
 local atmosphere: Atmosphere? = nil
 
 local BASE = {
-	Brightness = 2.4,
-	Ambient = Color3.fromRGB(46, 46, 56),
-	OutdoorAmbient = Color3.fromRGB(128, 128, 142),
+	Brightness = 2.8,
+	Ambient = Color3.fromRGB(58, 58, 68),
+	OutdoorAmbient = Color3.fromRGB(140, 138, 150),
 	FogEnd = 100000,
 	ExposureCompensation = 0,
-	AtmosphereDensity = 0.28,
+	AtmosphereDensity = 0.24,
 	AtmosphereColor = Color3.fromRGB(199, 220, 255),
 	AtmosphereDecay = Color3.fromRGB(106, 120, 160),
 	AtmosphereHaze = 1.2,
@@ -57,14 +57,18 @@ function Ambience.setup()
 	if not Lighting:FindFirstChild("BrilhoIdeias") then
 		local bloom = Instance.new("BloomEffect")
 		bloom.Name = "BrilhoIdeias"
-		bloom.Intensity = 0.6
+		bloom.Intensity = 0.7
 		bloom.Size = 26
 		bloom.Threshold = 1.6
 		bloom.Parent = Lighting
 		local cc = Instance.new("ColorCorrectionEffect")
 		cc.Name = "CorIdeias"
-		cc.Saturation = 0.12
-		cc.Contrast = 0.06
+		cc.Saturation = 0.2
+		cc.Contrast = 0.1
+		cc.TintColor = Color3.fromRGB(255, 251, 244)
+		-- reflexos e luz ambiente mais bonitos (visual de desenho animado)
+		Lighting.EnvironmentDiffuseScale = 1
+		Lighting.EnvironmentSpecularScale = 1
 		cc.Parent = Lighting
 		local rays = Instance.new("SunRaysEffect")
 		rays.Name = "RaiosIdeias"

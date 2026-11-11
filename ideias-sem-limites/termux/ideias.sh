@@ -161,7 +161,7 @@ cmd_baixar() {
 	local dest="$PASTA/V3"
 	mkdir -p "$dest/ferramentas" "$dest/testes"
 	info "Baixando a V3 do GitHub (ramo $RAMO)"
-	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/IdeiasLogo.png" "dist/SHA256SUMS")
+	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/IdeiasLogo.png" "dist/IdeiasIcones.png" "dist/SHA256SUMS")
 	for f in "${arquivos[@]}"; do
 		curl -fL --retry 3 -o "$dest/$(basename "$f")" "$RAW/$f" || morre "Falha ao baixar $f"
 	done
@@ -417,10 +417,43 @@ cmd_sons() {
 	precisa curl python3 sha256sum
 	garantir_pastas
 	carregar_config
+	local novo=0
+	if [[ "${1:-}" == "--novo" ]]; then
+		novo=1
+		shift
+	fi
 	local audio="${1:-$PASTA/V3/IdeiasSons.ogg}"
 	local lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
 	[[ -s "$audio" ]] || morre "Áudio não encontrado: $audio (rode 'bash ideias.sh baixar')"
 	[[ -s "$lugar" ]] || morre "Lugar não encontrado: $lugar (rode 'bash ideias.sh baixar')"
+	local sha asset=""
+	sha=$(sha256sum "$audio" | cut -d' ' -f1)
+	# mesmo arquivo de áudio já enviado antes: reaproveita o ID (não gasta a cota de uploads)
+	if [[ $novo -eq 0 && -s "$CONF_DIR/audio_id" && "$(cat "$CONF_DIR/audio_sha" 2>/dev/null)" == "$sha" ]]; then
+		asset=$(tr -dc '0-9' <"$CONF_DIR/audio_id")
+		ok "Áudio igual ao já enviado: reaproveitado o asset $asset (use 'sons --novo' para forçar novo envio)"
+	fi
+	if [[ -z "$asset" ]]; then
+		enviar_audio "$audio" "$sha" || return 1
+		asset=$(tr -dc '0-9' <"$CONF_DIR/audio_id")
+	fi
+	local saida="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
+	python3 - "$lugar" "$saida" "$asset" <<'PYEOF' || morre "Não consegui gravar o ID no lugar."
+import sys
+src, dst, asset = sys.argv[1], sys.argv[2], sys.argv[3]
+data = open(src, encoding="utf-8").read()
+marker = "Id = 0, --@@SPRITE_ID@@"
+if marker not in data:
+    sys.exit("marcador não encontrado")
+open(dst, "w", encoding="utf-8").write(data.replace(marker, "Id = %d, --@@SPRITE_ID@@" % int(asset), 1))
+PYEOF
+	ok "Lugar com sons: $saida"
+	cmd_enviar "$saida"
+}
+
+# envia o .ogg como asset de Áudio e guarda ID + sha256 em ~/.ideias
+enviar_audio() {
+	local audio="$1" sha="$2"
 	local uid="${USER_ID:-}"
 	if [[ -z "$uid" ]]; then
 		read -r -p "Seu User ID do Roblox (número do seu perfil): " uid
@@ -465,52 +498,54 @@ cmd_sons() {
 	rm -f "$resp"
 	ok "Áudio criado: asset $asset"
 	echo "$asset" >"$CONF_DIR/audio_id"
-	local saida="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
-	python3 - "$lugar" "$saida" "$asset" <<'PYEOF' || morre "Não consegui gravar o ID no lugar."
-import sys
-src, dst, asset = sys.argv[1], sys.argv[2], sys.argv[3]
-data = open(src, encoding="utf-8").read()
-marker = "Id = 0, --@@SPRITE_ID@@"
-if marker not in data:
-    sys.exit("marcador não encontrado")
-open(dst, "w", encoding="utf-8").write(data.replace(marker, "Id = %d, --@@SPRITE_ID@@" % int(asset), 1))
-PYEOF
-	ok "Lugar com sons: $saida"
-	cmd_enviar "$saida"
+	echo "$sha" >"$CONF_DIR/audio_sha"
+	aviso "O Roblox analisa o áudio antes de liberar (minutos a horas). Confira com: bash ideias.sh verificar-sons"
 }
 
-cmd_imagens() {
-	# Envia o logo (feito no Canva) como Decal e grava o ID no lugar com sons.
+cmd_verificar_sons() {
+	# Pergunta ao Roblox se o áudio já passou na moderação (só leitura).
 	precisa curl python3
 	garantir_pastas
 	carregar_config
-	local img="${1:-$PASTA/V3/IdeiasLogo.png}"
-	local lugar="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
-	[[ -s "$lugar" ]] || lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
-	[[ -s "$img" ]] || morre "Imagem não encontrada: $img (rode 'bash ideias.sh baixar')"
-	local uid="${USER_ID:-}"
-	if [[ -z "$uid" ]]; then
-		read -r -p "Seu User ID do Roblox (número do seu perfil): " uid
-		[[ "$uid" =~ ^[0-9]+$ ]] || morre "User ID deve ser um número."
-		printf 'USER_ID="%s"\n' "$uid" >>"$CONF"
-	fi
-	info "Enviando logo ($(wc -c <"$img") bytes) — permissão 'asset' Read+Write"
+	local id="${1:-$(tr -dc '0-9' <"$CONF_DIR/audio_id" 2>/dev/null)}"
+	[[ "$id" =~ ^[0-9]+$ ]] || morre "Nenhum áudio enviado ainda. Rode: bash ideias.sh sons"
 	cabecalho_chave
-	local resp code
+	local resp code estado
 	resp=$(mktemp)
-	code=$(curl -sS -o "$resp" -w '%{http_code}' -X POST -H @"$HDR" \
-		--form "request={\"assetType\": \"Decal\", \"displayName\": \"Ideias Sem Limites Logo\", \"description\": \"Logo do jogo\", \"creationContext\": {\"creator\": {\"userId\": \"${uid}\"}}}" \
-		--form "fileContent=@${img};type=image/png" \
-		"$API/assets/v1/assets") || true
+	code=$(curl -sS -o "$resp" -w '%{http_code}' -H @"$HDR" "$API/assets/v1/assets/${id}") || true
+	limpar
 	if [[ "$code" != "200" ]]; then
-		limpar
-		erro "HTTP $code"
-		cat "$resp"
-		echo
+		erro "HTTP $code ao consultar o áudio $id"
+		[[ "$code" == "401" || "$code" == "403" ]] && aviso "A chave precisa da permissão 'asset' com Read."
 		rm -f "$resp"
 		return 1
 	fi
-	local op asset i=0 done_
+	estado=$(json_campo moderationResult.moderationState <"$resp")
+	rm -f "$resp"
+	case "$estado" in
+	Approved | MODERATION_STATE_APPROVED) ok "Áudio $id APROVADO: os sons do ElevenLabs tocam no jogo (versão com 'sons')." ;;
+	Reviewing | MODERATION_STATE_REVIEWING) aviso "Áudio $id em ANÁLISE no Roblox. Enquanto isso o jogo toca os sons embutidos do Roblox. Tente de novo mais tarde." ;;
+	Rejected | MODERATION_STATE_REJECTED) erro "Áudio $id REJEITADO pelo Roblox. O jogo continua com os sons embutidos." ;;
+	*) aviso "Estado do áudio $id: ${estado:-desconhecido}" ;;
+	esac
+}
+
+enviar_decal() {
+	# $1 arquivo PNG, $2 nome; imprime o assetId
+	local img="$1" nome="$2" uid="$3"
+	local resp code
+	resp=$(mktemp)
+	code=$(curl -sS -o "$resp" -w '%{http_code}' -X POST -H @"$HDR" \
+		--form "request={\"assetType\": \"Decal\", \"displayName\": \"${nome}\", \"description\": \"Interface do jogo\", \"creationContext\": {\"creator\": {\"userId\": \"${uid}\"}}}" \
+		--form "fileContent=@${img};type=image/png" \
+		"$API/assets/v1/assets") || true
+	if [[ "$code" != "200" ]]; then
+		erro "HTTP $code ao enviar $nome"
+		cat "$resp" >&2
+		rm -f "$resp"
+		return 1
+	fi
+	local op i=0 done_
 	op=$(json_campo path <"$resp")
 	while [[ $i -lt 40 ]]; do
 		sleep 3
@@ -521,22 +556,58 @@ cmd_imagens() {
 		fi
 		i=$((i + 1))
 	done
-	limpar
+	local asset
 	asset=$(json_campo response.assetId <"$resp")
 	rm -f "$resp"
-	[[ "$asset" =~ ^[0-9]+$ ]] || morre "Sem ID da imagem."
-	ok "Logo criado: asset $asset"
+	[[ "$asset" =~ ^[0-9]+$ ]] || return 1
+	echo "$asset"
+}
+
+cmd_imagens() {
+	# Envia o logo e a folha de ícones (feitos no Canva) como Decal e grava os IDs no lugar.
+	precisa curl python3
+	garantir_pastas
+	carregar_config
+	local logo="$PASTA/V3/IdeiasLogo.png"
+	local icones="$PASTA/V3/IdeiasIcones.png"
+	local lugar="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
+	[[ -s "$lugar" ]] || lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
+	[[ -s "$logo" ]] || morre "Logo não encontrado: $logo (rode 'bash ideias.sh baixar')"
+	local uid="${USER_ID:-}"
+	if [[ -z "$uid" ]]; then
+		read -r -p "Seu User ID do Roblox (número do seu perfil): " uid
+		[[ "$uid" =~ ^[0-9]+$ ]] || morre "User ID deve ser um número."
+		printf 'USER_ID="%s"\n' "$uid" >>"$CONF"
+	fi
+	info "Enviando imagens da interface — permissão 'asset' Read+Write"
+	cabecalho_chave
+	local logo_id icons_id=0
+	logo_id=$(enviar_decal "$logo" "Ideias Sem Limites Logo" "$uid") || { limpar; morre "Falha ao enviar o logo."; }
+	ok "Logo criado: asset $logo_id"
+	if [[ -s "$icones" ]]; then
+		icons_id=$(enviar_decal "$icones" "Ideias Sem Limites Icones" "$uid") || icons_id=0
+		if [[ "$icons_id" != "0" ]]; then
+			ok "Folha de ícones criada: asset $icons_id"
+		else
+			aviso "Folha de ícones não enviada; os botões ficam com emojis."
+		fi
+	fi
+	limpar
 	local saida="$PASTA/V3/IdeiasSemLimites_V3_final.rbxlx"
-	python3 - "$lugar" "$saida" "$asset" <<'PYEOF' || morre "Não consegui gravar o ID no lugar."
+	python3 - "$lugar" "$saida" "$logo_id" "$icons_id" <<'PYEOF' || morre "Não consegui gravar os IDs no lugar."
 import sys
-src, dst, asset = sys.argv[1], sys.argv[2], sys.argv[3]
+src, dst, logo, icons = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
 data = open(src, encoding="utf-8").read()
-marker = "Logo = 0, --@@LOGO_ID@@"
-if marker not in data:
-    sys.exit("marcador não encontrado")
-open(dst, "w", encoding="utf-8").write(data.replace(marker, "Logo = %d, --@@LOGO_ID@@" % int(asset), 1))
+m1 = "Logo = 0, --@@LOGO_ID@@"
+if m1 not in data:
+    sys.exit("marcador do logo não encontrado")
+data = data.replace(m1, "Logo = %d, --@@LOGO_ID@@" % logo, 1)
+m2 = "Icons = 0, --@@ICONS_ID@@"
+if icons and m2 in data:
+    data = data.replace(m2, "Icons = %d, --@@ICONS_ID@@" % icons, 1)
+open(dst, "w", encoding="utf-8").write(data)
 PYEOF
-	ok "Lugar com logo: $saida"
+	ok "Lugar com imagens: $saida"
 	cmd_enviar "$saida"
 }
 
@@ -557,6 +628,7 @@ ajuda() {
 	echo "  bash ideias.sh enviar                # salva a V3 (não publica)"
 	echo "  bash ideias.sh testar                # testes na nuvem"
 	echo "  bash ideias.sh sons                  # envia os sons (ElevenLabs) e salva a V3 com eles"
+	echo "  bash ideias.sh verificar-sons        # o Roblox já aprovou o áudio? (só consulta)"
 	echo "  bash ideias.sh imagens               # envia o logo (Canva) e salva a V3 com ele"
 	echo "  bash ideias.sh publicar ARQUIVO      # só quando você decidir"
 }
@@ -564,7 +636,8 @@ ajuda() {
 case "${1:-}" in
 configurar) cmd_configurar ;;
 baixar) cmd_baixar ;;
-sons) cmd_sons "${2:-}" ;;
+sons) cmd_sons "${2:-}" "${3:-}" ;;
+verificar-sons) cmd_verificar_sons "${2:-}" ;;
 imagens) cmd_imagens "${2:-}" ;;
 backup) cmd_backup ;;
 diagnosticar) cmd_diagnosticar "${2:-}" ;;

@@ -96,9 +96,11 @@ Config.SoundSprite = {
 		fart = { 10.539, 11.639 },
 		achievement = { 11.939, 12.701 },
 		bark = { 13.001, 14.201 },
-		click = { 14.501, 14.851 },
-		rumble = { sprite = "roar", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.4 },
-	thunder = { 15.151, 16.151 },
+		click = { 14.501, 14.565 },
+		thunder = { 14.865, 15.865 },
+		hero_spawn = { 16.165, 17.165 },
+		demon_spawn = { 17.465, 18.089 },
+		mega_impact = { 18.389, 19.389 },
 	},
 }
 
@@ -124,11 +126,29 @@ Config.SoundCues = {
 	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
 	thunder = { sprite = "thunder", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
+	rumble = { sprite = "roar", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.4 },
+	hero_spawn = { sprite = "hero_spawn", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.95 },
+	demon_spawn = { sprite = "demon_spawn", fallback = "rbxasset://sounds/HalloweenGhost.wav", volume = 1 },
+	mega_impact = { sprite = "mega_impact", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 }
 
 -- Imagens da interface feitas no Canva (`bash ideias.sh imagens` grava o ID aqui).
 Config.UiImages = {
 	Logo = 0, --@@LOGO_ID@@
+	Icons = 0, --@@ICONS_ID@@
+}
+
+-- Folha de ícones do Canva: grade 4x3 numa imagem 1024x1024 (célula 256x256)
+Config.IconSheet = {
+	Cell = 256,
+	Columns = 4,
+	Cells = {
+		ideias = 0, favoritos = 1, historico = 2, progresso = 3,
+		loja = 4, ajustes = 5, creature = 6, disaster = 7,
+		vehicle = 8, building = 9, food = 10, power = 11,
+		-- categorias sem ícone próprio usam um parecido
+		object = 4, nature = 9, weather = 7, magic = 11, tool = 11,
+	},
 }
 
 Config.Textures = {

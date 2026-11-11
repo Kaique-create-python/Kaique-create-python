@@ -84,6 +84,8 @@ class H(BaseHTTPRequestHandler):
             if STATE["polls"] < 2:
                 return self._send(200, {"state": "PROCESSING"})
             return self._send(200, {"state": "COMPLETE", "output": {"results": [{"ok": True, "interpretador": {"passou": 2454, "falhou": 0}}]}})
+        if self.path.endswith("/assets/v1/assets/123456"):
+            return self._send(200, {"assetId": "123456", "assetType": "Audio", "moderationResult": {"moderationState": "Approved"}})
         if self.path.endswith("/operations/aud1"):
             return self._send(200, {"path": "operations/aud1", "done": True, "response": {"assetId": "123456", "assetType": "Audio"}})
         if self.path.endswith("/operations/op123"):

@@ -2572,9 +2572,11 @@ Config.SoundSprite = {
 		fart = { 10.539, 11.639 },
 		achievement = { 11.939, 12.701 },
 		bark = { 13.001, 14.201 },
-		click = { 14.501, 14.851 },
-		rumble = { sprite = "roar", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.4 },
-	thunder = { 15.151, 16.151 },
+		click = { 14.501, 14.565 },
+		thunder = { 14.865, 15.865 },
+		hero_spawn = { 16.165, 17.165 },
+		demon_spawn = { 17.465, 18.089 },
+		mega_impact = { 18.389, 19.389 },
 	},
 }
 
@@ -2600,11 +2602,29 @@ Config.SoundCues = {
 	click = { sprite = "click", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4 },
 	thunder = { sprite = "thunder", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 	drum = { sprite = "punch", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.65 },
+	rumble = { sprite = "roar", fallback = "rbxasset://sounds/collide.wav", volume = 1, speed = 0.4 },
+	hero_spawn = { sprite = "hero_spawn", fallback = "rbxasset://sounds/electronicpingshort.wav", volume = 0.95 },
+	demon_spawn = { sprite = "demon_spawn", fallback = "rbxasset://sounds/HalloweenGhost.wav", volume = 1 },
+	mega_impact = { sprite = "mega_impact", fallback = "rbxasset://sounds/collide.wav", volume = 1 },
 }
 
 -- Imagens da interface feitas no Canva (`bash ideias.sh imagens` grava o ID aqui).
 Config.UiImages = {
 	Logo = 0, --@@LOGO_ID@@
+	Icons = 0, --@@ICONS_ID@@
+}
+
+-- Folha de ícones do Canva: grade 4x3 numa imagem 1024x1024 (célula 256x256)
+Config.IconSheet = {
+	Cell = 256,
+	Columns = 4,
+	Cells = {
+		ideias = 0, favoritos = 1, historico = 2, progresso = 3,
+		loja = 4, ajustes = 5, creature = 6, disaster = 7,
+		vehicle = 8, building = 9, food = 10, power = 11,
+		-- categorias sem ícone próprio usam um parecido
+		object = 4, nature = 9, weather = 7, magic = 11, tool = 11,
+	},
 }
 
 Config.Textures = {
@@ -11981,12 +12001,12 @@ local cycleStart = os.clock()
 local atmosphere: Atmosphere? = nil
 
 local BASE = {
-	Brightness = 2.4,
-	Ambient = Color3.fromRGB(46, 46, 56),
-	OutdoorAmbient = Color3.fromRGB(128, 128, 142),
+	Brightness = 2.8,
+	Ambient = Color3.fromRGB(58, 58, 68),
+	OutdoorAmbient = Color3.fromRGB(140, 138, 150),
 	FogEnd = 100000,
 	ExposureCompensation = 0,
-	AtmosphereDensity = 0.28,
+	AtmosphereDensity = 0.24,
 	AtmosphereColor = Color3.fromRGB(199, 220, 255),
 	AtmosphereDecay = Color3.fromRGB(106, 120, 160),
 	AtmosphereHaze = 1.2,
@@ -12017,14 +12037,18 @@ function Ambience.setup()
 	if not Lighting:FindFirstChild("BrilhoIdeias") then
 		local bloom = Instance.new("BloomEffect")
 		bloom.Name = "BrilhoIdeias"
-		bloom.Intensity = 0.6
+		bloom.Intensity = 0.7
 		bloom.Size = 26
 		bloom.Threshold = 1.6
 		bloom.Parent = Lighting
 		local cc = Instance.new("ColorCorrectionEffect")
 		cc.Name = "CorIdeias"
-		cc.Saturation = 0.12
-		cc.Contrast = 0.06
+		cc.Saturation = 0.2
+		cc.Contrast = 0.1
+		cc.TintColor = Color3.fromRGB(255, 251, 244)
+		-- reflexos e luz ambiente mais bonitos (visual de desenho animado)
+		Lighting.EnvironmentDiffuseScale = 1
+		Lighting.EnvironmentSpecularScale = 1
 		cc.Parent = Lighting
 		local rays = Instance.new("SunRaysEffect")
 		rays.Name = "RaiosIdeias"
@@ -15191,19 +15215,58 @@ local Cosmic = {}
 function Cosmic.black_hole(ctx: any): any
 	local p = ctx.params
 	local scale = math.min(p.scale or 1, 4)
-	local center = ctx.origin.Position + Vector3.new(0, 22 * scale, 0)
-	local dur = 18
-	local spec = { pos = center, vel = Vector3.zero, t0 = Workspace:GetServerTimeNow(), dur = dur, radius = 8 * scale, height = 0, seed = 0, power = scale }
+	local center = ctx.origin.Position + Vector3.new(0, 34 * scale, 0)
+	local dur = 26
+	local spec = { pos = center, vel = Vector3.zero, t0 = Workspace:GetServerTimeNow() + 1.5, dur = dur, radius = 13 * scale, height = 0, seed = 0, power = scale }
+	-- aviso: o céu escurece e o chão treme antes de abrir
+	Fx.near(nil, nil, "toast", { t = "🕳️ Um buraco negro está se abrindo!", c = Color3.fromRGB(200, 160, 255) })
+	Fx.near(center, 1500, "bh_warn", { p = center, d = 1.5 })
+	Fx.shake(center, 1.2, 600)
 	FxPaths.write(ctx.folder, "black_hole", spec, p.element)
 	if p.payload then
 		ctx.folder:SetAttribute("FxPayload", p.payload)
 	end
-	local reach = 95 * scale
+	local reach = 150 * scale
 	local running = true
+	local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
 	task.spawn(function()
+		task.wait(1.5)
 		local t0 = os.clock()
+		-- pedaços do chão arrancados e sugados (até 40 blocos por vez)
+		local debrisN = 0
 		while running and ctx.folder.Parent and os.clock() - t0 < dur do
 			local grow = math.min(1, (os.clock() - t0) / 4)
+			if debrisN < 40 and grow > 0.3 then
+				local a = ctx.rng:range(0, math.pi * 2)
+				local r = ctx.rng:range(20, reach * 0.6)
+				local gp = Placement.ground(center + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r))
+				local chunk = Instance.new("Part")
+				chunk.Size = Vector3.new(ctx.rng:range(3, 7), ctx.rng:range(2, 4), ctx.rng:range(3, 7))
+				chunk.Color = Color3.fromRGB(95, 110, 70)
+				chunk.Material = Enum.Material.Grass
+				chunk.CFrame = CFrame.new(gp + Vector3.new(0, 1, 0)) * CFrame.Angles(ctx.rng:range(-0.3, 0.3), a, 0)
+				chunk.CanCollide = false
+				chunk.CanQuery = false
+				chunk:SetAttribute("Sugado", true)
+				chunk.Parent = ctx.folder
+				chunk.AssemblyLinearVelocity = Vector3.new(0, 25, 0)
+				debrisN += 1
+				task.delay(6, function()
+					if chunk.Parent then
+						chunk:Destroy()
+					end
+				end)
+			end
+			for _, chunk in ctx.folder:GetChildren() do
+				if chunk:IsA("BasePart") and chunk:GetAttribute("Sugado") then
+					local to = center - chunk.Position
+					if to.Magnitude < spec.radius * 0.9 then
+						chunk:Destroy()
+					else
+						chunk.AssemblyLinearVelocity = to.Unit * 45 + Vector3.new(0, 8, 0)
+					end
+				end
+			end
 			for _, a in Actors.near(center, reach) do
 				local to = center - a.root.Position
 				local d = to.Magnitude
@@ -15226,8 +15289,13 @@ function Cosmic.black_hole(ctx: any): any
 			task.wait(0.2)
 		end
 		if ctx.folder.Parent then
-			Fx.flash(center, Color3.fromRGB(200, 160, 255), 60 * scale)
-			Fx.shockwave(center, reach * 0.5, Color3.fromRGB(170, 120, 255))
+			-- colapso: clarão, onda, cratera e tremor
+			Fx.near(center, 2000, "bh_collapse", { p = center, s = scale })
+			Fx.flash(center, Color3.fromRGB(200, 160, 255), 90 * scale)
+			Fx.shockwave(center, reach * 0.6, Color3.fromRGB(170, 120, 255))
+			Fx.shake(center, 2.5, 800)
+			TerrainScars.crater(Placement.ground(center), 22 * scale, nil, 60)
+			Destruction.blast(Placement.ground(center), 60 * scale, 200, true)
 			for _, a in Actors.near(center, reach * 0.6) do
 				local away = a.root.Position - center
 				Combat.push(a, (if away.Magnitude > 0.1 then away.Unit else Vector3.yAxis) * 90 + Vector3.new(0, 30, 0))
@@ -15377,6 +15445,23 @@ function Ground.volcano(ctx: any): any
 	b:light(lava, Color3.fromRGB(255, 120, 40), 60, 3)
 	local top = lava.Position
 	Fx.shake(center, 1, 300)
+	Fx.near(nil, nil, "toast", { t = "🌋 ERUPÇÃO VULCÂNICA!", c = Color3.fromRGB(255, 140, 60) })
+	-- rios de lava escorrendo pelas encostas (queimam quem pisa)
+	local rivers = Kit.new("RiosDeLava", ctx.origin, { anchored = true, collide = false, scale = scale })
+	for k = 0, 4 do
+		local a = k / 5 * math.pi * 2 + 0.2
+		for seg = 0, 5 do
+			local r = 10 + seg * 7
+			local y = math.max(24 - seg * 4.6, 0.3)
+			local part = rivers:part("ball", Vector3.new(3.2 + seg * 0.5, 0.8, 8), CFrame.new(math.cos(a) * r, y, math.sin(a) * r) * CFrame.Angles(0, -a - math.pi / 2, 0), Color3.fromRGB(255, 100 + seg * 10, 20), { role = "fixed", material = Enum.Material.Neon })
+			if seg == 5 then
+				rivers:light(part, Color3.fromRGB(255, 120, 40), 18, 1.5)
+			end
+		end
+	end
+	rivers:finish().Parent = ctx.folder
+	local riverHazard = hazard(ctx, center, 48 * scale, "lava", 6, 26)
+	local _ = riverHazard
 	local stop = loop(ctx, 26, 0.5, function()
 		-- bombas de lava
 		local target = Placement.ground(center + Vector3.new(ctx.rng:range(-70, 70), 0, ctx.rng:range(-70, 70)))
@@ -15648,6 +15733,32 @@ function Impact.meteor(ctx: any): any
 		end)
 	end
 	local last = t0 + n * 1.2 + 3
+	-- chuva de meteoros termina com UM meteoro gigante (o "grande final")
+	if n >= 5 then
+		local bigTarget = Placement.ground(center)
+		local bigStart = last - 1
+		local bigR = radius * 2.6
+		local bigFrom = bigTarget + Vector3.new(ctx.rng:range(-80, 80), 420, ctx.rng:range(-80, 80))
+		meteorFolder(ctx.folder, bigFrom, bigTarget, bigStart, 3.4, bigR, element, 99)
+		Fx.near(nil, nil, "toast", { t = "☄️ METEORO GIGANTE A CAMINHO!", c = Color3.fromRGB(255, 160, 80) })
+		Fx.near(bigTarget, 1500, "warn", { p = bigTarget, r = bigR * 1.5, d = bigStart - now() + 3.4 })
+		task.delay(bigStart - now() + 3.4, function()
+			if not ctx.folder.Parent then
+				return
+			end
+			Fx.flash(bigTarget, (Kit.Elements[element] or Kit.Elements.fire).color, bigR * 3)
+			Fx.shockwave(bigTarget, bigR * 3, Color3.fromRGB(255, 160, 80))
+			Fx.shake(bigTarget, 3, 900)
+			Fx.near(bigTarget, 2500, "boom", { p = bigTarget, s = scale * 3 })
+			Fx.near(bigTarget, 2500, "nuke", { p = bigTarget, s = 2.2 })
+			Combat.area(bigTarget, bigR * 2, 120 * scale, nil, element, 140)
+			Destruction.blast(bigTarget, bigR * 3, 250, true)
+			crater(ctx, bigTarget, bigR, element)
+			local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+			TerrainScars.crater(bigTarget, bigR * 1.1, element, 70)
+		end)
+		last += 5
+	end
 	return {
 		position = center,
 		radius = 50,
@@ -15755,10 +15866,34 @@ function Impact.explosion(ctx: any): any
 			PropActions.explode(pos, power, nil)
 			if power >= 1.5 then
 				local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
-				TerrainScars.crater(pos - Vector3.new(0, 2, 0), math.min(5 * power, 40), element, 50)
+				TerrainScars.crater(pos - Vector3.new(0, 2, 0), math.min(8 * power, 48), element, 60)
 			end
 			if power >= 3 then
-				Fx.near(pos, 2000, "nuke", { p = pos, s = power })
+				Fx.near(pos, 3000, "nuke", { p = pos, s = power })
+				Fx.shake(pos, 4, 1200)
+				-- onda de choque que empurra tudo e derruba o mapa destrutível em anel
+				for ring = 1, 4 do
+					task.delay(ring * 0.35, function()
+						if ctx.folder.Parent then
+							Destruction.blast(pos, 30 * power * ring, 180, true)
+							Combat.area(pos, 24 * power * ring, 30, nil, "fire", 90)
+						end
+					end)
+				end
+				-- chão queimado ao redor
+				local burnt = Kit.new("ChaoQueimado", CFrame.new(pos), { anchored = true, collide = false })
+				for k = 0, 11 do
+					local a = k / 12 * math.pi * 2
+					local r = ctx.rng:range(14, 30) * power
+					burnt:part("cyl", Vector3.new(0.3, ctx.rng:range(8, 16), ctx.rng:range(8, 16)), CFrame.new(math.cos(a) * r, -1.6, math.sin(a) * r) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(25, 20, 18), { role = "fixed", material = Enum.Material.Basalt })
+				end
+				local bm = burnt:finish()
+				bm.Parent = ctx.folder
+				task.delay(45, function()
+					if bm.Parent then
+						bm:Destroy()
+					end
+				end)
 			end
 		end
 	end)
@@ -20536,6 +20671,11 @@ BUILD.black_hole = function(folder, spec, model, _color)
 	for i = 1, 24 do
 		table.insert(rocks, { part = newPart(model, { Size = Vector3.new(1, 1, 1) * (0.8 + (i % 4) * 0.5), Color = Color3.fromRGB(90, 80, 75), Material = Enum.Material.Slate }), phase = i * 0.7, life = (i % 6) / 6 })
 	end
+	-- jatos de energia saindo dos polos (como os de um quasar)
+	local jets = {}
+	for _, dir in { 1, -1 } do
+		table.insert(jets, { part = newPart(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 1, 1), Color = Color3.fromRGB(190, 150, 255), Material = Enum.Material.Neon, Transparency = 0.35 }), dir = dir })
+	end
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "IdeiasBuracoNegro"
 	cc.Parent = game:GetService("Lighting")
@@ -20570,6 +20710,11 @@ BUILD.black_hole = function(folder, spec, model, _color)
 		local tilt = CFrame.new(c) * CFrame.Angles(math.rad(14), 0, math.rad(8))
 		for _, dsk in disks do
 			placeRing(dsk.parts, tilt, r * dsk.r, t * dsk.speed)
+		end
+		for _, j in jets do
+			local len = r * 9 * (0.85 + 0.15 * math.sin(t * 5))
+			j.part.Size = Vector3.new(len, r * 0.55, r * 0.55)
+			j.part.CFrame = tilt * CFrame.new(0, j.dir * len / 2, 0) * CFrame.Angles(0, 0, math.rad(90))
 		end
 		-- anel de fótons sempre de frente para a câmera
 		local cam = Workspace.CurrentCamera
@@ -20809,13 +20954,16 @@ local function sound(id: string, at: Vector3, volume: number?)
 	local s = Instance.new("Sound")
 	s.SoundId = id
 	s.Volume = volume or 0.7
-	s.RollOffMaxDistance = 400
+	s.RollOffMode = Enum.RollOffMode.InverseTapered
+	s.RollOffMinDistance = 35
+	s.RollOffMaxDistance = 600
 	s.Parent = p
 	s:Play()
 	Debris:AddItem(p, 5)
 end
 
 local spriteState = "unknown" -- unknown | loading | ok | failed | off
+local announced = false
 
 -- confere se o áudio do ElevenLabs carregou de verdade (aprovado na moderação e com
 -- duração). Enquanto não, os sons embutidos do Roblox são usados.
@@ -20844,6 +20992,14 @@ function Effects.checkSprite()
 		spriteState = if probe.IsLoaded and probe.TimeLength > 1 then "ok" else "failed"
 		if spriteState == "failed" then
 			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação/permissão): usando sons do Roblox")
+		end
+		if not announced and hud and hud.toast then
+			announced = true
+			if spriteState == "ok" then
+				hud.toast("🔊 Sons do jogo carregados!", Color3.fromRGB(110, 235, 150))
+			else
+				hud.toast("🔊 Áudio novo em análise no Roblox: tocando sons padrão por enquanto", Color3.fromRGB(255, 200, 90))
+			end
 		end
 		probe:Destroy()
 	end)
@@ -20876,7 +21032,9 @@ local function cue(name: string, at: Vector3?, volume: number?)
 	end
 	s.Volume = (volume or 1) * (c.volume or 0.7)
 	s.PlaybackSpeed = c.speed or 1
-	s.RollOffMaxDistance = 450
+	s.RollOffMode = Enum.RollOffMode.InverseTapered
+	s.RollOffMinDistance = 35
+	s.RollOffMaxDistance = 700
 	if at then
 		local holder = part({ Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(at), Transparency = 1 })
 		s.Parent = holder
@@ -21037,6 +21195,7 @@ H.spawn = function(d)
 	if d.big then
 		local evil = d.c and d.c.R > 0.8 and d.c.G < 0.5
 		local col = if evil then Color3.fromRGB(255, 50, 40) else Color3.fromRGB(255, 230, 140)
+		cue(if evil then "demon_spawn" else "hero_spawn", nil, 1)
 		ring(d.p, 26 * (d.s or 1), col, 1.4)
 		for i = 1, 3 do
 			task.delay(i * 0.18, function()
@@ -21143,6 +21302,7 @@ H.nuke = function(d)
 	local base = d.p
 	-- clarão que cega e som profundo
 	tint(Color3.fromRGB(255, 250, 235), 0.9)
+	cue("mega_impact", nil, 1)
 	cue("explosion", base, 1)
 	task.delay(0.25, function()
 		cue("rumble", base, 1)
@@ -21442,7 +21602,7 @@ H.cutscene = function(d)
 			tween(s2, 0.4, { Transparency = 0 })
 		end
 	end)
-	cue(if d.evil then "roar" elseif disaster then "rumble" else "create", nil, 1)
+	cue(if d.evil then "demon_spawn" elseif disaster then "rumble" else "hero_spawn", nil, 1)
 	local old = cam.CFrame
 	local oldType = cam.CameraType
 	cam.CameraType = Enum.CameraType.Scriptable
@@ -21537,6 +21697,43 @@ local function debrisBurst(at: Vector3, n: number, size: number, color: Color3)
 end
 Effects.debrisBurst = debrisBurst
 
+-- BURACO NEGRO: aviso (céu escurece, pedras sobem) e colapso final ---------------------
+H.bh_warn = function(d)
+	tint(Color3.fromRGB(120, 90, 180), d.d or 1.5)
+	cue("rumble", d.p, 1)
+	for i = 1, 24 do
+		task.delay(math.random() * (d.d or 1.5), function()
+			local at = d.p + Vector3.new(math.random(-80, 80), -30 + math.random(0, 10), math.random(-80, 80))
+			local rock = part({ Size = Vector3.new(1, 1, 1) * (0.8 + math.random() * 2), CFrame = CFrame.new(at) * CFrame.Angles(math.random() * 6, math.random() * 6, 0), Color = Color3.fromRGB(90, 85, 80), Material = Enum.Material.Slate })
+			tween(rock, 2.5 + math.random(), { CFrame = CFrame.new(d.p) * CFrame.Angles(math.random() * 6, 0, 0), Size = Vector3.new(0.1, 0.1, 0.1) }, Enum.EasingStyle.Quad)
+			Debris:AddItem(rock, 3.6)
+		end)
+	end
+end
+
+H.bh_collapse = function(d)
+	local s = d.s or 1
+	tint(Color3.fromRGB(230, 200, 255), 1.2)
+	cue("mega_impact", nil, 1)
+	cue("thunder", d.p, 1)
+	local core = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(30, 30, 30) * s, CFrame = CFrame.new(d.p), Color = Color3.fromRGB(255, 255, 255), Transparency = 0 })
+	tween(core, 0.35, { Size = Vector3.new(2, 2, 2) })
+	task.delay(0.35, function()
+		tween(core, 1.4, { Size = Vector3.new(260, 260, 260) * s, Transparency = 1, Color = Color3.fromRGB(180, 120, 255) })
+	end)
+	Debris:AddItem(core, 2)
+	for k = 1, 3 do
+		task.delay(0.35 + k * 0.12, function()
+			local ringP = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.5, 6, 6), CFrame = CFrame.new(d.p) * CFrame.Angles(math.random() * 3, math.random() * 3, math.rad(90)), Color = Color3.fromRGB(200, 160, 255), Transparency = 0.2 })
+			tween(ringP, 1.6, { Size = Vector3.new(1.5, 400 * s, 400 * s), Transparency = 1 })
+			Debris:AddItem(ringP, 1.7)
+		end)
+	end
+	burst(d.p, TEX_SPARK, { Color3.fromRGB(230, 200, 255), Color3.new(1, 1, 1) }, 120, 80, 2.5, 2.5)
+	debrisBurst(d.p, 30, 2, Color3.fromRGB(70, 60, 80))
+	shake(3)
+end
+
 function Effects.handle(data: any)
 	if type(data) ~= "table" then
 		return
@@ -21554,6 +21751,20 @@ function Effects.init(hudModule: any, movementModule: any)
 	hud = hudModule
 	movement = movementModule
 	task.delay(3, Effects.checkSprite)
+	task.spawn(function()
+		local seen, list = {}, {}
+		for _, c in Config.SoundCues do
+			if c.fallback and not seen[c.fallback] then
+				seen[c.fallback] = true
+				local snd = Instance.new("Sound")
+				snd.SoundId = c.fallback
+				table.insert(list, snd)
+			end
+		end
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync(list)
+		end)
+	end)
 	folder = Instance.new("Folder")
 	folder.Name = "EfeitosLocais"
 	folder.Parent = Workspace.CurrentCamera or Workspace
@@ -22073,6 +22284,14 @@ local content: ScrollingFrame
 local title: TextLabel
 local current: string? = nil
 local selectedCategory = "creature"
+local dockLabels: { [string]: TextLabel } = {}
+
+-- nome do azulejo da aba aberta fica dourado
+local function markDock()
+	for id, lbl in dockLabels do
+		lbl.TextColor3 = if id == current then Theme.Colors.gold else Theme.Colors.text
+	end
+end
 
 local COMBOS = {
 	"dragão de gelo gigante",
@@ -22198,6 +22417,12 @@ TABS.ideias = function()
 	}, { new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for i, c in cats do
 		local b = Theme.button({ Text = c.info.icon .. " " .. c.info.label, TextSize = 14, Size = UDim2.fromOffset(130, 34), LayoutOrder = i, BackgroundColor3 = if c.id == selectedCategory then C.accent2 else C.bg2, Parent = strip })
+		local ic = Theme.icon(c.id, 26, b)
+		if ic then
+			ic.AnchorPoint = Vector2.new(0, 0.5)
+			ic.Position = UDim2.new(0, 6, 0.5, 0)
+			b.Text = "     " .. c.info.label
+		end
 		b.Activated:Connect(function()
 			selectedCategory = c.id
 			Drawer.show("ideias")
@@ -22383,6 +22608,7 @@ function Drawer.show(tab: string?)
 	clear()
 	order = 0
 	title.Text = TITLES[tab] or tab
+	markDock()
 	local f = TABS[tab]
 	if f then
 		f()
@@ -22390,12 +22616,13 @@ function Drawer.show(tab: string?)
 	if not panel.Visible then
 		panel.Visible = true
 		panel.Position = UDim2.new(0, -360, 0.5, 0)
-		Theme.tween(panel, 0.28, { Position = UDim2.new(0, 70, 0.5, 0) }, Enum.EasingStyle.Quint)
+		Theme.tween(panel, 0.28, { Position = UDim2.new(0, 178, 0.5, 0) }, Enum.EasingStyle.Quint)
 	end
 end
 
 function Drawer.hide()
 	current = nil
+	markDock()
 	local tw = Theme.tween(panel, 0.22, { Position = UDim2.new(0, -360, 0.5, 0) })
 	tw.Completed:Once(function()
 		if not current then
@@ -22404,44 +22631,64 @@ function Drawer.hide()
 	end)
 end
 
+local sparksLabel: TextLabel? = nil
+
 function Drawer.refresh()
+	if sparksLabel and Drawer.profile then
+		local n = Drawer.profile.sparks or 0
+		local txt = tostring(n):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
+		sparksLabel.Text = "✨ " .. txt
+		Theme.pop(sparksLabel)
+	end
 	if current and panel.Visible then
 		Drawer.show(current)
 	end
 end
 
 function Drawer.build(gui: ScreenGui)
+	-- coluna de azulejos com o nome ao lado (estilo da referência)
 	local dock = new("Frame", {
 		Name = "Dock",
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 10, 0.42, 0),
-		Size = UDim2.fromOffset(50, 0),
+		Position = UDim2.new(0, 10, 0.45, 0),
+		Size = UDim2.fromOffset(160, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = gui,
-	}, { new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+	}, { new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	local buttons = {
-		{ "ideias", "💡" },
-		{ "historico", "🕘" },
-		{ "favoritos", "⭐" },
-		{ "progresso", "🏆" },
-		{ "loja", "🛍️" },
-		{ "ajustes", "⚙️" },
+		{ "ideias", "💡", "Ideias" },
+		{ "historico", "🕘", "Histórico" },
+		{ "favoritos", "⭐", "Favoritos" },
+		{ "progresso", "🏆", "Progresso" },
+		{ "loja", "🛍️", "Loja" },
+		{ "ajustes", "⚙️", "Ajustes" },
 	}
 	for i, bdef in buttons do
-		local b = Theme.button({
-			Text = bdef[2],
-			TextSize = 22,
-			Size = UDim2.fromOffset(48, 48),
+		local b = new("TextButton", {
+			Name = bdef[1],
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(160, 50),
 			LayoutOrder = i,
-			BackgroundColor3 = C.bg,
-			BackgroundTransparency = 0.15,
 			Parent = dock,
 		})
-		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
-		Theme.stroke(C.accent, 1.5, 0.55).Parent = b
+		local tile = Theme.tile(bdef[1], bdef[2], 50, b)
+		local lbl = Theme.label({
+			Name = "Nome",
+			Text = bdef[3],
+			TextSize = 19,
+			FontFace = Theme.FontHeavy,
+			TextWrapped = false,
+			Position = UDim2.fromOffset(58, 0),
+			Size = UDim2.new(1, -58, 1, 0),
+			Parent = b,
+		})
+		Theme.outlined(lbl, 2.2)
+		dockLabels[bdef[1]] = lbl
+		Theme.pressable(b, tile)
 		b.Activated:Connect(function()
-			Hud.sound("Click")
 			if current == bdef[1] then
 				Drawer.hide()
 			else
@@ -22450,21 +22697,36 @@ function Drawer.build(gui: ScreenGui)
 		end)
 	end
 
+	-- contador de faíscas dourado, embaixo da coluna (como as moedas da referência)
+	sparksLabel = Theme.label({
+		Name = "Faiscas",
+		Text = "✨ 0",
+		TextSize = 24,
+		FontFace = Theme.FontHeavy,
+		TextColor3 = Theme.Colors.gold,
+		TextWrapped = false,
+		Size = UDim2.fromOffset(160, 34),
+		LayoutOrder = 99,
+		Parent = dock,
+	})
+	Theme.outlined(sparksLabel :: TextLabel, 2.5)
+
 	panel = new("Frame", {
 		Name = "Painel",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, -360, 0.5, 0),
 		Size = UDim2.new(0, 340, 0.72, 0),
-		BackgroundColor3 = C.panel,
-		BackgroundTransparency = 0.06,
+		BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+		BackgroundTransparency = 0.04,
 		Visible = false,
 		Parent = gui,
 	}, {
-		Theme.corner(16),
-		Theme.stroke(C.accent2, 1.5, 0.4),
+		Theme.corner(18),
+		Theme.stroke(Theme.Ink, 3, 0),
 		new("UISizeConstraint", { MaxSize = Vector2.new(360, 520), MinSize = Vector2.new(260, 220) }),
 	})
-	title = Theme.label({ Text = "", TextSize = 20, FontFace = Theme.FontHeavy, Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -60, 0, 30), Parent = panel })
+	title = Theme.label({ Text = "", TextSize = 21, FontFace = Theme.FontHeavy, Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -60, 0, 30), Parent = panel })
+	Theme.outlined(title, 2)
 	local close = Theme.button({ Text = "✕", TextSize = 18, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(32, 32), Parent = panel })
 	close.Activated:Connect(Drawer.hide)
 	content = new("ScrollingFrame", {
@@ -22598,12 +22860,12 @@ function Hud.build(parent: Instance): ScreenGui
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
 		Size = UDim2.new(0.58, 0, 0, 52),
-		BackgroundColor3 = C.bg,
-		BackgroundTransparency = 0.12,
+		BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+		BackgroundTransparency = 0.06,
 		Parent = gui,
 	}, {
 		Theme.corner(26),
-		Theme.stroke(C.accent, 2, 0.45),
+		Theme.stroke(Theme.Ink, 3, 0),
 		new("UISizeConstraint", { MinSize = Vector2.new(300, 52), MaxSize = Vector2.new(620, 52) }),
 	})
 	local icon = Theme.label({
@@ -22613,7 +22875,9 @@ function Hud.build(parent: Instance): ScreenGui
 		Size = UDim2.fromOffset(44, 52),
 		Parent = bar,
 	})
-	local _ = icon
+	if Theme.icon("ideias", 40, icon) then
+		icon.Text = ""
+	end
 	box = new("TextBox", {
 		Name = "Texto",
 		BackgroundTransparency = 1,
@@ -22636,16 +22900,23 @@ function Hud.build(parent: Instance): ScreenGui
 		Position = UDim2.new(1, -6, 0.5, 0),
 		Size = UDim2.fromOffset(116, 40),
 		Text = "CRIAR",
-		TextSize = 19,
+		TextSize = 21,
 		FontFace = Theme.FontHeavy,
-		BackgroundColor3 = C.accent,
-		TextColor3 = Color3.fromRGB(10, 20, 35),
+		BackgroundColor3 = Theme.TileColors.ideias,
+		TextColor3 = Color3.new(1, 1, 1),
 		ClipsDescendants = true,
 		Parent = bar,
 	})
 	createBtn.Parent = bar
-	new("UICorner", { CornerRadius = UDim.new(0, 20), Parent = createBtn })
-	Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(190, 130, 255), 0).Parent = createBtn
+	new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = createBtn })
+	-- botão estilo azulejo: contorno escuro grosso e texto branco com borda preta
+	local border = createBtn:FindFirstChildOfClass("UIStroke")
+	if border then
+		border.Color = Theme.Ink
+		border.Thickness = 3
+		border.Transparency = 0
+	end
+	Theme.outlined(createBtn, 2.2)
 	cooldownFill = new("Frame", {
 		Name = "Recarga",
 		BackgroundColor3 = Color3.new(0, 0, 0),
@@ -22655,24 +22926,10 @@ function Hud.build(parent: Instance): ScreenGui
 		Parent = createBtn,
 	}, { Theme.corner(20) })
 
-	-- borda arco-íris girando na barra e botão CRIAR pulsando quando pronto
-	local glowStroke = bar:FindFirstChildOfClass("UIStroke")
-	if glowStroke then
-		glowStroke.Transparency = 0.1
-		glowStroke.Thickness = 2.5
-		glowStroke.Color = Color3.new(1, 1, 1)
-		local rainbow = new("UIGradient", {
-			Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 230, 255)),
-				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(190, 130, 255)),
-				ColorSequenceKeypoint.new(0.66, Color3.fromRGB(255, 120, 200)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 230, 255)),
-			}),
-			Parent = glowStroke,
-		})
+	-- botão CRIAR pulsando quando pronto
+	do
 		task.spawn(function()
-			while rainbow.Parent do
-				rainbow.Rotation = (rainbow.Rotation + 2) % 360
+			while createBtn.Parent do
 				local ready = os.clock() >= cooldownUntil
 				local k = 1 + (if ready then math.sin(os.clock() * 4) * 0.035 else 0)
 				local sc = createBtn:FindFirstChild("Pulso") :: UIScale?
@@ -23199,6 +23456,7 @@ function Theme.button(props: { [string]: any }): TextButton
 		Theme.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
 	end)
 	b.Activated:Connect(function()
+		Theme.clickPop(b)
 		if Theme.onClick then
 			Theme.onClick()
 		end
@@ -23208,6 +23466,148 @@ end
 
 -- definido pela HUD: toca o som de clique em todos os botões
 Theme.onClick = nil :: (() -> ())?
+
+local Config = require(game:GetService("ReplicatedStorage").IdeiasShared.Config)
+
+-- Ícone recortado da folha do Canva. Sem a imagem enviada, devolve nil (usa emoji).
+function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
+	local id = Config.UiImages and Config.UiImages.Icons or 0
+	local cell = Config.IconSheet.Cells[name]
+	if id == 0 or cell == nil then
+		return nil
+	end
+	local c = Config.IconSheet.Cell
+	local col = cell % Config.IconSheet.Columns
+	local row = cell // Config.IconSheet.Columns
+	local img = Instance.new("ImageLabel")
+	img.BackgroundTransparency = 1
+	img.Image = "rbxassetid://" .. tostring(id)
+	img.ImageRectOffset = Vector2.new(col * c, row * c)
+	img.ImageRectSize = Vector2.new(c, c)
+	img.AnchorPoint = Vector2.new(0.5, 0.5)
+	img.Position = UDim2.fromScale(0.5, 0.5)
+	img.Size = UDim2.fromOffset(size, size)
+	img.ScaleType = Enum.ScaleType.Fit
+	img.ZIndex = (parent :: any).ZIndex + 1
+	img.Parent = parent
+	return img
+end
+
+-- Estilo da referência: contorno quase preto, texto branco grosso com borda preta
+Theme.Ink = Color3.fromRGB(27, 18, 14)
+
+function Theme.outlined(label: GuiObject, thickness: number?): UIStroke
+	local st = Instance.new("UIStroke")
+	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	st.Color = Color3.new(0, 0, 0)
+	st.Thickness = thickness or 2
+	st.Parent = label
+	return st
+end
+
+-- cores dos azulejos (as mesmas da folha de ícones desenhada à mão)
+Theme.TileColors = {
+	ideias = Color3.fromRGB(247, 179, 43),
+	favoritos = Color3.fromRGB(236, 79, 122),
+	historico = Color3.fromRGB(76, 141, 240),
+	progresso = Color3.fromRGB(242, 138, 34),
+	loja = Color3.fromRGB(163, 93, 224),
+	ajustes = Color3.fromRGB(111, 125, 153),
+	creature = Color3.fromRGB(66, 185, 91),
+	disaster = Color3.fromRGB(229, 72, 58),
+	vehicle = Color3.fromRGB(34, 183, 199),
+	building = Color3.fromRGB(124, 108, 240),
+	food = Color3.fromRGB(140, 198, 63),
+	power = Color3.fromRGB(210, 76, 217),
+}
+
+-- Azulejo quadrado: arte da folha de ícones; sem a folha enviada, monta um
+-- azulejo parecido só com interface (cor + contorno escuro + emoji).
+function Theme.tile(name: string, emoji: string, size: number, parent: Instance): Frame
+	local holder = Instance.new("Frame")
+	holder.Name = "Azulejo"
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromOffset(size, size)
+	holder.Parent = parent
+	if Theme.icon(name, size, holder) then
+		return holder
+	end
+	local face = Instance.new("Frame")
+	face.BackgroundColor3 = Theme.TileColors[name] or Theme.Colors.bg2
+	face.Size = UDim2.fromScale(1, 1)
+	face.Parent = holder
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.22, 0)
+	corner.Parent = face
+	local st = Instance.new("UIStroke")
+	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	st.Color = Theme.Ink
+	st.Thickness = 3
+	st.Parent = face
+	local grad = Instance.new("UIGradient")
+	grad.Rotation = 90
+	grad.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185))
+	grad.Parent = face
+	local e = Instance.new("TextLabel")
+	e.BackgroundTransparency = 1
+	e.Size = UDim2.fromScale(1, 1)
+	e.Text = emoji
+	e.TextScaled = true
+	e.FontFace = Theme.FontBold
+	e.TextColor3 = Color3.new(1, 1, 1)
+	e.Parent = face
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0.16, 0)
+	pad.PaddingRight = UDim.new(0.16, 0)
+	pad.PaddingTop = UDim.new(0.16, 0)
+	pad.PaddingBottom = UDim.new(0.16, 0)
+	pad.Parent = e
+	return holder
+end
+
+-- aperto com "pulo" (Back), anel de luz no alvo e som de clique
+function Theme.pressable(b: GuiButton, popTarget: GuiObject?)
+	local scale = Instance.new("UIScale")
+	scale.Name = "Aperto"
+	scale.Parent = b
+	b.MouseButton1Down:Connect(function()
+		Theme.tween(scale, 0.07, { Scale = 0.9 })
+	end)
+	b.MouseButton1Up:Connect(function()
+		Theme.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	end)
+	b.MouseLeave:Connect(function()
+		Theme.tween(scale, 0.15, { Scale = 1 })
+	end)
+	b.Activated:Connect(function()
+		Theme.clickPop(popTarget or b)
+		if Theme.onClick then
+			Theme.onClick()
+		end
+	end)
+end
+
+-- anel de luz que cresce e some a partir do botão apertado
+function Theme.clickPop(b: GuiObject)
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.fromScale(0.5, 0.5)
+	ring.Size = UDim2.fromScale(0.9, 0.9)
+	ring.BackgroundTransparency = 1
+	ring.ZIndex = b.ZIndex + 3
+	ring.Parent = b
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.5, 0)
+	corner.Parent = ring
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(150, 240, 255)
+	st.Thickness = 3
+	st.Transparency = 0
+	st.Parent = ring
+	Theme.tween(ring, 0.4, { Size = UDim2.fromScale(1.6, 1.6) })
+	Theme.tween(st, 0.4, { Transparency = 1, Thickness = 0.5 })
+	game:GetService("Debris"):AddItem(ring, 0.45)
+end
 
 function Theme.tween(inst: Instance, t: number, goals: { [string]: any }, style: Enum.EasingStyle?, dir: Enum.EasingDirection?): Tween
 	local tw = TweenService:Create(inst, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), goals)

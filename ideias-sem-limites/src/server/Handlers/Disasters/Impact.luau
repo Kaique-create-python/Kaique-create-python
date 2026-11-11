@@ -119,6 +119,32 @@ function Impact.meteor(ctx: any): any
 		end)
 	end
 	local last = t0 + n * 1.2 + 3
+	-- chuva de meteoros termina com UM meteoro gigante (o "grande final")
+	if n >= 5 then
+		local bigTarget = Placement.ground(center)
+		local bigStart = last - 1
+		local bigR = radius * 2.6
+		local bigFrom = bigTarget + Vector3.new(ctx.rng:range(-80, 80), 420, ctx.rng:range(-80, 80))
+		meteorFolder(ctx.folder, bigFrom, bigTarget, bigStart, 3.4, bigR, element, 99)
+		Fx.near(nil, nil, "toast", { t = "☄️ METEORO GIGANTE A CAMINHO!", c = Color3.fromRGB(255, 160, 80) })
+		Fx.near(bigTarget, 1500, "warn", { p = bigTarget, r = bigR * 1.5, d = bigStart - now() + 3.4 })
+		task.delay(bigStart - now() + 3.4, function()
+			if not ctx.folder.Parent then
+				return
+			end
+			Fx.flash(bigTarget, (Kit.Elements[element] or Kit.Elements.fire).color, bigR * 3)
+			Fx.shockwave(bigTarget, bigR * 3, Color3.fromRGB(255, 160, 80))
+			Fx.shake(bigTarget, 3, 900)
+			Fx.near(bigTarget, 2500, "boom", { p = bigTarget, s = scale * 3 })
+			Fx.near(bigTarget, 2500, "nuke", { p = bigTarget, s = 2.2 })
+			Combat.area(bigTarget, bigR * 2, 120 * scale, nil, element, 140)
+			Destruction.blast(bigTarget, bigR * 3, 250, true)
+			crater(ctx, bigTarget, bigR, element)
+			local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
+			TerrainScars.crater(bigTarget, bigR * 1.1, element, 70)
+		end)
+		last += 5
+	end
 	return {
 		position = center,
 		radius = 50,
@@ -226,10 +252,34 @@ function Impact.explosion(ctx: any): any
 			PropActions.explode(pos, power, nil)
 			if power >= 1.5 then
 				local TerrainScars = require(script.Parent.Parent.Parent.Core.TerrainScars)
-				TerrainScars.crater(pos - Vector3.new(0, 2, 0), math.min(5 * power, 40), element, 50)
+				TerrainScars.crater(pos - Vector3.new(0, 2, 0), math.min(8 * power, 48), element, 60)
 			end
 			if power >= 3 then
-				Fx.near(pos, 2000, "nuke", { p = pos, s = power })
+				Fx.near(pos, 3000, "nuke", { p = pos, s = power })
+				Fx.shake(pos, 4, 1200)
+				-- onda de choque que empurra tudo e derruba o mapa destrutível em anel
+				for ring = 1, 4 do
+					task.delay(ring * 0.35, function()
+						if ctx.folder.Parent then
+							Destruction.blast(pos, 30 * power * ring, 180, true)
+							Combat.area(pos, 24 * power * ring, 30, nil, "fire", 90)
+						end
+					end)
+				end
+				-- chão queimado ao redor
+				local burnt = Kit.new("ChaoQueimado", CFrame.new(pos), { anchored = true, collide = false })
+				for k = 0, 11 do
+					local a = k / 12 * math.pi * 2
+					local r = ctx.rng:range(14, 30) * power
+					burnt:part("cyl", Vector3.new(0.3, ctx.rng:range(8, 16), ctx.rng:range(8, 16)), CFrame.new(math.cos(a) * r, -1.6, math.sin(a) * r) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(25, 20, 18), { role = "fixed", material = Enum.Material.Basalt })
+				end
+				local bm = burnt:finish()
+				bm.Parent = ctx.folder
+				task.delay(45, function()
+					if bm.Parent then
+						bm:Destroy()
+					end
+				end)
 			end
 		end
 	end)

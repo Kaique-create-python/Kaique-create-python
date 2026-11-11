@@ -95,6 +95,23 @@ function Ground.volcano(ctx: any): any
 	b:light(lava, Color3.fromRGB(255, 120, 40), 60, 3)
 	local top = lava.Position
 	Fx.shake(center, 1, 300)
+	Fx.near(nil, nil, "toast", { t = "🌋 ERUPÇÃO VULCÂNICA!", c = Color3.fromRGB(255, 140, 60) })
+	-- rios de lava escorrendo pelas encostas (queimam quem pisa)
+	local rivers = Kit.new("RiosDeLava", ctx.origin, { anchored = true, collide = false, scale = scale })
+	for k = 0, 4 do
+		local a = k / 5 * math.pi * 2 + 0.2
+		for seg = 0, 5 do
+			local r = 10 + seg * 7
+			local y = math.max(24 - seg * 4.6, 0.3)
+			local part = rivers:part("ball", Vector3.new(3.2 + seg * 0.5, 0.8, 8), CFrame.new(math.cos(a) * r, y, math.sin(a) * r) * CFrame.Angles(0, -a - math.pi / 2, 0), Color3.fromRGB(255, 100 + seg * 10, 20), { role = "fixed", material = Enum.Material.Neon })
+			if seg == 5 then
+				rivers:light(part, Color3.fromRGB(255, 120, 40), 18, 1.5)
+			end
+		end
+	end
+	rivers:finish().Parent = ctx.folder
+	local riverHazard = hazard(ctx, center, 48 * scale, "lava", 6, 26)
+	local _ = riverHazard
 	local stop = loop(ctx, 26, 0.5, function()
 		-- bombas de lava
 		local target = Placement.ground(center + Vector3.new(ctx.rng:range(-70, 70), 0, ctx.rng:range(-70, 70)))

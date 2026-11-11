@@ -25,6 +25,14 @@ local content: ScrollingFrame
 local title: TextLabel
 local current: string? = nil
 local selectedCategory = "creature"
+local dockLabels: { [string]: TextLabel } = {}
+
+-- nome do azulejo da aba aberta fica dourado
+local function markDock()
+	for id, lbl in dockLabels do
+		lbl.TextColor3 = if id == current then Theme.Colors.gold else Theme.Colors.text
+	end
+end
 
 local COMBOS = {
 	"dragão de gelo gigante",
@@ -150,6 +158,12 @@ TABS.ideias = function()
 	}, { new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for i, c in cats do
 		local b = Theme.button({ Text = c.info.icon .. " " .. c.info.label, TextSize = 14, Size = UDim2.fromOffset(130, 34), LayoutOrder = i, BackgroundColor3 = if c.id == selectedCategory then C.accent2 else C.bg2, Parent = strip })
+		local ic = Theme.icon(c.id, 26, b)
+		if ic then
+			ic.AnchorPoint = Vector2.new(0, 0.5)
+			ic.Position = UDim2.new(0, 6, 0.5, 0)
+			b.Text = "     " .. c.info.label
+		end
 		b.Activated:Connect(function()
 			selectedCategory = c.id
 			Drawer.show("ideias")
@@ -335,6 +349,7 @@ function Drawer.show(tab: string?)
 	clear()
 	order = 0
 	title.Text = TITLES[tab] or tab
+	markDock()
 	local f = TABS[tab]
 	if f then
 		f()
@@ -342,12 +357,13 @@ function Drawer.show(tab: string?)
 	if not panel.Visible then
 		panel.Visible = true
 		panel.Position = UDim2.new(0, -360, 0.5, 0)
-		Theme.tween(panel, 0.28, { Position = UDim2.new(0, 70, 0.5, 0) }, Enum.EasingStyle.Quint)
+		Theme.tween(panel, 0.28, { Position = UDim2.new(0, 178, 0.5, 0) }, Enum.EasingStyle.Quint)
 	end
 end
 
 function Drawer.hide()
 	current = nil
+	markDock()
 	local tw = Theme.tween(panel, 0.22, { Position = UDim2.new(0, -360, 0.5, 0) })
 	tw.Completed:Once(function()
 		if not current then
@@ -356,44 +372,64 @@ function Drawer.hide()
 	end)
 end
 
+local sparksLabel: TextLabel? = nil
+
 function Drawer.refresh()
+	if sparksLabel and Drawer.profile then
+		local n = Drawer.profile.sparks or 0
+		local txt = tostring(n):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
+		sparksLabel.Text = "✨ " .. txt
+		Theme.pop(sparksLabel)
+	end
 	if current and panel.Visible then
 		Drawer.show(current)
 	end
 end
 
 function Drawer.build(gui: ScreenGui)
+	-- coluna de azulejos com o nome ao lado (estilo da referência)
 	local dock = new("Frame", {
 		Name = "Dock",
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 10, 0.42, 0),
-		Size = UDim2.fromOffset(50, 0),
+		Position = UDim2.new(0, 10, 0.45, 0),
+		Size = UDim2.fromOffset(160, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = gui,
-	}, { new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+	}, { new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	local buttons = {
-		{ "ideias", "💡" },
-		{ "historico", "🕘" },
-		{ "favoritos", "⭐" },
-		{ "progresso", "🏆" },
-		{ "loja", "🛍️" },
-		{ "ajustes", "⚙️" },
+		{ "ideias", "💡", "Ideias" },
+		{ "historico", "🕘", "Histórico" },
+		{ "favoritos", "⭐", "Favoritos" },
+		{ "progresso", "🏆", "Progresso" },
+		{ "loja", "🛍️", "Loja" },
+		{ "ajustes", "⚙️", "Ajustes" },
 	}
 	for i, bdef in buttons do
-		local b = Theme.button({
-			Text = bdef[2],
-			TextSize = 22,
-			Size = UDim2.fromOffset(48, 48),
+		local b = new("TextButton", {
+			Name = bdef[1],
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(160, 50),
 			LayoutOrder = i,
-			BackgroundColor3 = C.bg,
-			BackgroundTransparency = 0.15,
 			Parent = dock,
 		})
-		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
-		Theme.stroke(C.accent, 1.5, 0.55).Parent = b
+		local tile = Theme.tile(bdef[1], bdef[2], 50, b)
+		local lbl = Theme.label({
+			Name = "Nome",
+			Text = bdef[3],
+			TextSize = 19,
+			FontFace = Theme.FontHeavy,
+			TextWrapped = false,
+			Position = UDim2.fromOffset(58, 0),
+			Size = UDim2.new(1, -58, 1, 0),
+			Parent = b,
+		})
+		Theme.outlined(lbl, 2.2)
+		dockLabels[bdef[1]] = lbl
+		Theme.pressable(b, tile)
 		b.Activated:Connect(function()
-			Hud.sound("Click")
 			if current == bdef[1] then
 				Drawer.hide()
 			else
@@ -402,21 +438,36 @@ function Drawer.build(gui: ScreenGui)
 		end)
 	end
 
+	-- contador de faíscas dourado, embaixo da coluna (como as moedas da referência)
+	sparksLabel = Theme.label({
+		Name = "Faiscas",
+		Text = "✨ 0",
+		TextSize = 24,
+		FontFace = Theme.FontHeavy,
+		TextColor3 = Theme.Colors.gold,
+		TextWrapped = false,
+		Size = UDim2.fromOffset(160, 34),
+		LayoutOrder = 99,
+		Parent = dock,
+	})
+	Theme.outlined(sparksLabel :: TextLabel, 2.5)
+
 	panel = new("Frame", {
 		Name = "Painel",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, -360, 0.5, 0),
 		Size = UDim2.new(0, 340, 0.72, 0),
-		BackgroundColor3 = C.panel,
-		BackgroundTransparency = 0.06,
+		BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+		BackgroundTransparency = 0.04,
 		Visible = false,
 		Parent = gui,
 	}, {
-		Theme.corner(16),
-		Theme.stroke(C.accent2, 1.5, 0.4),
+		Theme.corner(18),
+		Theme.stroke(Theme.Ink, 3, 0),
 		new("UISizeConstraint", { MaxSize = Vector2.new(360, 520), MinSize = Vector2.new(260, 220) }),
 	})
-	title = Theme.label({ Text = "", TextSize = 20, FontFace = Theme.FontHeavy, Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -60, 0, 30), Parent = panel })
+	title = Theme.label({ Text = "", TextSize = 21, FontFace = Theme.FontHeavy, Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -60, 0, 30), Parent = panel })
+	Theme.outlined(title, 2)
 	local close = Theme.button({ Text = "✕", TextSize = 18, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(32, 32), Parent = panel })
 	close.Activated:Connect(Drawer.hide)
 	content = new("ScrollingFrame", {

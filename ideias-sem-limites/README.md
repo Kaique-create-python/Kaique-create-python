@@ -1,5 +1,24 @@
 # Ideias Sem Limites — V3
 
+> Outra IA vai continuar? Comece por [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md).
+
+## Novidades (V3.6)
+
+* **Interface no estilo dos jogos populares:** coluna de azulejos quadrados com contorno escuro
+  grosso e desenho detalhado (lâmpada, estrela, despertador, troféu, sacola, engrenagem...), nome
+  ao lado em branco com borda preta, contador dourado de Faíscas, barra de ideias escura e botão
+  CRIAR estilo azulejo. Ícones desenhados à mão em vetor (sem IA).
+* **Sons consertados:** o tremor do terremoto/nuke nunca tocava (estava na tabela errada);
+  16 efeitos no áudio (novos: chegada de herói, chegada de demônio e impacto gigante para nuke,
+  buraco negro e meteoro gigante); sons 3D bem mais altos de longe; aviso na tela quando o áudio
+  novo ainda está em análise no Roblox.
+* **Termux:** `bash ideias.sh verificar-sons` mostra se o Roblox já aprovou o áudio; `sons`
+  reaproveita o áudio já enviado quando o arquivo é o mesmo (não gasta a cota).
+* **Desastres ainda mais catastróficos:** buraco negro maior que suga o chão e colapsa numa
+  explosão com cratera; chuva de meteoros termina com um meteoro gigante; explosões fortes viram
+  nuke com anéis de destruição; vulcão com rios de lava.
+* **Mapa mais vivo:** cores mais saturadas, luz mais forte e reflexos.
+
 ## Novidades (V3.4)
 
 * **Cenas de cinema:** quando algo grande aparece (demônio, titã, kaiju, Jesus, buraco negro,

@@ -107,12 +107,12 @@ function Hud.build(parent: Instance): ScreenGui
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
 		Size = UDim2.new(0.58, 0, 0, 52),
-		BackgroundColor3 = C.bg,
-		BackgroundTransparency = 0.12,
+		BackgroundColor3 = Color3.fromRGB(30, 30, 38),
+		BackgroundTransparency = 0.06,
 		Parent = gui,
 	}, {
 		Theme.corner(26),
-		Theme.stroke(C.accent, 2, 0.45),
+		Theme.stroke(Theme.Ink, 3, 0),
 		new("UISizeConstraint", { MinSize = Vector2.new(300, 52), MaxSize = Vector2.new(620, 52) }),
 	})
 	local icon = Theme.label({
@@ -122,7 +122,9 @@ function Hud.build(parent: Instance): ScreenGui
 		Size = UDim2.fromOffset(44, 52),
 		Parent = bar,
 	})
-	local _ = icon
+	if Theme.icon("ideias", 40, icon) then
+		icon.Text = ""
+	end
 	box = new("TextBox", {
 		Name = "Texto",
 		BackgroundTransparency = 1,
@@ -145,16 +147,23 @@ function Hud.build(parent: Instance): ScreenGui
 		Position = UDim2.new(1, -6, 0.5, 0),
 		Size = UDim2.fromOffset(116, 40),
 		Text = "CRIAR",
-		TextSize = 19,
+		TextSize = 21,
 		FontFace = Theme.FontHeavy,
-		BackgroundColor3 = C.accent,
-		TextColor3 = Color3.fromRGB(10, 20, 35),
+		BackgroundColor3 = Theme.TileColors.ideias,
+		TextColor3 = Color3.new(1, 1, 1),
 		ClipsDescendants = true,
 		Parent = bar,
 	})
 	createBtn.Parent = bar
-	new("UICorner", { CornerRadius = UDim.new(0, 20), Parent = createBtn })
-	Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(190, 130, 255), 0).Parent = createBtn
+	new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = createBtn })
+	-- botão estilo azulejo: contorno escuro grosso e texto branco com borda preta
+	local border = createBtn:FindFirstChildOfClass("UIStroke")
+	if border then
+		border.Color = Theme.Ink
+		border.Thickness = 3
+		border.Transparency = 0
+	end
+	Theme.outlined(createBtn, 2.2)
 	cooldownFill = new("Frame", {
 		Name = "Recarga",
 		BackgroundColor3 = Color3.new(0, 0, 0),
@@ -164,24 +173,10 @@ function Hud.build(parent: Instance): ScreenGui
 		Parent = createBtn,
 	}, { Theme.corner(20) })
 
-	-- borda arco-íris girando na barra e botão CRIAR pulsando quando pronto
-	local glowStroke = bar:FindFirstChildOfClass("UIStroke")
-	if glowStroke then
-		glowStroke.Transparency = 0.1
-		glowStroke.Thickness = 2.5
-		glowStroke.Color = Color3.new(1, 1, 1)
-		local rainbow = new("UIGradient", {
-			Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 230, 255)),
-				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(190, 130, 255)),
-				ColorSequenceKeypoint.new(0.66, Color3.fromRGB(255, 120, 200)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 230, 255)),
-			}),
-			Parent = glowStroke,
-		})
+	-- botão CRIAR pulsando quando pronto
+	do
 		task.spawn(function()
-			while rainbow.Parent do
-				rainbow.Rotation = (rainbow.Rotation + 2) % 360
+			while createBtn.Parent do
 				local ready = os.clock() >= cooldownUntil
 				local k = 1 + (if ready then math.sin(os.clock() * 4) * 0.035 else 0)
 				local sc = createBtn:FindFirstChild("Pulso") :: UIScale?
