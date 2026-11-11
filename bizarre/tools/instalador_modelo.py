@@ -534,7 +534,7 @@ def mostrar_relatorio(res):
     if inf.get("quebraTeste"):
         ok("quebrar e reconstruir: %s" % inf["quebraTeste"])
     if inf.get("simplificado"):
-        ok("Morioh mais leve: %s" % inf["simplificado"])
+        ok("Morioh: %s" % inf["simplificado"])
     if inf.get("clash"):
         ok("ORA x MUDA (rajadas se anulam): %s" % inf["clash"])
     if inf.get("congelamentos"):

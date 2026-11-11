@@ -322,6 +322,13 @@ end
 function RandomFalso:NextInteger(a: number, b: number)
 	return math.floor(a + (b - a + 1) * self:proximo())
 end
+function RandomFalso:NextUnitVector()
+	-- direção ao acaso (uniforme na esfera)
+	local z = self:proximo() * 2 - 1
+	local ang = self:proximo() * math.pi * 2
+	local r = math.sqrt(math.max(0, 1 - z * z))
+	return roblox.Vector3.new(r * math.cos(ang), r * math.sin(ang), z)
+end
 
 local cache = {}
 local requireFalso
@@ -428,6 +435,16 @@ function H.moduloNovo(caminho: string)
 	local fonte = rawget(no, "fonte")
 	local fn = luau.load(fonte, { debugName = rawget(no, "caminho"), environment = ambiente(no) })
 	return fn()
+end
+
+-- texto (fonte) de um módulo, para testes que conferem o código
+function H.fonte(caminho: string): string
+	local no = arvore
+	for parte in string.gmatch(caminho, "[^/]+") do
+		no = rawget(no, "filhos")[parte]
+		assert(no, "não achei " .. caminho)
+	end
+	return rawget(no, "fonte")
 end
 
 function H.modulo(caminho: string)

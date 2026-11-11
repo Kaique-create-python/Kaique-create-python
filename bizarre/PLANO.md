@@ -9,6 +9,23 @@ fecha com o servidor confirmando, ajustes (câmera, tremor, volume, qualidade), 
 etapas reais, ORA x MUDA, seta TO BE CONTINUED, Morioh mais leve, salvamento sem duplicar e
 instalador que confere a versão no ar. Detalhes em RELATORIO_AJUSTE7.md.
 
+## Feito no AJUSTE-10 (pedido + plano do ChatGPT)
+- **Andar e correr do dono** (Rig animation walk/run do Drive): importados por
+  `tools/importar_animacoes.luau` para `AnimacoesDono.luau` e tocados direto nas juntas do R6, misturando
+  andar → correr pela velocidade. Parado continua a pose JoJo. Prévia em vídeo gerada.
+- **Stand**: fica do lado esquerdo, atrás e flutuando (segue o dono com um atraso suave); aparece saindo
+  do dono com clarão e anel; **na guarda vai para a frente e cruza os braços em X**, tranca quando apanha,
+  dá contra-golpe no parry e é jogado para trás quando a guarda quebra.
+- **Socos do Stand**: investida a cada soco, rastro no braço que bate e estouro de ar na frente do punho.
+- **VFX novos** (`Cliente/VFX.luau`): clarão, anel de choque, arco branco em meia-lua, brilho em estrela,
+  estilhaços branco/preto/cor do Stand, linhas de velocidade, fumaça — em 3 níveis (leve, forte, enorme);
+  ondas de pressão nas rajadas; clash mais forte; tempo parado com anéis nas cores de cada Stand e anel
+  que fecha quando o tempo volta. Teto de peças vivas para o celular.
+- **Mapa Morioh intacto** (regra do plano): a simplificação do AJUSTE7 ficou desligada
+  (`Config.SIMPLIFICAR_MAPA = false`; dá para ligar de novo se o celular ficar lento).
+- Pacotes de VFX da Creator Store: o Roblox exige login para baixar o conteúdo (resposta 401
+  "Authentication required"), então não deu para inspecionar nem copiar; os efeitos foram feitos em código.
+
 ## Feito no AJUSTE-8
 - **Sons do dono**: ORA ORA (Star Platinum), MUDA MUDA (DIO), ZA WARUDO e Star Platinum The World com o som
   de parar o tempo. Ficam num áudio SEPARADO (se o Roblox recusar, as vozes geradas continuam). As rajadas

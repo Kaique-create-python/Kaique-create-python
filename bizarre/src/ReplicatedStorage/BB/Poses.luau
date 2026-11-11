@@ -144,6 +144,22 @@ P.bloqueio = {
 	LH = { 16, 0, -6 }, LK = { -22, 0, 0 }, RH = { 16, 0, 6 }, RK = { -22, 0, 0 },
 }
 
+-- AJUSTE-10: o Stand na frente do dono protegendo: braços cruzados em X na frente do rosto,
+-- tronco curvado para a frente, pernas soltas flutuando
+P.stand_guarda = {
+	Waist = { -12, 0, 0 }, Neck = { -10, 0, 0 },
+	LS = { 80, 0, 42 }, LE = { 90, 0, 0 },
+	RS = { 78, 0, -42 }, RE = { 92, 0, 0 },
+	LH = { 14, 0, -5 }, LK = { -28, 0, 0 }, RH = { 4, 0, 5 }, RK = { -36, 0, 0 },
+}
+-- apanhou na guarda: braços empurrados contra o rosto, tronco vai para trás
+P.stand_guarda_impacto = {
+	Waist = { 8, 0, 0 }, Neck = { -16, 0, 0 },
+	LS = { 68, 0, 42 }, LE = { 112, 0, 0 },
+	RS = { 66, 0, -42 }, RE = { 114, 0, 0 },
+	LH = { 22, 0, -7 }, LK = { -34, 0, 0 }, RH = { 12, 0, 7 }, RK = { -40, 0, 0 },
+}
+
 P.lancar_carrega = {
 	Waist = { 8, -36, 0 }, Neck = { 0, 26, 0 },
 	LS = { 72, 0, -22 }, LE = { 40, 0, 0 },
@@ -535,6 +551,9 @@ C.uppercut = { dur = 0.5, impacto = 0.15, keys = { { 0, "agachar" }, { 0.08, "ag
 -- Stand
 C.s_ocioso = { segurar = true, keys = { { 0, "cruzado_flutua", "suave" }, { 0.3, "cruzado_flutua" } } }
 C.guarda = { segurar = true, keys = { { 0, "guarda", "suave" }, { 0.15, "guarda" } } }
+-- AJUSTE-10: guarda do Stand (segura enquanto bloquear) e o tranco quando apanha nela
+C.s_guarda = { segurar = true, keys = { { 0, "stand_guarda", "estalo" }, { 0.14, "stand_guarda" } } }
+C.s_guarda_impacto = { dur = 0.24, keys = { { 0, "stand_guarda_impacto", "estalo" }, { 0.08, "stand_guarda_impacto" }, { 0.24, "stand_guarda", "suave" } } }
 C.soco_d = soco("soco_d_carrega", "soco_d", 0.36)
 C.soco_e = soco("soco_e_carrega", "soco_e", 0.36)
 C.soco_pesado = { dur = 0.75, impacto = 0.48, keys = { { 0, "soco_forte_carrega" }, { 0.4, "soco_forte_carrega", "suave" }, { 0.48, "soco_forte", "estalo" }, { 0.66, "soco_forte" }, { 0.75, "guarda", "suave" } } }

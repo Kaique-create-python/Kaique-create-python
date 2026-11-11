@@ -103,7 +103,11 @@ checar("mapa", function()
 	assert(#destrutiveis > 50000, "poucas peças quebráveis: " .. #destrutiveis)
 	assert(#Mapa.spawns() >= 8 and Mapa.treino(), "spawns/treino")
 	res.info.streaming = workspace.StreamingEnabled
-	res.info.simplificado = string.format("%s enfeites sem colisão retirados, %s sem sombra", tostring(workspace:GetAttribute("BB_MapaRemovidas")), tostring(workspace:GetAttribute("BB_MapaSemSombra")))
+	if (workspace:GetAttribute("BB_MapaRemovidas") or 0) == 0 and (workspace:GetAttribute("BB_MapaSemSombra") or 0) == 0 then
+		res.info.simplificado = "mapa intacto: nada removido, sombras originais (AJUSTE-10)"
+	else
+		res.info.simplificado = string.format("%s enfeites sem colisão retirados, %s sem sombra", tostring(workspace:GetAttribute("BB_MapaRemovidas")), tostring(workspace:GetAttribute("BB_MapaSemSombra")))
+	end
 end)
 
 -- 4) os Stands (corpos do catálogo)

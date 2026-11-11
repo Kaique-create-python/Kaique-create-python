@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local BB = script.Parent.Parent
 local Stands = require(BB:WaitForChild("Stands"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
+local VFX = require(script.Parent:WaitForChild("VFX"))
 
 local StandVisual = {}
 
@@ -17,7 +18,13 @@ local visuais: { [Model]: any } = {}
 local pastaVisual: Folder
 
 local MODOS = {
-	costas = CFrame.new(1.9, 0.9, 2.4),
+	-- AJUSTE-10: do lado esquerdo, um pouco atrás e flutuando, virado para a frente (como nos jogos
+	-- de Stand). A câmera fica no ombro direito, então ele nunca tapa a visão.
+	costas = CFrame.new(-2.35, 1.2, 1.25) * CFrame.Angles(0, math.rad(-10), 0),
+	-- AJUSTE-10: guarda: o Stand entra na frente do dono e cruza os braços
+	guarda = CFrame.new(0, 0.45, -2.3),
+	-- aparecer saindo de dentro do dono / sumir voltando para ele
+	dentro = CFrame.new(0, 0.3, 0.4),
 	frente = CFrame.new(0, 0.25, -3.6),
 	frente_perto = CFrame.new(0.3, 0.15, -2.6),
 	acima = CFrame.new(0, 3.8, 1.4),
@@ -77,6 +84,7 @@ local function criar(dono: Model, standId: string): any
 		end)
 	end
 	local s = Stands.get(standId)
+	local corAura = s.aura
 	local brilho = Instance.new("Highlight")
 	brilho.FillColor = s.aura
 	brilho.OutlineColor = s.aura
@@ -151,6 +159,11 @@ local function criar(dono: Model, standId: string): any
 		visita = nil,
 		armadura = armadura,
 		semArmadura = false,
+		cor = corAura,
+		cfMundo = nil, -- AJUSTE-10: posição no mundo (segue o dono com um atrasinho)
+		recuo = 0, -- AJUSTE-10: + empurrado para trás (apanhou na guarda), - avança (soco/contra-golpe)
+		guardando = false,
+		ultimaInvocacao = 0,
 	}
 	return v
 end
@@ -211,6 +224,63 @@ function StandVisual.visivel(dono: Model): boolean
 	return v ~= nil and v.vis > 0.5
 end
 
+-- AJUSTE-10: a minha guarda aparece na hora (sem esperar o servidor confirmar)
+function StandVisual.prever(dono: Model?, ligar: boolean)
+	local v = dono and visuais[dono]
+	if v then
+		v.prevGuarda = ligar
+		v.prevGuardaAte = os.clock() + 0.4
+	end
+end
+
+-- apanhou na guarda: o Stand tranca, recua um pouco e volta para a guarda
+function StandVisual.impactoGuarda(dono: Model?)
+	local v = dono and visuais[dono]
+	if not v or not v.guardando then
+		return
+	end
+	v.recuo = 0.9
+	Animador.tocar(v.modelo, "s_guarda_impacto")
+	task.delay(0.24, function()
+		if v.guardando and v.modelo.Parent then
+			Animador.tocar(v.modelo, "s_guarda")
+		end
+	end)
+end
+
+-- parry perfeito: o Stand dá um contra-golpe rápido para a frente
+function StandVisual.parry(dono: Model?)
+	local v = dono and visuais[dono]
+	if not v then
+		return
+	end
+	v.recuo = -1.5
+	v.acaoAte = math.max(v.acaoAte, os.clock() + 0.9)
+	Animador.tocar(v.modelo, "soco_d")
+	task.delay(0.36, function()
+		if v.guardando and v.modelo.Parent then
+			Animador.tocar(v.modelo, "s_guarda")
+		end
+	end)
+end
+
+-- guarda quebrada: o Stand é jogado para trás
+function StandVisual.quebrouGuarda(dono: Model?)
+	local v = dono and visuais[dono]
+	if v then
+		v.recuo = 2.4
+		Animador.tocar(v.modelo, "s_guarda_impacto")
+	end
+end
+
+-- soco do Stand: avança na direção do golpe e volta sozinho (dá peso ao soco)
+function StandVisual.investida(dono: Model?, forca: number?)
+	local v = dono and visuais[dono]
+	if v then
+		v.recuo = -(forca or 1.1)
+	end
+end
+
 local function atualizar(v: any, dt: number)
 	local dono = v.dono
 	local raizDono = dono:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -219,6 +289,26 @@ local function atualizar(v: any, dt: number)
 		v.alvoVis = 0
 	else
 		local agora = os.clock()
+		-- AJUSTE-10: guarda (o servidor manda BB_Bloqueando; a minha vem na hora pela previsão)
+		local bloq = dono:GetAttribute("BB_Bloqueando") == true
+		if v.prevGuarda ~= nil and agora < (v.prevGuardaAte or 0) then
+			bloq = v.prevGuarda
+		end
+		if bloq then
+			v.modo = "guarda"
+			v.modoAte = agora + 0.15
+			v.acaoAte = math.max(v.acaoAte, agora + 0.5)
+			if not v.guardando then
+				v.guardando = true
+				Animador.tocar(v.modelo, "s_guarda")
+			end
+		elseif v.guardando then
+			v.guardando = false
+			if v.modo == "guarda" then
+				v.modoAte = 0
+			end
+			Animador.cortar(v.modelo)
+		end
 		local fora = dono:GetAttribute("BB_StandFora") == true
 		local desperto = (dono:GetAttribute("BB_Desperto") or 0) > agoraServidor()
 		local caido = (dono:GetAttribute("BB_Ragdoll") or 0) > agoraServidor()
@@ -237,10 +327,35 @@ local function atualizar(v: any, dt: number)
 		local alvoOffset = MODOS[v.modo] or MODOS.costas
 		local bob = math.sin(agora * 2.1) * 0.22
 		if v.modo == "costas" then
-			alvoOffset = alvoOffset * CFrame.new(0, bob, 0)
+			alvoOffset = alvoOffset * CFrame.new(0, bob, 0) * CFrame.Angles(0, 0, math.sin(agora * 1.3) * 0.04)
+		end
+		-- AJUSTE-10: aparecer saindo de dentro do dono; sumir voltando para ele
+		if v.alvoVis > 0.5 and v.vis < 0.05 then
+			v.cfMundo = raizDono.CFrame * MODOS.dentro
+			v.offset = MODOS.dentro
+			if agora - v.ultimaInvocacao > 1.5 and (dono:GetAttribute("BB_StandFora") == true) then
+				v.ultimaInvocacao = agora
+				VFX.invocar(raizDono.Position + Vector3.new(0, 0.6, 0), v.cor)
+			end
+		elseif v.alvoVis < 0.5 and v.vis > 0.05 then
+			alvoOffset = MODOS.dentro
+		end
+		-- recuo (apanhou na guarda) / investida (soco): volta sozinho
+		if math.abs(v.recuo) > 0.01 then
+			alvoOffset = alvoOffset * CFrame.new(0, 0, v.recuo)
+			v.recuo *= math.max(0, 1 - dt * 9)
+		else
+			v.recuo = 0
 		end
 		v.offset = v.offset:Lerp(alvoOffset, math.min(1, dt * 16))
-		local cf = raizDono.CFrame * v.offset
+		local alvoMundo = raizDono.CFrame * v.offset
+		-- segue o dono com um atrasinho (flutuando); no golpe e na guarda fica bem mais firme
+		local firme = v.modo ~= "costas"
+		if not v.cfMundo or (v.cfMundo.Position - alvoMundo.Position).Magnitude > 30 then
+			v.cfMundo = alvoMundo
+		end
+		v.cfMundo = v.cfMundo:Lerp(alvoMundo, math.min(1, dt * (if firme then 26 else 10)))
+		local cf = v.cfMundo
 		if v.visita and agora < v.visita.ate and v.visita.alvo.Parent then
 			local r = v.visita.alvo:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if r then

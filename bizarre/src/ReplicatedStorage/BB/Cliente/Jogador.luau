@@ -288,6 +288,8 @@ function Jogador.bloquear(ligar: boolean)
 	end
 	bloqueando = ligar
 	local c = personagem()
+	-- AJUSTE-10: o Stand entra na frente na hora (o servidor confirma depois)
+	require(script.Parent:WaitForChild("StandVisual")).prever(c, ligar)
 	if ligar then
 		estado.bloqueioInicio = os.clock()
 		Animador.tocar(c, "bloqueio")

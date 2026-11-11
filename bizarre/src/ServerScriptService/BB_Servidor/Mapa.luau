@@ -285,7 +285,12 @@ end
 
 local function construirMorioh(morioh: Instance)
 	Mapa.modo = "morioh"
-	local removidas, semSombra = Mapa.simplificar(morioh)
+	-- AJUSTE-10: regra do dono: o Morioh fica exatamente como veio (nada removido nem mexido).
+	-- A simplificação do AJUSTE7 continua aqui, desligada (Config.SIMPLIFICAR_MAPA).
+	local removidas, semSombra = 0, 0
+	if Config.SIMPLIFICAR_MAPA then
+		removidas, semSombra = Mapa.simplificar(morioh)
+	end
 	workspace:SetAttribute("BB_MapaRemovidas", removidas)
 	workspace:SetAttribute("BB_MapaSemSombra", semSombra)
 	Mapa.pasta = morioh

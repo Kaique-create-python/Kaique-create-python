@@ -620,6 +620,132 @@ teste("Morioh mais leve: 1 de cada 3 lâminas, sem juntas e reflexos; o que coli
 	assert(enfeite.CastShadow == false and parede.CastShadow == true and semSombra >= 1, "sombra só sai dos enfeites")
 end)
 
+print("== AJUSTE-10")
+teste("andar/correr do dono: quadros completos, em ordem e tocando nas juntas do R6", function()
+	local A = H.modulo("ReplicatedStorage/BB/AnimacoesDono")
+	local Anim = H.modulo("ReplicatedStorage/BB/Cliente/Animador")
+	for _, nome in { "andar", "correr" } do
+		local c = A[nome]
+		assert(c and c.dur > 0.3 and c.loop and #c.quadros >= 10, nome .. ": clipe")
+		local antes = -1
+		for i, q in c.quadros do
+			assert(q[1] > antes, nome .. ": quadro " .. i .. " fora de ordem")
+			antes = q[1]
+			for _, j in { "Torso", "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
+				local v = q[2][j]
+				assert(v and #v == 6, nome .. ": quadro " .. i .. " sem " .. j)
+				for _, x in v do
+					assert(x == x and math.abs(x) < 10, nome .. ": número estranho em " .. j)
+				end
+			end
+		end
+		assert(math.abs(antes - c.dur) < 0.02, nome .. ": último quadro no fim do clipe")
+		-- no meio de dois quadros a pose é a mistura dos dois
+		local t = (c.quadros[2][1] + c.quadros[3][1]) / 2
+		local pose = Anim.amostrarDono(nome, t)
+		local n = 0
+		for motor, cf in pose do
+			n += 1
+			assert(({ RootJoint = 1, Neck = 1, ["Left Shoulder"] = 1, ["Right Shoulder"] = 1, ["Left Hip"] = 1, ["Right Hip"] = 1 })[motor], "junta " .. motor)
+			assert(cf.Position.Magnitude < 3, nome .. ": junta longe demais")
+		end
+		assert(n == 6, nome .. ": " .. n .. " juntas")
+		-- volta ao começo depois do fim (loop)
+		local p0, p1 = Anim.amostrarDono(nome, 0), Anim.amostrarDono(nome, c.dur * 3)
+		assert((p0.RootJoint.Position - p1.RootJoint.Position).Magnitude < 0.05, nome .. ": loop")
+	end
+end)
+
+teste("Stand: do lado esquerdo atrás flutuando; guarda na frente com os braços cruzados", function()
+	local fonte = H.fonte("ReplicatedStorage/BB/Cliente/StandVisual")
+	assert(string.find(fonte, "costas = CFrame.new(-2.35, 1.2, 1.25)", 1, true), "posição do lado")
+	assert(string.find(fonte, "guarda = CFrame.new(0, 0.45, -2.3)", 1, true), "guarda na frente")
+	assert(string.find(fonte, "BB_Bloqueando", 1, true) and string.find(fonte, "s_guarda", 1, true), "guarda segue o bloqueio")
+	local P = H.modulo("ReplicatedStorage/BB/Poses")
+	for _, nome in { "s_guarda", "s_guarda_impacto" } do
+		local c = P.clipe(nome)
+		assert(c, "clipe " .. nome)
+		for _, k in c.keys do
+			assert(P.P[k[2]], nome .. ": pose " .. k[2])
+		end
+	end
+	-- braços cruzados: cada ombro puxa para o meio (esquerdo Z+, direito Z-) e levantados para a frente
+	local g = P.P.stand_guarda
+	assert(g.LS[3] > 20 and g.RS[3] < -20 and g.LS[1] > 60 and g.RS[1] > 60, "braços em X na frente")
+end)
+
+teste("VFX: todos os efeitos rodam, peças sem colisão e com teto (celular não engasga)", function()
+	local roblox = require("@lune/roblox")
+	local pastaVFX = roblox.Instance.new("Folder")
+	local terra = roblox.Instance.new("Folder")
+	local emitidas = 0
+	local InstanceFalso = {
+		new = function(classe: string)
+			if classe == "ParticleEmitter" then
+				return { Emit = function(_, n)
+					emitidas += n
+				end }
+			end
+			return roblox.Instance.new(classe)
+		end,
+	}
+	H.servicos.Debris = { AddItem = function() end }
+	H.extras.Instance = InstanceFalso
+	H.extras.workspace = setmetatable({ CurrentCamera = { CFrame = roblox.CFrame.new(0, 6, 14) }, Terrain = terra }, {
+		__index = function(_, k)
+			if k == "FindFirstChild" then
+				return function(_, nome)
+					return if nome == "BB_VFX" then pastaVFX else nil
+				end
+			end
+			return nil
+		end,
+	})
+	local VFX = H.moduloNovo("ReplicatedStorage/BB/Cliente/VFX")
+	H.extras.Instance = nil
+	H.extras.workspace = nil
+	local V3, cor = roblox.Vector3.new, roblox.Color3.fromRGB(170, 90, 255)
+	local pos, dir = V3(0, 3, 0), V3(0, 0, -1)
+	for nivel = 1, 3 do
+		VFX.impacto(pos, dir, cor, nivel)
+	end
+	VFX.impacto(pos, nil, cor, 2)
+	VFX.estouroAr(pos, dir, cor, true)
+	VFX.pressao(pos, dir, cor)
+	VFX.guarda(pos, dir, cor)
+	VFX.parry(pos, cor)
+	VFX.invocar(pos, cor)
+	VFX.clash(pos, cor, roblox.Color3.fromRGB(255, 200, 60))
+	VFX.tempo(pos, cor, roblox.Color3.fromRGB(255, 200, 60), 150)
+	VFX.tempoVolta(pos, cor, 34)
+	VFX.anel(pos, cor, 6, 0.2, V3(0, 1, 0))
+	VFX.anel(pos, cor, 6, 0.2, V3(0, -1, 0))
+	local pecas = 0
+	for _, p in pastaVFX:GetChildren() do
+		pecas += 1
+		assert(p.Anchored and not p.CanCollide and not p.CanQuery and not p.CanTouch and not p.CastShadow, "peça de efeito encosta: " .. p.Name)
+		local c = p.CFrame.Position
+		assert(c.X == c.X and c.Y == c.Y and c.Z == c.Z, "posição NaN")
+	end
+	assert(pecas > 60 and emitidas > 0, "efeitos criados: " .. pecas .. " peças, " .. emitidas .. " partículas")
+	-- teto: uma chuva de impactos não passa do limite de peças vivas
+	for _ = 1, 60 do
+		VFX.impacto(pos, dir, cor, 3)
+	end
+	assert(VFX.vivos() <= 320, "teto de peças: " .. VFX.vivos())
+	-- qualidade baixa cria menos
+	VFX.qualidade(false)
+	local antes = VFX.vivos()
+	VFX.impacto(pos, dir, cor, 1)
+	assert(VFX.vivos() - antes <= 320, "baixa")
+end)
+
+teste("mapa Morioh intacto: a simplificação não roda no servidor (regra do plano)", function()
+	assert(Config.SIMPLIFICAR_MAPA == false, "Config.SIMPLIFICAR_MAPA tem que ser false")
+	local fonte = H.fonte("ServerScriptService/BB_Servidor/Mapa")
+	assert(string.find(fonte, "if Config.SIMPLIFICAR_MAPA then", 1, true), "o servidor só simplifica se a opção estiver ligada")
+end)
+
 print("== instalador")
 teste("Config tem os IDs do jogo novo", function()
 	assert(Config.UNIVERSE_ID == 10774214555 and Config.PLACE_ID == 108061345551908 and Config.DONO_USERID == 1357078972)

@@ -14,6 +14,7 @@ local Poses = require(BB:WaitForChild("Poses"))
 local Som = require(script.Parent:WaitForChild("Som"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
+local VFX = require(script.Parent:WaitForChild("VFX"))
 
 local Efeitos = {}
 
@@ -26,6 +27,7 @@ local BRANCO = RGB(255, 255, 255)
 
 function Efeitos.qualidade(alta: boolean)
 	qualidadeAlta = alta
+	VFX.qualidade(qualidadeAlta)
 end
 
 function Efeitos.altaQualidade(): boolean
@@ -369,6 +371,11 @@ function Efeitos.punhos(standModelo: Model?, dur: number, cor: Color3, ativo: ((
 					local ponta = (base * CFrame.new(0, -3.6, 0)).Position
 					Efeitos.particulas(ponta, cor, { n = 3, vel = 10, tam = 0.5, vida = 0.15 })
 				end
+				-- AJUSTE-10: onda de pressão da rajada (ORA ORA / MUDA MUDA) a cada ~0,3 s
+				if i % (if qualidadeAlta then 30 else 10) == 0 then
+					local frente = raiz.CFrame.LookVector
+					VFX.pressao((raiz.CFrame * CFrame.new(rng:NextNumber(-0.8, 0.8), rng:NextNumber(0.6, 1.8), -3.6)).Position, frente, cor)
+				end
 			end
 			task.wait(0.03)
 		end
@@ -548,18 +555,35 @@ function Efeitos.acerto(d: any)
 	local eu = Players.LocalPlayer.Character
 	local pos: Vector3 = d.pos or Vector3.zero
 	local tipo = d.tipo or "impacto"
+	-- AJUSTE-10: direção do golpe (o servidor manda nos golpes; na guarda/parry vem de quem bateu)
+	local dirGolpe: Vector3? = d.dir
+	if not dirGolpe and typeof(d.a) == "Instance" and typeof(d.v) == "Instance" then
+		local ra = d.a:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local rv = d.v:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if ra and rv and (rv.Position - ra.Position).Magnitude > 0.1 then
+			dirGolpe = (rv.Position - ra.Position).Unit
+		end
+	end
+	local SV = require(script.Parent:WaitForChild("StandVisual"))
 	if tipo == "bloqueio" then
-		Efeitos.faiscas(pos, RGB(160, 210, 255), 6, 4)
-		Efeitos.anel(pos, 2.4, RGB(160, 210, 255), 0.2, 0.2, d.dir)
-		Efeitos.bolha(pos, 2.4, RGB(150, 205, 255), 0.18, Enum.Material.ForceField)
+		-- AJUSTE-10: quem defende é o Stand na frente (faíscas nos braços dele, e ele tranca)
+		local posGuarda = pos
+		local st = typeof(d.v) == "Instance" and SV.modelo(d.v)
+		local tronco = st and st:FindFirstChild("Torso") :: BasePart?
+		if tronco and SV.visivel(d.v) then
+			posGuarda = tronco.Position + Vector3.new(0, 0.9, 0) - (dirGolpe or Vector3.zero) * 0.6
+		end
+		VFX.guarda(posGuarda, if dirGolpe then -dirGolpe else nil, corStand(typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil))
+		SV.impactoGuarda(d.v)
+		Efeitos.faiscas(posGuarda, RGB(160, 210, 255), 6, 4)
 		Som.tocar("bloqueio", pos)
 		if d.v == eu then
 			Camera.tremer(0.12, 0.12)
 		end
 		return
 	elseif tipo == "parry" then
-		Efeitos.faiscas(pos, BRANCO, 18, 9)
-		Efeitos.anel(pos, 6, BRANCO, 0.3, 0.5)
+		VFX.parry(pos, corStand(typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil))
+		SV.parry(d.v)
 		Efeitos.luz(pos, BRANCO, 8, 18, 0.3)
 		Efeitos.onomatopeia(pos, "PARRY!", RGB(140, 220, 255), 1)
 		Efeitos.particulas(pos, BRANCO, { n = 22, vel = 38, tam = 1, vida = 0.3, cor2 = RGB(140, 220, 255) })
@@ -572,7 +596,8 @@ function Efeitos.acerto(d: any)
 		end
 		return
 	elseif tipo == "quebra_guarda" then
-		Efeitos.faiscas(pos, RGB(170, 220, 255), 20, 10)
+		VFX.impacto(pos, dirGolpe, RGB(170, 220, 255), 2)
+		SV.quebrouGuarda(d.v)
 		Efeitos.bolha(pos, 4, RGB(170, 220, 255), 0.3, Enum.Material.Glass)
 		Efeitos.onomatopeia(pos, "GUARDA QUEBRADA!", RGB(140, 200, 255), 1.1)
 		Som.tocar("quebra_guarda", pos)
@@ -584,15 +609,25 @@ function Efeitos.acerto(d: any)
 	if def.arcoiris then
 		cor = ARCOIRIS[rng:NextInteger(1, 4)]
 	end
-	Efeitos.faiscas(pos, cor, def.n, def.forca)
-	if qualidadeAlta and tipo ~= "barragem" and tipo ~= "brasa" then
-		Efeitos.particulas(pos, cor, { n = math.floor(def.n * 1.2), vel = def.forca * 4, tam = 0.6 + def.anel * 0.18, vida = 0.32, cor2 = BRANCO })
-		if def.fogo then
-			Efeitos.particulas(pos, RGB(255, 140, 40), { n = 10, vel = 10, tam = 2.2, vida = 0.5, textura = "fogo", gravidade = 14, cor2 = RGB(255, 60, 10) })
-		end
+	-- AJUSTE-10: impacto em níveis (0 rajada/brasa, 1 leve, 2 forte, 3 enorme), estilo battleground
+	local nivel = 1
+	if tipo == "barragem" or tipo == "brasa" or tipo == "agarrao" then
+		nivel = 0
+	elseif tipo == "impacto_enorme" or tipo == "cratera" or tipo == "explosao_fogo" or tipo == "explosao_som" or (d.ragdoll or 0) >= 1.3 then
+		nivel = 3
+	elseif tipo == "impacto_forte" or tipo == "estilhaco" or tipo == "eco" or (d.ragdoll or 0) > 0 or (d.dano or 0) >= 10 then
+		nivel = 2
 	end
-	if def.anel > 0 then
-		Efeitos.anel(pos, def.anel, cor, 0.28, 0.3, d.dir)
+	if nivel == 0 then
+		Efeitos.faiscas(pos, cor, def.n, def.forca)
+		if tipo == "barragem" then
+			VFX.flash(pos, cor, 1.6)
+		end
+	else
+		VFX.impacto(pos, dirGolpe, cor, nivel)
+	end
+	if qualidadeAlta and def.fogo then
+		Efeitos.particulas(pos, RGB(255, 140, 40), { n = 10, vel = 10, tam = 2.2, vida = 0.5, textura = "fogo", gravidade = 14, cor2 = RGB(255, 60, 10) })
 	end
 	if def.aneis then
 		for i = 1, def.aneis do
@@ -1067,6 +1102,10 @@ function Efeitos.tempo(d: any)
 	if cc then
 		tween(cc, 0.35, { Saturation = -1, Contrast = 0.25, TintColor = RGB(220, 214, 255) })
 	end
+	-- AJUSTE-10: anéis em três planos com as cores de cada Stand (The World âmbar/violeta,
+	-- Star Platinum azul/violeta)
+	local c1, c2 = Efeitos.coresTempo(d.stand)
+	VFX.tempo(d.centro, c1, c2, d.raio or 150)
 	local domo = parte(Vector3.new(2, 2, 2), CFrame.new(d.centro), RGB(30, 20, 60), Enum.Material.Neon, Enum.PartType.Ball)
 	domo.Transparency = 0.2
 	tween(domo, 0.6, { Size = Vector3.new(d.raio * 2, d.raio * 2, d.raio * 2), Transparency = 1 }, Enum.EasingStyle.Quart)
@@ -1118,7 +1157,20 @@ function Efeitos.tempoVolta(d: any)
 	local raiz = d.dono and d.dono:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if raiz then
 		Efeitos.bolha(raiz.Position, 40, RGB(255, 240, 200), 0.5)
+		-- AJUSTE-10: o tempo volta com um anel que fecha no dono
+		local c1 = Efeitos.coresTempo(d.dono:GetAttribute("BB_Stand"))
+		VFX.tempoVolta(raiz.Position, c1, 34)
 	end
+end
+
+-- AJUSTE-10: cores do tempo parado de cada Stand
+function Efeitos.coresTempo(standId: any): (Color3, Color3)
+	if standId == "THE_WORLD" then
+		return RGB(255, 190, 60), RGB(165, 90, 255)
+	elseif standId == "STAR_PLATINUM" then
+		return RGB(90, 170, 255), RGB(175, 110, 255)
+	end
+	return corStand(if type(standId) == "string" then standId else nil), BRANCO
 end
 
 -- ORA x MUDA: duas rajadas se anulando (faíscas no meio dos dois)
@@ -1127,9 +1179,8 @@ local GRITOS = { KQ = "SHIBA", FOGO = "FOGO" }
 function Efeitos.clash(d: any)
 	local pos: Vector3 = d.pos
 	local ca, cv = corStand(d.sa), corStand(d.sv)
-	Efeitos.faiscas(pos, BRANCO, 10, 8)
+	VFX.clash(pos, ca, cv)
 	Efeitos.particulas(pos, ca, { n = 8, vel = 26, tam = 0.9, vida = 0.25, cor2 = cv })
-	Efeitos.anel(pos, 5, cv, 0.22, 0.3)
 	Som.tocar("bloqueio", pos, { max = 3 })
 	if os.clock() - ultimoClash > 1 then
 		ultimoClash = os.clock()
@@ -1560,8 +1611,10 @@ function Efeitos.modoQualidade(modo: string)
 	modoQualidade = modo
 	if modo == "alta" then
 		qualidadeAlta = true
+		VFX.qualidade(qualidadeAlta)
 	elseif modo == "baixa" then
 		qualidadeAlta = false
+		VFX.qualidade(qualidadeAlta)
 	end
 end
 function Efeitos.qualidadeAtual(): (string, boolean)
@@ -1609,8 +1662,10 @@ function Efeitos.iniciar(gui: ScreenGui)
 			local fps = quadros / tempo
 			if qualidadeAlta and fps < 38 then
 				qualidadeAlta = false
+				VFX.qualidade(qualidadeAlta)
 			elseif not qualidadeAlta and fps > 52 then
 				qualidadeAlta = true
+				VFX.qualidade(qualidadeAlta)
 			end
 			quadros, tempo = 0, 0
 		end

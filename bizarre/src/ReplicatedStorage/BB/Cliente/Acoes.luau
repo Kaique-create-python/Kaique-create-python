@@ -10,6 +10,7 @@ local Config = require(BB:WaitForChild("Config"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
 local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
 local Efeitos = require(script.Parent:WaitForChild("Efeitos"))
+local VFX = require(script.Parent:WaitForChild("VFX"))
 local Som = require(script.Parent:WaitForChild("Som"))
 
 local Acoes = {}
@@ -102,11 +103,38 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		if s and s.m1 == "rapieira" and not dados.variante then
 			clipeS = "estocada" -- Silver Chariot: estocadas com a rapieira
 		end
+		local corM1 = Efeitos.corStand(s and s.id)
 		if dados.stand then
 			Animador.tocar(modelo, "comando_m1")
 			StandVisual.acao(modelo, { modo = "frente_perto", clipe = clipeS, dur = if n == 4 then 0.45 else 0.3, impacto = 0.1 })
+			-- AJUSTE-10: o Stand avança no soco, o braço que bate deixa rastro e o ar estoura na
+			-- frente do punho (mesmo errando o golpe o soco tem peso)
+			local st = StandVisual.modelo(modelo)
+			local bracoS = st and st:FindFirstChild(if n % 2 == 1 then "Left Arm" else "Right Arm") :: BasePart?
+			if n < 4 then
+				Efeitos.rastro(bracoS, corM1, 0.2)
+			end
+			task.delay(0.1, function()
+				if token(modelo) ~= tk then
+					return
+				end
+				StandVisual.investida(modelo, if n == 4 then 1.9 else 1.1)
+				local rs = st and st:FindFirstChild("HumanoidRootPart") :: BasePart?
+				if rs and rs.Parent then
+					local frente = rs.CFrame.LookVector
+					VFX.estouroAr(rs.Position + frente * 2.4 + Vector3.new(0, 0.7, 0), frente, corM1, n == 4)
+				end
+			end)
 		else
 			Animador.tocar(modelo, clipe)
+			if n == 4 then
+				task.delay(0.16, function()
+					if token(modelo) == tk and raiz.Parent then
+						local frente = raiz.CFrame.LookVector
+						VFX.estouroAr(raiz.Position + frente * 2.2 + Vector3.new(0, 0.6, 0), frente, corM1, true)
+					end
+				end)
+			end
 		end
 		Som.tocar(if n == 4 then "whoosh_forte" else "whoosh", raiz.Position, { max = 6 })
 		if n == 4 then

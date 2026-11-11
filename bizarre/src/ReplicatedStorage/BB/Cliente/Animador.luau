@@ -9,6 +9,8 @@ local RunService = game:GetService("RunService")
 
 local BB = script.Parent.Parent
 local Poses = require(BB:WaitForChild("Poses"))
+local Config = require(BB:WaitForChild("Config"))
+local AnimacoesDono = require(BB:WaitForChild("AnimacoesDono"))
 
 local Animador = {}
 
@@ -361,6 +363,101 @@ local function andarJoJo(a: any, dt: number, plano: number, noAr: boolean, vLoca
 end
 Animador.andarJoJo = andarJoJo
 
+-- AJUSTE-10: ANDAR e CORRER do dono (feitos no Studio, vindos do Drive). Os quadros vão direto nas
+-- juntas do R6 (Motor6D.Transform), como o Animator do Roblox faria. Parado continua a pose JoJo.
+local POSE_MOTOR = {
+	Torso = "RootJoint",
+	Head = "Neck",
+	["Left Arm"] = "Left Shoulder",
+	["Right Arm"] = "Right Shoulder",
+	["Left Leg"] = "Left Hip",
+	["Right Leg"] = "Right Hip",
+}
+local CLIPES_DONO: { [string]: any } = {}
+for nome, c in AnimacoesDono do
+	local tempos, cfs = {}, {}
+	for i, q in c.quadros do
+		tempos[i] = q[1]
+		local porMotor = {}
+		for pose, v in q[2] do
+			local motor = POSE_MOTOR[pose]
+			if motor then
+				porMotor[motor] = CFrame.new(v[1], v[2], v[3]) * CFrame.fromEulerAnglesXYZ(v[4], v[5], v[6])
+			end
+		end
+		cfs[i] = porMotor
+	end
+	CLIPES_DONO[nome] = { dur = c.dur, tempos = tempos, cfs = cfs }
+end
+
+-- pose do clipe do dono no tempo t (interpola entre dois quadros; volta ao começo no fim)
+local function amostrarDono(nome: string, t: number): { [string]: CFrame }?
+	local c = CLIPES_DONO[nome]
+	if not c or #c.tempos == 0 then
+		return nil
+	end
+	local n = #c.tempos
+	if c.dur > 0 then
+		t = t % c.dur
+	end
+	local i = 1
+	while i < n and c.tempos[i + 1] <= t do
+		i += 1
+	end
+	local a, b = c.cfs[i], c.cfs[math.min(n, i + 1)]
+	local t0, t1 = c.tempos[i], c.tempos[math.min(n, i + 1)]
+	local k = if t1 > t0 then math.clamp((t - t0) / (t1 - t0), 0, 1) else 0
+	local r = {}
+	for motor, cfa in a do
+		local cfb = b[motor]
+		r[motor] = if cfb then cfa:Lerp(cfb, k) else cfa
+	end
+	return r
+end
+Animador.amostrarDono = amostrarDono
+Animador.CLIPES_DONO = CLIPES_DONO
+
+-- quanto do andar/correr do dono entra agora (0 parado ou no ar) e a pose já misturada
+local function locomocaoDono(a: any, dt: number): ({ [string]: CFrame }?, number)
+	local andar, correr = CLIPES_DONO.andar, CLIPES_DONO.correr
+	local raiz = a.modelo:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = a.modelo:FindFirstChildOfClass("Humanoid")
+	if not andar or not raiz or not hum then
+		return nil, 0
+	end
+	local estado = hum:GetState()
+	local noAr = estado == Enum.HumanoidStateType.Freefall or estado == Enum.HumanoidStateType.Jumping
+	local v = raiz.AssemblyLinearVelocity
+	local plano = Vector3.new(v.X, 0, v.Z).Magnitude
+	local alvo = if noAr then 0 else math.clamp((plano - 1.5) / 5, 0, 1)
+	a.pesoDono = (a.pesoDono or 0) + (alvo - (a.pesoDono or 0)) * math.min(1, dt * 10)
+	if a.pesoDono < 0.01 then
+		a.faseDono = 0
+		return nil, 0
+	end
+	-- andar -> correr conforme a velocidade (ANDAR 18, CORRER 27)
+	local alvoCorrida = if correr then math.clamp((plano - (Config.ANDAR + 1.5)) / math.max(1, Config.CORRER - Config.ANDAR - 3), 0, 1) else 0
+	a.corridaDono = (a.corridaDono or 0) + (alvoCorrida - (a.corridaDono or 0)) * math.min(1, dt * 8)
+	local k = a.corridaDono
+	-- velocidade do clipe acompanha os pés (como o Animate do Roblox faz)
+	local vAndar = (math.max(plano, 6) / 16) / andar.dur
+	local vCorrer = if correr then (math.max(plano, 6) / 26) / correr.dur else vAndar
+	a.faseDono = ((a.faseDono or 0) + dt * (vAndar + (vCorrer - vAndar) * k)) % 1
+	local pose = amostrarDono("andar", a.faseDono * andar.dur)
+	if pose and correr and k > 0.01 then
+		local pc = amostrarDono("correr", a.faseDono * correr.dur)
+		if pc then
+			for m, cf in pose do
+				local cfc = pc[m]
+				if cfc then
+					pose[m] = cf:Lerp(cfc, k)
+				end
+			end
+		end
+	end
+	return pose, a.pesoDono
+end
+
 -- camada de baixo dos bots e Stands: parado, andando, correndo, no ar
 local function locomocao(a: any, dt: number): { [string]: { number } }
 	local m = a.modelo
@@ -479,6 +576,13 @@ local function aplicar(a: any, dt: number)
 		base = paraR6(base)
 	end
 	local peso = a.peso
+	-- AJUSTE-10: andar/correr do dono por cima (corpos R6 de jogadores e bots; golpe tem prioridade)
+	local poseDono: { [string]: CFrame }? = nil
+	local pesoDono = 0
+	if a.r6 and a.tipo ~= "stand" and not a.boneco and not (a.tipo == "jogador" and a.temTrilhas) then
+		poseDono, pesoDono = locomocaoDono(a, passo)
+		pesoDono *= 1 - math.clamp(peso, 0, 1)
+	end
 	-- avatar sem nenhuma animação do Roblox tocando: nós cuidamos de todas as juntas
 	if a.tipo == "jogador" and agora - a.conferido > 0.5 then
 		a.conferido = agora
@@ -519,6 +623,12 @@ local function aplicar(a: any, dt: number)
 				alvo = alvo * CFrame.Angles(0, rad(giro * peso), 0)
 			end
 			m.Transform = j.inv * alvo * j.rot0
+			if poseDono and pesoDono > 0.001 then
+				local cfd = poseDono[m.Name]
+				if cfd then
+					m.Transform = m.Transform:Lerp(cfd, pesoDono)
+				end
+			end
 		end
 	end
 end
