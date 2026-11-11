@@ -99,7 +99,18 @@ local frenteTrava: Vector3 = Vector3.new(0, 0, -1)
 local FORCA_TRAVA = 20 -- quanto a câmera puxa para o alvo por segundo (era 12)
 local SEGUNDOS_PAREDE = 3 -- alvo escondido atrás de parede por mais que isso: solta
 local SEGUNDOS_SEM_LUTA = 7 -- trava automática sem golpes e longe: solta
-Camera.miraAuto = true
+Camera.miraAuto = false -- AJUSTE-13: só trava no botão MIRA (nos AJUSTES dá para ligar "GRUDA SOZINHA")
+-- AJUSTE-13: SHIFT LOCK (botão no celular): câmera reta por cima do ombro e o personagem sempre
+-- olhando para onde a câmera olha (quem vira o corpo é o Jogador). A MIRA travada manda mais.
+local shiftLock = false
+local OMBRO = Vector3.new(1.75, 0.25, 0)
+function Camera.shiftLock(sim: boolean?): boolean
+	if sim ~= nil then
+		shiftLock = sim
+	end
+	return shiftLock
+end
+
 local function zoomPara(min: number, max: number)
 	local plr = Players.LocalPlayer
 	plr.CameraMinZoomDistance = min
@@ -368,6 +379,14 @@ function Camera.iniciar()
 				cam.CameraType = Enum.CameraType.Custom
 				Camera.recuperar()
 				Camera.suavizarRetorno(cam.CFrame, 0.35)
+			end
+		end
+		-- AJUSTE-13: Shift Lock: a câmera vai para cima do ombro direito (suave, sem pulo)
+		local humOmbro = eu and eu:FindFirstChildOfClass("Humanoid")
+		if humOmbro then
+			local alvoOmbro = if shiftLock and not modoTrava and dono == "jogo" then OMBRO else Vector3.zero
+			if (humOmbro.CameraOffset - alvoOmbro).Magnitude > 0.01 then
+				humOmbro.CameraOffset = humOmbro.CameraOffset:Lerp(alvoOmbro, math.min(1, dt * 10))
 			end
 		end
 		-- volta suave depois da cena de cinema

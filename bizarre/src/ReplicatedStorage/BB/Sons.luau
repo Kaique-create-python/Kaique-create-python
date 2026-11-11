@@ -76,7 +76,16 @@ Sons.VOZES_ANIME = {
 	TW_TEMPO = { 14.416, 4.017, 2.60, 4 },
 } :: { [string]: { number } }
 
--- músicas (APM). O menu tem samba; a luta tem rock/percussão.
+-- AJUSTE-13: sons de golpe do dono (tools/sons_sfx.py: grave forte, um pouco estourado, começo
+-- cortado para o estalo sair na hora). Áudio "BB_SFX" enviado pelo instalador; ordem fixa.
+Sons.SFX = {
+	SOCO_A = { 0.000, 0.600, 1.60, 1 },
+	SOCO_B = { 0.850, 0.740, 1.60, 2 },
+	SOCO_MEGA = { 1.840, 0.880, 1.90, 3 },
+	WHOOSH_SOCO = { 2.970, 0.420, 1.10, 4 },
+} :: { [string]: { number } }
+
+-- músicas (APM). O menu tem samba; a luta tem rock/percussão. AJUSTE-13: desligadas (Config.MUSICA)
 Sons.MUSICAS = {
 	menu = { 1846271148, 1835572198 }, -- Samba Viva, Samba Do Jazz
 	luta = { 9048541013, 9038389507, 9038389225, 9044584995 }, -- Battleground, Fight Fuel, Finger on the Trigger, Underworld Fighters

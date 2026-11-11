@@ -77,6 +77,32 @@ instalador que confere a versão no ar. Detalhes em RELATORIO_AJUSTE7.md.
 | Vozes | ORA, ORAAA, Star Platinum The World, ZA WARUDO, DORARARA, Bites the Dust |
 | Interface | menu com cartões, status do Stand em letras A–E (AJUSTE-4), HUD com recargas e combo |
 
+## AJUSTE-13 (feito)
+- **VFX só dos pacotes da loja** (o dono não quer efeito desenhado por código/IA): `Cliente/VFX.luau`
+  monta cada golpe em camadas com os efeitos que o servidor (`VFXLoja`) carrega dos 6 pacotes.
+  `BB/VFXMedida.luau` mede cada efeito (raio, vida, cor), põe na escala do golpe e pinta com a cor
+  do Stand (o branco do miolo fica branco). Escolha FIXA por Stand+golpe (mesma cara sempre).
+  Aparição de cada Stand com camadas próprias (`VFX.APARICAO`); aura de cor errada (ex.: verde no
+  Star Platinum) não é escolhida. Sem pacote: reserva com as texturas do próprio Roblox.
+- Saíram: bolas/anéis/estilhaços/linhas Neon, textos na tela (ORA ORA!, PARRY!, GUARDA QUEBRADA!...),
+  o grito de reserva e a música de fundo (`Config.MUSICA = false`).
+- **Mira**: não gruda sozinha (só no botão MIRA; nos ajustes dá para ligar). **SHIFT LOCK** no celular:
+  câmera reta por cima do ombro (`Humanoid.CameraOffset`) e o corpo olhando para a câmera.
+- **Socos do dono** (2 mp3): `tools/sons_sfx.py` corta o começo, sobe o grave (harmônicos que o
+  alto-falante do celular toca) e satura um pouco → `assets/sfx.ogg` (SOCO_A, SOCO_B, SOCO_MEGA,
+  WHOOSH_SOCO). Instalador envia como áudio opcional (marcador `BBSFX`, `BB_SFX` no place).
+- Instalador salva `BIZARRE_VFX_PACOTES.zip` (pacotes baixados + `no_jogo.json` com a descrição de cada
+  efeito vinda do teste na nuvem) para o dono mandar no chat.
+
+## Pendências do AJUSTE-13
+1. **Sons de espada** (Silver Chariot) pelo ElevenLabs: o ElevenLabs estava ocupado; gerar corte,
+   estocada, choque de metal e golpe pesado e acrescentar NO FIM do `sfx.ogg` (`tools/sons_sfx.py`,
+   ordem fixa) e usar em `VFX.corte`/Efeitos para `corte_prata`.
+2. Com o `BIZARRE_VFX_PACOTES.zip` do dono: ver cada efeito (Lune `roblox.deserializeModel` lê os
+   .rbxm; as texturas saem pela API pública de thumbnails) e escolher à mão o melhor efeito de cada
+   golpe (hoje é automático pela medida + nome).
+3. Sons de impacto e explosão que o dono vai mandar (entram no fim do `sfx.ogg`).
+
 ## Próximos passos (ordem sugerida)
 1. **Vozes que faltam** — HORA, Crossfire, DORA final e "Killer Queen" (MUDA veio do som do dono).
 2. **Ajustes salvos** entre partidas (campo novo no DataStore, sem apagar nada).

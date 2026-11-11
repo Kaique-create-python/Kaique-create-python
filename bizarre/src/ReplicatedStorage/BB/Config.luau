@@ -3,9 +3,11 @@
 
 local Config = {}
 
-Config.REVISAO = "AJUSTE-12"
+Config.REVISAO = "AJUSTE-13"
 -- AJUSTE-10: o mapa Morioh fica intacto (regra do dono): não tira enfeites nem sombras
 Config.SIMPLIFICAR_MAPA = false
+-- AJUSTE-13: sem música de fundo (o dono pediu). true = volta a tocar
+Config.MUSICA = false
 Config.NOME_JOGO = "BIZARRE BATTLEGROUNDS"
 
 -- dono e ADMs (o dono sempre é ADM; quem criou a experiência também)

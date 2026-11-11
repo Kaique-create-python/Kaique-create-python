@@ -217,6 +217,21 @@ function criarBotoesMoveis()
 	segurar(trava, function()
 		travarProximo()
 	end)
+	-- AJUSTE-13: SHIFT LOCK (liga/desliga): câmera reta por cima do ombro, o personagem olha para onde
+	-- a câmera olha. Dourado = ligado.
+	local corShift = Color3.fromRGB(60, 60, 80)
+	local shift = botaoRedondo(gui, "SHIFT LOCK", u * 0.66, m1c + Vector2.new(-u * 3.3, u * 0.15), corShift, 12)
+	local function pintarShift()
+		shift.BackgroundColor3 = if Camera.shiftLock() then UI.CORES.dourado else corShift
+	end
+	pintarShift()
+	segurar(shift, function()
+		Camera.shiftLock(not Camera.shiftLock())
+		pintarShift()
+		if HUD then
+			HUD.aviso(if Camera.shiftLock() then "Shift Lock LIGADO" else "Shift Lock desligado")
+		end
+	end)
 	local pose = botaoRedondo(gui, "POSE", u * 0.58, m1c + Vector2.new(-u * 2.3, -u * 0.95), Color3.fromRGB(60, 60, 80), 14)
 	segurar(pose, function()
 		Jogador.pose()

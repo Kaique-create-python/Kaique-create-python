@@ -1,6 +1,8 @@
 -- BIZARRE BATTLEGROUNDS :: efeitos visuais (só no celular; o servidor manda o "que" e o "onde")
 -- faíscas, partículas, anéis, crateras, destroços, punhos da barragem, projéteis (rolamento, facas,
--- ankh, rapieira, moeda, tanquinho), tempo parado + rolo compressor, Bites the Dust, onomatopeias.
+-- ankh, rapieira, moeda, tanquinho), tempo parado + rolo compressor, Bites the Dust.
+-- AJUSTE-13: os efeitos simples (bolas/anéis/estilhaços Neon, textos tipo "PARRY!") saíram: tudo
+-- passa pelo VFX, que monta os golpes com os efeitos dos pacotes da loja na cor de cada Stand.
 
 local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
@@ -72,37 +74,16 @@ local TEXTURAS = {
 	faisca = "rbxasset://textures/particles/fire_sparks_main.dds",
 }
 
--- explosão de partículas num ponto (some sozinha)
--- o = { n, vel, tam, vida, textura, espalhar, gravidade, luz }
+-- partículas num ponto (AJUSTE-13: efeito do pacote; fogo vira fogo do pacote)
+-- o = { n, vel, tam, vida, textura, espalhar, gravidade, luz, cor2 }
 function Efeitos.particulas(pos: Vector3, cor: Color3, o: any?)
 	local op = o or {}
-	local n = op.n or 14
-	if not qualidadeAlta then
-		n = math.ceil(n / 2)
+	local raio = math.clamp((op.tam or 1.2) * 1.6 + (op.vel or 22) * 0.04, 1.2, 7)
+	if op.textura == "fogo" then
+		VFX.fogo(pos, raio)
+	else
+		VFX.faiscas(pos, cor, raio)
 	end
-	local p = parte(Vector3.new(0.2, 0.2, 0.2), CFrame.new(pos), cor)
-	p.Transparency = 1
-	local e = Instance.new("ParticleEmitter")
-	e.Texture = TEXTURAS[op.textura or "brilho"] or TEXTURAS.brilho
-	e.Color = ColorSequence.new(cor, op.cor2 or cor)
-	e.LightEmission = op.luz or 1
-	e.LightInfluence = 0
-	local tam = op.tam or 1.2
-	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, tam), NumberSequenceKeypoint.new(1, 0) })
-	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(1, 1) })
-	local vida = op.vida or 0.35
-	e.Lifetime = NumberRange.new(vida * 0.6, vida)
-	local vel = op.vel or 22
-	e.Speed = NumberRange.new(vel * 0.5, vel)
-	e.SpreadAngle = Vector2.new(op.espalhar or 180, op.espalhar or 180)
-	e.Drag = op.arrasto or 6
-	e.Acceleration = Vector3.new(0, op.gravidade or 0, 0)
-	e.RotSpeed = NumberRange.new(-200, 200)
-	e.Rotation = NumberRange.new(0, 360)
-	e.Rate = 0
-	e.Parent = p
-	e:Emit(n)
-	Debris:AddItem(p, vida + 0.2)
 end
 
 -- monta um visual de várias peças presas na primeira (que é a que se move)
@@ -114,43 +95,28 @@ local function preso(principal: BasePart, extra: BasePart, cfLocal: CFrame)
 	w.Part1 = extra
 	w.Parent = extra
 end
--- estilhaços brilhantes que voam para fora
+-- AJUSTE-13: faíscas, ondas e clarões vêm dos pacotes (VFX); nada de peça Neon
 function Efeitos.faiscas(pos: Vector3, cor: Color3, n: number?, forca: number?)
-	local qtd = n or 8
-	if not qualidadeAlta then
-		qtd = math.ceil(qtd / 2)
-	end
-	local f = forca or 6
-	for _ = 1, qtd do
-		local dir = rng:NextUnitVector()
-		local tam = rng:NextNumber(0.15, 0.35)
-		local p = parte(Vector3.new(tam, tam, rng:NextNumber(1, 2.4)), CFrame.lookAt(pos, pos + dir), cor)
-		tween(p, rng:NextNumber(0.18, 0.32), { CFrame = CFrame.lookAt(pos + dir * f, pos + dir * (f + 1)), Transparency = 1, Size = Vector3.new(0.05, 0.05, 0.2) })
-		Debris:AddItem(p, 0.4)
-	end
+	local _ = n
+	VFX.faiscas(pos, cor, math.clamp((forca or 6) * 0.45, 1.2, 6))
 end
 
--- anel deitado que se espalha
+-- onda (anel) que se espalha: normal = para onde ela olha (nil = deitada no chão)
 function Efeitos.anel(pos: Vector3, raio: number, cor: Color3, dur: number?, espessura: number?, normal: Vector3?)
-	local n = normal or Vector3.new(0, 1, 0)
-	local base
-	if math.abs(n.Unit.Y) > 0.98 then
-		base = CFrame.new(pos) * CFrame.Angles(0, 0, math.rad(90))
-	else
-		base = CFrame.lookAt(pos, pos + n) * CFrame.Angles(0, math.rad(90), 0)
-	end
-	local p = parte(Vector3.new(espessura or 0.4, 1, 1), base, cor, Enum.Material.Neon, Enum.PartType.Cylinder)
-	p.Transparency = 0.15
-	tween(p, dur or 0.35, { Size = Vector3.new(0.05, raio * 2, raio * 2), Transparency = 1 })
-	Debris:AddItem(p, (dur or 0.35) + 0.05)
+	local _ = dur
+	local _e = espessura
+	VFX.onda(pos, cor, raio, normal or Vector3.yAxis)
 end
 
--- bola que cresce e some (explosões, ondas)
+-- clarão/explosão que cresce e some
 function Efeitos.bolha(pos: Vector3, raio: number, cor: Color3, dur: number?, material: Enum.Material?)
-	local p = parte(Vector3.new(1, 1, 1), CFrame.new(pos), cor, material or Enum.Material.ForceField, Enum.PartType.Ball)
-	p.Transparency = 0.05
-	tween(p, dur or 0.4, { Size = Vector3.new(raio * 2, raio * 2, raio * 2), Transparency = 1 })
-	Debris:AddItem(p, (dur or 0.4) + 0.05)
+	local _ = dur
+	local _m = material
+	if raio >= 8 then
+		VFX.explosao(pos, cor, math.min(raio, 20))
+	else
+		VFX.brilho(pos, cor, raio)
+	end
 end
 
 function Efeitos.luz(pos: Vector3, cor: Color3, brilho: number, alcance: number, dur: number)
@@ -166,56 +132,11 @@ function Efeitos.luz(pos: Vector3, cor: Color3, brilho: number, alcance: number,
 	Debris:AddItem(p, dur + 0.05)
 end
 
--- fumaça/poeira
+-- fumaça/poeira (do pacote, sem pintar: poeira é cor de poeira)
 function Efeitos.poeira(pos: Vector3, tam: number, cor: Color3?, n: number?)
-	local p = parte(Vector3.new(0.2, 0.2, 0.2), CFrame.new(pos), BRANCO)
-	p.Transparency = 1
-	local e = Instance.new("ParticleEmitter")
-	e.Color = ColorSequence.new(cor or RGB(200, 192, 180))
-	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, tam * 0.4), NumberSequenceKeypoint.new(1, tam) })
-	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1) })
-	e.Lifetime = NumberRange.new(0.6, 1.2)
-	e.Speed = NumberRange.new(tam * 1.2, tam * 2.4)
-	e.SpreadAngle = Vector2.new(180, 180)
-	e.Drag = 4
-	e.Rate = 0
-	e.RotSpeed = NumberRange.new(-60, 60)
-	e.Parent = p
-	e:Emit(if qualidadeAlta then (n or 14) else math.ceil((n or 14) / 2))
-	Debris:AddItem(p, 1.4)
-end
-
--- onomatopeia de mangá ("DOOM!", "TUM TUM")
-function Efeitos.onomatopeia(pos: Vector3, texto: string, cor: Color3?, tam: number?)
-	local p = parte(Vector3.new(0.2, 0.2, 0.2), CFrame.new(pos), BRANCO)
-	p.Transparency = 1
-	local b = Instance.new("BillboardGui")
-	b.Size = UDim2.fromScale(10 * (tam or 1), 4 * (tam or 1))
-	b.StudsOffset = Vector3.new(rng:NextNumber(-1.5, 1.5), 2.5, 0)
-	b.AlwaysOnTop = true
-	b.LightInfluence = 0
-	b.Parent = p
-	local t = Instance.new("TextLabel")
-	t.Size = UDim2.fromScale(0.4, 0.4)
-	t.Position = UDim2.fromScale(0.5, 0.5)
-	t.AnchorPoint = Vector2.new(0.5, 0.5)
-	t.BackgroundTransparency = 1
-	t.Text = texto
-	t.Font = Enum.Font.Bangers
-	t.TextScaled = true
-	t.TextColor3 = cor or RGB(255, 230, 80)
-	t.Rotation = rng:NextNumber(-12, 12)
-	t.Parent = b
-	local contorno = Instance.new("UIStroke")
-	contorno.Thickness = 3
-	contorno.Color = RGB(20, 10, 30)
-	contorno.Parent = t
-	tween(t, 0.16, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
-	task.delay(0.55, function()
-		tween(t, 0.35, { TextTransparency = 1, Position = UDim2.fromScale(0.5, 0.2) })
-		tween(contorno, 0.35, { Transparency = 1 })
-	end)
-	Debris:AddItem(p, 1)
+	local _ = cor
+	local _n = n
+	VFX.poeira(pos, math.clamp(tam * 1.2, 1.5, 9))
 end
 
 function Efeitos.numero(pos: Vector3, valor: number, cor: Color3?)
@@ -245,18 +166,12 @@ function Efeitos.numero(pos: Vector3, valor: number, cor: Color3?)
 	Debris:AddItem(p, 0.8)
 end
 
--- cópia "fantasma" do corpo (dash, teleporte)
+-- AJUSTE-13: no lugar das cópias Neon do corpo, um clarão do pacote na cor do Stand
 function Efeitos.fantasma(modelo: Model, cor: Color3, dur: number?)
-	if not qualidadeAlta then
-		return
-	end
-	for _, d in modelo:GetDescendants() do
-		if d:IsA("BasePart") and d.Transparency < 0.9 and d.Name ~= "HumanoidRootPart" then
-			local p = parte(d.Size, d.CFrame, cor, Enum.Material.Neon)
-			p.Transparency = 0.45
-			tween(p, dur or 0.35, { Transparency = 1 })
-			Debris:AddItem(p, (dur or 0.35) + 0.05)
-		end
+	local _ = dur
+	local raiz = modelo:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if raiz and qualidadeAlta then
+		VFX.efeito("flash", raiz.Position, { cor = cor, raio = 2, chave = "rastro", semReserva = true })
 	end
 end
 
@@ -363,7 +278,7 @@ function Efeitos.punhos(standModelo: Model?, dur: number, cor: Color3, ativo: ((
 				local y = rng:NextNumber(0, 2.2)
 				-- o braço deitado apontando para frente (o punho na ponta)
 				local base = raiz.CFrame * CFrame.new(x, y, -1) * CFrame.Angles(math.rad(-90), 0, 0)
-				local p = parte(tamBraco * 0.92, base, if i % 3 == 0 then cor else corBraco, if i % 3 == 0 then Enum.Material.Neon else Enum.Material.SmoothPlastic)
+				local p = parte(tamBraco * 0.92, base, if i % 3 == 0 then cor else corBraco, if i % 3 == 0 then Enum.Material.ForceField else Enum.Material.SmoothPlastic)
 				p.Transparency = if i % 3 == 0 then 0.35 else 0.2
 				tween(p, 0.11, { CFrame = base * CFrame.new(0, -2.8, 0), Transparency = 1 })
 				Debris:AddItem(p, 0.14)
@@ -576,7 +491,6 @@ function Efeitos.acerto(d: any)
 		end
 		VFX.guarda(posGuarda, if dirGolpe then -dirGolpe else nil, corStand(typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil))
 		SV.impactoGuarda(d.v)
-		Efeitos.faiscas(posGuarda, RGB(160, 210, 255), 6, 4)
 		Som.tocar("bloqueio", pos)
 		if d.v == eu then
 			Camera.tremer(0.12, 0.12)
@@ -585,9 +499,6 @@ function Efeitos.acerto(d: any)
 	elseif tipo == "parry" then
 		VFX.parry(pos, corStand(typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil))
 		SV.parry(d.v)
-		Efeitos.luz(pos, BRANCO, 8, 18, 0.3)
-		Efeitos.onomatopeia(pos, "PARRY!", RGB(140, 220, 255), 1)
-		Efeitos.particulas(pos, BRANCO, { n = 22, vel = 38, tam = 1, vida = 0.3, cor2 = RGB(140, 220, 255) })
 		Animador.hitstop(d.a, 0.14)
 		Animador.hitstop(d.v, 0.14)
 		Som.tocar("parry", pos)
@@ -597,11 +508,10 @@ function Efeitos.acerto(d: any)
 		end
 		return
 	elseif tipo == "quebra_guarda" then
-		VFX.impacto(pos, dirGolpe, RGB(170, 220, 255), 2)
+		VFX.quebraGuarda(pos, dirGolpe)
 		SV.quebrouGuarda(d.v)
-		Efeitos.bolha(pos, 4, RGB(170, 220, 255), 0.3, Enum.Material.Glass)
-		Efeitos.onomatopeia(pos, "GUARDA QUEBRADA!", RGB(140, 200, 255), 1.1)
 		Som.tocar("quebra_guarda", pos)
+		Som.golpe("SOCO_MEGA", pos, { vol = 0.8 })
 		Animador.tocar(d.v, "atordoado", { ate = os.clock() + Config.BLOQUEIO.quebraAtordoa })
 		return
 	end
@@ -619,35 +529,27 @@ function Efeitos.acerto(d: any)
 	elseif tipo == "impacto_forte" or tipo == "estilhaco" or tipo == "eco" or (d.ragdoll or 0) > 0 or (d.dano or 0) >= 10 then
 		nivel = 2
 	end
-	if nivel == 0 then
-		Efeitos.faiscas(pos, cor, def.n, def.forca)
-		if tipo == "barragem" then
-			VFX.flash(pos, cor, 1.6)
+	-- AJUSTE-13: a chave (Stand + tipo do golpe) faz o mesmo golpe ter sempre a mesma cara
+	local chave = tostring(d.stand or "x") .. ":" .. tipo
+	if tipo == "corte_prata" or tipo == "corte_colorido" then
+		VFX.corte(pos, dirGolpe, cor, nivel >= 2, chave)
+		if nivel >= 2 then
+			VFX.impacto(pos, dirGolpe, cor, 1, chave)
 		end
 	else
-		VFX.impacto(pos, dirGolpe, cor, nivel)
+		VFX.impacto(pos, dirGolpe, cor, nivel, chave)
 	end
-	if qualidadeAlta and def.fogo then
-		Efeitos.particulas(pos, RGB(255, 140, 40), { n = 10, vel = 10, tam = 2.2, vida = 0.5, textura = "fogo", gravidade = 14, cor2 = RGB(255, 60, 10) })
+	if def.fogo and nivel >= 1 then
+		VFX.fogo(pos, if nivel >= 3 then 4 else 2.4, chave .. ":fogo")
 	end
-	if def.aneis then
-		for i = 1, def.aneis do
-			task.delay(i * 0.06, function()
-				Efeitos.anel(pos, def.anel * (1 + i * 0.4), cor, 0.3, 0.25, d.dir)
-			end)
-		end
+	if def.aneis and nivel >= 1 then
+		VFX.onda(pos, cor, def.anel * 1.4, d.dir, chave .. ":aneis")
 	end
-	if def.luz > 0 and qualidadeAlta then
-		Efeitos.luz(pos, cor, def.luz * 0.6, def.luz * 3, 0.2)
-	end
-	if def.bolha then
-		Efeitos.bolha(pos, def.bolha, cor, 0.35)
+	if def.bolha and nivel >= 2 then
+		VFX.explosao(pos, cor, def.bolha, chave .. ":bolha")
 	end
 	if def.poeira then
-		Efeitos.poeira(pos, def.poeira, nil, 10)
-	end
-	if def.fogo and qualidadeAlta then
-		Efeitos.bolha(pos, 3, RGB(255, 170, 40), 0.25, Enum.Material.Neon)
+		VFX.poeira(pos, def.poeira, chave .. ":poeira")
 	end
 	if def.cratera then
 		Efeitos.cratera(chaoAbaixo(pos), def.cratera)
@@ -655,9 +557,15 @@ function Efeitos.acerto(d: any)
 	if d.som then
 		Som.tocar(d.som, pos, { max = if tipo == "barragem" then 3 else 5 })
 	end
-	-- AJUSTE-12: camada grave por baixo do soco (o impacto "pesa" no ouvido)
-	if nivel >= 1 then
-		Som.tocar("soco_forte", pos, { vol = if nivel >= 2 then 0.95 else 0.5, vel = if nivel >= 3 then 0.62 else 0.74, max = 4 })
+	-- AJUSTE-13: os socos que o dono mandou (graves e estourados), alternando A/B; forte = os dois juntos.
+	-- Enquanto o Roblox não liberar o áudio, a camada grave da biblioteca segura (AJUSTE-12)
+	if nivel >= 1 and not string.find(tipo, "corte", 1, true) then
+		local nome = if nivel >= 2 then "SOCO_MEGA" else (if rng:NextNumber() < 0.5 then "SOCO_A" else "SOCO_B")
+		if not Som.golpe(nome, pos, { vol = if nivel >= 3 then 1.15 else 1, max = 4 }) then
+			Som.tocar("soco_forte", pos, { vol = if nivel >= 2 then 0.95 else 0.5, vel = if nivel >= 3 then 0.62 else 0.74, max = 4 })
+		end
+	elseif nivel == 0 and tipo == "barragem" and rng:NextNumber() < 0.35 then
+		Som.golpe(if rng:NextNumber() < 0.5 then "SOCO_A" else "SOCO_B", pos, { vol = 0.55, vel = rng:NextNumber(1.05, 1.2), max = 3 })
 	end
 	if not d.congelado then
 		Efeitos.piscar(d.v)
@@ -936,28 +844,19 @@ function Efeitos.area(d: any)
 			Efeitos.cratera(chao, 6)
 		end
 	elseif vfx == "confete" then
-		for _ = 1, (if qualidadeAlta then 50 else 20) do
-			local c = ARCOIRIS[rng:NextInteger(1, 4)]
-			local dir = rng:NextUnitVector()
-			local p = parte(Vector3.new(0.4, 0.06, 0.6), CFrame.new(pos) * CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0), c, Enum.Material.Neon)
-			tween(p, 1.2, { CFrame = CFrame.new(pos + dir * raio * rng:NextNumber(0.3, 1)) * CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0), Transparency = 1 })
-			Debris:AddItem(p, 1.25)
+		for i, c in ARCOIRIS do
+			VFX.faiscas(pos + Vector3.new(0, i * 0.5, 0), c, raio * 0.35, "confete:" .. i)
 		end
-		Efeitos.bolha(pos, raio * 0.6, ARCOIRIS[2], 0.4, Enum.Material.Neon)
 	elseif vfx == "prata" then
-		-- Silver Chariot: dezenas de cortes prateados em volta
-		for i = 1, (if qualidadeAlta then 18 else 8) do
-			task.delay(i * 0.012, function()
+		-- Silver Chariot: cortes da lâmina (pacote) em volta
+		for i = 1, (if qualidadeAlta then 7 else 3) do
+			task.delay(i * 0.04, function()
 				local a = rng:NextNumber(0, math.pi * 2)
-				local centro = pos + Vector3.new(math.cos(a) * raio * 0.5, rng:NextNumber(0, 5), math.sin(a) * raio * 0.5)
-				local corte = parte(Vector3.new(0.12, 0.5, rng:NextNumber(5, 9)), CFrame.new(centro) * CFrame.Angles(rng:NextNumber(-1, 1), a, rng:NextNumber(-1.2, 1.2)), RGB(230, 236, 250), Enum.Material.Neon)
-				corte.Transparency = 0.1
-				tween(corte, 0.25, { Size = Vector3.new(0.02, 0.1, corte.Size.Z * 1.4), Transparency = 1 })
-				Debris:AddItem(corte, 0.3)
+				local centro = pos + Vector3.new(math.cos(a) * raio * 0.4, rng:NextNumber(0.5, 4), math.sin(a) * raio * 0.4)
+				VFX.corte(centro, Vector3.new(math.cos(a), rng:NextNumber(-0.3, 0.3), math.sin(a)), RGB(225, 235, 255), i % 3 == 0, "prata")
 			end)
 		end
 		Efeitos.anel(chaoAbaixo(pos) + Vector3.new(0, 0.3, 0), raio, RGB(220, 230, 255), 0.35, 0.4)
-		Efeitos.particulas(pos + Vector3.new(0, 2, 0), RGB(220, 230, 255), { n = 30, vel = 40, tam = 0.8, vida = 0.4 })
 	elseif vfx == "coluna_fogo" then
 		Efeitos.coluna(pos, raio, RGB(255, 120, 30), 0.6)
 	elseif vfx == "onda_rosa" then
@@ -1059,7 +958,6 @@ function Efeitos.sol(d: any)
 				ankh:Destroy()
 			end)
 		end)
-		Efeitos.onomatopeia(d.acima, "CROSSFIRE HURRICANE!", RGB(255, 150, 40), 1.6)
 	end
 	local l = Instance.new("PointLight")
 	l.Color = RGB(255, 200, 80)
@@ -1125,7 +1023,6 @@ function Efeitos.tempo(d: any)
 		end
 		Som.abafar(true)
 	end
-	Efeitos.onomatopeia(d.centro + Vector3.new(0, 4, 0), "O TEMPO PAROU", RGB(255, 220, 90), 1.6)
 	task.spawn(function()
 		while sessoesTempo[chave] and workspace:GetServerTimeNow() < d.fim do
 			Som.tocar("relogio", nil, { vol = 0.6 })
@@ -1164,8 +1061,7 @@ function Efeitos.tempoVolta(d: any)
 	Som.abafar(false)
 	local raiz = d.dono and d.dono:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if raiz then
-		Efeitos.bolha(raiz.Position, 40, RGB(255, 240, 200), 0.5)
-		-- AJUSTE-10: o tempo volta com um anel que fecha no dono
+		-- AJUSTE-10: o tempo volta com uma onda no dono (AJUSTE-13: do pacote)
 		local c1 = Efeitos.coresTempo(d.dono:GetAttribute("BB_Stand"))
 		VFX.tempoVolta(raiz.Position, c1, 34)
 	end
@@ -1183,19 +1079,14 @@ end
 
 -- ORA x MUDA: duas rajadas se anulando (faíscas no meio dos dois)
 local ultimoClash = 0
-local GRITOS = { KQ = "SHIBA", FOGO = "FOGO" }
 function Efeitos.clash(d: any)
 	local pos: Vector3 = d.pos
 	local ca, cv = corStand(d.sa), corStand(d.sv)
 	VFX.clash(pos, ca, cv)
-	Efeitos.particulas(pos, ca, { n = 8, vel = 26, tam = 0.9, vida = 0.25, cor2 = cv })
 	Som.tocar("bloqueio", pos, { max = 3 })
-	if os.clock() - ultimoClash > 1 then
+	if os.clock() - ultimoClash > 0.25 then
 		ultimoClash = os.clock()
-		local sa, sv = Stands.get(d.sa), Stands.get(d.sv)
-		local ga = if sa then (GRITOS[sa.grito] or sa.grito) else "ORA"
-		local gv = if sv then (GRITOS[sv.grito] or sv.grito) else "MUDA"
-		Efeitos.onomatopeia(pos + Vector3.new(0, 3, 0), ga .. " x " .. gv .. "!!", BRANCO, 1.3)
+		Som.golpe("SOCO_A", pos, { vol = 0.7, max = 2 })
 	end
 	local eu = Players.LocalPlayer.Character
 	if d.a == eu or d.v == eu then
@@ -1230,13 +1121,8 @@ function Efeitos.despertar(d: any)
 			Som.voz(s.grito, raiz.Position)
 		end)
 	end
-	Efeitos.particulas(raiz.Position, cor, { n = 40, vel = 34, tam = 1.6, vida = 0.7, cor2 = BRANCO })
-	local coluna = parte(Vector3.new(60, 6, 6), CFrame.new(raiz.Position + Vector3.new(0, 26, 0)) * CFrame.Angles(0, 0, math.rad(90)), cor, Enum.Material.Neon, Enum.PartType.Cylinder)
-	coluna.Transparency = 0.2
-	tween(coluna, 1.2, { Size = Vector3.new(80, 0.5, 0.5), Transparency = 1 })
-	Debris:AddItem(coluna, 1.25)
-	Efeitos.bolha(raiz.Position, 14, cor, 0.6, Enum.Material.Neon)
-	Efeitos.anel(chaoAbaixo(raiz.Position) + Vector3.new(0, 0.3, 0), 18, cor, 0.6, 0.8)
+	-- AJUSTE-13: despertar = aparição gigante do Stand com os efeitos do pacote (na cor dele)
+	VFX.ult(raiz.Position + Vector3.new(0, 0.6, 0), cor, d.stand)
 	Efeitos.ameaca(modelo, 2.2, cor)
 	Som.tocar("despertar", raiz.Position, { alcance = 400 })
 	Som.tocar("gongo", raiz.Position, { alcance = 400 })
@@ -1274,11 +1160,11 @@ function Efeitos.teleporte(d: any)
 	local modelo = d.quem
 	local cor = corStand(d.stand)
 	if d.de then
-		Efeitos.bolha(d.de, 3, cor, 0.3, Enum.Material.Neon)
+		VFX.brilho(d.de, cor, 3, "teleporte:de")
 	end
 	if d.para then
-		Efeitos.bolha(d.para, 4, cor, 0.35)
-		Efeitos.faiscas(d.para, cor, 10, 5)
+		VFX.brilho(d.para, cor, 3.6, "teleporte:para")
+		VFX.faiscas(d.para, cor, 2.6, "teleporte:f")
 		Som.tocar("teleporte", d.para)
 	end
 	if modelo then
@@ -1295,7 +1181,6 @@ function Efeitos.contra(d: any)
 		Efeitos.anel(raiz.Position + raiz.CFrame.LookVector * 2, 4, RGB(255, 230, 120), 0.25, 0.3, raiz.CFrame.LookVector)
 		return
 	end
-	Efeitos.onomatopeia(raiz.Position, "CONTRA!", RGB(255, 230, 120), 1.2)
 	Efeitos.anel(raiz.Position, 6, BRANCO, 0.3, 0.4)
 	Som.tocar("parry", raiz.Position)
 end
@@ -1322,7 +1207,6 @@ function Efeitos.marca(d: any)
 	end)
 	local onde = fixo or (raiz :: BasePart).Position
 	if d.bomba then
-		Efeitos.onomatopeia(onde + Vector3.new(0, 3, 0), "CLICK", RGB(255, 140, 210), 0.9)
 		Som.tocar("metal", onde, { vol = 0.6 })
 	else
 		Som.tocar("relogio", onde)
@@ -1399,7 +1283,6 @@ function Efeitos.reconstruir(d: any)
 	Som.tocar("magia", d.pos, { alcance = 300 })
 	if (d.n or 0) > 0 then
 		Som.tocar("pedra", d.pos)
-		Efeitos.onomatopeia(d.pos + Vector3.new(0, 3, 0), "KRIK-KRAK!", RGB(255, 170, 225), 1.2)
 	end
 end
 
@@ -1427,15 +1310,10 @@ function Efeitos.lancaChamas(dono: Model, dur: number, ativo: (() -> boolean)?)
 			if mao then
 				origemCf = CFrame.lookAt(mao.Position, mao.Position + raizDono.CFrame.LookVector)
 			end
-			for _ = 1, (if qualidadeAlta then 3 else 1) do
-				local dir = (raizDono.CFrame * CFrame.Angles(rng:NextNumber(-0.25, 0.25), rng:NextNumber(-0.45, 0.45), 0)).LookVector
-				local p = parte(Vector3.new(1, 1, 1), origemCf, if rng:NextNumber() < 0.5 then RGB(255, 120, 30) else RGB(255, 210, 70), Enum.Material.Neon, Enum.PartType.Ball)
-				p.Transparency = 0.2
-				local alvo = origemCf.Position + dir * rng:NextNumber(14, 19)
-				tween(p, 0.45, { CFrame = CFrame.new(alvo), Size = Vector3.new(4, 4, 4), Transparency = 1 })
-				Debris:AddItem(p, 0.5)
-			end
-			task.wait(0.04)
+			-- AJUSTE-13: fogo do pacote ao longo do jato (no lugar das bolas Neon)
+			local dir = (raizDono.CFrame * CFrame.Angles(rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.35, 0.35), 0)).LookVector
+			VFX.fogo(origemCf.Position + dir * rng:NextNumber(3, 16), rng:NextNumber(2, 3.2), "lanca" .. rng:NextInteger(1, 2))
+			task.wait(if qualidadeAlta then 0.06 else 0.12)
 		end
 		if som then
 			som:Destroy()
@@ -1447,26 +1325,27 @@ end
 -- coluna de fogo que sobe do chão (Magician's Red)
 function Efeitos.coluna(pos: Vector3, raio: number, cor: Color3, dur: number)
 	local chao = chaoAbaixo(pos)
-	local alto = 26
-	local c = parte(Vector3.new(alto, raio * 1.2, raio * 1.2), CFrame.new(chao) * CFrame.Angles(0, 0, math.rad(90)), cor, Enum.Material.Neon, Enum.PartType.Cylinder)
-	c.Transparency = 0.25
-	c.Size = Vector3.new(1, raio * 0.4, raio * 0.4)
-	tween(c, 0.15, { Size = Vector3.new(alto, raio * 1.4, raio * 1.4), CFrame = CFrame.new(chao + Vector3.new(0, alto / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)) })
-	task.delay(dur, function()
-		if c.Parent then
-			tween(c, 0.3, { Transparency = 1, Size = Vector3.new(alto * 1.1, 0.4, 0.4) })
-		end
-	end)
-	Debris:AddItem(c, dur + 0.35)
+	-- AJUSTE-13: fogo dos pacotes subindo em camadas (no lugar do cilindro Neon)
+	for i = 0, 3 do
+		task.delay(i * 0.05, function()
+			VFX.fogo(chao + Vector3.new(0, 2 + i * 5, 0), raio * (1.1 - i * 0.12), "coluna" .. i)
+		end)
+	end
+	VFX.explosao(chao + Vector3.new(0, 1.5, 0), cor, raio * 0.9, "coluna_base")
 	if qualidadeAlta then
+		local c = parte(Vector3.new(raio, 20, raio), CFrame.new(chao + Vector3.new(0, 10, 0)), cor, Enum.Material.SmoothPlastic)
+		c.Transparency = 1
 		local f = Instance.new("Fire")
 		f.Size = raio * 2
 		f.Heat = 25
 		f.Color = RGB(255, 100, 20)
 		f.SecondaryColor = RGB(255, 220, 80)
 		f.Parent = c
+		task.delay(dur, function()
+			f.Enabled = false
+		end)
+		Debris:AddItem(c, dur + 1.2)
 	end
-	Efeitos.particulas(chao + Vector3.new(0, 2, 0), RGB(255, 140, 40), { n = 24, vel = 30, tam = 3, vida = 0.7, textura = "fogo", gravidade = 30, espalhar = 25, cor2 = RGB(255, 60, 10) })
 	Efeitos.anel(chao + Vector3.new(0, 0.3, 0), raio * 1.4, cor, 0.4, 0.6)
 	Efeitos.luz(chao + Vector3.new(0, 6, 0), cor, 8, raio * 5, dur)
 	Som.tocar("fogo_grande", chao, { alcance = 300 })
@@ -1516,7 +1395,6 @@ function Efeitos.rolo(d: any)
 	preso(corpo, teto, CFrame.new(0, 7.2, 2.5))
 	local placa = parte(Vector3.new(4, 1.2, 0.2), CFrame.new(), RGB(250, 250, 250), Enum.Material.SmoothPlastic)
 	preso(corpo, placa, CFrame.new(0, 1.2, 7.05))
-	Efeitos.onomatopeia(pos + Vector3.new(0, 10, 0), "ROAD ROLLER DA!", RGB(255, 210, 40), 1.8)
 	local cai = 0.35
 	local fim = CFrame.new(chao + Vector3.new(0, 4.5, 0)) * CFrame.Angles(math.rad(-8), 0, math.rad(4))
 	tween(corpo, cai, { CFrame = fim }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -1555,7 +1433,6 @@ function Efeitos.rebobinar(d: any)
 	local raiz = d.quem and d.quem:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local dur = d.dur or 0.7
 	if raiz then
-		Efeitos.onomatopeia(raiz.Position + Vector3.new(0, 5, 0), "BITES THE DUST", RGB(255, 140, 210), 1.6)
 		Efeitos.ameaca(d.quem, dur + 0.6, RGB(255, 140, 210))
 	end
 	local cc = corRebobinar
@@ -1590,7 +1467,6 @@ function Efeitos.buff(d: any)
 		return
 	end
 	local cor = corStand(d.stand)
-	Efeitos.onomatopeia(raiz.Position + Vector3.new(0, 4, 0), "ARMOR OFF!", cor, 1.3)
 	Efeitos.particulas(raiz.Position, RGB(220, 230, 255), { n = 30, vel = 30, tam = 1, vida = 0.5 })
 	Som.tocar("metal", raiz.Position)
 	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))

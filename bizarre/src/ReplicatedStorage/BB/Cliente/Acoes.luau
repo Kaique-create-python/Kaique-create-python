@@ -122,7 +122,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 				local rs = st and st:FindFirstChild("HumanoidRootPart") :: BasePart?
 				if rs and rs.Parent then
 					local frente = rs.CFrame.LookVector
-					VFX.estouroAr(rs.Position + frente * 2.4 + Vector3.new(0, 0.7, 0), frente, corM1, n == 4)
+					VFX.estouroAr(rs.Position + frente * 2.4 + Vector3.new(0, 0.7, 0), frente, corM1, n == 4, tostring(s and s.id) .. ":m1")
 				end
 			end)
 		else
@@ -131,11 +131,15 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			task.delay(if n == 4 then 0.16 else 0.1, function()
 				if token(modelo) == tk and raiz.Parent then
 					local frente = raiz.CFrame.LookVector
-					VFX.estouroAr(raiz.Position + frente * 2.2 + Vector3.new(0, 0.6, 0), frente, corM1, n == 4)
+					VFX.estouroAr(raiz.Position + frente * 2.2 + Vector3.new(0, 0.6, 0), frente, corM1, n == 4, tostring(s and s.id) .. ":m1")
 				end
 			end)
 		end
 		Som.tocar(if n == 4 then "whoosh_forte" else "whoosh", raiz.Position, { max = 6 })
+		if n == 4 then
+			-- AJUSTE-13: o braço indo forte (whoosh do som que o dono mandou)
+			Som.golpe("WHOOSH_SOCO", raiz.Position, { vol = 0.9 })
+		end
 		if n == 4 then
 			local cor = Efeitos.corStand(s and s.id)
 			local braco = (modelo:FindFirstChild("Right Arm") or modelo:FindFirstChild("RightHand")) :: BasePart?
@@ -158,22 +162,12 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		Som.tocar("dash", raiz.Position)
 		Som.tocar("whoosh_forte", raiz.Position, { vol = 0.7, vel = 1.15 })
 		local cor = Efeitos.corStand(s and s.id)
-		Efeitos.fantasma(modelo, cor, 0.3)
-		task.delay(0.1, function()
-			Efeitos.fantasma(modelo, cor, 0.25)
-		end)
-		task.delay(0.18, function()
-			Efeitos.fantasma(modelo, cor, 0.2)
-		end)
 		local pe = raiz.Position - Vector3.new(0, 2.6, 0)
-		Efeitos.poeira(pe, 2, nil, 6)
-		-- AJUSTE-12: dash com peso: anel no chão, linhas de velocidade para trás, fumaça do pacote e,
-		-- se o dash é seu, a câmera "puxa" (FOV) por um instante
+		-- AJUSTE-13: dash com os efeitos do pacote (poeira nos pés e o ar abrindo atrás) e, se o
+		-- dash é seu, a câmera "puxa" (FOV) por um instante
 		local cf = raiz.CFrame
 		local dirDash = if tipo == "tras" then -cf.LookVector elseif tipo == "lado" then (if dados.lado == "esquerda" then -cf.RightVector else cf.RightVector) else cf.LookVector
-		VFX.anel(pe + Vector3.new(0, 0.2, 0), cor:Lerp(Color3.new(1, 1, 1), 0.4), 4.5, 0.28, Vector3.yAxis)
-		VFX.linhas(raiz.Position, -dirDash, cor, 7, 6)
-		VFX.lojaUm({ "fumaca", "outros" }, pe + Vector3.new(0, 0.6, 0), -dirDash, 0.6)
+		VFX.dash(pe, dirDash, cor)
 		if modelo == game:GetService("Players").LocalPlayer.Character then
 			require(script.Parent:WaitForChild("Camera")).fov(9, 0.28)
 		end
@@ -187,8 +181,9 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		return
 	elseif id == "stand" then
 		local cor = Efeitos.corStand(s and s.id)
+		local _ = cor
 		if dados.fora then
-			Efeitos.bolha(raiz.Position + raiz.CFrame.RightVector * 2 + raiz.CFrame.LookVector * 2.4, 4, cor, 0.3, Enum.Material.Neon)
+			-- AJUSTE-13: o efeito de aparecer é o do Stand (StandVisual -> VFX.invocar)
 			Som.tocar("magia", raiz.Position)
 		end
 		return
@@ -253,14 +248,6 @@ function Acoes.tocar(modelo: Model?, dados: any)
 					end
 				end)
 			end
-			if g.onomatopeia then
-				Efeitos.onomatopeia(raiz.Position + raiz.CFrame.LookVector * 5, g.onomatopeia, cor, 1.2)
-			end
-		end)
-	elseif g.onomatopeia then
-		local t = impacto or (g.hits and g.hits[1] and g.hits[1].t) or 0.3
-		task.delay(t, function()
-			Efeitos.onomatopeia(raiz.Position + raiz.CFrame.LookVector * 4, g.onomatopeia, cor, 1.1)
 		end)
 	end
 	-- trocas de clipe no meio do golpe (FREVO voo, FUNK batidão)
@@ -339,10 +326,8 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	if g.ult then
 		Efeitos.ameaca(modelo, 1.5, cor)
 		Som.tocar("gongo", raiz.Position, { alcance = 400 })
-		-- AJUSTE-12: a ULT explode aura em volta de quem usou (efeito do pacote + o nosso)
-		VFX.lojaUm({ "aura", "outros", "explosao" }, raiz.Position, nil, 1.6)
-		VFX.invocar(raiz.Position + Vector3.new(0, 0.6, 0), cor)
-		VFX.anel(raiz.Position - Vector3.new(0, 2.5, 0), cor, 14, 0.5, Vector3.yAxis)
+		-- AJUSTE-13: a ULT explode a aparição do Stand em tamanho grande (efeitos do pacote, cor dele)
+		VFX.ult(raiz.Position + Vector3.new(0, 0.6, 0), cor, s and s.id)
 		-- cena de anime: câmera de cinema para quem usou, nome do golpe para quem está perto
 		require(script.Parent:WaitForChild("Cinematica")).ult(modelo, s, g)
 	end

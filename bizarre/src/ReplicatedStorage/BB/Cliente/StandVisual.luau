@@ -335,7 +335,8 @@ local function atualizar(v: any, dt: number)
 			v.offset = MODOS.dentro
 			if agora - v.ultimaInvocacao > 1.5 and (dono:GetAttribute("BB_StandFora") == true) then
 				v.ultimaInvocacao = agora
-				VFX.invocar(raizDono.Position + Vector3.new(0, 0.6, 0), v.cor)
+				-- AJUSTE-13: cada Stand aparece com as camadas e a cor dele (StandVisual guarda o id)
+				VFX.invocar(raizDono.Position + Vector3.new(0, 0.6, 0), v.cor, dono:GetAttribute("BB_Stand"))
 			end
 		elseif v.alvoVis < 0.5 and v.vis > 0.05 then
 			alvoOffset = MODOS.dentro

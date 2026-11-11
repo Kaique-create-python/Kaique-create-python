@@ -84,6 +84,8 @@ NOMES_STANDS = {
 MARCADOR_VOZES = b"BBVOZ" + b"_" * 59  # o place guarda o número do áudio das vozes aqui
 MARCADOR_ANIME = b"BBVZA" + b"_" * 59  # AJUSTE-8: áudio dos sons do anime (separado)
 MARCADOR_IMAGENS = b"BBIMG" + b"_" * 59  # AJUSTE-8: artes do Canva ("logo fundo carregando")
+MARCADOR_SFX = b"BBSFX" + b"_" * 59  # AJUSTE-13: socos do dono (grave/estourado)
+ARQ_VFX = "BIZARRE_VFX_PACOTES.zip"  # AJUSTE-13: pacotes de VFX + descrição, para mandar no chat
 
 
 # --------------------------------------------------------------------- saída
@@ -285,8 +287,27 @@ def listar_classes(dados):
     return contagem
 
 
+def salvar_vfx(pacotes, detalhes):
+    """AJUSTE-13: junta os pacotes baixados e a descrição de cada efeito num zip na pasta atual
+    (Downloads), para o dono mandar no chat. Opcional: nunca trava."""
+    if not pacotes and not detalhes:
+        return
+    try:
+        with zipfile.ZipFile(ARQ_VFX, "w", zipfile.ZIP_DEFLATED) as z:
+            for nome_arq, dados in (pacotes or {}).items():
+                z.writestr(nome_arq, dados)
+            if detalhes:
+                z.writestr("no_jogo.json", json.dumps(detalhes, ensure_ascii=False, indent=1))
+        ok("arquivo dos VFX salvo: %s (%d KB)" % (os.path.abspath(ARQ_VFX), os.path.getsize(ARQ_VFX) // 1024))
+        print("      -> mande esse arquivo no chat para eu ver cada efeito e escolher o melhor de cada golpe")
+    except Exception as e:
+        aviso("não deu para salvar o arquivo dos VFX (%s)" % type(e).__name__)
+
+
 def auditar_vfx(chave):
-    """baixa cada pacote com a sua chave (Open Cloud Asset Delivery) e mostra o que tem dentro. Opcional."""
+    """baixa cada pacote com a sua chave (Open Cloud Asset Delivery) e mostra o que tem dentro. Opcional.
+    AJUSTE-13: devolve {nome do arquivo: bytes} para salvar no zip dos VFX."""
+    baixados = {}
     for asset_id, nome in PACOTES_VFX:
         try:
             info = http_json("GET", "%s/asset-delivery-api/v1/assetId/%d" % (API, asset_id), chave, tentativas=2, espera_max=60)
@@ -297,6 +318,7 @@ def auditar_vfx(chave):
             _, dados = http("GET", local, None, tentativas=2, espera_max=180)
             if dados[:2] == b"\x1f\x8b":
                 dados = gzip.decompress(dados)
+            baixados["%d_%s.rbxm" % (asset_id, "".join(ch if ch.isalnum() else "_" for ch in nome)[:30])] = dados
             c = listar_classes(dados)
             scripts = sum(v for k, v in c.items() if k in ("Script", "LocalScript", "ModuleScript"))
             ok("%s: baixado (%d KB) - %d partículas, %d feixes, %d rastros, %d peças; %d scripts (o jogo NÃO roda)" % (
@@ -306,12 +328,13 @@ def auditar_vfx(chave):
             if e.codigo in (401, 403):
                 aviso("a chave não tem a permissão para baixar modelos: %s." % PERMISSOES["vfx"])
                 aviso("   (é opcional: o JOGO carrega os pacotes sozinho; isso aqui é só para conferir)")
-                return
+                return baixados
             aviso("%s: o Roblox respondeu %s (%s)" % (nome, e.codigo, e.resumo()))
         except Falha as f:
             aviso("%s: %s" % (nome, f))
         except Exception as e:
             aviso("%s: não deu para ler o arquivo (%s)" % (nome, type(e).__name__))
+    return baixados
 
 
 def explicar(e, etapa):
@@ -554,8 +577,10 @@ def colocar_marcador(place, marcador, texto):
     return place.replace(marcador, valor.ljust(len(marcador), b" "))
 
 
-def colocar_extras(place, anime, trechos_anime, imagens):
-    """AJUSTE-8: sons do anime e artes do Canva no place (0 = sem)"""
+def colocar_extras(place, anime, trechos_anime, imagens, sfx=0, trechos_sfx=0):
+    """AJUSTE-8: sons do anime e artes do Canva no place (0 = sem). AJUSTE-13: socos do dono"""
+    if sfx and MARCADOR_SFX in place:
+        place = colocar_marcador(place, MARCADOR_SFX, "%d %d" % (int(sfx), int(trechos_sfx or 0)))
     if anime:
         place = colocar_marcador(place, MARCADOR_ANIME, "%d %d" % (int(anime), int(trechos_anime or 0)))
     if imagens and any(imagens):
@@ -666,6 +691,8 @@ def mostrar_relatorio(res):
         ok("artes: %s" % inf["imagens"])
     if inf.get("vfxLoja"):
         ok("VFX da loja dentro do jogo: %s" % inf["vfxLoja"])
+    if inf.get("sfx"):
+        ok("socos do dono: %s" % inf["sfx"])
     stands = inf.get("stands") or {}
     for sid in NOMES_STANDS:
         txt = stands.get(sid)
@@ -925,11 +952,29 @@ def preparar(args):
                 aviso("%s: %s (seguindo sem)" % (info_i.get("rotulo", nome), type(e).__name__))
     if not any(imagens):
         aviso("sem as artes do Canva por enquanto: o menu usa o visual de texto.")
-    place_bin = colocar_extras(place_bin, id_anime, trechos_anime, imagens)
+    # AJUSTE-13: socos do dono (grave e estourado), num áudio só
+    id_sfx, trechos_sfx = 0, 0
+    if "sfx.ogg" in arquivos:
+        info_s = MANIFESTO["sfx.ogg"]
+        try:
+            id_sfx = enviar_audio(chave, criador, "sfx.ogg", info_s, arquivos["sfx.ogg"], recibos, gaveta_nome="audio_sfx")
+        except Exception as e:
+            aviso("socos do dono: %s (seguindo sem eles)" % type(e).__name__)
+            id_sfx = 0
+        trechos_sfx = info_s.get("trechos", 0)
+        if id_sfx:
+            try:
+                liberar_audio(chave, universe, id_sfx, recibos, "socos do dono")
+            except Exception as e:
+                aviso("liberar socos: %s (seguindo)" % type(e).__name__)
+        else:
+            aviso("sem os socos novos por enquanto: o jogo usa os socos da biblioteca do Roblox.")
+    place_bin = colocar_extras(place_bin, id_anime, trechos_anime, imagens, id_sfx, trechos_sfx)
 
-    passo("4c", "Pacotes de VFX que você pegou na loja (opcional: só confere)")
+    passo("4c", "Pacotes de VFX que você pegou na loja (opcional: baixa para eu poder ver)")
+    pacotes_vfx = {}
     try:
-        auditar_vfx(chave)
+        pacotes_vfx = auditar_vfx(chave) or {}
     except Exception as e:  # nada daqui pode travar a instalação
         aviso("conferir VFX: %s (seguindo)" % type(e).__name__)
 
@@ -941,6 +986,7 @@ def preparar(args):
     ok("versão de teste salva: %d" % v_teste)
     if "--pular-teste" in args:
         aviso("Teste na nuvem PULADO a seu pedido (--pular-teste).")
+        salvar_vfx(pacotes_vfx, None)
     else:
         try:
             tarefa, logs = rodar_luau(chave, universe, place, v_teste, arquivos["teste_nuvem.luau"].decode("utf-8"),
@@ -950,6 +996,7 @@ def preparar(args):
                 raise Falha(explicar(e, "luau") + "\n   Nada foi publicado. Depois de ajustar a chave, rode de novo.")
             raise Falha("Teste na nuvem não rodou: " + explicar(e, "luau") + "\n   Nada foi publicado.")
         res, problema = resultado_teste(tarefa)
+        salvar_vfx(pacotes_vfx, (res or {}).get("vfxDetalhes"))
         if problema or not res or not res.get("ok"):
             erro("O teste isolado FALHOU. Nada foi publicado.")
             if problema:
@@ -966,6 +1013,7 @@ def preparar(args):
     # teste aprovado: fica anotado. Se a publicação cair no meio, "publicar" termina sem refazer tudo
     recibos["pendente"] = {"revisao": REVISAO, "pacote": PAYLOAD_SHA256, "teste": v_teste, "vozes": id_vozes,
                            "trechos": trechos, "anime": id_anime, "trechos_anime": trechos_anime, "imagens": imagens,
+                           "sfx": id_sfx, "trechos_sfx": trechos_sfx,
                            "universe": universe, "place": place, "quando": int(time.time())}
     gravar_recibos(recibos)
     return {"chave": chave, "universe": universe, "place": place, "place_bin": place_bin, "recibos": recibos,
@@ -1039,7 +1087,8 @@ def cmd_publicar(args):
     place_bin = arquivos["place.rbxl"]
     if p.get("vozes"):
         place_bin = colocar_vozes(place_bin, p["vozes"], p.get("trechos", 0))
-    place_bin = colocar_extras(place_bin, p.get("anime", 0), p.get("trechos_anime", 0), p.get("imagens") or [])
+    place_bin = colocar_extras(place_bin, p.get("anime", 0), p.get("trechos_anime", 0), p.get("imagens") or [],
+                               p.get("sfx", 0), p.get("trechos_sfx", 0))
     ok("teste aprovado em %s (versão de teste %s)" % (time.strftime("%d/%m %H:%M", time.localtime(p["quando"])), p.get("teste")))
     chave = getpass.getpass("   Cole a chave da Open Cloud (fica escondida) e Enter: ").strip()
     if not chave:

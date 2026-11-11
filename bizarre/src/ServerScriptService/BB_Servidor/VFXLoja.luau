@@ -7,6 +7,19 @@
 -- O celular usa esses efeitos nos golpes (Cliente/VFX). Se nada carregar, ficam os VFX próprios.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- AJUSTE-13: cada efeito guardado é medido (tamanho, duração, cor) para o celular usar na escala e
+-- na cor certas; cada pacote tem a sua vaga em cada tipo (o primeiro pacote não ocupa tudo).
+-- (sem o módulo de medida, o celular mede sozinho na primeira vez que usa o efeito)
+local Medida: any = nil
+local function medida(): any
+	if Medida == nil then
+		local ok, m = pcall(function()
+			return require(ReplicatedStorage:WaitForChild("BB", 10):WaitForChild("VFXMedida", 10))
+		end)
+		Medida = if ok and m then m else false
+	end
+	return Medida or nil
+end
 
 local VFXLoja = {}
 
@@ -35,7 +48,8 @@ VFXLoja.CATEGORIAS = {
 	{ "aura", { "aura", "charge", "power", "energy", "buff", "magic", "orb", "spirit", "chakra", "ki", "domain", "stand" } },
 	{ "flash", { "flash", "light", "star", "shine", "sparkle", "glint", "glow", "twinkle", "flare" } },
 }
-VFXLoja.MAX_POR_TIPO = 14 -- efeitos guardados por tipo (o resto fica de fora: celular leve)
+VFXLoja.MAX_POR_TIPO = 30 -- efeitos guardados por tipo (o resto fica de fora: celular leve)
+VFXLoja.MAX_POR_PACOTE_TIPO = 8 -- AJUSTE-13: vaga de cada pacote em cada tipo
 
 local VISUAIS = { ParticleEmitter = true, Beam = true, Trail = true }
 -- o que nunca entra: código e coisas que conversam pela rede ou tocam som sozinhas
@@ -147,7 +161,7 @@ function VFXLoja.processar(modelo: Instance, pacote: any): any
 			destino.Name = tipo
 			destino.Parent = pasta
 		end
-		if #destino:GetChildren() < VFXLoja.MAX_POR_TIPO then
+		if #destino:GetChildren() < VFXLoja.MAX_POR_TIPO and (porTipo[tipo] or 0) < VFXLoja.MAX_POR_PACOTE_TIPO then
 			local copia = u.inst:Clone()
 			copia.Name = string.format("%d_%d", pacote.id, i)
 			copia:SetAttribute("Caminho", string.sub(u.caminho, 1, 120))
@@ -171,6 +185,12 @@ function VFXLoja.processar(modelo: Instance, pacote: any): any
 				copia.CanTouch = false
 			elseif copia:IsA("ParticleEmitter") or copia:IsA("Beam") or copia:IsA("Trail") then
 				copia.Enabled = false
+			end
+			local M = medida()
+			if M then
+				pcall(function()
+					M.anotar(copia, M.medir(copia))
+				end)
 			end
 			copia.Parent = destino
 			porTipo[tipo] = (porTipo[tipo] or 0) + 1
@@ -208,6 +228,70 @@ local function resumoTipos(porTipo: { [string]: number }): string
 end
 
 VFXLoja.relatorio = {} :: { any }
+
+-- AJUSTE-13: descrição de cada efeito guardado (o teste na nuvem devolve e o instalador salva num
+-- arquivo para o dono mandar no chat: assim dá para ver cada efeito e escolher o melhor por golpe)
+local function hex(c: Color3): string
+	return string.format("%02x%02x%02x", math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5))
+end
+
+function VFXLoja.descrever(): any
+	local pasta = ReplicatedStorage:FindFirstChild("BB_VFXLoja")
+	local saida = { resumo = pasta and pasta:GetAttribute("Resumo"), relatorio = VFXLoja.relatorio, tipos = {} }
+	if not pasta then
+		return saida
+	end
+	for _, tipo in pasta:GetChildren() do
+		local lista = {}
+		for _, e in tipo:GetChildren() do
+			local item: any = {
+				nome = e.Name,
+				caminho = e:GetAttribute("Caminho"),
+				pacote = e:GetAttribute("Pacote"),
+				classe = e.ClassName,
+				raio = e:GetAttribute("Raio"),
+				vida = e:GetAttribute("Vida"),
+				nota = e:GetAttribute("Nota"),
+				emissores = {},
+				pecas = {},
+			}
+			local todos = e:GetDescendants()
+			table.insert(todos, e)
+			for _, d in todos do
+				if d:IsA("ParticleEmitter") and #item.emissores < 12 then
+					local cores = {}
+					for _, k in d.Color.Keypoints do
+						table.insert(cores, hex(k.Value))
+					end
+					local tam = 0
+					for _, k in d.Size.Keypoints do
+						tam = math.max(tam, k.Value)
+					end
+					table.insert(item.emissores, {
+						n = d.Name, tex = d.Texture, cor = table.concat(cores, " "), tam = tam,
+						vida = d.Lifetime.Max, vel = d.Speed.Max, luz = d.LightEmission, taxa = d.Rate,
+						emit = d:GetAttribute("EmitCount"), atraso = d:GetAttribute("EmitDelay"),
+						flip = tostring(d.FlipbookLayout), orient = tostring(d.Orientation),
+					})
+				elseif d:IsA("BasePart") and d.Transparency < 1 and #item.pecas < 6 then
+					local malha = ""
+					if d:IsA("MeshPart") then
+						malha = d.MeshId .. " " .. d.TextureID
+					else
+						local m = d:FindFirstChildOfClass("SpecialMesh")
+						if m then
+							malha = m.MeshId .. " " .. m.TextureId
+						end
+					end
+					table.insert(item.pecas, { n = d.Name, classe = d.ClassName, cor = hex(d.Color), mat = tostring(d.Material), malha = malha })
+				end
+			end
+			table.insert(lista, item)
+		end
+		saida.tipos[tipo.Name] = lista
+	end
+	return saida
+end
 
 function VFXLoja.iniciar()
 	local pasta = pastaLoja()

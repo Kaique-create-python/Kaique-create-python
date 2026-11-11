@@ -674,7 +674,7 @@ teste("Stand: do lado esquerdo atrás flutuando; guarda na frente com os braços
 	assert(g.LS[3] > 20 and g.RS[3] < -20 and g.LS[1] > 60 and g.RS[1] > 60, "braços em X na frente")
 end)
 
-teste("VFX: todos os efeitos rodam, peças sem colisão e com teto (celular não engasga)", function()
+teste("VFX: sem pacote todos os golpes rodam com a reserva do Roblox e sem peça desenhada", function()
 	local roblox = require("@lune/roblox")
 	local pastaVFX = roblox.Instance.new("Folder")
 	local terra = roblox.Instance.new("Folder")
@@ -704,40 +704,39 @@ teste("VFX: todos os efeitos rodam, peças sem colisão e com teto (celular não
 	local VFX = H.moduloNovo("ReplicatedStorage/BB/Cliente/VFX")
 	H.extras.Instance = nil
 	H.extras.workspace = nil
+	VFX._lojaPasta(roblox.Instance.new("Folder")) -- nenhum pacote carregado
 	local V3, cor = roblox.Vector3.new, roblox.Color3.fromRGB(170, 90, 255)
 	local pos, dir = V3(0, 3, 0), V3(0, 0, -1)
-	for nivel = 1, 3 do
-		VFX.impacto(pos, dir, cor, nivel)
+	for nivel = 0, 3 do
+		VFX.impacto(pos, dir, cor, nivel, "SP:m1")
 	end
 	VFX.impacto(pos, nil, cor, 2)
 	VFX.estouroAr(pos, dir, cor, true)
 	VFX.pressao(pos, dir, cor)
 	VFX.guarda(pos, dir, cor)
+	VFX.quebraGuarda(pos, dir)
 	VFX.parry(pos, cor)
-	VFX.invocar(pos, cor)
+	for id in VFX.APARICAO do
+		VFX.invocar(pos, cor, id)
+	end
+	VFX.invocar(pos, cor, nil)
+	VFX.ult(pos, cor, "THE_WORLD")
+	VFX.dash(pos, dir, cor)
+	VFX.corte(pos, dir, cor, true)
+	VFX.explosao(pos, cor, 6)
+	VFX.fogo(pos, 3)
+	VFX.poeira(pos, 3)
+	VFX.faiscas(pos, cor, 2)
+	VFX.onda(pos, cor, 6, V3(0, 1, 0))
+	VFX.brilho(pos, cor, 3)
 	VFX.clash(pos, cor, roblox.Color3.fromRGB(255, 200, 60))
 	VFX.tempo(pos, cor, roblox.Color3.fromRGB(255, 200, 60), 150)
 	VFX.tempoVolta(pos, cor, 34)
-	VFX.anel(pos, cor, 6, 0.2, V3(0, 1, 0))
-	VFX.anel(pos, cor, 6, 0.2, V3(0, -1, 0))
-	local pecas = 0
-	for _, p in pastaVFX:GetChildren() do
-		pecas += 1
-		assert(p.Anchored and not p.CanCollide and not p.CanQuery and not p.CanTouch and not p.CastShadow, "peça de efeito encosta: " .. p.Name)
-		local c = p.CFrame.Position
-		assert(c.X == c.X and c.Y == c.Y and c.Z == c.Z, "posição NaN")
-	end
-	assert(pecas > 60 and emitidas > 0, "efeitos criados: " .. pecas .. " peças, " .. emitidas .. " partículas")
-	-- teto: uma chuva de impactos não passa do limite de peças vivas
-	for _ = 1, 60 do
-		VFX.impacto(pos, dir, cor, 3)
-	end
-	assert(VFX.vivos() <= 320, "teto de peças: " .. VFX.vivos())
-	-- qualidade baixa cria menos
-	VFX.qualidade(false)
-	local antes = VFX.vivos()
-	VFX.impacto(pos, dir, cor, 1)
-	assert(VFX.vivos() - antes <= 320, "baixa")
+	assert(#pastaVFX:GetChildren() == 0, "sem pacote nada é desenhado com peças (achei " .. #pastaVFX:GetChildren() .. ")")
+	assert(emitidas > 0 and VFX.contagem.roblox >= 20 and VFX.contagem.pacote == 0, "reserva: " .. VFX.contagem.roblox .. " efeitos, " .. emitidas .. " partículas")
+	-- a fonte do VFX não cria mais peça Neon nenhuma
+	local fonte = H.fonte("ReplicatedStorage/BB/Cliente/VFX")
+	assert(not string.find(fonte, "Enum.Material.Neon", 1, true), "VFX sem Neon")
 end)
 
 teste("mapa Morioh intacto: a simplificação não roda no servidor (regra do plano)", function()
@@ -957,6 +956,155 @@ teste("mira, vozes e VFX: trava só no meu acerto, gritos mais altos, efeito do 
 	-- DIAG: mostra o maior valor do andar nos últimos 5 s
 	assert(string.find(H.fonte("ReplicatedStorage/BB/Cliente/Animador"), "maior nos últimos 5 s", 1, true), "pico no DIAG")
 	assert(string.find(H.fonte("ServerScriptService/BB_Servidor/VFXLoja"), 'SetAttribute("Nomes"', 1, true), "nomes dos efeitos no DIAG")
+end)
+
+print("== AJUSTE-13")
+teste("VFX dos pacotes: escolha fixa, cor do Stand (SP não fica verde), escala e camadas", function()
+	local roblox = require("@lune/roblox")
+	local I = roblox.Instance.new
+	local V3 = roblox.Vector3.new
+	local M = H.modulo("ReplicatedStorage/BB/VFXMedida")
+	local roxo = roblox.Color3.fromRGB(150, 110, 255)
+	local verde = roblox.Color3.fromRGB(40, 230, 60)
+	local branco = roblox.Color3.new(1, 1, 1)
+	local hRoxo = roxo:ToHSV()
+	local hT = M.tingirCor(verde, roxo):ToHSV()
+	assert(math.abs(hT - hRoxo) < 0.02, "verde vira roxo")
+	assert(M.tingirCor(branco, roxo) == branco, "o branco do miolo fica branco")
+	assert(M.tingirCor(branco, roxo, true) ~= branco, "na aparição o branco ganha a cor")
+	assert(M.hash("SP:x") == M.hash("SP:x") and M.hash("SP:x") ~= M.hash("TW:x"), "hash fixo")
+	-- loja falsa: efeitos com partícula e medida
+	local loja = I("Folder")
+	local function tipo(nome)
+		local f = loja:FindFirstChild(nome) or I("Folder")
+		f.Name = nome
+		f.Parent = loja
+		return f
+	end
+	local function efeito(t, nome, tam, cor, vida)
+		local p = I("Part")
+		p.Name = nome
+		p.Transparency = 1
+		p.Size = V3(1, 1, 1)
+		p.CFrame = roblox.CFrame.new(50, 10, 50)
+		local a = I("Attachment")
+		a.Parent = p
+		local e = I("ParticleEmitter")
+		e.Size = roblox.NumberSequence.new(tam)
+		e.Color = roblox.ColorSequence.new(cor)
+		e.Lifetime = roblox.NumberRange.new(vida or 0.5)
+		e.Speed = roblox.NumberRange.new(10)
+		e.Drag = 5
+		e.Rate = 0
+		e:SetAttribute("EmitCount", 12)
+		e.Parent = a
+		p.Parent = tipo(t)
+		M.anotar(p, M.medir(p))
+		return p
+	end
+	efeito("impacto", "A", 4, verde)
+	efeito("impacto", "B", 2, branco)
+	efeito("aura", "verde", 3, verde)
+	efeito("aura", "roxa", 3, roxo)
+	efeito("aura", "longa", 3, roxo, 9) -- aura de 9 s não serve para golpe
+	efeito("choque", "C", 6, branco)
+	efeito("flash", "F", 2, branco)
+	efeito("faisca", "S", 1, verde)
+	local medida = M.ler(loja.impacto.A)
+	assert(medida.raio > 2 and medida.raio < 6 and medida.rajada == 1 and medida.nota >= 2, "medida: raio " .. medida.raio)
+	local pastaVFX = I("Folder")
+	H.servicos.Debris = { AddItem = function() end }
+	H.extras.workspace = setmetatable({ CurrentCamera = { CFrame = roblox.CFrame.new(0, 6, 14) }, Terrain = I("Folder") }, {
+		__index = function(_, k)
+			if k == "FindFirstChild" then
+				return function(_, nome)
+					return if nome == "BB_VFX" then pastaVFX else nil
+				end
+			end
+			return nil
+		end,
+	})
+	local VFX = H.moduloNovo("ReplicatedStorage/BB/Cliente/VFX")
+	H.extras.workspace = nil
+	VFX._lojaPasta(loja)
+	-- escolha fixa: o mesmo golpe do mesmo Stand pega sempre o mesmo efeito
+	assert(VFX._escolher("impacto", "SP:m1:i1").inst == VFX._escolher("impacto", "SP:m1:i1").inst, "escolha fixa")
+	-- aparição do Star Platinum: escolhe a aura roxa (nunca a verde) e nada de aura longa
+	for i = 1, 6 do
+		local e = VFX._escolher("aura", "STAR_PLATINUM:aparece" .. i, roxo)
+		assert(e.inst.Name == "roxa", "SP pegou " .. e.inst.Name)
+	end
+	VFX.invocar(V3(0, 3, 0), roxo, "STAR_PLATINUM")
+	assert(VFX.contagem.pacote >= 3, "aparição com camadas do pacote: " .. VFX.contagem.pacote)
+	local n = 0
+	for _, d in pastaVFX:GetDescendants() do
+		if d:IsA("ParticleEmitter") then
+			n += 1
+			local h, s = d.Color.Keypoints[1].Value:ToHSV()
+			assert(s < 0.2 or math.abs(h - hRoxo) < 0.03, "cor fora do roxo do Stand")
+		elseif d:IsA("BasePart") then
+			assert(d.Anchored and not d.CanCollide and not d.CanQuery and not d.CanTouch, "peça encosta")
+			assert(d.Material ~= roblox.Enum.Material.Neon, "peça Neon")
+		end
+	end
+	assert(n >= 3, "partículas da aparição: " .. n)
+	-- escala: o impacto leve fica do tamanho do golpe (raio 2,6), não do tamanho do pacote
+	VFX._zerarContagem()
+	pastaVFX:ClearAllChildren()
+	VFX.impacto(V3(0, 3, 0), V3(0, 0, -1), roxo, 1, "SP:m1")
+	local maior = 0
+	for _, d in pastaVFX:GetDescendants() do
+		if d:IsA("ParticleEmitter") then
+			maior = math.max(maior, d.Size.Keypoints[1].Value)
+		end
+	end
+	assert(maior > 0.3 and maior < 4, "escala do impacto leve: " .. maior)
+	-- finalização: várias camadas (explosão/impacto/choque/faísca/fumaça)
+	VFX._zerarContagem()
+	VFX.impacto(V3(0, 3, 0), V3(0, 0, -1), roxo, 3, "SP:ult")
+	assert(VFX.contagem.pacote >= 4, "camadas na finalização: " .. VFX.contagem.pacote)
+	-- servidor: cada pacote tem vaga em cada tipo e mede os efeitos
+	local srv = H.fonte("ServerScriptService/BB_Servidor/VFXLoja")
+	assert(string.find(srv, "MAX_POR_PACOTE_TIPO", 1, true) and string.find(srv, "M.anotar(copia, M.medir(copia))", 1, true), "servidor mede")
+	assert(string.find(srv, "function VFXLoja.descrever", 1, true), "descrição para o arquivo")
+end)
+
+teste("sem música, sem grito, sem textos na tela; mira só no botão e Shift Lock", function()
+	assert(Config.MUSICA == false, "música desligada")
+	local som = H.fonte("ReplicatedStorage/BB/Cliente/Som")
+	assert(string.find(som, "if not Config.MUSICA then", 1, true), "Som.musica respeita a Config")
+	assert(not string.find(som, 'Som.tocar("grito"', 1, true), "sem grito de reserva")
+	local menu = H.fonte("ReplicatedStorage/BB/Cliente/Menu")
+	assert(not string.find(menu, '{ "musica", "MÚSICA" }', 1, true), "sem a linha da música nos ajustes")
+	assert(string.find(menu, "camera = 12.5, mira = false }", 1, true), "mira só no botão por padrão")
+	for _, arq in { "Efeitos", "Acoes", "Cinematica", "HUD" } do
+		assert(not string.find(H.fonte("ReplicatedStorage/BB/Cliente/" .. arq), "Efeitos.onomatopeia(", 1, true), "texto na tela em " .. arq)
+	end
+	local Cam = H.modulo("ReplicatedStorage/BB/Cliente/Camera")
+	assert(Cam.miraAuto == false, "a câmera não gruda sozinha")
+	assert(Cam.shiftLock() == false and Cam.shiftLock(true) == true and Cam.shiftLock(false) == false, "shift lock liga/desliga")
+	assert(string.find(H.fonte("ReplicatedStorage/BB/Cliente/Controles"), '"SHIFT LOCK"', 1, true), "botão SHIFT LOCK")
+	assert(string.find(H.fonte("ReplicatedStorage/BB/Cliente/Jogador"), "Camera.shiftLock()", 1, true), "o corpo vira com a câmera")
+	assert(string.find(H.fonte("ReplicatedStorage/BB/Cliente/Camera"), "humOmbro.CameraOffset", 1, true), "câmera por cima do ombro")
+end)
+
+teste("socos do dono: áudio novo com 4 trechos em ordem, no instalador e no place", function()
+	local fs = require("@lune/fs")
+	local ordem = { "SOCO_A", "SOCO_B", "SOCO_MEGA", "WHOOSH_SOCO" }
+	local fim = 0
+	for i, nome in ordem do
+		local t = Sons.SFX[nome]
+		assert(t and t[4] == i and t[1] >= fim and t[2] > 0.2 and t[3] >= 1, "trecho " .. nome)
+		fim = t[1] + t[2]
+	end
+	assert(fs.isFile("bizarre/assets/sfx.ogg") and #fs.readFile("bizarre/assets/sfx.ogg") > 10000, "sfx.ogg")
+	assert(fs.readFile("bizarre/assets/sfx_ordem.json") == '["SOCO_A", "SOCO_B", "SOCO_MEGA", "WHOOSH_SOCO"]', "ordem fixa")
+	assert(string.find(fs.readFile("bizarre/tools/montar_place.luau"), "BB_SFX = MARCADOR_SFX", 1, true), "marcador no place")
+	assert(string.find(fs.readFile("bizarre/tools/gerar_instalador.py"), 'b"BBSFX"', 1, true), "gerador conhece o marcador")
+	local inst = fs.readFile("bizarre/tools/instalador_modelo.py")
+	assert(string.find(inst, 'gaveta_nome="audio_sfx"', 1, true) and string.find(inst, "def salvar_vfx", 1, true), "instalador manda os socos e salva os VFX")
+	local efe = H.fonte("ReplicatedStorage/BB/Cliente/Efeitos")
+	assert(string.find(efe, '"SOCO_MEGA"', 1, true) and string.find(efe, 'Som.golpe(', 1, true), "golpes usam os socos novos")
 end)
 
 print("== instalador")

@@ -18,6 +18,7 @@ local MARCADOR_VOZES = "BBVOZ" .. string.rep("_", 59)
 -- AJUSTE-8: o áudio dos sons do anime (separado) e as imagens do Canva ("logo fundo carregando")
 local MARCADOR_ANIME = "BBVZA" .. string.rep("_", 59)
 local MARCADOR_IMAGENS = "BBIMG" .. string.rep("_", 59)
+local MARCADOR_SFX = "BBSFX" .. string.rep("_", 59) -- AJUSTE-13: socos do dono
 
 local game
 local comMapa = fs.isFile(MAPA)
@@ -188,7 +189,7 @@ local vozes = Instance.new("StringValue")
 vozes.Name = "BB_Vozes"
 vozes.Value = MARCADOR_VOZES
 vozes.Parent = game:GetService("ReplicatedStorage")
-for nome, marcador in { BB_VozesAnime = MARCADOR_ANIME, BB_Imagens = MARCADOR_IMAGENS } do
+for nome, marcador in { BB_VozesAnime = MARCADOR_ANIME, BB_Imagens = MARCADOR_IMAGENS, BB_SFX = MARCADOR_SFX } do
 	local v = Instance.new("StringValue")
 	v.Name = nome
 	v.Value = marcador

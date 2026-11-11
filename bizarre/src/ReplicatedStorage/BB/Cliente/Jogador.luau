@@ -535,16 +535,32 @@ local function passo()
 		levantarEmPe(c, hum, raiz)
 	end
 	-- mira travada: o personagem fica sempre de frente para o alvo (anda de lado em volta dele)
+	-- AJUSTE-13: Shift Lock (sem mira travada): de frente para onde a câmera olha
 	local travado = Camera.travado()
 	local rAlvo = travado and travado:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local olharPara: Vector3? = nil
+	local manter = false
 	if rAlvo and not ragdollLocal and not Jogador.atordoado() then
 		local d = Vector3.new(rAlvo.Position.X - raiz.Position.X, 0, rAlvo.Position.Z - raiz.Position.Z)
 		if d.Magnitude > 0.6 then
-			hum.AutoRotate = false
-			local alvoCf = CFrame.lookAt(raiz.Position, raiz.Position + d.Unit)
-			raiz.CFrame = raiz.CFrame:Lerp(alvoCf, 0.4)
-			virandoParaAlvo = true
+			olharPara = d.Unit
+		else
+			manter = true
 		end
+	elseif Camera.shiftLock() and not rAlvo and not ragdollLocal and not Jogador.atordoado() and Camera.dono() == "jogo" then
+		local olhar = workspace.CurrentCamera.CFrame.LookVector
+		local plano = Vector3.new(olhar.X, 0, olhar.Z)
+		if plano.Magnitude > 0.1 then
+			olharPara = plano.Unit
+		end
+	end
+	if olharPara then
+		hum.AutoRotate = false
+		local alvoCf = CFrame.lookAt(raiz.Position, raiz.Position + olharPara)
+		raiz.CFrame = raiz.CFrame:Lerp(alvoCf, if rAlvo then 0.4 else 0.55)
+		virandoParaAlvo = true
+	elseif manter then
+		local _ = manter
 	elseif virandoParaAlvo then
 		virandoParaAlvo = false
 		if not ragdollLocal then

@@ -20,7 +20,7 @@ ESTADO = {"versao": 40, "tarefas": {}, "places": [], "falhar": "--falhar" in ARG
 UNIVERSE = "10774214555"
 ID_AUDIO = "777000111"
 MARCADOR = b"BBVOZ" + b"_" * 59
-MARCADORES = [MARCADOR, b"BBVZA" + b"_" * 59, b"BBIMG" + b"_" * 59]
+MARCADORES = [MARCADOR, b"BBVZA" + b"_" * 59, b"BBIMG" + b"_" * 59, b"BBSFX" + b"_" * 59]
 OPERACOES = {}  # operação -> número do asset (cada envio ganha um número)
 
 
@@ -104,7 +104,10 @@ class H(BaseHTTPRequestHandler):
                                "CRAZY_DIAMOND": "reserva, juntas 6",
                                "KILLER_QUEEN": "catálogo R6: roupa 2, acessórios 4/4, juntas 6"},
                     "m1": "14.0 de dano, ragdoll true", "golpes": {"STAR_PLATINUM_1": "31.2", "THE_WORLD_ULT": "48.0", "KILLER_QUEEN_1": "15.0"},
-                    "sons": "55/56"}})
+                    "sons": "55/56", "sfx": "áudio 777000555 no place",
+                    "vfxLoja": "VFX PACK (Euphoric Games): OK (12 efeitos)"},
+                    "vfxDetalhes": {"resumo": "VFX PACK: OK", "tipos": {"impacto": [{"nome": "1_1", "caminho": "VFX PACK/Hits/PunchHit", "raio": 3.2, "vida": 0.6,
+                                    "emissores": [{"n": "Burst", "tex": "rbxassetid://123", "cor": "ffffff a070ff", "tam": 2, "vida": 0.5}]}]}}})
             return self.responder(200, {"path": m.group(1), "state": "COMPLETE", "output": {"results": [res]}})
         self.responder(404, {"message": "nao achei " + self.path})
 

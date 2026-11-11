@@ -501,6 +501,24 @@ checar("VFX da loja", function()
 	if #tipos > 0 then
 		res.info.vfxLoja ..= " | tipos: " .. string.sub(table.concat(tipos, " · "), 1, 900)
 	end
+	-- AJUSTE-13: a descrição de cada efeito (texturas, cores, tamanhos) volta para o instalador, que
+	-- salva num arquivo para o dono mandar no chat
+	local mod = SRV and SRV:FindFirstChild("VFXLoja")
+	if mod then
+		local ok, desc = pcall(function()
+			return require(mod).descrever()
+		end)
+		if ok and desc then
+			res.vfxDetalhes = desc
+		end
+	end
+end)
+
+-- 10) AJUSTE-13: o áudio dos socos do dono (BB_SFX) entrou no place
+checar("sons de golpe do dono", function()
+	local v = ReplicatedStorage:FindFirstChild("BB_SFX")
+	local id = v and string.match(v.Value, "^%s*(%d+)")
+	res.info.sfx = if id and id ~= "0" then ("áudio " .. id .. " no place") else "ainda não (o jogo usa os socos da biblioteca)"
 end)
 
 -- limpeza

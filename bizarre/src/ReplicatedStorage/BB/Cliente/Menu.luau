@@ -37,7 +37,8 @@ local botaoLutar: TextButton
 local botaoVoltar: TextButton
 local painelControles: Frame
 local painelAjustes: Frame
-local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "auto", tremor = 1, camera = 12.5, mira = true }
+-- AJUSTE-13: a mira NÃO gruda sozinha (só no botão MIRA); música desligada (sem a linha nos ajustes)
+local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "auto", tremor = 1, camera = 12.5, mira = false }
 
 local function estrelas(n: number): string
 	return string.rep("★", n) .. string.rep("☆", 3 - n)
@@ -208,9 +209,9 @@ local OPCOES = {
 	qualidade = { { "AUTOMÁTICA", "auto" }, { "BAIXA (celular fraco)", "baixa" }, { "ALTA", "alta" } },
 	tremor = { { "NORMAL", 1 }, { "FORTE", 1.4 }, { "LEVE", 0.5 }, { "DESLIGADO", 0 } },
 	camera = { { "NORMAL", 12.5 }, { "LONGE", 16 }, { "MUITO LONGE", 20 }, { "PERTO", 9 } },
-	mira = { { "GRUDA SOZINHA", true }, { "SÓ NO BOTÃO MIRA", false } },
+	mira = { { "SÓ NO BOTÃO MIRA", false }, { "GRUDA SOZINHA", true } },
 }
-local LINHAS = { { "musica", "MÚSICA" }, { "efeitos", "VOLUME DOS EFEITOS" }, { "qualidade", "QUALIDADE" }, { "tremor", "TREMOR DA CÂMERA" }, { "camera", "DISTÂNCIA DA CÂMERA" }, { "mira", "MIRA NA LUTA" } }
+local LINHAS = { { "efeitos", "VOLUME DOS EFEITOS" }, { "qualidade", "QUALIDADE" }, { "tremor", "TREMOR DA CÂMERA" }, { "camera", "DISTÂNCIA DA CÂMERA" }, { "mira", "MIRA NA LUTA" } }
 
 local function rotuloDe(chave: string): string
 	for _, o in OPCOES[chave] do

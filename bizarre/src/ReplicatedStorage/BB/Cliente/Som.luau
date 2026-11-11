@@ -1,4 +1,6 @@
 -- BIZARRE BATTLEGROUNDS :: sons no celular (efeitos 3D, interface e música)
+-- AJUSTE-13: sem música de fundo (Config.MUSICA), sem grito de reserva, e os sons de golpe do dono
+-- (socos graves/estourados) num áudio próprio ("BB_SFX"), com variação de tom a cada soco.
 
 local ContentProvider = game:GetService("ContentProvider")
 local SoundService = game:GetService("SoundService")
@@ -106,6 +108,7 @@ end
 local AUDIOS: { any } = {
 	{ valor = "BB_Vozes", tabela = Sons.VOZES, estado = "?", id = "", trechos = math.huge },
 	{ valor = "BB_VozesAnime", tabela = Sons.VOZES_ANIME or {}, estado = "?", id = "", trechos = math.huge },
+	{ valor = "BB_SFX", tabela = Sons.SFX or {}, estado = "?", id = "", trechos = math.huge },
 }
 
 local function conferirAudio(a: any)
@@ -186,7 +189,8 @@ function Som.voz(nomes: any, pos: Vector3?, opcoes: any?): (Sound?, string?)
 		end
 	end
 	if not audio or not trecho or not nome then
-		return Som.tocar("grito", pos, { vol = 0.8 }), nil
+		-- AJUSTE-13: sem o áudio ainda, fica quieto (o grito da biblioteca saiu: o dono não gostou)
+		return nil, nil
 	end
 	local o = opcoes or {}
 	local chave = "voz_" .. nome
@@ -222,6 +226,52 @@ function Som.voz(nomes: any, pos: Vector3?, opcoes: any?): (Sound?, string?)
 	return snd, nome
 end
 
+-- AJUSTE-13: som de golpe do áudio "BB_SFX" (socos do dono). Devolve nil se o Roblox ainda não
+-- liberou o áudio (quem chamou toca o da biblioteca no lugar).
+function Som.golpe(nome: string, pos: Vector3?, opcoes: any?): Sound?
+	local audio, trecho = trechoDe(nome)
+	if not audio or not trecho then
+		return nil
+	end
+	local o = opcoes or {}
+	local chave = "sfx_" .. nome
+	if (contagem[chave] or 0) >= (o.max or 4) then
+		return nil
+	end
+	contagem[chave] = (contagem[chave] or 0) + 1
+	local snd = Instance.new("Sound")
+	snd.SoundId = "rbxassetid://" .. audio.id
+	snd.PlaybackRegionsEnabled = true
+	snd.PlaybackRegion = NumberRange.new(trecho[1], trecho[1] + trecho[2])
+	snd.Volume = (trecho[3] or 1) * (o.vol or 1)
+	snd.PlaybackSpeed = (o.vel or 1) * rng:NextNumber(0.94, 1.06)
+	snd.SoundGroup = grupoEfeitos
+	snd.RollOffMaxDistance = o.alcance or 240
+	snd.RollOffMinDistance = 16
+	local suporte: Instance
+	if pos then
+		local a = Instance.new("Attachment")
+		a.WorldPosition = pos
+		a.Parent = workspace.Terrain
+		snd.Parent = a
+		suporte = a
+	else
+		snd.Parent = pastaSons
+		suporte = snd
+	end
+	snd:Play()
+	task.delay(trecho[2] / snd.PlaybackSpeed + 0.4, function()
+		contagem[chave] = math.max(0, (contagem[chave] or 1) - 1)
+		suporte:Destroy()
+	end)
+	return snd
+end
+
+function Som.golpesProntos(): boolean
+	local _, t = trechoDe("SOCO_A")
+	return t ~= nil
+end
+
 -- som preso numa peça (acompanha quem se mexe)
 function Som.naPeca(nome: string?, peca: BasePart?, opcoes: any?): Sound?
 	if not nome or not peca then
@@ -250,6 +300,10 @@ function Som.naPeca(nome: string?, peca: BasePart?, opcoes: any?): Sound?
 end
 
 function Som.musica(nome: string)
+	-- AJUSTE-13: o dono pediu sem música de fundo (Config.MUSICA = false)
+	if not Config.MUSICA then
+		nome = "__nenhuma"
+	end
 	if nome == nomeMusica then
 		return
 	end

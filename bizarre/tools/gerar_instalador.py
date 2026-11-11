@@ -22,7 +22,7 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(RAIZ)
 MARCADOR_VOZES = b"BBVOZ" + b"_" * 59  # igual ao de montar_place.luau (64 letras)
 # AJUSTE-8: mais dois marcadores (sons do anime e imagens do Canva), todos no mesmo pedaço
-MARCADORES = [MARCADOR_VOZES, b"BBVZA" + b"_" * 59, b"BBIMG" + b"_" * 59]
+MARCADORES = [MARCADOR_VOZES, b"BBVZA" + b"_" * 59, b"BBIMG" + b"_" * 59, b"BBSFX" + b"_" * 59]  # AJUSTE-13: + socos
 
 
 def lz4_bloco(src, tamanho):
@@ -169,6 +169,11 @@ def main():
     if os.path.isfile(anime):
         ordem = json.load(open(os.path.join(RAIZ, "assets", "vozes_anime_ordem.json")))
         entradas.append(("vozes_anime.ogg", open(anime, "rb").read(), {"audio": "anime", "rotulo": "sons do anime (ORA, MUDA, ZA WARUDO)", "trechos": len(ordem)}))
+    # AJUSTE-13: socos do dono tratados (tools/sons_sfx.py), num áudio só
+    sfx = os.path.join(RAIZ, "assets", "sfx.ogg")
+    if os.path.isfile(sfx):
+        ordem = json.load(open(os.path.join(RAIZ, "assets", "sfx_ordem.json")))
+        entradas.append(("sfx.ogg", open(sfx, "rb").read(), {"audio": "sfx", "rotulo": "socos do dono (grave e estourado)", "trechos": len(ordem)}))
     for arq, chave, rotulo in (("logo.png", "logo", "logo do jogo"), ("fundo_menu.jpg", "fundo", "fundo do menu"), ("carregando.jpg", "carregando", "tela de carregamento")):
         caminho = os.path.join(RAIZ, "assets", "imagens", arq)
         if os.path.isfile(caminho):
