@@ -9,6 +9,20 @@ fecha com o servidor confirmando, ajustes (câmera, tremor, volume, qualidade), 
 etapas reais, ORA x MUDA, seta TO BE CONTINUED, Morioh mais leve, salvamento sem duplicar e
 instalador que confere a versão no ar. Detalhes em RELATORIO_AJUSTE7.md.
 
+## Feito no AJUSTE-12 (combate: mira, dash, impacto)
+- **Mira**: a trava agora tem câmera própria (Scriptable): atrás do ombro direito, olhando um ponto
+  entre você e o alvo, suave (não briga com o dedo), sobe quando o alvo é lançado, para antes da parede,
+  volta para a câmera normal sem pulo. Trava sozinha só em quem VOCÊ acerta (apanhar não gira a câmera).
+- **Impacto**: congelamento no acerto maior (0,075/0,14/0,17 s), tremor maior, camada grave em todo soco,
+  sons de soco/whoosh/dash mais altos, quadro de impacto nos golpes fortes, VFX maiores e com mais
+  camadas (anéis inteiros, arcos, estilhaços, estrelas, linhas).
+- **Dash**: anel no chão, linhas de velocidade, 3 fantasmas, fumaça do pacote, FOV puxando.
+- **VFX da loja em todo lugar**: punho de todo soco, impacto (impacto → outros), dash, guarda, parry,
+  rajada, ULT, tempo parado. DIAG mostra o nome de cada efeito por tipo e o pico do andar (5 s).
+- **Vozes**: ORA/MUDA/ZA WARUDO/Star Platinum The World 2,6x mais altos e ouvidos de mais longe
+  (mesmo áudio: nada para reenviar).
+- **Prévia 3D dos VFX** (`tools/previa_vfx.luau`): cada efeito congelado no meio, com os bonecos.
+
 ## Feito no AJUSTE-11
 - **Animação do dono no personagem de verdade**: causa provável — quando a experiência está em R15, o
   corpo é refeito em R6 (AJUSTE-9) e o Roblox põe o "Animate" PADRÃO nele; o jogo via as animações do

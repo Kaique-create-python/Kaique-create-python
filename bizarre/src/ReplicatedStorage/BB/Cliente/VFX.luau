@@ -36,6 +36,11 @@ function VFX.vivos(): number
 	return vivos
 end
 
+-- só para a ferramenta de prévia (cada cena começa do zero)
+function VFX._zerarContagem()
+	vivos = 0
+end
+
 local function obterPasta(): Instance
 	if pasta and pasta.Parent then
 		return pasta
@@ -128,12 +133,13 @@ end
 -- anel de choque que se abre. normal = para onde o anel "olha" (nil = de frente para a câmera)
 function VFX.anel(pos: Vector3, cor: Color3, raio: number, dur: number?, normal: Vector3?, segmentos: number?, espessura: number?)
 	local d = dur or 0.25
-	local n = segmentos or (if alta then 14 else 8)
+	local n = segmentos or (if alta then 16 else 9)
 	local base = if normal and normal.Magnitude > 0.01 then olhando(pos, normal) else deFrente(pos)
-	local esp = espessura or math.max(0.12, raio * 0.055)
+	local esp = espessura or math.max(0.1, raio * 0.045)
 	local r0 = raio * 0.25
-	local comp0 = 2 * math.pi * r0 / n * 1.2
-	local comp1 = 2 * math.pi * raio / n * 1.2
+	-- AJUSTE-12: pedaços se sobrepõem (o anel parece inteiro, sem buracos)
+	local comp0 = 2 * math.pi * r0 / n * 1.45
+	local comp1 = 2 * math.pi * raio / n * 1.45
 	for i = 1, n do
 		local ang = (i / n) * math.pi * 2
 		-- segmento tangente ao círculo, no plano XY do "base"
@@ -409,64 +415,88 @@ function VFX.loja(categoria: string, pos: Vector3, dir: Vector3?, escala: number
 	return true
 end
 
+-- AJUSTE-12: tenta as categorias em ordem e usa a primeira que tiver efeito (ex.: impacto -> outros)
+function VFX.lojaUm(categorias: { string }, pos: Vector3, dir: Vector3?, escala: number?): boolean
+	for _, c in categorias do
+		if VFX.temLoja(c) and VFX.loja(c, pos, dir, escala) then
+			return true
+		end
+	end
+	return false
+end
+
 ----------------------------------------------------------------------------------- golpes
 
 -- impacto em 3 níveis: 1 leve (soco do combo), 2 forte (4º soco, golpe pesado), 3 enorme (finalização/ULT)
 function VFX.impacto(pos: Vector3, dir: Vector3?, cor: Color3, nivel: number)
 	local d = if dir and dir.Magnitude > 0.01 then dir.Unit else nil
 	if nivel <= 1 then
-		VFX.flash(pos, cor, 2.6)
-		-- AJUSTE-11: efeito de impacto do pacote da loja (se tiver); senão o nosso arco
-		if not VFX.loja("impacto", pos, d, 0.8) then
-			VFX.arco(pos, cor, 2.1, 0.18)
+		-- AJUSTE-12: soco do combo mais forte: clarão maior, anel pequeno, arco, estilhaços e estrela
+		VFX.flash(pos, cor, 3.4)
+		VFX.anel(pos, cor:Lerp(BRANCO, 0.5), 3.6, 0.18, d, if alta then 12 else 7, 0.14)
+		if not VFX.lojaUm({ "impacto", "outros" }, pos, d, 0.75) then
+			VFX.arco(pos, cor, 2.4, 0.18)
 		end
-		VFX.estilhacos(pos, { BRANCO, cor }, 5, 4)
+		VFX.arco(pos, cor, 2.9, 0.2)
+		VFX.estilhacos(pos, { BRANCO, cor, PRETO }, 7, 5)
+		VFX.linhas(pos, d, cor, 3, 3.5)
 		if alta then
-			VFX.estrela(pos + rng:NextUnitVector() * 0.9, cor, 2.2)
+			VFX.estrela(pos + rng:NextUnitVector() * 0.9, cor, 2.8)
 		end
 		return
 	end
 	if nivel == 2 then
-		VFX.loja("impacto", pos, d, 1)
-		VFX.loja("choque", pos, d, 1)
-		VFX.flash(pos, cor, 4.6)
-		VFX.anel(pos, cor:Lerp(BRANCO, 0.4), 6, 0.24, d)
-		VFX.arco(pos, cor, 3, 0.22)
-		VFX.arco(pos, cor, 3.8, 0.27)
-		VFX.estilhacos(pos, { BRANCO, cor, PRETO }, 10, 7)
-		VFX.estrela(pos + rng:NextUnitVector() * 1.2, cor, 3.4)
-		VFX.estrela(pos + rng:NextUnitVector() * 1.6, cor, 2.4)
-		VFX.linhas(pos, d, cor, 6, 5)
-		VFX.fumaca(pos, nil, 5, 2.2)
+		VFX.lojaUm({ "impacto", "outros" }, pos, d, 1)
+		VFX.lojaUm({ "choque", "explosao" }, pos, d, 0.55)
+		VFX.flash(pos, cor, 5.8)
+		VFX.anel(pos, BRANCO, 5, 0.2, d)
+		task.delay(0.05, function()
+			VFX.anel(pos, cor:Lerp(BRANCO, 0.3), 8, 0.28, d)
+		end)
+		VFX.arco(pos, cor, 3.2, 0.22)
+		VFX.arco(pos, cor, 4.1, 0.27)
+		VFX.arco(pos, cor, 4.8, 0.3)
+		VFX.estilhacos(pos, { BRANCO, cor, PRETO }, 14, 8)
+		VFX.estrela(pos + rng:NextUnitVector() * 1.2, cor, 4)
+		VFX.estrela(pos + rng:NextUnitVector() * 1.8, cor, 2.8)
+		VFX.linhas(pos, d, cor, 9, 6)
+		VFX.fumaca(pos, nil, 6, 2.4)
+		VFX.brilhos(pos, cor, 8)
 		return
 	end
-	if not VFX.loja("explosao", pos, d, 1) then
-		VFX.loja("impacto", pos, d, 1.3)
+	if not VFX.lojaUm({ "explosao", "impacto", "outros" }, pos, d, 1.2) then
+		VFX.flash(pos, cor, 4)
 	end
 	VFX.loja("choque", pos, d, 1.3)
 	VFX.loja("chao", pos - Vector3.new(0, 2.5, 0), nil, 1)
-	VFX.flash(pos, cor, 7.5)
-	VFX.anel(pos, BRANCO, 8, 0.26, d)
+	VFX.flash(pos, cor, 9)
+	VFX.anel(pos, BRANCO, 9, 0.26, d)
 	task.delay(0.06, function()
-		VFX.anel(pos, cor, 13, 0.34, d)
+		VFX.anel(pos, cor, 14, 0.34, d)
 	end)
-	VFX.anel(pos, cor:Lerp(BRANCO, 0.3), 11, 0.36, Vector3.yAxis)
-	for i = 1, 3 do
+	task.delay(0.12, function()
+		VFX.anel(pos, cor:Lerp(BRANCO, 0.5), 19, 0.4, d, nil, 0.25)
+	end)
+	VFX.anel(pos, cor:Lerp(BRANCO, 0.3), 12, 0.38, Vector3.yAxis)
+	for i = 1, 4 do
 		VFX.arco(pos, cor, 3 + i * 0.9, 0.2 + i * 0.04)
 	end
-	VFX.estilhacos(pos, { BRANCO, cor, PRETO }, 16, 10)
+	VFX.estilhacos(pos, { BRANCO, cor, PRETO }, 20, 12)
 	for i = 1, 3 do
-		VFX.estrela(pos + rng:NextUnitVector() * (1 + i * 0.6), cor, 4.2 - i * 0.6)
+		VFX.estrela(pos + rng:NextUnitVector() * (1 + i * 0.6), cor, 5 - i * 0.6)
 	end
-	VFX.linhas(pos, d, cor, 10, 8)
-	VFX.fumaca(pos, nil, 9, 3)
-	VFX.brilhos(pos, cor, 12)
+	VFX.linhas(pos, d, cor, 12, 9)
+	VFX.fumaca(pos, nil, 10, 3.2)
+	VFX.brilhos(pos, cor, 16)
 end
 
 -- soco no vento (o Stand bate mesmo sem acertar): estouro de ar na frente do punho
 function VFX.estouroAr(pos: Vector3, dir: Vector3, cor: Color3, forte: boolean?)
+	-- AJUSTE-12: efeito do pacote saindo do punho em TODO soco (no forte também o corte)
+	VFX.lojaUm({ "impacto", "outros", "flash" }, pos, dir, if forte then 0.85 else 0.5)
 	if forte then
 		VFX.loja("corte", pos, dir, 0.9)
+		VFX.flash(pos, cor, 2.6)
 	end
 	VFX.anel(pos, cor:Lerp(BRANCO, 0.55), if forte then 3.6 else 2.2, if forte then 0.2 else 0.15, dir, if alta then 10 else 6, 0.1)
 	VFX.linhas(pos - dir * 0.5, dir, cor, if forte then 6 else 3, if forte then 5 else 3)
@@ -475,6 +505,10 @@ end
 -- onda de pressão da barragem (ORA ORA / MUDA MUDA)
 function VFX.pressao(pos: Vector3, dir: Vector3, cor: Color3)
 	VFX.anel(pos, cor:Lerp(BRANCO, 0.5), 3.4, 0.16, dir, if alta then 10 else 6, 0.12)
+	-- AJUSTE-12: na rajada, de vez em quando sai um efeito do pacote no meio dos socos
+	if rng:NextNumber() < 0.45 then
+		VFX.lojaUm({ "impacto", "outros" }, pos + dir * 0.8, dir, 0.6)
+	end
 	if alta and rng:NextNumber() < 0.6 then
 		VFX.arco(pos + dir * 0.6, cor, 2.4, 0.16)
 	end
@@ -483,9 +517,15 @@ end
 -- guarda: faíscas azuladas no braço do Stand e um anel virado para quem bateu
 function VFX.guarda(pos: Vector3, dir: Vector3?, cor: Color3)
 	local azul = RGB(170, 215, 255)
-	VFX.flash(pos, azul, 2.4)
-	VFX.anel(pos, azul, 3, 0.16, dir, if alta then 10 else 6, 0.12)
-	VFX.estilhacos(pos, { BRANCO, azul, cor }, 7, 5)
+	VFX.lojaUm({ "faisca", "flash", "outros" }, pos, dir, 0.6)
+	-- AJUSTE-12: a guarda "segura" o soco: clarão azul, dois anéis, faíscas e um brilho
+	VFX.flash(pos, azul, 3.2)
+	VFX.anel(pos, BRANCO, 3, 0.15, dir, if alta then 12 else 7, 0.12)
+	task.delay(0.04, function()
+		VFX.anel(pos, azul, 4.6, 0.22, dir, if alta then 14 else 8, 0.14)
+	end)
+	VFX.estilhacos(pos, { BRANCO, azul, cor }, 11, 6)
+	VFX.estrela(pos + (dir or Vector3.zero) * 0.4, azul, 3)
 end
 
 -- parry perfeito: clarão branco grande, dois anéis, estrelas e estilhaços

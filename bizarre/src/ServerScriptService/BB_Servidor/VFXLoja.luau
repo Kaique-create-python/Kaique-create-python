@@ -26,14 +26,14 @@ VFXLoja.CATEGORIAS = {
 	{ "explosao", { "explo", "nuke", "bomb", "detona" } },
 	{ "choque", { "shock", "wave", "ring", "boom", "pulse", "nova", "blast" } },
 	{ "corte", { "slash", "sword", "cut", "swing", "blade", "swoosh", "arc" } },
-	{ "impacto", { "hit", "impact", "punch", "smash", "slam", "strike", "kick", "attack", "combat", "fist" } },
+	{ "impacto", { "hit", "impact", "punch", "smash", "slam", "strike", "kick", "attack", "combat", "fist", "dmg", "damage", "bash", "pound", "crush", "knock", "blow", "jab", "hook", "uppercut", "m1", "combo", "melee", "black" } },
 	{ "faisca", { "spark", "electric", "lightning", "thunder", "zap", "volt", "elec" } },
 	{ "fumaca", { "smoke", "dust", "cloud", "fog", "mist" } },
 	{ "fogo", { "fire", "flame", "burn", "ember", "lava" } },
 	{ "laser", { "laser", "beam", "ray" } },
 	{ "chao", { "crater", "ground", "rock", "debris", "crack", "floor" } },
-	{ "aura", { "aura", "charge", "power", "energy", "buff", "magic", "orb" } },
-	{ "flash", { "flash", "light", "star", "shine", "sparkle", "glint", "glow" } },
+	{ "aura", { "aura", "charge", "power", "energy", "buff", "magic", "orb", "spirit", "chakra", "ki", "domain", "stand" } },
+	{ "flash", { "flash", "light", "star", "shine", "sparkle", "glint", "glow", "twinkle", "flare" } },
 }
 VFXLoja.MAX_POR_TIPO = 14 -- efeitos guardados por tipo (o resto fica de fora: celular leve)
 
@@ -237,6 +237,20 @@ function VFXLoja.iniciar()
 		table.insert(VFXLoja.relatorio, r)
 		pasta:SetAttribute("Resumo", table.concat(partes, " · "))
 	end
+	-- AJUSTE-12: os nomes de cada efeito por tipo (o DIAG mostra; serve para escolher cada um no golpe certo)
+	local nomes = {}
+	for _, tipo in pasta:GetChildren() do
+		local l = {}
+		for i, e in tipo:GetChildren() do
+			if i <= 10 then
+				local caminho = tostring(e:GetAttribute("Caminho") or e.Name)
+				table.insert(l, string.match(caminho, "([^/]+/[^/]+)$") or caminho)
+			end
+		end
+		table.insert(nomes, string.format("%s (%d): %s", tipo.Name, #tipo:GetChildren(), table.concat(l, ", ")))
+	end
+	table.sort(nomes)
+	pasta:SetAttribute("Nomes", table.concat(nomes, " | "))
 	pasta:SetAttribute("Pronto", true)
 	print("[BB] VFX da loja: " .. tostring(pasta:GetAttribute("Resumo")))
 end

@@ -32,16 +32,20 @@ INTERVALO = 0.25  # silêncio entre um trecho e outro (o celular nunca "vaza" pa
 # nome -> (aceleração, duração máxima em s, volume no jogo)
 # As rajadas tocam junto com a barragem: começam em 0,18 s e o golpe final é em 1,52 s.
 REGRAS = {
-    "ORA": (2.2, 1.42, 1.0),
+    "ORA": (2.2, 1.42, 1.8),
     "MUDA": (2.0, 1.42, 1.0),
     "DORA": (1.45, 1.42, 1.0),
     "HORA": (1.6, 0.9, 1.0),
     # sons do anime (AJUSTE-8): a rajada inteira com o grito final; o tempo parado um pouco mais
     # rápido para o "ZA WARUDO" chegar logo no som de parar o tempo
-    "ORA_ANIME": (1.0, 6.0, 1.0),
-    "MUDA_ANIME": (1.0, 6.0, 1.0),
-    "SP_TEMPO": (1.1, 5.0, 1.0),
-    "TW_TEMPO": (1.1, 5.0, 1.0),
+    "ORA_ANIME": (1.0, 6.0, 2.6),
+    "MUDA_ANIME": (1.0, 6.0, 2.6),
+    "SP_TEMPO": (1.1, 5.0, 2.6),
+    "TW_TEMPO": (1.1, 5.0, 2.6),
+    # AJUSTE-12: os gritos gerados que viram reserva também mais altos
+    "ORA_FINAL": (1.0, 9.0, 1.8),
+    "ZA_WARUDO": (1.0, 9.0, 1.8),
+    "SP_THE_WORLD": (1.0, 9.0, 1.8),
 }
 # gritos que não têm gravação própria usam o de outro
 APELIDOS = {"FOGO": "CROSSFIRE", "KQ": "KQ_BOMBA"}

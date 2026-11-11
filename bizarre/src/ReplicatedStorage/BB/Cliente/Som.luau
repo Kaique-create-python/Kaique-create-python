@@ -201,7 +201,8 @@ function Som.voz(nomes: any, pos: Vector3?, opcoes: any?): (Sound?, string?)
 	snd.Volume = (trecho[3] or 1) * (o.vol or 1)
 	snd.SoundGroup = grupoEfeitos
 	snd.RollOffMaxDistance = o.alcance or 320
-	snd.RollOffMinDistance = 18
+	-- AJUSTE-12: os gritos fortes (ORA/MUDA/ZA WARUDO) continuam altos até bem mais longe
+	snd.RollOffMinDistance = if (trecho[3] or 1) > 1.5 then 55 else 18
 	local suporte: Instance
 	if pos then
 		local a = Instance.new("Attachment")

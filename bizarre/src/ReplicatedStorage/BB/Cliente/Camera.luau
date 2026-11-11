@@ -91,6 +91,11 @@ local atrasParede = 0
 -- apanha). A automática solta depois de uns segundos sem luta; a do botão só no botão.
 local travaAuto = false
 local ultimoCombate = 0
+-- AJUSTE-12: câmera da trava própria (Scriptable): não briga com o dedo, enquadra você e o alvo
+local modoTrava = false
+local camPos: Vector3? = nil
+local camOlhar: Vector3? = nil
+local frenteTrava: Vector3 = Vector3.new(0, 0, -1)
 local FORCA_TRAVA = 20 -- quanto a câmera puxa para o alvo por segundo (era 12)
 local SEGUNDOS_PAREDE = 3 -- alvo escondido atrás de parede por mais que isso: solta
 local SEGUNDOS_SEM_LUTA = 7 -- trava automática sem golpes e longe: solta
@@ -138,6 +143,10 @@ end
 -- AJUSTE7: um dono só para a câmera. "jogo" = câmera normal; "menu" e "cinema" pegam emprestado
 -- e devolvem. Se alguém esquecer de devolver (morreu no meio da cena), a câmera se recupera.
 local dono = "jogo"
+function Camera.modoTrava(): boolean
+	return modoTrava
+end
+
 function Camera.dono(): string
 	return dono
 end
@@ -234,7 +243,8 @@ function Camera.aoAcerto(d: any)
 		ultimoCombate = os.clock()
 		return
 	end
-	if alvoTrava or not Camera.miraAuto or dono ~= "jogo" then
+	-- AJUSTE-12: só trava sozinha em quem EU acertei (apanhar de alguém por trás não gira a câmera)
+	if d.a ~= eu or alvoTrava or not Camera.miraAuto or dono ~= "jogo" then
 		return
 	end
 	local h = outro:FindFirstChildOfClass("Humanoid")
@@ -291,7 +301,7 @@ function Camera.iniciar()
 	RunService:BindToRenderStep("BB_Camera", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		cam = workspace.CurrentCamera
 		-- ninguém pediu a câmera e ela ficou presa (cena interrompida, renasceu): recupera
-		if dono == "jogo" and cam.CameraType == Enum.CameraType.Scriptable then
+		if dono == "jogo" and cam.CameraType == Enum.CameraType.Scriptable and not modoTrava then
 			Camera.recuperar()
 		end
 		-- travar no inimigo: gira a câmera para olhar o alvo
@@ -313,24 +323,51 @@ function Camera.iniciar()
 				atrasParede = 0
 			end
 		end
-		if alvo and raiz and cam.CameraType == Enum.CameraType.Custom then
+		if alvo and raiz and dono == "jogo" then
+			-- AJUSTE-12: câmera da trava (como nos battlegrounds): atrás do ombro direito, olhando um
+			-- ponto entre você e o alvo (os dois na tela), suave e sem brigar com o dedo
 			local r = alvo:FindFirstChild("HumanoidRootPart") :: BasePart
-			local foco = cam.Focus.Position
-			local dist = (cam.CFrame.Position - foco).Magnitude
-			local dir = (r.Position - foco)
-			if dir.Magnitude > 2 then
-				-- câmera atrás do ombro olhando o alvo (como no Jujutsu Shenanigans)
-				local olhar = CFrame.lookAt(foco, r.Position + Vector3.new(0, -2, 0))
-				local desejado = olhar * CFrame.new(1.4, 0, dist)
-				desejado = desejado + Vector3.new(0, 2.5, 0)
-				-- proteção contra parede: a câmera para antes do que estiver entre ela e o jogador
-				local volta = desejado.Position - foco
-				local bate = workspace:Raycast(foco, volta, paramsCenario())
-				local posCam = desejado.Position
-				if bate then
-					posCam = bate.Position - volta.Unit * 0.6
-				end
-				cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(posCam, r.Position + Vector3.new(0, 0.5, 0)), math.min(1, dt * FORCA_TRAVA))
+			if cam.CameraType ~= Enum.CameraType.Scriptable then
+				cam.CameraType = Enum.CameraType.Scriptable
+				camPos = cam.CFrame.Position
+				camOlhar = cam.CFrame.Position + cam.CFrame.LookVector * 12
+			end
+			modoTrava = true
+			local pivo = raiz.Position + Vector3.new(0, 1.7, 0)
+			local para = r.Position - raiz.Position
+			local plano = Vector3.new(para.X, 0, para.Z)
+			if plano.Magnitude > 0.6 then
+				frenteTrava = plano.Unit
+			end
+			local direita = frenteTrava:Cross(Vector3.yAxis)
+			local distAlvo = plano.Magnitude
+			local dist = math.clamp((Camera.preferida or DIST_TRAVA) + math.max(0, distAlvo - 12) * 0.3, ZOOM_MIN, ZOOM_MAX + 4)
+			-- alvo no ar (uppercut) ou embaixo: a câmera sobe/desce um pouco, sem virar de ponta-cabeça
+			local subida = math.clamp(r.Position.Y - raiz.Position.Y, -6, 18)
+			local desejada = pivo - frenteTrava * dist + direita * 1.7 + Vector3.new(0, 2.3 + subida * 0.3, 0)
+			-- parede: a câmera para antes dela
+			local volta = desejada - pivo
+			local bate = workspace:Raycast(pivo, volta, paramsCenario())
+			if bate then
+				desejada = bate.Position - volta.Unit * 0.6
+			end
+			local olharDesejado = pivo:Lerp(r.Position + Vector3.new(0, 0.6, 0), 0.62)
+			local a1 = 1 - math.exp(-dt * FORCA_TRAVA * 0.6)
+			local a2 = 1 - math.exp(-dt * FORCA_TRAVA * 0.85)
+			camPos = (camPos or desejada):Lerp(desejada, a1)
+			camOlhar = (camOlhar or olharDesejado):Lerp(olharDesejado, a2)
+			if ((camOlhar :: Vector3) - (camPos :: Vector3)).Magnitude > 0.2 then
+				cam.CFrame = CFrame.lookAt(camPos :: Vector3, camOlhar :: Vector3)
+			end
+		elseif modoTrava then
+			-- saiu da trava: a câmera normal do Roblox continua de onde está (sem pulo)
+			modoTrava = false
+			camPos = nil
+			camOlhar = nil
+			if dono == "jogo" then
+				cam.CameraType = Enum.CameraType.Custom
+				Camera.recuperar()
+				Camera.suavizarRetorno(cam.CFrame, 0.35)
 			end
 		end
 		-- volta suave depois da cena de cinema
@@ -353,6 +390,9 @@ function Camera.iniciar()
 			if cam.CameraType == Enum.CameraType.Custom then
 				cam.CFrame = cam.CFrame * tremor
 				tremorAplicado = tremor
+			elseif modoTrava then
+				-- na trava a câmera é refeita do zero a cada quadro: não precisa desfazer
+				cam.CFrame = cam.CFrame * tremor
 			end
 		elseif agora >= fimTremor then
 			intensidade = 0

@@ -96,20 +96,40 @@ local function criar()
 	end)
 	-- AJUSTE-11: DIAG = o que está acontecendo com a animação do seu personagem e com os VFX da loja
 	local diagB = UI.botao(gui, "DIAG", UDim2.fromOffset(64, 34), UDim2.new(1, -150, 0, 8), Color3.fromRGB(60, 120, 200), { limite = 20 })
-	local quadro = UI.frame(gui, UDim2.fromOffset(560, 190), UDim2.new(0.5, -280, 0, 54), UI.CORES.fundo, 0.08)
+	-- AJUSTE-12: quadro maior e com rolagem (os nomes dos efeitos da loja não cabem numa tela só)
+	local quadro = Instance.new("ScrollingFrame")
+	quadro.Size = UDim2.fromOffset(600, 240)
+	quadro.Position = UDim2.new(0.5, -300, 0, 50)
+	quadro.BackgroundColor3 = UI.CORES.fundo
+	quadro.BackgroundTransparency = 0.06
+	quadro.BorderSizePixel = 0
+	quadro.ScrollBarThickness = 8
+	quadro.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	quadro.CanvasSize = UDim2.new()
+	quadro.Parent = gui
 	UI.canto(quadro, 12)
 	UI.borda(quadro, Color3.fromRGB(60, 120, 200), 2)
 	quadro.Visible = false
-	local txt = UI.texto(quadro, "", UDim2.new(1, -20, 1, -16), UDim2.fromOffset(10, 8), {
-		fonte = UI.FONTE_TEXTO, quebrar = true, alinhar = Enum.TextXAlignment.Left, alinharY = Enum.TextYAlignment.Top, limite = 15,
-	})
+	local txt = Instance.new("TextLabel")
+	txt.BackgroundTransparency = 1
+	txt.Size = UDim2.new(1, -24, 0, 0)
+	txt.Position = UDim2.fromOffset(10, 8)
+	txt.AutomaticSize = Enum.AutomaticSize.Y
+	txt.Font = UI.FONTE_TEXTO
+	txt.TextSize = 14
+	txt.TextWrapped = true
+	txt.TextXAlignment = Enum.TextXAlignment.Left
+	txt.TextYAlignment = Enum.TextYAlignment.Top
+	txt.TextColor3 = Color3.new(1, 1, 1)
+	txt.Text = ""
+	txt.Parent = quadro
 	diagB.MouseButton1Click:Connect(function()
 		quadro.Visible = not quadro.Visible
 		Som.tocar("ui_clique", nil)
 		task.spawn(function()
 			while quadro.Visible and quadro.Parent do
 				local loja = game:GetService("ReplicatedStorage"):FindFirstChild("BB_VFXLoja")
-				local textoLoja = if loja then tostring(loja:GetAttribute("Resumo") or "carregando...") else "o servidor ainda não carregou (ou é versão antiga)"
+				local textoLoja = if loja then tostring(loja:GetAttribute("Resumo") or "carregando...") .. "\n\nEFEITOS POR TIPO: " .. tostring(loja:GetAttribute("Nomes") or "...") else "o servidor ainda não carregou (ou é versão antiga)"
 				txt.Text = "ANIMAÇÃO: " .. Animador.diagnostico(plr.Character) .. "\n\nVFX DA LOJA: " .. textoLoja
 				task.wait(0.5)
 			end

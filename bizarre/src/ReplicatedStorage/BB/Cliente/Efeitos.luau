@@ -526,6 +526,7 @@ local TIPOS = {
 }
 local ARCOIRIS = { RGB(232, 44, 70), RGB(250, 210, 40), RGB(36, 200, 96), RGB(40, 120, 230) }
 
+local ultimoImpactFrame = 0
 local paramsChao: RaycastParams? = nil
 local paramsChaoT = 0
 local function chaoAbaixo(pos: Vector3): Vector3
@@ -654,10 +655,15 @@ function Efeitos.acerto(d: any)
 	if d.som then
 		Som.tocar(d.som, pos, { max = if tipo == "barragem" then 3 else 5 })
 	end
+	-- AJUSTE-12: camada grave por baixo do soco (o impacto "pesa" no ouvido)
+	if nivel >= 1 then
+		Som.tocar("soco_forte", pos, { vol = if nivel >= 2 then 0.95 else 0.5, vel = if nivel >= 3 then 0.62 else 0.74, max = 4 })
+	end
 	if not d.congelado then
 		Efeitos.piscar(d.v)
 		local forte = (d.ragdoll or 0) > 0 or tipo == "impacto_forte" or tipo == "impacto_enorme"
-		local hs = if forte then 0.11 else 0.05
+		-- AJUSTE-12: congela mais no acerto (o soco "trava" na cara do outro)
+		local hs = if nivel >= 3 then 0.17 elseif forte then 0.14 else 0.075
 		Animador.hitstop(d.a, hs)
 		Animador.hitstop(d.v, hs)
 		Animador.hitstop(require(script.Parent:WaitForChild("StandVisual")).modelo(d.a), hs)
@@ -667,19 +673,21 @@ function Efeitos.acerto(d: any)
 	end
 	-- câmera e números para quem está envolvido
 	if d.a == eu then
-		Camera.tremer(math.max(0.06, (d.tremor or 0.1) * 0.5), 0.12)
+		Camera.tremer(math.max(if nivel >= 2 then 0.32 else 0.14, (d.tremor or 0.1) * 0.85), if nivel >= 2 then 0.2 else 0.13)
 		if (d.dano or 0) > 0 then
 			Efeitos.numero(pos, d.dano, if (d.dano or 0) >= 10 then RGB(255, 210, 60) else BRANCO)
 		end
 	elseif d.v == eu then
-		Camera.tremer(math.max(0.15, d.tremor or 0.2), 0.2)
+		Camera.tremer(math.max(0.26, (d.tremor or 0.2) * 1.2), 0.22)
 	elseif d.tremor and d.tremor >= 0.8 then
 		local meu = eu and eu:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if meu and (meu.Position - pos).Magnitude < 60 then
 			Camera.tremer(d.tremor * 0.4, 0.3)
 		end
 	end
-	if d.impactFrame and (d.a == eu or d.v == eu) then
+	-- AJUSTE-12: quadro de impacto também nos golpes fortes de quem está na luta (no máximo 1 a cada 0,7 s)
+	if (d.a == eu or d.v == eu) and (d.impactFrame or nivel >= 2) and os.clock() - ultimoImpactFrame > 0.7 then
+		ultimoImpactFrame = os.clock()
 		Efeitos.impactFrame()
 	end
 end

@@ -431,6 +431,11 @@ local function locomocaoDono(a: any, dt: number): ({ [string]: CFrame }?, number
 	local plano = Vector3.new(v.X, 0, v.Z).Magnitude
 	local alvo = if noAr then 0 else math.clamp((plano - 1.5) / 5, 0, 1)
 	a.pesoDono = (a.pesoDono or 0) + (alvo - (a.pesoDono or 0)) * math.min(1, dt * 10)
+	-- AJUSTE-12: o maior valor dos últimos 5 s (o DIAG mostra mesmo se você parou para olhar)
+	if a.pesoDono >= (a.picoDono or 0) or os.clock() - (a.picoT or 0) > 5 then
+		a.picoDono = a.pesoDono
+		a.picoT = os.clock()
+	end
 	if a.pesoDono < 0.01 then
 		a.faseDono = 0
 		return nil, 0
@@ -719,12 +724,13 @@ function Animador.diagnostico(modelo: Model?): string
 		end
 	end
 	return string.format(
-		"corpo %s · juntas %d · trilhas do Roblox tocando %d · Animate: %s · andar do dono %d%% (clipes %s) · tirados %d, trilhas paradas %d%s",
+		"corpo %s · juntas %d · trilhas do Roblox tocando %d · Animate: %s · andar do dono agora %d%%, maior nos últimos 5 s %d%% (clipes %s) · tirados %d, trilhas paradas %d%s",
 		if a.r6 then "R6" else "R15 (não é R6!)",
 		nJ,
 		trilhas,
 		if #animates > 0 then table.concat(animates, ", ") else "nenhum",
 		math.floor((a.pesoDono or 0) * 100),
+		math.floor((a.picoDono or 0) * 100),
 		if CLIPES_DONO.andar and CLIPES_DONO.correr then "ok" else "FALTANDO",
 		Animador.tirados,
 		Animador.paradas,

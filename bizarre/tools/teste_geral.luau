@@ -911,6 +911,54 @@ teste("VFX da loja: servidor tira todo script, separa por tipo e guarda só o vi
 	VFX.impacto(V3(0, 3, 0), V3(0, 0, -1), roblox.Color3.fromRGB(170, 90, 255), 3)
 end)
 
+print("== AJUSTE-12")
+teste("mira, vozes e VFX: trava só no meu acerto, gritos mais altos, efeito do pacote cai no próximo tipo", function()
+	local roblox = require("@lune/roblox")
+	-- câmera: apanhar de alguém não gira a câmera; a trava tem câmera própria (Scriptable)
+	local cam = H.fonte("ReplicatedStorage/BB/Cliente/Camera")
+	assert(string.find(cam, "if d.a ~= eu or alvoTrava", 1, true), "auto-trava só no meu acerto")
+	assert(string.find(cam, "cam.CameraType = Enum.CameraType.Scriptable", 1, true) and string.find(cam, "modoTrava = true", 1, true), "câmera da trava própria")
+	assert(string.find(cam, "subida * 0.3", 1, true), "câmera sobe com o alvo no ar")
+	-- vozes: ORA/MUDA/ZA WARUDO (anime) 2,6x e as reservas 1,8x
+	local Sons = H.modulo("ReplicatedStorage/BB/Sons")
+	for _, n in { "ORA_ANIME", "MUDA_ANIME", "SP_TEMPO", "TW_TEMPO" } do
+		assert(Sons.VOZES_ANIME[n][3] >= 2.5, n .. " mais alto")
+	end
+	for _, n in { "ORA", "ZA_WARUDO", "SP_THE_WORLD" } do
+		assert(Sons.VOZES[n][3] >= 1.7, n .. " mais alto")
+	end
+	assert(Sons.LISTA.soco.vol >= 1 and Sons.LISTA.soco_forte.vol >= 1.3, "socos mais altos")
+	-- VFX: sem "impacto" no pacote, o soco usa o próximo tipo da lista ("outros")
+	local loja = roblox.Instance.new("Folder")
+	local outros = roblox.Instance.new("Folder")
+	outros.Name = "outros"
+	outros.Parent = loja
+	local p = roblox.Instance.new("Part")
+	p.Transparency = 1
+	p.Parent = outros
+	local pastaVFX = roblox.Instance.new("Folder")
+	H.servicos.Debris = { AddItem = function() end }
+	H.extras.workspace = setmetatable({ CurrentCamera = { CFrame = roblox.CFrame.new(0, 6, 14) }, Terrain = roblox.Instance.new("Folder") }, {
+		__index = function(_, k)
+			if k == "FindFirstChild" then
+				return function(_, nome)
+					return if nome == "BB_VFX" then pastaVFX else nil
+				end
+			end
+			return nil
+		end,
+	})
+	local VFX = H.moduloNovo("ReplicatedStorage/BB/Cliente/VFX")
+	H.extras.workspace = nil
+	VFX._lojaPasta(loja)
+	local V3 = roblox.Vector3.new
+	assert(VFX.lojaUm({ "impacto", "outros" }, V3(0, 3, 0), V3(0, 0, -1), 1) == true, "caiu em outros")
+	assert(VFX.lojaUm({ "impacto", "laser" }, V3(0, 3, 0), nil, 1) == false, "nenhum tipo = false")
+	-- DIAG: mostra o maior valor do andar nos últimos 5 s
+	assert(string.find(H.fonte("ReplicatedStorage/BB/Cliente/Animador"), "maior nos últimos 5 s", 1, true), "pico no DIAG")
+	assert(string.find(H.fonte("ServerScriptService/BB_Servidor/VFXLoja"), 'SetAttribute("Nomes"', 1, true), "nomes dos efeitos no DIAG")
+end)
+
 print("== instalador")
 teste("Config tem os IDs do jogo novo", function()
 	assert(Config.UNIVERSE_ID == 10774214555 and Config.PLACE_ID == 108061345551908 and Config.DONO_USERID == 1357078972)

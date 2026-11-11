@@ -3,7 +3,7 @@
 
 local Config = {}
 
-Config.REVISAO = "AJUSTE-11"
+Config.REVISAO = "AJUSTE-12"
 -- AJUSTE-10: o mapa Morioh fica intacto (regra do dono): não tira enfeites nem sombras
 Config.SIMPLIFICAR_MAPA = false
 Config.NOME_JOGO = "BIZARRE BATTLEGROUNDS"

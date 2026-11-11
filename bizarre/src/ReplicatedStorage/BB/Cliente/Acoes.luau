@@ -127,14 +127,13 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			end)
 		else
 			Animador.tocar(modelo, clipe)
-			if n == 4 then
-				task.delay(0.16, function()
-					if token(modelo) == tk and raiz.Parent then
-						local frente = raiz.CFrame.LookVector
-						VFX.estouroAr(raiz.Position + frente * 2.2 + Vector3.new(0, 0.6, 0), frente, corM1, true)
-					end
-				end)
-			end
+			-- AJUSTE-12: todo soco solta o efeito na frente do punho (no 4º, o forte)
+			task.delay(if n == 4 then 0.16 else 0.1, function()
+				if token(modelo) == tk and raiz.Parent then
+					local frente = raiz.CFrame.LookVector
+					VFX.estouroAr(raiz.Position + frente * 2.2 + Vector3.new(0, 0.6, 0), frente, corM1, n == 4)
+				end
+			end)
 		end
 		Som.tocar(if n == 4 then "whoosh_forte" else "whoosh", raiz.Position, { max = 6 })
 		if n == 4 then
@@ -157,12 +156,27 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		end
 		Animador.tocar(modelo, clipe)
 		Som.tocar("dash", raiz.Position)
+		Som.tocar("whoosh_forte", raiz.Position, { vol = 0.7, vel = 1.15 })
 		local cor = Efeitos.corStand(s and s.id)
 		Efeitos.fantasma(modelo, cor, 0.3)
 		task.delay(0.1, function()
 			Efeitos.fantasma(modelo, cor, 0.25)
 		end)
-		Efeitos.poeira(raiz.Position - Vector3.new(0, 2.6, 0), 2, nil, 6)
+		task.delay(0.18, function()
+			Efeitos.fantasma(modelo, cor, 0.2)
+		end)
+		local pe = raiz.Position - Vector3.new(0, 2.6, 0)
+		Efeitos.poeira(pe, 2, nil, 6)
+		-- AJUSTE-12: dash com peso: anel no chão, linhas de velocidade para trás, fumaça do pacote e,
+		-- se o dash é seu, a câmera "puxa" (FOV) por um instante
+		local cf = raiz.CFrame
+		local dirDash = if tipo == "tras" then -cf.LookVector elseif tipo == "lado" then (if dados.lado == "esquerda" then -cf.RightVector else cf.RightVector) else cf.LookVector
+		VFX.anel(pe + Vector3.new(0, 0.2, 0), cor:Lerp(Color3.new(1, 1, 1), 0.4), 4.5, 0.28, Vector3.yAxis)
+		VFX.linhas(raiz.Position, -dirDash, cor, 7, 6)
+		VFX.lojaUm({ "fumaca", "outros" }, pe + Vector3.new(0, 0.6, 0), -dirDash, 0.6)
+		if modelo == game:GetService("Players").LocalPlayer.Character then
+			require(script.Parent:WaitForChild("Camera")).fov(9, 0.28)
+		end
 		return
 	elseif id == "evasiva" then
 		Animador.tocar(modelo, "evasiva")
@@ -325,6 +339,10 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	if g.ult then
 		Efeitos.ameaca(modelo, 1.5, cor)
 		Som.tocar("gongo", raiz.Position, { alcance = 400 })
+		-- AJUSTE-12: a ULT explode aura em volta de quem usou (efeito do pacote + o nosso)
+		VFX.lojaUm({ "aura", "outros", "explosao" }, raiz.Position, nil, 1.6)
+		VFX.invocar(raiz.Position + Vector3.new(0, 0.6, 0), cor)
+		VFX.anel(raiz.Position - Vector3.new(0, 2.5, 0), cor, 14, 0.5, Vector3.yAxis)
 		-- cena de anime: câmera de cinema para quem usou, nome do golpe para quem está perto
 		require(script.Parent:WaitForChild("Cinematica")).ult(modelo, s, g)
 	end
