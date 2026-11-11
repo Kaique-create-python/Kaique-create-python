@@ -186,9 +186,48 @@ local function prepararPersonagem(jogador: Player, personagem: Model)
 	end)
 end
 
+-- AJUSTE-9: o jogo é TODO em R6 (as animações mexem nas juntas do R6). Se a experiência estiver
+-- configurada como R15 (Creator Dashboard > Avatar), o servidor troca o corpo por um R6 com a
+-- mesma roupa do jogador. Assim as animações funcionam qualquer que seja a configuração.
+local function corpoR6(jogador: Player, personagem: Model): Model?
+	local hum = personagem:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.RigType == Enum.HumanoidRigType.R6 then
+		return nil
+	end
+	local ok, novo = pcall(function()
+		local desc = hum:GetAppliedDescription()
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R6)
+	end)
+	if not ok or not novo then
+		ok, novo = pcall(function()
+			return Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R6)
+		end)
+	end
+	if not ok or not novo then
+		warn("[BB] não consegui trocar o corpo para R6: " .. tostring(novo))
+		return nil
+	end
+	novo.Name = jogador.Name
+	for _, sc in game:GetService("StarterPlayer").StarterCharacterScripts:GetChildren() do
+		sc:Clone().Parent = novo
+	end
+	local cf = personagem:GetPivot()
+	novo:PivotTo(cf)
+	return novo
+end
+
 Players.PlayerAdded:Connect(function(jogador)
 	jogador.ReplicationFocus = focoMenu
 	jogador.CharacterAdded:Connect(function(personagem)
+		personagem:WaitForChild("Humanoid", 10)
+		local r6 = corpoR6(jogador, personagem)
+		if r6 then
+			-- o CharacterAdded roda de novo com o corpo R6
+			jogador.Character = r6
+			r6.Parent = workspace
+			personagem:Destroy()
+			return
+		end
 		prepararPersonagem(jogador, personagem)
 	end)
 	jogador.CharacterRemoving:Connect(function(personagem)
