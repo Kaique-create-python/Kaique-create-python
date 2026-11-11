@@ -18,6 +18,7 @@ local Executores = require(pasta.Executores)
 local StandModelos = require(pasta.StandModelos)
 local Bots = require(pasta.Bots)
 local Dados = require(pasta.Dados)
+local VFXLoja = require(pasta.VFXLoja)
 local Admin = require(pasta.Admin)
 
 -- remotos
@@ -129,9 +130,24 @@ local function melhorSpawn(modo: string?): CFrame
 	return melhor
 end
 
+-- AJUSTE-11: "Animate" que não é o nosso (padrão do Roblox) sai do personagem
+local function tirarAnimacaoRoblox(personagem: Model)
+	for _, d in personagem:GetChildren() do
+		if d.Name == "Animate" and d:IsA("BaseScript") and not d:GetAttribute("BB_Nosso") then
+			d:Destroy()
+		end
+	end
+end
+
 local function prepararPersonagem(jogador: Player, personagem: Model)
 	local hum = personagem:WaitForChild("Humanoid", 10) :: Humanoid?
 	local raiz = personagem:WaitForChild("HumanoidRootPart", 10) :: BasePart?
+	tirarAnimacaoRoblox(personagem)
+	personagem.ChildAdded:Connect(function(d)
+		if d.Name == "Animate" then
+			task.defer(tirarAnimacaoRoblox, personagem)
+		end
+	end)
 	if not hum or not raiz then
 		local p = pedidos[jogador]
 		pedidos[jogador] = nil
@@ -208,7 +224,15 @@ local function corpoR6(jogador: Player, personagem: Model): Model?
 		return nil
 	end
 	novo.Name = jogador.Name
-	for _, sc in game:GetService("StarterPlayer").StarterCharacterScripts:GetChildren() do
+	-- AJUSTE-11: o corpo feito pelo Roblox vem com o "Animate" padrão (andar do Roblox por cima do
+	-- nosso). Tira tudo que tiver o mesmo nome dos nossos scripts e coloca os nossos.
+	local inicial = game:GetService("StarterPlayer").StarterCharacterScripts
+	for _, d in novo:GetChildren() do
+		if (d:IsA("BaseScript") or d:IsA("ModuleScript")) and inicial:FindFirstChild(d.Name) then
+			d:Destroy()
+		end
+	end
+	for _, sc in inicial:GetChildren() do
 		sc:Clone().Parent = novo
 	end
 	local cf = personagem:GetPivot()
@@ -294,6 +318,9 @@ remotos.Entrar.OnServerEvent:Connect(function(jogador: Player, dados: any)
 		end
 	end
 end)
+
+-- AJUSTE-11: VFX da loja (pacotes que o dono pegou), carregados sem rodar nenhum script deles
+task.spawn(VFXLoja.iniciar)
 
 workspace:SetAttribute("BB_Pronto", true)
 workspace:SetAttribute("BB_Revisao", Config.REVISAO)

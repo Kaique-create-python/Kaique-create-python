@@ -6,6 +6,7 @@ local TextChatService = game:GetService("TextChatService")
 local BB = script.Parent.Parent
 local Stands = require(BB:WaitForChild("Stands"))
 local UI = require(script.Parent:WaitForChild("Interface"))
+local Animador = require(script.Parent:WaitForChild("Animador"))
 local Som = require(script.Parent:WaitForChild("Som"))
 
 local AdminCliente = {}
@@ -92,6 +93,27 @@ local function criar()
 	end
 	abrir.MouseButton1Click:Connect(function()
 		painel.Visible = not painel.Visible
+	end)
+	-- AJUSTE-11: DIAG = o que está acontecendo com a animação do seu personagem e com os VFX da loja
+	local diagB = UI.botao(gui, "DIAG", UDim2.fromOffset(64, 34), UDim2.new(1, -150, 0, 8), Color3.fromRGB(60, 120, 200), { limite = 20 })
+	local quadro = UI.frame(gui, UDim2.fromOffset(560, 190), UDim2.new(0.5, -280, 0, 54), UI.CORES.fundo, 0.08)
+	UI.canto(quadro, 12)
+	UI.borda(quadro, Color3.fromRGB(60, 120, 200), 2)
+	quadro.Visible = false
+	local txt = UI.texto(quadro, "", UDim2.new(1, -20, 1, -16), UDim2.fromOffset(10, 8), {
+		fonte = UI.FONTE_TEXTO, quebrar = true, alinhar = Enum.TextXAlignment.Left, alinharY = Enum.TextYAlignment.Top, limite = 15,
+	})
+	diagB.MouseButton1Click:Connect(function()
+		quadro.Visible = not quadro.Visible
+		Som.tocar("ui_clique", nil)
+		task.spawn(function()
+			while quadro.Visible and quadro.Parent do
+				local loja = game:GetService("ReplicatedStorage"):FindFirstChild("BB_VFXLoja")
+				local textoLoja = if loja then tostring(loja:GetAttribute("Resumo") or "carregando...") else "o servidor ainda não carregou (ou é versão antiga)"
+				txt.Text = "ANIMAÇÃO: " .. Animador.diagnostico(plr.Character) .. "\n\nVFX DA LOJA: " .. textoLoja
+				task.wait(0.5)
+			end
+		end)
 	end)
 end
 

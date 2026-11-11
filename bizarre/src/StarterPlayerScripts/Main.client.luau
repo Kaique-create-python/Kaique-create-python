@@ -246,7 +246,12 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- morreu: aviso com contagem
+if plr.Character then
+	Animador.assumirPersonagem(plr.Character)
+end
 plr.CharacterAdded:Connect(function(c)
+	-- AJUSTE-11: o andar é o do jogo (tira o "Animate" padrão do Roblox se ele vier)
+	Animador.assumirPersonagem(c)
 	local hum = c:WaitForChild("Humanoid", 10) :: Humanoid?
 	if hum then
 		hum.Died:Connect(function()

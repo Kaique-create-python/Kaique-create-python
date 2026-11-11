@@ -6,6 +6,7 @@
 -- Feito só com peças Neon e as texturas que já vêm dentro do Roblox: nada para moderar ou baixar.
 
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local VFX = {}
@@ -217,6 +218,13 @@ function VFX.linhas(pos: Vector3, dir: Vector3?, cor: Color3, n: number, comp: n
 	end
 end
 
+-- solta n partículas (protegido: um pacote estranho nunca derruba o efeito inteiro)
+local function emitir(e: any, n: number)
+	pcall(function()
+		e:Emit(n)
+	end)
+end
+
 -- partículas (fumaça ou brilhos), num ponto
 local function particulas(pos: Vector3, tex: string, cor: ColorSequence, n: number, o: any)
 	if vivos >= TETO then
@@ -241,7 +249,7 @@ local function particulas(pos: Vector3, tex: string, cor: ColorSequence, n: numb
 	e.Rotation = NumberRange.new(0, 360)
 	e.Rate = 0
 	e.Parent = a
-	e:Emit(qtd(n))
+	emitir(e, qtd(n))
 	Debris:AddItem(a, o.vida1 + 0.3)
 end
 
@@ -258,6 +266,149 @@ function VFX.brilhos(pos: Vector3, cor: Color3, n: number, subir: boolean?)
 	})
 end
 
+----------------------------------------------------------------------------------- VFX da loja
+-- AJUSTE-11: efeitos dos pacotes que o dono pegou na Creator Store. O servidor (VFXLoja) carrega,
+-- tira os scripts e guarda por tipo em ReplicatedStorage.BB_VFXLoja; aqui o efeito é copiado para o
+-- ponto do golpe, as partículas são soltas do jeito que o pacote configurou (EmitCount/EmitDelay) e
+-- as peças visíveis (anéis, ondas) crescem e somem. Sem pacote, volta false e ficam os nossos.
+local pastaLojaTeste: Instance? = nil
+function VFX._lojaPasta(p: Instance?)
+	pastaLojaTeste = p
+end
+local function lojaPasta(): Instance?
+	if pastaLojaTeste then
+		return pastaLojaTeste
+	end
+	return ReplicatedStorage:FindFirstChild("BB_VFXLoja")
+end
+
+function VFX.temLoja(categoria: string): boolean
+	local p = lojaPasta()
+	local c = p and p:FindFirstChild(categoria)
+	return c ~= nil and #c:GetChildren() > 0
+end
+
+-- leva um modelo para cf (PivotTo; sem ele, peça por peça a partir da primeira)
+local function moverModelo(m: Model, cf: CFrame)
+	if pcall(function()
+		m:PivotTo(cf)
+	end) then
+		return
+	end
+	local ref: BasePart? = nil
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			ref = d
+			break
+		end
+	end
+	if not ref then
+		return
+	end
+	local delta = cf * ref.CFrame:Inverse()
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CFrame = delta * d.CFrame
+		end
+	end
+end
+
+function VFX.loja(categoria: string, pos: Vector3, dir: Vector3?, escala: number?): boolean
+	if vivos >= TETO then
+		return false
+	end
+	local p = lojaPasta()
+	local c = p and p:FindFirstChild(categoria)
+	if not c then
+		return false
+	end
+	local lista = c:GetChildren()
+	if #lista == 0 then
+		return false
+	end
+	local molde = lista[rng:NextInteger(1, #lista)]
+	local cf = if dir and dir.Magnitude > 0.01 then olhando(pos, dir) else CFrame.new(pos)
+	local copia = molde:Clone()
+	local suporte: Instance = copia
+	if copia:IsA("BasePart") then
+		copia.CFrame = cf
+		copia.Anchored = true
+		copia.Parent = obterPasta()
+	elseif copia:IsA("Model") then
+		moverModelo(copia, cf)
+		copia.Parent = obterPasta()
+	else
+		-- anexo ou emissor solto: uma peça invisível segura
+		local base = Instance.new("Part")
+		base.Anchored = true
+		base.CanCollide = false
+		base.CanQuery = false
+		base.CanTouch = false
+		base.Transparency = 1
+		base.Size = Vector3.one * 0.2
+		base.CFrame = cf
+		if copia:IsA("Attachment") then
+			copia.CFrame = CFrame.identity
+			copia.Parent = base
+		else
+			local a = Instance.new("Attachment")
+			a.Parent = base
+			copia.Parent = a
+		end
+		base.Parent = obterPasta()
+		suporte = base
+	end
+	vivos += 1
+	local e = escala or 1
+	local vida = 0.6
+	local itens = suporte:GetDescendants()
+	table.insert(itens, suporte)
+	for _, d in itens do
+		if d:IsA("ParticleEmitter") then
+			d.Enabled = false
+			if e ~= 1 then
+				local k = {}
+				for _, kp in d.Size.Keypoints do
+					table.insert(k, NumberSequenceKeypoint.new(kp.Time, kp.Value * e, kp.Envelope * e))
+				end
+				d.Size = NumberSequence.new(k)
+			end
+			local n = tonumber(d:GetAttribute("EmitCount")) or tonumber(d:GetAttribute("emitcount")) or math.clamp(math.floor(d.Rate * 0.08), 3, 24)
+			n = math.clamp(math.floor(n), 1, if alta then 60 else 25)
+			local atraso = tonumber(d:GetAttribute("EmitDelay")) or 0
+			vida = math.max(vida, atraso + d.Lifetime.Max)
+			if atraso > 0 then
+				task.delay(atraso, function()
+					if d.Parent then
+						emitir(d, n)
+					end
+				end)
+			else
+				emitir(d, n)
+			end
+		elseif d:IsA("Beam") or d:IsA("Trail") then
+			d.Enabled = true
+			task.delay(0.25, function()
+				if d.Parent then
+					d.Enabled = false
+				end
+			end)
+		elseif d:IsA("BasePart") and d.Transparency < 1 then
+			-- peças visíveis (anéis, ondas) eram animadas por script no pacote: aqui crescem e somem
+			d.Anchored = true
+			tween(d, 0.35, { Size = d.Size * 1.6 * e, Transparency = 1 })
+		elseif d:IsA("Decal") or d:IsA("Texture") then
+			tween(d, 0.35, { Transparency = 1 })
+		end
+	end
+	vida = math.min(vida + 0.3, 4)
+	task.delay(vida, function()
+		vivos -= 1
+		suporte:Destroy()
+	end)
+	return true
+end
+
 ----------------------------------------------------------------------------------- golpes
 
 -- impacto em 3 níveis: 1 leve (soco do combo), 2 forte (4º soco, golpe pesado), 3 enorme (finalização/ULT)
@@ -265,7 +416,10 @@ function VFX.impacto(pos: Vector3, dir: Vector3?, cor: Color3, nivel: number)
 	local d = if dir and dir.Magnitude > 0.01 then dir.Unit else nil
 	if nivel <= 1 then
 		VFX.flash(pos, cor, 2.6)
-		VFX.arco(pos, cor, 2.1, 0.18)
+		-- AJUSTE-11: efeito de impacto do pacote da loja (se tiver); senão o nosso arco
+		if not VFX.loja("impacto", pos, d, 0.8) then
+			VFX.arco(pos, cor, 2.1, 0.18)
+		end
 		VFX.estilhacos(pos, { BRANCO, cor }, 5, 4)
 		if alta then
 			VFX.estrela(pos + rng:NextUnitVector() * 0.9, cor, 2.2)
@@ -273,6 +427,8 @@ function VFX.impacto(pos: Vector3, dir: Vector3?, cor: Color3, nivel: number)
 		return
 	end
 	if nivel == 2 then
+		VFX.loja("impacto", pos, d, 1)
+		VFX.loja("choque", pos, d, 1)
 		VFX.flash(pos, cor, 4.6)
 		VFX.anel(pos, cor:Lerp(BRANCO, 0.4), 6, 0.24, d)
 		VFX.arco(pos, cor, 3, 0.22)
@@ -284,6 +440,11 @@ function VFX.impacto(pos: Vector3, dir: Vector3?, cor: Color3, nivel: number)
 		VFX.fumaca(pos, nil, 5, 2.2)
 		return
 	end
+	if not VFX.loja("explosao", pos, d, 1) then
+		VFX.loja("impacto", pos, d, 1.3)
+	end
+	VFX.loja("choque", pos, d, 1.3)
+	VFX.loja("chao", pos - Vector3.new(0, 2.5, 0), nil, 1)
 	VFX.flash(pos, cor, 7.5)
 	VFX.anel(pos, BRANCO, 8, 0.26, d)
 	task.delay(0.06, function()
@@ -304,6 +465,9 @@ end
 
 -- soco no vento (o Stand bate mesmo sem acertar): estouro de ar na frente do punho
 function VFX.estouroAr(pos: Vector3, dir: Vector3, cor: Color3, forte: boolean?)
+	if forte then
+		VFX.loja("corte", pos, dir, 0.9)
+	end
 	VFX.anel(pos, cor:Lerp(BRANCO, 0.55), if forte then 3.6 else 2.2, if forte then 0.2 else 0.15, dir, if alta then 10 else 6, 0.1)
 	VFX.linhas(pos - dir * 0.5, dir, cor, if forte then 6 else 3, if forte then 5 else 3)
 end
@@ -326,6 +490,7 @@ end
 
 -- parry perfeito: clarão branco grande, dois anéis, estrelas e estilhaços
 function VFX.parry(pos: Vector3, cor: Color3)
+	VFX.loja("flash", pos, nil, 1)
 	VFX.flash(pos, BRANCO, 6)
 	VFX.anel(pos, BRANCO, 7, 0.22)
 	task.delay(0.05, function()
@@ -339,6 +504,7 @@ end
 
 -- o Stand aparece (sai do dono): clarão, anel no chão, estilhaços e brilhos subindo
 function VFX.invocar(pos: Vector3, cor: Color3)
+	VFX.loja("aura", pos, nil, 1)
 	VFX.flash(pos, cor, 4)
 	VFX.anel(pos - Vector3.new(0, 2.6, 0), cor, 6, 0.32, Vector3.yAxis)
 	VFX.anel(pos, BRANCO, 3.6, 0.2)
@@ -349,6 +515,7 @@ end
 -- tempo parado: anéis enormes em três planos (cores de cada Stand) e brilhos
 function VFX.tempo(centro: Vector3, cor1: Color3, cor2: Color3, raio: number)
 	local dur = 0.9
+	VFX.loja("choque", centro, nil, 3)
 	VFX.flash(centro, cor1, 10)
 	VFX.anel(centro, cor1, raio * 0.6, dur, Vector3.yAxis, if alta then 24 else 12, 0.6)
 	task.delay(0.08, function()
@@ -382,6 +549,9 @@ end
 
 -- ORA x MUDA: o choque das duas rajadas no meio
 function VFX.clash(pos: Vector3, cor1: Color3, cor2: Color3)
+	if not VFX.loja("faisca", pos, nil, 1) then
+		VFX.loja("impacto", pos, nil, 1)
+	end
 	VFX.flash(pos, BRANCO, 4)
 	VFX.arco(pos, cor1, 2.8, 0.18)
 	VFX.arco(pos, cor2, 2.8, 0.18)

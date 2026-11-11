@@ -28,6 +28,7 @@ Os outros sons são da biblioteca liberada do Roblox (não precisam de envio).
 """
 import base64
 import getpass
+import gzip
 import hashlib
 import io
 import json
@@ -195,7 +196,122 @@ PERMISSOES = {
     "reiniciar": "Universes -> universe:write (opcional)",
     "audio": "Assets (asset:read e asset:write) - opcional, só para as vozes",
     "liberar": "Asset Permissions (asset-permissions:write) - opcional, libera as vozes para o jogo",
+    "vfx": "Legacy Assets (legacy-asset:manage) - opcional, só para baixar e conferir os pacotes de VFX",
 }
+
+# AJUSTE-11: pacotes de VFX que o dono pegou na Creator Store ("Obter modelo"). O JOGO carrega cada
+# um sozinho (servidor, sem rodar os scripts deles); aqui o instalador só baixa com a sua chave pelo
+# caminho oficial (Open Cloud Asset Delivery) para conferir o que tem dentro.
+PACOTES_VFX = [
+    (112672322113504, "VFX PACK (Euphoric Games)"),
+    (102139885640916, "Explosões, lasers, fogo e fumaça"),
+    (83841806206726, "saythrt's Mega Pack"),
+    (107474757639811, "Simple VFX Pack"),
+    (94340858809782, "Anime Sword Slash"),
+    (10153386313, "Sword Slash Effect"),
+]
+
+
+def lz4_bloco(src, tamanho):
+    """descompressor LZ4 (formato de bloco), o mesmo dos pedaços dos arquivos .rbxm/.rbxl"""
+    dst = bytearray()
+    i, n = 0, len(src)
+    while i < n:
+        token = src[i]
+        i += 1
+        lit = token >> 4
+        if lit == 15:
+            while True:
+                b = src[i]
+                i += 1
+                lit += b
+                if b != 255:
+                    break
+        dst += src[i:i + lit]
+        i += lit
+        if i >= n:
+            break
+        desloc = src[i] | (src[i + 1] << 8)
+        i += 2
+        mlen = token & 15
+        if mlen == 15:
+            while True:
+                b = src[i]
+                i += 1
+                mlen += b
+                if b != 255:
+                    break
+        mlen += 4
+        ini = len(dst) - desloc
+        if desloc >= mlen:
+            dst += dst[ini:ini + mlen]
+        else:
+            for k in range(mlen):
+                dst.append(dst[ini + k])
+    if len(dst) != tamanho:
+        raise ValueError("LZ4: tamanho errado")
+    return bytes(dst)
+
+
+def listar_classes(dados):
+    """conta as peças de um .rbxm (binário ou XML): {classe: quantidade}"""
+    contagem = {}
+    if dados[:8] == b"<roblox!":
+        off = 32
+        while off + 16 <= len(dados):
+            nome = dados[off:off + 4]
+            clen, ulen, _ = struct.unpack_from("<III", dados, off + 4)
+            ini = off + 16
+            bruto = dados[ini:ini + (clen if clen else ulen)]
+            off = ini + (clen if clen else ulen)
+            if nome == b"END\x00":
+                break
+            if nome != b"INST":
+                continue
+            if clen:
+                if bruto[:4] == b"\x28\xb5\x2f\xfd":
+                    contagem["(parte em formato novo)"] = contagem.get("(parte em formato novo)", 0) + 1
+                    continue
+                bruto = lz4_bloco(bruto, ulen)
+            n_nome = struct.unpack_from("<I", bruto, 4)[0]
+            classe = bruto[8:8 + n_nome].decode("utf-8", "replace")
+            qtd = struct.unpack_from("<I", bruto, 8 + n_nome + 1)[0]
+            contagem[classe] = contagem.get(classe, 0) + qtd
+        return contagem
+    import re
+    for classe in re.findall(rb'<Item class="([A-Za-z]+)"', dados):
+        c = classe.decode("ascii", "replace")
+        contagem[c] = contagem.get(c, 0) + 1
+    return contagem
+
+
+def auditar_vfx(chave):
+    """baixa cada pacote com a sua chave (Open Cloud Asset Delivery) e mostra o que tem dentro. Opcional."""
+    for asset_id, nome in PACOTES_VFX:
+        try:
+            info = http_json("GET", "%s/asset-delivery-api/v1/assetId/%d" % (API, asset_id), chave, tentativas=2, espera_max=60)
+            local = info.get("location") if isinstance(info, dict) else None
+            if not local:
+                aviso("%s: o Roblox não mandou o endereço para baixar." % nome)
+                continue
+            _, dados = http("GET", local, None, tentativas=2, espera_max=180)
+            if dados[:2] == b"\x1f\x8b":
+                dados = gzip.decompress(dados)
+            c = listar_classes(dados)
+            scripts = sum(v for k, v in c.items() if k in ("Script", "LocalScript", "ModuleScript"))
+            ok("%s: baixado (%d KB) - %d partículas, %d feixes, %d rastros, %d peças; %d scripts (o jogo NÃO roda)" % (
+                nome, len(dados) // 1024, c.get("ParticleEmitter", 0), c.get("Beam", 0), c.get("Trail", 0),
+                c.get("Part", 0) + c.get("MeshPart", 0), scripts))
+        except ErroHTTP as e:
+            if e.codigo in (401, 403):
+                aviso("a chave não tem a permissão para baixar modelos: %s." % PERMISSOES["vfx"])
+                aviso("   (é opcional: o JOGO carrega os pacotes sozinho; isso aqui é só para conferir)")
+                return
+            aviso("%s: o Roblox respondeu %s (%s)" % (nome, e.codigo, e.resumo()))
+        except Falha as f:
+            aviso("%s: %s" % (nome, f))
+        except Exception as e:
+            aviso("%s: não deu para ler o arquivo (%s)" % (nome, type(e).__name__))
 
 
 def explicar(e, etapa):
@@ -548,6 +664,8 @@ def mostrar_relatorio(res):
         ok("sons do anime: %s" % inf["vozesAnime"])
     if inf.get("imagens"):
         ok("artes: %s" % inf["imagens"])
+    if inf.get("vfxLoja"):
+        ok("VFX da loja dentro do jogo: %s" % inf["vfxLoja"])
     stands = inf.get("stands") or {}
     for sid in NOMES_STANDS:
         txt = stands.get(sid)
@@ -808,6 +926,12 @@ def preparar(args):
     if not any(imagens):
         aviso("sem as artes do Canva por enquanto: o menu usa o visual de texto.")
     place_bin = colocar_extras(place_bin, id_anime, trechos_anime, imagens)
+
+    passo("4c", "Pacotes de VFX que você pegou na loja (opcional: só confere)")
+    try:
+        auditar_vfx(chave)
+    except Exception as e:  # nada daqui pode travar a instalação
+        aviso("conferir VFX: %s (seguindo)" % type(e).__name__)
 
     passo(5, "Teste isolado na nuvem (versão salva, NÃO publicada)")
     try:

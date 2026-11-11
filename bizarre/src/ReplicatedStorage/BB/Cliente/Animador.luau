@@ -633,6 +633,7 @@ local function aplicar(a: any, dt: number)
 	end
 end
 
+local ultimoErro = ""
 function Animador.passo(dt: number)
 	for modelo, a in anims do
 		if not modelo.Parent then
@@ -640,10 +641,95 @@ function Animador.passo(dt: number)
 		end
 		local ok, err = pcall(aplicar, a, dt)
 		if not ok then
+			ultimoErro = tostring(err)
 			warn("[BB] animação:", err)
 			anims[modelo] = nil
 		end
 	end
+end
+
+-- AJUSTE-11: o MEU personagem só anda com a animação do jogo (a do dono). Se aparecer o "Animate"
+-- padrão do Roblox (corpo refeito em R6, pacote de animação do avatar...), ele é tirado e qualquer
+-- trilha de animação do Roblox para na hora (o jogo não usa trilhas: tudo é feito nas juntas).
+Animador.tirados = 0
+Animador.paradas = 0
+-- tira um "Animate" que não é o nosso (devolve true se tirou)
+function Animador.tirarAnimateRoblox(d: Instance): boolean
+	if d.Name == "Animate" and d:IsA("BaseScript") and not d:GetAttribute("BB_Nosso") then
+		pcall(function()
+			local s: any = d
+			s.Enabled = false
+		end)
+		pcall(function()
+			d:Destroy()
+		end)
+		Animador.tirados += 1
+		return true
+	end
+	return false
+end
+
+function Animador.assumirPersonagem(c: Model)
+	for _, d in c:GetChildren() do
+		Animador.tirarAnimateRoblox(d)
+	end
+	c.ChildAdded:Connect(Animador.tirarAnimateRoblox)
+	task.spawn(function()
+		local hum = c:WaitForChild("Humanoid", 15)
+		local animator = hum and hum:WaitForChild("Animator", 15)
+		if not animator then
+			return
+		end
+		local function parar(t: any)
+			pcall(function()
+				t:Stop(0)
+			end)
+			Animador.paradas += 1
+		end
+		for _, t in (animator :: any):GetPlayingAnimationTracks() do
+			parar(t)
+		end
+		(animator :: any).AnimationPlayed:Connect(parar)
+	end)
+end
+
+-- AJUSTE-11: o que está acontecendo com a animação deste personagem (botão DIAG do ADM)
+function Animador.diagnostico(modelo: Model?): string
+	if not modelo then
+		return "sem personagem"
+	end
+	local a = anims[modelo]
+	if not a then
+		return "personagem ainda não entrou na animação do jogo" .. (if ultimoErro ~= "" then " · ERRO: " .. ultimoErro else "")
+	end
+	local nJ = 0
+	for _ in a.juntas do
+		nJ += 1
+	end
+	local hum = modelo:FindFirstChildOfClass("Humanoid")
+	local animator = hum and hum:FindFirstChildOfClass("Animator")
+	local trilhas = 0
+	pcall(function()
+		trilhas = if animator then #animator:GetPlayingAnimationTracks() else 0
+	end)
+	local animates = {}
+	for _, d in modelo:GetChildren() do
+		if d.Name == "Animate" then
+			table.insert(animates, if d:GetAttribute("BB_Nosso") then "nosso" else "DO ROBLOX")
+		end
+	end
+	return string.format(
+		"corpo %s · juntas %d · trilhas do Roblox tocando %d · Animate: %s · andar do dono %d%% (clipes %s) · tirados %d, trilhas paradas %d%s",
+		if a.r6 then "R6" else "R15 (não é R6!)",
+		nJ,
+		trilhas,
+		if #animates > 0 then table.concat(animates, ", ") else "nenhum",
+		math.floor((a.pesoDono or 0) * 100),
+		if CLIPES_DONO.andar and CLIPES_DONO.correr then "ok" else "FALTANDO",
+		Animador.tirados,
+		Animador.paradas,
+		if ultimoErro ~= "" then " · ERRO: " .. ultimoErro else ""
+	)
 end
 
 function Animador.iniciar()

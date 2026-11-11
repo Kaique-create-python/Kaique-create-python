@@ -9,6 +9,20 @@ fecha com o servidor confirmando, ajustes (câmera, tremor, volume, qualidade), 
 etapas reais, ORA x MUDA, seta TO BE CONTINUED, Morioh mais leve, salvamento sem duplicar e
 instalador que confere a versão no ar. Detalhes em RELATORIO_AJUSTE7.md.
 
+## Feito no AJUSTE-11
+- **Animação do dono no personagem de verdade**: causa provável — quando a experiência está em R15, o
+  corpo é refeito em R6 (AJUSTE-9) e o Roblox põe o "Animate" PADRÃO nele; o jogo via as animações do
+  Roblox tocando e saía da frente. Agora o servidor tira esse Animate, o celular tira e para qualquer
+  trilha do Roblox, e os nossos scripts do personagem vão marcados (BB_Nosso).
+- **Botão DIAG (ADM)**: mostra na tela o estado da animação (R6, juntas, trilhas do Roblox, Animate,
+  quanto do andar do dono está entrando, erro) e o resumo dos VFX da loja.
+- **VFX da loja (os pacotes que o dono pegou)**: o servidor carrega pelo caminho oficial
+  (AssetService:LoadAssetAsync / InsertService:LoadAsset), tira todo script/som/boneco, separa por tipo
+  (impacto, choque, explosão, corte, faísca, fumaça, fogo, laser, chão, aura, flash) e o celular usa nos
+  golpes por cima dos VFX próprios. O instalador (passo 4c) baixa cada pacote com a chave (Open Cloud
+  Asset Delivery, permissão legacy-asset:manage) e mostra o que tem dentro; o teste na nuvem mostra o
+  que carregou no jogo.
+
 ## Feito no AJUSTE-10 (pedido + plano do ChatGPT)
 - **Andar e correr do dono** (Rig animation walk/run do Drive): importados por
   `tools/importar_animacoes.luau` para `AnimacoesDono.luau` e tocados direto nas juntas do R6, misturando

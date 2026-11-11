@@ -4,7 +4,10 @@ uso: python3 bizarre/tools/mock_roblox.py PORTA [--falhar] [--sem-audio] [--revi
   --falhar     o teste da nuvem devolve erro (o instalador NÃO pode publicar)
   --sem-audio  a chave não tem permissão de enviar áudio (o instalador tem que seguir sem as vozes)
   --desconhecido  a versão no ar tem scripts feitos em outro lugar (o instalador tem que PARAR)
+  --sem-vfx    a chave não pode baixar modelos (asset-delivery 403): o instalador só avisa
 """
+import gzip
+import os
 import json
 import re
 import sys
@@ -38,10 +41,25 @@ class H(BaseHTTPRequestHandler):
         return self.rfile.read(n)
 
     def do_GET(self):
+        # CDN (endereço temporário que o asset-delivery devolve): sem chave, arquivo em gzip
+        if self.path.startswith("/cdn/"):
+            raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            dados = gzip.compress(open(os.path.join(raiz, "assets", "animacoes", "andar_dono.rbxm"), "rb").read())
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(dados)))
+            self.end_headers()
+            self.wfile.write(dados)
+            return
         if self.path.startswith("/v1/games"):
             return self.responder(200, {"data": [{"name": "BIZARRE BATTLEGROUNDS", "creator": {"id": 1357078972, "name": "dono", "type": "User"}}]})
         if self.headers.get("x-api-key") != "CHAVE-DE-TESTE":
             return self.responder(401, {"message": "chave errada"})
+        m = re.match(r"/asset-delivery-api/v1/assetId/(\d+)$", self.path)
+        if m:
+            if "--sem-vfx" in ARGS:
+                return self.responder(403, {"errors": [{"code": 0, "message": "Insufficient scope"}]})
+            print("MOCK asset-delivery", m.group(1), flush=True)
+            return self.responder(200, {"location": "http://127.0.0.1:%s/cdn/%s" % (ARGS[0], m.group(1))})
         if self.path.startswith("/assets/v1/operations/"):
             op = self.path.rsplit("/", 1)[-1]
             return self.responder(200, {"done": True, "response": {"assetId": OPERACOES.get(op, ID_AUDIO), "moderationResult": {"moderationState": "Approved"}}})

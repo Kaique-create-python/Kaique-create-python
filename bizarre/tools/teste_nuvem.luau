@@ -474,6 +474,35 @@ checar("vozes", function()
 	res.info.imagens = n .. " de 3 artes do Canva no place"
 end)
 
+-- 9) AJUSTE-11: VFX da loja (os pacotes que o dono pegou). Só informação: se não carregar, o jogo
+-- segue com os VFX próprios.
+checar("VFX da loja", function()
+	local inicio = os.clock()
+	local loja = ReplicatedStorage:FindFirstChild("BB_VFXLoja")
+	while os.clock() - inicio < 20 and not (loja and loja:GetAttribute("Pronto")) do
+		task.wait(1)
+		loja = ReplicatedStorage:FindFirstChild("BB_VFXLoja")
+	end
+	if not loja then
+		aviso("VFX da loja: o servidor não criou a pasta")
+		return
+	end
+	res.info.vfxLoja = string.sub(tostring(loja:GetAttribute("Resumo")), 1, 900)
+	local tipos = {}
+	for _, pasta in loja:GetChildren() do
+		local nomes = {}
+		for i, e in pasta:GetChildren() do
+			if i <= 3 then
+				table.insert(nomes, tostring(e:GetAttribute("Caminho")))
+			end
+		end
+		table.insert(tipos, pasta.Name .. " " .. #pasta:GetChildren() .. " [" .. table.concat(nomes, "; ") .. "]")
+	end
+	if #tipos > 0 then
+		res.info.vfxLoja ..= " | tipos: " .. string.sub(table.concat(tipos, " · "), 1, 900)
+	end
+end)
+
 -- limpeza
 for _, l in { atk, vit } do
 	Lutadores.remover(l.modelo)

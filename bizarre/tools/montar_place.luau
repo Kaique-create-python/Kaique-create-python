@@ -167,6 +167,11 @@ local scs = Instance.new("StarterCharacterScripts")
 scs.Parent = sp
 carregar(RAIZ .. "/StarterPlayerScripts", sps)
 carregar(RAIZ .. "/StarterCharacterScripts", scs)
+-- AJUSTE-11: marca os scripts do personagem como "nossos": qualquer outro "Animate" (o padrão do
+-- Roblox) é tirado pelo servidor e pelo celular, e o andar fica sendo o do jogo
+for _, sc in scs:GetChildren() do
+	sc:SetAttribute("BB_Nosso", true)
+end
 
 local sg = game:GetService("StarterGui")
 sg.ScreenOrientation = Enum.ScreenOrientation.LandscapeSensor

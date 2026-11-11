@@ -746,6 +746,171 @@ teste("mapa Morioh intacto: a simplificação não roda no servidor (regra do pl
 	assert(string.find(fonte, "if Config.SIMPLIFICAR_MAPA then", 1, true), "o servidor só simplifica se a opção estiver ligada")
 end)
 
+print("== AJUSTE-11")
+teste("animação: o Animate padrão do Roblox sai, o nosso fica (servidor, celular e place)", function()
+	local roblox = require("@lune/roblox")
+	local Anim = H.modulo("ReplicatedStorage/BB/Cliente/Animador")
+	local m = roblox.Instance.new("Model")
+	local deles = roblox.Instance.new("LocalScript")
+	deles.Name = "Animate"
+	deles.Parent = m
+	local nosso = roblox.Instance.new("LocalScript")
+	nosso.Name = "Animate"
+	nosso:SetAttribute("BB_Nosso", true)
+	nosso.Parent = m
+	local outro = roblox.Instance.new("LocalScript")
+	outro.Name = "Health"
+	outro.Parent = m
+	local antes = Anim.tirados
+	for _, d in m:GetChildren() do
+		Anim.tirarAnimateRoblox(d)
+	end
+	assert(Anim.tirados == antes + 1, "tirou " .. (Anim.tirados - antes))
+	assert(nosso.Parent == m and outro.Parent == m and deles.Parent == nil, "só o Animate do Roblox sai")
+	assert(type(Anim.diagnostico(nil)) == "string" and string.find(Anim.diagnostico(m), "não entrou", 1, true), "diagnóstico")
+	-- servidor: o corpo R6 refeito perde o Animate padrão ANTES de receber os nossos scripts
+	local srv = H.fonte("ServerScriptService/BB_Servidor/Main")
+	local i1 = string.find(srv, "inicial:FindFirstChild(d.Name)", 1, true)
+	local i2 = string.find(srv, "sc:Clone().Parent = novo", 1, true)
+	assert(i1 and i2 and i1 < i2, "corpoR6 limpa antes de clonar")
+	assert(string.find(srv, "tirarAnimacaoRoblox(personagem)", 1, true), "todo personagem é limpo")
+	-- place: os nossos scripts do personagem saem marcados
+	local fs = require("@lune/fs")
+	assert(string.find(fs.readFile("bizarre/tools/montar_place.luau"), 'sc:SetAttribute("BB_Nosso", true)', 1, true), "place marca os nossos")
+	local cli = H.fonte("StarterPlayerScripts/Main")
+	assert(string.find(cli, "Animador.assumirPersonagem(c)", 1, true), "o celular assume o personagem")
+end)
+
+teste("VFX da loja: servidor tira todo script, separa por tipo e guarda só o visual", function()
+	local roblox = require("@lune/roblox")
+	local I = roblox.Instance.new
+	local function emissor(pai, nome, emit)
+		local e = I("ParticleEmitter")
+		e.Name = nome
+		e.Enabled = true
+		if emit then
+			e:SetAttribute("EmitCount", emit)
+		end
+		e.Parent = pai
+		return e
+	end
+	-- pacote falso: tem script, módulo, som e um boneco (nada disso pode passar)
+	local pacote = I("Model")
+	pacote.Name = "VFX PACK"
+	local hits = I("Folder")
+	hits.Name = "Hits"
+	hits.Parent = pacote
+	local soco = I("Part")
+	soco.Name = "PunchHit"
+	soco.Parent = hits
+	local anexo = I("Attachment")
+	anexo.Parent = soco
+	emissor(anexo, "Burst", 20)
+	local ruim = I("Script")
+	ruim.Name = "Animar"
+	ruim.Parent = soco
+	local ondas = I("Folder")
+	ondas.Name = "Waves"
+	ondas.Parent = pacote
+	local onda = I("Model")
+	onda.Name = "Shockwave"
+	onda.Parent = ondas
+	for i = 1, 2 do
+		local p = I("Part")
+		p.Name = "Anel" .. i
+		p.Parent = onda
+		emissor(p, "Ring", 5)
+	end
+	local faiscas = I("Folder")
+	faiscas.Name = "Sparks"
+	faiscas.Parent = pacote
+	emissor(faiscas, "Spark", 12)
+	local modulo = I("ModuleScript")
+	modulo.Parent = pacote
+	local som = I("Sound")
+	som.Parent = soco
+	local boneco = I("Model")
+	boneco.Name = "Dummy"
+	boneco.Parent = pacote
+	I("Humanoid").Parent = boneco
+	local RS = I("Folder")
+	H.extras.game = { GetService = function(_, nome)
+		if nome == "ReplicatedStorage" then
+			return RS
+		end
+		return H.game:GetService(nome)
+	end }
+	local VFXLoja = H.moduloNovo("ServerScriptService/BB_Servidor/VFXLoja")
+	H.extras.game = nil
+	local r = VFXLoja.processar(pacote, { id = 1, nome = "VFX PACK" })
+	assert(r.tirados >= 3, "scripts/som tirados: " .. r.tirados)
+	local loja = RS:FindFirstChild("BB_VFXLoja")
+	assert(loja, "pasta BB_VFXLoja")
+	assert(loja:FindFirstChild("impacto") and #loja.impacto:GetChildren() == 1, "PunchHit é impacto")
+	assert(loja:FindFirstChild("choque") and #loja.choque:GetChildren() == 1, "Shockwave é choque (o modelo inteiro)")
+	assert(loja:FindFirstChild("faisca") and #loja.faisca:GetChildren() == 1, "Spark solto é faísca")
+	for _, d in loja:GetDescendants() do
+		assert(not d:IsA("LuaSourceContainer") and not d:IsA("Sound") and not d:IsA("Humanoid"), "sobrou " .. d.ClassName)
+		if d:IsA("ParticleEmitter") then
+			assert(d.Enabled == false, "emissor guardado ligado")
+		elseif d:IsA("BasePart") then
+			assert(d.Anchored and not d.CanCollide and not d.CanQuery, "peça guardada encosta")
+		end
+	end
+	assert(VFXLoja.categoria("Pack/Effects/Explosion_Big") == "explosao" and VFXLoja.categoria("x/SwordSlash") == "corte" and VFXLoja.categoria("x/qualquer") == "outros", "categorias")
+	-- carregar: um pacote dá certo, outro o Roblox recusa (o resumo mostra os dois e nada trava)
+	local RS2 = I("Folder")
+	local carregados = 0
+	H.extras.game = { GetService = function(_, nome)
+		if nome == "ReplicatedStorage" then
+			return RS2
+		elseif nome == "AssetService" then
+			return { LoadAssetAsync = function(_, id)
+				if id == 112672322113504 then
+					carregados += 1
+					return pacote:Clone()
+				end
+				error("HTTP 403 (Asset is not trusted for this place)")
+			end }
+		elseif nome == "InsertService" then
+			return { LoadAsset = function()
+				error("HTTP 403")
+			end }
+		end
+		return H.game:GetService(nome)
+	end }
+	local VFXLoja2 = H.moduloNovo("ServerScriptService/BB_Servidor/VFXLoja")
+	H.extras.game = nil
+	VFXLoja2.iniciar()
+	local resumo = tostring(RS2.BB_VFXLoja:GetAttribute("Resumo"))
+	assert(carregados == 1 and RS2.BB_VFXLoja:GetAttribute("Pronto") == true, "carregou")
+	assert(string.find(resumo, "VFX PACK (Euphoric Games): OK", 1, true) and string.find(resumo, "NÃO CARREGOU", 1, true), resumo)
+	-- celular: o efeito da loja sai no golpe (e quando não tem pacote, volta false)
+	local pastaVFX = I("Folder")
+	H.servicos.Debris = { AddItem = function() end }
+	H.extras.workspace = setmetatable({ CurrentCamera = { CFrame = roblox.CFrame.new(0, 6, 14) }, Terrain = I("Folder") }, {
+		__index = function(_, k)
+			if k == "FindFirstChild" then
+				return function(_, nome)
+					return if nome == "BB_VFX" then pastaVFX else nil
+				end
+			end
+			return nil
+		end,
+	})
+	local VFX = H.moduloNovo("ReplicatedStorage/BB/Cliente/VFX")
+	H.extras.workspace = nil
+	VFX._lojaPasta(loja)
+	local V3 = roblox.Vector3.new
+	assert(VFX.temLoja("impacto") and not VFX.temLoja("laser"), "temLoja")
+	assert(VFX.loja("impacto", V3(0, 3, 0), V3(0, 0, -1), 1.2) == true, "impacto da loja")
+	assert(VFX.loja("choque", V3(0, 3, 0), nil, 1) == true, "choque da loja")
+	assert(VFX.loja("faisca", V3(0, 3, 0), nil, 1) == true, "faísca (emissor solto)")
+	assert(VFX.loja("laser", V3(0, 3, 0), nil, 1) == false, "sem pacote = false")
+	assert(#pastaVFX:GetChildren() >= 3, "efeitos no mundo: " .. #pastaVFX:GetChildren())
+	VFX.impacto(V3(0, 3, 0), V3(0, 0, -1), roblox.Color3.fromRGB(170, 90, 255), 3)
+end)
+
 print("== instalador")
 teste("Config tem os IDs do jogo novo", function()
 	assert(Config.UNIVERSE_ID == 10774214555 and Config.PLACE_ID == 108061345551908 and Config.DONO_USERID == 1357078972)
