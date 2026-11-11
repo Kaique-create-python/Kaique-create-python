@@ -131,14 +131,14 @@ function Effects.checkSprite()
 		end
 		spriteState = if probe.IsLoaded and probe.TimeLength > 1 then "ok" else "failed"
 		if spriteState == "failed" then
-			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação/permissão): usando sons do Roblox")
+			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação, permissão ou conexão): usando sons do Roblox")
 		end
 		if not announced and hud and hud.toast then
 			announced = true
 			if spriteState == "ok" then
 				hud.toast("🔊 Sons do jogo carregados!", Color3.fromRGB(110, 235, 150))
 			else
-				hud.toast("🔊 Áudio novo em análise no Roblox: tocando sons padrão por enquanto", Color3.fromRGB(255, 200, 90))
+				hud.toast("🔊 Áudio indisponível: usando sons padrão. Confira moderação, permissão e conexão.", Color3.fromRGB(255, 200, 90))
 			end
 		end
 		probe:Destroy()

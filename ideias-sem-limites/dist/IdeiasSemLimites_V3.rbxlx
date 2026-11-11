@@ -20991,14 +20991,14 @@ function Effects.checkSprite()
 		end
 		spriteState = if probe.IsLoaded and probe.TimeLength > 1 then "ok" else "failed"
 		if spriteState == "failed" then
-			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação/permissão): usando sons do Roblox")
+			warn("[Ideias] áudio " .. tostring(sp.Id) .. " ainda não carregou (moderação, permissão ou conexão): usando sons do Roblox")
 		end
 		if not announced and hud and hud.toast then
 			announced = true
 			if spriteState == "ok" then
 				hud.toast("🔊 Sons do jogo carregados!", Color3.fromRGB(110, 235, 150))
 			else
-				hud.toast("🔊 Áudio novo em análise no Roblox: tocando sons padrão por enquanto", Color3.fromRGB(255, 200, 90))
+				hud.toast("🔊 Áudio indisponível: usando sons padrão. Confira moderação, permissão e conexão.", Color3.fromRGB(255, 200, 90))
 			end
 		end
 		probe:Destroy()
@@ -22417,11 +22417,12 @@ TABS.ideias = function()
 	}, { new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for i, c in cats do
 		local b = Theme.button({ Text = c.info.icon .. " " .. c.info.label, TextSize = 14, Size = UDim2.fromOffset(130, 34), LayoutOrder = i, BackgroundColor3 = if c.id == selectedCategory then C.accent2 else C.bg2, Parent = strip })
-		local ic = Theme.icon(c.id, 26, b)
+		local ic = Theme.icon(c.id, 26, b, function(loaded)
+			b.Text = (if loaded then "     " else c.info.icon .. " ") .. c.info.label
+		end)
 		if ic then
 			ic.AnchorPoint = Vector2.new(0, 0.5)
 			ic.Position = UDim2.new(0, 6, 0.5, 0)
-			b.Text = "     " .. c.info.label
 		end
 		b.Activated:Connect(function()
 			selectedCategory = c.id
@@ -22875,9 +22876,9 @@ function Hud.build(parent: Instance): ScreenGui
 		Size = UDim2.fromOffset(44, 52),
 		Parent = bar,
 	})
-	if Theme.icon("ideias", 40, icon) then
-		icon.Text = ""
-	end
+	Theme.icon("ideias", 40, icon, function(loaded)
+		icon.TextTransparency = if loaded then 1 else 0
+	end)
 	box = new("TextBox", {
 		Name = "Texto",
 		BackgroundTransparency = 1,
@@ -22999,13 +23000,17 @@ function Hud.build(parent: Instance): ScreenGui
 	task.spawn(function()
 		local splash = new("Frame", { Name = "Abertura", BackgroundColor3 = Color3.fromRGB(8, 10, 24), BackgroundTransparency = 0.15, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = gui })
 		local logoId = Config.UiImages and Config.UiImages.Logo or 0
-		local logo: GuiObject
+		local logo = Theme.label({ Text = "IDEIAS SEM LIMITES", TextScaled = true, FontFace = Theme.FontHeavy, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.16), ZIndex = 21, Parent = splash })
+		Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(255, 120, 200), 0).Parent = logo
+		Theme.stroke(Color3.new(0, 0, 0), 3, 0).Parent = logo
+		local logoImage: ImageLabel? = nil
 		if logoId ~= 0 then
-			logo = new("ImageLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.5, 0.5), Image = "rbxthumb://type=Asset&id=" .. tostring(logoId) .. "&w=420&h=420", ScaleType = Enum.ScaleType.Fit, ZIndex = 21, Parent = splash })
-		else
-			logo = Theme.label({ Text = "IDEIAS SEM LIMITES", TextScaled = true, FontFace = Theme.FontHeavy, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.16), ZIndex = 21, Parent = splash })
-			Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(255, 120, 200), 0).Parent = logo
-			Theme.stroke(Color3.new(0, 0, 0), 3, 0).Parent = logo
+			logoImage = new("ImageLabel", { BackgroundTransparency = 1, Visible = false, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.5, 0.5), Image = "rbxthumb://type=Asset&id=" .. tostring(logoId) .. "&w=420&h=420", ScaleType = Enum.ScaleType.Fit, ZIndex = 21, Parent = splash })
+			Theme.imageFallback(logoImage, function(loaded)
+				logo.Visible = not loaded
+			end)
+			local imageScale = new("UIScale", { Scale = 0.6, Parent = logoImage })
+			Theme.tween(imageScale, 0.8, { Scale = 1 }, Enum.EasingStyle.Back)
 		end
 		local sub = Theme.label({ Text = "Escreva qualquer coisa. Ela vira realidade.", TextSize = 20, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.8, 0.06), ZIndex = 21, Parent = splash })
 		local sc = new("UIScale", { Scale = 0.6, Parent = logo })
@@ -23013,10 +23018,9 @@ function Hud.build(parent: Instance): ScreenGui
 		task.wait(2.6)
 		Theme.tween(splash, 0.6, { BackgroundTransparency = 1 })
 		Theme.tween(sub, 0.6, { TextTransparency = 1 })
-		if logo:IsA("TextLabel") then
-			Theme.tween(logo, 0.6, { TextTransparency = 1 })
-		else
-			Theme.tween(logo, 0.6, { ImageTransparency = 1 })
+		Theme.tween(logo, 0.6, { TextTransparency = 1 })
+		if logoImage then
+			Theme.tween(logoImage, 0.6, { ImageTransparency = 1 })
 		end
 		task.wait(0.7)
 		splash:Destroy()
@@ -23469,8 +23473,39 @@ Theme.onClick = nil :: (() -> ())?
 
 local Config = require(game:GetService("ReplicatedStorage").IdeiasShared.Config)
 
--- Ícone recortado da folha do Canva. Sem a imagem enviada, devolve nil (usa emoji).
-function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
+-- A instância pode existir antes do download. Troca a alternativa pela arte
+-- somente quando carregou, sem bloquear a construção da interface.
+function Theme.imageFallback(img: ImageLabel, onLoaded: ((boolean) -> ())?)
+	local active = true
+	local changed: RBXScriptConnection? = nil
+	local destroying: RBXScriptConnection? = nil
+	local function update()
+		if not active then
+			return
+		end
+		local loaded = img.IsLoaded
+		img.Visible = loaded
+		if onLoaded then
+			onLoaded(loaded)
+		end
+	end
+	changed = img:GetPropertyChangedSignal("IsLoaded"):Connect(update)
+	destroying = img.Destroying:Connect(function()
+		active = false
+		onLoaded = nil
+		if changed then
+			changed:Disconnect()
+		end
+		if destroying then
+			destroying:Disconnect()
+		end
+	end)
+	update()
+end
+
+-- Ícone recortado da folha do Canva. Sem ID/célula devolve nil; o retorno
+-- indica a instância, e onLoaded informa se a arte já pode substituir o emoji.
+function Theme.icon(name: string, size: number, parent: Instance, onLoaded: ((boolean) -> ())?): ImageLabel?
 	local id = Config.UiImages and Config.UiImages.Icons or 0
 	local cell = Config.IconSheet.Cells[name]
 	if id == 0 or cell == nil then
@@ -23481,6 +23516,7 @@ function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
 	local row = cell // Config.IconSheet.Columns
 	local img = Instance.new("ImageLabel")
 	img.BackgroundTransparency = 1
+	img.Visible = false
 	img.Image = "rbxassetid://" .. tostring(id)
 	img.ImageRectOffset = Vector2.new(col * c, row * c)
 	img.ImageRectSize = Vector2.new(c, c)
@@ -23490,6 +23526,7 @@ function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
 	img.ScaleType = Enum.ScaleType.Fit
 	img.ZIndex = (parent :: any).ZIndex + 1
 	img.Parent = parent
+	Theme.imageFallback(img, onLoaded)
 	return img
 end
 
@@ -23521,17 +23558,14 @@ Theme.TileColors = {
 	power = Color3.fromRGB(210, 76, 217),
 }
 
--- Azulejo quadrado: arte da folha de ícones; sem a folha enviada, monta um
--- azulejo parecido só com interface (cor + contorno escuro + emoji).
+-- A alternativa (cor + contorno escuro + emoji) aparece também enquanto a
+-- folha carrega ou permanece indisponível; a arte pronta a substitui.
 function Theme.tile(name: string, emoji: string, size: number, parent: Instance): Frame
 	local holder = Instance.new("Frame")
 	holder.Name = "Azulejo"
 	holder.BackgroundTransparency = 1
 	holder.Size = UDim2.fromOffset(size, size)
 	holder.Parent = parent
-	if Theme.icon(name, size, holder) then
-		return holder
-	end
 	local face = Instance.new("Frame")
 	face.BackgroundColor3 = Theme.TileColors[name] or Theme.Colors.bg2
 	face.Size = UDim2.fromScale(1, 1)
@@ -23562,6 +23596,9 @@ function Theme.tile(name: string, emoji: string, size: number, parent: Instance)
 	pad.PaddingTop = UDim.new(0.16, 0)
 	pad.PaddingBottom = UDim.new(0.16, 0)
 	pad.Parent = e
+	Theme.icon(name, size, holder, function(loaded)
+		face.Visible = not loaded
+	end)
 	return holder
 end
 

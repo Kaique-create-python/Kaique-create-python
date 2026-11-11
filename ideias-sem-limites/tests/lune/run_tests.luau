@@ -11,6 +11,14 @@ local group = process.args[2] or "all"
 local env = Harness.load(placePath)
 local totalFailed = 0
 
+if group == "ui" or group == "all" then
+	print("\n== Carregamento das imagens da interface ==")
+	local result = require("./media_ui_spec").run()
+	for _, failure in result.failures do print("  FALHOU: " .. failure) end
+	print(string.format("  %d passaram, %d falharam", result.passed, result.failed))
+	totalFailed += result.failed
+end
+
 local function section(title)
 	print("\n== " .. title .. " ==")
 end

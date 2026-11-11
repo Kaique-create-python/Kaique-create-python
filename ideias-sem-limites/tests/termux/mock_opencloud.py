@@ -8,8 +8,10 @@ tarefa Luau com o campo "script". Registra tudo em mock_log.json.
 import json
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import UnixStreamServer
 
-KEY = sys.argv[2] if len(sys.argv) > 2 else "chave-de-teste"
+UNIX = len(sys.argv) > 1 and sys.argv[1] == "--unix"
+KEY = sys.argv[3] if UNIX else sys.argv[2] if len(sys.argv) > 2 else "chave-de-teste"
 LOG = []
 STATE = {"version": 4, "polls": 0}
 
@@ -52,8 +54,10 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, {"versionNumber": STATE["version"]})
         if self.path == "/assets/v1/assets":
             entry["audio"] = b'"assetType": "Audio"' in body and b"OggS" in body
+            entry["decal"] = b'"assetType": "Decal"' in body and b"\x89PNG" in body
             json.dump(LOG, open("mock_log.json", "w"), indent=1)
-            return self._send(200, {"path": "operations/aud1", "done": False})
+            operation = "aud1" if entry["audio"] else "icons1" if b"Icones" in body else "logo1"
+            return self._send(200, {"path": "operations/" + operation, "done": False})
         if self.path.endswith("/luau-execution-session-tasks"):
             data = json.loads(body)
             if "script" not in data or len(data["script"]) < 10:
@@ -83,15 +87,21 @@ class H(BaseHTTPRequestHandler):
             STATE["polls"] += 1
             if STATE["polls"] < 2:
                 return self._send(200, {"state": "PROCESSING"})
-            return self._send(200, {"state": "COMPLETE", "output": {"results": [{"ok": True, "interpretador": {"passou": 2454, "falhou": 0}}]}})
+            failed = "/versions/999/" in self.path
+            return self._send(200, {"state": "COMPLETE", "output": {"results": [{"ok": not failed, "interpretador": {"passou": 2454, "falhou": 1 if failed else 0}}]}})
         if self.path.endswith("/assets/v1/assets/123456"):
             return self._send(200, {"assetId": "123456", "assetType": "Audio", "moderationResult": {"moderationState": "Approved"}})
         if self.path.endswith("/operations/aud1"):
             return self._send(200, {"path": "operations/aud1", "done": True, "response": {"assetId": "123456", "assetType": "Audio"}})
+        if self.path.endswith("/operations/logo1"):
+            return self._send(200, {"path": "operations/logo1", "done": True, "response": {"assetId": "234567", "assetType": "Decal"}})
+        if self.path.endswith("/operations/icons1"):
+            return self._send(200, {"path": "operations/icons1", "done": True, "response": {"assetId": "345678", "assetType": "Decal"}})
         if self.path.endswith("/operations/op123"):
             return self._send(200, {"path": "operations/op123", "done": True, "response": {"path": "assets/1", "revisionId": "7", "isPublished": False}})
         self._send(404, {"message": "rota desconhecida"})
 
 
 if __name__ == "__main__":
-    HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+    server = UnixStreamServer(sys.argv[2], H) if UNIX else HTTPServer(("127.0.0.1", int(sys.argv[1])), H)
+    server.serve_forever()

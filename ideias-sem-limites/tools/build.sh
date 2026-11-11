@@ -21,6 +21,7 @@ fi
 cp "build/$NAME.rbxl" "build/$NAME.rbxlx" dist/
 cp assets/sons/IdeiasSons.ogg dist/
 cp assets/ui/IdeiasLogo.png assets/ui/IdeiasIcones.png dist/
-( cd dist && sha256sum "$NAME.rbxl" "$NAME.rbxlx" IdeiasSons.ogg IdeiasLogo.png IdeiasIcones.png > SHA256SUMS )
+cp tools/preparar_midias.py dist/
+( cd dist && sha256sum "$NAME.rbxl" "$NAME.rbxlx" IdeiasSons.ogg IdeiasLogo.png IdeiasIcones.png preparar_midias.py > SHA256SUMS )
 echo "Arquivos prontos em dist/:"
 ls -la dist/

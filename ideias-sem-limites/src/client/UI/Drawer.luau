@@ -158,11 +158,12 @@ TABS.ideias = function()
 	}, { new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for i, c in cats do
 		local b = Theme.button({ Text = c.info.icon .. " " .. c.info.label, TextSize = 14, Size = UDim2.fromOffset(130, 34), LayoutOrder = i, BackgroundColor3 = if c.id == selectedCategory then C.accent2 else C.bg2, Parent = strip })
-		local ic = Theme.icon(c.id, 26, b)
+		local ic = Theme.icon(c.id, 26, b, function(loaded)
+			b.Text = (if loaded then "     " else c.info.icon .. " ") .. c.info.label
+		end)
 		if ic then
 			ic.AnchorPoint = Vector2.new(0, 0.5)
 			ic.Position = UDim2.new(0, 6, 0.5, 0)
-			b.Text = "     " .. c.info.label
 		end
 		b.Activated:Connect(function()
 			selectedCategory = c.id

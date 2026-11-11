@@ -2,6 +2,19 @@
 
 > Outra IA vai continuar? Comece por [`docs/CONTEXTO_PARA_IA.md`](docs/CONTEXTO_PARA_IA.md).
 
+## Correção das mídias (11/11/2026)
+
+O instalador agora combina o **build atual** com os recibos locais de áudio e imagens.
+`enviar` sem argumento usa `IdeiasSemLimites_V3_final.rbxlx`; repetir `sons` mantém os
+IDs das imagens. Imagens iguais com recibos confirmados não são reenviadas. Downloads
+incompletos preservam os arquivos anteriores e o auxiliar Python tem checksum no pacote.
+Os botões mantêm sua alternativa até a imagem carregar. A arte original foi preservada.
+
+Quem já configurou a chave não precisa repetir `configurar`. Atualize `ideias.sh`, depois
+rode `baixar`, `sons`, `imagens` e `testar`. Os envios são **Saved**. A publicação continua
+manual e exige `PUBLICAR`. Aprovação de um áudio não confirma sua reprodução no jogo.
+Leia [o procedimento e os testes](docs/CORRECAO_MIDIAS.md).
+
 ## Novidades (V3.6)
 
 * **Interface no estilo dos jogos populares:** coluna de azulejos quadrados com contorno escuro

@@ -23,7 +23,7 @@ UNIVERSE_ID_PADRAO="10774214423"
 PLACE_ID_PADRAO="122033314086516"
 RAMO="claude/ideias-sem-limites-roblox-t44sea"
 RAW="${IDEIAS_RAW:-https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/${RAMO}/ideias-sem-limites}"
-CONF_DIR="${HOME}/.ideias"
+CONF_DIR="${IDEIAS_CONF_DIR:-${HOME}/.ideias}"
 CONF="${CONF_DIR}/config"
 CHAVE="${CONF_DIR}/chave"
 LEDGER="${CONF_DIR}/historico.tsv"
@@ -51,6 +51,7 @@ carregar_config() {
 		# shellcheck disable=SC1090
 		source "$CONF"
 	fi
+	[[ "$UNIVERSE_ID" == "$UNIVERSE_ID_PADRAO" && "$PLACE_ID" == "$PLACE_ID_PADRAO" ]] || morre "Destino bloqueado: esta ferramenta so altera o Ideias Sem Limites (10774214423 / 122033314086516)."
 }
 
 garantir_pastas() {
@@ -94,6 +95,16 @@ d=json.load(sys.stdin)
 for k in sys.argv[1].split("."):
     d = d.get(k) if isinstance(d, dict) else None
 print("" if d is None else (json.dumps(d, ensure_ascii=False) if isinstance(d,(dict,list)) else d))' "$1"
+}
+
+# Composicao local; o auxiliar nunca le chave nem faz conexoes de rede.
+midias() {
+	local helper="$PASTA/V3/preparar_midias.py"
+	if [[ ! -f "$helper" ]]; then
+		helper="$(dirname "${BASH_SOURCE[0]}")/../tools/preparar_midias.py"
+	fi
+	[[ -f "$helper" ]] || morre "Atualize esta ferramenta e rode: bash ideias.sh baixar"
+	python3 "$helper" --state "$CONF_DIR" --folder "$PASTA/V3" "$@"
 }
 
 tipo_conteudo() {
@@ -156,22 +167,35 @@ cmd_configurar() {
 }
 
 cmd_baixar() {
-	precisa curl sha256sum
+	precisa curl sha256sum python3
 	garantir_pastas
 	local dest="$PASTA/V3"
-	mkdir -p "$dest/ferramentas" "$dest/testes"
+	local staging
+	staging=$(mktemp -d "$PASTA/baixar.XXXXXX")
+	mkdir -p "$staging/ferramentas" "$staging/testes" "$dest"
 	info "Baixando a V3 do GitHub (ramo $RAMO)"
-	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/IdeiasLogo.png" "dist/IdeiasIcones.png" "dist/SHA256SUMS")
+	local arquivos=("dist/IdeiasSemLimites_V3.rbxl" "dist/IdeiasSemLimites_V3.rbxlx" "dist/IdeiasSons.ogg" "dist/IdeiasLogo.png" "dist/IdeiasIcones.png" "dist/preparar_midias.py" "dist/SHA256SUMS")
 	for f in "${arquivos[@]}"; do
-		curl -fL --retry 3 -o "$dest/$(basename "$f")" "$RAW/$f" || morre "Falha ao baixar $f"
+		curl -fL --retry 3 -o "$staging/$(basename "$f")" "$RAW/$f" || morre "Falha ao baixar $f; os downloads anteriores foram preservados."
 	done
-	curl -fL --retry 3 -o "$dest/ferramentas/diagnosticar_rbxlx.py" "$RAW/tools/diagnosticar_rbxlx.py"
-	curl -fL --retry 3 -o "$dest/ferramentas/roblox_reflexao.json.gz" "$RAW/tools/roblox_reflexao.json.gz"
-	curl -fL --retry 3 -o "$dest/testes/run_cloud_tests.luau" "$RAW/tests/cloud/run_cloud_tests.luau"
-	curl -fL --retry 3 -o "$dest/testes/auditar_lugar.luau" "$RAW/tests/cloud/auditar_lugar.luau"
+	curl -fL --retry 3 -o "$staging/ferramentas/diagnosticar_rbxlx.py" "$RAW/tools/diagnosticar_rbxlx.py"
+	curl -fL --retry 3 -o "$staging/ferramentas/roblox_reflexao.json.gz" "$RAW/tools/roblox_reflexao.json.gz"
+	curl -fL --retry 3 -o "$staging/testes/run_cloud_tests.luau" "$RAW/tests/cloud/run_cloud_tests.luau"
+	curl -fL --retry 3 -o "$staging/testes/auditar_lugar.luau" "$RAW/tests/cloud/auditar_lugar.luau"
 	info "Conferindo SHA-256"
-	(cd "$dest" && sha256sum -c SHA256SUMS) || morre "Soma SHA-256 não confere: baixe de novo."
+	local required
+	for required in IdeiasSemLimites_V3.rbxl IdeiasSemLimites_V3.rbxlx IdeiasSons.ogg IdeiasLogo.png IdeiasIcones.png preparar_midias.py; do
+		[[ "$(awk -v target="$required" '$2 == target {n++} END {print n+0}' "$staging/SHA256SUMS")" == 1 ]] || morre "O manifesto nao confirma $required; os arquivos anteriores foram preservados."
+	done
+	(cd "$staging" && sha256sum --strict -c SHA256SUMS) || morre "Soma SHA-256 não confere; os arquivos anteriores foram preservados."
+	# O auxiliar so e executado depois de conferir seu proprio checksum.
+	python3 "$staging/preparar_midias.py" --state "$CONF_DIR" --folder "$dest" migrar
+	python3 "$staging/preparar_midias.py" --state "$CONF_DIR" --folder "$staging" validar || morre "Pacote de midias invalido; o download anterior foi preservado."
+	cp -R "$staging/." "$dest/"
+	rm -rf "$staging"
+	midias compor >/dev/null
 	ok "Arquivos em $dest"
+	echo "O comando enviar usa o arquivo final atual e os recibos confirmados deste celular."
 	ls -la "$dest"
 }
 
@@ -255,7 +279,8 @@ enviar_legado() {
 cmd_enviar() {
 	precisa curl python3 sha256sum
 	garantir_pastas
-	local arq="${1:-$PASTA/V3/IdeiasSemLimites_V3.rbxl}"
+	local arq="${1:-}"
+	if [[ -z "$arq" ]]; then arq=$(midias compor) || return 1; fi
 	enviar_legado "$arq" "Saved"
 	echo "Próximo passo: bash ideias.sh testar   (testa esta versão na nuvem)"
 }
@@ -352,13 +377,20 @@ luau_tarefa() {
 	curl -sS -H @"$HDR" "$API/cloud/v2/${caminho}/logs" >"${relatorio%.json}-logs.json" || true
 	limpar
 	if [[ "$estado" == "COMPLETE" ]]; then
-		python3 - "$relatorio" <<'PY'
+		if ! python3 - "$relatorio" "$nome" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 res = (d.get("output") or {}).get("results") or []
 r = res[0] if res else {}
 print(json.dumps(r, ensure_ascii=False, indent=2)[:6000])
+if sys.argv[2] == "teste-nuvem" and r.get("ok") is not True:
+    print("Teste reprovado ou sem relatorio valido; nao publique esta versao.", file=sys.stderr)
+    sys.exit(1)
 PY
+		then
+			rm -f "$corpo" "$resp"
+			return 1
+		fi
 		ok "Relatório salvo: $relatorio"
 	else
 		erro "Tarefa terminou em $estado"
@@ -378,6 +410,7 @@ cmd_testar() {
 		registrar "testar" "-" "-" "$versao" "concluido"
 	else
 		registrar "testar" "-" "-" "$versao" "falhou"
+		return 1
 	fi
 }
 
@@ -412,42 +445,27 @@ cmd_publicar() {
 }
 
 cmd_sons() {
-	# Envia o áudio com os efeitos sonoros (ElevenLabs) como UM asset de áudio,
-	# grava o ID numa cópia do .rbxlx e envia essa cópia como SALVA (Saved).
 	precisa curl python3 sha256sum
 	garantir_pastas
 	carregar_config
 	local novo=0
-	if [[ "${1:-}" == "--novo" ]]; then
-		novo=1
-		shift
-	fi
-	local audio="${1:-$PASTA/V3/IdeiasSons.ogg}"
-	local lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
-	[[ -s "$audio" ]] || morre "Áudio não encontrado: $audio (rode 'bash ideias.sh baixar')"
-	[[ -s "$lugar" ]] || morre "Lugar não encontrado: $lugar (rode 'bash ideias.sh baixar')"
-	local sha asset=""
+	if [[ "${1:-}" == "--novo" ]]; then novo=1;shift;fi
+	local audio="${1:-$PASTA/V3/IdeiasSons.ogg}" sha asset=""
+	[[ -s "$audio" ]] || morre "Audio nao encontrado; rode baixar."
+	midias compor >/dev/null || return 1
 	sha=$(sha256sum "$audio" | cut -d' ' -f1)
-	# mesmo arquivo de áudio já enviado antes: reaproveita o ID (não gasta a cota de uploads)
-	if [[ $novo -eq 0 && -s "$CONF_DIR/audio_id" && "$(cat "$CONF_DIR/audio_sha" 2>/dev/null)" == "$sha" ]]; then
-		asset=$(tr -dc '0-9' <"$CONF_DIR/audio_id")
-		ok "Áudio igual ao já enviado: reaproveitado o asset $asset (use 'sons --novo' para forçar novo envio)"
-	fi
-	if [[ -z "$asset" ]]; then
+	[[ "$sha" == "$(sha256sum "$PASTA/V3/IdeiasSons.ogg" | cut -d' ' -f1)" ]] || morre "O audio precisa corresponder ao build atual e aos seus trechos."
+	if [[ $novo -eq 0 ]]; then asset=$(midias id audio) || return 1;fi
+	if [[ -n "$asset" ]]; then
+		ok "Audio igual ao ja enviado: reaproveitado o asset $asset"
+	else
 		enviar_audio "$audio" "$sha" || return 1
-		asset=$(tr -dc '0-9' <"$CONF_DIR/audio_id")
+		asset=$(midias id audio) || return 1
 	fi
-	local saida="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
-	python3 - "$lugar" "$saida" "$asset" <<'PYEOF' || morre "Não consegui gravar o ID no lugar."
-import sys
-src, dst, asset = sys.argv[1], sys.argv[2], sys.argv[3]
-data = open(src, encoding="utf-8").read()
-marker = "Id = 0, --@@SPRITE_ID@@"
-if marker not in data:
-    sys.exit("marcador não encontrado")
-open(dst, "w", encoding="utf-8").write(data.replace(marker, "Id = %d, --@@SPRITE_ID@@" % int(asset), 1))
-PYEOF
-	ok "Lugar com sons: $saida"
+	[[ "$asset" =~ ^[1-9][0-9]*$ ]] || morre "Recibo do audio nao confirmado; nenhum lugar foi enviado."
+	local saida
+	saida=$(midias compor) || return 1
+	ok "Lugar atual com as midias confirmadas: $saida"
 	cmd_enviar "$saida"
 }
 
@@ -497,6 +515,7 @@ enviar_audio() {
 	fi
 	rm -f "$resp"
 	ok "Áudio criado: asset $asset"
+	midias registrar audio "$asset" "$sha" || return 1
 	echo "$asset" >"$CONF_DIR/audio_id"
 	echo "$sha" >"$CONF_DIR/audio_sha"
 	aviso "O Roblox analisa o áudio antes de liberar (minutos a horas). Confira com: bash ideias.sh verificar-sons"
@@ -507,7 +526,12 @@ cmd_verificar_sons() {
 	precisa curl python3
 	garantir_pastas
 	carregar_config
-	local id="${1:-$(tr -dc '0-9' <"$CONF_DIR/audio_id" 2>/dev/null)}"
+	local id="${1:-}"
+	if [[ -z "$id" ]]; then
+		if [[ -f "$CONF_DIR/midia_audio.json" ]]; then id=$(midias id audio) || return 1
+		else id=$(tr -dc '0-9' <"$CONF_DIR/audio_id" 2>/dev/null) || true
+		fi
+	fi
 	[[ "$id" =~ ^[0-9]+$ ]] || morre "Nenhum áudio enviado ainda. Rode: bash ideias.sh sons"
 	cabecalho_chave
 	local resp code estado
@@ -523,7 +547,7 @@ cmd_verificar_sons() {
 	estado=$(json_campo moderationResult.moderationState <"$resp")
 	rm -f "$resp"
 	case "$estado" in
-	Approved | MODERATION_STATE_APPROVED) ok "Áudio $id APROVADO: os sons do ElevenLabs tocam no jogo (versão com 'sons')." ;;
+	Approved | MODERATION_STATE_APPROVED) ok "Áudio $id APROVADO na moderacao. A reproducao ainda depende do ID no lugar e das permissoes/carregamento no jogo." ;;
 	Reviewing | MODERATION_STATE_REVIEWING) aviso "Áudio $id em ANÁLISE no Roblox. Enquanto isso o jogo toca os sons embutidos do Roblox. Tente de novo mais tarde." ;;
 	Rejected | MODERATION_STATE_REJECTED) erro "Áudio $id REJEITADO pelo Roblox. O jogo continua com os sons embutidos." ;;
 	*) aviso "Estado do áudio $id: ${estado:-desconhecido}" ;;
@@ -564,50 +588,39 @@ enviar_decal() {
 }
 
 cmd_imagens() {
-	# Envia o logo e a folha de ícones (feitos no Canva) como Decal e grava os IDs no lugar.
-	precisa curl python3
+	precisa curl python3 sha256sum
 	garantir_pastas
 	carregar_config
-	local logo="$PASTA/V3/IdeiasLogo.png"
-	local icones="$PASTA/V3/IdeiasIcones.png"
-	local lugar="$PASTA/V3/IdeiasSemLimites_V3_sons.rbxlx"
-	[[ -s "$lugar" ]] || lugar="$PASTA/V3/IdeiasSemLimites_V3.rbxlx"
-	[[ -s "$logo" ]] || morre "Logo não encontrado: $logo (rode 'bash ideias.sh baixar')"
-	local uid="${USER_ID:-}"
-	if [[ -z "$uid" ]]; then
-		read -r -p "Seu User ID do Roblox (número do seu perfil): " uid
-		[[ "$uid" =~ ^[0-9]+$ ]] || morre "User ID deve ser um número."
-		printf 'USER_ID="%s"\n' "$uid" >>"$CONF"
-	fi
-	info "Enviando imagens da interface — permissão 'asset' Read+Write"
-	cabecalho_chave
-	local logo_id icons_id=0
-	logo_id=$(enviar_decal "$logo" "Ideias Sem Limites Logo" "$uid") || { limpar; morre "Falha ao enviar o logo."; }
-	ok "Logo criado: asset $logo_id"
-	if [[ -s "$icones" ]]; then
-		icons_id=$(enviar_decal "$icones" "Ideias Sem Limites Icones" "$uid") || icons_id=0
-		if [[ "$icons_id" != "0" ]]; then
-			ok "Folha de ícones criada: asset $icons_id"
-		else
-			aviso "Folha de ícones não enviada; os botões ficam com emojis."
+	midias compor >/dev/null || return 1
+	local logo_id icons_id uid="${USER_ID:-}"
+	logo_id=$(midias id logo) || return 1
+	icons_id=$(midias id icons) || return 1
+	if [[ -z "$logo_id" || -z "$icons_id" ]]; then
+		if [[ -z "$uid" ]]; then
+			read -r -p "Seu User ID do Roblox (numero do perfil): " uid
+			[[ "$uid" =~ ^[1-9][0-9]*$ ]] || morre "User ID deve ser um numero positivo."
+			printf 'USER_ID="%s"\n' "$uid" >>"$CONF"
 		fi
+		cabecalho_chave
 	fi
+	local kind img asset digest
+	for kind in logo icons; do
+		if [[ "$kind" == logo ]]; then img="$PASTA/V3/IdeiasLogo.png";asset="$logo_id";else img="$PASTA/V3/IdeiasIcones.png";asset="$icons_id";fi
+		if [[ -n "$asset" ]]; then
+			ok "Imagem $kind igual a ja enviada: reaproveitado o asset $asset"
+			continue
+		fi
+		digest=$(sha256sum "$img" | cut -d' ' -f1)
+		local nome="Ideias Sem Limites Logo"
+		[[ "$kind" == icons ]] && nome="Ideias Sem Limites Icones"
+		asset=$(enviar_decal "$img" "$nome" "$uid") || { limpar;morre "Falha ao enviar $kind; nenhum lugar foi enviado. Recibos confirmados preservados."; }
+		midias registrar "$kind" "$asset" "$digest" || { limpar;return 1; }
+		ok "Imagem $kind criada: asset $asset"
+	done
 	limpar
-	local saida="$PASTA/V3/IdeiasSemLimites_V3_final.rbxlx"
-	python3 - "$lugar" "$saida" "$logo_id" "$icons_id" <<'PYEOF' || morre "Não consegui gravar os IDs no lugar."
-import sys
-src, dst, logo, icons = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
-data = open(src, encoding="utf-8").read()
-m1 = "Logo = 0, --@@LOGO_ID@@"
-if m1 not in data:
-    sys.exit("marcador do logo não encontrado")
-data = data.replace(m1, "Logo = %d, --@@LOGO_ID@@" % logo, 1)
-m2 = "Icons = 0, --@@ICONS_ID@@"
-if icons and m2 in data:
-    data = data.replace(m2, "Icons = %d, --@@ICONS_ID@@" % icons, 1)
-open(dst, "w", encoding="utf-8").write(data)
-PYEOF
-	ok "Lugar com imagens: $saida"
+	local saida
+	saida=$(midias compor) || return 1
+	ok "Lugar atual com todas as midias confirmadas: $saida"
 	cmd_enviar "$saida"
 }
 

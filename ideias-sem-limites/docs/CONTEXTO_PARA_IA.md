@@ -111,8 +111,20 @@ bash ideias.sh publicar ARQUIVO  # só com confirmação digitando PUBLICAR
 
 Os IDs de áudio/imagem são gravados em marcadores dentro do `.rbxlx`:
 `Id = 0, --@@SPRITE_ID@@`, `Logo = 0, --@@LOGO_ID@@`, `Icons = 0, --@@ICONS_ID@@`.
-Ordem certa depois de um `baixar`: `sons` → `imagens` (que usa o arquivo com sons) → testar no
-jogo salvo → `publicar` só quando o dono mandar.
+Correção de 11/11/2026: o auxiliar `tools/preparar_midias.py` sempre parte do XML do
+build recém-baixado, validado pelo SHA256SUMS, e reaplica recibos cujos arquivos continuam
+iguais. `enviar` sem argumento usa o arquivo `_final.rbxlx`. `sons` e `imagens` preservam
+os outros IDs; imagens confirmadas também têm cache por hash. O áudio antigo usa o mesmo
+`audio_id`/`audio_sha`, sem novo upload quando não mudou. Cópias preparadas substituídas
+ficam em `V3/historico-midias`. O download inclui o auxiliar e valida seu checksum antes
+de executá-lo. `baixar` tenta migrar os IDs legados das imagens somente com Config compatível
+e PNGs anteriores ao arquivo final. Sem essa comprovação, é necessário rodar `imagens` uma vez.
+
+Ordem recomendada: `baixar` → `sons` → `imagens` → `testar`. Esses comandos salvam como
+**Saved**, e os testes são isolados. Entrar normalmente pelo aplicativo Roblox continua
+abrindo a versão publicada; isso não é uma prévia da versão Saved. `publicar` continua
+dependendo da confirmação do dono. Não afirmar que uma mudança apareceu ao vivo só por
+salvar ou passar nos testes isolados. Veja `docs/CORRECAO_MIDIAS.md`.
 
 ## 7. Sons (ElevenLabs)
 
@@ -121,11 +133,13 @@ jogo salvo → `publicar` só quando o dono mandar.
   `assets/sons/regioes.json`** sempre que o `.ogg` for refeito.
 * Efeitos → trechos em `Config.SoundCues` (cada um tem `fallback` = som embutido do Roblox).
 * O cliente (`Effects.checkSprite`) testa se o áudio carregou de verdade (`IsLoaded` e
-  `TimeLength > 1`). Se não carregou (moderação do Roblox ainda analisando), toca os sons
+  `TimeLength > 1`). Se não carregou (moderação, permissão ou conexão), toca os sons
   embutidos e mostra um aviso na tela. Em Ajustes há "Testar som" e a escolha ElevenLabs/Roblox.
-* Motivo de "som não sai" mais comum: áudio novo ainda em análise. Confira com
+* Confira a moderação com
   `bash ideias.sh verificar-sons`. Cada envio novo gasta a cota de uploads de áudio do Roblox;
   o script só reenvia se o arquivo mudou (`sons --novo` força).
+  Approved confirma somente a moderação; não confirma o ID da versão publicada nem a
+  reprodução no cliente. A mensagem do instalador distingue esses estados.
 * Gerar sons novos: ElevenLabs "text to sound" (plano grátis; às vezes responde "busy" — não
   insistir na hora). Depois: `python3 tools/sons/montar_sprite.py PASTA_MP3 assets/sons/IdeiasSons.ogg assets/sons/regioes.json nome:duração ...`
   e atualizar `Config.SoundSprite.Regions`.
@@ -140,6 +154,9 @@ jogo salvo → `publicar` só quando o dono mandar.
   ideias, favoritos, historico, progresso / loja, ajustes, creature, disaster / vehicle,
   building, food, power (`Config.IconSheet`). Sem a folha enviada (ID 0) a interface monta
   azulejos parecidos com emoji.
+  Agora a alternativa também permanece enquanto a imagem está pendente ou falhou, mesmo
+  com ID não zero. A arte só aparece quando `ImageLabel.IsLoaded` é verdadeiro. O logo
+  original é RGB e contém fundo espacial opaco; não confundir esses pixels com falha de envio.
 * Para mudar os ícones: edite `tools/ui/desenhar_icones.py` (formas vetoriais) e rode
   `python3 tools/ui/desenhar_icones.py assets/ui/IdeiasIcones.svg /tmp/camadas.json` e
   `node tools/ui/render_svg.js $PWD/assets/ui/IdeiasIcones.svg $PWD/assets/ui/IdeiasIcones.png`
@@ -154,12 +171,15 @@ nome, cenas de cinema, crateras/rachaduras no terreno, buraco negro/meteoro giga
 catastróficos, sons do ElevenLabs com reserva, nova interface com azulejos.
 
 Versões já enviadas pelo dono: V3.0 publicada (versão 5); V3.1 + sons publicada (versão 6).
-A V3.6 está pronta no `dist/` mas **ainda não foi enviada** pelo dono.
+O `dist/` foi preparado e testado offline. A informação antiga era que V3.6 ainda não havia
+sido enviada. Em 11/11/2026 o dono confirmou aprovação do áudio; não confirmou nesta rodada
+qual versão do Place está publicada. Não assumir instalação/publicação sem conferir o resultado.
 
 ## 10. Próximos passos sugeridos
 
-1. Dono roda: `baixar` → `sons` → `imagens` → `testar` → entra no jogo salvo para conferir →
-   `publicar` (só com a confirmação dele).
+1. Atualizar o script do Termux, depois `baixar` → `sons` → `imagens` → `testar`.
+   Conferir o relatório da versão Saved e pedir confirmação antes de `publicar`.
+   O aplicativo Roblox normal usa a versão publicada; não prometer uma prévia Saved nele.
 2. Se o som ainda não sair: `verificar-sons`; em Ajustes, "Testar som"; volume do celular.
 3. Botões no topo em pílula escura (como "Updates/Codes/Settings" dos jogos populares) para
    Loja/Ajustes, e mais ícones na folha (célula 12 em diante → aumentar a grade).

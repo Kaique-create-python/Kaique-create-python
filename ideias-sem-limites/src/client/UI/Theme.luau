@@ -146,8 +146,39 @@ Theme.onClick = nil :: (() -> ())?
 
 local Config = require(game:GetService("ReplicatedStorage").IdeiasShared.Config)
 
--- Ícone recortado da folha do Canva. Sem a imagem enviada, devolve nil (usa emoji).
-function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
+-- A instância pode existir antes do download. Troca a alternativa pela arte
+-- somente quando carregou, sem bloquear a construção da interface.
+function Theme.imageFallback(img: ImageLabel, onLoaded: ((boolean) -> ())?)
+	local active = true
+	local changed: RBXScriptConnection? = nil
+	local destroying: RBXScriptConnection? = nil
+	local function update()
+		if not active then
+			return
+		end
+		local loaded = img.IsLoaded
+		img.Visible = loaded
+		if onLoaded then
+			onLoaded(loaded)
+		end
+	end
+	changed = img:GetPropertyChangedSignal("IsLoaded"):Connect(update)
+	destroying = img.Destroying:Connect(function()
+		active = false
+		onLoaded = nil
+		if changed then
+			changed:Disconnect()
+		end
+		if destroying then
+			destroying:Disconnect()
+		end
+	end)
+	update()
+end
+
+-- Ícone recortado da folha do Canva. Sem ID/célula devolve nil; o retorno
+-- indica a instância, e onLoaded informa se a arte já pode substituir o emoji.
+function Theme.icon(name: string, size: number, parent: Instance, onLoaded: ((boolean) -> ())?): ImageLabel?
 	local id = Config.UiImages and Config.UiImages.Icons or 0
 	local cell = Config.IconSheet.Cells[name]
 	if id == 0 or cell == nil then
@@ -158,6 +189,7 @@ function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
 	local row = cell // Config.IconSheet.Columns
 	local img = Instance.new("ImageLabel")
 	img.BackgroundTransparency = 1
+	img.Visible = false
 	img.Image = "rbxassetid://" .. tostring(id)
 	img.ImageRectOffset = Vector2.new(col * c, row * c)
 	img.ImageRectSize = Vector2.new(c, c)
@@ -167,6 +199,7 @@ function Theme.icon(name: string, size: number, parent: Instance): ImageLabel?
 	img.ScaleType = Enum.ScaleType.Fit
 	img.ZIndex = (parent :: any).ZIndex + 1
 	img.Parent = parent
+	Theme.imageFallback(img, onLoaded)
 	return img
 end
 
@@ -198,17 +231,14 @@ Theme.TileColors = {
 	power = Color3.fromRGB(210, 76, 217),
 }
 
--- Azulejo quadrado: arte da folha de ícones; sem a folha enviada, monta um
--- azulejo parecido só com interface (cor + contorno escuro + emoji).
+-- A alternativa (cor + contorno escuro + emoji) aparece também enquanto a
+-- folha carrega ou permanece indisponível; a arte pronta a substitui.
 function Theme.tile(name: string, emoji: string, size: number, parent: Instance): Frame
 	local holder = Instance.new("Frame")
 	holder.Name = "Azulejo"
 	holder.BackgroundTransparency = 1
 	holder.Size = UDim2.fromOffset(size, size)
 	holder.Parent = parent
-	if Theme.icon(name, size, holder) then
-		return holder
-	end
 	local face = Instance.new("Frame")
 	face.BackgroundColor3 = Theme.TileColors[name] or Theme.Colors.bg2
 	face.Size = UDim2.fromScale(1, 1)
@@ -239,6 +269,9 @@ function Theme.tile(name: string, emoji: string, size: number, parent: Instance)
 	pad.PaddingTop = UDim.new(0.16, 0)
 	pad.PaddingBottom = UDim.new(0.16, 0)
 	pad.Parent = e
+	Theme.icon(name, size, holder, function(loaded)
+		face.Visible = not loaded
+	end)
 	return holder
 end
 

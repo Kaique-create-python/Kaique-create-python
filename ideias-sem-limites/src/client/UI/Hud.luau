@@ -122,9 +122,9 @@ function Hud.build(parent: Instance): ScreenGui
 		Size = UDim2.fromOffset(44, 52),
 		Parent = bar,
 	})
-	if Theme.icon("ideias", 40, icon) then
-		icon.Text = ""
-	end
+	Theme.icon("ideias", 40, icon, function(loaded)
+		icon.TextTransparency = if loaded then 1 else 0
+	end)
 	box = new("TextBox", {
 		Name = "Texto",
 		BackgroundTransparency = 1,
@@ -246,13 +246,17 @@ function Hud.build(parent: Instance): ScreenGui
 	task.spawn(function()
 		local splash = new("Frame", { Name = "Abertura", BackgroundColor3 = Color3.fromRGB(8, 10, 24), BackgroundTransparency = 0.15, Size = UDim2.fromScale(1, 1), ZIndex = 20, Parent = gui })
 		local logoId = Config.UiImages and Config.UiImages.Logo or 0
-		local logo: GuiObject
+		local logo = Theme.label({ Text = "IDEIAS SEM LIMITES", TextScaled = true, FontFace = Theme.FontHeavy, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.16), ZIndex = 21, Parent = splash })
+		Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(255, 120, 200), 0).Parent = logo
+		Theme.stroke(Color3.new(0, 0, 0), 3, 0).Parent = logo
+		local logoImage: ImageLabel? = nil
 		if logoId ~= 0 then
-			logo = new("ImageLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.5, 0.5), Image = "rbxthumb://type=Asset&id=" .. tostring(logoId) .. "&w=420&h=420", ScaleType = Enum.ScaleType.Fit, ZIndex = 21, Parent = splash })
-		else
-			logo = Theme.label({ Text = "IDEIAS SEM LIMITES", TextScaled = true, FontFace = Theme.FontHeavy, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.16), ZIndex = 21, Parent = splash })
-			Theme.gradient(Color3.fromRGB(110, 230, 255), Color3.fromRGB(255, 120, 200), 0).Parent = logo
-			Theme.stroke(Color3.new(0, 0, 0), 3, 0).Parent = logo
+			logoImage = new("ImageLabel", { BackgroundTransparency = 1, Visible = false, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.5, 0.5), Image = "rbxthumb://type=Asset&id=" .. tostring(logoId) .. "&w=420&h=420", ScaleType = Enum.ScaleType.Fit, ZIndex = 21, Parent = splash })
+			Theme.imageFallback(logoImage, function(loaded)
+				logo.Visible = not loaded
+			end)
+			local imageScale = new("UIScale", { Scale = 0.6, Parent = logoImage })
+			Theme.tween(imageScale, 0.8, { Scale = 1 }, Enum.EasingStyle.Back)
 		end
 		local sub = Theme.label({ Text = "Escreva qualquer coisa. Ela vira realidade.", TextSize = 20, TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.8, 0.06), ZIndex = 21, Parent = splash })
 		local sc = new("UIScale", { Scale = 0.6, Parent = logo })
@@ -260,10 +264,9 @@ function Hud.build(parent: Instance): ScreenGui
 		task.wait(2.6)
 		Theme.tween(splash, 0.6, { BackgroundTransparency = 1 })
 		Theme.tween(sub, 0.6, { TextTransparency = 1 })
-		if logo:IsA("TextLabel") then
-			Theme.tween(logo, 0.6, { TextTransparency = 1 })
-		else
-			Theme.tween(logo, 0.6, { ImageTransparency = 1 })
+		Theme.tween(logo, 0.6, { TextTransparency = 1 })
+		if logoImage then
+			Theme.tween(logoImage, 0.6, { ImageTransparency = 1 })
 		end
 		task.wait(0.7)
 		splash:Destroy()
