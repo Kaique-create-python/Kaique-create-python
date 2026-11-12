@@ -31,6 +31,13 @@ python ~/BIZARRE_AJUSTE14.py testar-nuvem
 Se faltar a biblioteca de compressão no Termux: `pkg install zstd`.
 Não repetir setup/assets-upload de instaladores anteriores.
 
+Se a entrega inicial mostrou apenas `Teste na nuvem nao aprovado`, o motivo ficou oculto
+por um erro do instalador. A correção mostra os erros e guarda o relatório sem chave em
+`~/.bizarre_instalador/state-ajuste14/ultimo-teste.json`.
+Para a tarefa Saved 36 mostrada por Kaique, `dist/BIZARRE_DIAGNOSTICO14.py` consulta somente
+o resultado já existente via GET, sem salvar, testar outra vez ou publicar. Ele pede a chave
+oculta no Termux e imprime o relatório para análise. Não desativa a reprovação do teste.
+
 `testar` é offline e não pede chave. `testar-nuvem` pede a chave oculta no terminal, baixa o
 Place completo atual, preserva o backup e cria uma versão **Saved** se há alterações.
 Então executa o preflight real nessa versão. A versão publicada não é trocada nessa etapa.

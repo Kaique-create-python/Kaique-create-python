@@ -71,7 +71,17 @@ class Runtime:
         reports=[]
         for source in self.scripts(base,False):
             report=cloud.task(base,source)
-            if report.get('package')!=self.package or report.get('passed')is not True:raise Failure('Teste na nuvem nao aprovado; publicacao bloqueada.')
+            safe=json.dumps(report,ensure_ascii=False)
+            secret=getattr(cloud,'key','')
+            if secret:safe=safe.replace(secret,'[OCULTA]')
+            report=json.loads(safe)
+            diagnostic=self.state/'ultimo-teste.json'
+            save(diagnostic,dict(version=base,report=report,at=stamp()))
+            if report.get('package')!=self.package or report.get('passed')is not True:
+                errors=report.get('erros') or report.get('errors') or ['Relatorio retornou pacote incorreto ou passed diferente de true.']
+                if not isinstance(errors,list):errors=[errors]
+                detail='\n'.join(str(error) for error in errors)[:16000]
+                raise Failure('Teste na nuvem reprovado:\n'+detail+'\nRelatorio seguro: '+str(diagnostic)+'\nPublicacao bloqueada.')
             reports.append(report)
         if not reports:raise Failure('Nenhuma verificacao foi executada.')
         current,_=cloud.history()
