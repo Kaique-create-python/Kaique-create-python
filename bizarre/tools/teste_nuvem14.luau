@@ -198,6 +198,8 @@ vit.imortal = true
 
 local function arrumar()
 	for _, l in { atk, vit } do
+		-- Invalida a acao anterior antes de substituir seu estado no boneco de teste.
+		Combate.cancelar(l)
 		Fisica.soltar(l)
 		Fisica.limparEmpurroes(l.raiz)
 		l.modelo:SetAttribute("BB_Ragdoll", 0)

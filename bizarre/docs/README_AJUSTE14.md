@@ -38,6 +38,12 @@ Para a tarefa Saved 36 mostrada por Kaique, `dist/BIZARRE_DIAGNOSTICO14.py` cons
 o resultado já existente via GET, sem salvar, testar outra vez ou publicar. Ele pede a chave
 oculta no Termux e imprime o relatório para análise. Não desativa a reprovação do teste.
 
+O relatório dessa tarefa confirmou uma falha na limpeza dos bonecos do teste: o estado era
+zerado após M1, mas o contexto da ação anterior permanecia. O preflight agora cancela a ação
+antes de recriar o estado. As verificações de bloqueio/parry continuam exigidas; não houve
+mudança nas Sources do jogo, catálogo, mapa ou regras de dano. Baixe o instalador novamente
+e execute `testar-nuvem` para conferir a correção no motor.
+
 `testar` é offline e não pede chave. `testar-nuvem` pede a chave oculta no terminal, baixa o
 Place completo atual, preserva o backup e cria uma versão **Saved** se há alterações.
 Então executa o preflight real nessa versão. A versão publicada não é trocada nessa etapa.
