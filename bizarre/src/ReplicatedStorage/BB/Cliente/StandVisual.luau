@@ -213,7 +213,7 @@ function StandVisual.visitar(dono: Model, alvo: Model, dur: number)
 	end
 	v.visita = { alvo = alvo, ate = os.clock() + dur }
 	v.acaoAte = math.max(v.acaoAte, os.clock() + dur + 0.6)
-	Animador.tocar(v.modelo, "barragem", { ate = os.clock() + dur })
+	Animador.tocar(v.modelo, Poses.clipe15(dono:GetAttribute("BB_Stand"),"barragem"), { ate = os.clock() + dur })
 end
 
 function StandVisual.modelo(dono: Model): Model?

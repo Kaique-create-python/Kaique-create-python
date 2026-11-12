@@ -14,6 +14,7 @@ local VFX = require(script.Parent:WaitForChild("VFX"))
 local Som = require(script.Parent:WaitForChild("Som"))
 
 local Apresentacao = require(script.Parent:WaitForChild("Apresentacao14"))
+local Barragem16 = require(script.Parent:WaitForChild("Barragem16"))
 local Acoes = {}
 
 local function raizDe(m: Model?): BasePart?
@@ -72,6 +73,7 @@ function Acoes.concluir(modelo: Model?, dados: any): boolean
  if not modelo or not coincide(a,dados.actionId,dados.seq) then return false end
  if dados.reason and dados.reason ~= "concluida" then return Acoes.interromper(modelo,dados.actionId,dados.seq) end
  tokens[modelo] = (tokens[modelo] or 0) + 1
+ Barragem16.cancelar(modelo)
  pararVozes(vozes[modelo]);vozes[modelo]=nil
  Apresentacao.cancelar(modelo,a.vfxId)
  atuais[modelo]=nil
@@ -108,6 +110,7 @@ function Acoes.interromper(modelo: Model?, actionId: string?, seq: number?): boo
  local a = atuais[modelo]
  if (actionId ~= nil or seq ~= nil) and not coincide(a,actionId,seq) then return false end
  tokens[modelo] = (tokens[modelo] or 0) + 1
+ Barragem16.cancelar(modelo)
  pararVozes(vozes[modelo]);vozes[modelo]=nil
  if actionId == nil and seq == nil then Acoes.encerrarTempo(modelo)
  elseif a and a.tempo then a.tempo.active=false;pararVozes(a.tempo.vozes) end
@@ -146,6 +149,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
   end
  end
  tokens[modelo] = token(modelo) + 1
+ Barragem16.cancelar(modelo)
  local tk = token(modelo)
  local acao = {seq=dados.seq, actionId=dados.actionId, t=dados.t or workspace:GetServerTimeNow(), vfxId=dados.actionId or ("previsao:"..tostring(tk)), id=id, tk=tk}
  atuais[modelo] = acao
@@ -314,6 +318,11 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	-- barragem: punhos fantasmas e grito
 	local vozBarragem: string? = nil
 	if g.tipo == "barragem" then
+		if clipeS=="barragem"and piloto then
+			task.delay(g.inicio or .1,function()
+				if token(modelo)==tk and modelo.Parent then Barragem16.tocar(modelo,StandVisual.modelo(modelo),(g.fim or 1)-(g.inicio or 0),vivo(modelo,tk))end
+			end)
+		end
 		task.delay(if piloto then 0 else (g.inicio or 0.1), function()
 			if token(modelo) ~= tk or not modelo.Parent then
 				return
@@ -346,7 +355,8 @@ function Acoes.tocar(modelo: Model?, dados: any)
   task.delay(g.fim or 3.7,function()
    if token(modelo) ~= tk or not modelo.Parent then return end
    local restante=contato-(g.fim or 3.7)
-   StandVisual.acao(modelo,{modo="frente",clipe=if s and s.id=="SILVER_CHARIOT" then "sc_final15" else "soco_pesado",dur=dur-(g.fim or 3.7),impacto=restante})
+   local finalClip=if id=="STAR_PLATINUM_1"then"ora_final16"elseif id=="THE_WORLD_1"then"muda_final16"elseif s and s.id=="SILVER_CHARIOT"then"sc_final15"else"soco_pesado"
+   StandVisual.acao(modelo,{modo="frente",clipe=finalClip,dur=dur-(g.fim or 3.7),impacto=restante})
   end)
  end
  -- trocas de clipe no meio do golpe (FREVO voo, FUNK batidão)

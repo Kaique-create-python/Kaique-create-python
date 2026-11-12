@@ -17,6 +17,7 @@ local Lutadores = require(script.Parent.Lutadores)
 local Hitbox = require(script.Parent.Hitbox)
 local Fisica = require(script.Parent.Fisica)
 local Mapa = require(script.Parent.Mapa)
+local Vinculos16 = require(script.Parent.Vinculos16)
 
 local Combate = {}
 
@@ -254,7 +255,8 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 	if inf.airlink and not alvoLinkVivo(inf.airlink) then return "nada" end
 	if piloto(atk) and (not Hitbox.corpo(alvo.raiz,alvo) or alvo.hum.Parent ~= alvo.modelo) then return "nada" end
 	local ctx=inf.context or Combate.contexto(atk)
-	if piloto(atk) and ctx.token and ctx.token ~= atk.estado.token and not inf.resolved and not inf.projetil then return "nada" end
+	if inf.persistente16 and not Vinculos16.vigente(inf.persistente16,atk)then return "nada"end
+	if piloto(atk) and ctx.token and ctx.token ~= atk.estado.token and not inf.resolved and not inf.projetil and not inf.persistente16 then return "nada" end
 	local hitId=inf.hitId
 	if piloto(atk) and not hitId and ctx.actionId then
 		hitContador14+=1

@@ -20,7 +20,7 @@ def literal(text):
 class Package:
  def __init__(self,files):
   self.files=files;self.stage=json.loads(files.get('package.json',b'{"stage":14}'))['stage']
-  if self.stage not in (14,15):raise Failure('Revisao invalida.')
+  if self.stage not in (14,15,16):raise Failure('Revisao invalida.')
   self.name='BIZARRE-AJUSTE-'+str(self.stage)
   manifest=json.loads(files['manifest.json'])
   if len(files)>256 or sum(map(len,files.values()))>16*1024*1024:raise Failure('Pacote acima do limite.')
@@ -30,7 +30,7 @@ class Package:
   self.digest=sha(files['manifest.json']);self.entries=json.loads(files['sources.json'])
   validate(self.entries)
   _validate_catalog(Binary(files['catalogo.rbxm']))
-  if self.stage==15:
+  if self.stage>=15:
    newer=Binary(files['catalogo15.rbxm']);ref=_validate_catalog(newer)
    if newer.objects[ref]['name']!='BB_VFXCatalogo15':raise Failure('Catalogo15 incorreto.')
    newer_xml=xml_doc(files['catalogo15.rbxmx']);new_roots=newer_xml.findall('Item')
@@ -44,7 +44,7 @@ class Package:
  def patch(self,raw):
   first,a=patch_place(raw,self.entries)
   second,b=patch_catalog(first,self.files['catalogo.rbxm' if raw.startswith(b'<roblox!') else 'catalogo.rbxmx'])
-  if self.stage==15:
+  if self.stage>=15:
    third,c=patch_catalog(second,self.files['catalogo15.rbxm' if raw.startswith(b'<roblox!') else 'catalogo15.rbxmx'])
    return third,a or b or c
   return second,a or b

@@ -13,10 +13,10 @@ local function advance(dt)
  if coroutine.status(j.co)~='dead' then table.insert(jobs,{at=now+(delay or 0),co=j.co})end end;now=goal
 end
 H.extras.task={delay=schedule,spawn=function(fn,...)schedule(0,fn,...)end,wait=function(dt)return coroutine.yield(dt or .03)end};H.extras.os={clock=function()return now end}
-local world=R.Instance.new('Folder')
-H.extras.workspace=setmetatable({GetServerTimeNow=function()return now end},{__index=function(_,k)
- if k=='Raycast' then return function()return nil end end
- local v=world[k];if type(v)=='function' then return function(_,...)return v(world,...)end end;return v end})
+local world=R.Instance.new('Workspace')
+R.implementMethod('Workspace','GetServerTimeNow',function()return now end)
+R.implementMethod('Workspace','Raycast',function()return nil end)
+H.extras.workspace=world
 local function model(id)local m=R.Instance.new('Model');m.Parent=world;m:SetAttribute('BB_Stand',id)
  local p=R.Instance.new('Part');p.Name='HumanoidRootPart';p.CFrame=R.CFrame.new(0,3,0);p.Position=R.Vector3.new(0,3,0);p.Parent=m
  local h=R.Instance.new('Humanoid');h.Health=100;h.Parent=m;return m end
@@ -28,7 +28,7 @@ local function log(t,...)table.insert(t,{at=now,args={...}})end
 local SV={modelo=function(x)return x==m and victim or nil end,acao=function(...)log(stands,...)end,cancelar=function()end,investida=function()end,visivel=function()return true end,impactoGuarda=function()end,parry=function()end,quebrouGuarda=function()end}
 local anim={tocar=function(...)log(animations,...)end,tocando=function()return nil end,cortar=function()end,hitstop=function(...)log(hitstops,...)end,pausarTudo=function()error('global hitstop')end}
 local sound={voz=function(name)local s={stopped=false,Stop=function(self)self.stopped=true end};table.insert(voices,s);return s,if type(name)=='table' then name[1] else name end,duracaoVoz=function()return 4.6 end,tocar=function()end,golpe=function()return true end,vozPronta=function()return true end,abafar=function()end}
-local pilot={suporta=function(id)return id=='STAR_PLATINUM' or id=='THE_WORLD'end,iniciar=function()end,tocar=function(...)log(routes,...)return {}end,cancelar=function()end,congelar=function(...)log(routes,'freeze',...)end,descongelar=function(...)log(routes,'thaw',...)end}
+local pilot={suporta=function(id)return H.modulo('ReplicatedStorage/BB/PerfilCombate14').suporta(id)end,iniciar=function()end,tocar=function(...)log(routes,...)return {}end,cancelar=function()end,congelar=function(...)log(routes,'freeze',...)end,descongelar=function(...)log(routes,'thaw',...)end}
 local vfx=setmetatable({},{__index=function(_,name)return function(...)log(legacy,name,...)end end})
 local deps={Animador=anim,StandVisual=SV,Som=sound,VFX=vfx,VFXPiloto=pilot,Camera={tremer=function()end,fov=function()end},Cinematica={ult=function()end,cancelar=function()end},Registro={iniciar=function()end,todosModelos=function()return {}end}}
 local catalog=R.Instance.new('Folder');catalog.Name='BB_VFXCatalogo14';local available=true
@@ -52,7 +52,7 @@ test('seq association no restart and stale interrupts ignored',function()
 end)
 test('barrage final4.35 end4.6 replacement voice',function()
  local t=now;A.tocar(m,{id='STAR_PLATINUM_1',seq=5});advance(.26);assert(#voices==1);advance(3.45);assert(not voices[1].stopped);advance(.65)
- local final=false;for _,call in stands do if call.args[2].clipe=='soco_pesado' then assert(math.abs(call.at+call.args[2].impacto-(t+4.35))<.001);final=true end end
+ local final=false;for _,call in stands do if call.args[2].clipe=='ora_final16' then assert(math.abs(call.at+call.args[2].impacto-(t+4.35))<.001);final=true end end
  assert(final,'missing heavy final animation');advance(.25);assert(voices[1].stopped,'voice leaked beyond4.6')
  A.tocar(m,{id='STAR_PLATINUM_1',seq=6});advance(.26);local old=voices[#voices];A.tocar(m,{id='m1',seq=7});assert(old.stopped)
 end)
@@ -67,9 +67,9 @@ test('hit phase dedupe scoped hitstop',function()
  assert(#hitstops==4,'only fighters + their stands, once');for _,hit in hitstops do assert(hit.args[1]~=third and hit.args[2]==.04)end
  d.phase='queued';d.congelado=true;E.acerto(d);local hits=0;for _,c in routes do if c.args[3]=='contato' then hits+=1 end end;assert(hits==2)
 end)
-test('two remaining legacy stands',function()
+test('CD/KQ now use pilot routes',function()
  for i,id in {'CRAZY_DIAMOND','KILLER_QUEEN'}do m:SetAttribute('BB_Stand',id);A.tocar(m,{id='m1',seq=10+i});advance(.2)end
- m:SetAttribute('BB_Stand','STAR_PLATINUM');assert(#routes==0 and #legacy>=2)
+ m:SetAttribute('BB_Stand','STAR_PLATINUM');assert(#routes>=2 and #legacy==0)
 end)
 test('two time sessions no neon',function()
  local before=#world:GetDescendants();for _,id in {'s1','s2'}do E.tempo({sessao=id,dono=m,stand='STAR_PLATINUM',inicio=now,fim=now+3,centro=R.Vector3.zero,raio=150})end

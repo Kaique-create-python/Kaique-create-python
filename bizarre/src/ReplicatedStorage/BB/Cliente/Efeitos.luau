@@ -19,6 +19,7 @@ local Camera = require(script.Parent:WaitForChild("Camera"))
 local VFX = require(script.Parent:WaitForChild("VFX"))
 
 local Rastro15=require(script.Parent:WaitForChild("RastroStand15"))
+local Residuos16=require(script.Parent:WaitForChild("Residuos16"))
 local Apresentacao = require(script.Parent:WaitForChild("Apresentacao14"))
 local Efeitos = {}
 local geracoesDono = setmetatable({}, {__mode="k"})
@@ -756,7 +757,7 @@ function Efeitos.proj(d: any)
  ctx.actionId = "proj:"..tostring(d.id);ctx.dur=(d.alcance or 100)/math.max(1,d.vel or 125)
  if Apresentacao.tocar(d.stand,d.moveId or (if d.visual=="faca" then "THE_WORLD_2" elseif d.stand=="MAGICIANS_RED" then "MAGICIANS_RED_1" elseif d.stand=="SILVER_CHARIOT" then "SILVER_CHARIOT_2" else "STAR_PLATINUM_4"),"inicio",ctx) then
   local p
-  if d.stand=="SILVER_CHARIOT" or d.stand=="MAGICIANS_RED" then
+  if d.stand=="SILVER_CHARIOT" or d.stand=="MAGICIANS_RED" or d.stand=="CRAZY_DIAMOND" or d.stand=="KILLER_QUEEN" then
    p=visualProjetil(d.visual,corStand(d.stand),d.raio or 1.5)
    for _,node in p:GetDescendants()do if node:IsA("Fire")then node:Destroy()end end
   end
@@ -796,7 +797,10 @@ function Efeitos.projEstado(d: any)
 end
 function Efeitos.projVirar(d: any)
 	local pr = projeteis[d.id]
- if pr and pr.piloto then redirecionar15(pr,d);return end
+ if pr and pr.piloto then
+  local update=table.clone(d);update.ate=pr.pausaAte or 0;update.vel=pr.vel
+  Efeitos.projEstado(update);return
+ end
 	if pr and not pr.piloto then
 		pr.origem = d.pos
 		pr.dir = d.dir
@@ -915,6 +919,19 @@ function Efeitos.area(d: any)
 end
 
 function Efeitos.explosao(d: any)
+ if d.stand=="KILLER_QUEEN"or d.stand=="CRAZY_DIAMOND"then
+  local ctx=Apresentacao.contexto(d.quem,d,d.pos)
+  ctx.actionId="explosao:"..tostring(d.actionId or d.t)..":"..tostring(d.pos)
+  local ok,handle=Apresentacao.tocar(d.stand,"explosao","final",ctx)
+  if ok then
+   if handle then
+    if d.som then Som.tocar(d.som,d.pos,{alcance=220})end
+    local eu=Players.LocalPlayer.Character;local root=eu and eu:FindFirstChild("HumanoidRootPart")
+    if root and(root.Position-d.pos).Magnitude<50 then Camera.tremer(d.tremor or .5,.2)end
+   end
+   return
+  end
+ end
  if d.moveId=="rolo" and Apresentacao.disponivel(d.stand) then
   local ctx=Apresentacao.contexto(d.quem,d,d.pos);ctx.actionId="rolo:"..tostring(d.actionId or d.sessao or d.t)
   Apresentacao.tocar(d.stand,"rolo","final",ctx)
@@ -1141,6 +1158,7 @@ end
 
 -- Owner death/removal closes every owned temporal session even when other sessions remain.
 function Efeitos.limparDono(dono: Model)
+ Residuos16.cancelar(dono)
  geracoesDono[dono]=(geracoesDono[dono] or 0)+1
  local ids={}
  for id,session in sessoesTempo do if session.dono==dono then table.insert(ids,id) end end
@@ -1282,7 +1300,21 @@ function Efeitos.contra(d: any)
 	Som.tocar("parry", raiz.Position)
 end
 
+function Efeitos.pedra16(d: any)
+ local ctx=Apresentacao.contexto(d.quem,d)
+ ctx.actionId="pedra:"..tostring(d.actionId or d.t)..":"..tostring(d.alvo and(d.alvo:GetAttribute("BB_Geracao14")or d.alvo))
+ ctx.dur=d.dur or 1.6
+ if Apresentacao.tocar("CRAZY_DIAMOND","pedra16","inicio",ctx)then Residuos16.pedra(d.quem,d.alvo,ctx.dur,d.parte)end
+end
+
 function Efeitos.marca(d: any)
+ if d.stand=="KILLER_QUEEN"then
+  local ctx=Apresentacao.contexto(d.quem,d,d.pos)
+  ctx.actionId="marca:"..tostring(d.actionId or d.t)..":"..tostring(d.v and(d.v:GetAttribute("BB_Geracao14")or d.v)or d.pos)
+  ctx.dur=math.max(.01,(d.ate or workspace:GetServerTimeNow()+1.2)-(d.t or workspace:GetServerTimeNow()))
+  local ok,handle=Apresentacao.tocar(d.stand,"marca","inicio",ctx)
+  if ok then if handle then Som.tocar("metal",d.pos or d.v.HumanoidRootPart.Position,{vol=.6})end;return end
+ end
 	local raiz = d.v and d.v:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local fixo: Vector3? = d.pos
 	if not raiz and not fixo then
@@ -1311,6 +1343,9 @@ function Efeitos.marca(d: any)
 end
 
 function Efeitos.agarrao(d: any)
+ if d.id=="CRAZY_DIAMOND_4"then
+  Efeitos.pedra16(d)
+ end
  if d.id=="MAGICIANS_RED_2" then
   local ctx=Apresentacao.contexto(d.quem,d);ctx.actionId="bind:"..tostring(d.actionId or d.t or workspace:GetServerTimeNow());ctx.dur=d.dur
   Apresentacao.tocar("MAGICIANS_RED","agarrao","inicio",ctx)
@@ -1380,6 +1415,11 @@ function Efeitos.baile(d: any)
 end
 
 function Efeitos.reconstruir(d: any)
+ if d.quem and Apresentacao.tocar("CRAZY_DIAMOND","reconstruir","contato",Apresentacao.contexto(d.quem,d,d.pos))then
+  Residuos16.restaurar(d.quem,d.partes)
+  Som.tocar("magia",d.pos,{alcance=200});if(d.n or 0)>0 then Som.tocar("pedra",d.pos)end
+  return
+ end
 	Efeitos.bolha(d.pos, d.raio, RGB(255, 160, 220), 0.6)
 	Som.tocar("magia", d.pos, { alcance = 300 })
 	if (d.n or 0) > 0 then
@@ -1546,6 +1586,9 @@ end
 -- Bites the Dust: o mundo roda para trás (tela invertida, relógio ao contrário)
 local corRebobinar: ColorCorrectionEffect? = nil
 function Efeitos.rebobinar(d: any)
+ if d.quem and Apresentacao.tocar("KILLER_QUEEN","rebobinar","inicio",Apresentacao.contexto(d.quem,d))then
+  Som.tocar("tempo_eco",d.quem.HumanoidRootPart.Position);return
+ end
 	local raiz = d.quem and d.quem:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local dur = d.dur or 0.7
 	if raiz then
@@ -1561,6 +1604,13 @@ function Efeitos.rebobinar(d: any)
 end
 
 function Efeitos.rebobinarFim(d: any)
+ if d.quem then
+  local ctx=Apresentacao.contexto(d.quem,d,d.para)
+  if Apresentacao.tocar("KILLER_QUEEN","rebobinarFim","final",ctx)then
+   Residuos16.rebobinar(d.quem,d.trajeto or{d.de or d.para,d.para})
+   Som.tocar("tempo_volta",d.para);return
+  end
+ end
 	local cc = corRebobinar
 	if cc then
 		tween(cc, 0.6, { Saturation = 0, Contrast = 0, TintColor = BRANCO })

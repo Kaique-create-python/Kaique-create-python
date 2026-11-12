@@ -497,6 +497,42 @@ checar("sons de golpe do dono", function()
 	res.info.sfx = if id and id ~= "0" then ("áudio " .. id .. " no place") else "ainda não (o jogo usa os socos da biblioteca)"
 end)
 
+-- AJ16: these assertions execute in the isolated Roblox engine, never during upload.
+if cfg.stage==16 then
+ checar("AJ16 prisao e tempo parado",function()
+  arrumar();Lutadores.trocarStand(atk,"CRAZY_DIAMOND")
+  local Vinculos=require(SRV.Vinculos16)
+  local clock=workspace:GetServerTimeNow()
+  Vinculos.prender(atk,vit,.05,"BB_Preso")
+  vit.estado.congeladoAte=clock+.2
+  task.wait(.08);Vinculos.passo()
+  assert(vit.raiz.Anchored,"prisao liberou o tempo parado")
+  vit.estado.congeladoAte=0;Vinculos.passo()
+  assert(not vit.raiz.Anchored and not vit.modelo:GetAttribute("BB_Preso"),"prisao deixou alvo preso")
+ end)
+ checar("AJ16 restauracao sem destrocos",function()
+  arrumar();Lutadores.trocarStand(atk,"CRAZY_DIAMOND")
+  Mapa.restaurarPerto(atk.raiz.Position,45,true)
+  local hp=vit.hum.Health
+  Combate.golpe(atk,3,{})
+  task.wait(.7)
+  assert(vit.hum.Health<hp,"restauracao sem destrocos nao acertou")
+ end)
+ checar("AJ16 poses R6",function()
+  local P=require(ReplicatedStorage.BB.Poses)
+  for _,id in {"CRAZY_DIAMOND","KILLER_QUEEN","STAR_PLATINUM","THE_WORLD"}do
+   local name=P.clipe15(id,id=="KILLER_QUEEN"and"conjurar"or"barragem")
+   local clip=assert(P.C[name],"clipe ausente")
+   for _,t in {0,.05,.27,.35,.8}do
+    local pose=clip.proc and P.aj16Proc(clip.proc,t)or P.amostrar(clip,t)
+    assert(pose and pose.RS and pose.LS,"pose sem bracos")
+    for _,angles in pose do for _,n in angles do assert(n==n and math.abs(n)<1000,"pose invalida")end end
+   end
+  end
+ end)
+ res.info.ajuste16="seis perfis; prisao/tempo/restauracao/poses verificados no motor"
+end
+
 -- limpeza
 for _, l in { atk, vit } do
 	Lutadores.remover(l.modelo)

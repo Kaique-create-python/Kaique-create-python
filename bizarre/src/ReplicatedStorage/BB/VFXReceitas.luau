@@ -1,6 +1,7 @@
 -- AJ14: compositions exclusively from the owner's approved Creator Store packages.
 -- Pure data/policy: no services, no generated geometry, no automatic FPS reduction.
 local Extra = require(script.Parent.VFXReceitas15)
+local Novos = require(script.Parent.VFXReceitas16)
 local R = {}
 local E = 'E_Anime_'
 local S = 'S_vfxpack_'
@@ -16,12 +17,13 @@ R.CORES = {
  THE_WORLD = {Color3.fromRGB(255,202,63),Color3.fromRGB(219,115,20)},
 }
 function R.suporta(id)
- return id=='STAR_PLATINUM' or id=='THE_WORLD' or Extra.suporta(id)
+ return id=='STAR_PLATINUM' or id=='THE_WORLD' or Extra.suporta(id) or Novos.suporta(id)
 end
 function R.templates()
  local result={}; for _,name in names do result[name]=true end; return result
 end
 for id,palette in Extra.CORES do R.CORES[id]=palette end
+for id,palette in Novos.CORES do R.CORES[id]=palette end
 function R.catalogos(id)
  local out={BB_VFXCatalogo14=R.templates()}
  if id==nil or Extra.suporta(id)then out.BB_VFXCatalogo15=Extra.templates()end
@@ -41,6 +43,7 @@ local function hit(n, strong)
  }
 end
 function R.resolve(stand,move,phase,ctx)
+ if Novos.suporta(stand)then return Novos.resolve(stand,move,phase,ctx)end
  if Extra.suporta(stand) then return Extra.resolve(stand,move,phase,ctx) end
  if not R.suporta(stand) then return nil end
  if phase~='inicio' and phase~='contato' and phase~='final' and phase~='fim' then return nil end
@@ -77,13 +80,17 @@ function R.resolve(stand,move,phase,ctx)
   return {layer('E_Big_Explosion_01','burst',2),layer(E..'Crack_01','burst',2.6,.2,{axis='ground'}),layer(S..'premade_direction_all','burst',2.5),layer(S..'separated_smoke','burst',2.5,.3,{axis='ground'})}
  elseif slot=='1' then
   if contact then return hit(ctx.n,phase=='final') end
-  local result={layer(E..'Wind_02','follow',1,4.6,{continuous=true})}
+  local result={layer(E..'Wind_02','follow',1.05,3.7,{continuous=true}),layer(E..'Shiny_01','follow',.85,4.6,{continuous=true}),layer(S..'premade_speedlines','follow',.7,3.7,{continuous=true,offset=Vector3.new(0,.5,-2.8)})}
   local start=stand=='STAR_PLATINUM' and .25 or .20
   local index=0
   for t = start,3.7,.12 do
    index+=1
-   table.insert(result,layer(E..'Punch_0'..tostring((index-1)%3+1),'follow',.7,.12,{at=t,offset=Vector3.new(index%2==0 and -.85 or .85,.3,-3.1)}))
-   table.insert(result,layer(S..'separated_lines','follow',.45,.12,{at=t,offset=Vector3.new(index%2==0 and -.85 or .85,.3,-3.1)}))
+   table.insert(result,layer(E..'Punch_0'..tostring((index-1)%3+1),'follow',.95,.12,{at=t,offset=Vector3.new(index%2==0 and -.85 or .85,.3,-3.1)}))
+   table.insert(result,layer(S..'separated_lines','follow',.65,.12,{at=t,offset=Vector3.new(index%2==0 and -.85 or .85,.3,-3.1)}))
+   if index%3==0 then
+    table.insert(result,layer(E..'Wind_01','follow',1,.18,{at=t,offset=Vector3.new(0,.5,-3.6)}))
+    table.insert(result,layer(S..'separated_ring','follow',.85,.18,{at=t,offset=Vector3.new(0,.5,-3.6)}))
+   end
   end
   table.insert(result,layer(E..'Charge_01','follow',1.2,.65,{at=3.7,continuous=true,offset=Vector3.new(0,.5,-2.7)}))
   return result

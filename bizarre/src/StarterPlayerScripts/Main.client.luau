@@ -98,6 +98,7 @@ local TRATADORES = {
 	teleporte = Efeitos.teleporte,
 	contra = Efeitos.contra,
 	marca = Efeitos.marca,
+	pedra16 = Efeitos.pedra16,
 	agarrao = Efeitos.agarrao,
 	paredao = Efeitos.paredao,
 	pulso = Efeitos.pulso,

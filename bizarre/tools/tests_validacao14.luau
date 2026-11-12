@@ -14,11 +14,12 @@ local function fixture()
 	local rs = game:GetService("ReplicatedStorage")
 	local bb = roblox.Instance.new("Folder"); bb.Name = "BB"; bb.Parent = rs
 	local source = roblox.Instance.new("ModuleScript"); source.Name = "Probe"; source.Source = "return 14"; source.Parent = bb
-	local cfg = { package = "BIZARRE-AJUSTE-14", stage = 14, universe = 10774214555, place = 108061345551908,
+	local cfg = { package = "BIZARRE-AJUSTE-16", stage = 16, universe = 10774214555, place = 108061345551908,
 		hashes = { { path = { "ReplicatedStorage", "BB", "Probe" }, class = "ModuleScript", bytes = 9, hash = "021abcaa" } } }
 	local catalog = roblox.deserializeModel(fs.readFile("bizarre/assets/vfx14/catalogo.rbxm"))[1]
 	catalog.Parent = rs
-	local config = { REVISAO = "AJUSTE-14", UNIVERSE_ID = 10774214555, PLACE_ID = 108061345551908 }
+ roblox.deserializeModel(fs.readFile("bizarre/assets/vfx15/catalogo.rbxm"))[1].Parent=rs
+	local config = { REVISAO = "AJUSTE-16", UNIVERSE_ID = 10774214555, PLACE_ID = 108061345551908 }
 	return game, cfg, config, H.modulo("ReplicatedStorage/BB/VFXReceitas"), H.modulo("ReplicatedStorage/BB/PerfilCombate14"), source, catalog
 end
 test("hash UTF8 compatível com Python", function()
@@ -29,8 +30,8 @@ test("hash UTF8 compatível com Python", function()
 end)
 test("catálogo real e fontes reconhecidas são aprovados", function()
 	local g,cfg,c,r,p = fixture(); local report = V.executar(g,cfg,c,r,p)
-	assert(report.passed, table.concat(report.erros," | ")); assert(report.info.templates == 23)
-	assert(report.info.beams == 2 and report.info.emissores == 59)
+	assert(report.passed, table.concat(report.erros," | ")); assert(report.info.templates == 37)
+	assert(report.info.beams == 2 and report.info.emissores == 83)
 end)
 test("fonte alterada bloqueia sem revelar seu conteúdo", function()
 	local g,cfg,c,r,p,source = fixture(); source.Source = "SEGREDO-NAO-EXIBIR"

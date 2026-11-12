@@ -4,6 +4,13 @@ Referência: Jujutsu Shenanigans (combate rápido, câmera de ombro, ragdoll, UL
 Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste na nuvem passar
 e o dono confirmar. O fluxo AJ14 usa primeiro uma versão **Saved**, preservando a publicada.
 
+## AJUSTE-16 — entrega atual
+
+Crazy Diamond/Killer Queen refinados; ORA/MUDA seguem o vídeo de referência.
+Detalhes/instalação: docs/README_AJUSTE16.md. Preservar mapa, câmera, mídias e valores.
+Preparada offline; resultado nativo/visual e publicação ainda dependem do Termux.
+Resolver recibo15 pendente antes de enviar16. Sem ampliar a próxima etapa sem feedback.
+
 ## AJUSTE-15 — entrega atual
 
 Silver Chariot/Magician's Red, preservando números/kits; detalhes em docs/README_AJUSTE15.md.

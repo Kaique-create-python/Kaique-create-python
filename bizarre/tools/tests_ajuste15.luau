@@ -3,7 +3,7 @@ local fs=require('@lune/fs')
 local rb=require('@lune/roblox')
 local P=H.modulo('ReplicatedStorage/BB/PerfilCombate14')
 assert(P.suporta('SILVER_CHARIOT') and P.suporta('MAGICIANS_RED'),'SC/MR must use authoritative pilot profile')
-assert(not P.suporta('CRAZY_DIAMOND') and not P.suporta('KILLER_QUEEN'))
+assert(P.suporta('CRAZY_DIAMOND') and P.suporta('KILLER_QUEEN'))
 local R=H.modulo('ReplicatedStorage/BB/VFXReceitas')
 for _,id in {'SILVER_CHARIOT','MAGICIANS_RED'}do
  assert(R.suporta(id))

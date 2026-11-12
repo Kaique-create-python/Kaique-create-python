@@ -8,10 +8,11 @@ local base=prefix..'src/ReplicatedStorage/BB/'
 assert(fs.isFile(base..'VFXReceitas.luau'),'receitas piloto ausentes')
 assert(fs.isFile(base..'Cliente/VFXPiloto.luau'),'renderizador piloto ausente')
 local extra=luau.load(fs.readFile(base..'VFXReceitas15.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3}})()
-local R=luau.load(fs.readFile(base..'VFXReceitas.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3,script={Parent={VFXReceitas15={}}},require=function()return extra end}})()
+local newer=luau.load(fs.readFile(base..'VFXReceitas16.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3}})()
+local R=luau.load(fs.readFile(base..'VFXReceitas.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3,script={Parent={VFXReceitas15={Name="VFXReceitas15"},VFXReceitas16={Name="VFXReceitas16"}}},require=function(n)return n.Name=="VFXReceitas15"and extra or newer end}})()
 local cat=r.deserializeModel(fs.readFile(prefix..'assets/vfx14/catalogo.rbxm'))[1]
 assert(R.suporta('STAR_PLATINUM') and R.suporta('THE_WORLD'))
-for _,id in {'CRAZY_DIAMOND','KILLER_QUEEN'} do
+for _,id in {'INVALIDO','OUTRO'} do
  assert(not R.suporta(id));assert(R.resolve(id,'m1','contato',{})==nil)
 end
 assert(R.resolve('STAR_PLATINUM','invocar','inicio',{}),'invocar/inicio sem receita piloto')
@@ -64,7 +65,7 @@ local function clearMark(model)
 end
 P.iniciar();P.iniciar();assert(#callbacks==1,'iniciar não idempotente')
 local function context(owner,action,hit)return {owner=owner,pos=r.Vector3.new(0,4,0),dir=r.Vector3.new(0,0,-1),actionId=action,hitId=hit,t=time} end
-assert(P.tocar('CRAZY_DIAMOND','m1','contato',context(a,'legacy','h'))==nil)
+assert(P.tocar('INVALIDO','m1','contato',context(a,'legacy','h'))==nil)
 local targetContext={owner=a,target=b,actionId='target',hitId='target',t=time}
 local targetHit=P.tocar('STAR_PLATINUM','m1','contato',targetContext)
 assert((targetHit.items[1].node.CFrame.Position-r.Vector3.new(20,4,0)).Magnitude<.01,'contato ignorou alvo quando pos não veio')

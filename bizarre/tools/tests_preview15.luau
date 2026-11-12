@@ -74,7 +74,7 @@ end
 assert(knife,'no unit knife preview')
 for _,call in cancellations do assert(call[1]==a and call[2] and call[2]:match('^preview14:'),'preview cancellation escaped its scopes')end
 R.deserializeModel(fs.readFile('bizarre/assets/vfx15/catalogo.rbxm'))[1].Parent=rs
-for _,stand in {'MAGICIANS_RED','SILVER_CHARIOT','STAR_PLATINUM','THE_WORLD'}do
+for _,stand in {'MAGICIANS_RED','SILVER_CHARIOT','STAR_PLATINUM','THE_WORLD','CRAZY_DIAMOND','KILLER_QUEEN'}do
  local selected=assert(Preview.tocar(a,stand));step(1.6)
  Preview.cancelar();assert(not selected.active)
  for _,event in contexts do if event.handle and event.ctx.actionId:match('^preview15:')then assert(event.handle.cancelled or (not event.handle.active and #event.handle.items==0),'selected preview projectile escaped stop')end end

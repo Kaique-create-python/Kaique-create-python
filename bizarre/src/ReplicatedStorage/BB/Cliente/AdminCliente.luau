@@ -92,7 +92,7 @@ local function criar()
 			enviar("stand", { id = id })
 		end)
 	end
- local selecionados={"SILVER_CHARIOT","MAGICIANS_RED","STAR_PLATINUM","THE_WORLD"}
+ local selecionados={"SILVER_CHARIOT","MAGICIANS_RED","STAR_PLATINUM","THE_WORLD","CRAZY_DIAMOND","KILLER_QUEEN"}
  local indice=1
  local previa = UI.botao(painel, "PRÉVIA VFX", UDim2.fromOffset(144,30), UDim2.fromOffset(12,310), Color3.fromRGB(90,50,140), {limite=16})
  local selecionar=UI.botao(painel,"Silver Chariot",UDim2.fromOffset(144,30),UDim2.fromOffset(164,310),Color3.fromRGB(60,80,110),{limite=14})

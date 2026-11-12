@@ -6,6 +6,7 @@
 --   pescoço: X+ = olha para cima;   Root: o corpo inteiro
 
 local Poses = {}
+local Novas16 = require(script.Parent.Poses16)
 
 -- nomes curtos -> juntas do R15
 Poses.JUNTAS = {
@@ -724,7 +725,11 @@ C.mr_sopro15={proc="mr_sopro15",segurar=true,impacto=.3,keys={{0,"mr_pre15"}}}
 C.mr_conjurar15={segurar=true,impacto=.5,keys={{0,"mr_pre15"},{.2,"mr_sky15","saida"},{.5,"mr_sky15"}}}
 C.esgrima=C.sc_guard15
 local routes15={SILVER_CHARIOT={estocada="sc_estocada15",estocadas="sc_serie15",gira_sombrinha="sc_defesa15",conjurar="sc_armor15",s_guarda="sc_guard15",soco_d="sc_estocada15"},MAGICIANS_RED={sopro="mr_sopro15",conjurar="mr_conjurar15"}}
-function Poses.clipe15(id,clip)local map=routes15[id];return map and map[clip]or clip end
+function Poses.clipe15(id,clip)local map=routes15[id];return Novas16.route(id,clip,false)or(map and map[clip])or clip end
+function Poses.clipe16(id,clip,tipo)return Novas16.route(id,clip,tipo=="jogador")or clip end
+Poses.aj16Proc=Novas16.proc
+for name,pose in Novas16.P do P[name]=pose end
+for name,clip in Novas16.C do C[name]=clip end
 function Poses.aj15Proc(proc,t)
  local from,to,f
  if proc=="sc_serie15"then

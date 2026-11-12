@@ -199,11 +199,11 @@ for _,evt in events do if evt.typ=='explosao' and evt.d.moveId=='rolo' then
 end end
 assert(roloFinal,'missing rolo final metadata')
 L.trocarStand(a,'STAR_PLATINUM')
--- ordinary AJ13 fighters retain their original one-query and .2 recovery
+-- AJ16 completes the responsive profile for the remaining two fighters.
 for n,id in {'CRAZY_DIAMOND','KILLER_QUEEN'} do
  reset(160+n);a.standId=id;a.stand=H.modulo('ReplicatedStorage/BB/Stands').get(id)
- local tok=a.estado.token;assert(L.trocarStand(a,id) and a.estado.token==tok)
- B.m1(a,{});assert(a.estado.acaoAte==160+n+.2 and not a.acao14)
+ local tok=a.estado.token;assert(L.trocarStand(a,id) and a.estado.token~=tok)
+ B.m1(a,{});assert(a.estado.acaoAte==160+n+.30 and a.acao14~=nil)
  advance(160+n+.11);assert(b.hum.Health<100,id)
 end
 print('COMBATE14 servidor real: sweeps/corpo/parede/parry/airlink/buffer/cancel/seq/legado OK')

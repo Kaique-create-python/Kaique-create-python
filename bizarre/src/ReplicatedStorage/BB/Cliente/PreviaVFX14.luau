@@ -4,6 +4,7 @@ local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Piloto = require(script.Parent:WaitForChild("VFXPiloto"))
 local Receitas = require(script.Parent.Parent:WaitForChild("VFXReceitas"))
+local Barragem16 = require(script.Parent:WaitForChild("Barragem16"))
 local Previa = {}
 local token = 0
 local atual: any = nil
@@ -23,6 +24,7 @@ function Previa.cancelar()
 	handle.active = false
 	if handle.connection then handle.connection:Disconnect() end
 	for _, scope in handle.scopes do Piloto.cancelar(handle.owner, scope) end
+	for _,barrage in handle.barragens or{}do Barragem16.cancelar(handle.owner,barrage)end
 end
 
 local function selecionado(owner,id)
@@ -36,7 +38,7 @@ local function selecionado(owner,id)
  if not root or not hum or hum.Health<=0 then return false end
  token+=1
  local prefix="preview15:"..token..":"..id
- local h={owner=owner,active=true,scopes={prefix},token=token,stand=id};atual=h
+ local h={owner=owner,active=true,scopes={prefix},barragens={},token=token,stand=id};atual=h
  local base=root.CFrame:PointToWorldSpace(Vector3.new(0,0,-12));local dir=root.CFrame.LookVector
  local function tocar(move,phase,extra)
   if not vivo(h)then return end
@@ -55,6 +57,13 @@ local function selecionado(owner,id)
  for _,slot in {1,2,3,4,"ULT"}do
   local move=id.."_"..slot;local g=G.get(move);local start=clock
   after(start,function()tocar(move,"inicio")end)
+  if g.tipo=="barragem"and g.animS=="barragem"then
+   after(start+(g.inicio or .1),function()
+    local catalog=RS:FindFirstChild("BB_Stands");local source=catalog and catalog:FindFirstChild(id)
+    local handle=Barragem16.tocar(owner,source,(g.fim or 1)-(g.inicio or 0),function()return vivo(h)end,{preview=true,base=CFrame.lookAt(base,base+dir)})
+    if handle then table.insert(h.barragens,handle)end
+   end)
+  end
   if g.proj then after(start+g.proj.t,function()tocar(move,"inicio",{variant="projetil",actionId=prefix..":proj:"..slot,dur=g.proj.alcance/g.proj.vel,speed=g.proj.vel})end)end
   if id=="MAGICIANS_RED"and slot=="ULT"then after(start,function()tocar("sol","inicio",{above=base+Vector3.new(0,24,0),destination=base+dir*28,formar=1.1,cair=.5})end)end
   if id=="SILVER_CHARIOT"and slot==4 then after(start,function()tocar("buff","inicio",{dur=8})end)end

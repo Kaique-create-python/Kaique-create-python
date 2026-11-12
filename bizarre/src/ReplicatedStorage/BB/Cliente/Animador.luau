@@ -148,6 +148,7 @@ function Animador.tocar(modelo: Model?, nome: string?, opcoes: any?)
 		return
 	end
 	local a = anims[modelo] or Animador.registrar(modelo)
+	nome=Poses.clipe16(modelo:GetAttribute("BB_Stand"),nome,a.tipo)
 	local clipe = Poses.clipe(nome)
 	if not clipe then
 		return
@@ -566,7 +567,9 @@ local function aplicar(a: any, dt: number)
 	local acao: { [string]: { number } }? = nil
 	local giro = 0
 	if clipe and a.peso > 0 then
-		if clipe.proc and Poses.aj15Proc(clipe.proc,a.t) then
+		if clipe.proc and Poses.aj16Proc(clipe.proc,a.t)then
+   acao=Poses.aj16Proc(clipe.proc,a.t)
+  elseif clipe.proc and Poses.aj15Proc(clipe.proc,a.t) then
    acao=Poses.aj15Proc(clipe.proc,a.t)
   elseif clipe.proc == "barragem" then
 			acao = Poses.barragem(a.t, a.semente)

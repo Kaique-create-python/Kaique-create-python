@@ -60,7 +60,7 @@ local function numberScale(seq, scale)
 end
 local function actorOf(ctx,moveId,phase)
  local actor=ctx.owner
- local victimEffect=phase=='contato' or phase=='final' or moveId=='parry' or moveId=='quebra_guarda' or moveId=='agarrao'
+ local victimEffect=phase=='contato' or phase=='final' or moveId=='parry' or moveId=='quebra_guarda' or moveId=='agarrao' or moveId=='marca' or moveId=='pedra16'
  if victimEffect and typeof(ctx.target)=='Instance' and ctx.target:IsA('Model') then actor=ctx.target end
  if typeof(actor)=='Instance' and actor:IsA('Model') then return actor end
  return nil
@@ -248,6 +248,8 @@ local function advance(scope,dt)
  if not paused then scope.elapsed+=dt end
  local root=rootOf(scope.ctx.owner)
  local actualStand=scope.ctx.owner and scope.ctx.owner:GetAttribute('BB_Stand')
+ if scope.ctx.owner and scope.ownerGeneration~=scope.ctx.owner:GetAttribute('BB_Geracao14')then stop(scope)end
+ if scope.actor and scope.actorGeneration~=scope.actor:GetAttribute('BB_Geracao14')then stop(scope)end
  if not scope.ctx.preview and not scope.ctx.projectile and actualStand and actualStand~=scope.stand then stop(scope)end
  if scope.ctx.owner and not root then stop(scope) end
  if scope.actor and scope.actor~=scope.ctx.owner then
@@ -309,6 +311,8 @@ function P.tocar(standId,moveId,phase,ctx)
   if targetRoot then copy.pos=targetRoot.CFrame.Position end
  end
  local scope={ctx=copy,actor=actorOf(copy,moveId,phase),stand=standId,recipe=recipe,started={},items={},elapsed=math.max(0,now()-finite(ctx.t,now())),active=true,cancelled=false,duration=0,kind=moveId=='tempo' and 'tempo' or nil}
+ scope.ownerGeneration=copy.owner and copy.owner:GetAttribute('BB_Geracao14')
+ scope.actorGeneration=scope.actor and scope.actor:GetAttribute('BB_Geracao14')
  for _,spec in recipe do
   spec.duration=math.clamp(finite(spec.duration,.12),.01,120)
   scope.duration=math.max(scope.duration,spec.at+spec.duration)

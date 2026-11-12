@@ -5,6 +5,16 @@ Ele usa Android/Termux, sem Roblox Studio. Responda em português com comandos c
 Repositório: `Kaique-create-python/Kaique-create-python`, ramo
 `claude/context-capture-w0uo2t`, pasta `bizarre/`.
 
+## AJUSTE-16 — entrega atual
+
+Leia [README_AJUSTE16.md](docs/README_AJUSTE16.md) e [VALIDACAO_AJUSTE16.md](docs/VALIDACAO_AJUSTE16.md).
+CD/KQ e ORA/MUDA do vídeo revisados; preservam kits, dano/CD, mapa, mídia e câmera.
+A IA só testou offline. Última publicação confirmada pelo usuário: AJ14 v36.
+Última saída AJ15: Saved com conferência interrompida por rede; envio pendente. Não
+assumir instalação15/16; resolver com o resume do instalador que iniciou o envio.
+A16 aceita fontes14/15 reconhecidas, estado16 próprio e confirmação PUBLICAR AJUSTE16.
+Build: tools/gerar_ajuste16.py. Não regenerar14/15 com as fontes16.
+
 ## AJUSTE-15 — continuação atual
 
 Leia [README_AJUSTE15.md](docs/README_AJUSTE15.md) e [PLANO_AJUSTE15.md](docs/PLANO_AJUSTE15.md).

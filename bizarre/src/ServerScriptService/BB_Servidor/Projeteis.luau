@@ -3,9 +3,11 @@
 -- "guiado" (Sheer Heart Attack): vira devagar atrás do inimigo mais perto e avisa os celulares.
 
 local RunService = game:GetService("RunService")
+local Perfil=require(game:GetService("ReplicatedStorage"):WaitForChild("BB"):WaitForChild("PerfilCombate14"))
 
 local Hitbox = require(script.Parent.Hitbox)
 local Mapa = require(script.Parent.Mapa)
+local Vinculos16=require(script.Parent.Vinculos16)
 
 local Projeteis = {}
 
@@ -43,7 +45,7 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 	local p = {
 		id = id,
 		dono = dono,
-		def = def,
+		def = table.clone(def),
 		pos = origem,
 		dir = dir.Unit,
 		vel = def.vel or 80,
@@ -82,7 +84,7 @@ end
 -- trajetória central livre. O piloto confirma LOS por vítima antes de consumir hit.
 local function piloto14(p)
 	local ctx=p.def.context14
-	return ctx and (ctx.stand=="STAR_PLATINUM" or ctx.stand=="THE_WORLD")
+	return ctx and Perfil.suporta(ctx.stand)
 end
 local function linhaVitima(p,alvo)
 	local v=alvo.raiz.Position-p.pos
@@ -185,6 +187,7 @@ function Projeteis.passo(dt: number)
 	end
 	for _, p in ativos do
 		atualizarCongelamentos(p,t);avisarEstado(p)
+		if p.def.vinculo16 and not Vinculos16.vigente(p.def.vinculo16,p.dono)then terminar(p,p.pos,false);continue end
 		if t < p.congeladoAte then
 			continue
 		end
@@ -215,6 +218,12 @@ function Projeteis.passo(dt: number)
 			-- contra-ataque que devolve projéteis (sombrinha do FREVO)
 			if contraDe and contraDe(alvo, p) then
 				p.dono = alvo
+				if p.def.vinculo16 then
+     p.def.vinculo16=Vinculos16.capturar(alvo)
+     local ctx=table.clone(p.def.context14 or{})
+     ctx.actionId=tostring(ctx.actionId or p.id)..":refletido:"..tostring(alvo.geracao14)..":"..tostring(p.id)
+     ctx.token=alvo.estado.token;ctx.t=t;p.def.context14=ctx
+    end
 				p.dir = -p.dir
 				p.acertou = { [alvo] = true }
 				p.dist = 0

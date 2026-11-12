@@ -11,5 +11,5 @@ for _,pair in {{'SILVER_CHARIOT','estocada'},{'SILVER_CHARIOT','estocadas'},{'SI
  end
 end
 assert(P.clipe15('STAR_PLATINUM','sopro')=='sopro')
-assert(P.clipe15('KILLER_QUEEN','conjurar')=='conjurar')
+assert(P.clipe15('KILLER_QUEEN','sopro')=='sopro')
 print('AJ15 stand clips: finite/sampled, scoped, no locomotion changes PASS')

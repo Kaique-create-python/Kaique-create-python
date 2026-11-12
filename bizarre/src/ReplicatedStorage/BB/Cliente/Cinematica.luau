@@ -99,6 +99,12 @@ local function enquadrar(base: CFrame, rosto: Vector3, t: number, cena: any): (V
  elseif cena.id=="MAGICIANS_RED"then
   p1=(base*CFrame.new(-2,-.9,-6)).Position;p2=(base*CFrame.new(5,3,-.5)).Position
   revelar=(base*CFrame.new(0,7,-7)).Position
+ elseif cena.id=="CRAZY_DIAMOND"then
+  p1=(base*CFrame.new(-3.8,1.1,-5.6)).Position;p2=(base*CFrame.new(3.8,2.1,-2.2)).Position
+  revelar=(base*CFrame.new(-1.8,.8,-2.8)).Position
+ elseif cena.id=="KILLER_QUEEN"then
+  p1=(base*CFrame.new(1.7,.1,-3.8)).Position;p2=(base*CFrame.new(4,1.6,-2.5)).Position
+  revelar=(base*CFrame.new(.9,.6,-1.1)).Position
  elseif cena.baixo then
 		p1 = (base * CFrame.new(0.4 * lado, -1.6, -6)).Position
 	end
@@ -150,10 +156,12 @@ local function comecar(modelo: Model, s: any, dur: number, baixo: boolean)
 		local saida = math.clamp((1 - t) / 0.16, 0, 1)
 		tamanhoBarras(0.105 * math.min(entrada, saida))
 		-- Pulso breve, sem estourar o branco nem esconder o adversário.
-		if id == "STAR_PLATINUM" or id == "THE_WORLD" or id=="SILVER_CHARIOT" or id=="MAGICIANS_RED" then
+		if id == "STAR_PLATINUM" or id == "THE_WORLD" or id=="SILVER_CHARIOT" or id=="MAGICIANS_RED" or id=="CRAZY_DIAMOND"or id=="KILLER_QUEEN"then
 			local fov = if id == "STAR_PLATINUM" then 61 - math.sin(t * math.pi) * 5
 				elseif id=="THE_WORLD" then 57 - math.sin(t * math.pi) * 4
-    elseif id=="SILVER_CHARIOT" then 62-math.sin(t*math.pi)*4 else 64-math.sin(t*math.pi)*5
+    elseif id=="SILVER_CHARIOT" then 62-math.sin(t*math.pi)*4
+    elseif id=="CRAZY_DIAMOND"then 63-math.sin(t*math.pi)*5
+    elseif id=="KILLER_QUEEN"then 60-math.sin(t*math.pi)*3 else 64-math.sin(t*math.pi)*5
 			Camera.fovCinema(cena.token, fov)
 		end
 	end)

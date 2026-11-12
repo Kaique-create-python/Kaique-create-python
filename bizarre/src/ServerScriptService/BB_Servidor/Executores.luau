@@ -16,12 +16,19 @@ local Mapa = require(script.Parent.Mapa)
 local Projeteis = require(script.Parent.Projeteis)
 local Combate = require(script.Parent.Combate)
 local TempoSessao = require(script.Parent.TempoSessao)
+local Vinculos16 = require(script.Parent.Vinculos16)
 
 local Executores = {}
 local EXEC: { [string]: (ctx: any) -> () } = {}
 local ESPECIAL: { [string]: (ctx: any) -> () } = {}
 
 local agora = Combate.agora
+
+local function efeito16(ctx,tipo,d)
+ d.quem=ctx.lut.modelo;d.stand=ctx.context.stand or ctx.lut.standId
+ d.actionId=ctx.context.actionId;d.moveId=ctx.id;d.t=d.t or agora()
+ Combate.efeito(tipo,d)
+end
 
 ------------------------------------------------------------------------------- ajudantes
 local function vivo(ctx: any): boolean
@@ -130,7 +137,7 @@ end
 Executores.ondeOChao = ondeOChao
 
 -- explosão num ponto (bomba, moeda, tanquinho, Bites the Dust...)
-local function explosaoEm(lut: any, pos: Vector3, ex: any, dir: Vector3?, principal: any?)
+local function explosaoEm(lut: any, pos: Vector3, ex: any, dir: Vector3?, principal: any?, context: any?, persistente: any?, projetil: boolean?)
 	for _, l in Hitbox.esfera(pos, ex.raio, lut) do
 		if l ~= principal and not linhaLivre(pos + Vector3.new(0, 1, 0), l.raiz.Position) then
 			continue -- atrás da parede: a parede segura a explosão
@@ -146,10 +153,10 @@ local function explosaoEm(lut: any, pos: Vector3, ex: any, dir: Vector3?, princi
 			vfx = ex.vfx,
 			som = nil,
 			tremor = ex.tremor,
-		}, { origem = pos, dir = dir })
+		}, { origem = pos, dir = dir, context=context, persistente16=persistente,projetil=projetil })
 	end
 	Mapa.quebrarArea(pos, ex.raio * 0.75, ex.quebra or 1)
-	Combate.efeito("explosao", { pos = pos, raio = ex.raio, tipo = ex.vfx, som = ex.som, tremor = ex.tremor })
+	Combate.efeito("explosao", { pos = pos, raio = ex.raio, tipo = ex.vfx, som = ex.som, tremor = ex.tremor,quem=lut.modelo,stand=context and context.stand or lut.standId,actionId=context and context.actionId,moveId=context and context.moveId,t=agora(),phase="final" })
 end
 Executores.explosaoEm = explosaoEm
 
@@ -181,6 +188,7 @@ function Executores.executar(lut: any, g: any, id: string, t0: number, dados: an
 		dir = Lutadores.olhar(lut, t0),
 		dados = dados or {},
 		context=Combate.contexto(lut),
+		vinculo=Vinculos16.capturar(lut),
 	}
 	-- golpes de perto grudam no inimigo que está quase na frente
 	if (g.alcance or 0) > 0 and g.alcance <= 40 then
@@ -231,11 +239,13 @@ EXEC.golpe = function(ctx)
 		if g.eco and h.marcar and #acertados > 0 then
 			local eco = g.eco
 			for _, alvo in acertados do
-				Combate.efeito("marca", { v = alvo.modelo, ate = agora() + eco.atraso, stand = ctx.lut.standId })
+				local marca=Vinculos16.marcar(ctx.lut,alvo,eco.atraso,"BB_Bomba")
+				efeito16(ctx,"marca",{v=alvo.modelo,ate=marca.ate,bomba=true})
 				task.delay(eco.atraso, function()
-					if alvo.hum.Health > 0 and ctx.lut.modelo.Parent then
-						Combate.acertar(ctx.lut, alvo, copiar(eco, { tipo = "area", inbloqueavel = true }), { context=ctx.context, dir = Regras.achatar(alvo.raiz.Position - ctx.lut.raiz.Position) })
+					if Vinculos16.vigente(marca.owner)and Vinculos16.vigente(marca.target)then
+						Combate.acertar(ctx.lut, alvo, copiar(eco, { tipo = "area", inbloqueavel = true }), { context=ctx.context,persistente16=ctx.vinculo, dir = Regras.achatar(alvo.raiz.Position - ctx.lut.raiz.Position) })
 					end
+					Vinculos16.soltar(marca)
 				end)
 			end
 		end
@@ -298,6 +308,7 @@ end
 
 EXEC.projetil = function(ctx)
 	local p = copiar(ctx.g.proj,{context14=ctx.context})
+	if ctx.lut.standId=="CRAZY_DIAMOND"or ctx.lut.standId=="KILLER_QUEEN"then p.vinculo16=ctx.vinculo end
 	if not esperar(ctx, p.t) then
 		return
 	end
@@ -371,28 +382,36 @@ local function agarrar(ctx: any, alvo: any)
 	lut.estado.acaoAte = math.max(lut.estado.acaoAte, t0 + ag.duracao + 0.1)
 	lut.andarAcao = 0
 	Combate.atualizarMovimento(lut)
+	local trava16={}
 	alvo.agarradoPor = lut
+	alvo.travaAgarrao16=trava16
 	Fisica.prender(alvo)
+	local pedra16=nil
 	if ag.pedra then
-		alvo.modelo:SetAttribute("BB_Pedra", t0 + ag.duracao)
+		pedra16=Vinculos16.prender(lut,alvo,ag.duracao,"BB_Pedra")
 	end
-	Combate.efeito("agarrao", { quem = lut.modelo, alvo = alvo.modelo, t = t0, dur = ag.duracao, id = ctx.id })
+	efeito16(ctx,"agarrao", { alvo = alvo.modelo, t = t0, dur = ag.duracao, id = ctx.id,parte=ag.pedra and Mapa.maisPerto(alvo.raiz.CFrame,Vector3.new(32,32,32))or nil })
 	local conexao = RunService.Heartbeat:Connect(function()
-		if alvo.agarradoPor ~= lut or not alvo.raiz.Parent or not lut.raiz.Parent then
+		if alvo.agarradoPor ~= lut or alvo.travaAgarrao16~=trava16 or not alvo.raiz.Parent or not lut.raiz.Parent then
 			return
 		end
 		alvo.raiz.CFrame = lut.raiz.CFrame * CFrame.new(0, 0, -ag.distancia) * CFrame.Angles(0, math.pi, 0)
 	end)
 	local function soltar()
 		conexao:Disconnect()
-		if alvo.agarradoPor == lut then
+		if alvo.agarradoPor == lut and alvo.travaAgarrao16==trava16 then
 			alvo.agarradoPor = nil
+			alvo.travaAgarrao16=nil
 		end
-		if agora() >= alvo.estado.congeladoAte then
+		if pedra16 then Vinculos16.soltar(pedra16);Vinculos16.passo()
+		elseif Vinculos16.podeSoltar(alvo)then
 			Fisica.soltar(alvo)
 		end
-		alvo.modelo:SetAttribute("BB_Pedra", nil)
 	end
+	if pedra16 then pedra16.cleanup=function()
+  conexao:Disconnect()
+  if alvo.agarradoPor==lut and alvo.travaAgarrao16==trava16 then alvo.agarradoPor=nil;alvo.travaAgarrao16=nil end
+ end end
 	for _, s in ag.sequencia do
 		local falta = t0 + s.t - agora()
 		if falta > 0 then
@@ -408,7 +427,7 @@ local function agarrar(ctx: any, alvo: any)
 	if falta > 0 then
 		task.wait(falta)
 	end
-	local ainda = alvo.agarradoPor == lut and lut.hum.Health > 0
+	local ainda = alvo.agarradoPor == lut and alvo.travaAgarrao16==trava16 and lut.hum.Health > 0 and lut.estado.token==ctx.token
 	soltar()
 	if ainda then
 		Combate.acertar(lut, alvo, copiar(ag.final, { inbloqueavel = true, tipo = "melee" }), { context=ctx.context, dir = Regras.achatar(lut.raiz.CFrame.LookVector) })
@@ -732,7 +751,7 @@ ESPECIAL.tempoParado = function(ctx)
 		end
 		l.estado.congeladoAte = 0
 		l.congeladoPor = nil
-		if not l.agarradoPor and l.raiz.Parent then
+		if Vinculos16.podeSoltar(l)and l.raiz.Parent then
 			Fisica.soltar(l)
 		end
 		local fila = l.filaTempo
@@ -838,14 +857,10 @@ ESPECIAL.sol = function(ctx)
 	Combate.efeito("explosao", { pos = alvoPos, raio = s.raio, tipo = "sol", som = "explosao_grande", tremor = 1.4, impactFrame = true })
 end
 
-local function prenderNaPedra(l: any, segundos: number, parte: BasePart?)
-	Fisica.prender(l)
-	l.modelo:SetAttribute("BB_Preso", agora() + segundos)
-	task.delay(segundos, function()
-		l.modelo:SetAttribute("BB_Preso", nil)
-		if not l.agarradoPor and agora() >= l.estado.congeladoAte then
-			Fisica.soltar(l)
-		end
+local function prenderNaPedra(ctx: any,l: any, segundos: number, parte: BasePart?)
+	local hold=Vinculos16.prender(ctx.lut,l,segundos,"BB_Preso")
+	efeito16(ctx,"pedra16",{alvo=l.modelo,dur=segundos,ate=hold.ate,parte=parte})
+	hold.cleanup=function()
 		-- sai quebrando a parede (não fica entalado)
 		if parte and parte.Parent then
 			Mapa.quebrar(parte, Vector3.new(0, 1, 0), 9)
@@ -853,7 +868,7 @@ local function prenderNaPedra(l: any, segundos: number, parte: BasePart?)
 		if l.raiz.Parent then
 			Mapa.quebrarCaixa(l.raiz.CFrame, Vector3.new(4, 6, 4), 9, Vector3.new(0, 1, 0))
 		end
-	end)
+	end
 end
 
 ESPECIAL.reconstruir = function(ctx)
@@ -864,7 +879,7 @@ ESPECIAL.reconstruir = function(ctx)
 	end
 	local pos = lut.raiz.Position
 	local voltaram = Mapa.restaurarPerto(pos, r.raio, true)
-	Combate.efeito("reconstruir", { quem = lut.modelo, pos = pos, raio = r.raio, n = #voltaram })
+	efeito16(ctx,"reconstruir", { pos = pos, raio = r.raio, n = #voltaram,partes={table.unpack(voltaram,1,math.min(24,#voltaram))} })
 	if #voltaram == 0 then
 		local s = r.semNada
 		for _, l in Hitbox.esfera(pos, s.raio, lut) do
@@ -891,7 +906,7 @@ ESPECIAL.reconstruir = function(ctx)
 		if tipo ~= "perto" then
 			local res = Combate.acertar(lut, l, { dano = r.danoPreso, atordoar = r.preso, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra", tremor = 0.5 }, { context=ctx.context, dir = ctx.dir })
 			if res == "acertou" then
-				prenderNaPedra(l, r.preso, tipo)
+				prenderNaPedra(ctx,l, r.preso, tipo)
 			end
 		else
 			Combate.acertar(lut, l, { dano = r.danoPerto, atordoar = 0.6, empurrar = { radial = true, frente = 24, cima = 10, dur = 0.12 }, tipo = "area", vfx = "impacto_rosa", som = "pedra" }, { context=ctx.context, origem = pos })
@@ -900,41 +915,51 @@ ESPECIAL.reconstruir = function(ctx)
 end
 
 ESPECIAL.saudade = function(ctx)
-	local lut = ctx.lut
-	local s = ctx.g.saudade
-	task.wait(0.3)
-	local pos = lut.raiz.Position
-	local voltaram = Mapa.restaurarPerto(pos, s.raioMapa, true)
-	Combate.efeito("reconstruir", { quem = lut.modelo, pos = pos, raio = s.raioMapa, n = #voltaram, ult = true })
-	lut.hum.Health = math.min(lut.hum.MaxHealth, lut.hum.Health + s.cura)
-	Combate.efeito("cura", { quem = lut.modelo, dur = 1.2, stand = lut.standId })
-	local presos = {}
-	for _, l in Hitbox.esfera(pos, s.raio, lut) do
-		local r = Combate.acertar(lut, l, { dano = 2, atordoar = s.preso + 1.2, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra" }, { context=ctx.context, origem = pos })
-		if r == "acertou" then
-			Fisica.prender(l)
-			l.modelo:SetAttribute("BB_Pedra", agora() + s.preso + 0.8)
-			table.insert(presos, l)
-		end
-	end
-	task.wait(0.5)
-	for _, l in presos do
-		if l.hum.Health > 0 then
-			Combate.efeito("acao", { quem = lut.modelo, id = "stand_visita", alvo = l.modelo, t = agora(), stand = lut.standId })
-			for _ = 1, 3 do
-				Combate.acertar(lut, l, { dano = s.dano / 3, atordoar = 1.5, inbloqueavel = true, tipo = "melee", vfx = "impacto_rosa", som = "soco_rapido" }, { context=ctx.context, dir = Regras.achatar(l.raiz.Position - pos) })
-				task.wait(0.07)
-			end
-		end
-	end
-	task.wait(0.25)
-	for _, l in presos do
-		l.modelo:SetAttribute("BB_Pedra", nil)
-		if not l.agarradoPor and agora() >= l.estado.congeladoAte then
-			Fisica.soltar(l)
-		end
-		Combate.acertar(lut, l, { dano = s.final, empurrar = { radial = true, frente = 70, cima = 34, dur = 0.24 }, ragdoll = 1.6, quebra = 2, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra", tremor = 0.8, impactFrame = true }, { context=ctx.context, origem = pos })
-	end
+ local lut=ctx.lut;local s=ctx.g.saudade
+ if not esperar(ctx,.3)then return end
+ local pos=lut.raiz.Position
+ local voltaram=Mapa.restaurarPerto(pos,s.raioMapa,true)
+ efeito16(ctx,"reconstruir",{pos=pos,raio=s.raioMapa,n=#voltaram,ult=true,partes={table.unpack(voltaram,1,math.min(24,#voltaram))}})
+ lut.hum.Health=math.min(lut.hum.MaxHealth,lut.hum.Health+s.cura)
+ efeito16(ctx,"cura",{dur=1.2})
+ local presos={}
+ local function liberarTodos()
+  for _,entry in presos do Vinculos16.soltar(entry.lease)end
+  Vinculos16.passo()
+ end
+ for _,l in Hitbox.esfera(pos,s.raio,lut)do
+  local result=Combate.acertar(lut,l,{dano=2,atordoar=s.preso+1.2,inbloqueavel=true,tipo="area",vfx="estilhaco",som="pedra"},{context=ctx.context,origem=pos})
+  if result=="acertou"then
+   local lease=Vinculos16.prender(lut,l,s.preso+.8,"BB_Pedra")
+   table.insert(presos,{lut=l,lease=lease})
+   efeito16(ctx,"pedra16",{alvo=l.modelo,dur=s.preso+.8,ate=lease.ate,parte=Mapa.maisPerto(l.raiz.CFrame,Vector3.new(32,32,32))})
+  end
+ end
+ task.wait(.5)
+ for _,entry in presos do
+  if not Vinculos16.vigente(ctx.vinculo)then liberarTodos();return end
+  local l=entry.lut
+  if Vinculos16.vigente(entry.lease.target)then
+   efeito16(ctx,"acao",{id="stand_visita",alvo=l.modelo})
+   for _=1,3 do
+    if not Vinculos16.vigente(ctx.vinculo)then liberarTodos();return end
+    if not Vinculos16.vigente(entry.lease.target)then break end
+    Combate.acertar(lut,l,{dano=s.dano/3,atordoar=1.5,inbloqueavel=true,tipo="melee",vfx="impacto_rosa",som="soco_rapido"},{context=ctx.context,persistente16=ctx.vinculo,dir=Regras.achatar(l.raiz.Position-pos)})
+    task.wait(.07)
+   end
+  end
+ end
+ task.wait(.25)
+ if not Vinculos16.vigente(ctx.vinculo)then liberarTodos();return end
+ for _,entry in presos do
+  local l=entry.lut
+  Vinculos16.soltar(entry.lease)
+  Vinculos16.passo()
+  if Vinculos16.vigente(entry.lease.target)then
+   Combate.acertar(lut,l,{dano=s.final,empurrar={radial=true,frente=70,cima=34,dur=.24},ragdoll=1.6,quebra=2,inbloqueavel=true,tipo="area",vfx="estilhaco",som="pedra",tremor=.8,impactFrame=true},{context=ctx.context,persistente16=ctx.vinculo,origem=pos})
+  end
+ end
+ Vinculos16.passo()
 end
 
 -- Killer Queen: "o que eu tocar vira bomba". Toca o inimigo (ou um objeto) e explode depois.
@@ -956,12 +981,12 @@ ESPECIAL.bomba = function(ctx)
 			return
 		end
 		local ate = agora() + b.atraso
-		alvo.modelo:SetAttribute("BB_Bomba", ate)
-		Combate.efeito("marca", { v = alvo.modelo, ate = ate, stand = lut.standId, bomba = true })
+		local marca=Vinculos16.marcar(lut,alvo,b.atraso,"BB_Bomba")
+		efeito16(ctx,"marca", { v = alvo.modelo, ate = ate, bomba = true })
 		task.wait(b.atraso)
-		alvo.modelo:SetAttribute("BB_Bomba", nil)
-		if alvo.hum.Health > 0 and alvo.modelo.Parent and lut.modelo.Parent then
-			explosaoEm(lut, alvo.raiz.Position, b.explosao, ctx.dir, alvo)
+		Vinculos16.soltar(marca)
+		if Vinculos16.vigente(marca.owner)and Vinculos16.vigente(marca.target)then
+			explosaoEm(lut, alvo.raiz.Position, b.explosao, ctx.dir, alvo,ctx.context,ctx.vinculo)
 		end
 		return
 	end
@@ -969,10 +994,10 @@ ESPECIAL.bomba = function(ctx)
 	local parte = Mapa.maisPerto(cf, b.caixa or Vector3.new(6, 6, 7))
 	if parte then
 		local pos = parte.Position
-		Combate.efeito("marca", { pos = pos, ate = agora() + b.atraso, stand = lut.standId, bomba = true })
+		efeito16(ctx,"marca", { pos = pos, ate = agora() + b.atraso, bomba = true })
 		task.wait(b.atraso)
-		if lut.modelo.Parent then
-			explosaoEm(lut, pos, b.explosao, ctx.dir)
+		if Vinculos16.vigente(ctx.vinculo)then
+			explosaoEm(lut, pos, b.explosao, ctx.dir,nil,ctx.context,ctx.vinculo)
 		end
 	end
 end
@@ -983,7 +1008,7 @@ ESPECIAL.rebobinar = function(ctx)
 	local lut = ctx.lut
 	local r = ctx.g.rebobinar
 	local t0 = agora()
-	Combate.efeito("rebobinar", { quem = lut.modelo, t = t0, dur = r.t, stand = lut.standId })
+	efeito16(ctx,"rebobinar",{t=t0,dur=r.t})
 	if not esperar(ctx, r.t) then
 		return
 	end
@@ -1013,7 +1038,13 @@ ESPECIAL.rebobinar = function(ctx)
 		end
 	end
 	local voltaram = Mapa.restaurarPerto(lut.raiz.Position, r.raio, true)
-	Combate.efeito("rebobinarFim", { quem = lut.modelo, de = de, para = if registro then registro.cf.Position else de, n = #voltaram, stand = lut.standId })
+	local trajeto={de}
+ for i=#hist,1,-1 do
+  local h=hist[i]
+  if h.t>=alvoT and #trajeto<16 then table.insert(trajeto,h.cf.Position)end
+ end
+ if registro then table.insert(trajeto,registro.cf.Position)end
+ efeito16(ctx,"rebobinarFim",{de=de,para=if registro then registro.cf.Position else de,n=#voltaram,trajeto=trajeto})
 	task.wait(0.25)
 	local ex = { raio = 7, dano = r.dano, empurrar = r.empurrar, ragdoll = r.ragdoll, quebra = r.quebra, inbloqueavel = true, vfx = "explosao_fogo", som = "explosao_grande", tremor = 0.9 }
 	if #culpados == 0 then
@@ -1025,7 +1056,7 @@ ESPECIAL.rebobinar = function(ctx)
 	end
 	for _, atk in culpados do
 		if atk.hum.Health > 0 and atk.modelo.Parent and (atk.raiz.Position - lut.raiz.Position).Magnitude <= r.raio * 2 then
-			explosaoEm(lut, atk.raiz.Position, ex, Regras.achatar(atk.raiz.Position - lut.raiz.Position), atk)
+			if Vinculos16.vigente(ctx.vinculo)then explosaoEm(lut, atk.raiz.Position, ex, Regras.achatar(atk.raiz.Position - lut.raiz.Position), atk,ctx.context,ctx.vinculo)end
 		end
 	end
 end
@@ -1089,6 +1120,7 @@ end
 ------------------------------------------------------------------------------- projéteis
 local function acertarProjetil(p: any, alvo: any, _pos: Vector3)
 	local d = p.def
+	if d.vinculo16 and not Vinculos16.vigente(d.vinculo16,p.dono)then return end
 	Combate.acertar(p.dono, alvo, {
 		dano = d.dano,
 		atordoar = d.atordoar,
@@ -1098,11 +1130,12 @@ local function acertarProjetil(p: any, alvo: any, _pos: Vector3)
 		tipo = "projetil",
 		som = d.som,
 		vfx = d.vfx,
-	}, { context=p.def.context14, projetil=true, dir = p.dir })
+	}, { context=p.def.context14,persistente16=d.vinculo16, projetil=true, dir = p.dir })
 end
 
 local function explodir(p: any, pos: Vector3)
-	explosaoEm(p.dono, pos, p.def.explosao, p.dir)
+	if p.def.vinculo16 and not Vinculos16.vigente(p.def.vinculo16,p.dono)then return end
+	explosaoEm(p.dono, pos, p.def.explosao, p.dir,nil,p.def.context14,p.def.vinculo16,true)
 end
 
 local function contraProjetil(alvo: any, p: any): boolean
@@ -1143,6 +1176,7 @@ function Executores.temRebobinar(l: any): boolean
 end
 
 function Executores.iniciar(remotos: any)
+	Vinculos16.iniciar()
 	Projeteis.iniciar(remotos.Efeito, acertarProjetil, explodir, contraProjetil)
 	task.spawn(function()
 		while true do

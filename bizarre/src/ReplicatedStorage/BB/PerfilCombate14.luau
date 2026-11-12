@@ -1,7 +1,7 @@
 -- Política autoritativa pura do piloto; nenhum campo recebido do cliente concede permissões.
 local P = { bufferTTL = 0.12, janela = 0.08, cancelApos = 0.06 }
 local contador = 0
-function P.suporta(id) return id == 'STAR_PLATINUM' or id == 'THE_WORLD' or id == 'SILVER_CHARIOT' or id == 'MAGICIANS_RED' end
+function P.suporta(id) return id == 'STAR_PLATINUM' or id == 'THE_WORLD' or id == 'SILVER_CHARIOT' or id == 'MAGICIANS_RED' or id == 'CRAZY_DIAMOND' or id == 'KILLER_QUEEN' end
 function P.novo() return { ultimaSeq = 0 } end
 function P.sequencia(s, seq)
 	if seq == nil then return true end -- bots internos; a entrada de Player exige seq no servidor
