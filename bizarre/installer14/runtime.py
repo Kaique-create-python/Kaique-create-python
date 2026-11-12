@@ -126,7 +126,8 @@ class Runtime:
             print('Envio sem confirmacao. Preserve active-write.json e execute resume; nao repita envio.',flush=True)
             raise
         version=response.get('versionNumber')if isinstance(response,dict)else None
-        if isinstance(version,bool)or not isinstance(version,(str,int))or not str(version).isdigit()or int(version)<=base:
+        minimum=base if mode=='Published' else base+1
+        if isinstance(version,bool)or not isinstance(version,(str,int))or not str(version).isdigit()or int(version)<minimum:
             self._update_active(entry,status='UNCERTAIN')
             raise Failure('Resposta inesperada. Recibo preservado; use resume, sem repetir envio.')
         self._update_active(entry,status='UPLOADED',version=int(version))
@@ -143,7 +144,7 @@ class Runtime:
             or type(entry.get('ready_bytes')) is not int or entry['ready_bytes']<=0
             or not isinstance(entry.get('ready_sha'),str) or not re.fullmatch(r'[0-9a-f]{64}',entry['ready_sha'])
             or not isinstance(entry.get('ready'),str)
-            or ('version'in entry and (type(entry['version']) is not int or entry['version']<=entry['base']))):
+            or ('version'in entry and (type(entry['version']) is not int or entry['version']<entry['base']+(entry['mode']!='Published')))):
             raise Failure('Recibo incompleto/invalido. Preserve e revise; nenhum envio sera repetido.')
         ready=guard(entry['ready'],self.state)
         if ready.is_symlink()or len(ready.read_bytes())!=entry.get('ready_bytes')or sha(ready.read_bytes())!=entry['ready_sha']:raise Failure('Arquivo do envio pendente mudou. Preserve o recibo.')
@@ -153,14 +154,21 @@ class Runtime:
         original_entry=dict(entry)
         self._identity(entry);cloud.validate_destination();latest,rows=cloud.history()
         version=entry.get('version');published=entry['mode']=='Published'
-        candidates=[r for r in rows if (int(r['version'])==version if version is not None else int(r['version'])>entry['base'])and r.get('isPublished')is published]
+        # Publishing identical bytes may retain the Saved version number. Only
+        # consider that base when it is still latest; flag + full hash remain mandatory.
+        same_base=published and latest==entry['base']
+        candidates=[r for r in rows if (int(r['version'])==version if version is not None else (int(r['version'])>entry['base'] or same_base and int(r['version'])==entry['base']))and r.get('isPublished')is published]
         if len(candidates)>10:raise Failure('Historico tem muitas alteracoes apos o envio. Preserve active-write.json; nao repita POST.')
         matches=[]
         for row in candidates:
             n=int(row['version']);raw=cloud.download(n,self.state/('Verificacao_v'+str(n)+'.rbxl'))
             if sha(raw)==entry['ready_sha']:matches.append((n,raw))
         if len(matches)!=1 or matches[0][0]!=latest:
-            raise Failure('Historico ainda nao confirma uma unica versao com os bytes esperados ou houve outro salvamento. Preserve active-write.json e use resume mais tarde.')
+            summary=dict(base=entry['base'],resposta_version=version,ultima_versao=latest,
+                ultima_publicada=max((int(r['version'])for r in rows if r.get('isPublished')is True),default=None),
+                recentes=[dict(version=int(r['version']),isPublished=r.get('isPublished'))for r in sorted(rows,key=lambda r:int(r['version']),reverse=True)[:5]],
+                candidatos=[int(r['version'])for r in candidates],bytes_confirmados=[n for n,_ in matches])
+            raise Failure('Publicacao ainda nao confirmada; recibo preservado. Nenhum POST foi repetido.\nConferencia somente GET: '+json.dumps(summary,ensure_ascii=False))
         version,raw=matches[0]
         if self.patch(raw)!=(raw,False):raise Failure('Conteudo enviado divergiu. Recibo preservado; nao repita o envio.')
         if cloud.history()[0]!=version:raise Failure('O Place mudou durante a verificacao. Preserve o recibo.')

@@ -63,6 +63,11 @@ python ~/BIZARRE_AJUSTE14.py resume
 ```
 
 Não repita envio nem apague `active-write.json`. `status` mostra o estado local sem chave.
+O recuperador também confere a versão Saved de origem quando ela continua sendo a mais
+recente: só encerra um envio Published se o histórico marcar essa versão como publicada
+e o SHA256 do download inteiro corresponder ao arquivo enviado. Não cria outra versão.
+Se a confirmação falhar, mostra `ultima_versao`, `ultima_publicada` e os candidatos
+consultados por GET; o recibo continua preservado.
 Backup, arquivo preparado e recibos ficam em `~/.bizarre_instalador/state-ajuste14/`;
 o intent de envio fica na raiz `~/.bizarre_instalador/`. Preserve a pasta toda.
 
