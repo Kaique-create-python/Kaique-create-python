@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+# BIZARRE AJUSTE14. Sem rede ao importar. Chave somente getpass no Termux.
+import base64,hashlib,importlib.abc,importlib.util,io,json,sys,zipfile,zlib
+PAYLOAD = __PAYLOAD__
+SHA256 = __SHA256__
+
+def main():
+ encoded=base64.b85decode(PAYLOAD)
+ if hashlib.sha256(encoded).hexdigest()!=SHA256:raise SystemExit('Pacote corrompido.')
+ dec=zlib.decompressobj();raw=dec.decompress(encoded,16*1024*1024+1)
+ if len(raw)>16*1024*1024 or not dec.eof or dec.unused_data or dec.unconsumed_tail:raise SystemExit('Pacote excedeu limite.')
+ with zipfile.ZipFile(io.BytesIO(raw)) as z:
+  infos=z.infolist()
+  if len(infos)>256 or len({x.filename for x in infos})!=len(infos) or sum(x.file_size for x in infos)>16*1024*1024:raise SystemExit('Arquivos do pacote invalidos.')
+  files={i.filename:z.read(i) for i in infos}
+ manifest=json.loads(files['bundle-manifest.json'])
+ if set(manifest)!=set(files)-{'bundle-manifest.json'} or any(hashlib.sha256(files[n]).hexdigest()!=h for n,h in manifest.items()):raise SystemExit('Integridade do instalador invalida.')
+ class Loader(importlib.abc.MetaPathFinder,importlib.abc.Loader):
+  def find_spec(self,fullname,path=None,target=None):
+   name=fullname.replace('.','/')
+   if name+'/__init__.py' in files:return importlib.util.spec_from_loader(fullname,self,is_package=True)
+   if name+'.py' in files:return importlib.util.spec_from_loader(fullname,self)
+  def create_module(self,spec):return None
+  def exec_module(self,module):
+   name=module.__name__.replace('.','/')+('/__init__.py' if module.__spec__.submodule_search_locations is not None else '.py')
+   exec(compile(files[name],'<BIZARRE_AJUSTE14>/'+name,'exec'),module.__dict__)
+ sys.meta_path.insert(0,Loader())
+ from installer14.cli import main as run
+ from installer14.codec import Failure
+ try:run({n.removeprefix('payload/'):data for n,data in files.items() if n.startswith('payload/')})
+ except (Failure,ValueError,OSError,KeyError) as exc:raise SystemExit('BLOQUEADO: '+str(exc)) from None
+ except KeyboardInterrupt:raise SystemExit('Interrompido. Preserve recibos; se houve envio, execute resume.') from None
+
+if __name__=='__main__':main()

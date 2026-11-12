@@ -10,6 +10,7 @@ local BB = ReplicatedStorage:WaitForChild("BB")
 local Config = require(BB:WaitForChild("Config"))
 local Regras = require(BB:WaitForChild("Regras"))
 local Golpes = require(BB:WaitForChild("Golpes"))
+local Perfil = require(BB:WaitForChild("PerfilCombate14"))
 local Stands = require(BB:WaitForChild("Stands"))
 
 local Lutadores = require(script.Parent.Lutadores)
@@ -23,7 +24,79 @@ local efeito: RemoteEvent? = nil
 local privado: RemoteEvent? = nil
 local Executores: any = nil
 local aoAbate: ((vitima: any, assassino: any?) -> ())? = nil
+local hitContador14=0
+local protocolos14 = {}
+local jogadoresRemovidos14 = setmetatable({}, {__mode="k"})
 local ultimoPedido: { [Player]: { [string]: number } } = {}
+
+local function piloto(lut) return Perfil.suporta(lut.standId) end
+local function politica(lut)
+	if not lut.combate14 then lut.combate14 = Perfil.novo() end
+	return lut.combate14
+end
+local function transporte(lut)
+	if not lut.jogador then return politica(lut) end
+	local p=protocolos14[lut.jogador]
+	if not p then p=Perfil.novo(); protocolos14[lut.jogador]=p end
+	return p
+end
+local function alvoLinkVivo(link)
+	local alvo=link and link.alvo
+	return Perfil.alvoVigente(link) and alvo.hum.Health>0 and alvo.modelo.Parent~=nil and Lutadores.de(alvo.modelo)==alvo
+end
+local function fimAcao(lut,a,reason)
+	if not a or a.encerrada then return end
+	a.encerrada=true
+	Combate.efeito("acaoFim",{quem=lut.modelo,id=a.id,moveId=a.id,actionId=a.actionId,seq=a.seq,t=workspace:GetServerTimeNow(),phase="fim",reason=reason})
+end
+local function iniciarAcao(lut,id,n,t,dados)
+	if not piloto(lut) then return nil end
+	fimAcao(lut,politica(lut).acao,"substituida")
+	local a=Perfil.iniciar(politica(lut),lut.estado,id,n,t,lut.standId,dados and dados.seq)
+	lut.acao14=a
+	return a
+end
+function Combate.cancelar(lut)
+	Lutadores.invalidarGeracao(lut)
+	lut.filaTempo=nil
+	local p=lut.combate14
+	if p then
+		fimAcao(lut,p.acao,"interrompida")
+		p.buffer=nil; p.link=nil; p.acao=nil; lut.acao14=nil
+	end
+	Regras.interromper(lut.estado,workspace:GetServerTimeNow())
+	lut.defesaSegurada14=false
+	for _,outro in Lutadores.todos() do
+		local q=outro.combate14
+		if q and q.link and q.link.alvo==lut then q.link=nil end
+	end
+end
+function Combate.contexto(lut)
+	local a=lut.acao14
+	return a and { actionId=a.actionId, moveId=a.id, t=a.t, n=a.n, variant=a.variant, token=a.token, stand=a.stand } or {}
+end
+local function registrarAck(lut,tipo,d)
+	d.generation=lut.geracao14
+	if piloto(lut) and d.seq then
+		local p=transporte(lut)
+		p.acks=p.acks or {}; p.ackOrdem=p.ackOrdem or {}
+		if not p.acks[d.seq] then table.insert(p.ackOrdem,d.seq) end
+		p.acks[d.seq]={tipo=tipo,dados=d,lut=lut,geracao=lut.geracao14}
+		if #p.ackOrdem>32 then p.acks[table.remove(p.ackOrdem,1)]=nil end
+	end
+	Combate.privado(lut,tipo,d)
+end
+local function confirmar(lut,a,extra)
+	if not a then return end
+	local d={ seq=a.seq, actionId=a.actionId, id=a.id, t=a.t, n=a.n, variant=a.variant, variante=a.variant, stand=lut.estado.standFora, standId=lut.standId, lifeId=lut.vida14, dir=lut.dir, acaoAte=lut.estado.acaoAte }
+	for k,v in extra or {} do d[k]=v end
+	registrarAck(lut,"confirmado",d)
+end
+local function fila(lut,tipo,dados,pronto)
+	if not piloto(lut) or lut.hum.Health<=0 or not lut.modelo.Parent or lut.agarradoPor or lut.raiz.Anchored or lut.modelo:GetAttribute("BB_Menu") then return false end
+	local cmd={tipo=tipo,dados=table.clone(dados or {}),slot=dados and dados.slot}
+	return Perfil.enfileirar(politica(lut),lut.estado,cmd,workspace:GetServerTimeNow(),pronto)
+end
 
 function Combate.agora(): number
 	return workspace:GetServerTimeNow()
@@ -178,12 +251,26 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 		return "nada"
 	end
 	local inf = info or {}
+	if inf.airlink and not alvoLinkVivo(inf.airlink) then return "nada" end
+	if piloto(atk) and (not Hitbox.corpo(alvo.raiz,alvo) or alvo.hum.Parent ~= alvo.modelo) then return "nada" end
+	local ctx=inf.context or Combate.contexto(atk)
+	if piloto(atk) and ctx.token and ctx.token ~= atk.estado.token and not inf.resolved and not inf.projetil then return "nada" end
+	local hitId=inf.hitId
+	if piloto(atk) and not hitId and ctx.actionId then
+		hitContador14+=1
+		hitId=ctx.actionId..":h"..hitContador14
+	end
 	local dir = inf.dir or Regras.achatar(alvo.raiz.Position - atk.raiz.Position)
+	local function acertoFX(d)
+		d.actionId=ctx.actionId; d.hitId=hitId; d.moveId=ctx.moveId; d.phase=if d.congelado then "queued" else "resolved"
+		d.queuedHitIds=inf.queuedHitIds; d.t=t; d.dir=d.dir or dir; d.stand=ctx.stand or atk.standId; d.n=ctx.n; d.variant=ctx.variant
+		Combate.efeito("acerto",d)
+	end
 	if Regras.invencivel(e, t) then
 		Combate.efeito("esquiva", { v = alvo.modelo })
 		return "invencivel"
 	end
-	if h.m1 and t < e.ragdollAte then
+	if h.m1 and t < e.ragdollAte and not (inf.airlink and inf.airlink.alvo == alvo and inf.airlink.usado and ctx.moveId == "m1_aereo") then
 		return "nada"
 	end
 	-- acabou de levantar: um instante sem cair de novo (não fica preso no chão apanhando)
@@ -191,8 +278,8 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 	-- tempo parado: o golpe fica guardado e chega junto quando o tempo voltar
 	if t < e.congeladoAte and alvo.congeladoPor == atk then
 		alvo.filaTempo = alvo.filaTempo or {}
-		table.insert(alvo.filaTempo, { atk = atk, h = h, dir = dir })
-		Combate.efeito("acerto", { a = atk.modelo, v = alvo.modelo, pos = alvo.raiz.Position, tipo = h.vfx or "impacto", dano = 0, som = h.som, congelado = true, stand = atk.standId })
+		table.insert(alvo.filaTempo, { atk = atk, h = h, dir = dir, context=ctx, hitId=hitId })
+		acertoFX({ a = atk.modelo, v = alvo.modelo, pos = alvo.raiz.Position, tipo = h.vfx or "impacto", dano = 0, som = h.som, congelado = true, stand = atk.standId })
 		return "fila"
 	end
 	-- contra-ataque armado
@@ -219,7 +306,7 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 		Regras.atordoar(atk.estado, t, Config.BLOQUEIO.parryAtordoa, true)
 		Combate.atualizarMovimento(atk)
 		Combate.sincronizar(atk)
-		Combate.efeito("acerto", { a = atk.modelo, v = alvo.modelo, pos = pos, tipo = "parry", dano = 0, som = "parry", tremor = 0.4 })
+		acertoFX({ a = atk.modelo, v = alvo.modelo, pos = pos, tipo = "parry", dano = 0, som = "parry", tremor = 0.4 })
 		Regras.ganharDespertar(alvo.estado, 6, t)
 		return "parry"
 	end
@@ -228,16 +315,17 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 		local chip = math.floor(dano * (1 - Config.BLOQUEIO.reducao) * 10 + 0.5) / 10
 		aplicarDano(alvo, chip, atk)
 		Fisica.empurrar(alvo, dir * 10, 0.08)
-		Combate.efeito("acerto", { a = atk.modelo, v = alvo.modelo, pos = pos, tipo = "bloqueio", dano = chip, som = "bloqueio", tremor = 0.1 })
+		acertoFX({ a = atk.modelo, v = alvo.modelo, pos = pos, tipo = "bloqueio", dano = chip, som = "bloqueio", tremor = 0.1 })
 		Combate.sincronizar(alvo)
 		Regras.ganharDespertar(alvo.estado, chip * Config.DESPERTAR.porDanoRecebido + 1, t)
 		return "bloqueado"
 	end
 	if res == "quebra" then
 		Regras.atordoar(e, t, Config.BLOQUEIO.quebraAtordoa, true)
-		Combate.efeito("acerto", { a = atk.modelo, v = alvo.modelo, pos = pos, tipo = "quebra_guarda", dano = 0, som = "quebra_guarda", tremor = 0.5 })
+		acertoFX({ a = atk.modelo, v = alvo.modelo, pos = pos, tipo = "quebra_guarda", dano = 0, som = "quebra_guarda", tremor = 0.5 })
 	end
 	-- dano cheio
+	if piloto(atk) and ctx.actionId == (atk.acao14 and atk.acao14.actionId) then Perfil.acerto(politica(atk),atk.acao14,t) end
 	aplicarDano(alvo, dano, atk)
 	if h.atordoar and h.atordoar > 0 then
 		Regras.atordoar(e, t, h.atordoar)
@@ -276,7 +364,7 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 	Combate.atualizarMovimento(alvo)
 	Combate.sincronizar(alvo)
 	Combate.sincronizar(atk)
-	Combate.efeito("acerto", {
+	acertoFX({
 		a = atk.modelo,
 		v = alvo.modelo,
 		pos = pos,
@@ -296,7 +384,7 @@ end
 
 ------------------------------------------------------------------------------- pedidos dos jogadores
 local function negar(lut: any, acao: string, motivo: string?)
-	Combate.privado(lut, "negado", { acao = acao, motivo = motivo })
+	registrarAck(lut, "negado", { acao = acao, motivo = motivo, seq = lut.pedidoSeq14 })
 end
 
 local function lerDir(lut: any, dados: any)
@@ -313,35 +401,62 @@ end
 function Combate.m1(lut: any, dados: any)
 	local e = lut.estado
 	local t = agora()
+	local p=piloto(lut) and politica(lut)
+	if p and p.link then
+		local alvo=p.link.alvo
+		if not alvoLinkVivo(p.link) then p.link=nil end
+	end
+	if p and (lut.hum.Health<=0 or not lut.modelo.Parent or lut.agarradoPor or lut.raiz.Anchored or lut.modelo:GetAttribute("BB_Menu")) then return negar(lut,"m1","preso") end
+	local link=p and Perfil.reservar(p,e,t,lut.standId)
 	if e.bloqueando then
 		Regras.pararBloqueio(e)
 	end
 	local pode, motivo = Regras.podeAgir(e, t)
-	if not pode then
+	if not pode and not link then
+		local pronto=math.max(e.acaoAte,e.m1ProntoEm)
+		if p and p.link and not p.link.usado then pronto=math.min(pronto,p.link.abre) end
+		if fila(lut,"m1",dados,pronto) then return end
 		return negar(lut, "m1", motivo)
 	end
-	local n = Regras.m1(e, t)
+	local n = if link then 1 else Regras.m1(e, t)
 	if not n then
+		if fila(lut,"m1",dados,e.m1ProntoEm) then return end
 		return negar(lut, "m1", "recarga")
 	end
 	local dir = lerDir(lut, dados)
 	local variante = nil
 	if n == 4 and type(dados) == "table" then
 		if dados.variante == "cima" or dados.variante == "baixo" then
-			variante = dados.variante
+			if not p or (lut.hum.FloorMaterial==Enum.Material.Air and ((dados.variante=="cima" and lut.raiz.AssemblyLinearVelocity.Y>4) or (dados.variante=="baixo" and lut.raiz.AssemblyLinearVelocity.Y<=4))) then
+				variante = dados.variante
+			end
 		end
 	end
 	local stand = e.standFora
 	lut.andarAcao = 0.55
+	local a=iniciarAcao(lut,if link then "m1_aereo" else "m1",n,t,dados)
+	if a then
+		a.variant=variante
+		local _,rec=Perfil.tempos(n)
+		e.acaoAte=t+rec
+		if link then Perfil.seguimento(e,t) end
+		confirmar(lut,a,{m1ProntoEm=e.m1ProntoEm,acaoAte=e.acaoAte,combo=e.combo})
+	end
 	local token = e.token
-	Combate.efeitoOutros(lut, "acao", { quem = lut.modelo, id = "m1", n = n, variante = variante, t = t, dir = dir, stand = stand })
+	Combate.efeitoOutros(lut, "acao", { quem = lut.modelo, id = if link then "m1_aereo" else "m1", seq=dados and dados.seq, actionId=a and a.actionId, variant=variante, n = n, variante = variante, t = t, dir = dir, stand = stand })
 	Combate.atualizarMovimento(lut)
-	task.delay(0.1, function()
-		if e.token ~= token or lut.hum.Health <= 0 then
+	local vistos={}
+	local candidatos={}
+	local alvoMira=type(dados)=="table" and Lutadores.de(dados.alvo) or nil
+	local contato=if a then (if link then 0.10 else Perfil.tempos(n)) else 0.10
+	local function contatoM1()
+		if link and not alvoLinkVivo(link) then return end
+		if a and agora()>t+contato+Perfil.janela+1e-6 then return end
+		if e.token ~= token or lut.hum.Health <= 0 or not lut.modelo.Parent or (a and (lut.standId~=a.stand or Perfil.impedido(e,agora()))) then
 			return
 		end
 		local hb = if stand then Config.M1.hitboxStand else Config.M1.hitbox
-		local d = Hitbox.grudar(lut, Lutadores.olhar(lut, agora()), hb.frente + hb.tam.Z * 0.5 + 2.5, 0.5)
+		local d = if link then dir else Hitbox.grudar(lut, Lutadores.olhar(lut, agora()), hb.frente + hb.tam.Z * 0.5 + 2.5, 0.5)
 		local folga = if stand and lut.stand.passiva and lut.stand.passiva.alcanceExtra then lut.stand.passiva.alcanceExtra else 0
 		if lut.jogador then
 			folga += math.clamp(lut.raiz.AssemblyLinearVelocity:Dot(d) * 0.06, 0, 1.5)
@@ -357,6 +472,8 @@ function Combate.m1(lut: any, dados: any)
 		local estilo = lut.stand.m1
 		local vfx = if estilo == "fogo" then "impacto_fogo" elseif estilo == "rapieira" then "corte_prata" else "impacto"
 		for _, alvo in alvos do
+			if vistos[alvo] or (link and alvo~=link.alvo) then continue end
+			vistos[alvo]=true
 			local h: any = {
 				m1 = true,
 				dano = Regras.danoM1(n, stand),
@@ -384,11 +501,35 @@ function Combate.m1(lut: any, dados: any)
 					h.som = "explosao"
 				end
 			end
-			Combate.acertar(lut, alvo, h, { dir = d })
+			if link then h.empurrar={frente=8,cima=-24,dur=0.12}; h.atordoar=0; h.ragdoll=nil end
+			local res=Combate.acertar(lut, alvo, h, { dir = d, context=a and Combate.contexto(lut), airlink=link })
+			if a and n==4 and variante=="cima" and res=="acertou" then
+				candidatos[alvo]=agora()
+				local escolhido=if candidatos[alvoMira] then alvoMira else nil
+				local dist=math.huge
+				if not escolhido then for candidato in candidatos do
+					local dd=(candidato.raiz.Position-lut.raiz.Position).Magnitude
+					if dd<dist then escolhido=candidato; dist=dd end
+				end end
+				p.link=nil; Perfil.vincular(p,a,escolhido,candidatos[escolhido])
+				Combate.privado(lut,"airlink",{seq=a.seq,generation=lut.geracao14,standId=a.stand,actionId=a.actionId,abre=p.link.abre,fecha=p.link.fecha,alvo=escolhido.modelo})
+			end
 		end
 		-- o 4º golpe também quebra o que estiver na frente
-		if n == 4 then
+		if n == 4 and not vistos.mapa then
+			vistos.mapa=true
 			Mapa.quebrarCaixa(cf, hb.tam, 2, d)
+		end
+	end
+	task.delay(contato, function()
+		contatoM1()
+		if a then
+			local fim=t+contato+Perfil.janela
+			while agora()<fim do
+				task.wait(math.min(0.02,fim-agora()))
+				if e.token~=token then break end
+				contatoM1()
+			end
 		end
 	end)
 end
@@ -399,14 +540,10 @@ function Combate.golpe(lut: any, slot: any, dados: any)
 	if e.bloqueando then
 		Regras.pararBloqueio(e)
 	end
-	local pode, motivo = Regras.podeAgir(e, t)
-	if not pode then
-		return negar(lut, "golpe", motivo)
-	end
 	local g, id = Golpes.doSlot(lut.stand, slot)
-	if not g or not id then
-		return negar(lut, "golpe", "golpe inválido")
-	end
+	if not g or not id then return negar(lut,"golpe","golpe inválido") end
+	local p=piloto(lut) and politica(lut)
+	if p and (lut.hum.Health<=0 or not lut.modelo.Parent or lut.agarradoPor or lut.raiz.Anchored or lut.modelo:GetAttribute("BB_Menu")) then return negar(lut,"golpe","preso") end
 	if g.ult then
 		if not Regras.desperto(e, t) then
 			return negar(lut, "golpe", "precisa DESPERTAR")
@@ -415,9 +552,18 @@ function Combate.golpe(lut: any, slot: any, dados: any)
 			return negar(lut, "golpe", "ULT já usada")
 		end
 	end
+	local cancela=p and not g.ult and type(slot)=="number" and slot>=1 and slot<=4 and Perfil.cancelavel(p,e,t)
+	local pode,motivo=Regras.podeAgir(e,t)
+	if not pode and not cancela then
+		if fila(lut,"golpe",dados,math.max(e.acaoAte,e.cds[id] or 0)) then return end
+		return negar(lut,"golpe",motivo)
+	end
 	if not Regras.cdPronto(e, id, t) then
+		if fila(lut,"golpe",dados,e.cds[id]) then return end
 		return negar(lut, "golpe", "recarga")
 	end
+	local a=iniciarAcao(lut,id,nil,t,dados)
+	if a then a.normal=not g.ult and g.tipo~="barragem" and g.tipo~="agarrar" end
 	local dir = lerDir(lut, dados)
 	local mult = (lut.stand.passiva and lut.stand.passiva.multRecarga) or 1
 	local fim = Regras.usarCd(e, id, (g.cd or 10) * mult, t)
@@ -427,10 +573,10 @@ function Combate.golpe(lut: any, slot: any, dados: any)
 	e.acaoAte = t + (g.trava or 0.5)
 	lut.andarAcao = g.andar or 0.3
 	Combate.privado(lut, "cd", { chave = id, fim = fim })
-	Combate.efeitoOutros(lut, "acao", { quem = lut.modelo, id = id, t = t, dir = dir, stand = lut.standId })
+	Combate.efeitoOutros(lut, "acao", { quem = lut.modelo, id = id, seq=dados and dados.seq, actionId=a and a.actionId, t = t, dir = dir, stand = lut.standId })
 	if lut.jogador then
 		-- o próprio jogador já animou; só confirma o tempo do servidor
-		Combate.privado(lut, "confirmado", { id = id, t = t })
+		if a then confirmar(lut,a,{stand=lut.standId}) else registrarAck(lut, "confirmado", { id = id, t = t, standId = lut.standId }) end
 	end
 	Combate.atualizarMovimento(lut)
 	if Executores then
@@ -441,13 +587,19 @@ end
 function Combate.bloquear(lut: any, ligar: boolean)
 	local e = lut.estado
 	local t = agora()
+	if piloto(lut) then
+		if ligar and not lut.defesaSegurada14 then lut.defesaInicio14=t end
+		lut.defesaSegurada14=ligar
+	end
 	if ligar then
 		if not Regras.podeAgir(e, t) then
+			if piloto(lut) then return end
 			return negar(lut, "bloqueio", "ocupado")
 		end
 		if not Regras.comecarBloqueio(e, t) then
 			return negar(lut, "bloqueio", "guarda quebrada")
 		end
+		if piloto(lut) then e.bloqueioInicio=lut.defesaInicio14 end
 	else
 		Regras.pararBloqueio(e)
 	end
@@ -464,14 +616,18 @@ function Combate.dash(lut: any, dados: any)
 	end
 	local pode, motivo = Regras.podeAgir(e, t)
 	if not pode then
+		if fila(lut,"dash",dados,e.acaoAte) then return end
 		return negar(lut, "dash", motivo)
 	end
 	local tipo = if type(dados) == "table" and (dados.tipo == "frente" or dados.tipo == "lado" or dados.tipo == "tras") then dados.tipo else "frente"
 	local chave = "dash_" .. tipo
 	if not Regras.cdPronto(e, chave, t) then
+		if fila(lut,"dash",dados,e.cds[chave]) then return end
 		return negar(lut, "dash", "recarga")
 	end
 	local def = Config.DASH[tipo]
+	local a=iniciarAcao(lut,"dash",nil,t,dados)
+	if a then a.normal=true end
 	local fim = Regras.usarCd(e, chave, def.recarga, t)
 	if e.bloqueando then
 		Regras.pararBloqueio(e)
@@ -480,7 +636,8 @@ function Combate.dash(lut: any, dados: any)
 	lut.andarAcao = 1
 	Combate.privado(lut, "cd", { chave = chave, fim = fim })
 	local dir = if type(dados) == "table" and typeof(dados.mov) == "Vector3" then dados.mov else lut.raiz.CFrame.LookVector
-	Combate.efeitoOutros(lut, "acao", { quem = lut.modelo, id = "dash", tipo = tipo, lado = if type(dados) == "table" then dados.lado else nil, t = t, dir = dir })
+	Combate.efeitoOutros(lut, "acao", { quem = lut.modelo, id = "dash", seq=a and a.seq, actionId=a and a.actionId, tipo = tipo, lado = if type(dados) == "table" then dados.lado else nil, t = t, dir = dir })
+	if a then confirmar(lut,a,{tipo=tipo,dir=dir,lado=type(dados)=="table" and dados.lado,stand=lut.standId}) end
 	if not lut.jogador then
 		local d = Regras.achatar(dir)
 		Fisica.empurrar(lut, d * def.vel, def.dur)
@@ -516,12 +673,12 @@ function Combate.evasiva(lut: any)
 	Combate.sincronizar(lut)
 end
 
-function Combate.despertar(lut: any)
+function Combate.despertar(lut: any, dados: any?)
 	local e = lut.estado
 	local t = agora()
 	if Regras.desperto(e, t) then
 		-- já desperto: G = ULT
-		return Combate.golpe(lut, "ult", {})
+		return Combate.golpe(lut, "ult", dados or {})
 	end
 	if not Regras.podeDespertar(e, t) then
 		return negar(lut, "despertar", "barra não está cheia")
@@ -561,8 +718,9 @@ function Combate.correr(lut: any, ligar: boolean)
 end
 
 -- porta de entrada dos pedidos (tudo é conferido aqui; o celular só pede)
-local LIMITES = { m1 = 0.08, golpe = 0.15, bloqueio = 0.03, dash = 0.12, evasiva = 0.2, despertar = 0.3, stand = 0.3, pose = 0.5, correr = 0.05 }
+local LIMITES = { soltar=0, m1 = 0.08, golpe = 0.15, bloqueio = 0.03, dash = 0.12, evasiva = 0.2, despertar = 0.3, stand = 0.3, pose = 0.5, correr = 0.05 }
 function Combate.pedido(jogador: Player, tipo: any, dados: any)
+	if jogadoresRemovidos14[jogador] then return end
 	if type(tipo) ~= "string" or not LIMITES[tipo] then
 		return
 	end
@@ -570,20 +728,35 @@ function Combate.pedido(jogador: Player, tipo: any, dados: any)
 	if not lut or lut.hum.Health <= 0 then
 		return
 	end
+	if type(dados) ~= "table" then dados={} end
+	if piloto(lut) or (protocolos14[jogador] and dados.seq~=nil) then
+		if dados.seq==nil then return end
+		local p=transporte(lut)
+		if not Perfil.sequencia(p,dados.seq) then
+			local ack=type(dados.seq)=="number" and dados.seq==dados.seq and p.acks and p.acks[dados.seq]
+			if ack and ack.lut==lut and ack.geracao==lut.geracao14 then Combate.privado(lut,ack.tipo,ack.dados) end
+			return
+		end
+		lut.pedidoSeq14=dados.seq
+	end
+	local release=tipo=="soltar" or (tipo=="bloqueio" and dados.ligar~=true)
 	local t = os.clock()
 	local reg = ultimoPedido[jogador]
 	if not reg then
 		reg = {}
 		ultimoPedido[jogador] = reg
 	end
-	if reg[tipo] and t - reg[tipo] < LIMITES[tipo] then
+	if not release and reg[tipo] and t - reg[tipo] < (if piloto(lut) then 0.015 else LIMITES[tipo]) then
 		return
 	end
 	reg[tipo] = t
 	if type(dados) ~= "table" then
 		dados = {}
 	end
-	if tipo == "m1" then
+	if tipo=="soltar" then
+		politica(lut).buffer=nil
+		Combate.bloquear(lut,false)
+	elseif tipo == "m1" then
 		Combate.m1(lut, dados)
 	elseif tipo == "golpe" then
 		Combate.golpe(lut, dados.slot, dados)
@@ -594,7 +767,7 @@ function Combate.pedido(jogador: Player, tipo: any, dados: any)
 	elseif tipo == "evasiva" then
 		Combate.evasiva(lut)
 	elseif tipo == "despertar" then
-		Combate.despertar(lut)
+		Combate.despertar(lut,dados)
 	elseif tipo == "stand" then
 		Combate.alternarStand(lut)
 	elseif tipo == "pose" then
@@ -616,7 +789,23 @@ local function passo(dt: number)
 	for _, lut in Lutadores.todos() do
 		local e = lut.estado
 		if lut.hum.Health <= 0 or not lut.modelo.Parent then
+			if lut.combate14 then lut.combate14.buffer=nil; lut.combate14.link=nil; fimAcao(lut,lut.combate14.acao,"interrompida") end
 			continue
+		end
+		if piloto(lut) then
+			local p=politica(lut)
+			local a=p.acao
+			if a and (a.token~=e.token or a.stand~=lut.standId) then
+				p.buffer=nil; p.link=nil; fimAcao(lut,a,"interrompida")
+			elseif a and t>=e.acaoAte then fimAcao(lut,a,"concluida") end
+			local cmd=Perfil.retirar(p,e,t)
+			if cmd then
+				lut.pedidoSeq14=cmd.dados.seq
+				if cmd.tipo=="m1" then Combate.m1(lut,cmd.dados) elseif cmd.tipo=="golpe" then Combate.golpe(lut,cmd.dados.slot,cmd.dados) elseif cmd.tipo=="dash" then Combate.dash(lut,cmd.dados) end
+			end
+			if lut.defesaSegurada14 and not e.bloqueando and Regras.podeAgir(e,t) and not lut.agarradoPor then
+				if Regras.comecarBloqueio(e,t) then e.bloqueioInicio=lut.defesaInicio14; Combate.sincronizar(lut) end
+			end
 		end
 		-- quem está voando quebra as paredes no caminho
 		if t < e.ragdollAte then
@@ -662,14 +851,22 @@ function Combate.iniciar(remotos: any, executores: any, abate: any)
 	privado = remotos.Privado
 	Executores = executores
 	aoAbate = abate
+	Lutadores.antesTrocarStand=function(lut,novoId)
+		if piloto(lut) or Perfil.suporta(novoId) then Combate.cancelar(lut) end
+	end
+	Lutadores.antesRemover=Combate.cancelar
 	remotos.Acao.OnServerEvent:Connect(Combate.pedido)
 	Players.PlayerRemoving:Connect(function(p)
 		ultimoPedido[p] = nil
+		protocolos14[p]=nil
+		jogadoresRemovidos14[p]=true
 	end)
 	RunService.Heartbeat:Connect(passo)
 end
 
 function Combate.abate(vitima: any)
+	Combate.cancelar(vitima)
+	vitima.vida14=vitima.geracao14
 	local t = agora()
 	local assassino = nil
 	if vitima.ultimoAtacante and t - vitima.ultimoAtacanteT <= Config.CREDITO_ABATE and vitima.ultimoAtacante ~= vitima then

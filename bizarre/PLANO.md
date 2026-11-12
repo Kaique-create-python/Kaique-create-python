@@ -1,7 +1,27 @@
 # BIZARRE BATTLEGROUNDS — plano para deixar tudo cabuloso
 
 Referência: Jujutsu Shenanigans (combate rápido, câmera de ombro, ragdoll, ULT com cena).
-Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste na nuvem passar.
+Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste na nuvem passar
+e o dono confirmar. O fluxo AJ14 usa primeiro uma versão **Saved**, preservando a publicada.
+
+## AJUSTE-14 — piloto atual
+
+Plano aprovado: [docs/PLANO_AJUSTE14.md](docs/PLANO_AJUSTE14.md).
+Instalação e limites: [docs/README_AJUSTE14.md](docs/README_AJUSTE14.md).
+Validação: [docs/VALIDACAO_AJUSTE14.md](docs/VALIDACAO_AJUSTE14.md).
+
+- Star Platinum e The World recebem receitas feitas com 23 templates reais dos pacotes enviados,
+  previsão/ACK sem repetir impacto e escopos de efeitos por ação/sessão.
+- Combate: buffer de 120 ms, sequência idempotente, cancelamento após acerto válido e uma única
+  extensão aérea do uppercut; hitbox/cooldown/dano continuam validados no servidor.
+- ORA/MUDA completos 4,6 s e golpe final em 4,35 s. Cena ULT curta, câmera preservada e retorno
+  correto após interrupção. Sons/IDs anteriores permanecem.
+- Iluminação alta, materiais selecionados, sem reconstruir a cidade ou mudar colisões.
+- Prévia local dos VFX em ADM; instalador altera o Place atual, com backup e POST único.
+
+Próximo passo real: Kaique executar `testar-nuvem`, conferir a prévia/combate SP/TW e só então
+autorizar a publicação. Depois do teste no celular, estender a curadoria aos outros quatro Stands.
+As listas abaixo são **histórico e ideias futuras**, não uma autorização para mudar o escopo.
 
 ## Feito até o AJUSTE-7
 AJUSTE-7: câmera de mira a 11 studs com proteção de parede, botões que não travam, menu que só
@@ -115,7 +135,7 @@ instalador que confere a versão no ar. Detalhes em RELATORIO_AJUSTE7.md.
    combo grande na tela, kill feed com o rosto do Stand.
 6. **Mapa** — pontos famosos de Morioh marcados (casa do Josuke, Kame Yu), música por bairro.
 7. **Progresso** — nível e títulos por Stand (já salva vitórias), skins de cor do Stand.
-8. **Desempenho no celular** — qualidade automática (menos partículas em celular fraco).
+8. **Desempenho no celular** — adiado pelo dono. AJ14 prioriza qualidade, sem redução automática.
 
 ## Regras que nunca mudam
 - A chave da Open Cloud é pedida escondida no Termux e nunca aparece.

@@ -71,6 +71,7 @@ end
 -- quando alguém cai
 local function aoAbate(vitima: any, assassino: any?)
 	local dados = {
+		quem = vitima.modelo,
 		vitima = vitima.nome,
 		standV = vitima.standId,
 		assassino = if assassino then assassino.nome else nil,

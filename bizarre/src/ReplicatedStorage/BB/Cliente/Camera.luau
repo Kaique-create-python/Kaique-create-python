@@ -16,6 +16,11 @@ local alvoTrava: Model? = nil
 local rng = Random.new()
 local correndo = false
 local tremorAplicado: CFrame? = nil
+local cameraTremor: Camera? = nil
+local frameTremor: CFrame? = nil
+local iniciou = false
+local basesFov = setmetatable({}, { __mode = "k" })
+local pulsoFov = 0
 
 function Camera.ligarTremor(sim: boolean)
 	tremorLigado = sim
@@ -31,9 +36,13 @@ function Camera.tremer(forca: number, dur: number)
 end
 
 function Camera.fov(extra: number, dur: number)
+	pulsoFov += 1
+	local token = pulsoFov
 	fovExtra = extra
 	task.delay(dur, function()
-		fovExtra = 0
+		if token == pulsoFov then
+			fovExtra = 0
+		end
 	end)
 end
 
@@ -154,6 +163,29 @@ end
 -- AJUSTE7: um dono só para a câmera. "jogo" = câmera normal; "menu" e "cinema" pegam emprestado
 -- e devolvem. Se alguém esquecer de devolver (morreu no meio da cena), a câmera se recupera.
 local dono = "jogo"
+-- Cada empréstimo guarda somente o FOV que ele alterou. Devoluções antigas não encerram
+-- um empréstimo novo com o mesmo nome; os fechados por baixo são restaurados ao desempilhar.
+local emprestimos: { any } = {}
+local function restaurarFov(lease: any)
+	for cam, valor in lease.fovs do
+		pcall(function() cam.FieldOfView = valor end)
+	end
+end
+local function observarCamera(cam: Camera)
+	if basesFov[cam] == nil then basesFov[cam] = cam.FieldOfView end
+	fovBase = basesFov[cam]
+end
+function Camera.pertence(token: any): boolean
+	return token ~= nil and emprestimos[#emprestimos] == token and not token.fechado
+end
+function Camera.fovCinema(token: any, valor: number)
+	if not Camera.pertence(token) then return end
+	local cam = workspace.CurrentCamera
+	if not cam then return end
+	observarCamera(cam)
+	if token.fovs[cam] == nil then token.fovs[cam] = cam.FieldOfView end
+	cam.FieldOfView = math.clamp(valor, 35, 90)
+end
 function Camera.modoTrava(): boolean
 	return modoTrava
 end
@@ -161,15 +193,32 @@ end
 function Camera.dono(): string
 	return dono
 end
-function Camera.assumir(quem: string)
+function Camera.assumir(quem: string, aninhar: boolean?): any
+	-- As chamadas antigas (menu) são idempotentes. Leases aninhadas pedem true explicitamente.
+	local atual = emprestimos[#emprestimos]
+	if dono == quem and atual and not atual.fechado and not aninhar then return atual end
+	-- Menu substitui cinema; não pode reviver uma cena velha quando fechar.
+	if dono ~= quem then
+		for i = #emprestimos, 1, -1 do
+			restaurarFov(emprestimos[i])
+			emprestimos[i].fechado = true
+		end
+		table.clear(emprestimos)
+	end
+	local token = { quem = quem, fovs = {}, fechado = false }
+	table.insert(emprestimos, token)
 	dono = quem
-	workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+	tremorAplicado, cameraTremor, frameTremor = nil, nil, nil
+	local cam = workspace.CurrentCamera
+	if cam then observarCamera(cam) cam.CameraType = Enum.CameraType.Scriptable end
+	return token
 end
 function Camera.recuperar()
 	if dono ~= "jogo" then
 		return
 	end
 	local cam = workspace.CurrentCamera
+	if not cam then return end
 	if cam.CameraType ~= Enum.CameraType.Custom then
 		cam.CameraType = Enum.CameraType.Custom
 	end
@@ -179,12 +228,17 @@ function Camera.recuperar()
 		cam.CameraSubject = hum
 	end
 end
-function Camera.devolver(quem: string)
-	if dono ~= quem then
-		return
+function Camera.devolver(quem: string, token: any?)
+	local lease = token or emprestimos[#emprestimos]
+	if not lease or lease.quem ~= quem or lease.fechado or not table.find(emprestimos, lease) then return end
+	lease.fechado = true
+	while #emprestimos > 0 and emprestimos[#emprestimos].fechado do
+		local acabou = table.remove(emprestimos)
+		restaurarFov(acabou)
 	end
-	dono = "jogo"
-	Camera.recuperar()
+	local topo = emprestimos[#emprestimos]
+	dono = if topo then topo.quem else "jogo"
+	if dono == "jogo" then Camera.recuperar() end
 end
 
 -- volta suave para a câmera do jogo depois de uma cena de cinema
@@ -299,18 +353,24 @@ function Camera.travado(): Model?
 end
 
 function Camera.iniciar()
+	if iniciou then return end
+	iniciou = true
 	local cam = workspace.CurrentCamera
-	fovBase = cam.FieldOfView
+	if cam then observarCamera(cam) end
 	-- desfaz o tremor do quadro anterior ANTES da câmera do Roblox calcular (senão ele acumula)
 	RunService:BindToRenderStep("BB_CameraAntes", Enum.RenderPriority.Camera.Value - 1, function()
 		if tremorAplicado then
 			local c = workspace.CurrentCamera
-			c.CFrame = c.CFrame * tremorAplicado:Inverse()
-			tremorAplicado = nil
+			if c and c == cameraTremor and dono == "jogo" and c.CFrame == frameTremor then
+				c.CFrame = c.CFrame * tremorAplicado:Inverse()
+			end
+			tremorAplicado, cameraTremor, frameTremor = nil, nil, nil
 		end
 	end)
 	RunService:BindToRenderStep("BB_Camera", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		cam = workspace.CurrentCamera
+		if not cam then return end
+		observarCamera(cam)
 		-- ninguém pediu a câmera e ela ficou presa (cena interrompida, renasceu): recupera
 		if dono == "jogo" and cam.CameraType == Enum.CameraType.Scriptable and not modoTrava then
 			Camera.recuperar()
@@ -401,7 +461,7 @@ function Camera.iniciar()
 		end
 		-- tremor
 		local agora = os.clock()
-		if agora < fimTremor and intensidade > 0 then
+		if dono == "jogo" and agora < fimTremor and intensidade > 0 then
 			local k = intensidade * math.clamp((fimTremor - agora) / 0.25, 0, 1)
 			local a = math.rad(k * 1.6)
 			local tremor = CFrame.Angles(rng:NextNumber(-a, a), rng:NextNumber(-a, a), rng:NextNumber(-a, a) * 0.5)
@@ -409,6 +469,7 @@ function Camera.iniciar()
 			if cam.CameraType == Enum.CameraType.Custom then
 				cam.CFrame = cam.CFrame * tremor
 				tremorAplicado = tremor
+				cameraTremor, frameTremor = cam, cam.CFrame
 			elseif modoTrava then
 				-- na trava a câmera é refeita do zero a cada quadro: não precisa desfazer
 				cam.CFrame = cam.CFrame * tremor
@@ -417,8 +478,10 @@ function Camera.iniciar()
 			intensidade = 0
 		end
 		-- FOV (corrida e golpes fortes)
-		local alvoFov = fovBase + fovExtra + (if correndo then 6 else 0)
-		cam.FieldOfView += (alvoFov - cam.FieldOfView) * math.min(1, dt * 8)
+		if dono == "jogo" then
+			local alvoFov = fovBase + fovExtra + (if correndo then 6 else 0)
+			cam.FieldOfView += (alvoFov - cam.FieldOfView) * math.min(1, dt * 8)
+		end
 	end)
 end
 

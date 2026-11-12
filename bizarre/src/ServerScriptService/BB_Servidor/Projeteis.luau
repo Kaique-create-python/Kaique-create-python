@@ -54,6 +54,7 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 		golpe = golpeId,
 		t0 = agora(),
 		congeladoAte = 0,
+		congelamentos = {},
 		avisoT = 0,
 	}
 	ativos[id] = p
@@ -72,6 +73,19 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 		})
 	end
 	return id
+end
+
+-- A esfera pode alcançar um corpo do outro lado de uma parede lateral mesmo com
+-- trajetória central livre. O piloto confirma LOS por vítima antes de consumir hit.
+local function piloto14(p)
+	local ctx=p.def.context14
+	return ctx and (ctx.stand=="STAR_PLATINUM" or ctx.stand=="THE_WORLD")
+end
+local function linhaVitima(p,alvo)
+	local v=alvo.raiz.Position-p.pos
+	if v.Magnitude<1e-4 then return true end
+	local hit=workspace:Raycast(p.pos,v,paramsRaio)
+	return not hit or (hit.Position-p.pos).Magnitude>=v.Magnitude-0.05
 end
 
 -- persegue o inimigo mais perto (só no plano do chão) virando no máximo "guiado" radianos/s
@@ -121,19 +135,32 @@ local function terminar(p: any, pos: Vector3, explodiu: boolean)
 	end
 end
 
--- AJUSTE7: o tempo voltou antes (dono caiu): solta os projéteis que aquela sessão parou
-function Projeteis.descongelar(ate: number)
+-- Each session owns only its overlay. The optional ID keeps old deadline calls
+-- compatible while allowing independent sessions with equal or different ends.
+local function chaveCongelamento(ate, sessao)
+	return sessao or ("legado:"..tostring(ate))
+end
+local function atualizarCongelamentos(p,t)
+	local fim=0
+	for chave,ate in p.congelamentos do
+		if ate<=t then p.congelamentos[chave]=nil else fim=math.max(fim,ate) end
+	end
+	p.congeladoAte=fim
+end
+function Projeteis.descongelar(ate: number, sessao: any?)
+	local chave=chaveCongelamento(ate,sessao)
 	for _, p in ativos do
-		if p.congeladoAte == ate then
-			p.congeladoAte = 0
-		end
+		p.congelamentos[chave]=nil
+		atualizarCongelamentos(p,agora())
 	end
 end
 
-function Projeteis.congelar(ate: number, exceto: any?)
+function Projeteis.congelar(ate: number, exceto: any?, sessao: any?)
+	local chave=chaveCongelamento(ate,sessao)
 	for _, p in ativos do
 		if p.dono ~= exceto then
-			p.congeladoAte = ate
+			p.congelamentos[chave]=ate
+			atualizarCongelamentos(p,agora())
 		end
 	end
 end
@@ -148,6 +175,7 @@ function Projeteis.passo(dt: number)
 		paramsRaio.FilterDescendantsInstances = Mapa.filtro()
 	end
 	for _, p in ativos do
+		atualizarCongelamentos(p,t)
 		if t < p.congeladoAte then
 			continue
 		end
@@ -169,7 +197,8 @@ function Projeteis.passo(dt: number)
 		p.dist += passo.Magnitude
 		-- acertou alguém?
 		local fim = false
-		for _, alvo in Hitbox.esfera(p.pos, p.raio + 1.2, p.dono) do
+		for _, alvo in Hitbox.esfera(p.pos, p.raio + 1.2, p.dono, piloto14(p)) do
+			if piloto14(p) and not linhaVitima(p,alvo) then continue end
 			if p.acertou[alvo] then
 				continue
 			end

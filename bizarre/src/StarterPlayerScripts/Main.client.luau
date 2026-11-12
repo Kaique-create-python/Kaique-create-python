@@ -32,6 +32,10 @@ local Controles = require(Cliente:WaitForChild("Controles"))
 local Menu = require(Cliente:WaitForChild("Menu"))
 local AdminCliente = require(Cliente:WaitForChild("AdminCliente"))
 local UI = require(Cliente:WaitForChild("Interface"))
+local Apresentacao14 = require(Cliente:WaitForChild("Apresentacao14"))
+local AmbienteVisual14 = require(Cliente:WaitForChild("AmbienteVisual14"))
+AmbienteVisual14.iniciar()
+Apresentacao14.iniciar()
 
 Som.iniciar()
 Animador.iniciar()
@@ -63,6 +67,9 @@ AdminCliente.iniciar(remotos.Admin)
 local TRATADORES = {
 	acao = function(d)
 		Acoes.tocar(d.quem, d)
+	end,
+	acaoFim = function(d)
+		Acoes.concluir(d.quem,d)
 	end,
 	acerto = function(d)
 		Efeitos.acerto(d)
@@ -96,7 +103,10 @@ local TRATADORES = {
 	baile = Efeitos.baile,
 	reconstruir = Efeitos.reconstruir,
 	esquiva = Efeitos.esquiva,
-	morte = HUD.morte,
+	morte = function(d)
+  if d.quem then Acoes.interromper(d.quem); Efeitos.limparDono(d.quem) end
+  HUD.morte(d)
+ end,
 	anuncio = function(d)
 		HUD.anuncio(d.texto, d.cor)
 	end,
@@ -135,6 +145,8 @@ local function estadoVisual(m: Model, agora: number)
 	-- AJUSTE7: quem está parado no tempo é o que o SERVIDOR marcou (cada sessão tem os seus alvos)
 	local tempo = (m:GetAttribute("BB_Congelado") or 0) > agora
 	local stun = (m:GetAttribute("BB_Stun") or 0) > agora
+ local hum=m:FindFirstChildOfClass("Humanoid")
+ local morto=hum and hum.Health <= 0
 	local travado = tempo or pedra or preso
 	a.congelado = travado
 	local x = extras[m]
@@ -143,10 +155,11 @@ local function estadoVisual(m: Model, agora: number)
 		extras[m] = x
 	end
 	-- atordoou, congelou ou caiu AGORA: o golpe, a voz e os efeitos dele param na mesma hora
-	if (stun and not x.stun) or (travado and not x.travado) or (ragdoll and not x.ragdoll) then
+	if (morto and not x.morto) or (stun and not x.stun) or (travado and not x.travado) or (ragdoll and not x.ragdoll) then
 		Acoes.interromper(m)
 	end
-	x.stun, x.travado, x.ragdoll = stun, travado, ragdoll
+	if morto and not x.morto then Efeitos.limparDono(m) end
+ x.stun, x.travado, x.ragdoll, x.morto = stun, travado, ragdoll, morto
 	-- pedra/preso: corpo cinza ou rosado
 	local bomba = (m:GetAttribute("BB_Bomba") or 0) > agora -- a Killer Queen transformou em bomba
 	local querCor = if pedra then Color3.fromRGB(130, 128, 124) elseif preso or bomba then Color3.fromRGB(255, 150, 210) else nil
@@ -204,6 +217,8 @@ RunService.RenderStepped:Connect(function()
 	end
 	for m, x in extras do
 		if not vistos[m] or not m.Parent then
+   Acoes.interromper(m)
+   Efeitos.limparDono(m)
 			if x.brilho then
 				x.brilho:Destroy()
 			end
@@ -236,20 +251,37 @@ guiTopo.Parent = plr:WaitForChild("PlayerGui")
 UI.escalaTela(guiTopo, 1100, 600, 0.55, 1.1)
 local botaoStands = UI.botao(guiTopo, "STANDS", UDim2.fromOffset(110, 36), UDim2.new(0.5, -55, 0, 6), UI.CORES.roxo, { limite = 22 })
 botaoStands.Visible = false
+local function cancelarLocal()
+ Jogador.soltarEntradas()
+ Controles.soltarTudo()
+ Acoes.interromper(plr.Character)
+ Cinematica.cancelar()
+end
 botaoStands.MouseButton1Click:Connect(function()
+ cancelarLocal()
 	Controles.ativar(false)
 	HUD.mostrar(false)
 	Menu.abrir(true)
 end)
+local menuAnterior = Menu.aberto()
 RunService.Heartbeat:Connect(function()
-	botaoStands.Visible = not Menu.aberto() and plr.Character ~= nil
+ local aberto=Menu.aberto()
+ if aberto and not menuAnterior then cancelarLocal() end
+ menuAnterior=aberto
+ botaoStands.Visible = not Menu.aberto() and plr.Character ~= nil
+end)
+
+game:GetService("UserInputService").WindowFocusReleased:Connect(cancelarLocal)
+plr.CharacterRemoving:Connect(function(c)
+ Jogador.soltarEntradas()
+ Controles.soltarTudo()
+ Acoes.interromper(c)
+ Efeitos.limparDono(c)
+ Cinematica.cancelar()
 end)
 
 -- morreu: aviso com contagem
-if plr.Character then
-	Animador.assumirPersonagem(plr.Character)
-end
-plr.CharacterAdded:Connect(function(c)
+local function assumirPersonagem(c: Model)
 	-- AJUSTE-11: o andar é o do jogo (tira o "Animate" padrão do Roblox se ele vier)
 	Animador.assumirPersonagem(c)
 	local hum = c:WaitForChild("Humanoid", 10) :: Humanoid?
@@ -258,14 +290,19 @@ plr.CharacterAdded:Connect(function(c)
 			HUD.aviso("Você caiu! Voltando em 4...")
 			HUD.continua(true)
 			Camera.travar(nil)
-			Controles.soltarTudo()
-			Acoes.interromper(c)
+			Jogador.soltarEntradas()
+   Controles.soltarTudo()
+   Acoes.interromper(c)
+   Efeitos.limparDono(c)
+   Cinematica.cancelar()
 		end)
 	end
 	-- renasceu: tela normal e câmera de volta no personagem
 	HUD.continua(false)
 	Camera.recuperar()
-end)
+end
+if plr.Character then task.spawn(assumirPersonagem,plr.Character) end
+plr.CharacterAdded:Connect(assumirPersonagem)
 
 -- espera o mundo ficar pronto e abre o menu (a tela de carregamento some depois disso)
 -- (sem "pronto" de mentira: se o servidor não ligar, a tela de carregamento avisa e oferece

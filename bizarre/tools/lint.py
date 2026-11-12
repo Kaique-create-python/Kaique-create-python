@@ -37,12 +37,22 @@ def declarados(src):
             n = re.match(r"\s*([A-Za-z_]\w*)", parte)
             if n:
                 nomes.add(n.group(1))
-    for m in re.finditer(r"\bfunction\b[^(\n]*\(([^)]*)\)", src):
-        for parte in m.group(1).split(","):
+    # Tipos de callback têm parênteses próprios: não encerrar a assinatura no () -> ().
+    for m in re.finditer(r"\bfunction\b[^(\n]*\(", src):
+        depth, start, end = 1, m.end(), m.end()
+        while end < len(src) and depth:
+            if src[end] == "(":
+                depth += 1
+            elif src[end] == ")":
+                depth -= 1
+            end += 1
+        if depth:
+            continue
+        for parte in src[start:end - 1].split(","):
             n = re.match(r"\s*([A-Za-z_]\w*)", parte)
             if n:
                 nomes.add(n.group(1))
-    for m in re.finditer(r"\bfor\s+([^=\n]*?)\s+(?:in\b|=)", src):
+    for m in re.finditer(r"\bfor\s+([^=\n]*?)(?:\s+in\b|\s*=)", src):
         for parte in m.group(1).split(","):
             n = re.match(r"\s*([A-Za-z_]\w*)", parte)
             if n:

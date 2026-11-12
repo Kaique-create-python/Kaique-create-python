@@ -11,6 +11,12 @@ local Lutadores = {}
 local porModelo: { [Model]: any } = {}
 local lista: { any } = {}
 local versao = 0
+local geracao = 0
+function Lutadores.invalidarGeracao(lut)
+	geracao += 1
+	lut.geracao14 = geracao
+	lut.modelo:SetAttribute("BB_Geracao14",geracao)
+end
 
 function Lutadores.criar(modelo: Model, jogador: Player?, standId: string, opcoes: any?)
 	local hum = modelo:FindFirstChildOfClass("Humanoid")
@@ -39,6 +45,8 @@ function Lutadores.criar(modelo: Model, jogador: Player?, standId: string, opcoe
 		sequencia = 0,
 		marcas = {},
 	}
+	Lutadores.invalidarGeracao(lut)
+	lut.vida14=lut.geracao14
 	lut.estado.multDanoRecebido = (stand.passiva and stand.passiva.multDanoRecebido) or 1
 	porModelo[modelo] = lut
 	table.insert(lista, lut)
@@ -55,6 +63,8 @@ function Lutadores.trocarStand(lut: any, standId: string)
 	if not stand then
 		return false
 	end
+	Lutadores.invalidarGeracao(lut)
+	if Lutadores.antesTrocarStand then Lutadores.antesTrocarStand(lut,stand.id) end
 	lut.standId = stand.id
 	lut.stand = stand
 	lut.estado.cds = {}
@@ -92,6 +102,9 @@ function Lutadores.remover(modelo: Model)
 	if not lut then
 		return
 	end
+	Lutadores.invalidarGeracao(lut)
+	lut.vida14=lut.geracao14
+	if Lutadores.antesRemover then Lutadores.antesRemover(lut) end
 	porModelo[modelo] = nil
 	local i = table.find(lista, lut)
 	if i then

@@ -66,6 +66,7 @@ Controles.travarProximo = travarProximo
 ------------------------------------------------------------------------------------- teclado/controle
 local function acao(nome: string, estado: Enum.UserInputState, _obj: InputObject)
 	if not ativo then
+		if nome=="BB_Bloq" and (estado==Enum.UserInputState.End or estado==Enum.UserInputState.Cancel) then Jogador.bloquear(false) end
 		return Enum.ContextActionResult.Pass
 	end
 	local comecou = estado == Enum.UserInputState.Begin
@@ -266,8 +267,8 @@ end
 local function soltarTudo()
 	Toques.soltarTudo()
 	segurandoM1 = false
-	if Jogador and Jogador.bloqueando() then
-		Jogador.bloquear(false)
+	if Jogador then
+		if Jogador.soltarEntradas then Jogador.soltarEntradas() elseif Jogador.bloqueando() then Jogador.bloquear(false) end
 	end
 end
 Controles.soltarTudo = soltarTudo

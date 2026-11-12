@@ -1,0 +1,12 @@
+{
+  "sha256": "edb67c2253a330bf437dc1407403d2fb10f53a54b77e62a2bdf4b3b8bf3ef4f6",
+  "bytes": 295749,
+  "sources": 52,
+  "source_digest": "0d7afd9793138ea9677866367e66f0f7d10b7551983a9a0213c7581f2ca4e098",
+  "preflight_bytes": 25627,
+  "original_instances": 184983,
+  "patched_instances": 185097,
+  "original_bytes": 2717435,
+  "patched_bytes": 2643753,
+  "opaque_property_chunks_exact": 188
+}

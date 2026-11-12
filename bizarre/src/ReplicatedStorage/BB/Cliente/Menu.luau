@@ -38,7 +38,7 @@ local botaoVoltar: TextButton
 local painelControles: Frame
 local painelAjustes: Frame
 -- AJUSTE-13: a mira NÃO gruda sozinha (só no botão MIRA); música desligada (sem a linha nos ajustes)
-local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "auto", tremor = 1, camera = 12.5, mira = false }
+local ajustes: { [string]: any } = { musica = 1, efeitos = 1, qualidade = "alta", tremor = 1, camera = 12.5, mira = false }
 
 local function estrelas(n: number): string
 	return string.rep("★", n) .. string.rep("☆", 3 - n)
@@ -206,7 +206,7 @@ end
 local OPCOES = {
 	musica = { { "100%", 1 }, { "50%", 0.5 }, { "DESLIGADA", 0 }, { "160%", 1.6 } },
 	efeitos = { { "100%", 1 }, { "70%", 0.7 }, { "40%", 0.4 }, { "SEM SOM", 0 } },
-	qualidade = { { "AUTOMÁTICA", "auto" }, { "BAIXA (celular fraco)", "baixa" }, { "ALTA", "alta" } },
+	qualidade = { { "ALTA", "alta" }, { "BAIXA", "baixa" } },
 	tremor = { { "NORMAL", 1 }, { "FORTE", 1.4 }, { "LEVE", 0.5 }, { "DESLIGADO", 0 } },
 	camera = { { "NORMAL", 12.5 }, { "LONGE", 16 }, { "MUITO LONGE", 20 }, { "PERTO", 9 } },
 	mira = { { "SÓ NO BOTÃO MIRA", false }, { "GRUDA SOZINHA", true } },

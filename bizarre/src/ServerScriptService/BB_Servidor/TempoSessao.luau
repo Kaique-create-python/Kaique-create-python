@@ -8,7 +8,7 @@ local proximo = 0
 
 function TempoSessao.nova(dono: any, fim: number): any
 	proximo += 1
-	return { id = proximo, dono = dono, fim = fim, ativa = true, alvos = {} }
+	return { id = proximo, dono = dono, fim = fim, ativa = true, alvos = {}, vida14=dono and dono.vida14 }
 end
 
 -- congela quem ainda não está congelado por OUTRA sessão ativa; devolve quem entrou nesta
@@ -46,7 +46,7 @@ end
 -- o dono ainda pode manter o tempo parado?
 function TempoSessao.donoVivo(sessao: any): boolean
 	local d = sessao.dono
-	return d ~= nil and d.hum ~= nil and d.hum.Health > 0 and d.modelo ~= nil and d.modelo.Parent ~= nil
+	return d ~= nil and d.vida14==sessao.vida14 and d.hum ~= nil and d.hum.Health > 0 and d.modelo ~= nil and d.modelo.Parent ~= nil
 end
 
 return TempoSessao

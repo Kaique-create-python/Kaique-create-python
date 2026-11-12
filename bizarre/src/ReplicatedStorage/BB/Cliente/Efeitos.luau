@@ -18,7 +18,9 @@ local Animador = require(script.Parent:WaitForChild("Animador"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
 local VFX = require(script.Parent:WaitForChild("VFX"))
 
+local Apresentacao = require(script.Parent:WaitForChild("Apresentacao14"))
 local Efeitos = {}
+local geracoesDono = setmetatable({}, {__mode="k"})
 
 local pasta: Folder
 local rng = Random.new()
@@ -392,29 +394,12 @@ end
 local telaImpacto: Frame? = nil
 local corImpacto: ColorCorrectionEffect? = nil
 function Efeitos.impactFrame()
-	if not telaImpacto then
-		return
-	end
-	local tela = telaImpacto
-	local cc = corImpacto
-	Animador.pausarTudo(0.12)
-	if cc then
-		cc.Saturation = -1
-		cc.Contrast = 0.9
-		cc.Brightness = 0.1
-		task.delay(0.12, function()
-			tween(cc, 0.25, { Saturation = 0, Contrast = 0, Brightness = 0 })
-		end)
-	end
-	tela.BackgroundColor3 = BRANCO
-	tela.BackgroundTransparency = 0.25
-	task.delay(0.04, function()
-		tela.BackgroundColor3 = RGB(0, 0, 0)
-		tela.BackgroundTransparency = 0.5
-		task.delay(0.05, function()
-			tween(tela, 0.15, { BackgroundTransparency = 1 })
-		end)
-	end)
+ local tela = telaImpacto
+ if not tela then return end
+ -- Brief dark accent keeps the target readable; no white screen or shared animation pause.
+ tela.BackgroundColor3 = RGB(25, 20, 35)
+ tela.BackgroundTransparency = 0.88
+ task.delay(0.04,function() tween(tela,0.08,{BackgroundTransparency=1}) end)
 end
 
 ------------------------------------------------------------------------------------- acerto
@@ -467,7 +452,15 @@ local function chaoAbaixo(pos: Vector3): Vector3
 end
 Efeitos.chaoAbaixo = chaoAbaixo
 
+local contatos: { [string]: number } = {}
 function Efeitos.acerto(d: any)
+ if d.hitId then
+  local now = workspace:GetServerTimeNow()
+  for key,expiry in contatos do if expiry <= now then contatos[key]=nil end end
+  local key = tostring(d.hitId)..":"..tostring(d.phase or "resolved")
+  if contatos[key] then return end
+  contatos[key]=now+150
+ end
 	local eu = Players.LocalPlayer.Character
 	local pos: Vector3 = d.pos or Vector3.zero
 	local tipo = d.tipo or "impacto"
@@ -481,6 +474,11 @@ function Efeitos.acerto(d: any)
 		end
 	end
 	local SV = require(script.Parent:WaitForChild("StandVisual"))
+ local piloto = Apresentacao.disponivel(d.stand)
+ local function receita(move: string, owner: Model?, standId: string?, localPos: Vector3?): boolean
+  local phase=if (move=="STAR_PLATINUM_1" or move=="THE_WORLD_1") and tipo=="impacto_forte" then "final" else "contato"
+  return Apresentacao.tocar(standId,move,phase,Apresentacao.contexto(owner,d,localPos or pos))
+ end
 	if tipo == "bloqueio" then
 		-- AJUSTE-10: quem defende é o Stand na frente (faíscas nos braços dele, e ele tranca)
 		local posGuarda = pos
@@ -489,7 +487,10 @@ function Efeitos.acerto(d: any)
 		if tronco and SV.visivel(d.v) then
 			posGuarda = tronco.Position + Vector3.new(0, 0.9, 0) - (dirGolpe or Vector3.zero) * 0.6
 		end
-		VFX.guarda(posGuarda, if dirGolpe then -dirGolpe else nil, corStand(typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil))
+		local defensor = typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil
+  if not receita("bloqueio",d.v,defensor,posGuarda) then
+   VFX.guarda(posGuarda, if dirGolpe then -dirGolpe else nil, corStand(defensor))
+  end
 		SV.impactoGuarda(d.v)
 		Som.tocar("bloqueio", pos)
 		if d.v == eu then
@@ -497,10 +498,10 @@ function Efeitos.acerto(d: any)
 		end
 		return
 	elseif tipo == "parry" then
-		VFX.parry(pos, corStand(typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil))
+		local defensor = typeof(d.v) == "Instance" and d.v:GetAttribute("BB_Stand") or nil
+  if not receita("parry",d.v,defensor) then VFX.parry(pos,corStand(defensor)) end
 		SV.parry(d.v)
-		Animador.hitstop(d.a, 0.14)
-		Animador.hitstop(d.v, 0.14)
+		for _, alvo in {d.a,d.v,SV.modelo(d.a),SV.modelo(d.v)} do if alvo then Animador.hitstop(alvo,0.08) end end
 		Som.tocar("parry", pos)
 		Animador.tocar(d.a, "atordoado", { ate = os.clock() + Config.BLOQUEIO.parryAtordoa })
 		if d.a == eu or d.v == eu then
@@ -508,7 +509,7 @@ function Efeitos.acerto(d: any)
 		end
 		return
 	elseif tipo == "quebra_guarda" then
-		VFX.quebraGuarda(pos, dirGolpe)
+		if not receita("quebra_guarda",d.v,typeof(d.v)=="Instance" and d.v:GetAttribute("BB_Stand") or nil) then VFX.quebraGuarda(pos, dirGolpe) end
 		SV.quebrouGuarda(d.v)
 		Som.tocar("quebra_guarda", pos)
 		Som.golpe("SOCO_MEGA", pos, { vol = 0.8 })
@@ -531,6 +532,8 @@ function Efeitos.acerto(d: any)
 	end
 	-- AJUSTE-13: a chave (Stand + tipo do golpe) faz o mesmo golpe ter sempre a mesma cara
 	local chave = tostring(d.stand or "x") .. ":" .. tipo
+ local roteado = receita(d.moveId or "m1",d.a,d.stand)
+ if not roteado then
 	if tipo == "corte_prata" or tipo == "corte_colorido" then
 		VFX.corte(pos, dirGolpe, cor, nivel >= 2, chave)
 		if nivel >= 2 then
@@ -554,6 +557,7 @@ function Efeitos.acerto(d: any)
 	if def.cratera then
 		Efeitos.cratera(chaoAbaixo(pos), def.cratera)
 	end
+ end
 	if d.som then
 		Som.tocar(d.som, pos, { max = if tipo == "barragem" then 3 else 5 })
 	end
@@ -571,10 +575,11 @@ function Efeitos.acerto(d: any)
 		Efeitos.piscar(d.v)
 		local forte = (d.ragdoll or 0) > 0 or tipo == "impacto_forte" or tipo == "impacto_enorme"
 		-- AJUSTE-12: congela mais no acerto (o soco "trava" na cara do outro)
-		local hs = if nivel >= 3 then 0.17 elseif forte then 0.14 else 0.075
+		local hs = if forte or nivel >= 2 then 0.08 else 0.04
 		Animador.hitstop(d.a, hs)
 		Animador.hitstop(d.v, hs)
-		Animador.hitstop(require(script.Parent:WaitForChild("StandVisual")).modelo(d.a), hs)
+		Animador.hitstop(SV.modelo(d.a), hs)
+  Animador.hitstop(SV.modelo(d.v), hs)
 		if not forte and not Animador.tocando(d.v) then
 			Animador.tocar(d.v, "atordoado")
 		end
@@ -582,7 +587,7 @@ function Efeitos.acerto(d: any)
 	-- câmera e números para quem está envolvido
 	if d.a == eu then
 		Camera.tremer(math.max(if nivel >= 2 then 0.32 else 0.14, (d.tremor or 0.1) * 0.85), if nivel >= 2 then 0.2 else 0.13)
-		if (d.dano or 0) > 0 then
+		if not piloto and (d.dano or 0) > 0 then
 			Efeitos.numero(pos, d.dano, if (d.dano or 0) >= 10 then RGB(255, 210, 60) else BRANCO)
 		end
 	elseif d.v == eu then
@@ -745,6 +750,12 @@ local CORES_RASTRO = {
 	tanque = RGB(120, 120, 140),
 }
 function Efeitos.proj(d: any)
+ local ctx = Apresentacao.contexto(d.quem or d.dono,d,d.origem)
+ ctx.variant="projetil";ctx.n=1
+ ctx.actionId = "proj:"..tostring(d.id);ctx.dur=(d.alcance or 100)/math.max(1,d.vel or 125)
+ if Apresentacao.tocar(d.stand,d.moveId or (if d.visual=="faca" then "THE_WORLD_2" else "STAR_PLATINUM_4"),"inicio",ctx) then
+  projeteis[d.id]={piloto=true,owner=ctx.owner,actionId=ctx.actionId,stand=d.stand};return
+ end
 	local cor = corStand(d.stand)
 	local p = visualProjetil(d.visual, cor, d.raio or 1.5)
 	Efeitos.rastro(p, CORES_RASTRO[d.visual or ""] or cor, 30)
@@ -755,9 +766,10 @@ function Efeitos.projFim(d: any)
 	local pr = projeteis[d.id]
 	if pr then
 		projeteis[d.id] = nil
-		pr.p:Destroy()
+		if pr.p then pr.p:Destroy() end
+		if pr.piloto then Apresentacao.cancelar(pr.owner,pr.actionId) end
 	end
-	if d.explodiu == false and d.pos then
+	if not (pr and pr.piloto) and d.explodiu == false and d.pos then
 		Efeitos.faiscas(d.pos, BRANCO, 4, 3)
 	end
 end
@@ -765,7 +777,7 @@ end
 -- projétil guiado virou (Sheer Heart Attack): recomeça a conta do caminho de onde ele está
 function Efeitos.projVirar(d: any)
 	local pr = projeteis[d.id]
-	if pr then
+	if pr and not pr.piloto then
 		pr.origem = d.pos
 		pr.dir = d.dir
 		pr.t = d.t
@@ -775,7 +787,7 @@ end
 
 function Efeitos.projRefletir(d: any)
 	local pr = projeteis[d.id]
-	if pr then
+	if pr and not pr.piloto then
 		pr.origem = d.pos
 		pr.dir = d.dir
 		pr.t = d.t
@@ -789,6 +801,7 @@ local tempoInicio = 0
 local function passoProjeteis()
 	local agora = workspace:GetServerTimeNow()
 	for id, pr in projeteis do
+		if pr.piloto then continue end
 		if not pr.p.Parent then
 			projeteis[id] = nil
 			continue
@@ -878,6 +891,12 @@ function Efeitos.area(d: any)
 end
 
 function Efeitos.explosao(d: any)
+ if d.moveId=="rolo" and Apresentacao.disponivel(d.stand) then
+  local ctx=Apresentacao.contexto(d.quem,d,d.pos);ctx.actionId="rolo:"..tostring(d.actionId or d.sessao or d.t)
+  Apresentacao.tocar(d.stand,"rolo","final",ctx)
+  if d.som then Som.tocar(d.som,d.pos,{alcance=500}) end
+  return
+ end
 	local pos: Vector3 = d.pos
 	local raio = d.raio or 10
 	local tipo = d.tipo
@@ -1001,8 +1020,11 @@ end
 function Efeitos.tempo(d: any)
 	local eu = Players.LocalPlayer.Character
 	local chave = d.sessao or d.dono
-	local primeira = next(sessoesTempo) == nil
-	sessoesTempo[chave] = { inicio = d.inicio, fim = d.fim, dono = d.dono }
+	if chave == nil or sessoesTempo[chave] then return end
+ local primeira = next(sessoesTempo) == nil
+	sessoesTempo[chave] = { inicio = d.inicio or workspace:GetServerTimeNow(), fim = d.fim, dono = d.dono, stand=d.stand }
+ Apresentacao.congelar(chave,d.dono,d.fim)
+ require(script.Parent:WaitForChild("Acoes")).vincularTempo(d.dono,d)
 	recalcularTempo()
 	local cc = corTempo
 	if cc then
@@ -1011,11 +1033,11 @@ function Efeitos.tempo(d: any)
 	-- AJUSTE-10: anéis em três planos com as cores de cada Stand (The World âmbar/violeta,
 	-- Star Platinum azul/violeta)
 	local c1, c2 = Efeitos.coresTempo(d.stand)
-	VFX.tempo(d.centro, c1, c2, d.raio or 150)
-	local domo = parte(Vector3.new(2, 2, 2), CFrame.new(d.centro), RGB(30, 20, 60), Enum.Material.Neon, Enum.PartType.Ball)
-	domo.Transparency = 0.2
-	tween(domo, 0.6, { Size = Vector3.new(d.raio * 2, d.raio * 2, d.raio * 2), Transparency = 1 }, Enum.EasingStyle.Quart)
-	Debris:AddItem(domo, 0.7)
+ local ctx = Apresentacao.contexto(d.dono,d,d.centro)
+ ctx.actionId="tempo:"..tostring(chave);ctx.t=d.inicio;ctx.dur=math.max(0,d.fim-workspace:GetServerTimeNow())
+ if not Apresentacao.tocar(d.stand,"tempo","contato",ctx) then
+  VFX.tempo(d.centro,c1,c2,d.raio or 150)
+ end
 	if primeira then
 		-- AJUSTE-8: o som de parar o tempo do anime já está tocando no grito da ULT
 		if not Som.vozPronta(d.somProprio) then
@@ -1040,15 +1062,27 @@ function Efeitos.tempo(d: any)
 end
 
 function Efeitos.tempoVolta(d: any)
-	local chave = d.sessao or d.dono
-	if chave ~= nil then
-		if not sessoesTempo[chave] then
-			return -- aviso repetido ou de uma sessão que já acabou
-		end
-		sessoesTempo[chave] = nil
-	else
-		sessoesTempo = {}
-	end
+ local chave = d.sessao or d.dono
+ local function encerrar(id: any, session: any)
+  Apresentacao.descongelar(id)
+  Apresentacao.cancelar(session.dono,"tempo:"..tostring(id))
+  require(script.Parent:WaitForChild("Acoes")).encerrarTempo(session.dono,id)
+  local root=session.dono and session.dono:FindFirstChild("HumanoidRootPart")
+  if root then
+   local ctx=Apresentacao.contexto(session.dono,{},root.Position);ctx.actionId="volta:"..tostring(id)
+   if not Apresentacao.tocar(session.stand,"tempoVolta","inicio",ctx) then
+    local c1=Efeitos.coresTempo(session.stand);VFX.tempoVolta(root.Position,c1,34)
+   end
+  end
+ end
+ if chave ~= nil then
+  local session=sessoesTempo[chave]
+  if not session then return end
+  encerrar(chave,session);sessoesTempo[chave]=nil
+ else
+  for id,session in sessoesTempo do encerrar(id,session) end
+  sessoesTempo={}
+ end
 	recalcularTempo()
 	if next(sessoesTempo) ~= nil then
 		return -- outra ULT ainda está segurando o tempo
@@ -1059,12 +1093,16 @@ function Efeitos.tempoVolta(d: any)
 	end
 	Som.tocar("tempo_volta", nil)
 	Som.abafar(false)
-	local raiz = d.dono and d.dono:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if raiz then
-		-- AJUSTE-10: o tempo volta com uma onda no dono (AJUSTE-13: do pacote)
-		local c1 = Efeitos.coresTempo(d.dono:GetAttribute("BB_Stand"))
-		VFX.tempoVolta(raiz.Position, c1, 34)
-	end
+
+end
+
+-- Owner death/removal closes every owned temporal session even when other sessions remain.
+function Efeitos.limparDono(dono: Model)
+ geracoesDono[dono]=(geracoesDono[dono] or 0)+1
+ local ids={}
+ for id,session in sessoesTempo do if session.dono==dono then table.insert(ids,id) end end
+ for _,id in ids do Efeitos.tempoVolta({sessao=id,dono=dono}) end
+ Apresentacao.cancelar(dono)
 end
 
 -- AJUSTE-10: cores do tempo parado de cada Stand
@@ -1082,7 +1120,8 @@ local ultimoClash = 0
 function Efeitos.clash(d: any)
 	local pos: Vector3 = d.pos
 	local ca, cv = corStand(d.sa), corStand(d.sv)
-	VFX.clash(pos, ca, cv)
+	local id=if Apresentacao.suporta(d.sa) then d.sa elseif Apresentacao.suporta(d.sv) then d.sv else nil
+ if not Apresentacao.tocar(id,(id or "").."_1","contato",Apresentacao.contexto(d.a,d,pos)) then VFX.clash(pos,ca,cv) end
 	Som.tocar("bloqueio", pos, { max = 3 })
 	if os.clock() - ultimoClash > 0.25 then
 		ultimoClash = os.clock()
@@ -1157,6 +1196,13 @@ function Efeitos.cura(d: any)
 end
 
 function Efeitos.teleporte(d: any)
+ if Apresentacao.disponivel(d.stand) then
+  local de=Apresentacao.contexto(d.quem,d,d.de);de.actionId=tostring(d.actionId or d.t or "teleporte")..":de"
+  local para=Apresentacao.contexto(d.quem,d,d.para);para.actionId=tostring(d.actionId or d.t or "teleporte")..":para"
+  Apresentacao.tocar(d.stand,"THE_WORLD_3","inicio",de)
+  Apresentacao.tocar(d.stand,"THE_WORLD_3","contato",para)
+  Som.tocar("teleporte",d.para);return
+ end
 	local modelo = d.quem
 	local cor = corStand(d.stand)
 	if d.de then
@@ -1383,6 +1429,21 @@ end
 
 -- ROAD ROLLER DA! (The World): cai do céu em cima de quem está parado no tempo
 function Efeitos.rolo(d: any)
+ local ctx=Apresentacao.contexto(d.quem,d,d.pos)
+ ctx.actionId="rolo:"..tostring(d.actionId or d.sessao or d.t or d.ate)
+ ctx.dur=math.max(.35,(d.ate or workspace:GetServerTimeNow()+1.6)-workspace:GetServerTimeNow())
+ if Apresentacao.tocar(d.stand or "THE_WORLD","rolo","inicio",ctx) then
+  local geracao=d.quem and (geracoesDono[d.quem] or 0)
+  local final=table.clone(ctx);final.t=d.ate or workspace:GetServerTimeNow()+ctx.dur
+  task.delay(math.max(0,final.t-workspace:GetServerTimeNow()),function()
+   if d.quem then
+    local h=d.quem:FindFirstChildOfClass("Humanoid")
+    if not d.quem.Parent or (h and h.Health<=0) or (geracoesDono[d.quem] or 0)~=geracao then return end
+   end
+   Apresentacao.tocar(d.stand or "THE_WORLD","rolo","final",final)
+  end)
+  return
+ end
 	local pos: Vector3 = d.pos
 	local chao = chaoAbaixo(pos)
 	local corpo = parte(Vector3.new(9, 6, 14), CFrame.new(chao + Vector3.new(0, 60, 0)) * CFrame.Angles(math.rad(-25), 0, math.rad(8)), RGB(240, 200, 40), Enum.Material.SmoothPlastic)
@@ -1489,10 +1550,11 @@ function Efeitos._modelosLutadores(): { [Model]: boolean }
 	return Registro.todosModelos()
 end
 
--- qualidade: "auto" mede o FPS e troca sozinho entre alta e baixa (com folga para não ficar pulando)
-local modoQualidade = "auto"
+-- AJ14: alta por padrão; baixa somente por escolha manual. "auto" antigo migra para alta.
+local modoQualidade = "alta"
 function Efeitos.modoQualidade(modo: string)
-	modoQualidade = modo
+	modoQualidade = if modo == "baixa" then "baixa" else "alta"
+	modo = modoQualidade
 	if modo == "alta" then
 		qualidadeAlta = true
 		VFX.qualidade(qualidadeAlta)
@@ -1534,26 +1596,7 @@ function Efeitos.iniciar(gui: ScreenGui)
 	corRebobinar = cr
 	game:GetService("RunService").PreRender:Connect(passoProjeteis)
 	Registro.iniciar()
-	-- qualidade automática: média de quadros dos últimos 2 s
-	local quadros, tempo = 0, 0
-	game:GetService("RunService").Heartbeat:Connect(function(dt)
-		if modoQualidade ~= "auto" then
-			return
-		end
-		quadros += 1
-		tempo += dt
-		if tempo >= 2 then
-			local fps = quadros / tempo
-			if qualidadeAlta and fps < 38 then
-				qualidadeAlta = false
-				VFX.qualidade(qualidadeAlta)
-			elseif not qualidadeAlta and fps > 52 then
-				qualidadeAlta = true
-				VFX.qualidade(qualidadeAlta)
-			end
-			quadros, tempo = 0, 0
-		end
-	end)
+
 end
 
 return Efeitos

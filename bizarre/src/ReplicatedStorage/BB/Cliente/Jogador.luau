@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local BB = script.Parent.Parent
+local Perfil = require(BB:WaitForChild("PerfilCombate14"))
 local Config = require(BB:WaitForChild("Config"))
 local Regras = require(BB:WaitForChild("Regras"))
 local Golpes = require(BB:WaitForChild("Golpes"))
@@ -34,6 +35,44 @@ local aoAviso: ((texto: string) -> ())? = nil
 local aoCombo: ((n: number) -> ())? = nil
 local aoCd: (() -> ())? = nil
 local aoEntrada: ((d: any) -> ())? = nil
+
+local seq14=0
+local geracaoMin14=nil
+local minSeq14=0
+local guardaSeq14=0
+local visualSeq14=0
+local aceitoSeq14=0
+local defesaSegurada14=false
+local link14=nil
+local function piloto() return Perfil.suporta(plr.Character and plr.Character:GetAttribute("BB_Stand")) end
+local function enviar(tipo,d,seq)
+	if piloto() then
+		if not seq then seq14+=1; seq=seq14 end
+		d.seq=seq
+		if tipo=="bloqueio" then guardaSeq14=seq end
+	end
+	remotos.Acao:FireServer(tipo,d)
+	return seq
+end
+local function prever(d)
+	if piloto() then seq14+=1; d.seq=seq14; visualSeq14=seq14 end
+	Acoes.tocar(plr.Character,d)
+	return d.seq
+end
+-- Fence every request already emitted. A delayed ACK may otherwise restart a
+-- buffered action after menu/focus cancellation or a round trip to the same Stand.
+local function cercarPedidos(limite)
+	limite=limite or seq14
+	minSeq14=math.max(minSeq14,limite)
+	aceitoSeq14=math.max(aceitoSeq14,minSeq14)
+	if Jogador.pendente and (not Jogador.pendente.seq or Jogador.pendente.seq<=limite) then Jogador.pendente=nil end
+	if link14 and (not link14.seq or link14.seq<=limite) then link14=nil end
+end
+function Jogador.soltarEntradas()
+	Jogador.bloquear(false)
+	if piloto() then enviar("soltar",{}) end
+	cercarPedidos()
+end
 
 Jogador.cds = cds
 
@@ -189,27 +228,37 @@ function Jogador.m1()
 	if bloqueando then
 		Jogador.bloquear(false)
 	end
-	if not podeAgir() then
+	local t = tServ()
+	local seguindo=piloto() and link14 and t<=link14.fecha and not link14.usado
+	local aereo=seguindo and t>=link14.abre and not Jogador.atordoado()
+	local function direcaoM1()
+		if seguindo then return Regras.achatar(workspace.CurrentCamera.CFrame.LookVector),nil end
+		return Jogador.mirar()
+	end
+	if not podeAgir() and not aereo then
+		if piloto() and not Jogador.atordoado() then enviar("m1",{dir=direcaoM1(),alvo=Camera.travado()}) end
 		return
 	end
-	local t = tServ()
-	local n = Regras.m1(estado, t)
+	local n = if aereo then 1 else Regras.m1(estado, t)
 	if not n then
+		if piloto() and estado.m1ProntoEm-t<=Perfil.bufferTTL then enviar("m1",{dir=direcaoM1(),alvo=Camera.travado()}) end
 		return
 	end
 	local _, hum, raiz = partes()
 	if not hum or not raiz then
 		return
 	end
-	local dir, dist = Jogador.mirar()
+	local dir, dist = direcaoM1()
 	local variante = nil
 	if n == 4 and hum.FloorMaterial == Enum.Material.Air then
 		variante = if raiz.AssemblyLinearVelocity.Y > 4 then "cima" else "baixo"
 	end
-	ocupadoAte = os.clock() + 0.18
-	Acoes.tocar(personagem(), { id = "m1", n = n, variante = variante, stand = atributo("BB_StandFora") == true })
-	remotos.Acao:FireServer("m1", { dir = dir, variante = variante })
-	if not variante then
+	local _,rec=Perfil.tempos(n)
+	ocupadoAte = os.clock() + (if piloto() then rec else 0.18)
+	if aereo then link14.usado=true; Perfil.seguimento(estado,t) end
+	local seq=prever({ id = if aereo then "m1_aereo" else "m1", n = n, variante = variante, variant=variante, stand = atributo("BB_StandFora") == true })
+	enviar("m1", { dir = dir, variante = variante, alvo=Camera.travado() },seq)
+	if not variante and not aereo then
 		-- ímã: chega perto do alvo para o soco pegar (sem atravessar ele)
 		if dist and dist > 4.2 and dist < 14 then
 			impulso(dir * math.clamp((dist - 3.6) / 0.1, 9, 62), 0.1)
@@ -223,12 +272,13 @@ function Jogador.golpe(slot: any)
 	if bloqueando then
 		Jogador.bloquear(false)
 	end
-	if not podeAgir() then
-		return
-	end
 	local s = Jogador.standAtual()
 	local g, id = Golpes.doSlot(s, slot)
 	if not g or not id then
+		return
+	end
+	if not podeAgir() then
+		if piloto() and not Jogador.atordoado() and not g.ult then enviar("golpe",{slot=slot,dir=Jogador.mirar()}) end
 		return
 	end
 	local t = tServ()
@@ -244,6 +294,7 @@ function Jogador.golpe(slot: any)
 		end
 	end
 	if Jogador.cdRestante(id) > 0 then
+		if piloto() and Jogador.cdRestante(id)<=Perfil.bufferTTL then enviar("golpe",{slot=slot,dir=Jogador.mirar()}) end
 		return
 	end
 	local dir = Jogador.mirar()
@@ -254,14 +305,15 @@ function Jogador.golpe(slot: any)
 		ultUsado = true
 	end
 	ocupadoAte = os.clock() + (g.trava or 0.5)
-	Jogador.pendente = { id = id, cd = anterior, ult = g.ult }
-	Acoes.tocar(personagem(), { id = id })
-	remotos.Acao:FireServer("golpe", { slot = slot, dir = dir })
+	local seq=prever({id=id})
+	Jogador.pendente = { id = id, cd = anterior, ult = g.ult, seq=seq }
+	enviar("golpe", { slot = slot, dir = dir },seq)
+	local impulsoSeq=visualSeq14
 	-- o seu corpo se mexe no golpe (pulo, investida, avanço)
 	for _, i in g.impulsos or {} do
 		task.delay(i.t, function()
 			local _, _, raiz = partes()
-			if raiz and os.clock() < ocupadoAte + 0.1 then
+			if raiz and (not piloto() or visualSeq14==impulsoSeq) and not Jogador.atordoado() and os.clock() < ocupadoAte + 0.1 then
 				impulso(dir * (i.frente or 0) + Vector3.new(0, i.cima or 0, 0), i.dur or 0.15)
 			end
 		end)
@@ -269,7 +321,7 @@ function Jogador.golpe(slot: any)
 	local inv = g.investida
 	if inv then
 		task.delay(inv.t or 0, function()
-			if os.clock() < ocupadoAte + 0.1 then
+			if (not piloto() or visualSeq14==impulsoSeq) and not Jogador.atordoado() and os.clock() < ocupadoAte + 0.1 then
 				impulso(dir * inv.vel, inv.dur)
 			end
 		end)
@@ -280,7 +332,17 @@ function Jogador.golpe(slot: any)
 end
 
 function Jogador.bloquear(ligar: boolean)
-	if ligar == bloqueando then
+	local mudou=defesaSegurada14~=ligar
+	defesaSegurada14=ligar
+	if piloto() and not ligar and not bloqueando then
+		if mudou then enviar("bloqueio",{ligar=false}) end
+		return
+	end
+	if piloto() and ligar and not podeAgir() then
+		if mudou then enviar("bloqueio",{ligar=true}) end
+		return
+	end
+	if ligar == bloqueando and (not piloto() or not mudou) then
 		return
 	end
 	if ligar and not podeAgir() then
@@ -296,7 +358,7 @@ function Jogador.bloquear(ligar: boolean)
 	else
 		Animador.parar(c)
 	end
-	remotos.Acao:FireServer("bloqueio", { ligar = ligar })
+	enviar("bloqueio", { ligar = ligar })
 end
 
 function Jogador.bloqueando(): boolean
@@ -311,7 +373,7 @@ function Jogador.dash()
 	local t = tServ()
 	if Jogador.atordoado() then
 		if (atributo("BB_Evasiva") or 0) <= t then
-			remotos.Acao:FireServer("evasiva", {})
+			enviar("evasiva", {})
 		end
 		return
 	end
@@ -380,8 +442,8 @@ function Jogador.dash()
 	else
 		impulso(Regras.achatar(dirMundo) * def.vel, def.dur)
 	end
-	Acoes.tocar(c, { id = "dash", tipo = tipo, lado = lado })
-	remotos.Acao:FireServer("dash", { tipo = tipo, lado = lado, mov = dirMundo })
+	local seq=prever({ id = "dash", tipo = tipo, lado = lado })
+	enviar("dash", { tipo = tipo, lado = lado, mov = dirMundo },seq)
 	if aoCd then
 		aoCd()
 	end
@@ -391,7 +453,7 @@ function Jogador.despertar()
 	if Jogador.desperto() then
 		return Jogador.golpe("ult")
 	end
-	remotos.Acao:FireServer("despertar", {})
+	enviar("despertar", {})
 end
 
 function Jogador.alternarStand()
@@ -401,7 +463,7 @@ function Jogador.alternarStand()
 	end
 	local fora = not (atributo("BB_StandFora") == true)
 	Acoes.tocar(c, { id = "stand", fora = fora })
-	remotos.Acao:FireServer("stand", {})
+	enviar("stand", {})
 end
 
 local poseN = 0
@@ -411,11 +473,18 @@ function Jogador.pose()
 	end
 	poseN = poseN % 3 + 1
 	Acoes.tocar(personagem(), { id = "pose", n = poseN })
-	remotos.Acao:FireServer("pose", { n = poseN })
+	enviar("pose", { n = poseN })
 end
 
 ------------------------------------------------------------------------------------- servidor
 local function aoPrivado(tipo: string, d: any)
+	if geracaoMin14 and (tipo=="confirmado" or tipo=="negado" or tipo=="airlink") and (not d.generation or d.generation<geracaoMin14) then return end
+	if piloto() and (tipo=="confirmado" or tipo=="negado" or tipo=="airlink") and d.seq==nil then return end
+	if (tipo=="confirmado" or tipo=="airlink") and d.standId and d.standId~=atributo("BB_Stand") then return end
+	if d.seq and d.seq<=minSeq14 and (tipo=="confirmado" or tipo=="negado" or tipo=="airlink") then return end
+	if piloto() and tipo=="negado" and d.seq and d.seq~=(if d.acao=="bloqueio" then guardaSeq14 else visualSeq14) then return end
+	if piloto() and (tipo=="negado" or tipo=="confirmado") and d.seq and d.seq<math.max(visualSeq14,aceitoSeq14) then return end
+	if tipo=="airlink" then link14=d; return end
 	if tipo == "negado" then
 		local p = Jogador.pendente
 		if d.acao == "golpe" and p then
@@ -424,7 +493,7 @@ local function aoPrivado(tipo: string, d: any)
 				ultUsado = false
 			end
 			Jogador.pendente = nil
-			Animador.parar(personagem())
+			if piloto() then Acoes.interromper(personagem(),nil,d.seq) else Animador.parar(personagem()) end
 			pararImpulso()
 			ocupadoAte = 0
 			if aoAviso and d.motivo and d.motivo ~= "recarga" and d.motivo ~= "ocupado" then
@@ -432,9 +501,12 @@ local function aoPrivado(tipo: string, d: any)
 			end
 		elseif d.acao == "m1" then
 			ocupadoAte = 0
+			if piloto() and d.seq==visualSeq14 then Acoes.interromper(personagem(),nil,d.seq) end
+		elseif d.acao=="dash" and piloto() then
+			ocupadoAte=0; pararImpulso(); Acoes.interromper(personagem(),nil,d.seq)
 		elseif d.acao == "bloqueio" then
+			if bloqueando then Animador.parar(personagem()) end
 			bloqueando = false
-			Animador.parar(personagem())
 		elseif d.acao == "despertar" and aoAviso and d.motivo then
 			aoAviso(d.motivo)
 		end
@@ -451,6 +523,18 @@ local function aoPrivado(tipo: string, d: any)
 			aoCd()
 		end
 	elseif tipo == "confirmado" then
+		if piloto() and d.seq then
+			if d.seq<=aceitoSeq14 then return end
+			aceitoSeq14=d.seq
+			if d.seq~=visualSeq14 then
+				Acoes.tocar(personagem(),d)
+				visualSeq14=d.seq
+			end
+			if Acoes.confirmar then Acoes.confirmar(personagem(),d) end
+			if d.acaoAte then ocupadoAte=os.clock()+math.max(0,d.acaoAte-tServ()) end
+			if d.m1ProntoEm then estado.m1ProntoEm=d.m1ProntoEm end
+			if d.combo then estado.combo=d.combo; estado.comboT=d.t end
+		end
 		Jogador.pendente = nil
 	elseif tipo == "combo" then
 		if aoCombo then
@@ -575,6 +659,9 @@ local function passo()
 			ultUsado = false
 		end
 	end
+	if piloto() and defesaSegurada14 and not bloqueando and c:GetAttribute("BB_Bloqueando")==true then
+		bloqueando=true; Animador.tocar(c,"bloqueio")
+	end
 	-- o servidor tirou o bloqueio (guarda quebrada, atordoado)
 	if bloqueando and c:GetAttribute("BB_Bloqueando") == false and os.clock() - estado.bloqueioInicio > 0.5 then
 		bloqueando = false
@@ -590,16 +677,71 @@ local function passo()
 		end
 		if not correndo and agora - movendoDesde >= Config.TEMPO_PARA_CORRER then
 			correndo = true
-			remotos.Acao:FireServer("correr", { ligar = true })
+			enviar("correr", { ligar = true })
 			Camera.correndo(true)
 		end
 	else
 		movendoDesde = 0
 		if correndo and agora - paradoDesde > 0.18 then
 			correndo = false
-			remotos.Acao:FireServer("correr", { ligar = false })
+			enviar("correr", { ligar = false })
 			Camera.correndo(false)
 		end
+	end
+end
+
+local observados14=setmetatable({}, {__mode="k"})
+local function observarPersonagem14(c)
+	if not c or observados14[c] then return end
+	observados14[c]=true
+	local ultimoStand=c:GetAttribute("BB_Stand")
+	local ultimaGeracao=c:GetAttribute("BB_Geracao14")
+	local seqAntesDaGeracao=nil
+	local function cancelarLocal(limite)
+		if plr.Character~=c then return end
+		limite=limite or seq14
+		cercarPedidos(limite)
+		if guardaSeq14<=limite then defesaSegurada14=false; bloqueando=false end
+		if visualSeq14>limite then return end
+		ocupadoAte=0
+		Acoes.interromper(c)
+		local r=c:FindFirstChild("HumanoidRootPart")
+		local lv=r and r:FindFirstChild("BB_Proprio")
+		if lv then lv:Destroy() end
+	end
+	local function mudou()
+		if plr.Character~=c then return end
+		local stand=c:GetAttribute("BB_Stand")
+		local geracao=c:GetAttribute("BB_Geracao14")
+		if stand==ultimoStand and geracao==ultimaGeracao then return end
+		if type(geracao)=="number" and (not geracaoMin14 or geracao>geracaoMin14) then
+			-- Generation replication is authority for ACK validity, never an order to
+			-- cancel a new prediction. Stand and generation can arrive separately.
+			geracaoMin14=geracao
+			if type(ultimaGeracao)=="number" and geracao>ultimaGeracao then seqAntesDaGeracao=seq14 end
+			if link14 and (not link14.generation or link14.generation<geracao) then link14=nil end
+		end
+		if stand~=ultimoStand then
+			table.clear(cds); ultUsado=false
+			cancelarLocal(seqAntesDaGeracao or seq14)
+			seqAntesDaGeracao=nil
+		end
+		ultimoStand=stand; ultimaGeracao=geracao
+	end
+	c:GetAttributeChangedSignal("BB_Stand"):Connect(mudou)
+	c:GetAttributeChangedSignal("BB_Geracao14"):Connect(mudou)
+	local hum=c:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.Died:Connect(cancelarLocal)
+	else
+		-- CharacterAdded can precede replication of the Humanoid.
+		local connection
+		connection=c.ChildAdded:Connect(function(child)
+			if child:IsA("Humanoid") then
+				child.Died:Connect(cancelarLocal)
+				connection:Disconnect()
+			end
+		end)
 	end
 end
 
@@ -611,9 +753,12 @@ function Jogador.iniciar(rem: any, ganchos: any)
 	aoEntrada = ganchos.entrada
 	rem.Privado.OnClientEvent:Connect(aoPrivado)
 	RunService.Heartbeat:Connect(passo)
-	plr.CharacterAdded:Connect(function()
+	observarPersonagem14(personagem())
+	plr.CharacterAdded:Connect(function(c)
+		observarPersonagem14(c or personagem())
 		table.clear(cds)
 		estado = Regras.novoEstado()
+		defesaSegurada14=false; link14=nil; geracaoMin14=nil; minSeq14=seq14; visualSeq14=seq14; aceitoSeq14=seq14; guardaSeq14=seq14; Jogador.pendente=nil
 		ocupadoAte = 0
 		bloqueando = false
 		ultUsado = false

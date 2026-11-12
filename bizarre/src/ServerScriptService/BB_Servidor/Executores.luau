@@ -70,7 +70,7 @@ local function bater(ctx: any, h: any, ignorar: { [any]: boolean }?): { any }
 			continue
 		end
 		local hh = if h.tipo then h else copiar(h, { tipo = "melee" })
-		local r = Combate.acertar(lut, alvo, hh, { dir = ctx.dir })
+		local r = Combate.acertar(lut, alvo, hh, { context=ctx.context, dir = ctx.dir })
 		if r == "acertou" then
 			table.insert(acertados, alvo)
 		end
@@ -180,6 +180,7 @@ function Executores.executar(lut: any, g: any, id: string, t0: number, dados: an
 		token = e.token,
 		dir = Lutadores.olhar(lut, t0),
 		dados = dados or {},
+		context=Combate.contexto(lut),
 	}
 	-- golpes de perto grudam no inimigo que está quase na frente
 	if (g.alcance or 0) > 0 and g.alcance <= 40 then
@@ -233,7 +234,7 @@ EXEC.golpe = function(ctx)
 				Combate.efeito("marca", { v = alvo.modelo, ate = agora() + eco.atraso, stand = ctx.lut.standId })
 				task.delay(eco.atraso, function()
 					if alvo.hum.Health > 0 and ctx.lut.modelo.Parent then
-						Combate.acertar(ctx.lut, alvo, copiar(eco, { tipo = "area", inbloqueavel = true }), { dir = Regras.achatar(alvo.raiz.Position - ctx.lut.raiz.Position) })
+						Combate.acertar(ctx.lut, alvo, copiar(eco, { tipo = "area", inbloqueavel = true }), { context=ctx.context, dir = Regras.achatar(alvo.raiz.Position - ctx.lut.raiz.Position) })
 					end
 				end)
 			end
@@ -263,11 +264,12 @@ EXEC.barragem = function(ctx)
 	local g = ctx.g
 	local lut = ctx.lut
 	local t = g.inicio
-	lut.rajada = { token = ctx.token, ate = ctx.t0 + g.fim }
+	local rajada = { token = ctx.token, ate = ctx.t0 + g.fim }
+	lut.rajada = rajada
 	local ultimoAviso = 0
 	while t <= g.fim do
 		if not esperar(ctx, t) then
-			lut.rajada = nil
+			if lut.rajada == rajada then lut.rajada = nil end
 			return
 		end
 		local anulados = nil
@@ -285,7 +287,7 @@ EXEC.barragem = function(ctx)
 		bater(ctx, g.hit, anulados)
 		t += g.intervalo
 	end
-	lut.rajada = nil
+	if lut.rajada == rajada then lut.rajada = nil end
 	if g.final then
 		if not esperar(ctx, g.final.t) then
 			return
@@ -295,7 +297,7 @@ EXEC.barragem = function(ctx)
 end
 
 EXEC.projetil = function(ctx)
-	local p = ctx.g.proj
+	local p = copiar(ctx.g.proj,{context14=ctx.context})
 	if not esperar(ctx, p.t) then
 		return
 	end
@@ -336,7 +338,7 @@ EXEC.area = function(ctx)
 			local h = copiar(a, { tipo = "area" })
 			for _, alvo in alvos do
 				if linhaLivre(centro + Vector3.new(0, 1, 0), alvo.raiz.Position) then
-					Combate.acertar(lut, alvo, h, { dir = ctx.dir, origem = centro })
+					Combate.acertar(lut, alvo, h, { context=ctx.context, dir = ctx.dir, origem = centro })
 				end
 			end
 			if (a.quebra or 0) > 0 then
@@ -362,7 +364,7 @@ local function agarrar(ctx: any, alvo: any)
 	local lut = ctx.lut
 	local ag = ctx.g.agarrao
 	local t0 = agora()
-	local r = Combate.acertar(lut, alvo, { dano = 0.5, atordoar = ag.duracao + 0.4, inbloqueavel = true, tipo = "melee", som = "soco", vfx = "impacto" }, { dir = ctx.dir })
+	local r = Combate.acertar(lut, alvo, { dano = 0.5, atordoar = ag.duracao + 0.4, inbloqueavel = true, tipo = "melee", som = "soco", vfx = "impacto" }, { context=ctx.context, dir = ctx.dir })
 	if r ~= "acertou" then
 		return
 	end
@@ -400,7 +402,7 @@ local function agarrar(ctx: any, alvo: any)
 			soltar()
 			return
 		end
-		Combate.acertar(lut, alvo, { dano = s.dano, atordoar = ag.duracao - s.t + 0.4, inbloqueavel = true, tipo = "melee", som = s.som, vfx = s.vfx }, { dir = lut.raiz.CFrame.LookVector })
+		Combate.acertar(lut, alvo, { dano = s.dano, atordoar = ag.duracao - s.t + 0.4, inbloqueavel = true, tipo = "melee", som = s.som, vfx = s.vfx }, { context=ctx.context, dir = lut.raiz.CFrame.LookVector })
 	end
 	local falta = t0 + ag.final.t - agora()
 	if falta > 0 then
@@ -409,7 +411,7 @@ local function agarrar(ctx: any, alvo: any)
 	local ainda = alvo.agarradoPor == lut and lut.hum.Health > 0
 	soltar()
 	if ainda then
-		Combate.acertar(lut, alvo, copiar(ag.final, { inbloqueavel = true, tipo = "melee" }), { dir = Regras.achatar(lut.raiz.CFrame.LookVector) })
+		Combate.acertar(lut, alvo, copiar(ag.final, { inbloqueavel = true, tipo = "melee" }), { context=ctx.context, dir = Regras.achatar(lut.raiz.CFrame.LookVector) })
 	end
 end
 Executores.agarrar = agarrar
@@ -443,13 +445,13 @@ EXEC.investida = function(ctx)
 				for _, alvo in alvos do
 					if not ultimo[alvo] or agora() - ultimo[alvo] >= (inv.intervalo or 0.12) then
 						ultimo[alvo] = agora()
-						Combate.acertar(lut, alvo, copiar(g.hit, { tipo = "melee" }), { dir = ctx.dir })
+						Combate.acertar(lut, alvo, copiar(g.hit, { tipo = "melee" }), { context=ctx.context, dir = ctx.dir })
 					end
 				end
 			else
 				Fisica.pararMovimento(lut)
 				for _, alvo in alvos do
-					Combate.acertar(lut, alvo, copiar(g.hit, { tipo = "melee" }), { dir = ctx.dir })
+					Combate.acertar(lut, alvo, copiar(g.hit, { tipo = "melee" }), { context=ctx.context, dir = ctx.dir })
 				end
 				Combate.efeito("area", { quem = lut.modelo, vfx = g.hit.vfx or "impacto_forte", pos = alvos[1].raiz.Position, raio = 6, dir = ctx.dir, som = nil })
 				return
@@ -542,13 +544,13 @@ function Executores.contraAtivado(defensor: any, atk: any, _h: any)
 			Combate.efeito("teleporte", { quem = defensor.modelo, para = cf.Position, stand = defensor.standId })
 		end
 		Combate.efeito("acao", { quem = defensor.modelo, id = ctx.id, resposta = true, t = t0, stand = defensor.standId })
-		local ctx2 = { lut = defensor, g = g, id = ctx.id, t0 = t0, token = e.token, livre = true, dir = Regras.achatar(atk.raiz.Position - defensor.raiz.Position) }
+		local ctx2 = { context=ctx.context, lut = defensor, g = g, id = ctx.id, t0 = t0, token = e.token, livre = true, dir = Regras.achatar(atk.raiz.Position - defensor.raiz.Position) }
 		for _, h in r.hits do
 			if not esperar(ctx2, h.t) then
 				return
 			end
 			ctx2.dir = Regras.achatar(atk.raiz.Position - defensor.raiz.Position)
-			Combate.acertar(defensor, atk, copiar(h, { tipo = "melee" }), { dir = ctx2.dir })
+			Combate.acertar(defensor, atk, copiar(h, { tipo = "melee" }), { context=ctx2.context, dir = ctx2.dir })
 			Mapa.quebrarCaixa(Hitbox.cfFrente(defensor.raiz, ctx2.dir, 4), Vector3.new(6, 6, 7), h.quebra or 0, ctx2.dir)
 		end
 	end)
@@ -642,8 +644,10 @@ end
 local function aplicarFila(lut: any, l: any, fila: { any })
 	local total = 0
 	local maior = nil
+	local queuedHitIds={}
 	for _, item in fila do
 		total += item.h.dano or 0
+		if item.hitId then table.insert(queuedHitIds,item.hitId) end
 		local f = if item.h.empurrar then (item.h.empurrar.frente or 0) else 0
 		if not maior or f > ((maior.h.empurrar and maior.h.empurrar.frente) or 0) then
 			maior = item
@@ -661,7 +665,7 @@ local function aplicarFila(lut: any, l: any, fila: { any })
 		tremor = 0.9,
 		impactFrame = true,
 		quebra = 2,
-	}, { dir = if maior then maior.dir else nil })
+	}, { context=maior and maior.context, hitId=maior and maior.hitId, resolved=true, queuedHitIds=queuedHitIds, dir = if maior then maior.dir else nil })
 end
 
 ESPECIAL.tempoParado = function(ctx)
@@ -685,8 +689,8 @@ ESPECIAL.tempoParado = function(ctx)
 		l.modelo:SetAttribute("BB_SessaoTempo", sessao.id)
 		Combate.atualizarMovimento(l)
 	end
-	Projeteis.congelar(fim, lut)
-	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = lut.standId, sessao = sessao.id, somProprio = tp.somProprio })
+	Projeteis.congelar(fim, lut, sessao.id)
+	Combate.efeito("tempo", { dono = lut.modelo, inicio = t, fim = fim, centro = lut.raiz.Position, raio = tp.raio, stand = ctx.context.stand or lut.standId, sessao = sessao.id, somProprio = tp.somProprio, actionId=ctx.context.actionId, moveId=ctx.id, t=t, phase="inicio" })
 	lut.estado.acaoAte = t + 0.15
 	Combate.atualizarMovimento(lut)
 	local donoOk = true
@@ -704,9 +708,9 @@ ESPECIAL.tempoParado = function(ctx)
 				end
 			end
 			if alvoRolo then
-				Combate.efeito("rolo", { quem = lut.modelo, alvo = alvoRolo.modelo, pos = alvoRolo.raiz.Position, t = agora(), ate = fim, stand = lut.standId })
+				Combate.efeito("rolo", { quem = lut.modelo, alvo = alvoRolo.modelo, pos = alvoRolo.raiz.Position, t = agora(), ate = fim, stand = ctx.context.stand or lut.standId, actionId=ctx.context.actionId, moveId="rolo", phase="inicio" })
 				task.wait(0.35)
-				Combate.acertar(lut, alvoRolo, { dano = rolo.dano, tipo = "area", inbloqueavel = true, empurrar = rolo.empurrar, ragdoll = rolo.ragdoll, quebra = 3, vfx = "explosao_fogo", som = "soco_forte" }, { origem = alvoRolo.raiz.Position + Vector3.new(0, -1, 0) })
+				Combate.acertar(lut, alvoRolo, { dano = rolo.dano, tipo = "area", inbloqueavel = true, empurrar = rolo.empurrar, ragdoll = rolo.ragdoll, quebra = 3, vfx = "explosao_fogo", som = "soco_forte" }, { context=copiar(ctx.context,{moveId="rolo"}), resolved=true, origem = alvoRolo.raiz.Position + Vector3.new(0, -1, 0) })
 			end
 		end
 	end
@@ -715,11 +719,11 @@ ESPECIAL.tempoParado = function(ctx)
 	end
 	-- fim da sessão (normal ou porque o dono caiu/saiu): solta SÓ os alvos desta sessão
 	local soltar = TempoSessao.encerrar(sessao)
-	Projeteis.descongelar(fim)
-	Combate.efeito("tempoVolta", { dono = lut.modelo, sessao = sessao.id })
+	Projeteis.descongelar(fim, sessao.id)
+	Combate.efeito("tempoVolta", { dono = lut.modelo, sessao = sessao.id, actionId=ctx.context.actionId, moveId=ctx.id, t=agora(), phase="fim" })
 	if alvoRolo and alvoRolo.raiz.Parent then
 		Mapa.quebrarArea(alvoRolo.raiz.Position, 9, 3)
-		Combate.efeito("explosao", { pos = alvoRolo.raiz.Position, raio = 12, tipo = "explosao_fogo", som = "explosao_grande", tremor = 1.2, impactFrame = true })
+		Combate.efeito("explosao", { pos = alvoRolo.raiz.Position, raio = 12, tipo = "explosao_fogo", som = "explosao_grande", tremor = 1.2, impactFrame = true, stand=ctx.context.stand or lut.standId, quem=lut.modelo, actionId=ctx.context.actionId, moveId="rolo", t=agora(), phase="final" })
 	end
 	for _, l in soltar do
 		if l.modelo.Parent then
@@ -757,7 +761,7 @@ ESPECIAL.carnaval = function(ctx)
 	task.wait(0.15)
 	if #alvos == 0 then
 		for _, l in Hitbox.esfera(lut.raiz.Position, 12, lut) do
-			Combate.acertar(lut, l, { dano = 8, empurrar = { radial = true, frente = 50, cima = 30, dur = 0.2 }, ragdoll = 1.2, tipo = "area", vfx = "impacto_prata", som = "corte" }, { origem = lut.raiz.Position })
+			Combate.acertar(lut, l, { dano = 8, empurrar = { radial = true, frente = 50, cima = 30, dur = 0.2 }, ragdoll = 1.2, tipo = "area", vfx = "impacto_prata", som = "corte" }, { context=ctx.context, origem = lut.raiz.Position })
 		end
 		Combate.efeito("area", { quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 14, stand = lut.standId })
 		return
@@ -777,13 +781,13 @@ ESPECIAL.carnaval = function(ctx)
 		Combate.efeito("teleporte", { quem = lut.modelo, para = pos, stand = lut.standId })
 		for _ = 1, golpes do
 			task.wait(c.intervalo)
-			Combate.acertar(lut, alvo, { dano = c.dano, atordoar = 1.4, inbloqueavel = true, tipo = "melee", som = "estocada", vfx = c.vfxCorte or "corte_prata", empurrar = { frente = 2, cima = 0, dur = 0.05 } }, { dir = Regras.achatar(alvo.raiz.Position - lut.raiz.Position) })
+			Combate.acertar(lut, alvo, { dano = c.dano, atordoar = 1.4, inbloqueavel = true, tipo = "melee", som = "estocada", vfx = c.vfxCorte or "corte_prata", empurrar = { frente = 2, cima = 0, dur = 0.05 } }, { context=ctx.context, dir = Regras.achatar(alvo.raiz.Position - lut.raiz.Position) })
 		end
 	end
 	task.wait(0.18)
 	Combate.efeito("area", { quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 16, som = "corte", tremor = 0.8, stand = lut.standId })
 	for _, alvo in alvos do
-		Combate.acertar(lut, alvo, copiar(c.final, { inbloqueavel = true, tipo = "area", vfx = "impacto_prata", som = "corte", empurrar = copiar(c.final.empurrar, { radial = true }), impactFrame = true }), { origem = lut.raiz.Position })
+		Combate.acertar(lut, alvo, copiar(c.final, { inbloqueavel = true, tipo = "area", vfx = "impacto_prata", som = "corte", empurrar = copiar(c.final.empurrar, { radial = true }), impactFrame = true }), { context=ctx.context, origem = lut.raiz.Position })
 	end
 end
 
@@ -808,7 +812,7 @@ ESPECIAL.onda = function(ctx)
 		for _, alvo in Hitbox.caixa(cf, tam, lut) do
 			if not pegos[alvo] then
 				pegos[alvo] = true
-				Combate.acertar(lut, alvo, { dano = o.dano, empurrar = o.empurrar, ragdoll = o.ragdoll, quebra = o.quebra, queima = o.queima, tipo = "area", vfx = "explosao_fogo", som = "fogo", tremor = 0.5 }, { dir = dir })
+				Combate.acertar(lut, alvo, { dano = o.dano, empurrar = o.empurrar, ragdoll = o.ragdoll, quebra = o.quebra, queima = o.queima, tipo = "area", vfx = "explosao_fogo", som = "fogo", tremor = 0.5 }, { context=ctx.context, dir = dir })
 			end
 		end
 		Mapa.quebrarCaixa(cf, tam, o.quebra, dir)
@@ -827,7 +831,7 @@ ESPECIAL.sol = function(ctx)
 		local d = (l.raiz.Position - alvoPos).Magnitude
 		local f = math.clamp(d / s.raio, 0, 1)
 		local dano = s.danoCentro + (s.danoBorda - s.danoCentro) * f
-		Combate.acertar(lut, l, { dano = dano, empurrar = s.empurrar, ragdoll = s.ragdoll, quebra = 3, queima = s.queima, tipo = "area", quebraGuarda = true, vfx = "explosao_fogo", som = nil, tremor = 1.2, impactFrame = true }, { origem = alvoPos, dir = ctx.dir })
+		Combate.acertar(lut, l, { dano = dano, empurrar = s.empurrar, ragdoll = s.ragdoll, quebra = 3, queima = s.queima, tipo = "area", quebraGuarda = true, vfx = "explosao_fogo", som = nil, tremor = 1.2, impactFrame = true }, { context=ctx.context, origem = alvoPos, dir = ctx.dir })
 	end
 	Mapa.quebrarArea(alvoPos, s.raio * 0.85, s.quebra)
 	Combate.efeito("explosao", { pos = alvoPos, raio = s.raio, tipo = "sol", som = "explosao_grande", tremor = 1.4, impactFrame = true })
@@ -863,7 +867,7 @@ ESPECIAL.reconstruir = function(ctx)
 	if #voltaram == 0 then
 		local s = r.semNada
 		for _, l in Hitbox.esfera(pos, s.raio, lut) do
-			Combate.acertar(lut, l, { dano = s.dano, empurrar = s.empurrar, atordoar = 0.5, tipo = "area", vfx = "impacto_rosa", som = "cristal" }, { origem = pos })
+			Combate.acertar(lut, l, { dano = s.dano, empurrar = s.empurrar, atordoar = 0.5, tipo = "area", vfx = "impacto_rosa", som = "cristal" }, { context=ctx.context, origem = pos })
 		end
 		Combate.efeito("area", { quem = lut.modelo, vfx = "onda_rosa", pos = pos, raio = s.raio })
 		return
@@ -884,12 +888,12 @@ ESPECIAL.reconstruir = function(ctx)
 	end
 	for l, tipo in afetados do
 		if tipo ~= "perto" then
-			local res = Combate.acertar(lut, l, { dano = r.danoPreso, atordoar = r.preso, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra", tremor = 0.5 }, { dir = ctx.dir })
+			local res = Combate.acertar(lut, l, { dano = r.danoPreso, atordoar = r.preso, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra", tremor = 0.5 }, { context=ctx.context, dir = ctx.dir })
 			if res == "acertou" then
 				prenderNaPedra(l, r.preso, tipo)
 			end
 		else
-			Combate.acertar(lut, l, { dano = r.danoPerto, atordoar = 0.6, empurrar = { radial = true, frente = 24, cima = 10, dur = 0.12 }, tipo = "area", vfx = "impacto_rosa", som = "pedra" }, { origem = pos })
+			Combate.acertar(lut, l, { dano = r.danoPerto, atordoar = 0.6, empurrar = { radial = true, frente = 24, cima = 10, dur = 0.12 }, tipo = "area", vfx = "impacto_rosa", som = "pedra" }, { context=ctx.context, origem = pos })
 		end
 	end
 end
@@ -905,7 +909,7 @@ ESPECIAL.saudade = function(ctx)
 	Combate.efeito("cura", { quem = lut.modelo, dur = 1.2, stand = lut.standId })
 	local presos = {}
 	for _, l in Hitbox.esfera(pos, s.raio, lut) do
-		local r = Combate.acertar(lut, l, { dano = 2, atordoar = s.preso + 1.2, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra" }, { origem = pos })
+		local r = Combate.acertar(lut, l, { dano = 2, atordoar = s.preso + 1.2, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra" }, { context=ctx.context, origem = pos })
 		if r == "acertou" then
 			Fisica.prender(l)
 			l.modelo:SetAttribute("BB_Pedra", agora() + s.preso + 0.8)
@@ -917,7 +921,7 @@ ESPECIAL.saudade = function(ctx)
 		if l.hum.Health > 0 then
 			Combate.efeito("acao", { quem = lut.modelo, id = "stand_visita", alvo = l.modelo, t = agora(), stand = lut.standId })
 			for _ = 1, 3 do
-				Combate.acertar(lut, l, { dano = s.dano / 3, atordoar = 1.5, inbloqueavel = true, tipo = "melee", vfx = "impacto_rosa", som = "soco_rapido" }, { dir = Regras.achatar(l.raiz.Position - pos) })
+				Combate.acertar(lut, l, { dano = s.dano / 3, atordoar = 1.5, inbloqueavel = true, tipo = "melee", vfx = "impacto_rosa", som = "soco_rapido" }, { context=ctx.context, dir = Regras.achatar(l.raiz.Position - pos) })
 				task.wait(0.07)
 			end
 		end
@@ -928,7 +932,7 @@ ESPECIAL.saudade = function(ctx)
 		if not l.agarradoPor and agora() >= l.estado.congeladoAte then
 			Fisica.soltar(l)
 		end
-		Combate.acertar(lut, l, { dano = s.final, empurrar = { radial = true, frente = 70, cima = 34, dur = 0.24 }, ragdoll = 1.6, quebra = 2, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra", tremor = 0.8, impactFrame = true }, { origem = pos })
+		Combate.acertar(lut, l, { dano = s.final, empurrar = { radial = true, frente = 70, cima = 34, dur = 0.24 }, ragdoll = 1.6, quebra = 2, inbloqueavel = true, tipo = "area", vfx = "estilhaco", som = "pedra", tremor = 0.8, impactFrame = true }, { context=ctx.context, origem = pos })
 	end
 end
 
@@ -946,7 +950,7 @@ ESPECIAL.bomba = function(ctx)
 	end)
 	local alvo = alvos[1]
 	if alvo then
-		local r = Combate.acertar(lut, alvo, copiar(b.toque, { tipo = "melee", som = "soco", vfx = "impacto_rosa" }), { dir = ctx.dir })
+		local r = Combate.acertar(lut, alvo, copiar(b.toque, { tipo = "melee", som = "soco", vfx = "impacto_rosa" }), { context=ctx.context, dir = ctx.dir })
 		if r ~= "acertou" then
 			return
 		end
@@ -1052,7 +1056,7 @@ ESPECIAL.paredao = function(ctx)
 		end
 		local frenteCf = base * CFrame.new(0, p.altura / 2, -p.raioPulso / 2 - 1.6)
 		for _, l in Hitbox.caixa(frenteCf, Vector3.new(p.largura + 4, p.altura + 4, p.raioPulso), lut) do
-			Combate.acertar(lut, l, { dano = p.dano, empurrar = p.empurrar, atordoar = 0.3, tipo = "area", vfx = "impacto_som" }, { dir = dir })
+			Combate.acertar(lut, l, { dano = p.dano, empurrar = p.empurrar, atordoar = 0.3, tipo = "area", vfx = "impacto_som" }, { context=ctx.context, dir = dir })
 		end
 		Combate.efeito("pulso", { cf = base, largura = p.largura, altura = p.altura })
 	end
@@ -1068,14 +1072,14 @@ ESPECIAL.baile = function(ctx)
 	for _ = 1, b.batidas do
 		local pos = lut.raiz.Position
 		for _, l in Hitbox.esfera(pos, b.raio, lut) do
-			Combate.acertar(lut, l, { dano = b.dano, empurrar = b.empurrarBatida, atordoar = 0.7, tipo = "area", vfx = "impacto_som" }, { origem = pos })
+			Combate.acertar(lut, l, { dano = b.dano, empurrar = b.empurrarBatida, atordoar = 0.7, tipo = "area", vfx = "impacto_som" }, { context=ctx.context, origem = pos })
 		end
 		Mapa.quebrarVidros(pos, b.raio)
 		task.wait(b.intervalo)
 	end
 	local pos = lut.raiz.Position
 	for _, l in Hitbox.esfera(pos, b.raio, lut) do
-		Combate.acertar(lut, l, copiar(b.final, { tipo = "area", vfx = "explosao_som", som = "grave", tremor = 1.2, impactFrame = true }), { origem = pos })
+		Combate.acertar(lut, l, copiar(b.final, { tipo = "area", vfx = "explosao_som", som = "grave", tremor = 1.2, impactFrame = true }), { context=ctx.context, origem = pos })
 	end
 	Mapa.quebrarArea(pos, b.raio * 0.7, b.final.quebra)
 	Combate.efeito("explosao", { pos = pos, raio = b.raio, tipo = "som", som = "grave", tremor = 1.3, impactFrame = true })
@@ -1093,7 +1097,7 @@ local function acertarProjetil(p: any, alvo: any, _pos: Vector3)
 		tipo = "projetil",
 		som = d.som,
 		vfx = d.vfx,
-	}, { dir = p.dir })
+	}, { context=p.def.context14, projetil=true, dir = p.dir })
 end
 
 local function explodir(p: any, pos: Vector3)

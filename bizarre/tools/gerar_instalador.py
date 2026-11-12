@@ -147,6 +147,9 @@ def conhecidos():
 
 def main():
     revisao = sys.argv[1] if len(sys.argv) > 1 else "AJUSTE-2"
+    if revisao == "AJUSTE-14":
+        from gerar_ajuste14 import main as gerar14
+        return gerar14([])
     numero = revisao.split("-")[-1]
     nome_arquivo = "BIZARRE_AJUSTE%s.py" % numero
     with open(os.path.join(RAIZ, "src", "ReplicatedStorage", "BB", "Config.luau"), encoding="utf-8") as f:

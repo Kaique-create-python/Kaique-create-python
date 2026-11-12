@@ -8,6 +8,7 @@ local Stands = require(BB:WaitForChild("Stands"))
 local UI = require(script.Parent:WaitForChild("Interface"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
 local Som = require(script.Parent:WaitForChild("Som"))
+local PreviaVFX14 = require(script.Parent:WaitForChild("PreviaVFX14"))
 
 local AdminCliente = {}
 
@@ -91,6 +92,12 @@ local function criar()
 			enviar("stand", { id = id })
 		end)
 	end
+	local previa = UI.botao(painel, "PRÉVIA VFX", UDim2.fromOffset(144, 30), UDim2.fromOffset(12, 310), Color3.fromRGB(90, 50, 140), { limite = 16 })
+	previa.MouseButton1Click:Connect(function()
+		local handle = PreviaVFX14.tocar(plr.Character)
+		resposta.Text = if handle then "Prévia local SP/TW — sem dano" else "Catálogo VFX indisponível ou personagem ausente"
+		resposta.TextColor3 = if handle then UI.CORES.verde else UI.CORES.vermelho
+	end)
 	abrir.MouseButton1Click:Connect(function()
 		painel.Visible = not painel.Visible
 	end)

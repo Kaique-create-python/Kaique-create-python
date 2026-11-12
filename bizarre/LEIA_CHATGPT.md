@@ -1,30 +1,79 @@
-# BIZARRE BATTLEGROUNDS — guia rápido para continuar (ChatGPT ou outro assistente)
+# BIZARRE BATTLEGROUNDS — leia antes de continuar
 
-Jogo de luta estilo JoJo no Roblox (Universe 10774214555, Place 108061345551908). O dono joga e
-instala tudo **só pelo celular (Android + Termux)**. Responda em português, simples e passo a passo.
+Jogo JoJo de Kaique. **Universe 10774214555; Place 108061345551908.**
+Ele usa Android/Termux, sem Roblox Studio. Responda em português com comandos curtos.
+Repositório: `Kaique-create-python/Kaique-create-python`, ramo
+`claude/context-capture-w0uo2t`, pasta `bizarre/`.
 
-## Como o projeto funciona
-- Código Luau em `bizarre/src` (ReplicatedStorage/BB = módulos; Cliente = celular; ServerScriptService/BB_Servidor = servidor).
-- `python3 bizarre/tools/gerar_instalador.py AJUSTE-<N>` (na raiz do repo) monta o place (Lune) e gera
-  `bizarre/dist/BIZARRE_AJUSTE<N>.py`: um instalador de um arquivo só. Antes, mude `Config.REVISAO`.
-- O dono roda no Termux: `cd ~/storage/downloads` → `python BIZARRE_AJUSTE<N>.py install --substituir`.
-  O instalador pede a chave da Open Cloud ESCONDIDA (getpass), envia áudios/imagens opcionais, faz um
-  teste isolado na nuvem e só publica se passar E se o dono disser "s".
-- Testes offline: `lune run bizarre/tools/teste_geral.luau` (tem que dar "TUDO OK") e `python3 bizarre/tools/lint.py`.
+## Estado atual
 
-## Regras que nunca mudam
-- NUNCA pedir a chave da Open Cloud no chat; nunca imprimir chave/segredo.
-- NUNCA resetar o Place nem o DataStore (progresso dos jogadores).
-- Teste isolado falhou → nada é publicado. Não publicar sem o dono aprovar.
-- Imagens, músicas, sons e modelos são opcionais: nunca travam a instalação.
-- Não mexer no mapa Morioh; preservar os 6 Stands, o áudio e os dados; só celular; usar a animação do dono.
-- Efeitos: só os dos pacotes da loja que o dono pegou (nada de efeito desenhado por código/IA).
+- Kaique confirmou que a **AJUSTE-13 instalada** tem animação e câmera funcionando.
+- A **AJUSTE-14** é o piloto de combate/VFX de **Star Platinum e The World**.
+  Os outros quatro kits mantêm seu comportamento; o perfil de iluminação é global.
+- Leia [README_AJUSTE14.md](docs/README_AJUSTE14.md), o plano aprovado
+  [PLANO_AJUSTE14.md](docs/PLANO_AJUSTE14.md) e [VALIDACAO_AJUSTE14.md](docs/VALIDACAO_AJUSTE14.md).
+- Testes locais e inspeção do Place são verificações offline. Não representam uma partida,
+  renderização, física, autorização online de texturas, FPS ou publicação no Roblox.
+  O último resultado real da instalação sempre vem de Kaique.
 
-## Onde está cada coisa
-- VFX: `Cliente/VFX.luau` (receitas: impacto, estouroAr, guarda, parry, invocar por Stand, ult, dash, corte...)
-  + `BB/VFXMedida.luau` (medida, escala, cor) + servidor `BB_Servidor/VFXLoja.luau` (carrega os pacotes).
-- Câmera/mira/Shift Lock: `Cliente/Camera.luau`, `Cliente/Jogador.luau`, botões em `Cliente/Controles.luau`.
-- Sons: `BB/Sons.luau` (biblioteca do Roblox + trechos dos áudios enviados), `Cliente/Som.luau`
-  (`Som.voz` gritos, `Som.golpe` socos do dono). Tratamento dos socos: `tools/sons_sfx.py`.
-- Instalador: `tools/instalador_modelo.py` (modelo) + `tools/gerar_instalador.py`; teste na nuvem: `tools/teste_nuvem.luau`.
-- Histórico e próximos passos: `bizarre/PLANO.md` (seção AJUSTE-13 e pendências).
+## Instalar a AJUSTE-14
+
+O instalador novo baixa o **Place completo atual** e altera somente Sources reconhecidas,
+acrescentando módulos e o catálogo visual sanitizado. Não reconstrói Morioh.
+Não usar o antigo `install --substituir` para esta entrega.
+
+```sh
+python ~/BIZARRE_AJUSTE14.py testar
+python ~/BIZARRE_AJUSTE14.py testar-nuvem
+```
+
+`testar` confere a integridade offline, sem chave/rede. `testar-nuvem` pede a chave oculta,
+preserva backup, cria **Saved** se necessário e testa essa versão no motor. A versão
+Published continua a mesma. Somente após **TESTE APROVADO**, com autorização do dono:
+
+```sh
+python ~/BIZARRE_AJUSTE14.py publicar
+```
+
+Ele exige `PUBLICAR AJUSTE14`. Se a resposta de um envio ficar incerta, use `resume`;
+nunca repetir POST ou apagar `~/.bizarre_instalador/active-write.json`.
+Preserve toda a pasta `~/.bizarre_instalador`, inclusive recibos anteriores.
+
+## Regras
+
+- Nunca pedir senha, cookie ou chave no chat; nunca colocar segredo em código, arquivo ou log.
+  Chave somente `getpass` no Termux, mantida em memória durante o comando.
+- Nunca publicar sem confirmação, resetar Place/DataStore ou trocar de universo.
+- Fonte desconhecida bloqueia e exporta ZIP para revisão; não forçar ou reconstruir uma base.
+- Manter Morioh/colisões, seis Stands, R6, andar/correr do dono, mira manual/Shift Lock,
+  distância de câmera aprovada, IDs de mídia, áudios e progresso.
+- VFX são dos pacotes reais enviados pelo dono. Código de modelos externos nunca é executado.
+  Texturas/sons opcionais indisponíveis recebem aviso/fallback; não inventar IDs nem reenviar mídias.
+- ORA/MUDA completos 4,6 s, sem cancelamento voluntário. Qualidade alta, sem redução automática
+  por FPS nesta etapa. Não ampliar o piloto aos quatro outros kits sem validar com Kaique.
+
+## Fontes e ferramentas
+
+- `src/ReplicatedStorage/BB/PerfilCombate14.luau`: política de sequência, buffer e extensão aérea.
+- `src/ServerScriptService/BB_Servidor/`: validação de golpes, hitbox, projéteis e sessões de tempo.
+- `src/ReplicatedStorage/BB/VFXReceitas.luau`, `Cliente/VFXPiloto.luau`, `Cliente/Apresentacao14.luau`:
+  receitas, renderer e integração de previsão/confirmação.
+- `assets/vfx14/`: catálogo RBXM/XML, manifesto de origem e propriedades.
+- `Cliente/Camera.luau`, `Cinematica.luau`, `AmbienteVisual14.luau`: câmera, ULT e iluminação.
+- `Cliente/PreviaVFX14.luau`: **ADM → PRÉVIA VFX**, cena local de 6,2 s sem dano/remotos/áudio de ataque.
+- `installer14/`, `tools/gerar_ajuste14.py`: patcher e protocolo de envio. Baseline AJ13 registrada
+  em `installer14/baseline13.json`; `tools/teste_nuvem14.luau` é o teste nativo desta entrega.
+- `tools/instalador_modelo.py` e o montador antigo são históricos, não o caminho AJ14.
+
+Build, da raiz do repositório:
+
+```sh
+python3 bizarre/tools/gerar_instalador.py AJUSTE-14
+/caminho/do/lune run bizarre/tools/teste_geral.luau
+python3 bizarre/tools/lint.py
+cd bizarre
+python3 -m unittest discover -s tests
+```
+
+Rode também os testes `tools/tests_*14*.luau` descritos no relatório de validação. Ao mudar
+uma Source, gere novamente o instalador e seus hashes; não entregar só um fragmento.

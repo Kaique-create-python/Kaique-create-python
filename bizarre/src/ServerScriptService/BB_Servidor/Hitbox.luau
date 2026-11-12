@@ -3,6 +3,11 @@
 local Lutadores = require(script.Parent.Lutadores)
 
 local Hitbox = {}
+local CORPO = { Head=true, Torso=true, ["Left Arm"]=true, ["Right Arm"]=true, ["Left Leg"]=true, ["Right Leg"]=true, HumanoidRootPart=true }
+function Hitbox.corpo(p, lut)
+	local torso=lut.modelo:FindFirstChild("Torso")
+	return torso and torso:IsA("BasePart") and p and CORPO[p.Name] == true and p.Parent == lut.modelo and p:IsA("BasePart")
+end
 
 local params = OverlapParams.new()
 params.FilterType = Enum.RaycastFilterType.Include
@@ -26,12 +31,13 @@ function Hitbox.parametros(): OverlapParams
 	return params
 end
 
-local function juntar(partes: { BasePart }, excluir: any?): { any }
+local function juntar(partes: { BasePart }, excluir: any?, apenasCorpo: boolean?): { any }
 	local vistos = {}
 	local r = {}
 	for _, p in partes do
 		local l = Lutadores.daPeca(p)
-		if l and l ~= excluir and not vistos[l] and l.hum.Health > 0 then
+		local piloto = apenasCorpo or (excluir and (excluir.standId == "STAR_PLATINUM" or excluir.standId == "THE_WORLD"))
+		if l and l ~= excluir and not vistos[l] and l.hum.Health > 0 and (not piloto or Hitbox.corpo(p,l)) then
 			vistos[l] = true
 			table.insert(r, l)
 		end
@@ -55,10 +61,10 @@ function Hitbox.caixa(cf: CFrame, tam: Vector3, excluir: any?): { any }
 	return juntar(partes, excluir)
 end
 
-function Hitbox.esfera(pos: Vector3, raio: number, excluir: any?): { any }
+function Hitbox.esfera(pos: Vector3, raio: number, excluir: any?, apenasCorpo: boolean?): { any }
 	atualizarParams()
 	local partes = workspace:GetPartBoundsInRadius(pos, raio, params)
-	return juntar(partes, excluir)
+	return juntar(partes, excluir, apenasCorpo)
 end
 
 -- cone achatado (só no plano do chão, com uma folga de altura)

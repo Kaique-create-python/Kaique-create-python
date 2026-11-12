@@ -11,6 +11,7 @@ local BB = script.Parent.Parent
 local Stands = require(BB:WaitForChild("Stands"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
 local VFX = require(script.Parent:WaitForChild("VFX"))
+local Apresentacao = require(script.Parent:WaitForChild("Apresentacao14"))
 
 local StandVisual = {}
 
@@ -300,11 +301,15 @@ local function atualizar(v: any, dt: number)
 			v.acaoAte = math.max(v.acaoAte, agora + 0.5)
 			if not v.guardando then
 				v.guardando = true
-				Animador.tocar(v.modelo, "s_guarda")
+    v.vfxGuarda="guarda:"..tostring(workspace:GetServerTimeNow())
+    local ctx=Apresentacao.contexto(dono,{});ctx.actionId=v.vfxGuarda
+    Apresentacao.tocar(dono:GetAttribute("BB_Stand"),"bloqueio","inicio",ctx)
+    Animador.tocar(v.modelo, "s_guarda")
 			end
 		elseif v.guardando then
 			v.guardando = false
-			if v.modo == "guarda" then
+   if v.vfxGuarda then Apresentacao.cancelar(dono,v.vfxGuarda);v.vfxGuarda=nil end
+   if v.modo == "guarda" then
 				v.modoAte = 0
 			end
 			Animador.cortar(v.modelo)
@@ -336,7 +341,10 @@ local function atualizar(v: any, dt: number)
 			if agora - v.ultimaInvocacao > 1.5 and (dono:GetAttribute("BB_StandFora") == true) then
 				v.ultimaInvocacao = agora
 				-- AJUSTE-13: cada Stand aparece com as camadas e a cor dele (StandVisual guarda o id)
-				VFX.invocar(raizDono.Position + Vector3.new(0, 0.6, 0), v.cor, dono:GetAttribute("BB_Stand"))
+				local posInvocar=raizDono.Position + Vector3.new(0, 0.6, 0)
+    if not Apresentacao.tocar(dono:GetAttribute("BB_Stand"),"invocar","inicio",Apresentacao.contexto(dono,{},posInvocar)) then
+     VFX.invocar(posInvocar,v.cor,dono:GetAttribute("BB_Stand"))
+    end
 			end
 		elseif v.alvoVis < 0.5 and v.vis > 0.05 then
 			alvoOffset = MODOS.dentro
