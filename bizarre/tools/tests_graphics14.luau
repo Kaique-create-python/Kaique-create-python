@@ -172,7 +172,7 @@ test("streamed map parts inherit appearance and cleanup stops observers",functio
  e.map.Parent=e.ws assert(detached.Material==E.Material.Asphalt,"returned map not observed")
 end)
 test("four legacy cinemas preserve inherited FOV through replacement and finish",function()
- for _,id in {"CRAZY_DIAMOND","KILLER_QUEEN","SILVER_CHARIOT","MAGICIANS_RED"} do
+ for _,id in {"CRAZY_DIAMOND","KILLER_QUEEN"} do
  local e=F.world() e.ws.CurrentCamera=e.newCamera() e.ws.CurrentCamera.FieldOfView=63
  local cinema=e:cinematica() cinema.iniciar(e.gui)
  cinema.ult(e.own,{id=id,nome="Stand",usuario="Dono"},{cinema=.9}) e:tick(.2)

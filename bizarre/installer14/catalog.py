@@ -6,7 +6,8 @@ import struct
 import xml.etree.ElementTree as ET
 from .codec import Binary,Chunk,Failure,pack32,pstring,prefs,refs,puints,uints,u32,string,MAX_FILE
 NAME='BB_VFXCatalogo14'
-ALLOWED={'Folder','Part','Attachment','ParticleEmitter','Beam','Trail'}
+ALLOWED={'Folder','Model','Part','MeshPart','SpecialMesh','Attachment','ParticleEmitter','Beam','Trail','Decal','Texture','PointLight','SpotLight','SurfaceLight'}
+NAMES={NAME,'BB_VFXCatalogo15'}
 
 def xml_doc(raw):
  if len(raw)>MAX_FILE or b'<!DOCTYPE' in raw.upper() or b'<!ENTITY' in raw.upper():raise Failure('XML excede limites ou usa entidades externas.')
@@ -37,7 +38,7 @@ def _tree(doc,root):
 
 def _validate_catalog(doc):
  roots=[r for r,p in doc.parents.items() if p==-1]
- if len(roots)!=1 or doc.objects[roots[0]]['class']!='Folder' or doc.objects[roots[0]]['name']!=NAME:raise Failure('Catalogo exige raiz unica Folder '+NAME)
+ if len(roots)!=1 or doc.objects[roots[0]]['class']!='Folder' or doc.objects[roots[0]]['name'] not in NAMES:raise Failure('Catalogo exige raiz unica Folder '+NAME)
  if len(_tree(doc,roots[0]))!=len(doc.objects) or any(o['class'] not in ALLOWED for o in doc.objects.values()):raise Failure('Catalogo contem classe ou arvore nao autorizada.')
  for (g,name),(c,t,q) in doc.props.items():
   count=len(doc.groups[g]['refs']);data=c.data[q:]
@@ -85,9 +86,10 @@ def _binary_equal(doc,root,cat,catroot):
 
 def binary_catalog(raw,catalog):
  doc,cat=Binary(raw),Binary(catalog);cr=_validate_catalog(cat)
+ name=cat.objects[cr]['name']
  parent=doc.locate(['ReplicatedStorage'])
  if doc.objects[parent]['class']!='ReplicatedStorage':raise Failure('ReplicatedStorage inesperado.')
- existing=doc.children.get((parent,NAME),[])
+ existing=doc.children.get((parent,name),[])
  if existing:
   if len(existing)!=1 or not _binary_equal(doc,existing[0],cat,cr):raise Failure('Catalogo existente desconhecido; exporte para revisao.')
   return raw,False
@@ -150,13 +152,13 @@ def _xml_shared_values(doc,root):
 
 def xml_catalog(raw,catalog):
  doc,cat=xml_doc(raw),xml_doc(catalog);roots=cat.findall('Item')
- if len(roots)!=1 or roots[0].get('class')!='Folder' or roots[0].findtext("Properties/string[@name='Name']")!=NAME:raise Failure('Raiz XML do catalogo invalida.')
- source=roots[0]
+ if len(roots)!=1 or roots[0].get('class')!='Folder' or roots[0].findtext("Properties/string[@name='Name']") not in NAMES:raise Failure('Raiz XML do catalogo invalida.')
+ source=roots[0];name=source.findtext("Properties/string[@name='Name']")
  if any(o.get('class') not in ALLOWED for o in source.iter('Item')):raise Failure('Catalogo contem classe nao autorizada.')
  expected=_xml_signature(source);expected_shared=_xml_shared_values(cat,source)
  parents=[o for o in doc.findall('Item') if o.get('class')=='ReplicatedStorage' and o.findtext("Properties/string[@name='Name']")=='ReplicatedStorage']
  if len(parents)!=1:raise Failure('ReplicatedStorage ausente/ambiguo.')
- existing=[o for o in parents[0].findall('Item') if o.findtext("Properties/string[@name='Name']")==NAME]
+ existing=[o for o in parents[0].findall('Item') if o.findtext("Properties/string[@name='Name']")==name]
  if existing:
   if len(existing)!=1 or _xml_signature(existing[0])!=expected or _xml_shared_values(doc,existing[0])!=expected_shared:raise Failure('Catalogo existente desconhecido; exporte para revisao.')
   return raw,False

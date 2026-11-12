@@ -4,7 +4,13 @@ Referência: Jujutsu Shenanigans (combate rápido, câmera de ombro, ragdoll, UL
 Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste na nuvem passar
 e o dono confirmar. O fluxo AJ14 usa primeiro uma versão **Saved**, preservando a publicada.
 
-## AJUSTE-14 — piloto atual
+## AJUSTE-15 — entrega atual
+
+Silver Chariot/Magician's Red, preservando números/kits; detalhes em docs/README_AJUSTE15.md.
+AJ14 publicada v36; AJ15 ainda requer teste nativo e conferência visual. Próxima etapa após
+feedback: Crazy Diamond/Killer Queen. Sem ampliar escopo agora.
+
+## AJUSTE-14 — base publicada
 
 Plano aprovado: [docs/PLANO_AJUSTE14.md](docs/PLANO_AJUSTE14.md).
 Instalação e limites: [docs/README_AJUSTE14.md](docs/README_AJUSTE14.md).

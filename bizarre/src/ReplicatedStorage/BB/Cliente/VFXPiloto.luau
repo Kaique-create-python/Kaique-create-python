@@ -60,12 +60,13 @@ local function numberScale(seq, scale)
 end
 local function actorOf(ctx,moveId,phase)
  local actor=ctx.owner
- local victimEffect=phase=='contato' or phase=='final' or moveId=='parry' or moveId=='quebra_guarda'
+ local victimEffect=phase=='contato' or phase=='final' or moveId=='parry' or moveId=='quebra_guarda' or moveId=='agarrao'
  if victimEffect and typeof(ctx.target)=='Instance' and ctx.target:IsA('Model') then actor=ctx.target end
  if typeof(actor)=='Instance' and actor:IsA('Model') then return actor end
  return nil
 end
 local function frozen(scope)
+ if scope.ctx.projectile then return now()<(scope.projectileAte or 0) end
  if scope.kind=='tempo' then return false end
  local actor=scope.actor
  if not actor or not actor.Parent then return false end
@@ -82,13 +83,13 @@ local function stop(scope)
   for _,pe in item.particles do pe.node.Enabled=false end
   for _,b in item.beams do b.node.Enabled=false end
   for _,t in item.trails do t.Enabled=false end
-  item.stoppedAt=scope.elapsed
+  item.stoppedAt=scope.elapsed;item.stoppedClock=now()
  end
 end
 local function positionItem(scope,item)
  local spec=item.spec
  local cf=item.base
- if spec.mode=='follow' or spec.mode=='beam' then
+ if spec.mode=='follow' or spec.mode=='beam' or spec.mode=='mesh' then
   local root=rootOf(scope.ctx.owner)
   if root then
    -- Follow live R6 orientation while retaining an explicit impact/world position for bursts.
@@ -97,18 +98,26 @@ local function positionItem(scope,item)
    cf=frameOf({pos=pos,dir=dir})
   end
  end
- cf=cf*CFrame.Angles(0,math.rad(spec.yaw or 0),0)
+ if spec.mode=='target' then
+  local target=rootOf(scope.ctx.target)
+  if target then cf=frameOf({pos=target.CFrame.Position,dir=scope.ctx.dir}) end
+ elseif spec.mode=='sol' and scope.ctx.above and scope.ctx.destination then
+  local t=math.clamp((item.age-(scope.ctx.formar or 1.1))/math.max(.01,scope.ctx.cair or .5),0,1)
+  cf=CFrame.new(scope.ctx.above:Lerp(scope.ctx.destination,t*t))
+ end
+ cf=cf*CFrame.Angles(0,math.rad((spec.yaw or 0)+(spec.spin or 0)*item.age),0)
  cf=cf*CFrame.new(spec.offset or Vector3.zero)
  if spec.mode=='projectile' then
-  cf=cf*CFrame.new(0,0,-(spec.speed or 125)*math.min(item.age,spec.duration))
+  cf=cf*CFrame.new(0,0,-(spec.speed or 125)*math.min(item.age,spec.duration,item.stoppedAt and math.max(0,item.stoppedAt-spec.at) or math.huge))
  end
  if spec.axis=='front' then cf=cf*CFrame.Angles(-math.pi/2,0,0)
  elseif spec.axis=='beam' then cf=cf*CFrame.Angles(math.pi/2,0,0) end
  for _,part in item.parts do part.node.CFrame=cf*part.relative end
 end
 local function spawnItem(scope,spec,index)
- local catalog=RS:FindFirstChild('BB_VFXCatalogo14')
+ local catalog=RS:FindFirstChild(string.sub(spec.template,1,2)=='N_' and 'BB_VFXCatalogo15' or 'BB_VFXCatalogo14')
  local template=catalog and catalog:FindFirstChild(spec.template)
+ if spec.mode=='target' and not rootOf(scope.ctx.target) then return nil end
  if not template then return nil end -- missing optional assets never block gameplay
  local clone=template:Clone()
  local scale=math.clamp(finite(spec.scale,1),.01,30)
@@ -116,7 +125,12 @@ local function spawnItem(scope,spec,index)
  local pivot=clone:IsA('BasePart') and clone or clone:FindFirstChildWhichIsA('BasePart',true)
  if not pivot then clone:Destroy();return nil end
  local origin=pivot.CFrame
- local item={node=clone,spec=spec,base=frameOf(scope.ctx),parts={},particles={},beams={},trails={},age=0,tail=spec.duration,stoppedAt=nil}
+ if spec.fit then
+  local extent=.001
+  for _,part in all do if part:IsA('BasePart')then extent=math.max(extent,(origin:PointToObjectSpace(part.CFrame.Position)).Magnitude*2+part.Size.Magnitude)end end
+  scale=spec.fit/extent
+ end
+ local item={node=clone,spec=spec,base=frameOf(scope.ctx),parts={},particles={},beams={},trails={},meshes={},lights={},age=0,tail=spec.duration,stoppedAt=nil}
  local ownerRoot=rootOf(scope.ctx.owner)
  if ownerRoot then
   if scope.ctx.pos then item.anchorLocal=ownerRoot.CFrame:PointToObjectSpace(scope.ctx.pos) end
@@ -130,8 +144,16 @@ local function spawnItem(scope,spec,index)
    relative=CFrame.new(relative.Position*scale)*relative.Rotation
    n.Size=n.Size*scale;n.Anchored=true;n.CanCollide=false;n.CanTouch=false;n.CanQuery=false
    table.insert(item.parts,{node=n,relative=relative})
+   if n:GetAttribute('BB_VisibleMesh') then
+    n.Color=n.Color:Lerp(color,.4)
+    table.insert(item.meshes,{node=n,alpha=n.Transparency,size=n.Size})
+   end
+  elseif n:IsA('SpecialMesh') then
+   n.Scale=n.Scale*scale
   elseif n:IsA('Attachment') then
    n.CFrame=CFrame.new(n.CFrame.Position*scale)*n.CFrame.Rotation
+  elseif n:IsA('Light') then
+   table.insert(item.lights,{node=n,enabled=n.Enabled});n.Enabled=false
   elseif n:IsA('ParticleEmitter') then
    n.Enabled=false
    n.Size=numberScale(n.Size,scale)
@@ -141,13 +163,13 @@ local function spawnItem(scope,spec,index)
    local delay=math.max(0,finite(n:GetAttribute('EmitDelay'),0))
    local duration=math.max(0,finite(n:GetAttribute('EmitDuration'),0))
    -- Continuous recipe duration is an absolute end, not an extra span after EmitDelay.
-   if spec.continuous then duration=math.max(0,spec.duration-delay) end
+   if spec.continuous then duration=math.max(0,spec.duration-delay) elseif string.sub(spec.template,1,2)=='N_' then duration=math.min(duration,math.max(0,spec.duration-delay))end
    local count=n:GetAttribute('EmitCount')
    if type(count)~='number' then count=math.max(1,math.ceil(n.Rate*.2)) end
    count=math.max(0,math.floor(finite(count,0)))
    local timeScale=n.TimeScale
    local life=n.Lifetime.Max/math.max(timeScale,.01)
-   table.insert(item.particles,{node=n,delay=delay,duration=duration,count=count,emitted=false,timeScale=timeScale,life=life})
+   table.insert(item.particles,{node=n,delay=delay,duration=duration,count=count,emitted=false,timeScale=timeScale,life=life,size=n.Size})
    item.tail=math.max(item.tail,delay+duration+life)
   elseif n:IsA('Beam') then
    n.Enabled=false;n.Color=tintSequence(n.Color,color,n.Name)
@@ -181,9 +203,17 @@ local function updateItem(scope,item,isFrozen)
  local age=scope.elapsed-item.spec.at
  item.age=age
  local stopped=scope.cancelled or age>=item.spec.duration
+ for _,mesh in item.meshes do
+  local fade=math.min(item.rebased and 1 or math.clamp(age/.035,0,1),math.clamp((item.spec.duration-age)/.09,0,1))
+  if scope.cancelled then fade=math.min(fade,math.clamp(1-(now()-item.stoppedClock)/.09,0,1)) end
+  mesh.node.Transparency=1-(1-mesh.alpha)*fade
+  mesh.node.Size=mesh.size*(1+((item.spec.expand or 1)-1)*math.clamp(age/item.spec.duration,0,1))
+ end
  if not isFrozen then positionItem(scope,item) end
+ for _,light in item.lights do light.node.Enabled=light.enabled and not stopped end
  for _,pe in item.particles do
   pe.node.TimeScale=isFrozen and 0 or pe.timeScale
+  if item.spec.mode=='sol' then pe.node.Size=numberScale(pe.size,.15+.85*math.clamp(age/(scope.ctx.formar or 1.1),0,1))end
   if not scope.cancelled and age>=pe.delay then
    if not pe.emitted then
     pe.emitted=true
@@ -202,6 +232,10 @@ local function updateItem(scope,item,isFrozen)
  for _,trail in item.trails do trail.Enabled=not stopped and not isFrozen end
  local tail=item.tail
  if item.stoppedAt then
+  if #item.meshes>0 and #item.particles==0 and #item.trails==0 then
+   if now()-item.stoppedClock>=.09 then item.node:Destroy();return false end
+   return true
+  end
   tail=0
   for _,pe in item.particles do tail=math.max(tail,item.stoppedAt-item.spec.at+pe.life) end
   for _,trail in item.trails do tail=math.max(tail,item.stoppedAt-item.spec.at+trail.Lifetime) end
@@ -213,7 +247,12 @@ local function advance(scope,dt)
  local paused=frozen(scope)
  if not paused then scope.elapsed+=dt end
  local root=rootOf(scope.ctx.owner)
+ local actualStand=scope.ctx.owner and scope.ctx.owner:GetAttribute('BB_Stand')
+ if not scope.ctx.preview and not scope.ctx.projectile and actualStand and actualStand~=scope.stand then stop(scope)end
  if scope.ctx.owner and not root then stop(scope) end
+ if scope.actor and scope.actor~=scope.ctx.owner then
+  local h=scope.actor:FindFirstChildOfClass('Humanoid');if not scope.actor.Parent or h and h.Health<=0 then stop(scope)end
+ end
  if scope.ctx.owner then
   local humanoid=scope.ctx.owner:FindFirstChildOfClass('Humanoid')
   if humanoid and humanoid.Health<=0 then stop(scope) end
@@ -264,6 +303,7 @@ function P.tocar(standId,moveId,phase,ctx)
   seen[owner][key]=now()+150
  end
  local copy={};for k,v in ctx do copy[k]=v end
+ if copy.variant=="projetil" then copy.projectile=true end
  if not copy.pos and (phase=='contato' or phase=='final') then
   local targetRoot=rootOf(copy.target)
   if targetRoot then copy.pos=targetRoot.CFrame.Position end
@@ -277,6 +317,28 @@ function P.tocar(standId,moveId,phase,ctx)
  table.insert(scopes,scope)
  advance(scope,0)
  return scope
+end
+-- Authoritative projectile anchors; unlike actor effects these follow server pause state.
+function P.estadoProjetil(owner,actionId,d)
+ for _,scope in scopes do
+  if scope.ctx.owner==owner and scope.ctx.actionId==actionId and not scope.cancelled then
+   scope.projectileAte=d.ate or 0
+   scope.ctx.pos=d.pos;scope.ctx.dir=d.dir
+   local previous=scope.elapsed
+   scope.active=true;scope.elapsed=0;scope.duration=math.max(.01,(d.resta or 1)/math.max(1,d.vel or 125))
+   for _,spec in scope.recipe do if spec.mode=="projectile"then spec.duration=scope.duration else spec.at-=previous end end
+   for _,item in scope.items do
+    if item.spec.mode=="projectile"then
+    item.age=0;item.base=frameOf(scope.ctx);item.rebased=true;item.tail=scope.duration
+    for _,pe in item.particles do
+     if item.spec.continuous then pe.duration=math.max(0,scope.duration-pe.delay)end
+     item.tail=math.max(item.tail,pe.duration+pe.delay+pe.life)
+    end
+    positionItem(scope,item);updateItem(scope,item,frozen(scope))
+    end
+   end
+  end
+ end
 end
 function P.cancelar(owner,actionId)
  for _,scope in scopes do

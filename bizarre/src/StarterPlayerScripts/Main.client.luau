@@ -80,6 +80,7 @@ local TRATADORES = {
 	proj = Efeitos.proj,
 	projFim = Efeitos.projFim,
 	projRefletir = Efeitos.projRefletir,
+	projEstado=Efeitos.projEstado,
 	projVirar = Efeitos.projVirar,
 	rolo = Efeitos.rolo,
 	rebobinar = Efeitos.rebobinar,

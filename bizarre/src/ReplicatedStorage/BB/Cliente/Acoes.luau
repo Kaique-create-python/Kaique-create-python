@@ -346,7 +346,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
   task.delay(g.fim or 3.7,function()
    if token(modelo) ~= tk or not modelo.Parent then return end
    local restante=contato-(g.fim or 3.7)
-   StandVisual.acao(modelo,{modo="frente",clipe="soco_pesado",dur=dur-(g.fim or 3.7),impacto=restante})
+   StandVisual.acao(modelo,{modo="frente",clipe=if s and s.id=="SILVER_CHARIOT" then "sc_final15" else "soco_pesado",dur=dur-(g.fim or 3.7),impacto=restante})
   end)
  end
  -- trocas de clipe no meio do golpe (FREVO voo, FUNK batidão)
@@ -397,7 +397,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		end)
 	end
 	-- coluna de fogo na frente (Magician's Red)
-	if g.vfxColuna then
+	if g.vfxColuna and not piloto then
 		local c = g.vfxColuna
 		task.delay(c.t or 0.2, function()
 			if token(modelo) ~= tk or not modelo.Parent then
@@ -409,7 +409,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			end
 		end)
 	end
-	if g.vfxContinuo and g.vfxContinuo.tipo == "lanca_chamas" then
+	if not piloto and g.vfxContinuo and g.vfxContinuo.tipo == "lanca_chamas" then
 		task.delay(g.vfxContinuo.de, function()
 			if token(modelo) == tk and modelo.Parent then
 				Efeitos.lancaChamas(modelo, g.vfxContinuo.ate - g.vfxContinuo.de, vivo(modelo, tk))

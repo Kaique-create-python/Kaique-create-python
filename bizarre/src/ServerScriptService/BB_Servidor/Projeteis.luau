@@ -54,6 +54,7 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 		golpe = golpeId,
 		t0 = agora(),
 		congeladoAte = 0,
+        visualPausa=0,
 		congelamentos = {},
 		avisoT = 0,
 	}
@@ -63,6 +64,8 @@ function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, go
 			id = id,
 			dono = dono.modelo,
 			visual = def.visual,
+			moveId=golpeId or (def.context14 and def.context14.moveId),
+			actionId=def.context14 and def.context14.actionId,
 			origem = origem,
 			dir = p.dir,
 			vel = p.vel,
@@ -147,11 +150,17 @@ local function atualizarCongelamentos(p,t)
 	end
 	p.congeladoAte=fim
 end
+local function avisarEstado(p)
+ local untilTime=p.congeladoAte
+ if p.visualPausa==untilTime then return end
+ p.visualPausa=untilTime
+ if remoto then remoto:FireAllClients("projEstado",{id=p.id,pos=p.pos,dir=p.dir,t=agora(),ate=untilTime,resta=math.max(0,p.alcance-p.dist),vel=p.vel})end
+end
 function Projeteis.descongelar(ate: number, sessao: any?)
 	local chave=chaveCongelamento(ate,sessao)
 	for _, p in ativos do
 		p.congelamentos[chave]=nil
-		atualizarCongelamentos(p,agora())
+		atualizarCongelamentos(p,agora());avisarEstado(p)
 	end
 end
 
@@ -160,7 +169,7 @@ function Projeteis.congelar(ate: number, exceto: any?, sessao: any?)
 	for _, p in ativos do
 		if p.dono ~= exceto then
 			p.congelamentos[chave]=ate
-			atualizarCongelamentos(p,agora())
+			atualizarCongelamentos(p,agora());avisarEstado(p)
 		end
 	end
 end
@@ -175,7 +184,7 @@ function Projeteis.passo(dt: number)
 		paramsRaio.FilterDescendantsInstances = Mapa.filtro()
 	end
 	for _, p in ativos do
-		atualizarCongelamentos(p,t)
+		atualizarCongelamentos(p,t);avisarEstado(p)
 		if t < p.congeladoAte then
 			continue
 		end

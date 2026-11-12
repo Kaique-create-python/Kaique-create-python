@@ -92,12 +92,21 @@ local function criar()
 			enviar("stand", { id = id })
 		end)
 	end
-	local previa = UI.botao(painel, "PRÉVIA VFX", UDim2.fromOffset(144, 30), UDim2.fromOffset(12, 310), Color3.fromRGB(90, 50, 140), { limite = 16 })
-	previa.MouseButton1Click:Connect(function()
-		local handle = PreviaVFX14.tocar(plr.Character)
-		resposta.Text = if handle then "Prévia local SP/TW — sem dano" else "Catálogo VFX indisponível ou personagem ausente"
-		resposta.TextColor3 = if handle then UI.CORES.verde else UI.CORES.vermelho
-	end)
+ local selecionados={"SILVER_CHARIOT","MAGICIANS_RED","STAR_PLATINUM","THE_WORLD"}
+ local indice=1
+ local previa = UI.botao(painel, "PRÉVIA VFX", UDim2.fromOffset(144,30), UDim2.fromOffset(12,310), Color3.fromRGB(90,50,140), {limite=16})
+ local selecionar=UI.botao(painel,"Silver Chariot",UDim2.fromOffset(144,30),UDim2.fromOffset(164,310),Color3.fromRGB(60,80,110),{limite=14})
+ local parar=UI.botao(painel,"PARAR",UDim2.fromOffset(144,30),UDim2.fromOffset(316,310),Color3.fromRGB(110,50,60),{limite=16})
+ selecionar.MouseButton1Click:Connect(function()
+  PreviaVFX14.cancelar();indice=indice%#selecionados+1;selecionar.Text=Stands.get(selecionados[indice]).nome
+ end)
+ parar.MouseButton1Click:Connect(function()PreviaVFX14.cancelar();resposta.Text="Prévia encerrada"end)
+ previa.MouseButton1Click:Connect(function()
+  local h=PreviaVFX14.tocar(plr.Character,selecionados[indice])
+  resposta.Text=if h then "Prévia local — "..Stands.get(selecionados[indice]).nome else "Catálogo VFX indisponível ou personagem ausente"
+  resposta.TextColor3=if h then UI.CORES.verde else UI.CORES.vermelho
+ end)
+
 	abrir.MouseButton1Click:Connect(function()
 		painel.Visible = not painel.Visible
 	end)

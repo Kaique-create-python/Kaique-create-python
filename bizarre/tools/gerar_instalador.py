@@ -147,6 +147,9 @@ def conhecidos():
 
 def main():
     revisao = sys.argv[1] if len(sys.argv) > 1 else "AJUSTE-2"
+    if revisao == "AJUSTE-15":
+        from gerar_ajuste15 import main as gerar15
+        return gerar15([])
     if revisao == "AJUSTE-14":
         from gerar_ajuste14 import main as gerar14
         return gerar14([])

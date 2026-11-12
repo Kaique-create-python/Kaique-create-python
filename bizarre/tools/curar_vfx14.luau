@@ -7,7 +7,7 @@ local C = {}
 local allowed = {Folder=true, Model=true, Part=true, MeshPart=true, SpecialMesh=true,
  Attachment=true, ParticleEmitter=true, Beam=true, Trail=true, Decal=true, Texture=true,
  PointLight=true, SpotLight=true, SurfaceLight=true}
-function C.sanitizar(original)
+function C.sanitizar(original, visibleMeshes)
  local clone = original:Clone()
  -- Remove untrusted code and nonvisual objects before assigning to any catalog/game parent.
  for _,n in clone:GetDescendants() do
@@ -18,7 +18,9 @@ function C.sanitizar(original)
  for _,n in nodes do
   if n:IsA('BasePart') then
    n.Anchored=true; n.CanCollide=false; n.CanTouch=false; n.CanQuery=false
-   n.Transparency=1; n.CastShadow=false
+   local visible=visibleMeshes and (n:IsA("MeshPart") or n:FindFirstChildWhichIsA("SpecialMesh"))
+   if visible then n:SetAttribute("BB_AuthoredTransparency",n.Transparency);n:SetAttribute("BB_VisibleMesh",true);n.Transparency=math.min(n.Transparency,.05) else n.Transparency=1 end
+   n.CastShadow=false
   elseif n:IsA('ParticleEmitter') or n:IsA('Beam') or n:IsA('Trail') then
    n.Enabled=false
   end

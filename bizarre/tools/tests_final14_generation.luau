@@ -19,7 +19,7 @@ rb.implementProperty('Humanoid','Died',function(h)
 end)
 local function fixture()
  local now=10
- local c=rb.Instance.new('Model');c:SetAttribute('BB_Stand','STAR_PLATINUM');c:SetAttribute('BB_StandFora',true);c:SetAttribute('BB_Geracao14',1)
+ local c=rb.Instance.new('Model');c.Parent=rb.Instance.new('Folder');c:SetAttribute('BB_Stand','STAR_PLATINUM');c:SetAttribute('BB_StandFora',true);c:SetAttribute('BB_Geracao14',1)
  local hum=rb.Instance.new('Humanoid');hum.Health=100;hum.FloorMaterial=rb.Enum.Material.Ground;hum.Parent=c
  local root=rb.Instance.new('Part');root.Name='HumanoidRootPart';root.CFrame=rb.CFrame.new(0,3,0);root.Position=rb.Vector3.new(0,3,0);root.AssemblyLinearVelocity=rb.Vector3.zero;root.Parent=c
  local plr={Character=c,CharacterAdded=signal(),GetAttribute=function()return nil end}

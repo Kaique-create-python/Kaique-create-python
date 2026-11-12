@@ -36,8 +36,8 @@ def collect(baseline=None):
  package=Package(files);package.scripts(1)
  return files
 
-def build(output=None,baseline=None):
- files=collect(baseline);bundle={'payload/'+n:v for n,v in files.items()}
+def build(output=None,baseline=None,files=None):
+ files=collect(baseline) if files is None else files;bundle={'payload/'+n:v for n,v in files.items()}
  for path in sorted((ROOT/'installer14').glob('*.py')):bundle['installer14/'+path.name]=path.read_bytes()
  bundle['bundle-manifest.json']=json.dumps({n:sha(v) for n,v in sorted(bundle.items())},sort_keys=True).encode()
  stream=io.BytesIO()

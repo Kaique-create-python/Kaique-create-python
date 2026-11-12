@@ -7,10 +7,11 @@ local prefix=if fs.isDir('bizarre/src') then 'bizarre/' else ''
 local base=prefix..'src/ReplicatedStorage/BB/'
 assert(fs.isFile(base..'VFXReceitas.luau'),'receitas piloto ausentes')
 assert(fs.isFile(base..'Cliente/VFXPiloto.luau'),'renderizador piloto ausente')
-local R=luau.load(fs.readFile(base..'VFXReceitas.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3}})()
+local extra=luau.load(fs.readFile(base..'VFXReceitas15.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3}})()
+local R=luau.load(fs.readFile(base..'VFXReceitas.luau'),{environment={Color3=r.Color3,Vector3=r.Vector3,script={Parent={VFXReceitas15={}}},require=function()return extra end}})()
 local cat=r.deserializeModel(fs.readFile(prefix..'assets/vfx14/catalogo.rbxm'))[1]
 assert(R.suporta('STAR_PLATINUM') and R.suporta('THE_WORLD'))
-for _,id in {'SILVER_CHARIOT','MAGICIANS_RED','CRAZY_DIAMOND','KILLER_QUEEN'} do
+for _,id in {'CRAZY_DIAMOND','KILLER_QUEEN'} do
  assert(not R.suporta(id));assert(R.resolve(id,'m1','contato',{})==nil)
 end
 assert(R.resolve('STAR_PLATINUM','invocar','inicio',{}),'invocar/inicio sem receita piloto')

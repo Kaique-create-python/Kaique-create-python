@@ -5,6 +5,15 @@ Ele usa Android/Termux, sem Roblox Studio. Responda em português com comandos c
 Repositório: `Kaique-create-python/Kaique-create-python`, ramo
 `claude/context-capture-w0uo2t`, pasta `bizarre/`.
 
+## AJUSTE-15 — continuação atual
+
+Leia [README_AJUSTE15.md](docs/README_AJUSTE15.md) e [PLANO_AJUSTE15.md](docs/PLANO_AJUSTE15.md).
+AJ14 teve teste nativo aprovado e publicação v36 confirmada pelo usuário. AJ15 atualiza SC/MR,
+preparada/testada offline; não assumir instalação/publicação15 sem resultado do usuário.
+Use BIZARRE_AJUSTE15.py testar/testar-nuvem/publicar/resume; confirmação PUBLICAR AJUSTE15.
+Preservar inteiro ~/.bizarre_instalador e14; não repetirsetup/assetsupload. Gerar com tools/gerar_ajuste15.py.
+As instruções14 abaixo são histórico/base, não substituir a15 por14 ao continuar.
+
 ## Estado atual
 
 - Kaique confirmou que a **AJUSTE-13 instalada** tem animação e câmera funcionando.

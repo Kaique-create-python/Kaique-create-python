@@ -31,8 +31,8 @@ end
 function V.executar(root: Instance,cfg: any,config: any,receitas: any,perfil: any): any
 	local out = {package=cfg.package,passed=true,erros={},avisos={},info={templates=0,emissores=0,beams=0,fonts=0}}
 	local function fail(msg: string) out.passed=false; table.insert(out.erros,msg) end
-	if cfg.package~="BIZARRE-AJUSTE-14" or cfg.stage~=14 or cfg.universe~=10774214555 or cfg.place~=108061345551908 then fail("Destino/pacote incorreto.") end
-	if config.REVISAO~="AJUSTE-14" or config.UNIVERSE_ID~=10774214555 or config.PLACE_ID~=108061345551908 then fail("Revisao/destino do jogo nao corresponde ao teste.") end
+	if (cfg.stage~=14 and cfg.stage~=15) or cfg.package~="BIZARRE-AJUSTE-"..tostring(cfg.stage) or cfg.universe~=10774214555 or cfg.place~=108061345551908 then fail("Destino/pacote incorreto.") end
+	if config.REVISAO~="AJUSTE-"..tostring(cfg.stage) or config.UNIVERSE_ID~=10774214555 or config.PLACE_ID~=108061345551908 then fail("Revisao/destino do jogo nao corresponde ao teste.") end
 	if type(cfg.hashes)~="table" or #cfg.hashes==0 then fail("Manifesto de fontes ausente.") end
 	for _,row in cfg.hashes or {} do
 		local label = table.concat(row.path,"/")
@@ -48,11 +48,13 @@ function V.executar(root: Instance,cfg: any,config: any,receitas: any,perfil: an
 			else out.info.fonts+=1 end
 		end
 	end
-	local catalog = locate(root,{"ReplicatedStorage","BB_VFXCatalogo14"})
+ local catalogs=if cfg.stage==15 then receitas.catalogos()else {BB_VFXCatalogo14=receitas.templates()}
+ for catalogName,expectedTemplates in catalogs do
+	local catalog = locate(root,{"ReplicatedStorage",catalogName})
 	if not catalog or not catalog:IsA("Folder") then
 		fail("Catalogo visual incorporado ausente ou ambiguo.")
 	else
-		local expected = receitas.templates()
+		local expected = expectedTemplates
 		for name in expected do
 			local template = locate(catalog,{name})
 			if not template then
@@ -76,8 +78,10 @@ function V.executar(root: Instance,cfg: any,config: any,receitas: any,perfil: an
 			if not expected[template.Name] then fail("Template fora do manifesto: "..template.Name) end
 		end
 	end
+ end
 	if not perfil.suporta("STAR_PLATINUM") or not perfil.suporta("THE_WORLD") then fail("Piloto de combate ausente.") end
-	for _,id in {"MAGICIANS_RED","SILVER_CHARIOT","CRAZY_DIAMOND","KILLER_QUEEN"} do
+	if cfg.stage==15 and (not perfil.suporta("MAGICIANS_RED")or not perfil.suporta("SILVER_CHARIOT"))then fail("Novos Stands ausentes.")end
+ for _,id in {"CRAZY_DIAMOND","KILLER_QUEEN"} do
 		if perfil.suporta(id) or receitas.suporta(id) then fail("Piloto habilitado em Stand legado: "..id) end
 	end
 	local contact,recovery = perfil.tempos(4)

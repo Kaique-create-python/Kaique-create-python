@@ -67,9 +67,9 @@ test('hit phase dedupe scoped hitstop',function()
  assert(#hitstops==4,'only fighters + their stands, once');for _,hit in hitstops do assert(hit.args[1]~=third and hit.args[2]==.04)end
  d.phase='queued';d.congelado=true;E.acerto(d);local hits=0;for _,c in routes do if c.args[3]=='contato' then hits+=1 end end;assert(hits==2)
 end)
-test('four legacy stands',function()
- for i,id in {'MAGICIANS_RED','SILVER_CHARIOT','CRAZY_DIAMOND','KILLER_QUEEN'}do m:SetAttribute('BB_Stand',id);A.tocar(m,{id='m1',seq=10+i});advance(.2)end
- m:SetAttribute('BB_Stand','STAR_PLATINUM');assert(#routes==0 and #legacy>=4)
+test('two remaining legacy stands',function()
+ for i,id in {'CRAZY_DIAMOND','KILLER_QUEEN'}do m:SetAttribute('BB_Stand',id);A.tocar(m,{id='m1',seq=10+i});advance(.2)end
+ m:SetAttribute('BB_Stand','STAR_PLATINUM');assert(#routes==0 and #legacy>=2)
 end)
 test('two time sessions no neon',function()
  local before=#world:GetDescendants();for _,id in {'s1','s2'}do E.tempo({sessao=id,dono=m,stand='STAR_PLATINUM',inicio=now,fim=now+3,centro=R.Vector3.zero,raio=150})end

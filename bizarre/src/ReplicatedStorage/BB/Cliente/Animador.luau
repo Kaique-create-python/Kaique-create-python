@@ -566,7 +566,9 @@ local function aplicar(a: any, dt: number)
 	local acao: { [string]: { number } }? = nil
 	local giro = 0
 	if clipe and a.peso > 0 then
-		if clipe.proc == "barragem" then
+		if clipe.proc and Poses.aj15Proc(clipe.proc,a.t) then
+   acao=Poses.aj15Proc(clipe.proc,a.t)
+  elseif clipe.proc == "barragem" then
 			acao = Poses.barragem(a.t, a.semente)
 		elseif clipe.proc == "estocadas" then
 			acao = Poses.estocadas(a.t)

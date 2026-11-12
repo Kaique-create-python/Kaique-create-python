@@ -25,7 +25,49 @@ function Previa.cancelar()
 	for _, scope in handle.scopes do Piloto.cancelar(handle.owner, scope) end
 end
 
-function Previa.tocar(owner: Model?): any
+local function selecionado(owner,id)
+ Previa.cancelar()
+ if not Receitas.suporta(id)or not owner or not owner.Parent or Players.LocalPlayer.Character~=owner then return false end
+ for name,templates in Receitas.catalogos(id)do
+  local catalog=RS:FindFirstChild(name);if not catalog then return false end
+  for template in templates do if not catalog:FindFirstChild(template)then return false end end
+ end
+ local root=owner:FindFirstChild("HumanoidRootPart");local hum=owner:FindFirstChildOfClass("Humanoid")
+ if not root or not hum or hum.Health<=0 then return false end
+ token+=1
+ local prefix="preview15:"..token..":"..id
+ local h={owner=owner,active=true,scopes={prefix},token=token,stand=id};atual=h
+ local base=root.CFrame:PointToWorldSpace(Vector3.new(0,0,-12));local dir=root.CFrame.LookVector
+ local function tocar(move,phase,extra)
+  if not vivo(h)then return end
+  local ctx={preview=true,owner=owner,pos=base,dir=dir,t=workspace:GetServerTimeNow(),actionId=prefix,n=1,variant="antecipacao"}
+  for k,v in extra or {}do ctx[k]=v end
+  if not table.find(h.scopes,ctx.actionId)then table.insert(h.scopes,ctx.actionId)end
+  Piloto.tocar(id,move,phase,ctx)
+ end
+ local function after(t,fn)task.delay(t,function()if atual==h then if vivo(h)then fn()else Previa.cancelar()end end end)end
+ h.cancelar=function()if atual==h then Previa.cancelar()end end
+ h.connection=RunService.Heartbeat:Connect(function()if atual==h and not vivo(h)then Previa.cancelar()end end)
+ tocar("invocar","inicio")
+ after(.6,function()tocar("m1","inicio")end);after(.72,function()tocar("m1","contato")end)
+ local G=require(script.Parent.Parent:WaitForChild("Golpes"))
+ local clock=1.2
+ for _,slot in {1,2,3,4,"ULT"}do
+  local move=id.."_"..slot;local g=G.get(move);local start=clock
+  after(start,function()tocar(move,"inicio")end)
+  if g.proj then after(start+g.proj.t,function()tocar(move,"inicio",{variant="projetil",actionId=prefix..":proj:"..slot,dur=g.proj.alcance/g.proj.vel,speed=g.proj.vel})end)end
+  if id=="MAGICIANS_RED"and slot=="ULT"then after(start,function()tocar("sol","inicio",{above=base+Vector3.new(0,24,0),destination=base+dir*28,formar=1.1,cair=.5})end)end
+  if id=="SILVER_CHARIOT"and slot==4 then after(start,function()tocar("buff","inicio",{dur=8})end)end
+  after(start+(g.animImpacto or g.final and g.final.t or math.min(.5,g.trava*.6)),function()tocar(move,"contato")end)
+  clock+=math.max(g.trava or .6,g.agarrao and g.agarrao.duracao or 0)+.35
+ end
+ h.duration=math.max(clock+2,12)
+ after(h.duration,Previa.cancelar)
+ return h
+end
+
+function Previa.tocar(owner: Model?, standId: string?): any
+ if standId then return selecionado(owner,standId)end
 	Previa.cancelar()
 	local catalogo = RS:FindFirstChild("BB_VFXCatalogo14")
 	if not catalogo then return false end
@@ -52,7 +94,7 @@ function Previa.tocar(owner: Model?): any
 		end
 		local stand = if index == 1 then "STAR_PLATINUM" else "THE_WORLD"
 		local ok = pcall(Piloto.tocar, stand, move, phase, {
-			owner = owner, pos = bases[index], dir = dir, actionId = handle.scopes[index],
+			preview=true, owner = owner, pos = bases[index], dir = dir, actionId = handle.scopes[index],
 			t = workspace:GetServerTimeNow(), dur = dur, variant = variant, n = 1,
 		})
 		if not ok and atual == handle then Previa.cancelar() end

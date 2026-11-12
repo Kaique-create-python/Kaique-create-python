@@ -93,7 +93,13 @@ local function enquadrar(base: CFrame, rosto: Vector3, t: number, cena: any): (V
 		p1 = (base * CFrame.new(-0.7, -1.3, -4.2)).Position
 		p2 = (base * CFrame.new(4.8, 0.4, -2.4)).Position
 		revelar = (base * CFrame.new(0.6, 1.5, -0.6)).Position
-	elseif cena.baixo then
+	elseif cena.id=="SILVER_CHARIOT"then
+  p1=(base*CFrame.new(2.6,.5,-4.6)).Position;p2=(base*CFrame.new(-4.5,1.6,-2)).Position
+  revelar=(base*CFrame.new(-1.7,1,-2.6)).Position
+ elseif cena.id=="MAGICIANS_RED"then
+  p1=(base*CFrame.new(-2,-.9,-6)).Position;p2=(base*CFrame.new(5,3,-.5)).Position
+  revelar=(base*CFrame.new(0,7,-7)).Position
+ elseif cena.baixo then
 		p1 = (base * CFrame.new(0.4 * lado, -1.6, -6)).Position
 	end
 	if t < 0.42 then
@@ -144,9 +150,10 @@ local function comecar(modelo: Model, s: any, dur: number, baixo: boolean)
 		local saida = math.clamp((1 - t) / 0.16, 0, 1)
 		tamanhoBarras(0.105 * math.min(entrada, saida))
 		-- Pulso breve, sem estourar o branco nem esconder o adversário.
-		if id == "STAR_PLATINUM" or id == "THE_WORLD" then
+		if id == "STAR_PLATINUM" or id == "THE_WORLD" or id=="SILVER_CHARIOT" or id=="MAGICIANS_RED" then
 			local fov = if id == "STAR_PLATINUM" then 61 - math.sin(t * math.pi) * 5
-				else 57 - math.sin(t * math.pi) * 4
+				elseif id=="THE_WORLD" then 57 - math.sin(t * math.pi) * 4
+    elseif id=="SILVER_CHARIOT" then 62-math.sin(t*math.pi)*4 else 64-math.sin(t*math.pi)*5
 			Camera.fovCinema(cena.token, fov)
 		end
 	end)

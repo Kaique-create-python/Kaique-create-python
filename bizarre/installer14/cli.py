@@ -22,12 +22,12 @@ def main(files,argv=None):
  args=parser.parse_args(argv);os.umask(0o077);package=Package(files)
  if args.command in ('testar','testaroffline'):
   package.scripts(1)
-  print('Integridade offline OK: AJUSTE14, '+str(len(package.entries))+' fontes, catalogos binario/XML. Nenhuma conexao ou publicacao.');return
+  print('Integridade offline OK: AJUSTE'+str(package.stage)+', '+str(len(package.entries))+' fontes, catalogos binario/XML. Nenhuma conexao ou publicacao.');return
  root=private_dir(Path.home()/'.bizarre_instalador')
  conf=read(root/'config.json',{})
  for k,v in TARGET.items():
   if k in conf and str(conf[k])!=str(v):raise Failure('Configuracao existente pertence a outro jogo. Preserve os arquivos.')
- rt=Runtime(root,14,package.digest,package.patch,package.scripts)
+ rt=Runtime(root,package.stage,package.digest,package.patch,package.scripts)
  lockpath=guard(root/'lock')
  fd=os.open(lockpath,os.O_WRONLY|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
  with os.fdopen(fd,'a') as lock:

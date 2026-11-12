@@ -200,7 +200,7 @@ end end
 assert(roloFinal,'missing rolo final metadata')
 L.trocarStand(a,'STAR_PLATINUM')
 -- ordinary AJ13 fighters retain their original one-query and .2 recovery
-for n,id in {'CRAZY_DIAMOND','MAGICIANS_RED','SILVER_CHARIOT','KILLER_QUEEN'} do
+for n,id in {'CRAZY_DIAMOND','KILLER_QUEEN'} do
  reset(160+n);a.standId=id;a.stand=H.modulo('ReplicatedStorage/BB/Stands').get(id)
  local tok=a.estado.token;assert(L.trocarStand(a,id) and a.estado.token==tok)
  B.m1(a,{});assert(a.estado.acaoAte==160+n+.2 and not a.acao14)

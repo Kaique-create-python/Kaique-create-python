@@ -18,6 +18,7 @@ local Animador = require(script.Parent:WaitForChild("Animador"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
 local VFX = require(script.Parent:WaitForChild("VFX"))
 
+local Rastro15=require(script.Parent:WaitForChild("RastroStand15"))
 local Apresentacao = require(script.Parent:WaitForChild("Apresentacao14"))
 local Efeitos = {}
 local geracoesDono = setmetatable({}, {__mode="k"})
@@ -751,10 +752,15 @@ local CORES_RASTRO = {
 }
 function Efeitos.proj(d: any)
  local ctx = Apresentacao.contexto(d.quem or d.dono,d,d.origem)
- ctx.variant="projetil";ctx.n=1
+ ctx.variant="projetil";ctx.n=1;ctx.speed=d.vel
  ctx.actionId = "proj:"..tostring(d.id);ctx.dur=(d.alcance or 100)/math.max(1,d.vel or 125)
- if Apresentacao.tocar(d.stand,d.moveId or (if d.visual=="faca" then "THE_WORLD_2" else "STAR_PLATINUM_4"),"inicio",ctx) then
-  projeteis[d.id]={piloto=true,owner=ctx.owner,actionId=ctx.actionId,stand=d.stand};return
+ if Apresentacao.tocar(d.stand,d.moveId or (if d.visual=="faca" then "THE_WORLD_2" elseif d.stand=="MAGICIANS_RED" then "MAGICIANS_RED_1" elseif d.stand=="SILVER_CHARIOT" then "SILVER_CHARIOT_2" else "STAR_PLATINUM_4"),"inicio",ctx) then
+  local p
+  if d.stand=="SILVER_CHARIOT" or d.stand=="MAGICIANS_RED" then
+   p=visualProjetil(d.visual,corStand(d.stand),d.raio or 1.5)
+   for _,node in p:GetDescendants()do if node:IsA("Fire")then node:Destroy()end end
+  end
+  projeteis[d.id]={piloto=true,p=p,owner=ctx.owner,actionId=ctx.actionId,stand=d.stand,ctx=ctx,move=d.moveId or (d.stand.."_"..(d.stand=="SILVER_CHARIOT" and "2" or "1")),origem=d.origem,dir=d.dir,vel=d.vel,t=d.t,alcance=d.alcance,visual=d.visual};return
  end
 	local cor = corStand(d.stand)
 	local p = visualProjetil(d.visual, cor, d.raio or 1.5)
@@ -774,9 +780,23 @@ function Efeitos.projFim(d: any)
 	end
 end
 
+local function redirecionar15(pr,d)
+ if not pr.piloto then return end
+ Apresentacao.cancelar(pr.owner,pr.actionId)
+ pr.owner=d.dono or pr.owner;pr.origem=d.pos;pr.dir=d.dir;pr.t=d.t;pr.alcance=d.resta or pr.alcance
+ pr.actionId=pr.actionId..":r:"..tostring(d.t)
+ local ctx=table.clone(pr.ctx);ctx.owner=pr.owner;ctx.pos=d.pos;ctx.dir=d.dir;ctx.t=d.t;ctx.actionId=pr.actionId;ctx.dur=pr.alcance/math.max(1,pr.vel)
+ pr.ctx=ctx;Apresentacao.tocar(pr.stand,pr.move,"inicio",ctx)
+end
 -- projétil guiado virou (Sheer Heart Attack): recomeça a conta do caminho de onde ele está
+function Efeitos.projEstado(d: any)
+ local pr=projeteis[d.id];if not pr then return end
+ pr.origem=d.pos;pr.dir=d.dir;pr.t=d.t;pr.alcance=d.resta or pr.alcance;pr.pausaAte=d.ate or 0
+ if pr.piloto then Apresentacao.estadoProjetil(pr.owner,pr.actionId,d)end
+end
 function Efeitos.projVirar(d: any)
 	local pr = projeteis[d.id]
+ if pr and pr.piloto then redirecionar15(pr,d);return end
 	if pr and not pr.piloto then
 		pr.origem = d.pos
 		pr.dir = d.dir
@@ -787,6 +807,7 @@ end
 
 function Efeitos.projRefletir(d: any)
 	local pr = projeteis[d.id]
+ if pr and pr.piloto then redirecionar15(pr,d);Som.tocar("parry",d.pos);return end
 	if pr and not pr.piloto then
 		pr.origem = d.pos
 		pr.dir = d.dir
@@ -801,14 +822,14 @@ local tempoInicio = 0
 local function passoProjeteis()
 	local agora = workspace:GetServerTimeNow()
 	for id, pr in projeteis do
-		if pr.piloto then continue end
+		if pr.piloto and not pr.p then continue end
 		if not pr.p.Parent then
 			projeteis[id] = nil
 			continue
 		end
 		local dt = agora - pr.t
-		if agora < tempoParadoAte and pr.t < tempoInicio then
-			dt = tempoInicio - pr.t
+		if agora < (pr.pausaAte or 0) then
+			dt = 0
 		end
 		local dist = math.min(pr.alcance + 4, pr.vel * math.max(0, dt))
 		local pos = pr.origem + pr.dir * dist
@@ -835,6 +856,9 @@ end
 
 ------------------------------------------------------------------------------------- golpes especiais
 function Efeitos.area(d: any)
+ if d.stand=="SILVER_CHARIOT" and Apresentacao.tocar(d.stand,"SILVER_CHARIOT_ULT","final",Apresentacao.contexto(d.quem,d,d.pos))then
+  if d.som then Som.tocar(d.som,d.pos)end;return
+ end
 	local pos: Vector3 = d.pos
 	local raio = d.raio or 10
 	local cor = corStand(d.stand)
@@ -959,6 +983,25 @@ function Efeitos.onda(d: any)
 end
 
 function Efeitos.sol(d: any)
+ local id=d.stand or (d.quem and d.quem:GetAttribute("BB_Stand"))
+ if id=="MAGICIANS_RED" then
+  local ctx=Apresentacao.contexto(d.quem,d,d.acima);ctx.actionId="sol:"..tostring(d.actionId or d.t)
+  local ok,handle=Apresentacao.tocar(id,"sol","inicio",ctx)
+  if ok then
+   Som.tocar("fogo_grande",d.acima,{alcance=500})
+   -- Retain the existing projectile silhouette, with the curated fire instead of a Neon sphere.
+   local ankh=visualProjetil("ankh",RGB(255,120,30),2)
+   for _,n in ankh:GetDescendants()do if n:IsA("Fire")then n:Destroy()end end
+   task.spawn(function()
+    while ankh.Parent and handle and handle.active and not handle.cancelled do
+     local age=handle.elapsed;local k=math.clamp((age-d.formar)/math.max(.01,d.cair),0,1)
+     ankh.CFrame=CFrame.new(d.acima:Lerp(d.alvo,k*k));task.wait()
+    end
+    ankh:Destroy()
+   end)
+   return
+  end
+ end
 	local inicio = os.clock()
 	local sol = parte(Vector3.new(1, 1, 1), CFrame.new(d.acima), RGB(255, 210, 60), Enum.Material.Neon, Enum.PartType.Ball)
 	if d.visual == "ankh" then
@@ -1196,11 +1239,14 @@ function Efeitos.cura(d: any)
 end
 
 function Efeitos.teleporte(d: any)
+ if d.stand=="SILVER_CHARIOT" then
+  local SV=require(script.Parent:WaitForChild("StandVisual"));Rastro15.tocar(d.quem,SV.modelo(d.quem),d.de,.28)
+ end
  if Apresentacao.disponivel(d.stand) then
   local de=Apresentacao.contexto(d.quem,d,d.de);de.actionId=tostring(d.actionId or d.t or "teleporte")..":de"
   local para=Apresentacao.contexto(d.quem,d,d.para);para.actionId=tostring(d.actionId or d.t or "teleporte")..":para"
-  Apresentacao.tocar(d.stand,"THE_WORLD_3","inicio",de)
-  Apresentacao.tocar(d.stand,"THE_WORLD_3","contato",para)
+  Apresentacao.tocar(d.stand,if d.stand=="SILVER_CHARIOT"then "teleporte"else "THE_WORLD_3","inicio",de)
+  Apresentacao.tocar(d.stand,if d.stand=="SILVER_CHARIOT"then "teleporte"else "THE_WORLD_3","contato",para)
   Som.tocar("teleporte",d.para);return
  end
 	local modelo = d.quem
@@ -1219,6 +1265,11 @@ function Efeitos.teleporte(d: any)
 end
 
 function Efeitos.contra(d: any)
+ local id=d.quem and d.quem:GetAttribute("BB_Stand")
+ if id=="SILVER_CHARIOT" and Apresentacao.tocar(id,"contra","contato",Apresentacao.contexto(d.quem,d))then
+  local SV=require(script.Parent:WaitForChild("StandVisual"));SV.acao(d.quem,{modo="frente",clipe="sc_estocada15",dur=.4,impacto=.08})
+  Som.tocar("parry",d.quem.HumanoidRootPart.Position);return
+ end
 	local raiz = d.quem and d.quem:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not raiz then
 		return
@@ -1260,6 +1311,10 @@ function Efeitos.marca(d: any)
 end
 
 function Efeitos.agarrao(d: any)
+ if d.id=="MAGICIANS_RED_2" then
+  local ctx=Apresentacao.contexto(d.quem,d);ctx.actionId="bind:"..tostring(d.actionId or d.t or workspace:GetServerTimeNow());ctx.dur=d.dur
+  Apresentacao.tocar("MAGICIANS_RED","agarrao","inicio",ctx)
+ end
 	local alvo = d.alvo
 	if alvo then
 		Animador.tocar(alvo, "atordoado", { ate = os.clock() + (d.dur or 1) })
@@ -1528,15 +1583,16 @@ function Efeitos.buff(d: any)
 		return
 	end
 	local cor = corStand(d.stand)
-	Efeitos.particulas(raiz.Position, RGB(220, 230, 255), { n = 30, vel = 30, tam = 1, vida = 0.5 })
+	local ctx=Apresentacao.contexto(modelo,d);ctx.actionId="buff:"..tostring(d.ate);ctx.dur=math.max(.01,(d.ate or 0)-workspace:GetServerTimeNow())
+ if not Apresentacao.tocar(d.stand,"buff","inicio",ctx) then Efeitos.particulas(raiz.Position, RGB(220, 230, 255), { n = 30, vel = 30, tam = 1, vida = 0.5 })end
 	Som.tocar("metal", raiz.Position)
 	local StandVisual = require(script.Parent:WaitForChild("StandVisual"))
 	task.spawn(function()
-		while workspace:GetServerTimeNow() < (d.ate or 0) and modelo.Parent do
-			Efeitos.fantasma(modelo, cor, 0.25)
+		while workspace:GetServerTimeNow() < (d.ate or 0) and modelo.Parent and modelo:GetAttribute("BB_Stand")==d.stand and (not modelo:FindFirstChildOfClass("Humanoid")or modelo:FindFirstChildOfClass("Humanoid").Health>0) do
+			if d.stand~="SILVER_CHARIOT"then Efeitos.fantasma(modelo, cor, 0.25)end
 			local st = StandVisual.modelo(modelo)
 			if st and StandVisual.visivel(modelo) then
-				Efeitos.fantasma(st, RGB(220, 230, 255), 0.25)
+				if d.stand=="SILVER_CHARIOT"then Rastro15.tocar(modelo,st,nil,.25)else Efeitos.fantasma(st, RGB(220, 230, 255), 0.25)end
 			end
 			task.wait(0.12)
 		end

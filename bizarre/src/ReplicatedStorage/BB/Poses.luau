@@ -706,4 +706,37 @@ function Poses.estocadas(t: number): { [string]: { number } }
 	return p
 end
 
+-- AJ15: isolated clips, leaving all old poses and locomotion unchanged.
+P.sc_pre15={Waist={2,-14,0},Neck={0,10,0},RS={68,-4,4},RE={72,0,0},RW={0,0,-5},LS={32,0,-52},LE={45,0,0},LH={14,0,-6},RH={-8,0,6}}
+P.sc_hit15={Waist={-7,16,0},Neck={0,-12,0},RS={92,-3,0},RE={3,0,0},RW={0,0,-5},LS={5,0,-60},LE={35,0,0},LH={25,0,-6},RH={-14,0,6}}
+P.sc_guard15={Waist={0,-12,0},Neck={0,10,0},RS={84,0,-12},RE={28,0,0},RW={0,0,-18},LS={40,0,-45},LE={80,0,0}}
+P.sc_armor15={Waist={-8,0,0},Neck={-6,0,0},RS={55,0,60},RE={95,0,0},LS={55,0,-60},LE={95,0,0}}
+P.mr_pre15={Waist={10,0,0},Neck={-8,0,0},RS={60,0,28},RE={110,0,0},LS={60,0,-28},LE={110,0,0}}
+P.mr_fire15={Waist={-10,0,0},Neck={8,0,0},RS={100,0,16},RE={16,0,0},LS={100,0,-16},LE={16,0,0}}
+P.mr_sky15={Waist={-12,0,0},Neck={-20,0,0},RS={150,0,22},RE={12,0,0},LS={150,0,-22},LE={12,0,0}}
+C.sc_estocada15={dur=.3,impacto=.1,keys={{0,"sc_pre15"},{.05,"sc_pre15","saida"},{.1,"sc_hit15","estalo"},{.18,"sc_hit15"},{.3,"sc_pre15","suave"}}}
+C.sc_final15={dur=.45,impacto=.16,keys={{0,"sc_pre15"},{.1,"sc_pre15"},{.16,"sc_hit15","estalo"},{.3,"sc_hit15"},{.45,"sc_pre15","suave"}}}
+C.sc_serie15={proc="sc_serie15",segurar=true,keys={{0,"sc_pre15"}}}
+C.sc_defesa15={proc="sc_defesa15",segurar=true,keys={{0,"sc_guard15"}}}
+C.sc_armor15={dur=.6,keys={{0,"sc_pre15"},{.18,"sc_armor15","saida"},{.4,"sc_armor15"},{.6,"sc_pre15","suave"}}}
+C.sc_guard15={segurar=true,keys={{0,"sc_pre15"},{.12,"sc_guard15","saida"}}}
+C.mr_sopro15={proc="mr_sopro15",segurar=true,impacto=.3,keys={{0,"mr_pre15"}}}
+C.mr_conjurar15={segurar=true,impacto=.5,keys={{0,"mr_pre15"},{.2,"mr_sky15","saida"},{.5,"mr_sky15"}}}
+C.esgrima=C.sc_guard15
+local routes15={SILVER_CHARIOT={estocada="sc_estocada15",estocadas="sc_serie15",gira_sombrinha="sc_defesa15",conjurar="sc_armor15",s_guarda="sc_guard15",soco_d="sc_estocada15"},MAGICIANS_RED={sopro="mr_sopro15",conjurar="mr_conjurar15"}}
+function Poses.clipe15(id,clip)local map=routes15[id];return map and map[clip]or clip end
+function Poses.aj15Proc(proc,t)
+ local from,to,f
+ if proc=="sc_serie15"then
+  local a=(t%.08)/.08;f=a<.35 and a/.35 or 1-(a-.35)/.65;from=P.sc_pre15;to=P.sc_hit15
+ elseif proc=="sc_defesa15"then from=P.sc_guard15;to=P.sc_guard15;f=0
+ elseif proc=="mr_sopro15"then from=P.mr_pre15;to=P.mr_fire15;f=math.clamp(t/.3,0,1)
+ else return nil end
+ local out={}
+ for key,a in from do local b=to[key]or a;out[key]={a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,a[3]+(b[3]-a[3])*f}end
+ if proc=="sc_defesa15"then out.RS={86,math.sin(t*28)*12,-12};out.RW={0,0,math.sin(t*35)*28}
+ elseif proc=="mr_sopro15"then out.Waist[1]+=math.sin(t*12)*1.5 end
+ return out
+end
+
 return Poses

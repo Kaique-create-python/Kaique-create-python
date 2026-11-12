@@ -165,7 +165,7 @@ test('R7 removed owner with model still parented cannot retain session',function
  a=L.criar(a.modelo,nil,'STAR_PLATINUM');a.estado.standFora=true
 end)
 test('legacy death/removal cancellation invalidates pending M1 without new pilot rules',function()
- for n,id in {'CRAZY_DIAMOND','MAGICIANS_RED','SILVER_CHARIOT','KILLER_QUEEN'} do
+ for n,id in {'CRAZY_DIAMOND','KILLER_QUEEN'} do
   reset(230+n);a.standId=id;a.stand=H.modulo('ReplicatedStorage/BB/Stands').get(id)
   B.m1(a,{});local token=a.estado.token
   a.hum.Health=0;B.abate(a);a.hum.Health=100

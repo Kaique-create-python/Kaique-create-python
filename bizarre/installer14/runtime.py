@@ -34,9 +34,9 @@ def save(path,value):
 
 class Runtime:
     def __init__(self,root,stage,digest,patch,scripts):
-        if stage!=14:raise Failure('Revisao invalida.')
-        self.root=private_dir(root);self.stage=stage;self.package='BIZARRE-AJUSTE-14'
-        self.state=private_dir(self.root/'state-ajuste14')
+        if stage not in (14,15):raise Failure('Revisao invalida.')
+        self.root=private_dir(root);self.stage=stage;self.package='BIZARRE-AJUSTE-'+str(stage)
+        self.state=private_dir(self.root/('state-ajuste'+str(stage)))
         self.digest=digest;self.patch=patch;self.scripts=scripts
         self.active=self.root/'active-write.json'
     def pending(self):
@@ -53,7 +53,7 @@ class Runtime:
         if self.pending():raise Failure('Existe envio pendente; use resume, sem repetir o envio.')
         remove(self.state/'test.json')
         cloud.validate_destination();base,rows=cloud.history()
-        print('Versao atual:',base,'| AJUSTE14: preserva mapa, artes e sons.',flush=True)
+        print('Versao atual:',base,'| AJUSTE'+str(self.stage)+': preserva mapa, artes e sons.',flush=True)
         backup=self.state/('Backup_v'+str(base)+'.rbxl')
         raw=cloud.download(base,backup)
         try:prepared,changed=self.patch(raw)
@@ -108,7 +108,7 @@ class Runtime:
         cloud.validate_destination();latest,_=cloud.history()
         if latest!=proof['base']:raise Failure('O Place mudou depois do teste. Rode test novamente; nada foi enviado.')
         print('Nao salve pelo Studio/outra API durante este envio.',flush=True)
-        if input('Para publicar, digite PUBLICAR AJUSTE14: ').strip()!='PUBLICAR AJUSTE14':raise Failure('Publicacao cancelada.')
+        if input('Para publicar, digite PUBLICAR AJUSTE'+str(self.stage)+': ').strip()!='PUBLICAR AJUSTE'+str(self.stage):raise Failure('Publicacao cancelada.')
         return self._write(cloud,latest,ready,'Published')
     def _write(self,cloud,base,ready,mode):
         if self.pending():raise Failure('Envio pendente. Use resume; nenhum POST foi repetido.')

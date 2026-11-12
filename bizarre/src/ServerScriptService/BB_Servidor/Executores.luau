@@ -763,7 +763,7 @@ ESPECIAL.carnaval = function(ctx)
 		for _, l in Hitbox.esfera(lut.raiz.Position, 12, lut) do
 			Combate.acertar(lut, l, { dano = 8, empurrar = { radial = true, frente = 50, cima = 30, dur = 0.2 }, ragdoll = 1.2, tipo = "area", vfx = "impacto_prata", som = "corte" }, { context=ctx.context, origem = lut.raiz.Position })
 		end
-		Combate.efeito("area", { quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 14, stand = lut.standId })
+		Combate.efeito("area", { actionId=ctx.context.actionId,moveId=ctx.id,t=agora(),quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 14, stand = lut.standId })
 		return
 	end
 	local golpes = if #alvos == 1 then c.golpesPorAlvo + 2 else c.golpesPorAlvo
@@ -777,15 +777,16 @@ ESPECIAL.carnaval = function(ctx)
 		local ang = math.random() * math.pi * 2
 		local pos = alvo.raiz.Position + Vector3.new(math.cos(ang) * 4, 0, math.sin(ang) * 4)
 		local olhar = Vector3.new(alvo.raiz.Position.X, pos.Y, alvo.raiz.Position.Z)
+		local de=lut.raiz.Position
 		Fisica.moverPara(lut, CFrame.lookAt(pos, olhar))
-		Combate.efeito("teleporte", { quem = lut.modelo, para = pos, stand = lut.standId })
+		Combate.efeito("teleporte", { actionId=ctx.context.actionId,moveId=ctx.id,t=agora(),de=de,quem = lut.modelo, para = pos, stand = lut.standId })
 		for _ = 1, golpes do
 			task.wait(c.intervalo)
 			Combate.acertar(lut, alvo, { dano = c.dano, atordoar = 1.4, inbloqueavel = true, tipo = "melee", som = "estocada", vfx = c.vfxCorte or "corte_prata", empurrar = { frente = 2, cima = 0, dur = 0.05 } }, { context=ctx.context, dir = Regras.achatar(alvo.raiz.Position - lut.raiz.Position) })
 		end
 	end
 	task.wait(0.18)
-	Combate.efeito("area", { quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 16, som = "corte", tremor = 0.8, stand = lut.standId })
+	Combate.efeito("area", { actionId=ctx.context.actionId,moveId=ctx.id,t=agora(),quem = lut.modelo, vfx = c.vfxFinal or "prata", pos = lut.raiz.Position, raio = 16, som = "corte", tremor = 0.8, stand = lut.standId })
 	for _, alvo in alvos do
 		Combate.acertar(lut, alvo, copiar(c.final, { inbloqueavel = true, tipo = "area", vfx = "impacto_prata", som = "corte", empurrar = copiar(c.final.empurrar, { radial = true }), impactFrame = true }), { context=ctx.context, origem = lut.raiz.Position })
 	end
@@ -825,7 +826,7 @@ ESPECIAL.sol = function(ctx)
 	local s = ctx.g.sol
 	local acima = lut.raiz.Position + Vector3.new(0, 24, 0)
 	local alvoPos = ondeOChao(lut.raiz.Position + ctx.dir * s.dist)
-	Combate.efeito("sol", { quem = lut.modelo, acima = acima, alvo = alvoPos, formar = s.formar, cair = s.cair, t = agora(), raio = s.raio, visual = s.visual })
+	Combate.efeito("sol", { stand=lut.standId,actionId=ctx.context.actionId,moveId=ctx.id,quem = lut.modelo, acima = acima, alvo = alvoPos, formar = s.formar, cair = s.cair, t = agora(), raio = s.raio, visual = s.visual })
 	task.wait(s.formar + s.cair)
 	for _, l in Hitbox.esfera(alvoPos, s.raio, lut) do
 		local d = (l.raiz.Position - alvoPos).Magnitude

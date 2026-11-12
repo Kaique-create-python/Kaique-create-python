@@ -1,5 +1,6 @@
 -- AJ14: compositions exclusively from the owner's approved Creator Store packages.
 -- Pure data/policy: no services, no generated geometry, no automatic FPS reduction.
+local Extra = require(script.Parent.VFXReceitas15)
 local R = {}
 local E = 'E_Anime_'
 local S = 'S_vfxpack_'
@@ -15,10 +16,16 @@ R.CORES = {
  THE_WORLD = {Color3.fromRGB(255,202,63),Color3.fromRGB(219,115,20)},
 }
 function R.suporta(id)
- return id=='STAR_PLATINUM' or id=='THE_WORLD'
+ return id=='STAR_PLATINUM' or id=='THE_WORLD' or Extra.suporta(id)
 end
 function R.templates()
  local result={}; for _,name in names do result[name]=true end; return result
+end
+for id,palette in Extra.CORES do R.CORES[id]=palette end
+function R.catalogos(id)
+ local out={BB_VFXCatalogo14=R.templates()}
+ if id==nil or Extra.suporta(id)then out.BB_VFXCatalogo15=Extra.templates()end
+ return out
 end
 local function layer(template, mode, scale, duration, extra)
  local result={template=template,mode=mode or 'burst',scale=scale or 1,duration=duration or .12,at=0,axis='front'}
@@ -34,6 +41,7 @@ local function hit(n, strong)
  }
 end
 function R.resolve(stand,move,phase,ctx)
+ if Extra.suporta(stand) then return Extra.resolve(stand,move,phase,ctx) end
  if not R.suporta(stand) then return nil end
  if phase~='inicio' and phase~='contato' and phase~='final' and phase~='fim' then return nil end
  ctx=ctx or {}
@@ -93,7 +101,7 @@ function R.resolve(stand,move,phase,ctx)
   local count=single and 1 or (stand=='THE_WORLD' and 5 or 1)
   local duration=single and (ctx.dur or .36) or .36
   for i = 1,count do
-   table.insert(result,layer(S..'separated_lines','projectile',.35,duration,{continuous=true,speed=stand=='THE_WORLD' and 125 or 165,yaw=count==1 and 0 or (i-3)*4.5,offset=single and Vector3.zero or Vector3.new(0,.3,-2)}))
+   table.insert(result,layer(S..'separated_lines','projectile',.35,duration,{continuous=true,speed=ctx.speed or (stand=='THE_WORLD' and 125 or 165),yaw=count==1 and 0 or (i-3)*4.5,offset=single and Vector3.zero or Vector3.new(0,.3,-2)}))
   end
   return result
  elseif stand=='THE_WORLD' and slot=='3' then

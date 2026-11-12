@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local BB = script.Parent.Parent
+local Poses=require(BB:WaitForChild("Poses"))
 local Stands = require(BB:WaitForChild("Stands"))
 local Animador = require(script.Parent:WaitForChild("Animador"))
 local VFX = require(script.Parent:WaitForChild("VFX"))
@@ -188,7 +189,7 @@ function StandVisual.acao(dono: Model, opcoes: any)
 	v.modoAte = agora + dur
 	v.escalaAlvo = opcoes.escala or 1
 	if opcoes.clipe then
-		Animador.tocar(v.modelo, opcoes.clipe, { impacto = opcoes.impacto, ate = agora + dur })
+		Animador.tocar(v.modelo, Poses.clipe15(dono:GetAttribute("BB_Stand"),opcoes.clipe), { impacto = opcoes.impacto, ate = agora + dur })
 	end
 end
 
@@ -244,7 +245,7 @@ function StandVisual.impactoGuarda(dono: Model?)
 	Animador.tocar(v.modelo, "s_guarda_impacto")
 	task.delay(0.24, function()
 		if v.guardando and v.modelo.Parent then
-			Animador.tocar(v.modelo, "s_guarda")
+			Animador.tocar(v.modelo, Poses.clipe15(v.dono:GetAttribute("BB_Stand"),"s_guarda"))
 		end
 	end)
 end
@@ -257,10 +258,10 @@ function StandVisual.parry(dono: Model?)
 	end
 	v.recuo = -1.5
 	v.acaoAte = math.max(v.acaoAte, os.clock() + 0.9)
-	Animador.tocar(v.modelo, "soco_d")
+	Animador.tocar(v.modelo, Poses.clipe15(v.dono:GetAttribute("BB_Stand"),"soco_d"))
 	task.delay(0.36, function()
 		if v.guardando and v.modelo.Parent then
-			Animador.tocar(v.modelo, "s_guarda")
+			Animador.tocar(v.modelo, Poses.clipe15(v.dono:GetAttribute("BB_Stand"),"s_guarda"))
 		end
 	end)
 end
@@ -304,7 +305,7 @@ local function atualizar(v: any, dt: number)
     v.vfxGuarda="guarda:"..tostring(workspace:GetServerTimeNow())
     local ctx=Apresentacao.contexto(dono,{});ctx.actionId=v.vfxGuarda
     Apresentacao.tocar(dono:GetAttribute("BB_Stand"),"bloqueio","inicio",ctx)
-    Animador.tocar(v.modelo, "s_guarda")
+    Animador.tocar(v.modelo, Poses.clipe15(v.dono:GetAttribute("BB_Stand"),"s_guarda"))
 			end
 		elseif v.guardando then
 			v.guardando = false
