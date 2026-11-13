@@ -31,7 +31,7 @@ end
 function V.executar(root: Instance,cfg: any,config: any,receitas: any,perfil: any): any
 	local out = {package=cfg.package,passed=true,erros={},avisos={},info={templates=0,emissores=0,beams=0,fonts=0}}
 	local function fail(msg: string) out.passed=false; table.insert(out.erros,msg) end
-	if (cfg.stage~=14 and cfg.stage~=15 and cfg.stage~=16 and cfg.stage~=17) or cfg.package~="BIZARRE-AJUSTE-"..tostring(cfg.stage) or cfg.universe~=10774214555 or cfg.place~=108061345551908 then fail("Destino/pacote incorreto.") end
+	if (cfg.stage~=14 and cfg.stage~=15 and cfg.stage~=16 and cfg.stage~=17 and cfg.stage~=18 and cfg.stage~=19) or cfg.package~="BIZARRE-AJUSTE-"..tostring(cfg.stage) or cfg.universe~=10774214555 or cfg.place~=108061345551908 then fail("Destino/pacote incorreto.") end
 	if config.REVISAO~="AJUSTE-"..tostring(cfg.stage) or config.UNIVERSE_ID~=10774214555 or config.PLACE_ID~=108061345551908 then fail("Revisao/destino do jogo nao corresponde ao teste.") end
 	if type(cfg.hashes)~="table" or #cfg.hashes==0 then fail("Manifesto de fontes ausente.") end
 	for _,row in cfg.hashes or {} do

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AJ19: patch recognized AJ14-AJ18 Sources; keep the complete live Place and media."""
+"""AJ19: patch recognized AJ14-AJ19 Sources; keep the complete live Place and media."""
 import argparse,json
 from pathlib import Path
 import gerar_ajuste14 as core
@@ -7,7 +7,7 @@ from installer14.package import Package
 from installer14.codec import Failure
 ROOT=Path(__file__).resolve().parents[1]
 def collect():
- bases=[json.loads((ROOT/f'installer14/baseline{v}.json').read_text())['sources']for v in(14,15,16,17,18)]
+ bases=[json.loads((ROOT/f'installer14/baseline{v}.json').read_text())['sources']for v in(14,15,16,17,18,19)]
  rows=[];present=set()
  for path in sorted((ROOT/'src').rglob('*.luau')):
   rel=path.relative_to(ROOT/'src');key=rel.as_posix();present.add(key);gamepath,cls=core.identity(rel)

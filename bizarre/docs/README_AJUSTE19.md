@@ -1,5 +1,7 @@
 # BIZARRE AJUSTE-19 — HUD novo
 
+**Instalador corrigido em13/11/2026:** veja [CORRECAO_AJUSTE19.md](CORRECAO_AJUSTE19.md). O validador Luau agora reconhece18/19; preserva o HUD/VFX e reconhece a AJ19 já salva. Baixe novamente; não apague estado.
+
 Pedido do Kaique: HUD bem mais bonito, no estilo battlegrounds (referência de gênero: Jujutsu
 Shenanigans), usando as skills de design. Identidade própria, sem copiar a arte de outro jogo.
 Testado só offline (50/50 comandos); nada foi testado ou publicado no Roblox.
@@ -29,7 +31,7 @@ TO BE CONTINUED). Layouts salvos pelos jogadores continuam valendo.
 python ~/storage/downloads/BIZARRE_AJUSTE19.py testar
 python ~/storage/downloads/BIZARRE_AJUSTE19.py instalar
 ```
-Digite `PUBLICAR AJUSTE19` quando pedir. Reconhece o jogo nas versões 14 a 18.
+Digite `PUBLICAR AJUSTE19` quando pedir. Reconhece o jogo nas versões 14 a 19.
 
 ## Ferramentas
 - `tools/previa_hud19.luau` + `tools/previa_hud19.py`: roda o HUD real no Lune e desenha no tamanho

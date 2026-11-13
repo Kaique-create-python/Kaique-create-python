@@ -7,11 +7,16 @@ Repositório: `Kaique-create-python/Kaique-create-python`, ramo
 
 ## AJUSTE-19 — entrega atual (Claude): HUD novo
 
+Correção posterior ChatGPT: docs/CORRECAO_AJUSTE19.md e .json. O validador Luau ainda
+rejeitava18/19, causando Destino/pacote incorreto no Saved40/41. Corrigido e instalador19
+regenerado, baseline19 original registrada.50checks/85Python offline aprovados; teste
+Roblox/publicação19 continuam pendentes. Só Validacao14 muda no jogo; HUD/VFX preservados.
+
 Leia docs/README_AJUSTE19.md. Build `python3 bizarre/tools/gerar_ajuste19.py` (bases 14-18,
 confirmação PUBLICAR AJUSTE19). Visual em Interface (UI.HUD, UI.FACE, UI.paralelo,
 UI.barraInclinada, UI.cartaoGolpe, UI.botaoRedondo), HUD.luau, Controles.luau e defaults do Layout17.
 Prévia: tools/previa_hud19.luau/.py. Teste: tools/tests_hud19.luau. Só testado offline.
-Próxima etapa: baseline19.json = sha256 das fontes no commit da AJ19; aceitar 20 em package/runtime.
+Próxima etapa20: baseline19.json já guarda a AJ19 original; registrar também a Source do validador corrigido ao aceitar20. Sincronizar Python, validador Luau e teste do instalador real; não só package/runtime.
 
 ## AJUSTE-18 — (Claude, sobre a AJ17)
 
