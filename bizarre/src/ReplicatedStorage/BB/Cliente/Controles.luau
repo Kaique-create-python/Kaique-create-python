@@ -31,6 +31,7 @@ local function aplicarLayout17()
  for name,a in Layout17.resolver(size.X,size.Y,Preferencias17.valores().layout) do
   local b=botoes17[name]
   if b then b.Size=UDim2.fromOffset(a.w,a.h);b.Position=UDim2.fromOffset(a.x-a.w/2,a.y-a.h/2)end
+  local c=cartoes17 and cartoes17[name];if c then c.ajustar()end
  end
 end
 
@@ -160,13 +161,42 @@ local function segurar(b: TextButton, aoApertar: () -> (), aoSoltar: (() -> ())?
 end
 
 local criarBotoesMoveis: () -> ()
+local cartoes17 = {}
+local tanqueDespertar: Frame? = nil
+local pctDespertar: TextLabel? = nil
+-- botão ligado (SHIFT LOCK ativo): fundo dourado e texto escuro
+local function pintarLigado(b: GuiObject, ligado: boolean)
+ local rot=b:FindFirstChild("Rotulo")::TextLabel?
+ b.BackgroundColor3=if ligado then UI.HUD.despertar else UI.HUD.vidro
+ b.BackgroundTransparency=if ligado then .05 else .42
+ if rot then
+  rot.TextColor3=if ligado then UI.HUD.contorno else UI.HUD.texto
+  local st=rot:FindFirstChildOfClass("UIStroke");if st then st.Transparency=if ligado then 1 else 0 end
+ end
+end
+-- DESPERTAR: um "tanque" redondo que enche de dourado (CanvasGroup recorta o líquido no círculo)
+local function montarDespertar(b: TextButton)
+ b.BackgroundTransparency=1
+ local g=Instance.new("CanvasGroup");g.Name="Tanque";g.Size=UDim2.fromScale(1,1)
+ g.BackgroundColor3=UI.HUD.vidro;g.BackgroundTransparency=UI.HUD.vidroT;g.BorderSizePixel=0;g.ZIndex=b.ZIndex
+ UI.circulo(g);g.Parent=b
+ local liq=UI.frame(g,UDim2.fromScale(1,0),UDim2.fromScale(0,1),UI.HUD.despertar,.12)
+ liq.Name="Liquido";liq.AnchorPoint=Vector2.new(0,1);liq.ZIndex=b.ZIndex
+ UI.gradiente(liq,Color3.fromRGB(255,240,170),Color3.fromRGB(232,150,28),90)
+ local rot=b:FindFirstChild("Rotulo")::TextLabel?
+ if rot then rot.Size=UDim2.fromScale(.84,.26);rot.Position=UDim2.fromScale(.08,.22)end
+ pctDespertar=UI.rotulo(b,"",UDim2.fromScale(.7,.3),UDim2.fromScale(.15,.48),{z=b.ZIndex+3,limite=15})
+ pctDespertar.Name="Pct"
+ tanqueDespertar=liq
+end
 function criarBotoesMoveis()
  local gui=Instance.new("ScreenGui")
  gui.Name="BB_Botoes";gui.ResetOnSpawn=false;gui.DisplayOrder=6;gui.Enabled=ativo
+ gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling -- filhos sempre por cima do pai (cartões e tanque)
  pcall(function()gui.ScreenInsets=Enum.ScreenInsets.CoreUISafeInsets end)
  gui.Parent=plr:WaitForChild("PlayerGui");guiMovel=gui
  local canvas=UI.frame(gui,UDim2.fromScale(1,1),UDim2.new(),UI.CORES.fundo,1)
- canvas17=canvas;botoes17={}
+ canvas17=canvas;botoes17={};cartoes17={}
  local defs={
   {"m1","ATACAR",function()segurandoM1=true;Jogador.m1()end,function()segurandoM1=false end},
   {"bloq","DEFESA",function()Jogador.bloquear(true)end,function()Jogador.bloquear(false)end},
@@ -178,16 +208,25 @@ function criarBotoesMoveis()
   {"pose","POSE",function()Jogador.pose()end},
  }
  for i=1,4 do table.insert(defs,{"g"..i,tostring(i),function()Jogador.golpe(i)end})end
+ -- AJUSTE-19: golpes = cartões inclinados; combate = círculos de vidro; pouco usados = quadradinhos
+ local pequenos={stand=true,mira=true,shift=true,pose=true}
  for _,d in defs do
   local skill=string.match(d[1],"^g(%d)$")
-  local b=UI.botao(canvas,d[2],UDim2.fromOffset(60,60),UDim2.new(),if d[1]=="m1"then Color3.fromRGB(119,39,53)else Color3.fromRGB(32,29,43),{redondo=not skill,raio=7,limite=if skill then 14 else 15,bordaEsp=1.5})
-  b.Name=d[1];b.BackgroundTransparency=.16;botoes17[d[1]]=b
-  segurar(b,d[3],d[4])
+  local b
   if skill then
-   local rot=b:FindFirstChild("Rotulo");rot.TextWrapped=true
-   rot.Size=UDim2.new(1,-12,1,-8);rot.Position=UDim2.fromOffset(6,4)
-   HUD.registrarBotao(tonumber(skill),b,rot)
-  elseif d[1]=="ult"then botaoDespertar=b end
+   local cartao=UI.cartaoGolpe(canvas,skill,{botao=true,nome=d[1]})
+   cartoes17[d[1]]=cartao;b=cartao.raiz
+   b:GetPropertyChangedSignal("Size"):Connect(cartao.ajustar)
+   HUD.registrarCartao(tonumber(skill),cartao)
+  else
+   b=UI.botaoRedondo(canvas,d[2],{nome=d[1],quadrado=pequenos[d[1]],raio=10,quebrar=d[1]=="shift",
+    limite=if d[1]=="m1"then 17 elseif pequenos[d[1]]then 11 else 13,
+    transp=if pequenos[d[1]]then .42 else nil,
+    aroEsp=if d[1]=="m1"then 2.5 else 1.5,aroT=if d[1]=="m1"then .1 elseif pequenos[d[1]]then .72 else .55})
+   if d[1]=="ult"then botaoDespertar=b;montarDespertar(b)end
+  end
+  b.Name=d[1];botoes17[d[1]]=b
+  segurar(b,d[3],d[4])
  end
  aplicarLayout17()
  canvas:GetPropertyChangedSignal("AbsoluteSize"):Connect(aplicarLayout17)
@@ -211,21 +250,42 @@ local function atualizarBotaoDespertar()
 	end
 	local c = plr.Character
 	local rot = b:FindFirstChild("Rotulo") :: TextLabel?
+	local aro = b:FindFirstChild("Aro") :: UIStroke?
 	if not c or not rot then
 		return
 	end
 	local t = workspace:GetServerTimeNow()
 	local desperto = (c:GetAttribute("BB_Desperto") or 0) > t
-	local cheio = (c:GetAttribute("BB_Despertar") or 0) >= Config.DESPERTAR.max
+	local valor = c:GetAttribute("BB_Despertar") or 0
+	local cheio = valor >= Config.DESPERTAR.max
+	local nivel, pct, piscar = 0, "", false
 	if desperto then
+		local resta = (c:GetAttribute("BB_Desperto") :: number) - t
+		nivel = math.clamp(resta / Config.DESPERTAR.duracao, 0, 1)
 		rot.Text = if Jogador.ultUsada() then "DESPERTO" else "ULT!"
-		b.BackgroundColor3 = if Jogador.ultUsada() then Color3.fromRGB(90, 70, 120) else UI.CORES.dourado
+		pct = string.format("%ds", math.ceil(resta))
+		piscar = not Jogador.ultUsada()
 	elseif cheio then
-		rot.Text = "DESPERTAR!"
-		b.BackgroundColor3 = if math.floor(os.clock() * 4) % 2 == 0 then UI.CORES.dourado else Color3.fromRGB(150, 70, 230)
+		nivel = 1
+		rot.Text = "DESPERTAR"
+		pct = "PRONTO"
+		piscar = true
 	else
-		rot.Text = string.format("%d%%", math.floor(c:GetAttribute("BB_Despertar") or 0))
-		b.BackgroundColor3 = Color3.fromRGB(70, 50, 100)
+		nivel = math.clamp(valor / Config.DESPERTAR.max, 0, 1)
+		rot.Text = "DESPERTAR"
+		pct = string.format("%d%%", math.floor(valor))
+	end
+	if tanqueDespertar then
+		tanqueDespertar.Size = UDim2.fromScale(1, nivel)
+	end
+	if pctDespertar then
+		pctDespertar.Text = pct
+	end
+	if aro then
+		local brilho = piscar and math.floor(os.clock() * 4) % 2 == 0
+		aro.Color = if piscar then (if brilho then UI.HUD.texto else UI.HUD.despertar) else Color3.fromRGB(255, 255, 255)
+		aro.Thickness = if piscar then 2.5 else 1.5
+		aro.Transparency = if piscar then 0 else 0.55
 	end
 end
 
@@ -302,7 +362,10 @@ function Controles.iniciar(jogador: any, hud: any)
 		end
 		atualizarBotaoDespertar()
   local shift=botoes17.shift
-  if shift then shift.BackgroundColor3=if Camera.shiftLock()then UI.CORES.dourado else Color3.fromRGB(32,29,43)end
+  if shift then pintarLigado(shift,Camera.shiftLock())end
+  local m1=botoes17.m1;local st=Jogador and Jogador.standAtual and Jogador.standAtual()
+  local aroM1=m1 and m1:FindFirstChild("Aro")::UIStroke?
+  if aroM1 and st and st.aura then aroM1.Color=st.aura end
 	end)
 	local _ = GuiService
 end

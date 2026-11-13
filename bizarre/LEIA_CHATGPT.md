@@ -5,7 +5,15 @@ Ele usa Android/Termux, sem Roblox Studio. Responda em português com comandos c
 Repositório: `Kaique-create-python/Kaique-create-python`, ramo
 `claude/context-capture-w0uo2t`, pasta `bizarre/`.
 
-## AJUSTE-18 — entrega atual (feita pelo Claude sobre a AJ17)
+## AJUSTE-19 — entrega atual (Claude): HUD novo
+
+Leia docs/README_AJUSTE19.md. Build `python3 bizarre/tools/gerar_ajuste19.py` (bases 14-18,
+confirmação PUBLICAR AJUSTE19). Visual em Interface (UI.HUD, UI.FACE, UI.paralelo,
+UI.barraInclinada, UI.cartaoGolpe, UI.botaoRedondo), HUD.luau, Controles.luau e defaults do Layout17.
+Prévia: tools/previa_hud19.luau/.py. Teste: tools/tests_hud19.luau. Só testado offline.
+Próxima etapa: baseline19.json = sha256 das fontes no commit da AJ19; aceitar 20 em package/runtime.
+
+## AJUSTE-18 — (Claude, sobre a AJ17)
 
 Pedido do Kaique: usar as skills de Roblox para melhorar VFX, animação e design, e melhorar o
 instalador se possível. Leia docs/README_AJUSTE18.md e docs/VALIDACAO_AJUSTE18.md.
