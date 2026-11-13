@@ -1,0 +1,2 @@
+-- BIZARRE BATTLEGROUNDS :: substitui o "Health" padrão do Roblox (que cura sozinho o tempo todo).
+-- A cura fora de combate é feita pelo servidor (Combate.luau), só depois de alguns segundos sem apanhar.

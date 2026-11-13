@@ -1,0 +1,227 @@
+{
+  "base_commit": "7a6f49f088b291542ce8ce3751c827c10d0b081f",
+  "reason": "Python/package stages18/19 allowed; embedded Luau validator only allowed14..17",
+  "fix": "explicit Luau support18/19; known baseline19; rebuilt standalone installer",
+  "checks": [
+    {
+      "name": "tests_ajuste15",
+      "exit": 0
+    },
+    {
+      "name": "tests_barrage_actions16",
+      "exit": 0
+    },
+    {
+      "name": "tests_barragem16",
+      "exit": 0
+    },
+    {
+      "name": "tests_cinema16",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_client",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_client_fence",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_review",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_server",
+      "exit": 0
+    },
+    {
+      "name": "tests_core17",
+      "exit": 0
+    },
+    {
+      "name": "tests_editor17",
+      "exit": 0
+    },
+    {
+      "name": "tests_effects15",
+      "exit": 0
+    },
+    {
+      "name": "tests_effects16",
+      "exit": 0
+    },
+    {
+      "name": "tests_final14_generation",
+      "exit": 0
+    },
+    {
+      "name": "tests_final14_projectiles",
+      "exit": 0
+    },
+    {
+      "name": "tests_graphics14",
+      "exit": 0
+    },
+    {
+      "name": "tests_graphics14_place",
+      "exit": 0
+    },
+    {
+      "name": "tests_hud19",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_admin",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_main",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_preview",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_renderer",
+      "exit": 0
+    },
+    {
+      "name": "tests_poses15",
+      "exit": 0
+    },
+    {
+      "name": "tests_preferences17",
+      "exit": 0
+    },
+    {
+      "name": "tests_preferences_client17",
+      "exit": 0
+    },
+    {
+      "name": "tests_preflight14_reset",
+      "exit": 0
+    },
+    {
+      "name": "tests_preview15",
+      "exit": 0
+    },
+    {
+      "name": "tests_private_registry17",
+      "exit": 0
+    },
+    {
+      "name": "tests_private_targets17",
+      "exit": 0
+    },
+    {
+      "name": "tests_projectile15",
+      "exit": 0
+    },
+    {
+      "name": "tests_projectile16",
+      "exit": 0
+    },
+    {
+      "name": "tests_rastro15",
+      "exit": 0
+    },
+    {
+      "name": "tests_readability17",
+      "exit": 0
+    },
+    {
+      "name": "tests_renderer15",
+      "exit": 0
+    },
+    {
+      "name": "tests_residuos16",
+      "exit": 0
+    },
+    {
+      "name": "tests_settings_layout17",
+      "exit": 0
+    },
+    {
+      "name": "tests_special16",
+      "exit": 0
+    },
+    {
+      "name": "tests_timeline17",
+      "exit": 0
+    },
+    {
+      "name": "tests_training17",
+      "exit": 0
+    },
+    {
+      "name": "tests_training_server17",
+      "exit": 0
+    },
+    {
+      "name": "tests_validacao14",
+      "exit": 0
+    },
+    {
+      "name": "tests_vfx14",
+      "exit": 0
+    },
+    {
+      "name": "tests_vfx18",
+      "exit": 0
+    },
+    {
+      "name": "tests_visual16",
+      "exit": 0
+    },
+    {
+      "name": "teste_geral",
+      "exit": 0
+    },
+    {
+      "name": "python",
+      "exit": 0
+    },
+    {
+      "name": "lint",
+      "exit": 0
+    },
+    {
+      "name": "diff",
+      "exit": 0
+    },
+    {
+      "name": "offline",
+      "exit": 0
+    }
+  ],
+  "python_tests": 85,
+  "original_installer_sha256": "21972c6b5a5b859500917a32d96adc7f551ef5221df75b21be2a3a1df09190ab",
+  "installer_sha256": "1b045b98512ba65d1a049409c149f92af7915a7a3b8239d1f6888900a50a8af4",
+  "installer_bytes": 427717,
+  "migration": {
+    "base": "fixture complete Place AJ13->AJ14->originalAJ19; not live Saved41",
+    "original_instances": 185210,
+    "patched_instances": 185210,
+    "non_source_chunks_preserved": 547,
+    "changed_sources": [
+      "ReplicatedStorage/BB/Validacao14"
+    ],
+    "idempotent": true,
+    "deterministic": true,
+    "installer_sha256": "1b045b98512ba65d1a049409c149f92af7915a7a3b8239d1f6888900a50a8af4",
+    "installer_bytes": 427717,
+    "native_script_bytes": 33307
+  },
+  "native_authenticated_tested": false,
+  "roblox_publication_performed": false
+}
