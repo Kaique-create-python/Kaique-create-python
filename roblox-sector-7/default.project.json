@@ -1,0 +1,9 @@
+{
+  "name": "Sector7",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {"Sector7": {"$path": "src/shared"}},
+    "ServerScriptService": {"Sector7": {"$path": "src/server"}},
+    "StarterPlayer": {"StarterPlayerScripts": {"Sector7Client": {"$path": "src/client/Sector7Client.client.luau"}}}
+  }
+}

@@ -1,0 +1,47 @@
+return function(shared, server)
+    local Stamina = require(shared:WaitForChild("Stamina", 1))
+    local Mission = require(server:WaitForChild("Mission", 1))
+    local Config = require(shared.Config)
+    local count = 0
+    local function check(value, message)
+        assert(value, message)
+        count += 1
+    end
+    local state = Stamina.new(Config)
+    check(state.value == 100, "full initial stamina")
+    Stamina.step(state, true, true, true, 1, Config)
+    check(state.running and state.value == 78, "drain only when moving")
+    Stamina.step(state, true, false, true, 1, Config)
+    check(not state.running and state.value == 78, "stationary sprint does not drain")
+    for _ = 1, 4 do Stamina.step(state, true, true, true, 1, Config) end
+    check(state.value == 0 and state.exhausted and not state.running, "exhaustion stops sprint")
+    Stamina.step(state, true, true, true, 1, Config)
+    check(state.exhausted and state.value == 0, "regen delay")
+    Stamina.step(state, true, true, true, 1, Config)
+    check(state.exhausted and state.value == 16, "recover below restart threshold")
+    Stamina.step(state, true, true, true, 1, Config)
+    check(not state.exhausted and state.value == 32, "restart threshold releases lock")
+    Stamina.step(state, true, true, false, 1, Config)
+    check(not state.running, "dead or escaped never sprints")
+    for _ = 1, 20 do Stamina.step(state, false, false, true, 1, Config) end
+    check(state.value == 100, "regen capped")
+    local before = state.value
+    Stamina.step(state, true, true, true, 0, Config)
+    check(state.value == before, "zero delta safe")
+    local mission = Mission.new()
+    check(not Mission.attempt(mission, "Generator"), "generator requires fuses")
+    check(not Mission.attempt(mission, "Exit"), "exit initially locked")
+    check(not Mission.attempt(mission, "Keycard"), "archive requires power")
+    check(Mission.attempt(mission, "Fuse1") and mission.fuses == 1, "collect fuse")
+    check(not Mission.attempt(mission, "Fuse1") and mission.fuses == 1, "duplicate fuse rejected")
+    Mission.attempt(mission, "Fuse2")
+    Mission.attempt(mission, "Fuse3")
+    check(mission.fuses == 3, "all fuses counted")
+    check(Mission.attempt(mission, "Generator") and mission.power, "restore power")
+    check(not Mission.attempt(mission, "Exit"), "exit needs keycard")
+    check(Mission.attempt(mission, "Keycard") and mission.keycard, "retrieve card")
+    check(Mission.attempt(mission, "Exit") and mission.escaped, "complete mission")
+    check(not Mission.attempt(mission, "Exit"), "exit opens only once")
+    check(not Mission.attempt(mission, "Unknown"), "unknown interaction rejected")
+    return {passed=count,failed=0}
+end
