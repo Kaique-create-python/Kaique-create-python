@@ -34,7 +34,7 @@ def save(path,value):
 
 class Runtime:
     def __init__(self,root,stage,digest,patch,scripts):
-        if stage not in (14,15,16):raise Failure('Revisao invalida.')
+        if stage not in (14,15,16,17):raise Failure('Revisao invalida.')
         self.root=private_dir(root);self.stage=stage;self.package='BIZARRE-AJUSTE-'+str(stage)
         self.state=private_dir(self.root/('state-ajuste'+str(stage)))
         self.digest=digest;self.patch=patch;self.scripts=scripts
@@ -42,7 +42,7 @@ class Runtime:
     def pending(self):
         entry=read(self.active)
         if entry is not None and (not isinstance(entry,dict) or entry.get('package')!=self.package):
-            previous=re.fullmatch(r'BIZARRE-AJUSTE-(14|15|16)',str(entry.get('package','')))if isinstance(entry,dict)else None
+            previous=re.fullmatch(r'BIZARRE-AJUSTE-(14|15|16|17)',str(entry.get('package','')))if isinstance(entry,dict)else None
             hint='\nExecute: python ~/BIZARRE_AJUSTE'+previous[1]+'.py resume'if previous else''
             raise Failure('Existe envio pendente de outro instalador. Preserve active-write.json e use resume no instalador que iniciou o envio.'+hint)
         return entry

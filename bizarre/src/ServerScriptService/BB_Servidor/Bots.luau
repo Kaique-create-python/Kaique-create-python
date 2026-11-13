@@ -123,6 +123,17 @@ local function criarBoneco(i: number, cf: CFrame)
 	return lut
 end
 
+function Bots.criarLaboratorio17(dono: Player, cf: CFrame)
+ local cores={cabeca=Color3.fromRGB(199,171,136),torso=Color3.fromRGB(83,80,101),bracos=Color3.fromRGB(199,171,136),pernas=Color3.fromRGB(51,48,65)}
+ local m=corpo("Alvo de "..dono.DisplayName,cores,true)
+ m:PivotTo(cf)
+ local lut=prepararLutador(m,Stands.ORDEM[1],{boneco=true,nome=m.Name})
+ lut.hum.WalkSpeed=0;lut.hum.JumpHeight=0;lut.imortal=true
+ lut.laboratorioDono17=dono;lut.casa=cf
+ m:SetAttribute("BB_Boneco",true);m:SetAttribute("BB_LaboratorioDono",dono.UserId)
+ return lut
+end
+
 function Bots.criarBonecos()
 	local treino = Mapa.treino()
 	if not treino then

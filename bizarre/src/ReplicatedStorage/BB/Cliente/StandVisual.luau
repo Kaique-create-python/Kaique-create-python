@@ -183,13 +183,13 @@ function StandVisual.acao(dono: Model, opcoes: any)
 		return
 	end
 	local agora = os.clock()
-	local dur = opcoes.dur or 0.6
+	local dur = math.max(0,(opcoes.dur or .6)-(opcoes.decorrido or 0))
 	v.acaoAte = math.max(v.acaoAte, agora + dur + 0.9)
 	v.modo = opcoes.modo or "frente"
 	v.modoAte = agora + dur
 	v.escalaAlvo = opcoes.escala or 1
 	if opcoes.clipe then
-		Animador.tocar(v.modelo, Poses.clipe15(dono:GetAttribute("BB_Stand"),opcoes.clipe), { impacto = opcoes.impacto, ate = agora + dur })
+		Animador.tocar(v.modelo, Poses.clipe15(dono:GetAttribute("BB_Stand"),opcoes.clipe), { impacto = opcoes.impacto, decorrido=opcoes.decorrido, ate = agora + dur })
 	end
 end
 

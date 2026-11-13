@@ -138,6 +138,10 @@ local function spawnItem(scope,spec,index)
  end
  local palette=Receitas.CORES[scope.stand]
  local color=palette[(index-1)%#palette+1]
+ -- The response has its own identity, independent of the attacker's Stand hue.
+ if scope.cue=='bloqueio'then color=Color3.fromRGB(116,185,255)
+ elseif scope.cue=='parry'then color=Color3.fromRGB(255,210,91)
+ elseif scope.cue=='quebra_guarda'then color=Color3.fromRGB(255,113,73)end
  for _,n in all do
   if n:IsA('BasePart') then
    local relative=origin:ToObjectSpace(n.CFrame)
@@ -153,6 +157,7 @@ local function spawnItem(scope,spec,index)
   elseif n:IsA('Attachment') then
    n.CFrame=CFrame.new(n.CFrame.Position*scale)*n.CFrame.Rotation
   elseif n:IsA('Light') then
+   n.Brightness=math.min(n.Brightness,2.5);n.Range=math.min(n.Range,18)
    table.insert(item.lights,{node=n,enabled=n.Enabled});n.Enabled=false
   elseif n:IsA('ParticleEmitter') then
    n.Enabled=false
@@ -160,6 +165,12 @@ local function spawnItem(scope,spec,index)
    n.Speed=NumberRange.new(n.Speed.Min*scale,n.Speed.Max*scale)
    n.Acceleration=n.Acceleration*scale;n.ZOffset*=scale
    n.Color=tintSequence(n.Color,color,n.Name)
+   local layerName=string.lower(n.Name)
+   if spec.continuous and (string.find(layerName,'core')or string.find(layerName,'light')or string.find(layerName,'flash'))then
+    local keys={}
+    for _,key in n.Transparency.Keypoints do table.insert(keys,NumberSequenceKeypoint.new(key.Time,.26+.74*key.Value,.74*key.Envelope))end
+    n.Transparency=NumberSequence.new(keys)
+   end
    local delay=math.max(0,finite(n:GetAttribute('EmitDelay'),0))
    local duration=math.max(0,finite(n:GetAttribute('EmitDuration'),0))
    -- Continuous recipe duration is an absolute end, not an extra span after EmitDelay.
@@ -310,7 +321,7 @@ function P.tocar(standId,moveId,phase,ctx)
   local targetRoot=rootOf(copy.target)
   if targetRoot then copy.pos=targetRoot.CFrame.Position end
  end
- local scope={ctx=copy,actor=actorOf(copy,moveId,phase),stand=standId,recipe=recipe,started={},items={},elapsed=math.max(0,now()-finite(ctx.t,now())),active=true,cancelled=false,duration=0,kind=moveId=='tempo' and 'tempo' or nil}
+ local scope={ctx=copy,actor=actorOf(copy,moveId,phase),stand=standId,cue=moveId,recipe=recipe,started={},items={},elapsed=math.max(0,now()-finite(ctx.t,now())),active=true,cancelled=false,duration=0,kind=moveId=='tempo' and 'tempo' or nil}
  scope.ownerGeneration=copy.owner and copy.owner:GetAttribute('BB_Geracao14')
  scope.actorGeneration=scope.actor and scope.actor:GetAttribute('BB_Geracao14')
  for _,spec in recipe do

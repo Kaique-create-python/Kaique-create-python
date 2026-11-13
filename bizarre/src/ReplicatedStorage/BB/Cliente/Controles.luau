@@ -16,7 +16,23 @@ local Toques = require(script.Parent:WaitForChild("Toques"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
 local Efeitos = require(script.Parent:WaitForChild("Efeitos"))
 
+local Layout17 = require(BB.Layout17)
+local Preferencias17 = require(script.Parent.PreferenciasCliente17)
+local Editor17 = require(script.Parent.EditorToques17)
 local Controles = {}
+local editor17 = nil
+local botoes17 = {}
+local canvas17 = nil
+local antesEditor17 = false
+local function aplicarLayout17()
+ if not canvas17 or (editor17 and editor17.aberto) then return end
+ local size=canvas17.AbsoluteSize
+ if size.X<200 or size.Y<200 then return end
+ for name,a in Layout17.resolver(size.X,size.Y,Preferencias17.valores().layout) do
+  local b=botoes17[name]
+  if b then b.Size=UDim2.fromOffset(a.w,a.h);b.Position=UDim2.fromOffset(a.x-a.w/2,a.y-a.h/2)end
+ end
+end
 
 local plr = Players.LocalPlayer
 local Jogador: any = nil
@@ -133,7 +149,7 @@ end
 -- AJUSTE7: o botão solta quando o dedo sai da tela em qualquer lugar (não só em cima dele),
 -- quando o jogo perde o foco, quando o menu abre e quando a tela gira (ver Toques)
 local function segurar(b: TextButton, aoApertar: () -> (), aoSoltar: (() -> ())?)
-	local t = Toques.novo(aoApertar, aoSoltar)
+	local t = Toques.novo(function()if ativo and not(editor17 and editor17.aberto)then aoApertar()end end, aoSoltar)
 	b.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch then
 			t.comecar(input, false)
@@ -145,99 +161,48 @@ end
 
 local criarBotoesMoveis: () -> ()
 function criarBotoesMoveis()
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "BB_Botoes"
-	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 6
-	gui.Enabled = ativo
-	gui.Parent = plr:WaitForChild("PlayerGui")
-	guiMovel = gui
-	-- o botão de pulo do Roblox: pequeno (tela até 500 de altura) ou grande
-	local inicio = os.clock()
-	while workspace.CurrentCamera.ViewportSize.Y < 100 and os.clock() - inicio < 5 do
-		task.wait(0.1)
-	end
-	local tela = workspace.CurrentCamera.ViewportSize
-	local pequeno = math.min(tela.X, tela.Y) <= 500
-	local pulo = if pequeno then 70 else 120
-	local u = math.clamp(pulo, 64, 86)
-	local puloCentro = if pequeno then Vector2.new(-95 + 35, -90 + 35) else Vector2.new(-170 + 60, -210 + 60)
-	-- M1 grande à esquerda do pulo
-	local m1c = puloCentro + Vector2.new(-u * 1.45, u * 0.05)
-	local m1 = botaoRedondo(gui, "ATACAR", u * 1.3, m1c, Color3.fromRGB(230, 60, 70), 26)
-	segurar(m1, function()
-		segurandoM1 = true
-		Jogador.m1()
-	end, function()
-		segurandoM1 = false
-	end)
-	-- bloquear em cima do M1, dash em cima do pulo
-	local bloq = botaoRedondo(gui, "BLOQ", u * 0.88, m1c + Vector2.new(-u * 0.1, -u * 1.32), Color3.fromRGB(70, 140, 230))
-	segurar(bloq, function()
-		Jogador.bloquear(true)
-	end, function()
-		Jogador.bloquear(false)
-	end)
-	local dash = botaoRedondo(gui, "DASH", u * 0.88, puloCentro + Vector2.new(u * 0.05, -u * 1.2), Color3.fromRGB(240, 170, 40))
-	segurar(dash, function()
-		Jogador.dash()
-	end)
-	-- golpes 1-4 (2x2) acima
-	local larg, alt = u * 1.3, u * 0.62
-	local baseY = puloCentro.Y - u * 2.25
-	local colunas = { puloCentro.X - u * 1.55, puloCentro.X - u * 0.15 }
-	for i = 1, 4 do
-		local col = colunas[(i - 1) % 2 + 1]
-		local lin = if i <= 2 then baseY - alt - 8 else baseY
-		local b = UI.botao(gui, "", UDim2.fromOffset(larg, alt), UDim2.new(1, col - larg / 2, 1, lin - alt / 2), Color3.fromRGB(110, 60, 200), { limite = 18, raio = 12 })
-		b.BackgroundTransparency = 0.1
-		local rot = b:FindFirstChild("Rotulo") :: TextLabel
-		rot.Size = UDim2.fromScale(0.78, 0.8)
-		rot.Position = UDim2.fromScale(0.2, 0.1)
-		rot.TextWrapped = true
-		local num = UI.texto(b, tostring(i), UDim2.fromScale(0.2, 0.6), UDim2.fromScale(0.02, 0.2), { cor = UI.CORES.dourado, z = 4 })
-		local _ = num
-		segurar(b, function()
-			Jogador.golpe(i)
-		end)
-		HUD.registrarBotao(i, b, rot)
-	end
-	-- despertar / ULT
-	local desp = botaoRedondo(gui, "DESPERTAR", u * 0.92, m1c + Vector2.new(-u * 1.25, -u * 1.15), Color3.fromRGB(150, 70, 230), 16)
-	segurar(desp, function()
-		Jogador.despertar()
-	end)
-	botaoDespertar = desp
-	-- Stand, travar e pose (menores)
-	local stand = botaoRedondo(gui, "STAND", u * 0.72, m1c + Vector2.new(-u * 1.35, u * 0.1), Color3.fromRGB(255, 120, 190), 16)
-	segurar(stand, function()
-		Jogador.alternarStand()
-	end)
-	local trava = botaoRedondo(gui, "MIRA", u * 0.7, m1c + Vector2.new(-u * 2.4, u * 0.15), Color3.fromRGB(190, 40, 55), 16)
-	segurar(trava, function()
-		travarProximo()
-	end)
-	-- AJUSTE-13: SHIFT LOCK (liga/desliga): câmera reta por cima do ombro, o personagem olha para onde
-	-- a câmera olha. Dourado = ligado.
-	local corShift = Color3.fromRGB(60, 60, 80)
-	local shift = botaoRedondo(gui, "SHIFT LOCK", u * 0.66, m1c + Vector2.new(-u * 3.3, u * 0.15), corShift, 12)
-	local function pintarShift()
-		shift.BackgroundColor3 = if Camera.shiftLock() then UI.CORES.dourado else corShift
-	end
-	pintarShift()
-	segurar(shift, function()
-		Camera.shiftLock(not Camera.shiftLock())
-		pintarShift()
-		if HUD then
-			HUD.aviso(if Camera.shiftLock() then "Shift Lock LIGADO" else "Shift Lock desligado")
-		end
-	end)
-	local pose = botaoRedondo(gui, "POSE", u * 0.58, m1c + Vector2.new(-u * 2.3, -u * 0.95), Color3.fromRGB(60, 60, 80), 14)
-	segurar(pose, function()
-		Jogador.pose()
-	end)
+ local gui=Instance.new("ScreenGui")
+ gui.Name="BB_Botoes";gui.ResetOnSpawn=false;gui.DisplayOrder=6;gui.Enabled=ativo
+ pcall(function()gui.ScreenInsets=Enum.ScreenInsets.CoreUISafeInsets end)
+ gui.Parent=plr:WaitForChild("PlayerGui");guiMovel=gui
+ local canvas=UI.frame(gui,UDim2.fromScale(1,1),UDim2.new(),UI.CORES.fundo,1)
+ canvas17=canvas;botoes17={}
+ local defs={
+  {"m1","ATACAR",function()segurandoM1=true;Jogador.m1()end,function()segurandoM1=false end},
+  {"bloq","DEFESA",function()Jogador.bloquear(true)end,function()Jogador.bloquear(false)end},
+  {"dash","DASH",function()Jogador.dash()end},
+  {"ult","DESPERTAR",function()Jogador.despertar()end},
+  {"stand","STAND",function()Jogador.alternarStand()end},
+  {"mira","MIRA",travarProximo},
+  {"shift","SHIFT LOCK",function()Camera.shiftLock(not Camera.shiftLock())end},
+  {"pose","POSE",function()Jogador.pose()end},
+ }
+ for i=1,4 do table.insert(defs,{"g"..i,tostring(i),function()Jogador.golpe(i)end})end
+ for _,d in defs do
+  local skill=string.match(d[1],"^g(%d)$")
+  local b=UI.botao(canvas,d[2],UDim2.fromOffset(60,60),UDim2.new(),if d[1]=="m1"then Color3.fromRGB(119,39,53)else Color3.fromRGB(32,29,43),{redondo=not skill,raio=7,limite=if skill then 14 else 15,bordaEsp=1.5})
+  b.Name=d[1];b.BackgroundTransparency=.16;botoes17[d[1]]=b
+  segurar(b,d[3],d[4])
+  if skill then
+   local rot=b:FindFirstChild("Rotulo");rot.TextWrapped=true
+   rot.Size=UDim2.new(1,-12,1,-8);rot.Position=UDim2.fromOffset(6,4)
+   HUD.registrarBotao(tonumber(skill),b,rot)
+  elseif d[1]=="ult"then botaoDespertar=b end
+ end
+ aplicarLayout17()
+ canvas:GetPropertyChangedSignal("AbsoluteSize"):Connect(aplicarLayout17)
+ editor17=Editor17.novo(canvas,botoes17,function()
+  antesEditor17=ativo;Controles.soltarTudo();ativo=false;HUD.mostrar(false)
+ end,function()
+  ativo=antesEditor17;HUD.mostrar(ativo);if guiMovel then guiMovel.Enabled=ativo end
+  aplicarLayout17()
+ end)
 end
+
+function Controles.editar()
+ if editor17 and guiMovel then guiMovel.Enabled=true;editor17:abrir()end
+end
+function Controles.editando(): boolean return editor17~=nil and editor17.aberto end
 
 local function atualizarBotaoDespertar()
 	local b = botaoDespertar
@@ -286,6 +251,7 @@ end
 -- a tela mudou de tamanho (girou, janela dividida): refaz os botões no lugar certo
 local function refazerBotoes()
 	soltarTudo()
+ if editor17 then editor17:destruir();editor17=nil end
 	if guiMovel then
 		guiMovel:Destroy()
 		guiMovel = nil
@@ -298,6 +264,7 @@ function Controles.iniciar(jogador: any, hud: any)
 	Jogador = jogador
 	HUD = hud
 	ligarTeclas()
+ Preferencias17.observar(function()aplicarLayout17()end)
 	if UserInputService.TouchEnabled then
 		criarBotoesMoveis()
 		local cam = workspace.CurrentCamera
@@ -334,6 +301,8 @@ function Controles.iniciar(jogador: any, hud: any)
 			Jogador.m1()
 		end
 		atualizarBotaoDespertar()
+  local shift=botoes17.shift
+  if shift then shift.BackgroundColor3=if Camera.shiftLock()then UI.CORES.dourado else Color3.fromRGB(32,29,43)end
 	end)
 	local _ = GuiService
 end

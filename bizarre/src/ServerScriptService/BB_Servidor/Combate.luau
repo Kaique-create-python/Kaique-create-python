@@ -19,6 +19,7 @@ local Fisica = require(script.Parent.Fisica)
 local Mapa = require(script.Parent.Mapa)
 local Vinculos16 = require(script.Parent.Vinculos16)
 
+local Treino17 = require(BB.Laboratorio17)
 local Combate = {}
 
 local efeito: RemoteEvent? = nil
@@ -248,6 +249,7 @@ end
 function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 	local t = agora()
 	local e = alvo.estado
+ if not Treino17.permite(atk,alvo)then return "nada"end
 	if alvo == atk or alvo.hum.Health <= 0 or not alvo.modelo.Parent then
 		return "nada"
 	end
@@ -267,6 +269,7 @@ function Combate.acertar(atk: any, alvo: any, h: any, info: any?): string
 		d.actionId=ctx.actionId; d.hitId=hitId; d.moveId=ctx.moveId; d.phase=if d.congelado then "queued" else "resolved"
 		d.queuedHitIds=inf.queuedHitIds; d.t=t; d.dir=d.dir or dir; d.stand=ctx.stand or atk.standId; d.n=ctx.n; d.variant=ctx.variant
 		Combate.efeito("acerto",d)
+  if Combate.aoContato17 then Combate.aoContato17(atk,alvo,d)end
 	end
 	if Regras.invencivel(e, t) then
 		Combate.efeito("esquiva", { v = alvo.modelo })
@@ -664,6 +667,7 @@ function Combate.evasiva(lut: any)
 	Fisica.limparEmpurroes(lut.raiz)
 	-- empurra quem estava em cima
 	for _, l in Hitbox.esfera(lut.raiz.Position, Config.EVASIVA.raioEmpurrao, lut) do
+  if not Treino17.permite(lut,l)then continue end
 		local v = Regras.achatar(l.raiz.Position - lut.raiz.Position)
 		Fisica.empurrar(l, v * Config.EVASIVA.empurrao + Vector3.new(0, 12, 0), 0.14)
 		Regras.atordoar(l.estado, t, 0.35)

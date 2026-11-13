@@ -4,6 +4,13 @@ Referência: Jujutsu Shenanigans (combate rápido, câmera de ombro, ragdoll, UL
 Cada AJUSTE é um instalador (`BIZARRE_AJUSTE<N>.py`) que só publica se o teste na nuvem passar
 e o dono confirmar. O fluxo AJ14 usa primeiro uma versão **Saved**, preservando a publicada.
 
+## AJUSTE-17 — entrega atual
+
+Plano autorizado: contatos/ORA-MUDA/mobile/preferências/treino/contraste.
+Leia docs/README_AJUSTE17.md e docs/superpowers/plans/2026-11-12-ajuste17.md.
+A16 confirmada publicada/funcionando; A17 requer teste Saved pelo dono antes de publicar.
+As seções abaixo são histórico; não substituir a17 por entrega anterior.
+
 ## AJUSTE-16 — entrega atual
 
 Crazy Diamond/Killer Queen refinados; ORA/MUDA seguem o vídeo de referência.

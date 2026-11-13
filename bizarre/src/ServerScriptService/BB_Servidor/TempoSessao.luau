@@ -2,6 +2,7 @@
 -- Cada "tempo parado" é uma sessão com dono e número. Uma ULT nunca sobrescreve nem libera os
 -- alvos de outra sessão; quando a sessão acaba (ou o dono morre/sai), só os alvos DELA voltam.
 
+local Treino17=require(game:GetService("ReplicatedStorage"):WaitForChild("BB"):WaitForChild("Laboratorio17"))
 local TempoSessao = {}
 
 local proximo = 0
@@ -15,6 +16,7 @@ end
 function TempoSessao.congelar(sessao: any, candidatos: { any }): { any }
 	local entraram = {}
 	for _, l in candidatos do
+  if not Treino17.permite(sessao.dono or {},l)then continue end
 		local outra = l.sessaoTempo
 		if outra and outra ~= sessao and outra.ativa then
 			continue -- já está parado por outra ULT: não mexe

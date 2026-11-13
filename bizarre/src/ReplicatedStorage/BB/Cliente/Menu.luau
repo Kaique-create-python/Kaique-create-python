@@ -17,6 +17,8 @@ local Som = require(script.Parent:WaitForChild("Som"))
 local Efeitos = require(script.Parent:WaitForChild("Efeitos"))
 local Camera = require(script.Parent:WaitForChild("Camera"))
 
+local Preferencias17 = require(script.Parent.PreferenciasCliente17)
+local rotulosAjustes17 = {}
 local Menu = {}
 
 local plr = Players.LocalPlayer
@@ -235,20 +237,32 @@ end
 
 local function criarAjustes(aoMudar: (any, string?) -> ())
 	painelAjustes = camadaPainel("AJUSTES")
+ painelAjustes.Size=UDim2.fromOffset(640,480)
+ painelAjustes.Position=UDim2.new(.5,-320,.5,-240)
 	local y = 62
 	for _, def in LINHAS do
 		local chave = def[1]
 		UI.texto(painelAjustes, def[2], UDim2.fromOffset(290, 36), UDim2.fromOffset(30, y), { alinhar = Enum.TextXAlignment.Left, z = 21, limite = 24 })
 		local b = UI.botao(painelAjustes, rotuloDe(chave), UDim2.fromOffset(250, 42), UDim2.fromOffset(340, y - 3), UI.CORES.roxo, { z = 22, limite = 22 })
+		rotulosAjustes17[chave]=b:FindFirstChild("Rotulo")
 		b.MouseButton1Click:Connect(function()
 			proximaOpcao(chave)
 			local rot = b:FindFirstChild("Rotulo") :: TextLabel
 			rot.Text = rotuloDe(chave)
 			Som.tocar("ui_clique", nil)
 			aoMudar(ajustes, chave)
+   Preferencias17.definir({[chave]=ajustes[chave]})
 		end)
 		y += 56
 	end
+ if UserInputService.TouchEnabled then
+  local edit=UI.botao(painelAjustes,"EDITAR BOTÕES",UDim2.fromOffset(300,40),UDim2.fromOffset(170,350),UI.CORES.roxo,{z=22,limite=19})
+  edit.Activated:Connect(function()
+   if not plr.Character then statusTxt.Text="Entre no treino ou na luta para editar os botões.";return end
+   Menu.fechar(false)
+   if Menu.editarControles then Menu.editarControles()end
+  end)
+ end
 end
 
 local function aplicarAjustes(a: any, chave: string?)
@@ -555,6 +569,10 @@ function Menu.iniciar(rem: any, fechou: (entrou: boolean) -> ())
 	aoFechar = fechou
 	criar()
 	aplicarAjustes(ajustes)
+ Preferencias17.observar(function(a)
+  ajustes=a;aplicarAjustes(a,"camera")
+  for chave,rot in rotulosAjustes17 do if rot.Parent then rot.Text=rotuloDe(chave)end end
+ end)
 	gui.Enabled = false
 	local _ = UserInputService
 	local _ = TweenService

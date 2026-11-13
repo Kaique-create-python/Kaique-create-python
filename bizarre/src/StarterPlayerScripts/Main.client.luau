@@ -10,7 +10,7 @@ local BB = ReplicatedStorage:WaitForChild("BB")
 local Cliente = BB:WaitForChild("Cliente")
 local pastaRemotos = ReplicatedStorage:WaitForChild("BB_Remotos")
 local remotos = {}
-for _, nome in { "Acao", "Efeito", "Privado", "Entrar", "Admin" } do
+for _, nome in { "Acao", "Efeito", "Privado", "Entrar", "Admin", "Preferencias", "Treino" } do
 	remotos[nome] = pastaRemotos:WaitForChild(nome)
 end
 
@@ -73,6 +73,7 @@ local TRATADORES = {
 	end,
 	acerto = function(d)
 		Efeitos.acerto(d)
+  HUD.contato(d)
 		Camera.aoAcerto(d) -- AJUSTE-8: a câmera gruda em quem você bate (ou em quem te bate)
 	end,
 	quebra = Efeitos.quebra,
@@ -241,6 +242,9 @@ local function entrarNoJogo(entrou: boolean)
 	end
 end
 Menu.iniciar(remotos, entrarNoJogo)
+Menu.editarControles=Controles.editar
+require(Cliente.PreferenciasCliente17).iniciar(remotos.Preferencias)
+require(Cliente.LaboratorioCliente17).iniciar(remotos.Treino,Controles,HUD,Menu)
 HUD.mostrar(false)
 Controles.ativar(false)
 
@@ -270,7 +274,7 @@ RunService.Heartbeat:Connect(function()
  local aberto=Menu.aberto()
  if aberto and not menuAnterior then cancelarLocal() end
  menuAnterior=aberto
- botaoStands.Visible = not Menu.aberto() and plr.Character ~= nil
+ botaoStands.Visible = not Menu.aberto() and not Controles.editando() and plr.Character ~= nil
 end)
 
 game:GetService("UserInputService").WindowFocusReleased:Connect(cancelarLocal)

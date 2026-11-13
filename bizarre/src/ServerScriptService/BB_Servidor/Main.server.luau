@@ -25,7 +25,7 @@ local Admin = require(pasta.Admin)
 local pastaRemotos = Instance.new("Folder")
 pastaRemotos.Name = "BB_Remotos"
 local remotos = {}
-for _, nome in { "Acao", "Efeito", "Privado", "Entrar", "Admin" } do
+for _, nome in { "Acao", "Efeito", "Privado", "Entrar", "Admin", "Preferencias", "Treino" } do
 	local r = Instance.new("RemoteEvent")
 	r.Name = nome
 	r.Parent = pastaRemotos
@@ -99,6 +99,12 @@ Bots.iniciar()
 Bots.criarBonecos()
 Dados.iniciar()
 Admin.iniciar(remotos.Admin)
+require(pasta.PreferenciasServidor17).iniciar(remotos.Preferencias)
+local laboratorio17=require(pasta.LaboratorioServidor17).iniciar(remotos.Treino,{Bots=Bots,Lutadores=Lutadores,Combate=Combate,Mapa=Mapa})
+Combate.aoContato17=function(atk,alvo,data)
+ local ok,err=pcall(function()laboratorio17:contato(atk,alvo,data)end)
+ if not ok then warn("[BB] relatório de treino: "..tostring(err))end
+end
 
 -------------------------------------------------------------------------------- personagens
 local escolha: { [Player]: any } = {}
@@ -256,7 +262,8 @@ Players.PlayerAdded:Connect(function(jogador)
 		prepararPersonagem(jogador, personagem)
 	end)
 	jogador.CharacterRemoving:Connect(function(personagem)
-		Lutadores.remover(personagem)
+		laboratorio17:limpar(jogador)
+  Lutadores.remover(personagem)
 	end)
 end)
 
@@ -293,6 +300,8 @@ remotos.Entrar.OnServerEvent:Connect(function(jogador: Player, dados: any)
 	local modo = if dados.modo == "treino" then "treino" else "luta"
 	escolha[jogador] = { stand = dados.stand, modo = modo }
 	jogador:SetAttribute("BB_Stand", dados.stand)
+ jogador:SetAttribute("BB_Modo",modo)
+ laboratorio17:limpar(jogador)
 	if vivo and lut then
 		-- já está lutando: só troca o Stand (e vai para o treino se pediu)
 		Lutadores.trocarStand(lut, dados.stand)

@@ -2,6 +2,7 @@
 
 local Lutadores = require(script.Parent.Lutadores)
 
+local Treino17=require(game:GetService("ReplicatedStorage"):WaitForChild("BB"):WaitForChild("Laboratorio17"))
 local Hitbox = {}
 local CORPO = { Head=true, Torso=true, ["Left Arm"]=true, ["Right Arm"]=true, ["Left Leg"]=true, ["Right Leg"]=true, HumanoidRootPart=true }
 function Hitbox.corpo(p, lut)
@@ -37,7 +38,7 @@ local function juntar(partes: { BasePart }, excluir: any?, apenasCorpo: boolean?
 	for _, p in partes do
 		local l = Lutadores.daPeca(p)
 		local piloto = apenasCorpo or (excluir and (excluir.standId == "STAR_PLATINUM" or excluir.standId == "THE_WORLD"))
-		if l and l ~= excluir and not vistos[l] and l.hum.Health > 0 and (not piloto or Hitbox.corpo(p,l)) then
+		if l and l ~= excluir and Treino17.permite(excluir or {},l) and not vistos[l] and l.hum.Health > 0 and (not piloto or Hitbox.corpo(p,l)) then
 			vistos[l] = true
 			table.insert(r, l)
 		end

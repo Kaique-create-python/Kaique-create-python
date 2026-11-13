@@ -5,15 +5,22 @@ Ele usa Android/Termux, sem Roblox Studio. Responda em português com comandos c
 Repositório: `Kaique-create-python/Kaique-create-python`, ramo
 `claude/context-capture-w0uo2t`, pasta `bizarre/`.
 
-## AJUSTE-16 — entrega atual
+## AJUSTE-17 — entrega atual
 
-Leia [README_AJUSTE16.md](docs/README_AJUSTE16.md) e [VALIDACAO_AJUSTE16.md](docs/VALIDACAO_AJUSTE16.md).
-CD/KQ e ORA/MUDA do vídeo revisados; preservam kits, dano/CD, mapa, mídia e câmera.
-A IA só testou offline. Última publicação confirmada pelo usuário: AJ14 v36.
-Última saída AJ15: Saved com conferência interrompida por rede; envio pendente. Não
-assumir instalação15/16; resolver com o resume do instalador que iniciou o envio.
-A16 aceita fontes14/15 reconhecidas, estado16 próprio e confirmação PUBLICAR AJUSTE16.
-Build: tools/gerar_ajuste16.py. Não regenerar14/15 com as fontes16.
+Kaique confirmou no chat em12/11/2026: AJUSTE-16 publicada e funcionando.
+A AJ17 implementa contatos legíveis, cronologia remota ORA/MUDA, botões personalizáveis,
+preferências persistidas e laboratório de treino, mais contraste visual.
+Leia docs/README_AJUSTE17.md e VALIDACAO_AJUSTE17.md. Build: tools/gerar_ajuste17.py.
+IA somente testes locais; não assumir teste Saved ou publicação17 até resultado do dono.
+Não pedir novamente se16 funciona. Preservar ~/.bizarre_instalador e qualquer active-write.
+Sem setup/assets-upload; testar/testar-nuvem/publicar/resume com BIZARRE_AJUSTE17.py.
+Confirmação própria PUBLICAR AJUSTE17, fontes14/15/16 reconhecidas e estado17 separado.
+As seções antigas abaixo são histórico; não regenerar instaladores anteriores com fontes17.
+
+## AJUSTE-16 — publicada e funcionando
+
+Confirmação visual/instalação veio do usuário. Artefato anterior preservado em dist/.
+Mapa, câmera, Golpes/Regras, estatísticas e mídias continuam preservados na17.
 
 ## AJUSTE-15 — continuação atual
 

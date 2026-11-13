@@ -92,11 +92,11 @@ local function vivo(modelo: Model, tk: number): () -> boolean
 end
 
 -- nome = um grito ou uma lista em ordem de preferência; devolve o nome que tocou
-local function falar(modelo: Model, tk: number, nome: any, pos: Vector3, tempo: any?): string?
+local function falar(modelo: Model, tk: number, nome: any, pos: Vector3, tempo: any?, deslocamento: number?): string?
 	if not modelo.Parent or (tempo and not tempo.active) or (not tempo and (tokens[modelo] or 0) ~= tk) then
 		return nil
 	end
-	local snd, usado = Som.voz(nome, pos)
+	local snd, usado = Som.voz(nome, pos, {inicio = math.max(0, deslocamento or 0)})
 	if snd then
 		local l = if tempo then tempo.vozes else (vozes[modelo] or {})
 		table.insert(l, snd)
@@ -136,6 +136,17 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	local id = dados.id
 	local s = standDe(modelo)
 	local agora = os.clock()
+ local inicio = if type(dados.t)=="number" and dados.t==dados.t and math.abs(dados.t)<math.huge then dados.t else workspace:GetServerTimeNow()
+ local idade = math.max(0, workspace:GetServerTimeNow()-inicio)
+ local def = Golpes.get(id)
+ local limite = if id=="m1" or id=="m1_aereo" then (if dados.n==4 then .45 else .3) elseif id=="dash" then .28 elseif id=="pose" then 2.6 else (def and def.trava)
+ if limite and idade>=limite then return end
+ -- One server timeline for remote animations, voice and transient cues. Prediction has no t.
+ local function decorrido(offset: number?): number return math.max(0,workspace:GetServerTimeNow()-inicio-(offset or 0)) end
+ local function depois(offset: number, fn: () -> (), continuo: boolean?)
+  if not continuo and idade-offset>.12 then return end
+  task.delay(math.max(0,offset-idade),fn)
+ end
 	local anterior = atuais[modelo]
  if vistos[modelo] then for key,expiry in vistos[modelo] do if expiry<=workspace:GetServerTimeNow() then vistos[modelo][key]=nil end end end
  if dados.seq==nil and dados.actionId and dados.t and dados.t<(ultimosTempos[modelo] or -math.huge) then return end
@@ -157,7 +168,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
  if dados.seq ~= nil then ultimasSeq[modelo] = dados.seq end
  if dados.actionId then vistos[modelo]=vistos[modelo] or {};vistos[modelo][dados.actionId]=workspace:GetServerTimeNow()+150 end
  local function terminarEm(duracao: number)
-  task.delay(duracao,function()
+  task.delay(math.max(0,duracao-idade),function()
    if atuais[modelo] == acao then Acoes.concluir(modelo,{actionId=acao.actionId,seq=acao.seq,reason="concluida"}) end
   end)
  end
@@ -188,8 +199,8 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		end
 		local corM1 = Efeitos.corStand(s and s.id)
 		if dados.stand then
-			Animador.tocar(modelo, "comando_m1")
-			StandVisual.acao(modelo, { modo = "frente_perto", clipe = clipeS, dur = if n == 4 then 0.45 else 0.3, impacto = impactoM1 })
+			Animador.tocar(modelo, "comando_m1", {decorrido=idade})
+			StandVisual.acao(modelo, { modo = "frente_perto", clipe = clipeS, dur = if n == 4 then 0.45 else 0.3, decorrido=idade, impacto = impactoM1 })
 			-- AJUSTE-10: o Stand avança no soco, o braço que bate deixa rastro e o ar estoura na
 			-- frente do punho (mesmo errando o golpe o soco tem peso)
 			local st = StandVisual.modelo(modelo)
@@ -197,7 +208,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 			if n < 4 and not piloto then
 				Efeitos.rastro(bracoS, corM1, 0.2)
 			end
-			task.delay(impactoM1, function()
+			depois(impactoM1, function()
 				if token(modelo) ~= tk or not modelo.Parent then
 					return
 				end
@@ -209,9 +220,9 @@ function Acoes.tocar(modelo: Model?, dados: any)
 				end
 			end)
 		else
-			Animador.tocar(modelo, clipe)
+			Animador.tocar(modelo, clipe, {decorrido=idade})
 			-- AJUSTE-12: todo soco solta o efeito na frente do punho (no 4º, o forte)
-			task.delay(if n == 4 then 0.16 else 0.1, function()
+			depois(if n == 4 then 0.16 else 0.1, function()
 				if token(modelo) == tk and modelo.Parent and raiz.Parent and not piloto then
 					local frente = raiz.CFrame.LookVector
 					VFX.estouroAr(raiz.Position + frente * 2.2 + Vector3.new(0, 0.6, 0), frente, corM1, n == 4, tostring(s and s.id) .. ":m1")
@@ -241,7 +252,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		elseif tipo == "lado" then
 			clipe = if dados.lado == "esquerda" then "dash_esquerda" else "dash_direita"
 		end
-		Animador.tocar(modelo, clipe)
+		Animador.tocar(modelo, clipe, {decorrido=idade})
 		Som.tocar("dash", raiz.Position)
 		Som.tocar("whoosh_forte", raiz.Position, { vol = 0.7, vel = 1.15 })
 		local cor = Efeitos.corStand(s and s.id)
@@ -291,12 +302,12 @@ function Acoes.tocar(modelo: Model?, dados: any)
  antecipar(id,dur)
  local tempoVoz = nil
  if g.tempo then
-  tempoVoz = {active=true,vozes={},actionId=acao.actionId,inicio=workspace:GetServerTimeNow()+g.tempo.t,fim=workspace:GetServerTimeNow()+g.tempo.t+g.tempo.duracao}
+  tempoVoz = {active=true,vozes={},actionId=acao.actionId,inicio=inicio+g.tempo.t,fim=inicio+g.tempo.t+g.tempo.duracao}
   acao.tempo=tempoVoz;ultAtual[modelo]=tempoVoz
   ultVozes[modelo]=ultVozes[modelo] or {}
   for i=#ultVozes[modelo],1,-1 do if not ultVozes[modelo][i].active then table.remove(ultVozes[modelo],i) end end
   table.insert(ultVozes[modelo],tempoVoz)
-  task.delay(g.tempo.t+g.tempo.duracao,function() tempoVoz.active=false;pararVozes(tempoVoz.vozes) end)
+  depois(g.tempo.t+g.tempo.duracao,function() tempoVoz.active=false;pararVozes(tempoVoz.vozes) end,true)
  end
 	if dados.resposta and g.resposta then
 		local r = g.resposta
@@ -306,31 +317,31 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		return
 	end
 	local impacto = g.animImpacto
-	Animador.tocar(modelo, g.animU, { impacto = impacto, ate = agora + dur })
+	Animador.tocar(modelo, g.animU, { impacto = impacto, decorrido=idade, ate = agora + dur-idade })
 	local clipeS = g.animS
 	local durStand = dur
 	if g.tipo == "barragem" then
 		durStand = (g.fim or dur) + 0.05
 	end
-	StandVisual.acao(modelo, { modo = g.standModo or "frente", clipe = clipeS, dur = durStand, impacto = impacto, escala = g.standEscala })
+	StandVisual.acao(modelo, { modo = g.standModo or "frente", clipe = clipeS, dur = durStand, decorrido=idade, impacto = impacto, escala = g.standEscala })
 	Som.tocar("whoosh_forte", raiz.Position)
 	local cor = Efeitos.corStand(s and s.id)
 	-- barragem: punhos fantasmas e grito
 	local vozBarragem: string? = nil
 	if g.tipo == "barragem" then
 		if clipeS=="barragem"and piloto then
-			task.delay(g.inicio or .1,function()
-				if token(modelo)==tk and modelo.Parent then Barragem16.tocar(modelo,StandVisual.modelo(modelo),(g.fim or 1)-(g.inicio or 0),vivo(modelo,tk))end
-			end)
+			depois(g.inicio or .1,function()
+				if token(modelo)==tk and modelo.Parent and decorrido()<(g.fim or 1) then Barragem16.tocar(modelo,StandVisual.modelo(modelo),math.max(0,(g.fim or 1)-decorrido()),vivo(modelo,tk))end
+			end,true)
 		end
-		task.delay(if piloto then 0 else (g.inicio or 0.1), function()
+		depois(if piloto then 0 else (g.inicio or 0.1), function()
 			if token(modelo) ~= tk or not modelo.Parent then
 				return
 			end
 			if clipeS == "barragem" and not piloto then
 				Efeitos.punhos(StandVisual.modelo(modelo), (g.fim or 1) - (g.inicio or 0), cor, vivo(modelo, tk))
 			end
-			local usado = falar(modelo, tk, g.voz or (s and s.grito), raiz.Position)
+			local usado = falar(modelo, tk, g.voz or (s and s.grito), raiz.Position, nil, decorrido(if piloto then 0 else (g.inicio or .1)))
 			vozBarragem = usado
 			-- AJUSTE-8: o som do anime cobre a rajada inteira; um grito curto repete até o fim
 			local total = (g.fim or 1) - (g.inicio or 0)
@@ -348,21 +359,21 @@ function Acoes.tocar(modelo: Model?, dados: any)
 					end
 				end)
 			end
-		end)
+		end,true)
 	end
 	if piloto and g.tipo == "barragem" and g.final then
   local contato = g.final.t or 4.35
-  task.delay(g.fim or 3.7,function()
+  depois(g.fim or 3.7,function()
    if token(modelo) ~= tk or not modelo.Parent then return end
    local restante=contato-(g.fim or 3.7)
    local finalClip=if id=="STAR_PLATINUM_1"then"ora_final16"elseif id=="THE_WORLD_1"then"muda_final16"elseif s and s.id=="SILVER_CHARIOT"then"sc_final15"else"soco_pesado"
-   StandVisual.acao(modelo,{modo="frente",clipe=finalClip,dur=dur-(g.fim or 3.7),impacto=restante})
-  end)
+   StandVisual.acao(modelo,{modo="frente",clipe=finalClip,dur=dur-(g.fim or 3.7),decorrido=decorrido(g.fim or 3.7),impacto=restante})
+  end,true)
  end
  -- trocas de clipe no meio do golpe (FREVO voo, FUNK batidão)
 	if g.animTroca then
 		for _, tr in g.animTroca do
-			task.delay(tr.t, function()
+			depois(tr.t, function()
 				if token(modelo) ~= tk or not modelo.Parent then return end
 				Animador.tocar(modelo, tr.animU, { ate = os.clock() + math.max(0.2, dur - tr.t) })
 				StandVisual.acao(modelo, { modo = g.standModo or "frente", clipe = tr.animS, dur = math.max(0.2, dur - tr.t) })
@@ -372,7 +383,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	if g.animRepetir then
 		for i, t in g.animRepetir do
 			if i > 1 then
-				task.delay(t - 0.3, function()
+				depois(t - 0.3, function()
 					if token(modelo) ~= tk or not modelo.Parent then return end
 					Animador.tocar(modelo, g.animU)
 					StandVisual.acao(modelo, { modo = g.standModo or "frente", clipe = g.animS, dur = 0.4 })
@@ -382,23 +393,23 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	end
 	-- grito do Stand (ORA! MUDA! DORA!...) e o grito do golpe final da barragem
 	if g.voz and g.tipo ~= "barragem" then
-		task.delay(g.vozT or 0.1, function()
-			falar(modelo, tk, g.voz, raiz.Position, tempoVoz)
-		end)
+		depois(g.vozT or 0.1, function()
+			falar(modelo, tk, g.voz, raiz.Position, tempoVoz, decorrido(g.vozT or .1))
+		end,true)
 	end
 	if g.final and g.final.voz then
-		task.delay(g.final.t or 1, function()
+		depois(g.final.t or 1, function()
 			-- o som do anime já tem o grito final (ORAAA / MUDAAA)
 			if vozBarragem and vozBarragem == g.vozComFinal then
 				return
 			end
-			falar(modelo, tk, g.final.voz, raiz.Position)
+			falar(modelo, tk, g.final.voz, raiz.Position, nil, decorrido(g.final.t or 1))
 		end)
 	end
 	-- raio reto da mão do Stand (Star Finger, Red Bind)
 	if g.vfxLinha and not piloto then
 		local l = g.vfxLinha
-		task.delay(l.t or 0.2, function()
+		depois(l.t or 0.2, function()
 			if token(modelo) ~= tk or not modelo.Parent then
 				return
 			end
@@ -409,7 +420,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 	-- coluna de fogo na frente (Magician's Red)
 	if g.vfxColuna and not piloto then
 		local c = g.vfxColuna
-		task.delay(c.t or 0.2, function()
+		depois(c.t or 0.2, function()
 			if token(modelo) ~= tk or not modelo.Parent then
 				return
 			end
@@ -420,7 +431,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		end)
 	end
 	if not piloto and g.vfxContinuo and g.vfxContinuo.tipo == "lanca_chamas" then
-		task.delay(g.vfxContinuo.de, function()
+		depois(g.vfxContinuo.de, function()
 			if token(modelo) == tk and modelo.Parent then
 				Efeitos.lancaChamas(modelo, g.vfxContinuo.ate - g.vfxContinuo.de, vivo(modelo, tk))
 			end
@@ -430,7 +441,7 @@ function Acoes.tocar(modelo: Model?, dados: any)
 		Efeitos.rastro(raiz, Color3.fromRGB(255, 130, 30), 0.5)
 	end
 	if g.tipo == "investida" or (g.tipo == "agarrar" and g.investida) then
-		task.delay(0.05, function()
+		depois(0.05, function()
 			if token(modelo) == tk and not piloto then Efeitos.fantasma(modelo, cor, 0.3) end
 		end)
 	end

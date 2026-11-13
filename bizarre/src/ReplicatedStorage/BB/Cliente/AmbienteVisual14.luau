@@ -110,21 +110,21 @@ function AmbienteVisual14.iniciar()
 	Lighting.Brightness = 2.3
 	Lighting.ExposureCompensation = -0.12
 	Lighting.ShadowSoftness = 0.28
-	Lighting.Ambient = RGB(73, 81, 108)
+	Lighting.Ambient = RGB(82, 88, 105)
 	Lighting.OutdoorAmbient = RGB(112, 123, 147)
 	Lighting.ColorShift_Top = RGB(35, 24, 10)
 	Lighting.ColorShift_Bottom = RGB(0, 0, 0)
-	Lighting.EnvironmentDiffuseScale = 0.7
-	Lighting.EnvironmentSpecularScale = 0.8
+	Lighting.EnvironmentDiffuseScale = 0.78
+	Lighting.EnvironmentSpecularScale = 0.65
 
 	local ar = efeito("Atmosphere", "BB_Ambiente14_Atmosfera")
-	ar.Density, ar.Offset = 0.22, 0.12
+	ar.Density, ar.Offset = 0.16, 0.12
 	ar.Color, ar.Decay = RGB(214, 224, 244), RGB(128, 117, 108)
 	ar.Glare, ar.Haze = 0.12, 0.65
 	local bloom = efeito("BloomEffect", "BB_Ambiente14_Bloom")
-	bloom.Intensity, bloom.Size, bloom.Threshold = 0.16, 28, 1.25
+	bloom.Intensity, bloom.Size, bloom.Threshold = 0.09, 28, 1.5
 	local grade = efeito("ColorCorrectionEffect", "BB_Ambiente14_Cor")
-	grade.Brightness, grade.Contrast, grade.Saturation = -0.015, 0.12, 0.09
+	grade.Brightness, grade.Contrast, grade.Saturation = -0.01, 0.10, 0.035
 	grade.TintColor = RGB(255, 247, 237)
 	-- DOF pertence exclusivamente à sessão de cinema em CurrentCamera.
 	for _, item in Lighting:GetChildren() do

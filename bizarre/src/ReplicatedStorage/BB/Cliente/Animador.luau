@@ -161,6 +161,7 @@ function Animador.tocar(modelo: Model?, nome: string?, opcoes: any?)
 	if o.impacto and clipe.impacto and o.impacto > 0.01 then
 		a.vel = math.clamp(clipe.impacto / o.impacto, 0.35, 3)
 	end
+	if o.decorrido then a.t = math.max(0,o.decorrido)*a.vel end
 	a.ate = o.ate
 	a.pesoAlvo = 1
 	a.semente = math.random() * 100

@@ -14,7 +14,11 @@ local Som = require(script.Parent:WaitForChild("Som"))
 local Registro = require(script.Parent:WaitForChild("Registro"))
 local Lighting = game:GetService("Lighting")
 
+local Contato17 = require(BB.Contato17).novo()
 local HUD = {}
+local contatoTxt17 = nil
+local contatoAte17 = 0
+local contatoNivel17 = -1
 
 local plr = Players.LocalPlayer
 local gui: ScreenGui
@@ -47,6 +51,20 @@ local pastaCabecas: Folder
 
 local function tServ()
 	return workspace:GetServerTimeNow()
+end
+
+function HUD.contato(d)
+ local data=Contato17:resolver(d,plr and plr.Character or Players.LocalPlayer.Character,tServ and tServ()or workspace:GetServerTimeNow())
+ if not data or not gui then return end
+ local now=os.clock()
+ if now<contatoAte17 and data.nivel<contatoNivel17 then return end
+ contatoNivel17=data.nivel;contatoAte17=now+.45
+ if not contatoTxt17 then
+  contatoTxt17=UI.texto(gui,"",UDim2.fromOffset(260,28),UDim2.new(.5,-130,.43,0),{limite=19,z=12})
+ end
+ contatoTxt17.Text=data.texto;contatoTxt17.TextColor3=data.cor;contatoTxt17.Visible=true
+ local current=contatoAte17
+ task.delay(.55,function()if contatoAte17==current and contatoTxt17 then contatoTxt17.Visible=false end end)
 end
 
 local function rotuloTecla(slot: any): string
@@ -161,7 +179,7 @@ function HUD.combo(n: number)
 		return
 	end
 	comboTxt.Text = n .. " HITS"
-	comboSub.Text = if n >= 15 then "BIZARRO!!" elseif n >= 10 then "INCRÍVEL!" elseif n >= 5 then "COMBO!" else ""
+	comboSub.Text = ""
 	comboAte = os.clock() + 1.6
 	comboTxt.TextTransparency = 0
 	comboSub.TextTransparency = 0
@@ -224,7 +242,9 @@ function HUD.registrarBotao(slot: any, botao: GuiObject, rotulo: TextLabel?)
 	capa.ZIndex = 8
 	UI.canto(capa, 12)
 	local tempo = UI.texto(botao, "", UDim2.fromScale(1, 0.5), UDim2.fromScale(0, 0.25), { z = 9 })
-	botoesMoveis[slot] = { capa = capa, tempo = tempo, rotulo = rotulo, botao = botao }
+	local estado=UI.texto(botao,"",UDim2.new(1,-8,.26,0),UDim2.new(0,4,.70,0),{z=10,limite=11,cor=UI.CORES.dourado})
+ if rotulo then rotulo.Size=UDim2.new(1,-10,.62,0);rotulo.Position=UDim2.fromOffset(5,3)end
+ botoesMoveis[slot] = { capa = capa, tempo = tempo, rotulo = rotulo, botao = botao, estado=estado }
 end
 
 local function atualizarNomes()
@@ -288,7 +308,10 @@ local function atualizarCds()
 		if slot == "ult" then
 			continue
 		end
-		pintar(slot, b.capa, b.tempo)
+		pintar(slot, b.capa, b.tempo,function(bloqueado,resta)
+   b.estado.Text=if bloqueado then "INDISPONÍVEL"elseif resta>0 then "RECARGA"else "PRONTO"
+   b.estado.TextColor3=if resta>0 then Color3.fromRGB(202,190,218)else UI.CORES.dourado
+  end)
 	end
 end
 HUD.atualizarCds = atualizarCds
@@ -470,7 +493,7 @@ function HUD.iniciar(jogador: any)
 	gui.DisplayOrder = 5
 	-- respeita o recorte/câmera frontal do celular (nada fica escondido atrás do "notch")
 	pcall(function()
-		gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+		gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 	end)
 	gui.Parent = plr:WaitForChild("PlayerGui")
 	pastaCabecas = Instance.new("Folder")
@@ -479,6 +502,7 @@ function HUD.iniciar(jogador: any)
 	UI.escalaTela(gui, 1100, 600, 0.55, 1.15)
 	criarPainel()
 	criarSlots()
+ if UserInputService.TouchEnabled then barraGolpes.Visible=false end
 	criarCentro()
 	local acum = 0
 	RunService.RenderStepped:Connect(function(dt)

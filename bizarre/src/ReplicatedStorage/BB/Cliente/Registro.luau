@@ -9,7 +9,9 @@ local visuais: { [Model]: boolean } = {}
 local iniciado = false
 
 local function avaliar(m: Instance)
-	if m:IsA("Model") and m:GetAttribute("BB_Lutador") then
+	local owner=m:GetAttribute("BB_LaboratorioDono")
+ local player=game:GetService("Players").LocalPlayer
+ if m:IsA("Model") and m:GetAttribute("BB_Lutador") and (owner==nil or (player and player.UserId==owner)) then
 		lutadores[m] = true
 	else
 		lutadores[m :: any] = nil
@@ -23,6 +25,7 @@ local function observar(pasta: Instance, conjunto: { [Model]: boolean }, filtrar
 		end
 		if filtrar then
 			avaliar(c)
+			c:GetAttributeChangedSignal("BB_LaboratorioDono"):Connect(function()avaliar(c)end)
 			c:GetAttributeChangedSignal("BB_Lutador"):Connect(function()
 				avaliar(c)
 			end)

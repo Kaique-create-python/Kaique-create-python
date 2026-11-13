@@ -8,7 +8,7 @@ local events={};local function mark(name,...)table.insert(events,{name,...})end
 local gui=R.Instance.new('ScreenGui');local playerGui=R.Instance.new('Folder')
 local hum={Died=signal()};local character={WaitForChild=function()return hum end}
 local plr={Character=character,CharacterAdded=signal(),CharacterRemoving=signal(),SetAttribute=function()end,WaitForChild=function()return playerGui end}
-local rem={};for _,n in {'Acao','Efeito','Privado','Entrar','Admin'}do rem[n]={OnClientEvent=signal()}end
+local rem={};for _,n in {'Acao','Efeito','Privado','Entrar','Admin','Preferencias','Treino'}do rem[n]={OnClientEvent=signal()}end
 local remFolder={WaitForChild=function(_,n)return rem[n]end}
 H.servicos.Players={LocalPlayer=plr};H.servicos.StarterGui={SetCoreGuiEnabled=function()end}
 local run={RenderStepped=signal(),Heartbeat=signal()};H.servicos.RunService=run
@@ -27,8 +27,10 @@ local deps={
  StandVisual={iniciar=noop,donos=function()return {}end},
  Acoes={interromper=function(c)mark('cancel',c)end,concluir=function(c,d)mark('end',c,d)end,tocar=noop},
  Jogador={iniciar=noop,soltarEntradas=function()mark('release')end},
- Controles={iniciar=noop,ativar=noop,soltarTudo=function()mark('controls-release')end},
+ Controles={iniciar=noop,ativar=noop,editar=noop,editando=function()return false end,soltarTudo=function()mark('controls-release')end},
  Menu={iniciar=noop,aberto=function()return opened end,abrir=function()opened=true end},
+ PreferenciasCliente17={iniciar=function(r)assert(r==rem.Preferencias);mark("prefs-init")end},
+ LaboratorioCliente17={iniciar=function(r)assert(r==rem.Treino);mark("training-init")end},
  AdminCliente=generic,Interface={escalaTela=noop,botao=function()return button end,CORES={roxo=R.Color3.new()}},
  Cinematica={iniciar=noop,cancelar=function()mark('cinema-cancel')end},
  Apresentacao14={iniciar=function()mark('vfx-init')end},AmbienteVisual14={iniciar=function()mark('environment-init')end},

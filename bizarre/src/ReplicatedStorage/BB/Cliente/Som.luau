@@ -193,6 +193,8 @@ function Som.voz(nomes: any, pos: Vector3?, opcoes: any?): (Sound?, string?)
 		return nil, nil
 	end
 	local o = opcoes or {}
+	local seek = math.max(0,if type(o.inicio)=="number" and o.inicio==o.inicio then o.inicio else 0)
+	if seek>=trecho[2] then return nil,nil end
 	local chave = "voz_" .. nome
 	if (contagem[chave] or 0) >= 2 then
 		return nil, nil
@@ -218,8 +220,9 @@ function Som.voz(nomes: any, pos: Vector3?, opcoes: any?): (Sound?, string?)
 		snd.Parent = pastaSons
 		suporte = snd
 	end
+	snd.TimePosition = trecho[1]+seek
 	snd:Play()
-	task.delay(trecho[2] + 0.6, function()
+	task.delay(trecho[2]-seek + 0.6, function()
 		contagem[chave] = math.max(0, (contagem[chave] or 1) - 1)
 		suporte:Destroy()
 	end)

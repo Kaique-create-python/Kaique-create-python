@@ -1,0 +1,199 @@
+{
+  "ambiente": "Offline Lune/Python; Roblox/Android pendentes",
+  "checks": [
+    {
+      "name": "tests_ajuste15",
+      "exit": 0
+    },
+    {
+      "name": "tests_barrage_actions16",
+      "exit": 0
+    },
+    {
+      "name": "tests_barragem16",
+      "exit": 0
+    },
+    {
+      "name": "tests_cinema16",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_client",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_client_fence",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_review",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_server",
+      "exit": 0
+    },
+    {
+      "name": "tests_core17",
+      "exit": 0
+    },
+    {
+      "name": "tests_editor17",
+      "exit": 0
+    },
+    {
+      "name": "tests_effects15",
+      "exit": 0
+    },
+    {
+      "name": "tests_effects16",
+      "exit": 0
+    },
+    {
+      "name": "tests_final14_generation",
+      "exit": 0
+    },
+    {
+      "name": "tests_final14_projectiles",
+      "exit": 0
+    },
+    {
+      "name": "tests_graphics14",
+      "exit": 0
+    },
+    {
+      "name": "tests_graphics14_place",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_admin",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_main",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_preview",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_renderer",
+      "exit": 0
+    },
+    {
+      "name": "tests_poses15",
+      "exit": 0
+    },
+    {
+      "name": "tests_preferences17",
+      "exit": 0
+    },
+    {
+      "name": "tests_preferences_client17",
+      "exit": 0
+    },
+    {
+      "name": "tests_preflight14_reset",
+      "exit": 0
+    },
+    {
+      "name": "tests_preview15",
+      "exit": 0
+    },
+    {
+      "name": "tests_private_registry17",
+      "exit": 0
+    },
+    {
+      "name": "tests_private_targets17",
+      "exit": 0
+    },
+    {
+      "name": "tests_projectile15",
+      "exit": 0
+    },
+    {
+      "name": "tests_projectile16",
+      "exit": 0
+    },
+    {
+      "name": "tests_rastro15",
+      "exit": 0
+    },
+    {
+      "name": "tests_readability17",
+      "exit": 0
+    },
+    {
+      "name": "tests_renderer15",
+      "exit": 0
+    },
+    {
+      "name": "tests_residuos16",
+      "exit": 0
+    },
+    {
+      "name": "tests_settings_layout17",
+      "exit": 0
+    },
+    {
+      "name": "tests_special16",
+      "exit": 0
+    },
+    {
+      "name": "tests_timeline17",
+      "exit": 0
+    },
+    {
+      "name": "tests_training17",
+      "exit": 0
+    },
+    {
+      "name": "tests_training_server17",
+      "exit": 0
+    },
+    {
+      "name": "tests_validacao14",
+      "exit": 0
+    },
+    {
+      "name": "tests_vfx14",
+      "exit": 0
+    },
+    {
+      "name": "tests_visual16",
+      "exit": 0
+    },
+    {
+      "name": "teste_geral",
+      "exit": 0
+    },
+    {
+      "name": "python",
+      "exit": 0
+    },
+    {
+      "name": "lint",
+      "exit": 0
+    },
+    {
+      "name": "diff",
+      "exit": 0
+    },
+    {
+      "name": "offline",
+      "exit": 0
+    }
+  ],
+  "native_tested": false,
+  "roblox_publication_performed": false
+}
