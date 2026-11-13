@@ -18,11 +18,14 @@ def hidden_key():
 
 def main(files,argv=None):
  parser=argparse.ArgumentParser(description='BIZARRE AJUSTE14 — atualiza Sources reconhecidas e catalogo; preserva Place atual.')
- parser.add_argument('command',choices=['testar','testaroffline','testar-nuvem','test','publicar','publish','resume','status'])
+ parser.add_argument('command',choices=['instalar','install','testar','testaroffline','testar-nuvem','test','publicar','publish','resume','status'])
  args=parser.parse_args(argv);os.umask(0o077);package=Package(files)
- if args.command in ('testar','testaroffline'):
+ if args.command in ('testar','testaroffline','instalar','install'):
   package.scripts(1)
-  print('Integridade offline OK: AJUSTE'+str(package.stage)+', '+str(len(package.entries))+' fontes, catalogos binario/XML. Nenhuma conexao ou publicacao.');return
+  print('Integridade offline OK: AJUSTE'+str(package.stage)+', '+str(len(package.entries))+' fontes, catalogos binario/XML. Nenhuma conexao ou publicacao.')
+  if args.command in ('testar','testaroffline'):return
+  # AJ18: instalar = conferir aqui + teste na nuvem (Saved) + publicar com confirmacao escrita, chave 1 vez
+  print('Proximo: teste na nuvem numa versao Saved (a publicada continua igual) e, se passar, a publicacao.',flush=True)
  root=private_dir(Path.home()/'.bizarre_instalador')
  conf=read(root/'config.json',{})
  for k,v in TARGET.items():
@@ -37,7 +40,8 @@ def main(files,argv=None):
   if args.command!='resume' and rt.pending():raise Failure('Envio pendente. Use resume; nunca repita o POST.')
   key=hidden_key();transport.STATE=rt.state;transport.PACKAGE=rt.package;cloud=transport.Cloud(key,dict(TARGET))
   try:
-   if args.command in ('test','testar-nuvem'):rt.test(cloud)
+   if args.command in ('instalar','install'):rt.install(cloud)
+   elif args.command in ('test','testar-nuvem'):rt.test(cloud)
    elif args.command in ('publish','publicar'):rt.publish(cloud)
    else:rt.resume(cloud)
   finally:cloud.key='';key=''

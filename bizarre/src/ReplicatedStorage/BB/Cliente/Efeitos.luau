@@ -479,7 +479,13 @@ function Efeitos.acerto(d: any)
  local piloto = Apresentacao.disponivel(d.stand)
  local function receita(move: string, owner: Model?, standId: string?, localPos: Vector3?): boolean
   local phase=if (move=="STAR_PLATINUM_1" or move=="THE_WORLD_1") and tipo=="impacto_forte" then "final" else "contato"
-  return Apresentacao.tocar(standId,move,phase,Apresentacao.contexto(owner,d,localPos or pos))
+  local ctx=Apresentacao.contexto(owner,d,localPos or pos)
+  -- AJ18 (skill roblox-fun-effects §8): o efeito segura o pico junto com a pausa dos corpos;
+  -- rajada (muitos acertos por segundo) e defesa não seguram
+  local forte=(d.ragdoll or 0)>0 or tipo=="impacto_forte" or tipo=="impacto_enorme" or tipo=="parry" or tipo=="quebra_guarda"
+  ctx.forte=forte
+  if not d.congelado and tipo~="barragem" and tipo~="bloqueio" then ctx.segurar=if forte then 0.08 else 0.04 end
+  return Apresentacao.tocar(standId,move,phase,ctx)
  end
 	if tipo == "bloqueio" then
 		-- AJUSTE-10: quem defende é o Stand na frente (faíscas nos braços dele, e ele tranca)
@@ -589,6 +595,8 @@ function Efeitos.acerto(d: any)
 	-- câmera e números para quem está envolvido
 	if d.a == eu then
 		Camera.tremer(math.max(if nivel >= 2 then 0.32 else 0.14, (d.tremor or 0.1) * 0.85), if nivel >= 2 then 0.2 else 0.13)
+		-- AJ18 (skill roblox-vfx, câmera): soco de FOV só nos golpes fortes de quem bateu
+		if nivel >= 2 then Camera.socoFov(if nivel >= 3 then 1.15 else 1) end
 		if not piloto and (d.dano or 0) > 0 then
 			Efeitos.numero(pos, d.dano, if (d.dano or 0) >= 10 then RGB(255, 210, 60) else BRANCO)
 		end

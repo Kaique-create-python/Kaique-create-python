@@ -46,6 +46,34 @@ function Camera.fov(extra: number, dur: number)
 	end)
 end
 
+-- AJ18 (skill roblox-vfx, camera-world): no acerto forte o FOV fecha ~6° em 0,05 s e volta com
+-- um leve rebote em 0,25 s. É um impulso à parte (não mexe no FOV suave nem na distância); some
+-- com o tremor desligado nos ajustes.
+local socoT0 = -math.huge
+local socoForca = 0
+local socoAplicado = 0
+function Camera.impulsoFov(t: number, forca: number): number
+	if t < 0 or t >= 0.3 or forca <= 0 then
+		return 0
+	end
+	local a = math.clamp(6 * forca, 0, 7)
+	if t < 0.05 then
+		local k = t / 0.05
+		return -a * (1 - (1 - k) * (1 - k))
+	end
+	local k = (t - 0.05) / 0.25
+	local c1, c3 = 1.70158, 2.70158
+	local back = 1 + c3 * (k - 1) ^ 3 + c1 * (k - 1) ^ 2
+	return -a * (1 - back)
+end
+function Camera.socoFov(forca: number?)
+	if not tremorLigado or Camera.forcaTremor <= 0 then
+		return
+	end
+	socoT0 = os.clock()
+	socoForca = (forca or 1) * math.min(Camera.forcaTremor, 1.2)
+end
+
 function Camera.correndo(sim: boolean)
 	correndo = sim
 end
@@ -480,7 +508,13 @@ function Camera.iniciar()
 		-- FOV (corrida e golpes fortes)
 		if dono == "jogo" then
 			local alvoFov = fovBase + fovExtra + (if correndo then 6 else 0)
-			cam.FieldOfView += (alvoFov - cam.FieldOfView) * math.min(1, dt * 8)
+			-- AJ18: o impulso do soco é somado por fora do FOV suave (tira o do quadro anterior)
+			local suave = cam.FieldOfView - socoAplicado
+			suave += (alvoFov - suave) * math.min(1, dt * 8)
+			socoAplicado = Camera.impulsoFov(os.clock() - socoT0, socoForca)
+			cam.FieldOfView = suave + socoAplicado
+		else
+			socoAplicado = 0
 		end
 	end)
 end

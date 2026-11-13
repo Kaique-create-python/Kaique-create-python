@@ -248,7 +248,11 @@ end
 P.cancelar(nil);tick(30)
 assert(#folder:GetChildren()==0,'cleanup de uma receita deixou instância')
 for i=1,60 do P.tocar('STAR_PLATINUM','m1','contato',context(a,'mass'..i,'mass'..i)) end
-assert(#folder:GetChildren()>=240,'limite cortou qualidade das receitas')
+-- AJ18: as 4 camadas do acerto entram em degraus até 0,05 s; nenhuma pode ser cortada por limite
+tick(.06)
+local clones=0
+for _,host in folder:GetChildren() do if host:GetAttribute('BB_VFX14') then clones+=1 end end
+assert(clones>=240,'limite cortou qualidade das receitas')
 P.cancelar(nil);tick(30)
 assert(#folder:GetChildren()==0)
 

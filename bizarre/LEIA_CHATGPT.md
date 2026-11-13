@@ -5,7 +5,34 @@ Ele usa Android/Termux, sem Roblox Studio. Responda em português com comandos c
 Repositório: `Kaique-create-python/Kaique-create-python`, ramo
 `claude/context-capture-w0uo2t`, pasta `bizarre/`.
 
-## AJUSTE-17 — entrega atual
+## AJUSTE-18 — entrega atual (feita pelo Claude sobre a AJ17)
+
+Pedido do Kaique: usar as skills de Roblox para melhorar VFX, animação e design, e melhorar o
+instalador se possível. Leia docs/README_AJUSTE18.md e docs/VALIDACAO_AJUSTE18.md.
+Build: `python3 bizarre/tools/gerar_ajuste18.py` (bases 14/15/16/17, estado18 separado,
+confirmação PUBLICAR AJUSTE18). Testado só offline (49/49); não assumir instalação/publicação18
+até o Kaique dizer. A AJ17 também não tem confirmação: a AJ18 já inclui tudo da AJ17.
+
+- Acerto em degraus nos seis kits (VFXReceitas/15/16: impacto no contato, outras camadas a cada
+  0,025–0,05 s); `VFXPiloto._politicaContato` tira brilhos Light/Core de ~1 s do acerto e limita
+  camadas longas a 0,45 s; `brilho` realça o Punch do pacote; luz de impacto `BB_LuzContato18`
+  (máx. 8, 1 por dono a cada 0,12 s); `ctx.segurar` congela o pico junto com a pausa dos corpos
+  (Efeitos: 0,04/0,08, nunca em rajada/bloqueio); `Camera.socoFov`/`impulsoFov` (−6°, Back Out,
+  desligado com o tremor); Animador aceita AnimationConstraint.
+- Instalador: comando novo `instalar` (`Runtime.install` = test + publish, uma chave só, mesmas
+  travas). `testar`, `testar-nuvem`, `publicar` e `resume` continuam iguais.
+- Ferramentas novas: `tools/tests_vfx18.luau`, `tools/teste_nuvem18.luau`,
+  `tools/previa_vfx18.py` (prévia offline com as texturas reais; o cache é uma pasta fora do repo
+  com `<id>.png` de cada textura, baixadas da API pública de miniaturas; resultado em
+  `docs/previa_hit18.jpg`), `tools/migracao18.py` (Place AJ13 do repo migrado pelos instaladores 14→17 do git e AJ18
+  sobre cada um; confere fontes, objetos e blocos de propriedade).
+- Pendentes: sons de espada (ElevenLabs ocupado na AJ13) e os sons de impacto/explosão que o
+  Kaique vai mandar; conferência no celular dos 5 itens do README18.
+- Próxima etapa: copiar gerar_ajuste18 → 19, criar `installer14/baseline18.json` (sha256 das
+  fontes `src/` no commit da AJ18), aceitar 19 em package/runtime (tuplas e regex do resume),
+  teste_nuvem19 com `cfg.stage>=18` no bloco da 18 e acrescentar a AJ18 em `ETAPAS` da migração.
+
+## AJUSTE-17 — preparada pelo ChatGPT (histórico; sem confirmação de instalação)
 
 Kaique confirmou no chat em12/11/2026: AJUSTE-16 publicada e funcionando.
 A AJ17 implementa contatos legíveis, cronologia remota ORA/MUDA, botões personalizáveis,

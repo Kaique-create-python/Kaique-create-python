@@ -20,7 +20,7 @@ def literal(text):
 class Package:
  def __init__(self,files):
   self.files=files;self.stage=json.loads(files.get('package.json',b'{"stage":14}'))['stage']
-  if self.stage not in (14,15,16,17):raise Failure('Revisao invalida.')
+  if self.stage not in (14,15,16,17,18):raise Failure('Revisao invalida.')
   self.name='BIZARRE-AJUSTE-'+str(self.stage)
   manifest=json.loads(files['manifest.json'])
   if len(files)>256 or sum(map(len,files.values()))>16*1024*1024:raise Failure('Pacote acima do limite.')

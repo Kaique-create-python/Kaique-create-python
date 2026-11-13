@@ -34,12 +34,14 @@ local function layer(template, mode, scale, duration, extra)
  if extra then for k,v in extra do result[k]=v end end
  return result
 end
+-- AJ18 (skill roblox-vfx §6): o impacto (clarão + fundo escuro + anel + riscos) sai primeiro e
+-- o resto vem em degraus de 0,025 s; o soco do pacote ganha brilho para não sumir no dia claro.
 local function hit(n, strong)
  return {
-  layer(E..'Punch_0'..tostring(((n or 1)-1)%3+1),'burst',strong and 1.65 or .85),
   layer(S..'premade_direction_all','burst',strong and .9 or .5),
-  layer(E..'Stars_01','burst',strong and 1.2 or .65),
-  layer(E..'Wind_01','burst',strong and 1.2 or .55),
+  layer(E..'Punch_0'..tostring(((n or 1)-1)%3+1),'burst',strong and 1.65 or .85,nil,{at=.025,brilho=2.4}),
+  layer(E..'Stars_01','burst',strong and 1.2 or .65,nil,{at=.04}),
+  layer(E..'Wind_01','burst',strong and 1.2 or .55,nil,{at=.05}),
  }
 end
 function R.resolve(stand,move,phase,ctx)

@@ -34,7 +34,7 @@ def save(path,value):
 
 class Runtime:
     def __init__(self,root,stage,digest,patch,scripts):
-        if stage not in (14,15,16,17):raise Failure('Revisao invalida.')
+        if stage not in (14,15,16,17,18):raise Failure('Revisao invalida.')
         self.root=private_dir(root);self.stage=stage;self.package='BIZARRE-AJUSTE-'+str(stage)
         self.state=private_dir(self.root/('state-ajuste'+str(stage)))
         self.digest=digest;self.patch=patch;self.scripts=scripts
@@ -42,7 +42,7 @@ class Runtime:
     def pending(self):
         entry=read(self.active)
         if entry is not None and (not isinstance(entry,dict) or entry.get('package')!=self.package):
-            previous=re.fullmatch(r'BIZARRE-AJUSTE-(14|15|16|17)',str(entry.get('package','')))if isinstance(entry,dict)else None
+            previous=re.fullmatch(r'BIZARRE-AJUSTE-(14|15|16|17|18)',str(entry.get('package','')))if isinstance(entry,dict)else None
             hint='\nExecute: python ~/BIZARRE_AJUSTE'+previous[1]+'.py resume'if previous else''
             raise Failure('Existe envio pendente de outro instalador. Preserve active-write.json e use resume no instalador que iniciou o envio.'+hint)
         return entry
@@ -51,7 +51,7 @@ class Runtime:
         ready=self.state/('Bizarre_AJUSTE'+str(self.stage)+'_v'+str(base)+'_'+sha(raw)[:12]+suffix)
         if ready.is_symlink()or ready.exists()and ready.read_bytes()!=raw:raise Failure('Arquivo preparado conflitante; preserve e revise.')
         return write_once(ready,raw)
-    def test(self,cloud):
+    def test(self,cloud,seguir=False):
         if self.pending():raise Failure('Existe envio pendente; use resume, sem repetir o envio.')
         remove(self.state/'test.json')
         cloud.validate_destination();base,rows=cloud.history()
@@ -90,8 +90,16 @@ class Runtime:
         if current!=base:raise Failure('O Place mudou durante o teste. Preserve os arquivos e rode test novamente.')
         proof=dict(package=self.package,config=TARGET,base=base,backup=str(backup),backup_sha=sha(raw),ready=str(ready),ready_sha=sha(prepared),source_digest=self.digest,reports=reports,changed=needs_publish,at=stamp())
         save(self.state/'test.json',proof)
-        print('TESTE APROVADO. Backup completo preservado. '+('Agora execute publish.'if needs_publish else'Esta entrega ja esta publicada.'),flush=True)
+        print('TESTE APROVADO. Backup completo preservado. '+(''if seguir else'Agora execute publish.'if needs_publish else'Esta entrega ja esta publicada.'),flush=True)
         return proof
+    def install(self,cloud):
+        """AJ18: teste na nuvem e publicacao num comando so (a chave e pedida uma vez).
+        As mesmas travas: Saved aprovada antes, PUBLICAR AJUSTE<N> digitado, recibo e resume."""
+        proof=self.test(cloud,seguir=True)
+        if not proof.get('changed'):
+            print('Esta entrega ja esta publicada. Nada a enviar.',flush=True);return proof
+        print('Ultimo passo: publicar exatamente a versao que acabou de passar no teste.',flush=True)
+        return self.publish(cloud)
     def _proof(self):
         proof=read(self.state/'test.json',{})
         if not isinstance(proof,dict) or proof.get('package')!=self.package or proof.get('config')!=TARGET or proof.get('source_digest')!=self.digest or not isinstance(proof.get('reports'),list) or not proof['reports'] or not all(isinstance(r,dict) and r.get('passed')is True and r.get('package')==self.package for r in proof['reports']):

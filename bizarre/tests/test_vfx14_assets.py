@@ -1,7 +1,8 @@
 """Real curated model evidence; no source scripts are executed."""
 import hashlib,json,pathlib,subprocess,tempfile,unittest,xml.etree.ElementTree as ET
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-LUNE='/workspace/ideias-tools/lune'
+import shutil, os
+LUNE=os.environ.get('LUNE') or shutil.which('lune') or '/workspace/ideias-tools/lune'
 class CatalogoReal(unittest.TestCase):
  def test_catalogo_real_sanitizado_e_texturas_roundtrip(self):
   self.assertTrue((ROOT/'assets/vfx14/catalogo.rbxm').is_file(),'catálogo curado ainda não implementado')

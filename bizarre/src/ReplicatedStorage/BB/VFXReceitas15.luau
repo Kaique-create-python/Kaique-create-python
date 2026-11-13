@@ -7,11 +7,12 @@ local function L(name,mode,duration,extra)
  local x={template='N_'..name,mode=mode or 'burst',scale=1,duration=duration or .2,at=0,axis='front'}
  for k,v in extra or {}do x[k]=v end return x
 end
+-- AJ18: o corte aparece primeiro e o impacto entra 0,025 s depois; no fogo a fumaça vem depois
 local function slash(n,strong)
- return {L('Slash_Impact_01','burst',.18,{scale=strong and 1.1 or .6}),L('Mesh_Slash','mesh',.19,{fit=strong and 8 or 5,yaw=(n or 1)%2==0 and -20 or 20,axis='mesh',expand=1.15})}
+ return {L('Mesh_Slash','mesh',.19,{fit=strong and 8 or 5,yaw=(n or 1)%2==0 and -20 or 20,axis='mesh',expand=1.15}),L('Slash_Impact_01','burst',.18,{scale=strong and 1.1 or .6,at=.025})}
 end
 local function flame(strong)
- return {L(strong and 'Realistic_Explosion_01' or 'Fire_03','burst',.22,{scale=strong and 1.4 or .65}),L('Smoke_01','burst',.3,{scale=strong and 1.1 or .45})}
+ return {L(strong and 'Realistic_Explosion_01' or 'Fire_03','burst',.22,{scale=strong and 1.4 or .65}),L('Smoke_01','burst',.3,{scale=strong and 1.1 or .45,at=.05})}
 end
 function R.resolve(id,move,phase,c)
  if not R.suporta(id)then return nil end

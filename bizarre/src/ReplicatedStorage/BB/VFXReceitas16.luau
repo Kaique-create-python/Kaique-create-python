@@ -8,8 +8,9 @@ local function L(name,mode,dur,scale,extra)
  return x
 end
 function R.suporta(id)return id=="CRAZY_DIAMOND"or id=="KILLER_QUEEN"end
+-- AJ18: impacto primeiro; o brilho do kit entra 0,04 s depois (camadas em degraus)
 local function impacto(strong,diamond)
- return {L(E..(diamond and"Stars_01"or"Shiny_01"),nil,.16,strong and 1.3 or .55),L(S..(strong and"premade_direction_all"or"separated_impacts"),nil,.22,strong and 1.1 or .6)}
+ return {L(S..(strong and"premade_direction_all"or"separated_impacts"),nil,.22,strong and 1.1 or .6),L(E..(diamond and"Stars_01"or"Shiny_01"),nil,.16,strong and 1.3 or .55,{at=.04})}
 end
 function R.resolve(id,move,phase,c)
  if not R.suporta(id)then return nil end

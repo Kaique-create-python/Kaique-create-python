@@ -9,7 +9,45 @@ local seen = setmetatable({}, {__mode='k'})
 local anonymous = {}
 local folder
 local connection
+local luzes = {}
+local ultimaLuz = setmetatable({}, {__mode='k'})
 local function now() return workspace:GetServerTimeNow() end
+-- AJ18 (skill roblox-vfx §3/§6): num acerto o brilho só cai depois do contato. Brilhos de pacote
+-- que crescem por quase 1 s (Light/Core) viram uma bola branca sobre o alvo; ficam de fora do
+-- acerto, e o resto da camada dura no máximo 0,45 s. EmitDelay/EmitCount continuam literais.
+function P._politicaContato(nome, vidaMin, vidaMax)
+ local n=string.lower(nome or '')
+ if vidaMax>.6 and (n=='light' or string.sub(n,1,4)=='core') then return true,vidaMin,vidaMax end
+ if vidaMax>.6 then local k=.45/vidaMax;return false,vidaMin*k,vidaMax*k end
+ return false,vidaMin,vidaMax
+end
+-- Clarão de luz do impacto (skill: luz que apaga enquanto o alcance cresce, 0,35 s, sem sombra).
+local function luzContato(scope, cor)
+ local ctx=scope.ctx
+ if not ctx.pos or #luzes>=8 then return end
+ local dono=ctx.owner or anonymous
+ if now()-(ultimaLuz[dono] or -math.huge)<.12 then return end
+ ultimaLuz[dono]=now()
+ local forte=scope.phase=='final' or ctx.n==4 or ctx.forte==true
+ local terreno=workspace:FindFirstChildOfClass('Terrain')
+ local apoio=Instance.new('Attachment')
+ apoio.Name='BB_LuzContato18'
+ apoio.CFrame=CFrame.new(ctx.pos)
+ local luz=Instance.new('PointLight')
+ luz.Color=cor;luz.Shadows=false
+ luz.Brightness=forte and 9 or 6;luz.Range=forte and 9 or 7
+ luz.Parent=apoio
+ apoio.Parent=terreno or folder
+ table.insert(luzes,{apoio=apoio,luz=luz,t0=now(),b0=luz.Brightness,r0=luz.Range,r1=forte and 16 or 12,dur=forte and .45 or .35})
+end
+local function atualizarLuzes()
+ local clock=now()
+ for i=#luzes,1,-1 do
+  local l=luzes[i];local k=(clock-l.t0)/l.dur
+  if k>=1 or not l.apoio.Parent then l.apoio:Destroy();table.remove(luzes,i)
+  else l.luz.Brightness=l.b0*(1-k)*(1-k);l.luz.Range=l.r0+(l.r1-l.r0)*k end
+ end
+end
 local function finite(value, fallback)
  if type(value)=='number' and value==value and math.abs(value)<math.huge then return value end
  return fallback
@@ -66,6 +104,8 @@ local function actorOf(ctx,moveId,phase)
  return nil
 end
 local function frozen(scope)
+ -- AJ18: segura o pico do impacto junto com a pausa dos corpos (hit stop), depois de 2 quadros
+ if scope.segurarDe and now()>=scope.segurarDe and now()<scope.segurarAte then return true end
  if scope.ctx.projectile then return now()<(scope.projectileAte or 0) end
  if scope.kind=='tempo' then return false end
  local actor=scope.actor
@@ -165,6 +205,14 @@ local function spawnItem(scope,spec,index)
    n.Speed=NumberRange.new(n.Speed.Min*scale,n.Speed.Max*scale)
    n.Acceleration=n.Acceleration*scale;n.ZOffset*=scale
    n.Color=tintSequence(n.Color,color,n.Name)
+   local pular=false
+   if scope.contato and spec.mode=='burst' and not spec.continuous then
+    local vMin,vMax
+    pular,vMin,vMax=P._politicaContato(n.Name,n.Lifetime.Min,n.Lifetime.Max)
+    n.Lifetime=NumberRange.new(vMin,vMax)
+   end
+   -- AJ18: sprite aditivo fraco (Brightness ~1) some num cenário claro; a receita pode realçar
+   if spec.brilho and n.LightEmission>=.9 and n.Brightness<=1.5 then n.Brightness=n.Brightness*spec.brilho end
    local layerName=string.lower(n.Name)
    if spec.continuous and (string.find(layerName,'core')or string.find(layerName,'light')or string.find(layerName,'flash'))then
     local keys={}
@@ -178,6 +226,7 @@ local function spawnItem(scope,spec,index)
    local count=n:GetAttribute('EmitCount')
    if type(count)~='number' then count=math.max(1,math.ceil(n.Rate*.2)) end
    count=math.max(0,math.floor(finite(count,0)))
+   if pular then count=0;duration=0 end
    local timeScale=n.TimeScale
    local life=n.Lifetime.Max/math.max(timeScale,.01)
    table.insert(item.particles,{node=n,delay=delay,duration=duration,count=count,emitted=false,timeScale=timeScale,life=life,size=n.Size})
@@ -297,6 +346,7 @@ function P.iniciar()
    if next(keys)==nil then seen[owner]=nil end
   end
   for i = #scopes,1,-1 do if not advance(scopes[i],dt) then table.remove(scopes,i) end end
+  atualizarLuzes()
  end)
 end
 function P.tocar(standId,moveId,phase,ctx)
@@ -322,6 +372,10 @@ function P.tocar(standId,moveId,phase,ctx)
   if targetRoot then copy.pos=targetRoot.CFrame.Position end
  end
  local scope={ctx=copy,actor=actorOf(copy,moveId,phase),stand=standId,cue=moveId,recipe=recipe,started={},items={},elapsed=math.max(0,now()-finite(ctx.t,now())),active=true,cancelled=false,duration=0,kind=moveId=='tempo' and 'tempo' or nil}
+ scope.phase=phase
+ scope.contato=(phase=='contato' or phase=='final') and moveId~='tempo' and moveId~='rolo' and moveId~='explosao'
+ local segurar=finite(copy.segurar,0)
+ if scope.contato and segurar>0 then scope.segurarDe=now()+.03;scope.segurarAte=scope.segurarDe+math.min(segurar,.14) end
  scope.ownerGeneration=copy.owner and copy.owner:GetAttribute('BB_Geracao14')
  scope.actorGeneration=scope.actor and scope.actor:GetAttribute('BB_Geracao14')
  for _,spec in recipe do
@@ -331,6 +385,12 @@ function P.tocar(standId,moveId,phase,ctx)
  end
  table.insert(scopes,scope)
  advance(scope,0)
+ if scope.contato and moveId~='bloqueio' then
+  local palette=Receitas.CORES[standId]
+  local cor=palette and palette[1] or Color3.new(1,1,1)
+  if moveId=='parry' then cor=Color3.fromRGB(255,210,91) elseif moveId=='quebra_guarda' then cor=Color3.fromRGB(255,113,73) end
+  luzContato(scope,cor)
+ end
  return scope
 end
 -- Authoritative projectile anchors; unlike actor effects these follow server pause state.
@@ -356,6 +416,7 @@ function P.estadoProjetil(owner,actionId,d)
  end
 end
 function P.cancelar(owner,actionId)
+ if not owner and not actionId then for _,l in luzes do l.apoio:Destroy() end table.clear(luzes) end
  for _,scope in scopes do
   if (not owner or scope.ctx.owner==owner) and (not actionId or scope.ctx.actionId==actionId) then stop(scope) end
  end

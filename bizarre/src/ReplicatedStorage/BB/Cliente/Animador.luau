@@ -36,7 +36,9 @@ end
 local function lerJuntas(modelo: Model)
 	local j = {}
 	for _, d in modelo:GetDescendants() do
-		if d:IsA("Motor6D") and d.Part0 and d.Part1 and d:IsDescendantOf(modelo) then
+		-- AJ18 (skill roblox-engine-2026 §3): a troca de juntas do Roblox usa AnimationConstraint,
+		-- que também tem Transform; os corpos R6 de hoje continuam Motor6D
+		if (d:IsA("Motor6D") or d:IsA("AnimationConstraint")) and d.Part0 and d.Part1 and d:IsDescendantOf(modelo) then
 			local nome = R6[d.Name] or d.Name
 			local curto = CURTO[nome]
 			if curto and not j[curto] then
