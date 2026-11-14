@@ -1,0 +1,308 @@
+# Horizon Turbo: Horizon Android 0.7.8 (github.com/Vasysik/horizon-android, MIT) com o patch de
+# horizon-turbo/patches, compilado como APK (arm64) e como jogo para PC (Windows x64, Linux x86-64).
+# O código-fonte do Horizon é baixado no commit exato da tag v0.7.8 (horizon-turbo/scripts/fetch-source.sh).
+name: Horizon Turbo (APK + PC)
+run-name: Horizon Turbo · ${{ github.sha }}
+
+on:
+  push:
+    branches: [claude/horizon-apk-optimization-remote-xg29ni]
+    paths:
+      - 'horizon-turbo/patches/**'
+      - 'horizon-turbo/scripts/**'
+      - 'horizon-turbo/pc/**'
+      - 'horizon-turbo/RELEASE_NOTES.md'
+      - '.github/workflows/horizon-turbo.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publicar APK e PC como pré-lançamento (Releases)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: horizon-turbo-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_VERSION: 0.7.8-turbo.1
+  TURBO_VERSION_CODE: '781'
+  TURBO_APP_ID: io.github.kaique.horizonturbo
+  TURBO_APP_LABEL: Horizon Turbo
+  RUST_TOOLCHAIN: 1.95.0
+  # Build não oficial: nada de telemetria para o servidor do Horizon oficial.
+  HORIZON_TELEMETRY_URL: 'off'
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+
+jobs:
+  tests:
+    name: Testes do multiplayer (túnel público)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Horizon Android 0.7.8 + patch Turbo
+        run: bash horizon-turbo/scripts/fetch-source.sh horizon-src
+      - name: Rust
+        working-directory: horizon-src
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt
+          rustup show active-toolchain
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: horizon-src -> target
+          key: tests
+      - name: Testes de horizon-friends e do relay
+        working-directory: horizon-src
+        run: |
+          cargo test --locked -p horizon-friends
+          cargo test --locked -p horizon-relay --test tunnel
+      - name: Contra um servidor bore de verdade
+        working-directory: horizon-src
+        run: |
+          cargo install bore-cli --version 0.6.0 --locked
+          bore server --min-port 20000 > ../bore.log 2>&1 &
+          for _ in $(seq 1 100); do
+            (echo > /dev/tcp/127.0.0.1/7835) 2>/dev/null && break
+            sleep 0.1
+          done
+          HORIZON_TEST_BORE=127.0.0.1 cargo test --locked -p horizon-friends \
+            --test public_tunnel friends_join_through_the_public_tunnel
+      - name: Log do servidor bore
+        if: always()
+        run: cat bore.log || true
+
+  prepare:
+    name: Tabelas do motor (downloads oficiais da Mojang)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Horizon Android 0.7.8 + patch Turbo
+        run: bash horizon-turbo/scripts/fetch-source.sh horizon-src
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Rust
+        working-directory: horizon-src
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: horizon-src -> target
+          key: prepare
+      - name: Preparar a partir do Minecraft 26.3 oficial (hashes conferidos)
+        working-directory: horizon-src
+        run: python3 tools/android_prepare.py --java-home "$JAVA_HOME"
+      - name: Só as tabelas geradas (a mesma lista que o APK público aceita)
+        working-directory: horizon-src
+        run: |
+          python3 - <<'PY'
+          import shutil
+          import sys
+          sys.path.insert(0, 'tools')
+          import android_build
+          shutil.copyfile(android_build.engine_data(public=True), '../engine-data.zip')
+          PY
+          ls -l ../engine-data.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: engine-data
+          path: engine-data.zip
+          if-no-files-found: error
+          retention-days: 3
+
+  android:
+    name: APK Android (arm64-v8a)
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      CARGO_BUILD_JOBS: '3'
+    steps:
+      - name: Espaço em disco
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /usr/local/share/boost /opt/hostedtoolcache/CodeQL || true
+          df -h /
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Horizon Android 0.7.8 + patch Turbo
+        run: bash horizon-turbo/scripts/fetch-source.sh horizon-src
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-data
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          gradle-version: '8.14'
+      - name: Android SDK, NDK e Rust
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$sdkmanager" ]]; then
+            sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -n 1)
+          fi
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --sdk_root="$ANDROID_HOME" --licenses > /dev/null || true
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358'
+          cd horizon-src
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt --target aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: horizon-src -> target
+          key: android-arm64
+      - name: Chave de assinatura
+        env:
+          KEYSTORE: ${{ secrets.HORIZON_TURBO_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p horizon-src/.local/android
+          if [[ -n "$KEYSTORE" ]]; then
+            printf '%s' "$KEYSTORE" | base64 -d > horizon-src/.local/android/debug.keystore
+            chmod 600 horizon-src/.local/android/debug.keystore
+            echo "Assinando com a chave fixa do secret HORIZON_TURBO_KEYSTORE_BASE64."
+          else
+            echo "::warning::Sem o secret HORIZON_TURBO_KEYSTORE_BASE64: este APK recebe uma chave nova (atualizar exige desinstalar). Veja horizon-turbo/README.md."
+          fi
+      - name: Compilar o APK (perfil release, ThinLTO)
+        working-directory: horizon-src
+        run: |
+          python3 tools/android_build.py --abi arm64-v8a --public --profile release \
+            --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME_17_X64" --gradle "$(command -v gradle)" \
+            --ndk-version 28.2.13676358 --build-tools-version 35.0.0 \
+            --engine-data ../engine-data.zip \
+            --app-id "$TURBO_APP_ID" --app-label "$TURBO_APP_LABEL" \
+            --version-name "$TURBO_VERSION" --version-code "$TURBO_VERSION_CODE"
+      - name: Separar o APK
+        run: |
+          mkdir -p dist
+          cp horizon-src/.local/android/apk/arm64-v8a/horizon-android-public.apk \
+            "dist/HorizonTurbo-$TURBO_VERSION-android-arm64.apk"
+          cp horizon-src/LICENSE dist/LICENSE.txt
+          cp horizon-src/THIRD_PARTY_NOTICES.md dist/THIRD_PARTY_NOTICES.md
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "dist/HorizonTurbo-$TURBO_VERSION-android-arm64.apk"
+          ls -l dist
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: horizon-turbo-android-arm64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Apagar a chave
+        if: always()
+        run: rm -f horizon-src/.local/android/debug.keystore
+
+  pc:
+    name: PC (${{ matrix.name }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-2022
+            exe: .exe
+            # O runtime de C dentro do .exe: roda sem o Visual C++ Redistributable.
+            rustflags: -C target-feature=+crt-static
+          - name: linux-x64
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+    steps:
+      - name: Espaço em disco
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /usr/local/share/boost /opt/hostedtoolcache/CodeQL || true
+          df -h /
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - name: Horizon Android 0.7.8 + patch Turbo
+        run: bash horizon-turbo/scripts/fetch-source.sh horizon-src
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-data
+      - name: Bibliotecas de som e controle (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev
+      - name: Rust
+        working-directory: horizon-src
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: horizon-src -> target
+          key: pc-${{ matrix.name }}
+      - name: Compilar o jogo (release, com mods .hmod)
+        working-directory: horizon-src
+        run: cargo build --release --locked -p horizon-client --bin horizon-client --features mods
+      - name: O programa abre
+        working-directory: horizon-src
+        run: ./target/release/horizon-client${{ matrix.exe }} --help | grep -q -- '--resources'
+      - name: Montar o pacote
+        run: |
+          name="HorizonTurbo-$TURBO_VERSION-${{ matrix.name }}"
+          mkdir -p "pkg/$name" dist
+          cp "horizon-src/target/release/horizon-client${{ matrix.exe }}" "pkg/$name/"
+          cp engine-data.zip "pkg/$name/"
+          cp horizon-turbo/pc/LEIA-ME.txt "pkg/$name/"
+          cp horizon-src/LICENSE "pkg/$name/LICENSE.txt"
+          cp horizon-src/THIRD_PARTY_NOTICES.md "pkg/$name/"
+          if [[ "${{ runner.os }}" == Windows ]]; then
+            cp "horizon-turbo/pc/Horizon Turbo.bat" "pkg/$name/"
+            python -c "import shutil,sys; shutil.make_archive('dist/' + sys.argv[1], 'zip', 'pkg', sys.argv[1])" "$name"
+          else
+            cp horizon-turbo/pc/horizon-turbo.sh "pkg/$name/"
+            chmod +x "pkg/$name/horizon-turbo.sh" "pkg/$name/horizon-client"
+            tar -C pkg -czf "dist/$name.tar.gz" "$name"
+          fi
+          ls -l dist
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: horizon-turbo-pc-${{ matrix.name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publicar (pré-lançamento)
+    needs: [tests, android, pc]
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: horizon-turbo-*
+          path: dist
+          merge-multiple: true
+      - name: Criar o release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="horizon-turbo-v$TURBO_VERSION"
+          cd dist
+          sha256sum -- * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          cd ..
+          gh release delete "$tag" --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create "$tag" dist/* -R "$GITHUB_REPOSITORY" --prerelease \
+            --target "$GITHUB_SHA" --title "Horizon Turbo $TURBO_VERSION" \
+            --notes-file horizon-turbo/RELEASE_NOTES.md

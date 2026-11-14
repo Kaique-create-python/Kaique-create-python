@@ -1,0 +1,44 @@
+HORIZON TURBO para PC (Windows / Linux)
+=======================================
+
+Horizon é o Minecraft: Java Edition 26.3 reescrito em Rust (sem Java).
+O Horizon Turbo é uma versão modificada do Horizon Android 0.7.8 com:
+ - multiplayer de longe pelo código de convite (túnel público, funciona até em dados móveis/CGNAT);
+ - instalador embutido: não precisa de Java nem do launcher oficial.
+
+COMO JOGAR
+----------
+Windows: extraia o .zip numa pasta (ex.: Documentos\HorizonTurbo) e abra "Horizon Turbo.bat".
+         Se o Windows mostrar "O Windows protegeu o computador": "Mais informações" > "Executar assim mesmo".
+Linux:   extraia o .tar.gz e rode ./horizon-turbo.sh
+         (precisa de GPU com Vulkan ou OpenGL 3.3).
+
+Na primeira vez o jogo baixa os arquivos do Minecraft 26.3 direto dos servidores da Mojang
+(cerca de 500 MiB, com conferência de hash). Depois disso abre normalmente, até sem internet.
+Você precisa ter o Minecraft: Java Edition (o Horizon não inclui nenhum arquivo da Mojang).
+
+SEU NOME NO JOGO
+----------------
+O nome offline fica no arquivo horizon-player.txt (criado no primeiro uso) nesta pasta.
+Feche o jogo, troque a linha  name:Player12345  por  name:SeuNome  e abra de novo.
+Ou abra pelo terminal/atalho com:  "Horizon Turbo.bat" --name SeuNome
+
+JOGAR COM AMIGOS DE LONGE
+-------------------------
+1. Entre no seu mundo, abra o menu (Esc) e clique no botão de amigos (ícone ao lado de
+   "Denunciar jogador") > "Start Sharing".
+2. Clique em "Copy" e mande o código para seus amigos (WhatsApp, Discord...).
+3. O amigo (Horizon Turbo no PC ou no celular) vai em Multijogador > "Join a friend"
+   (ou "Conexão direta") e cola o código.
+O código já inclui o túnel público (bore.pub), então funciona mesmo atrás de roteador sem UPnP
+e em dados móveis. Se o Windows perguntar sobre o firewall, permita o acesso.
+Tudo que passa pelo túnel é criptografado ponta a ponta com a chave do código.
+
+PASTAS
+------
+saves\                 seus mundos
+horizon-player.txt     seu nome offline
+horizon.txt            preferências do Horizon (ex.: friendsTunnel:none desliga o túnel)
+.local\                arquivos do Minecraft baixados da Mojang (não compartilhe)
+
+Horizon: MIT (LICENSE.txt). Minecraft é marca da Mojang; este programa não é oficial.

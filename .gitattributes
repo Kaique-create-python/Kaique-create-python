@@ -1,0 +1,4 @@
+# O patch precisa chegar byte a byte igual em qualquer sistema (o runner Windows inclusive).
+horizon-turbo/patches/*.patch -text
+*.sh text eol=lf
+*.bat text eol=crlf
