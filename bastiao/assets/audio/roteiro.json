@@ -88,7 +88,7 @@
   "tipo": "voz",
   "voice_id": "pM78bgjPVk0JXtaEnFoj",
   "texto": "[urgent] Saída de serviço é pela oficina. Anda.",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_pavel_entra",
