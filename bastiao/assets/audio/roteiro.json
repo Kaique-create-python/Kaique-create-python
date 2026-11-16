@@ -102,14 +102,14 @@
   "tipo": "voz",
   "voice_id": "pM78bgjPVk0JXtaEnFoj",
   "texto": "[whispers] Shh... Não se mexe.",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_elena_placa",
   "tipo": "voz",
   "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
   "texto": "[calm] [tired] Tem uma placa de identificação no suporte das costas. Conseguiu ver o número?",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_pavel_731",
