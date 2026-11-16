@@ -1,0 +1,130 @@
+BIZARRE BATTLEGROUNDS — CONTEXTO PARA CONTINUAR SEM ACESSO AO GITHUB
+Atualizado em 13/11/2026. Leia inteiro antes de propor alteracoes.
+
+1. DONO, PROJETO E ENTREGA
+Sou Kaique. Falo portugues, uso Android/Termux e nao tenho PC nem Roblox Studio.
+Quero arquivos completos, instalador autocontido e comandos curtos para copiar.
+Este projeto e BIZARRE/JoJo. Nao confundir com Vesper, IRETTA ou Ideias Sem Limites.
+Universe: 10774214555. Place: 108061345551908. Nunca operar outro destino.
+Repo privado: Kaique-create-python/Kaique-create-python.
+Branch: claude/context-capture-w0uo2t. Pasta: bizarre/.
+Snapshot dos fontes deste kit: ccae5633142efb3195db8d32c6f641dee43992b8.
+V19 original do Claude: 7a6f49f088b291542ce8ce3751c827c10d0b081f.
+O kit permite ler os fontes e reconstruir o instalador sem acesso ao GitHub.
+Ele nao contem backup do Place atual nem credenciais do meu celular.
+
+2. ESTADO REAL, NAO PRESUMIR PUBLICACAO
+A ultima revisao que confirmei publicada e funcionando no chat foi AJUSTE-16.
+V18 Saved40 e V19 Saved41 falharam: "Destino/pacote incorreto".
+A correcao posterior da V19 esta neste kit. Ainda nao enviei resultado de teste
+Roblox/publicacao depois dessa correcao. Nao diga que V19 ja foi aprovada no motor.
+A correcao passou 50 verificacoes locais, incluindo 85 testes Python; nao houve
+chamada autenticada ao Roblox, publicacao ou medicao de FPS pela IA.
+Somente Validacao14 mudou entre a V19 original e a corrigida: os outros 67 fontes,
+incluindo HUD, camera, VFX, mapa e valores de combate, foram preservados.
+Instalador corrigido: BIZARRE_AJUSTE19.py, 427717 bytes.
+SHA256: 1b045b98512ba65d1a049409c149f92af7915a7a3b8239d1f6888900a50a8af4.
+O JSON de correcao registra os testes locais; previas sao locais, nao capturas do Roblox.
+
+3. O QUE AS ULTIMAS REVISOES FIZERAM
+AJ17: feedback de contato confirmado pelo servidor, deduplicacao de efeitos,
+cronologia remota ORA/MUDA sem reiniciar ao receber ACK, preferencias persistidas,
+botoes mobile personalizaveis e laboratorio de treino particular. Iluminacao com
+mais contraste. O boneco de treino oferece bloqueio, esquiva e contra-ataque;
+o reset afeta o treino do dono. Ha relatorio de dano, acertos e escapadas.
+AJ18 do Claude: VFX de contato em camadas a cada 0,025-0,05s, luz breve de impacto,
+pico visual sincronizado com hitstop de 0,04/0,08s (nunca na rajada/defesa), impulso
+de FOV desligado com tremor e suporte de Animador a AnimationConstraint.
+O comando instalar junta teste Saved e publicacao com confirmacao explicita.
+AJ19 do Claude: HUD de battleground original, referencia de genero Jujutsu
+Shenanigans: vida inclinada com trilha, aba do Stand, despertar com 10 segmentos,
+indicador de esquiva, cards de golpes numerados, recarga visivel, controles mobile
+perto do pulo e utilitarios discretos. Usa Bangers/Roboto Condensed, primitivas
+nativas; nao precisou reenviar assets. Layouts personalizados continuam aceitos.
+Correcao19: Python aceitava18/19 mas Validacao14.luau aceitava so14..17. O gate
+Luau passou a aceitar explicitamente18/19 sem remover verificacoes de destino,
+pacote, revisao ou integridade. Gerador19 aceita tambem a baseline19 original.
+
+4. ARQUITETURA E O QUE PRESERVAR
+68 fontes Luau em src/. Cliente cuida de entrada, camera, HUD, animacao e VFX.
+Servidor valida combate, alvo, alcance/linha de visada, cooldown, bloqueio/parry,
+dano e estado. Jogadores nunca enviam codigo Luau para executar.
+Seis kits: STAR_PLATINUM, THE_WORLD, CRAZY_DIAMOND, KILLER_QUEEN,
+MAGICIANS_RED e SILVER_CHARIOT. Preserve Golpes/Regras e numeros sem pedido meu.
+Preserve R6 obrigatorio, locomocao, ShiftLock e mira manual que funcionam.
+Camera deve acompanhar o alvo; nao basta girar o personagem. Lock deve sobreviver
+a impacto/ragdoll valido e liberar alvo morto/invalido. Nao refazer sem necessidade.
+ORA/MUDA duram 4,6s com final em4,35s; nao acrescentar cancelamento voluntario.
+Som deve acompanhar a habilidade e parar junto. Audio To Be Continued foi
+rejeitado e removido: nao reenviar nem restaurar. Reutilize IDs e midias existentes.
+Mapa Morioh, colisoes e artes/sons aprovados devem ser preservados.
+Estatisticas: BB_Jogadores_v1; preferencias separadas em BB_Preferencias_v1.
+Nao apagar dados, inventar IDs, rodar setup ou assets-upload de novo.
+Meu foco e qualidade visual e combate; nao inserir reducao automatica de qualidade
+por FPS sem pedido. Nao afirmar desempenho sem medir no cliente Roblox.
+
+5. SEGURANCA, INSTALADOR E PUBLICACAO
+Nunca pedir senha, cookie .ROBLOSECURITY, chave Open Cloud ou token no chat.
+Chave Roblox digitada oculta com getpass somente no Termux; nunca salvar/logar.
+Nunca ler/exportar ~/.bizarre_instalador, recibos e chaves no kit de contexto.
+Preservar integralmente esse estado local, backups e active-write.json.
+O instalador baixa o Place inteiro e edita apenas Sources conhecidos. Preserva
+mapa, chunks opacos e propriedades externas. Fonte desconhecida bloqueia: nao
+forcar, retirar a trava ou adicionar hashes desconhecidos so para passar.
+Nao reconstruir o Place atual de um fixture antigo e nao usar SavePlaceAsync.
+Nao inventar endpoints/metodos; confirmar documentacao e codigo existente.
+Resposta de upload incerta: executar resume, que consulta; nunca repetir o POST,
+republicar automaticamente ou apagar active-write.json.
+Nao publicar apenas porque leu este arquivo ou porque um teste local passou.
+Fluxo atual no celular:
+  python ~/BIZARRE_AJUSTE19.py testar
+  python ~/BIZARRE_AJUSTE19.py testar-nuvem
+Somente apos TESTE APROVADO, sem salvamento concorrente e com minha autorizacao:
+  python ~/BIZARRE_AJUSTE19.py publicar
+Confirmacao humana: PUBLICAR AJUSTE19. Esperar PUBLICADO E VERIFICADO.
+O comando instalar tambem exige confirmacao explicita antes de publicar.
+Pergunte o ultimo resultado real quando necessario; leitura/revisao de codigo
+nao exige que eu teste ou publique primeiro.
+
+6. COMO LER E RECONSTRUIR ESTE KIT
+Comece por este TXT, depois 01_COMPARTILHADO_LUAU.txt, 02_CLIENTE_LUAU.txt e
+03_SERVIDOR_LUAU.txt. Cada bloco informa o caminho real dentro de bizarre/.
+04_INSTALADOR_FERRAMENTAS.txt contem Python e geradores; 05_TESTES_E_NOTAS.txt
+contem verificacoes e documentacao. PLANO.md tem historia: este guia e os docs
+AJ19/CORRECAO_AJUSTE19 prevalecem quando houver conflito.
+06_PROJETO_FONTE.json guarda os arquivos de texto exatos por caminho relativo.
+07_BIZARRE_AJUSTE19.py e o instalador corrigido original, sem alteracao.
+08_RECONSTRUIR_PROJETO.py reconstroi uma pasta nova sem executar codigo do jogo,
+sem rede e sem chave: le o JSON e extrai quatro catalogos do payload validado.
+Se voce tiver ambiente Python, revise o script antes de executar:
+  python 08_RECONSTRUIR_PROJETO.py --saida trabalho
+  python trabalho/bizarre/tools/gerar_ajuste19.py --output BIZARRE_AJUSTE19_reconstruido.py
+O resultado deve ter o mesmo SHA256 acima. Nao editar PAYLOAD comprimido a mao:
+editar src/ e geradores e gerar novamente. Midias completas e antigos instaladores
+nao acompanham o kit; catalogos necessarios ao build19 sao recuperados do payload.
+Alguns testes de migracao antigos dependem de fixture/Git historico nao incluido.
+Nao dizer que rodou teste nativo ou migracao historica se nao possui esse ambiente.
+Se nao conseguir ler todos os anexos, diga exatamente qual arquivo faltou.
+Se o app recusar ZIP, anexar os TXT individuais (o exportador tambem os deixa soltos).
+
+7. SE FORMOS CRIAR AJUSTE-20
+Primeiro combinar comigo a alteracao. Nao implementar itens antigos do PLANO
+como se fossem meu pedido atual. Preservar instalador19 e gerar arquivo20 separado.
+Sincronizar PACKAGE/stage, Config.REVISAO, gate Luau Validacao14, runtime/package
+Python, gerador, teste_nuvem, nomes das saidas, estado e confirmacao PUBLICAR AJUSTE20.
+baseline19.json registra a19 original: aceitar TAMBEM o hash do validador19
+corrigido deste kit, preservando a original. Senao bloqueara usuarios ja corrigidos.
+Extrair e testar o validador do instalador REAL gerado, nao so o src/ do checkout.
+Manter testes que rejeitam universe/place/pacote incorretos e futuras revisoes
+nao suportadas. Verificar patch completo, determinismo, idempotencia e preservacao.
+Rodar testes adequados a mudanca; separar evidencia local do teste autenticado.
+Entregar arquivos completos, instalador real e comandos Termux. Se nao tiver GitHub,
+entregar para eu baixar/substituir sem depender de Studio ou fragmentos no chat.
+Nao afirmar que enviou arquivo ao GitHub/Drive ou publicou sem comprovacao real.
+
+8. PRIMEIRA RESPOSTA ESPERADA DA GEMINI
+Resuma em cinco linhas o estado, a arquitetura e as restricoes que entendeu.
+Diga se conseguiu ler os fontes. Aguarde minha proxima alteracao especifica.
+Nao execute, publique, reescreva combate ou invente features por conta propria.
+Seja direta e economize: investigue o problema especifico, preserve o que funciona,
+valide a mudanca e informe honestamente o que ficou sem verificacao no Roblox.
