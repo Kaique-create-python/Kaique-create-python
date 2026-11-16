@@ -81,7 +81,7 @@
   "tipo": "voz",
   "voice_id": "SkGOoi8yfK3ONMNKMKj0",
   "texto": "[cold] [curt] Falha de protocolo. Sigam pela saída de serviço. Oficina, lado leste.",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_pavel_vamos",
