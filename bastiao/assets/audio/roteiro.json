@@ -25,7 +25,7 @@
   "tipo": "voz",
   "voice_id": "SkGOoi8yfK3ONMNKMKj0",
   "texto": "[cold] [formal] Kedr, o terminal da enfermaria perdeu a reserva. Levem o módulo. Deixem no acesso externo. Não aguardem atendimento.",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_pavel_arsenal",
