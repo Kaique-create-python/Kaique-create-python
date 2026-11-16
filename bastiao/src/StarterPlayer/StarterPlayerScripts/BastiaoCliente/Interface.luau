@@ -96,13 +96,27 @@ export type Api = {
 	objetivo: (chave: string?) -> (),
 	fala: (chave: string, duracao: number) -> (),
 	som: (chave: string, duracao: number) -> (),
-	aviso: (texto: string) -> (),
+	aviso: (chave: string, args: { any }?) -> (),
 	alarme: (ligado: boolean) -> (),
 	corte: () -> (),
 	fim: () -> (),
+	idioma: () -> (), -- a língua mudou: redesenha o que está na tela
 }
 
-function Interface.criar(playerGui: Instance, textos: any): Api
+-- cor do nome de quem fala (o rádio de cada um tem a sua)
+local COR_FALANTE = {
+	PAVEL = AMBER,
+	PAVEL_RADIO = AMBER,
+	ORLOV_RADIO = Color3.fromRGB(236, 128, 104),
+	ELENA_RADIO = Color3.fromRGB(150, 212, 222),
+	GRAVACAO = DIM,
+	SISTEMA = WHITE,
+}
+
+function Interface.criar(playerGui: Instance, textos: any, idioma: (() -> string)?): Api
+	local function L()
+		return textos.de(if idioma then idioma() else textos.PADRAO)
+	end
 	for _, nome in { "BastiaoHUD", "BastiaoTela" } do
 		local velho = playerGui:FindFirstChild(nome)
 		if velho then
@@ -141,7 +155,7 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 	topo.Parent = tela
 	local cabecalho = rotulo(topo, "ObjetivoTitulo", 12, MONO, DIM)
 	cabecalho.Size = UDim2.new(1, 0, 0, 14)
-	cabecalho.Text = "OBJETIVO"
+	cabecalho.Text = L().ui.objetivo
 	cabecalho.TextTransparency = 1
 	local objetivoTexto = rotulo(topo, "Objetivo", 17, MONO, WHITE)
 	objetivoTexto.Position = UDim2.fromOffset(0, 16)
@@ -150,7 +164,7 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 	local alerta = rotulo(topo, "Alerta", 14, MONO, RED)
 	alerta.Position = UDim2.fromOffset(0, 44)
 	alerta.Size = UDim2.new(1, 0, 0, 18)
-	alerta.Text = "● ALERTA · ISOLAMENTO"
+	alerta.Text = L().ui.alerta
 	alerta.Visible = false
 	local avisoTexto = rotulo(topo, "Aviso", 14, MONO_MEDIUM, AMBER)
 	avisoTexto.Position = UDim2.fromOffset(0, 68)
@@ -211,7 +225,8 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 	local cartaoEscala = Instance.new("UIScale")
 	cartaoEscala.Parent = cartao
 	local linhasFim = {}
-	for i, d in { { textos.fim.titulo, 34, MONO, WHITE }, { textos.fim.capitulo, 18, MONO, AMBER }, { textos.fim.linha, 13, MONO_MEDIUM, DIM } } do
+	local chavesFim = { "titulo", "capitulo", "linha" }
+	for i, d in { { L().fim.titulo, 34, MONO, WHITE }, { L().fim.capitulo, 18, MONO, AMBER }, { L().fim.linha, 13, MONO_MEDIUM, DIM } } do
 		local t = rotulo(cartao, "Linha" .. i, d[2], d[3], d[4])
 		t.AnchorPoint = Vector2.new(0.5, 0.5)
 		t.Position = UDim2.new(0.5, 0, 0.5, (i - 2) * 44)
@@ -240,7 +255,7 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 		escala.Scale = k
 		tela.Size = UDim2.fromScale(1 / k, 1 / k)
 		larguraTela, alturaTela = s.X / k, s.Y / k
-		topo.Size = UDim2.fromOffset(math.min(600, larguraTela - 480), 120)
+		topo.Size = UDim2.fromOffset(math.max(320, math.min(600, larguraTela - 480)), 120)
 		objetivoTexto.TextSize = if larguraTela < 1100 then 15 else 17
 		baixo.Size = UDim2.fromOffset(maxLegenda(), 200)
 		local tela2 = cheia.AbsoluteSize
@@ -260,10 +275,12 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 
 	-- ===== objetivo: entra digitado, em âmbar por um instante, depois branco =====
 	local geracaoObjetivo = 0
+	local objetivoAtual: string? = nil
 	function api.objetivo(chave: string?)
 		geracaoObjetivo += 1
 		local minha = geracaoObjetivo
-		local texto = if chave and chave ~= "" then textos.objetivos[chave] else nil
+		objetivoAtual = if chave and chave ~= "" then chave else nil
+		local texto = if objetivoAtual then L().objetivos[objetivoAtual] else nil
 		if not texto then
 			suave(objetivoTexto, 0.3, { TextTransparency = 1 })
 			suave(cabecalho, 0.3, { TextTransparency = 1 })
@@ -301,18 +318,20 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 	-- ===== legendas =====
 	local geracaoFala = 0
 	function api.fala(chave: string, duracao: number)
-		local f = textos.falas[chave]
-		if not f then
+		local quem = textos.FALANTE[chave]
+		local frase = L().falas[chave]
+		if not quem or not frase then
 			return
 		end
 		geracaoFala += 1
 		local minha = geracaoFala
-		local nome = textos.falantes[f[1]] or f[1]
+		local nome = L().falantes[quem] or quem
+		falante.TextColor3 = COR_FALANTE[quem] or AMBER
 		local tamanho = falaTexto.TextSize
 		local padX, padY = 14, 8
 		local largura = maxLegenda()
 		local maxCar = math.max(16, math.floor((largura - padX * 2) / (tamanho * AVANCO)))
-		local linhas = Interface.quebrar(f[2], maxCar)
+		local linhas = Interface.quebrar(frase, maxCar)
 		local maior = larguraTexto(nome, falante.TextSize)
 		for _, l in linhas do
 			maior = math.max(maior, larguraTexto(l, tamanho))
@@ -345,7 +364,7 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 
 	local geracaoSom = 0
 	function api.som(chave: string, duracao: number)
-		local s = textos.sons[chave]
+		local s = L().sons[chave]
 		if not s then
 			return
 		end
@@ -365,10 +384,15 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 	end
 
 	local geracaoAviso = 0
-	function api.aviso(texto: string)
+	function api.aviso(chave: string, args: { any }?)
+		local modelo = L().avisos[chave]
+		if not modelo then
+			return
+		end
+		local ok, texto = pcall(string.format, modelo, table.unpack(args or {}))
 		geracaoAviso += 1
 		local minha = geracaoAviso
-		avisoTexto.Text = string.upper(texto)
+		avisoTexto.Text = string.upper(if ok then texto else modelo)
 		avisoTexto.TextTransparency = 0
 		task.delay(3.2, function()
 			if minha == geracaoAviso then
@@ -427,6 +451,19 @@ function Interface.criar(playerGui: Instance, textos: any): Api
 				cartao.Visible = false
 			end)
 		end)
+	end
+
+	function api.idioma()
+		cabecalho.Text = L().ui.objetivo
+		alerta.Text = L().ui.alerta
+		for i, t in linhasFim do
+			t.Text = L().fim[chavesFim[i]]
+		end
+		if objetivoAtual then
+			geracaoObjetivo += 1
+			objetivoTexto.Text = string.upper(L().objetivos[objetivoAtual] or "")
+			objetivoTexto.TextColor3 = WHITE
+		end
 	end
 
 	return api :: Api

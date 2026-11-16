@@ -1,4 +1,4 @@
--- PROJETO BASTIÃO :: servidor da Etapa 1 (abertura: cenas 1, 3, 4, 5, 7 e 8)
+-- PROJETO BASTIÃO :: servidor (Etapa 1: abertura, cenas 1, 3, 4, 5, 7 e 8; Etapa 2: vozes, sons e 3 línguas)
 -- Só acrescenta: cria remotos e a pasta workspace.BastiaoHistoria. Não altera o mapa
 -- Sector7World, o HUD da bodycam nem os scripts Sector7, e não usa DataStore.
 -- Ordem: remotos -> espera o mapa -> cenário -> valida o capítulo -> missão.
@@ -13,6 +13,7 @@ local CollectionService = game:GetService("CollectionService")
 local moduloCompartilhado = ReplicatedStorage:WaitForChild("BastiaoCompartilhado")
 local Compartilhado = require(moduloCompartilhado)
 local Textos = require(moduloCompartilhado:WaitForChild("Textos"))
+local Audio = require(moduloCompartilhado:WaitForChild("Audio"))
 local StoryRunner = require(script:WaitForChild("StoryRunner"))
 local StoryValidator = require(script:WaitForChild("StoryValidator"))
 local Capitulo01 = require(script:WaitForChild("Capitulo01"))
@@ -24,6 +25,7 @@ local Zonas = require(script:WaitForChild("Zonas"))
 local Checkpoint = require(script:WaitForChild("Checkpoint"))
 local Cenario = require(script:WaitForChild("Cenario"))
 local Pavel = require(script:WaitForChild("Pavel"))
+local Preferencias = require(script:WaitForChild("Preferencias"))
 
 local SPAWN_TUNEL = Vector3.new(0, 4, 12) -- onde o Sector7 coloca cada personagem
 
@@ -40,7 +42,14 @@ if not apresentacao then
 	apresentacao.Name = Compartilhado.REMOTO_APRESENTACAO
 	apresentacao.Parent = remotos
 end
+local remotoIdioma = remotos:FindFirstChild(Compartilhado.REMOTO_IDIOMA)
+if not remotoIdioma then
+	remotoIdioma = Instance.new("RemoteEvent")
+	remotoIdioma.Name = Compartilhado.REMOTO_IDIOMA
+	remotoIdioma.Parent = remotos
+end
 moduloCompartilhado:SetAttribute(Compartilhado.ATR_OBJETIVO, "")
+moduloCompartilhado:SetAttribute(Compartilhado.ATR_ACESSO, "aberto")
 moduloCompartilhado:SetAttribute(Compartilhado.ATR_ALARME, false)
 moduloCompartilhado:SetAttribute(Compartilhado.ATR_FIM, 0)
 moduloCompartilhado:SetAttribute("BastiaoEtapa", Compartilhado.ETAPA)
@@ -90,6 +99,10 @@ local servicos = {
 		CollectionService:AddTag(inst, tag)
 	end,
 	agora = os.clock,
+	-- som mecânico sem legenda (porta, alavanca, módulo, bipe), tocado em 3D por cada cliente
+	ruido = function(chave: string, pos: Vector3?)
+		apresentacao:FireAllClients({ tipo = "ruido", chave = chave, pos = pos })
+	end,
 }
 
 local mundo = Mundo.novo(warn)
@@ -118,8 +131,9 @@ if not relatorio.ok then
 end
 
 -- 6) serviços da história
-local function avisarTodos(texto: string)
-	apresentacao:FireAllClients({ tipo = "aviso", texto = texto })
+-- avisos vão como chave (+ argumentos): cada cliente mostra na própria língua
+local function avisarTodos(chave: string, args: { any }?)
+	apresentacao:FireAllClients({ tipo = "aviso", chave = chave, args = args })
 end
 
 local checkpoint = Checkpoint.novo(cena.spawns)
@@ -162,6 +176,7 @@ local sequencias = Sequencias.novo({
 		task.cancel(h)
 	end,
 	duracaoLeitura = Compartilhado.duracaoLeitura,
+	duracoes = Audio.duracoes,
 	log = warn,
 })
 missao:ligarSequencias(sequencias)
@@ -181,8 +196,8 @@ interacoes = Interacoes.novo({
 	mundo = mundo,
 	localizar = localizar,
 	agora = os.clock,
-	aviso = function(j: Player, texto: string)
-		apresentacao:FireClient(j, { tipo = "aviso", texto = texto })
+	aviso = function(j: Player, chave: string, args: { any }?)
+		apresentacao:FireClient(j, { tipo = "aviso", chave = chave, args = args })
 	end,
 	log = warn,
 })
@@ -204,6 +219,8 @@ end
 mundo:aoMudar(function(id: string, estado: string)
 	if id == "alarme" then
 		moduloCompartilhado:SetAttribute(Compartilhado.ATR_ALARME, estado == "ligado")
+	elseif id == "acesso_externo" then
+		moduloCompartilhado:SetAttribute(Compartilhado.ATR_ACESSO, estado)
 	end
 	interacoes:atualizar()
 end)
@@ -226,7 +243,7 @@ end
 -- 7) jogadores: grupo de colisão, módulo que cai de quem sai/morre e renascer no ponto seguro
 local function soltarModulo(j: Player, motivo: string)
 	if cena.bateria.soltar(j, motivo) then
-		avisarTodos(Textos.avisos.modulo_voltou)
+		avisarTodos("modulo_voltou")
 		interacoes:atualizar()
 	end
 end
@@ -291,7 +308,14 @@ local function prepararPersonagem(j: Player, c: Model)
 	end
 end
 
+-- língua de cada jogador: da conta Roblox ou da escolha salva; troca pelo menu da bodycam
+local preferencias = Preferencias.novo({ textos = Textos, atributo = Compartilhado.ATR_IDIOMA, log = warn })
+remotoIdioma.OnServerEvent:Connect(function(j: Player, idioma: any)
+	preferencias:trocar(j, idioma)
+end)
+
 local function jogadorEntrou(j: Player)
+	preferencias:carregar(j)
 	j.CharacterAdded:Connect(function(c)
 		prepararPersonagem(j, c)
 	end)
@@ -307,6 +331,7 @@ for _, j in Players:GetPlayers() do
 	jogadorEntrou(j)
 end
 Players.PlayerRemoving:Connect(function(j: Player)
+	preferencias:saiu(j)
 	soltarModulo(j, "saiu")
 	interacoes:esquecer(j)
 end)

@@ -17,7 +17,7 @@ export type Registro = {
 	evento: string?, -- evento da história; nil = ação local (ex.: pegar de volta o módulo)
 	requer: { { string } }?, -- { {entidade, estado}, ... }
 	disponivel: (() -> boolean)?, -- para ações locais: quando o prompt aparece
-	validar: ((jogador: any) -> (boolean, string?))?,
+	validar: ((jogador: any) -> (boolean, string?, { any }?))?, -- motivo = chave de Textos.avisos
 	aoAceitar: ((jogador: any) -> ())?,
 	prompt: any?,
 }
@@ -27,7 +27,7 @@ export type Opcoes = {
 	mundo: any,
 	localizar: (jogador: any) -> (Vector3?, boolean),
 	agora: () -> number,
-	aviso: ((jogador: any, texto: string) -> ())?,
+	aviso: ((jogador: any, chave: string, args: { any }?) -> ())?,
 	log: ((string) -> ())?,
 }
 
@@ -146,10 +146,10 @@ function Interacoes:tentar(jogador: any, nome: string): (boolean, string?)
 		return false, "indisponivel"
 	end
 	if r.validar then
-		local ok, motivo = r.validar(jogador)
+		local ok, motivo, args = r.validar(jogador)
 		if not ok then
 			if motivo and self.op.aviso then
-				self.op.aviso(jogador, motivo)
+				self.op.aviso(jogador, motivo, args)
 			end
 			return false, motivo or "regra"
 		end

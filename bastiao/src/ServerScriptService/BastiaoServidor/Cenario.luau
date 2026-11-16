@@ -80,7 +80,12 @@ export type Servicos = {
 	atrasar: (segundos: number, fn: () -> ()) -> (),
 	marcar: (inst: Instance, tag: string) -> (),
 	agora: () -> number,
+	ruido: ((chave: string, pos: Vector3?) -> ())?, -- som mecânico sem legenda (porta, alavanca, bipe)
 }
+
+-- definidos no começo de Cenario.construir (as peças usam ao serem montadas)
+local TEXTO_MUNDO: any = {}
+local SV: any = nil
 
 -- ===== construção =====
 local function bloco(pai: Instance, nome: string, tamanho: Vector3, cf: CFrame, cor: Color3, material: Enum.Material?, solida: boolean?): Part
@@ -192,6 +197,24 @@ local function tela(parte: BasePart, face: Enum.NormalId, pps: number, tamanhoTe
 	return t
 end
 
+-- tela de terminal: o servidor só diz qual tela e qual estado; cada cliente desenha na própria
+-- língua (SurfaceGui local com Adornee nesta peça). Nada de texto fixo no servidor.
+local function telaLocalizada(parte: BasePart, id: string, pps: number, tamanhoTexto: number): any
+	parte:SetAttribute("BastiaoTela", id)
+	parte:SetAttribute("BastiaoTelaPPS", pps)
+	parte:SetAttribute("BastiaoTelaTamanho", tamanhoTexto)
+	parte:SetAttribute("BastiaoTelaEstado", "")
+	parte:SetAttribute("BastiaoTelaNomes", "")
+	SV.marcar(parte, "BastiaoTela")
+	return {
+		parte = parte,
+		mostrar = function(estado: string, nomes: { string }?)
+			parte:SetAttribute("BastiaoTelaNomes", if nomes then table.concat(nomes, "\n") else "")
+			parte:SetAttribute("BastiaoTelaEstado", estado)
+		end,
+	}
+end
+
 local function prompt(pai: BasePart, nome: string, texto: string, segurar: number): ProximityPrompt
 	local p = Instance.new("ProximityPrompt")
 	p.Name = nome
@@ -269,7 +292,7 @@ local function construirCaixa(pasta: Instance, textos: any): (Model, Part)
 	bloco(m, "Presilha", V(0.42, 0.1, 0.05), prancheta * CFrame.new(0, 0.5, -0.045), C.aluminum, M.Metal)
 	local lista = tela(folha, Enum.NormalId.Front, 260, 15, C.paper, true)
 	lista.TextColor3 = TXT.tinta
-	lista.Text = textos.objetos.lista_turno
+	lista.Text = TEXTO_MUNDO.lista_turno
 	return m, corpo
 end
 
@@ -312,7 +335,7 @@ local function construirPainelEntrada(pasta: Instance): (Part, PointLight, TextL
 	local lamp, luz = lampada(m, "Lampada", V(0.3, 0.3, 0.1), pose * CFrame.new(0, 5.72, -0.2), 8)
 	local t = tela(placa, Enum.NormalId.Front, 200, 24, C.black)
 	t.TextXAlignment = Enum.TextXAlignment.Center
-	t.Text = "ACESSO EXTERNO\nLIVRE"
+	t.Text = TEXTO_MUNDO.acesso_aberto
 	return lamp, luz, t
 end
 
@@ -331,7 +354,7 @@ local function construirModulo(pai: Instance, nome: string, cf: CFrame): (Model,
 	local t = tela(etiqueta, Enum.NormalId.Front, 200, 15, C.paper, true)
 	t.TextColor3 = TXT.tinta
 	t.TextXAlignment = Enum.TextXAlignment.Center
-	t.Text = "RESERVA 24V\nLACRADO"
+	t.Text = TEXTO_MUNDO.modulo
 	m.PrimaryPart = corpo
 	return m, corpo
 end
@@ -353,14 +376,14 @@ local function construirCarregador(pasta: Instance): (Model, CFrame, Part, Point
 	local placa = bloco(m, "Placa", V(1.6, 0.36, 0.02), pose * CFrame.new(-0.6, A - 0.3, -P - 0.03), C.black, M.SmoothPlastic)
 	local t = tela(placa, Enum.NormalId.Front, 200, 17, C.black, true)
 	t.TextColor3 = TXT.ambar
-	t.Text = "CARREGADOR · RESERVA"
+	t.Text = TEXTO_MUNDO.carregador
 	local lamp, luz = lampada(m, "Status", V(0.22, 0.22, 0.06), pose * CFrame.new(0.95, A - 0.3, -P - 0.04), 6)
 	local berco = pose * CFrame.new(0, A + 0.14 + 0.5, -P / 2)
 	return m, berco, lamp, luz
 end
 
 -- terminal externo da enfermaria, com encaixe para o módulo
-local function construirTerminalEnfermaria(pasta: Instance): (TextLabel, Part, CFrame, Part, PointLight)
+local function construirTerminalEnfermaria(pasta: Instance): (any, Part, CFrame, Part, PointLight)
 	local pose = Cenario.POS.terminalEnfermaria
 	local m = modelo(pasta, "TerminalEnfermaria")
 	local L, A, P = 2.4, 2.7, 0.6
@@ -373,7 +396,7 @@ local function construirTerminalEnfermaria(pasta: Instance): (TextLabel, Part, C
 	bloco(m, "BordaEncaixe", V(1.24, 0.08, 0.14), pose * CFrame.new(0, cy - 1.19, -P - 0.06), C.hazard, M.SmoothPlastic)
 	bloco(m, "Conduite", V(0.16, 0.5, 0.16), pose * CFrame.new(0.9, 2.15 + A + 0.12, -0.2), C.steelLight, M.Metal)
 	local lamp, luz = lampada(m, "Status", V(0.18, 0.18, 0.06), pose * CFrame.new(0.95, cy - 0.75, -P - 0.03), 5)
-	local t = tela(visor, Enum.NormalId.Front, 170, 16)
+	local t = telaLocalizada(visor, "enfermaria", 170, 16)
 	-- o módulo encaixado fica metade para fora da face do gabinete
 	local cfModulo = pose * CFrame.new(0, cy - 0.75, -P - 0.25) * CFrame.Angles(0, 0, 0)
 	return t, encaixe, cfModulo, lamp, luz
@@ -436,7 +459,7 @@ local function construirPlacaContencao(pasta: Instance)
 	local t = tela(placa, Enum.NormalId.Front, 150, 20, C.hazard, true)
 	t.TextColor3 = TXT.tinta
 	t.TextXAlignment = Enum.TextXAlignment.Center
-	t.Text = "CONTENÇÃO · ALA B\nACESSO RESTRITO\nAVALIAÇÃO MÉDICA"
+	t.Text = TEXTO_MUNDO.contencao
 end
 
 -- giroflex: base na parede, cúpula vermelha e rotor com o facho (o cliente gira o rotor)
@@ -487,7 +510,7 @@ local function construirPortaOficina(pasta: Instance): ({ { parte: Part, fechada
 	t.TextColor3 = Color3.fromRGB(214, 206, 170)
 	t.TextXAlignment = Enum.TextXAlignment.Center
 	t.TextYAlignment = Enum.TextYAlignment.Center
-	t.Text = "OFICINA"
+	t.Text = TEXTO_MUNDO.oficina
 	-- lâmpada de estado sobre o vão, lado do corredor
 	bloco(m, "CaixaLampada", V(0.3, 0.5, 0.7), CFrame.new(64.85, 8.9, -320), C.dark, M.Metal)
 	local lamp, luz = lampada(m, "Lampada", V(0.08, 0.32, 0.5), CFrame.new(64.66, 8.9, -320), 12)
@@ -508,7 +531,7 @@ local function construirTrava(pasta: Instance): (Part, CFrame, CFrame, CFrame, P
 	rotuloTrava.TextColor3 = TXT.tinta
 	rotuloTrava.TextXAlignment = Enum.TextXAlignment.Center
 	rotuloTrava.TextYAlignment = Enum.TextYAlignment.Center
-	rotuloTrava.Text = "TRAVA"
+	rotuloTrava.Text = TEXTO_MUNDO.trava
 	bloco(m, "Eixo", V(0.24, 0.24, 0.2), pose * CFrame.new(0, 3.7, -0.46), C.dark, M.Metal)
 	-- cabo da alavanca gira em torno do eixo: para cima = aberta, para baixo = travada
 	local pivo = pose * CFrame.new(0, 3.7, -0.5)
@@ -522,7 +545,7 @@ local function construirTrava(pasta: Instance): (Part, CFrame, CFrame, CFrame, P
 end
 
 -- mesa com o terminal da oficina (CRT), rádio de manutenção e papéis
-local function construirTerminalOficina(pasta: Instance): (TextLabel, Part, Part, PointLight)
+local function construirTerminalOficina(pasta: Instance): (any, Part, Part, PointLight)
 	local pose = Cenario.POS.terminalOficina
 	local m = modelo(pasta, "TerminalOficina")
 	local alt = 2.9
@@ -538,8 +561,7 @@ local function construirTerminalOficina(pasta: Instance): (TextLabel, Part, Part
 	local caixa = bloco(m, "Monitor", V(1.9, 1.6, 1.5), crt, Color3.fromRGB(150, 146, 128), M.SmoothPlastic, true)
 	bloco(m, "TraseiraMonitor", V(1.4, 1.2, 0.5), crt * CFrame.new(0, -0.05, 0.95), Color3.fromRGB(132, 128, 112), M.SmoothPlastic)
 	local visor = bloco(m, "Visor", V(1.6, 1.2, 0.02), crt * CFrame.new(0, 0.04, -0.76), C.screen, M.Glass)
-	local t = tela(visor, Enum.NormalId.Front, 220, 13)
-	t.TextColor3 = TXT.verde
+	local t = telaLocalizada(visor, "oficina", 220, 13)
 	luzPontual(visor, Color3.fromRGB(120, 230, 140), 7, 0.5)
 	bloco(m, "Teclado", V(1.6, 0.08, 0.55), pose * CFrame.new(-0.3, alt + 0.04, -2.0) * CFrame.Angles(math.rad(-6), 0, 0), Color3.fromRGB(140, 136, 118), M.SmoothPlastic)
 	-- rádio de manutenção independente (Elena chama por ele)
@@ -567,6 +589,13 @@ export type Opcoes = {
 function Cenario.construir(op: Opcoes): any
 	local pasta, textos, mundo, sv = op.pasta, op.textos, op.mundo, op.servicos
 	local log = op.log or function(_m: string) end
+	TEXTO_MUNDO = textos.MUNDO
+	SV = sv
+	local function ruido(chave: string, pos: Vector3)
+		if sv.ruido then
+			sv.ruido(chave, pos)
+		end
+	end
 	local cena = { interacoes = {}, zonas = {}, spawns = {}, pecas = {} }
 
 	-- canto do Pavel, rádio e relógio
@@ -592,12 +621,13 @@ function Cenario.construir(op: Opcoes): any
 	-- módulo de bateria (o do mundo fica sempre ancorado; na mão vai uma cópia soldada)
 	local modulo, moduloCorpo = construirModulo(pasta, "ModuloBateria", bercoCf)
 	local moduloOfs = offsets(moduloCorpo, modulo)
-	local promptRadio = prompt(radioCorpo, "PegarRadio", textos.prompts.radio, 0)
-	local promptModulo = prompt(moduloCorpo, "PegarModulo", textos.prompts.bateria, 0.35)
-	local promptEncaixe = prompt(encaixe, "EncaixarModulo", textos.prompts.encaixar, 0.8)
-	local promptTrava = prompt(cabo, "FecharTrava", textos.prompts.trava, 0.6)
+	local P = textos.L.pt.prompts
+	local promptRadio = prompt(radioCorpo, "PegarRadio", P.PegarRadio, 0)
+	local promptModulo = prompt(moduloCorpo, "PegarModulo", P.PegarModulo, 0.35)
+	local promptEncaixe = prompt(encaixe, "EncaixarModulo", P.EncaixarModulo, 0.8)
+	local promptTrava = prompt(cabo, "FecharTrava", P.FecharTrava, 0.6)
 	promptTrava.RequiresLineOfSight = true -- a alavanca fica a 1 stud da parede do corredor
-	local promptTerminal = prompt(monitor, "LerTerminal", textos.prompts.terminal_oficina, 0)
+	local promptTerminal = prompt(monitor, "LerTerminal", P.LerTerminal, 0)
 
 	local pavel = op.criarPavel(pasta)
 	cena.pavel = pavel
@@ -654,9 +684,12 @@ function Cenario.construir(op: Opcoes): any
 		relogioTexto.Text = "02:49"
 	end)
 
-	E("radio", { "guardado", "oferecido", "entregue" }, function(estado)
+	E("radio", { "guardado", "oferecido", "entregue" }, function(estado, instantaneo)
 		radioModelo.Parent = if estado == "entregue" then nil else pasta
 		acender(radioLed, radioLuz, if estado == "oferecido" then LUZ.verde else nil, 0.8)
+		if estado == "oferecido" and not instantaneo then
+			ruido("squelch", radioCorpo.CFrame.Position)
+		end
 	end)
 
 	-- bateria: quem carrega é guardado aqui; se essa pessoa sai ou morre, o módulo volta ao carregador
@@ -719,6 +752,7 @@ function Cenario.construir(op: Opcoes): any
 			-- pegou de volta do carregador (ação local, a história já estava em "carregada")
 			if soldarNaMao(jogador) then
 				modulo.Parent = nil
+				ruido("modulo_pegar", bercoCf.Position)
 			end
 		end
 	end
@@ -737,7 +771,7 @@ function Cenario.construir(op: Opcoes): any
 		return true
 	end
 
-	E("bateria", { "no_carregador", "disponivel", "carregada", "encaixada" }, function(estado)
+	E("bateria", { "no_carregador", "disponivel", "carregada", "encaixada" }, function(estado, instantaneo)
 		if estado == "no_carregador" then
 			soltarCopia()
 			moduloNoCarregador()
@@ -750,6 +784,9 @@ function Cenario.construir(op: Opcoes): any
 			if bateria.portador and soldarNaMao(bateria.portador) then
 				modulo.Parent = nil
 				acender(carregadorLamp, carregadorLuz, nil)
+				if not instantaneo then
+					ruido("modulo_pegar", bercoCf.Position)
+				end
 			else
 				bateria.portador = nil
 				moduloNoCarregador()
@@ -761,22 +798,26 @@ function Cenario.construir(op: Opcoes): any
 			modulo.Parent = pasta
 			moverConjunto(moduloOfs, cfEncaixado)
 			acender(carregadorLamp, carregadorLuz, nil)
+			if not instantaneo then
+				ruido("modulo_encaixe", cfEncaixado.Position)
+			end
 		end
 	end)
 
-	E("terminal_enfermaria", { "sem_energia", "ligado", "autorizado" }, function(estado)
+	E("terminal_enfermaria", { "sem_energia", "ligado", "autorizado" }, function(estado, instantaneo)
+		enfTexto.mostrar(estado)
 		if estado == "sem_energia" then
-			enfTexto.TextColor3 = TXT.apagado
-			enfTexto.Text = textos.terminais.enfermaria_sem
 			acender(enfLamp, enfLuz, LUZ.vermelha, 0.6)
 		elseif estado == "ligado" then
-			enfTexto.TextColor3 = TXT.ambar
-			enfTexto.Text = textos.terminais.enfermaria_ligado
 			acender(enfLamp, enfLuz, LUZ.verde, 0.8)
+			if not instantaneo then
+				ruido("terminal_liga", enfTexto.parte.CFrame.Position)
+			end
 		else
-			enfTexto.TextColor3 = TXT.vermelho
-			enfTexto.Text = textos.terminais.enfermaria_autorizado
 			acender(enfLamp, enfLuz, LUZ.ambar, 1.0)
+			if not instantaneo then
+				ruido("terminal_bip", enfTexto.parte.CFrame.Position)
+			end
 		end
 	end)
 
@@ -814,11 +855,11 @@ function Cenario.construir(op: Opcoes): any
 		if estado == "aberto" then
 			acender(entradaLamp, entradaLuz, LUZ.verde, 1.0)
 			entradaTexto.TextColor3 = TXT.verde
-			entradaTexto.Text = "ACESSO EXTERNO\nLIVRE"
+			entradaTexto.Text = TEXTO_MUNDO.acesso_aberto
 		else
 			acender(entradaLamp, entradaLuz, LUZ.vermelha, 1.6)
 			entradaTexto.TextColor3 = TXT.vermelho
-			entradaTexto.Text = "ACESSO EXTERNO\nBLOQUEADO"
+			entradaTexto.Text = TEXTO_MUNDO.acesso_bloqueado
 		end
 	end)
 
@@ -828,12 +869,16 @@ function Cenario.construir(op: Opcoes): any
 			cabo.CFrame = alvo
 			return
 		end
+		ruido("alavanca", cabo.CFrame.Position)
 		sv.tween(cabo, 0.2, { CFrame = caboMeio })
 		sv.atrasar(0.2, function()
 			sv.tween(cabo, 0.2, { CFrame = alvo })
 		end)
 	end
 	local function moverFolhas(aberta: boolean, instantaneo: boolean)
+		if not instantaneo then
+			ruido("porta_desliza", Vector3.new(Cenario.POS.portaOficinaX, 4, -320))
+		end
 		for _, f in folhas do
 			local alvo = if aberta then f.aberta else f.fechada
 			if instantaneo then
@@ -862,44 +907,45 @@ function Cenario.construir(op: Opcoes): any
 		end
 	end)
 
-	local function textoLista(): string
-		local linhas = { textos.terminais.oficina_cabecalho, string.format("  %-8s%-18s%s", "SGT", "ANTONOV, P.", "PRESENTE") }
+	-- nomes de quem está no servidor, na ordem de entrada (KEDR-1, KEDR-2...): o cliente monta a
+	-- lista na língua de cada jogador
+	local function nomesTurno(): { string }
 		local lista = op.jogadores()
 		table.sort(lista, function(a, b)
 			return (a.UserId or 0) < (b.UserId or 0)
 		end)
+		local nomes = {}
 		for i, j in lista do
 			if i > 6 then
-				table.insert(linhas, "  ...")
 				break
 			end
 			local nome = string.upper(tostring(j.DisplayName or j.Name or "?"))
-			if #nome > 16 then
-				nome = string.sub(nome, 1, 15) .. "."
+			if utf8.len(nome) and (utf8.len(nome) :: number) > 16 then
+				nome = string.sub(nome, 1, (utf8.offset(nome, 16) :: number) - 1) .. "."
 			end
-			table.insert(linhas, string.format("  %-8s%-18s%s", "KEDR-" .. i, nome, "PRESENTE"))
+			table.insert(nomes, nome)
 		end
-		table.insert(linhas, string.format("  %-8s%-18s%s", "731-A", "SOKOLOV, M.", "AVALIAÇÃO"))
-		table.insert(linhas, "")
-		table.insert(linhas, textos.terminais.oficina_rodape)
-		return table.concat(linhas, "\n")
+		return nomes
 	end
 
 	local piscaLed, pararLed = piscador(ofLed, ofLedLuz, LUZ.verde, 0.7)
-	E("terminal_oficina", { "apagado", "aguardando", "lista" }, function(estado)
+	E("terminal_oficina", { "apagado", "aguardando", "lista" }, function(estado, instantaneo)
 		if estado == "apagado" then
 			pararLed()
-			ofTexto.TextColor3 = TXT.apagado
-			ofTexto.Text = textos.terminais.oficina_apagado
+			ofTexto.mostrar(estado)
 		elseif estado == "aguardando" then
 			piscaLed()
-			ofTexto.TextColor3 = TXT.verde
-			ofTexto.Text = textos.terminais.oficina_aguardando
+			ofTexto.mostrar(estado)
+			if not instantaneo then
+				ruido("terminal_bip", ofTexto.parte.CFrame.Position)
+			end
 		else
 			pararLed()
 			acender(ofLed, ofLedLuz, LUZ.verde, 0.6)
-			ofTexto.TextColor3 = TXT.verde
-			ofTexto.Text = textoLista()
+			ofTexto.mostrar(estado, nomesTurno())
+			if not instantaneo then
+				ruido("terminal_liga", ofTexto.parte.CFrame.Position)
+			end
 		end
 	end)
 
@@ -962,9 +1008,9 @@ function Cenario.construir(op: Opcoes): any
 					return true, nil
 				end
 				if bateria.portador == nil then
-					return false, textos.avisos.modulo_no_carregador
+					return false, "modulo_no_carregador"
 				end
-				return false, string.format(textos.avisos.modulo_com, string.upper(tostring(bateria.portador.DisplayName)))
+				return false, "modulo_com", { string.upper(tostring(bateria.portador.DisplayName)) }
 			end,
 		},
 		{
@@ -976,10 +1022,10 @@ function Cenario.construir(op: Opcoes): any
 			requer = { { "porta_oficina", "aberta" } },
 			validar = function(j)
 				if not dentroOficina(j) then
-					return false, textos.avisos.entre_oficina
+					return false, "entre_oficina"
 				end
 				if not pavel:chegou() then
-					return false, textos.avisos.espere_pavel
+					return false, "espere_pavel"
 				end
 				return true, nil
 			end,

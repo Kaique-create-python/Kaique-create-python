@@ -6,6 +6,7 @@ from .runtime import Runtime,read,TARGET
 from .paths import guard,private_dir
 from .package import Package
 from . import cloud as transport
+from . import midia as sons
 
 def hidden_key():
  try:
@@ -40,6 +41,11 @@ def main(files,argv=None):
   if args.command!='resume' and rt.pending():raise Failure('Envio pendente. Use resume; nunca repita o POST.')
   key=hidden_key();transport.STATE=rt.state;transport.PACKAGE=rt.package;cloud=transport.Cloud(key,dict(TARGET))
   try:
+   # sons (opcionais): o teste envia/reaproveita e grava os IDs; publicar/resume usam os mesmos
+   if args.command in ('instalar','install','test','testar-nuvem'):
+    ids=sons.Midia(root,package.audio,package.files).preparar(cloud) if package.audio else {}
+    package.usar_ids(ids);sons.salvar_ids(rt.state,package.digest,ids)
+   else:package.usar_ids(sons.ids_salvos(rt.state,package.digest))
    if args.command in ('instalar','install'):rt.install(cloud)
    elif args.command in ('test','testar-nuvem'):rt.test(cloud)
    elif args.command in ('publish','publicar'):rt.publish(cloud)

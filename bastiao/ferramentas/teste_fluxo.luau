@@ -1,4 +1,4 @@
--- PROJETO BASTIÃO :: fluxo completo da Etapa 1 no Lune
+-- PROJETO BASTIÃO :: fluxo completo da abertura (Etapa 1 + Etapa 2) no Lune
 -- Monta o cenário de verdade (sem o mapa), liga Mundo + Missao + Sequencias + Interacoes +
 -- Zonas + Checkpoint como o servidor faz e joga a abertura inteira com dois jogadores falsos.
 -- O relógio é falso (avança na hora), então 25 s de sequência rodam instantaneamente.
@@ -21,6 +21,10 @@ local G = {
 	NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
 	ColorSequence = roblox.ColorSequence,
 	Font = roblox.Font,
+	-- módulos do cliente pedem serviços no topo; aqui só precisam existir
+	game = { GetService = function()
+		return {}
+	end },
 }
 local function carregar(caminho: string)
 	return luau.load(fs.readFile(raiz .. caminho), { debugName = caminho, environment = G })()
@@ -39,6 +43,8 @@ local Checkpoint = carregar("ServerScriptService/BastiaoServidor/Checkpoint.luau
 local Cenario = carregar("ServerScriptService/BastiaoServidor/Cenario.luau")
 local Textos = carregar("ReplicatedStorage/BastiaoCompartilhado/Textos.luau")
 local Compartilhado = carregar("ReplicatedStorage/BastiaoCompartilhado.luau")
+local Telas = carregar("StarterPlayer/StarterPlayerScripts/BastiaoCliente/Telas.luau")
+local Som = carregar("StarterPlayer/StarterPlayerScripts/BastiaoCliente/Som.luau")
 
 local function pass(nome: string)
 	print("[Fluxo] PASS " .. nome)
@@ -132,6 +138,7 @@ local mundo = Mundo.novo(function(m)
 	table.insert(log, m)
 end)
 local tags = {}
+local ruidos = {}
 local cena = Cenario.construir({
 	pasta = pasta,
 	textos = Textos,
@@ -151,6 +158,9 @@ local cena = Cenario.construir({
 		end,
 		agora = function()
 			return agora
+		end,
+		ruido = function(chave, pos)
+			table.insert(ruidos, { chave = chave, pos = pos })
 		end,
 	},
 	jogadores = function()
@@ -218,8 +228,8 @@ interacoes = Interacoes.novo({
 	agora = function()
 		return agora
 	end,
-	aviso = function(j, texto)
-		table.insert(avisos, { j = j, texto = texto })
+	aviso = function(j, chave, args)
+		table.insert(avisos, { j = j, chave = chave, args = args })
 	end,
 })
 for _, def in cena.interacoes do
@@ -324,8 +334,14 @@ for _, d in cena.interacoes do
 end
 mover(bia, encaixe + V(2.5, 0.2, 0))
 ok, motivo = interacoes:tentar(bia, "encaixar_bateria")
-confere(not ok and string.find(tostring(motivo), "ANA", 1, true), "Bia não encaixa o módulo da Ana: " .. tostring(motivo))
-confere(#avisos >= 1 and avisos[#avisos].j == bia, "Bia recebe o aviso")
+confere(not ok and motivo == "modulo_com", "Bia não encaixa o módulo da Ana: " .. tostring(motivo))
+local ultimoAviso = avisos[#avisos]
+confere(ultimoAviso and ultimoAviso.j == bia and ultimoAviso.chave == "modulo_com", "Bia recebe o aviso (chave)")
+confere(ultimoAviso.args and ultimoAviso.args[1] == "ANA", "o aviso leva o nome de quem carrega")
+for _, idioma in Textos.IDIOMAS do
+	local frase = string.format(Textos.L[idioma].avisos.modulo_com, table.unpack(ultimoAviso.args))
+	confere(string.find(frase, "ANA", 1, true), idioma .. ": aviso sem o nome: " .. frase)
+end
 pass("modulo_tem_portador")
 
 -- ===== 5) quem carrega morre: o módulo volta e qualquer um pega de novo =====
@@ -374,12 +390,12 @@ for _, d in cena.interacoes do
 end
 mover(bia, V(trava.X + 2.2, 3, trava.Z))
 ok, motivo = interacoes:acionar(bia, prompts.fechar_trava)
-confere(not ok and motivo == Textos.avisos.espere_pavel, "esperar o Pavel entrar: " .. tostring(motivo))
+confere(not ok and motivo == "espere_pavel", "esperar o Pavel entrar: " .. tostring(motivo))
 pavelFalso.chegouFlag = true
 avancar(1)
 mover(bia, V(trava.X - 2.0, 3, trava.Z)) -- do lado de fora da parede (x < 65.9)
 ok, motivo = interacoes:acionar(bia, prompts.fechar_trava)
-confere(not ok and motivo == Textos.avisos.entre_oficina, "fechar a trava de fora é recusado: " .. tostring(motivo))
+confere(not ok and motivo == "entre_oficina", "fechar a trava de fora é recusado: " .. tostring(motivo))
 avancar(1)
 mover(bia, V(trava.X + 2.2, 3, trava.Z))
 ok, motivo = interacoes:acionar(bia, prompts.fechar_trava)
@@ -402,9 +418,16 @@ end
 mover(ana, monitor + V(0, -0.75, -2.8))
 ok, motivo = interacoes:acionar(ana, prompts.ler_terminal)
 confere(ok, "ler o terminal: " .. tostring(motivo))
-local texto = (pasta:FindFirstChild("TerminalOficina") :: any).Visor.Tela.Fundo.Texto.Text
-confere(string.find(texto, "KEDR-1", 1, true) and string.find(texto, "ANA", 1, true) and string.find(texto, "BIA", 1, true), "lista com os jogadores:\n" .. texto)
-confere(string.find(texto, "SOKOLOV", 1, true) and string.find(texto, "02:31", 1, true), "lista com Sokolov e o registro")
+-- a tela só guarda o estado e os nomes; cada cliente desenha na língua dele
+local visor = (pasta:FindFirstChild("TerminalOficina") :: any).Visor
+confere(visor:HasTag("BastiaoTela") and visor:GetAttribute("BastiaoTela") == "oficina", "tela marcada para o cliente")
+confere(visor:GetAttribute("BastiaoTelaEstado") == "lista", "tela na lista do turno")
+local nomes = visor:GetAttribute("BastiaoTelaNomes")
+for _, idioma in Textos.IDIOMAS do
+	local texto = Telas.conteudo(Textos.L[idioma], "oficina", "lista", nomes)
+	confere(string.find(texto, "KEDR-1", 1, true) and string.find(texto, "ANA", 1, true) and string.find(texto, "BIA", 1, true), idioma .. ": lista com os jogadores:\n" .. texto)
+	confere(string.find(texto, Textos.L[idioma].terminais.sokolov, 1, true) and string.find(texto, "02:31", 1, true), idioma .. ": lista com Sokolov e o registro")
+end
 avancar(30)
 confere(missao:final() and missao:no() == "fim_etapa", "chegou ao fim da etapa")
 confere(atributos.objetivo == "piso" and atributos.fim > 0, "objetivo final e cartão")
@@ -464,24 +487,87 @@ confere(not ok and motivo == "jogador_invalido", "quem saiu não interage")
 ana.Parent = pastaPersonagens
 pass("alcance_10_aceita_10_1_recusa")
 
--- ===== 11) legendas: cada fala tem tempo de leitura antes da próxima =====
-for id, s in Cap.sequences do
-	local fs2 = {}
-	for _, c in s.cues do
-		if c.fala then
-			table.insert(fs2, c)
+-- ===== 11) legendas e vozes: nenhuma fala passa por cima da outra =====
+local function semSobreposicao(seq: any, rotulo: string)
+	for id in Cap.sequences do
+		local itens = seq:agenda(id)
+		local fimAnterior, anterior = -math.huge, nil
+		for _, item in itens do
+			if item.cue.fala then
+				confere(item.t >= fimAnterior - 1e-6, string.format("%s/%s: %s começa em %.2fs antes de %s acabar (%.2fs)", rotulo, id, item.cue.fala, item.t, tostring(anterior), fimAnterior))
+				fimAnterior = item.t + seq:duracaoFala(item.cue.fala)
+				anterior = item.cue.fala
+				-- a legenda dura o bastante para ler na língua mais longa
+				for _, idioma in Textos.IDIOMAS do
+					local frase = Textos.L[idioma].falas[item.cue.fala]
+					local leitura = Compartilhado.duracaoLeitura(string.rep("x", utf8.len(frase) or #frase))
+					confere(seq:duracaoFala(item.cue.fala) >= leitura * 0.8 - 1e-6, rotulo .. ": pouco tempo para ler " .. item.cue.fala .. " em " .. idioma)
+				end
+			end
 		end
 	end
-	table.sort(fs2, function(a, b)
-		return a.t < b.t
-	end)
-	for i = 1, #fs2 - 1 do
-		local d = Compartilhado.duracaoLeitura(Textos.falas[fs2[i].fala][2])
-		local janela = fs2[i + 1].t - fs2[i].t
-		confere(janela >= d * 0.95, string.format("%s: %s tem %.1fs para %.1fs de leitura", id, fs2[i].fala, janela, d))
+end
+semSobreposicao(sequencias, "sem voz")
+-- com vozes longas (ex.: russo mais lento) o resto da cena anda junto
+local longas = {}
+for chave in Textos.FALANTE do
+	longas[chave] = 7.5
+end
+local comVoz = Sequencias.novo({
+	def = Cap,
+	textos = Textos,
+	mundo = mundo,
+	apresentar = function() end,
+	aoTerminar = function() end,
+	agendar = agendar,
+	cancelar = cancelar,
+	duracaoLeitura = Compartilhado.duracaoLeitura,
+	duracoes = longas,
+})
+semSobreposicao(comVoz, "voz 7.5s")
+confere(comVoz:duracao("s5_isolamento") > sequencias:duracao("s5_isolamento"), "vozes longas esticam a sequência")
+-- o que vem depois de uma fala atrasada (som/entidade) anda junto com ela
+local itensLongos = comVoz:agenda("s5_isolamento")
+local itensCurtos = sequencias:agenda("s5_isolamento")
+confere(itensLongos[#itensLongos].t >= itensCurtos[#itensCurtos].t, "a última deixa não fica para trás")
+pass("legendas_e_vozes_sem_sobreposicao")
+
+-- ===== 11b) sons: todo som e ruído da cena tem efeito no cliente =====
+local esperados = { "squelch", "modulo_pegar", "modulo_encaixe", "terminal_liga", "alavanca", "porta_desliza", "terminal_bip" }
+local tocados = {}
+for _, r in ruidos do
+	tocados[r.chave] = true
+	confere(Som.EFEITOS[r.chave] ~= nil, "ruído sem efeito no cliente: " .. r.chave)
+	confere(r.pos == nil or typeof(r.pos) == "Vector3", "posição do ruído " .. r.chave)
+end
+for _, k in esperados do
+	confere(tocados[k], "a abertura deveria tocar o ruído " .. k)
+end
+local comPosicao = 0
+for _, m in mensagens do
+	if m.tipo == "som" then
+		confere(Som.DA_LEGENDA[m.chave] ~= nil or m.chave == "alarme", "legenda de som sem efeito: " .. m.chave)
+		confere(Textos.L.ru.sons[m.chave] and Textos.L.en.sons[m.chave], "legenda de som sem tradução: " .. m.chave)
+		if m.pos then
+			comPosicao += 1
+			confere(typeof(m.pos) == "Vector3", "posição do som " .. m.chave)
+		end
+	elseif m.tipo == "ruido" then
+		confere(Som.EFEITOS[m.chave] ~= nil, "ruído da sequência sem efeito: " .. m.chave)
 	end
 end
-pass("legendas_com_tempo_de_leitura")
+confere(comPosicao >= 3, "sons do monstro deveriam vir de um lugar (3D)")
+for nome in Som.DA_LEGENDA do
+	confere(Som.EFEITOS[Som.DA_LEGENDA[nome]] ~= nil, "legenda aponta para efeito inexistente: " .. nome)
+end
+pass("sons_e_ruidos_ligados")
+
+-- ===== 11c) eco por lugar =====
+confere(Som.zona(V(-88, 4, -320)) == "sala", "enfermaria é sala")
+confere(Som.zona(V(88, 4, -305)) == "sala", "oficina é sala")
+confere(Som.zona(V(0, 4, -260)) == "corredor", "corredor principal")
+confere(Som.zona(V(0, 4, -535)) == "galpao", "galpão do gerador")
+pass("eco_por_lugar")
 
 -- ===== 12) nada de erro escondido no log =====
 for _, m in log do

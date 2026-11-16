@@ -26,9 +26,9 @@ local function borda(pai: Instance, cor: Color3, transparencia: number, modo: En
 	s.Parent = pai
 end
 
-local function tecla(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputType): (string, string?)
+local function tecla(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputType, toque: string): (string, string?)
 	if tipo == Enum.ProximityPromptInputType.Touch then
-		return "TOQUE", nil
+		return toque, nil
 	elseif tipo == Enum.ProximityPromptInputType.Gamepad then
 		local ok, img = pcall(function()
 			return UserInputService:GetImageForKeyCode(prompt.GamepadKeyCode)
@@ -47,8 +47,18 @@ local function tecla(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputTyp
 	return prompt.KeyboardKeyCode.Name, nil
 end
 
-function Prompts.iniciar(playerGui: Instance)
-	local ativos: { [ProximityPrompt]: { gui: BillboardGui, conexoes: { RBXScriptConnection } } } = {}
+export type Opcoes = { textos: any, idioma: () -> string, aoMudar: ((fn: (string) -> ()) -> ())? }
+
+function Prompts.iniciar(playerGui: Instance, op: Opcoes?)
+	local ativos: { [ProximityPrompt]: { gui: BillboardGui, conexoes: { RBXScriptConnection }, tipo: Enum.ProximityPromptInputType } } = {}
+	-- texto da ação na língua do jogador (o nome do prompt é a chave); sem tabela, usa o do servidor
+	local function textos(prompt: ProximityPrompt): (string, string)
+		if op then
+			local L = op.textos.de(op.idioma())
+			return L.prompts[prompt.Name] or prompt.ActionText, L.ui.toque
+		end
+		return prompt.ActionText, "TOQUE"
+	end
 
 	local function remover(prompt: ProximityPrompt)
 		local a = ativos[prompt]
@@ -68,8 +78,8 @@ function Prompts.iniciar(playerGui: Instance)
 		if not parte or not parte:IsA("BasePart") then
 			return
 		end
-		local textoTecla, imagem = tecla(prompt, tipo)
-		local acao = prompt.ActionText
+		local acao, toque = textos(prompt)
+		local textoTecla, imagem = tecla(prompt, tipo, toque)
 		local larguraAcao = math.ceil((utf8.len(acao) or #acao) * TAMANHO * AVANCO) + 4
 		local larguraTecla = if imagem then 34 else math.max(34, math.ceil((utf8.len(textoTecla) or 1) * 13 * AVANCO) + 16)
 		local largura = larguraTecla + 10 + larguraAcao
@@ -200,7 +210,19 @@ function Prompts.iniciar(playerGui: Instance)
 				end)
 			)
 		end
-		ativos[prompt] = { gui = gui, conexoes = conexoes }
+		ativos[prompt] = { gui = gui, conexoes = conexoes, tipo = tipo }
+	end
+	-- trocou a língua: redesenha os prompts que estão na tela
+	if op and op.aoMudar then
+		op.aoMudar(function()
+			local abertos = {}
+			for prompt, a in ativos do
+				abertos[prompt] = a.tipo
+			end
+			for prompt, tipo in abertos do
+				criar(prompt, tipo)
+			end
+		end)
 	end
 
 	ProximityPromptService.PromptShown:Connect(function(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputType)

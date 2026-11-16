@@ -1,5 +1,5 @@
 -- PROJETO BASTIÃO :: exporta vistas do cenário (mapa real + peças novas) para a prévia 3D
--- Uso: lune run bastiao/ferramentas/previa_cenario.luau <place.rbxl> <pasta_saida>
+-- Uso: lune run bastiao/ferramentas/previa_cenario.luau <place.rbxl> <pasta_saida> [pt|en|ru]
 -- Gera <pasta_saida>/<vista>.json e <pasta_saida>/lote.json (para previa/shot.js).
 -- A prévia é aproximada (three.js), não é o render do Roblox: serve para conferir
 -- posição, escala, cor e leitura dos textos antes de publicar.
@@ -28,6 +28,9 @@ local G = {
 	NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
 	ColorSequence = roblox.ColorSequence,
 	Font = roblox.Font,
+	game = { GetService = function()
+		return {}
+	end },
 }
 local function carregar(caminho: string)
 	return luau.load(fs.readFile(raiz .. caminho), { debugName = caminho, environment = G })()
@@ -36,6 +39,9 @@ local V, CF = roblox.Vector3.new, roblox.CFrame.new
 local Cenario = carregar("ServerScriptService/BastiaoServidor/Cenario.luau")
 local Mundo = carregar("ServerScriptService/BastiaoServidor/Mundo.luau")
 local Textos = carregar("ReplicatedStorage/BastiaoCompartilhado/Textos.luau")
+local Telas = carregar("StarterPlayer/StarterPlayerScripts/BastiaoCliente/Telas.luau")
+-- as telas dos terminais são desenhadas pelo cliente na língua do jogador; a prévia escolhe uma
+local IDIOMA = Textos.normalizar(process.args[3] or "pt")
 
 local game = roblox.deserializePlace(fs.readFile(caminhoPlace))
 local workspace = game:GetService("Workspace")
@@ -120,6 +126,18 @@ local function luzesDe(p: any): string
 	return "[" .. table.concat(l, ",") .. "]"
 end
 local function telaDe(p: any): string
+	local id = p:GetAttribute("BastiaoTela")
+	if type(id) == "string" and id ~= "" then
+		-- igual ao Telas.luau do cliente: fundo escuro, texto mono, padding e cor por estado
+		local texto, cor = Telas.conteudo(Textos.de(IDIOMA), id, tostring(p:GetAttribute("BastiaoTelaEstado") or ""), tostring(p:GetAttribute("BastiaoTelaNomes") or ""))
+		return string.format(
+			'{"face":"Front","pps":%d,"bg":[9,13,11],"bgt":0.00,"cor":%s,"px":%d,"txt":"%s","ax":"Left","ay":"Top","luz":false}',
+			tonumber(p:GetAttribute("BastiaoTelaPPS")) or 160,
+			rgb(cor),
+			tonumber(p:GetAttribute("BastiaoTelaTamanho")) or 15,
+			esc(texto)
+		)
+	end
 	local sg = p:FindFirstChild("Tela")
 	if not sg then
 		return "null"

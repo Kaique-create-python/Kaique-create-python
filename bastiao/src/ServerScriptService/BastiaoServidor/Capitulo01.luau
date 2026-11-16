@@ -170,7 +170,9 @@ return {
 			onEnter = { ent("fim", "visivel"), { tipo = "checkpoint", id = "fim_etapa1" } },
 		},
 	},
-	-- t em segundos desde o início da sequência. fala/som viram legenda; entidade muda o mundo.
+	-- t em segundos desde o início da sequência. fala/som viram legenda (e voz/som na língua de
+	-- cada jogador); ruido é só som, sem legenda; pos = {x, y, z} faz o som sair daquele ponto.
+	-- As falas usam a duração real da voz: se uma atrasa, o que vem depois anda junto.
 	sequences = {
 		s1_pavel = {
 			cues = {
@@ -195,24 +197,28 @@ return {
 			cues = {
 				{ t = 0.4, som = "radio_chiado" },
 				{ t = 1.2, fala = "gravacao_sokolov" },
-				{ t = 5.6, som = "inspiracao" },
-				{ t = 9.0, som = "pressurizacao" },
+				{ t = 5.6, som = "inspiracao", pos = { -64.4, 4.2, -320 } },
+				{ t = 9.0, som = "pressurizacao", pos = { -64.6, 0.8, -320 } },
 				{ t = 9.0, entidade = "porta_contencao", estado = "vazando" },
 				{ t = 13.0, entidade = "terminal_enfermaria", estado = "autorizado" },
 				{ t = 14.5, entidade = "porta_contencao", estado = "destravada" },
 				{ t = 15.0, fala = "pavel_afasta" },
 			},
 		},
+		-- o peso de um ataque contra a barreira: a porta de contenção apanha por dentro e aguenta
 		s5_isolamento = {
 			cues = {
 				{ t = 0.0, entidade = "alarme", estado = "ligado" },
 				{ t = 0.0, som = "alarme" },
 				{ t = 0.8, entidade = "acesso_externo", estado = "bloqueado" },
 				{ t = 0.8, som = "portas" },
-				{ t = 2.2, fala = "sistema_isolamento" },
-				{ t = 8.0, fala = "pavel_confirma" },
-				{ t = 13.0, fala = "orlov_falha" },
-				{ t = 18.6, fala = "pavel_vamos" },
+				{ t = 1.7, ruido = "chime_pa" },
+				{ t = 2.6, fala = "sistema_isolamento" },
+				{ t = 5.0, som = "impacto_porta", pos = { -64.4, 4.0, -320 } },
+				{ t = 6.7, ruido = "impacto_porta", pos = { -64.4, 4.0, -320 } },
+				{ t = 8.4, fala = "pavel_confirma" },
+				{ t = 13.4, fala = "orlov_falha" },
+				{ t = 19.0, fala = "pavel_vamos" },
 			},
 		},
 		s7_trava = {
@@ -220,11 +226,12 @@ return {
 				{ t = 0.0, fala = "pavel_entra" },
 			},
 		},
-		-- trava fechada: o som da trava e, logo depois, passos pesados em outro setor
+		-- trava fechada: silêncio, e logo depois passos pesados em outro setor
 		s7_travada = {
 			cues = {
-				{ t = 0.0, som = "trava" },
-				{ t = 3.2, som = "passos_longe" },
+				{ t = 0.0, som = "trava", pos = { 66.2, 3.8, -305 } },
+				{ t = 1.0, fala = "pavel_silencio" },
+				{ t = 2.9, som = "passos_longe" },
 			},
 		},
 		s8_lista = {
@@ -234,7 +241,7 @@ return {
 				{ t = 6.8, fala = "pavel_731" },
 				{ t = 9.2, fala = "elena_nome" },
 				{ t = 12.0, fala = "pavel_registro" },
-				{ t = 19.0, som = "tres_toques_parede" },
+				{ t = 19.0, som = "tres_toques_parede", pos = { 88, 4.2, -297.6 } },
 				{ t = 21.6, fala = "pavel_sinal" },
 			},
 		},

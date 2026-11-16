@@ -1,4 +1,4 @@
--- PROJETO BASTIÃO :: teste na nuvem da Etapa 1 (Luau Execution numa versão SALVA, nunca publicada)
+-- PROJETO BASTIÃO :: teste na nuvem da Etapa 2 (Luau Execution numa versão SALVA, nunca publicada)
 -- O instalador acrescenta antes deste texto a linha `local cfg = ...` (destino, etapa e o hash
 -- de cada script do pacote). Se qualquer verificação falhar, o instalador NÃO publica.
 --   1) destino certo e fontes idênticas às do pacote;
@@ -6,7 +6,8 @@
 --   3) todos os módulos do Bastião carregam no motor;
 --   4) se os scripts do place rodam nesta sessão, o servidor da etapa subiu sem erro;
 --   5) a abertura inteira roda com o cenário real (pasta de teste) e jogadores falsos;
---   6) a interface do cliente é montada sem erro de propriedade;
+--   6) a interface do cliente é montada sem erro de propriedade, nas 3 línguas (PT · EN · RU),
+--      com as telas dos terminais e o som (grupos, eco, vozes, efeitos, loops) montados de verdade;
 --   7) o Pavel anda de verdade pela rota do arsenal (quando a sessão não tem o servidor ao vivo);
 --   8) nenhum erro "Bastiao" no log.
 -- Nada aqui salva ou publica: a sessão é descartada no fim.
@@ -39,7 +40,7 @@ local function relatorio(): string
 end
 
 -- 1) destino e fontes
-if cfg.package ~= "BASTIAO-ETAPA-1" or cfg.stage ~= 1 or cfg.universe ~= 10776462844 or cfg.place ~= 89520940302906 then
+if cfg.package ~= "BASTIAO-ETAPA-2" or cfg.stage ~= 2 or cfg.universe ~= 10776462844 or cfg.place ~= 89520940302906 then
 	falha("Destino/pacote incorreto.")
 	return relatorio()
 end
@@ -159,6 +160,33 @@ local Cenario = require(SRV.Cenario)
 local Pavel = require(SRV.Pavel)
 local Interface = require(CLI.Interface)
 local Prompts = require(CLI.Prompts)
+local Telas = require(CLI.Telas)
+local Som = require(CLI.Som)
+local Audio = require(COMP.Audio)
+
+-- 3b) tabela de áudio: IDs inteiros, trechos válidos, toda voz com duração
+checar("tabela de áudio", function()
+	for _, nome in { "voz_pt", "voz_en", "voz_ru", "efeitos" } do
+		local id = Audio.ids[nome]
+		assert(type(id) == "number" and id >= 0 and id % 1 == 0, "ID inválido: " .. nome)
+	end
+	local vozes = 0
+	for idioma, falas in Audio.vozes do
+		assert(Textos.L[idioma], "língua desconhecida no áudio: " .. tostring(idioma))
+		for chave, seg in falas do
+			assert(Textos.FALANTE[chave], "voz de fala inexistente: " .. chave)
+			assert(seg[2] > 0 and (Audio.duracoes[chave] or 0) >= seg[2] - 0.01, "duração da voz " .. chave)
+			vozes += 1
+		end
+	end
+	out.info.vozes = vozes
+	local efeitos = 0
+	for _ in Audio.sfx do
+		efeitos += 1
+	end
+	out.info.efeitos = efeitos
+	out.info.audio_ids = Audio.ids
+end)
 
 -- 4) servidor da etapa ao vivo nesta sessão?
 local t0 = os.clock()
@@ -181,8 +209,14 @@ if aoVivo then
 			falha("Servidor ao vivo sem " .. nome)
 		end
 	end
-	if ReplicatedStorage:FindFirstChild(Compartilhado.PASTA_REMOTOS) == nil then
+	local remotos = ReplicatedStorage:FindFirstChild(Compartilhado.PASTA_REMOTOS)
+	if remotos == nil then
 		falha("Remotos do Bastião não foram criados")
+	elseif not remotos:FindFirstChild(Compartilhado.REMOTO_IDIOMA) or not remotos:FindFirstChild(Compartilhado.REMOTO_APRESENTACAO) then
+		falha("Remotos de idioma/apresentação ausentes")
+	end
+	if COMP:GetAttribute(Compartilhado.ATR_ACESSO) ~= "aberto" then
+		falha("Acesso externo deveria começar aberto")
 	end
 	if COMP:GetAttribute(Compartilhado.ATR_OBJETIVO) ~= "" then
 		falha("Objetivo deveria começar recolhido")
@@ -280,6 +314,7 @@ else
 end
 
 local logMundo = {}
+local ruidos = {}
 local fluxoOk = checar("fluxo da abertura", function()
 	local mundo = Mundo.novo(function(m)
 		table.insert(logMundo, m)
@@ -299,6 +334,9 @@ local fluxoOk = checar("fluxo da abertura", function()
 				CollectionService:AddTag(inst, tag)
 			end,
 			agora = os.clock,
+			ruido = function(chave)
+				ruidos[chave] = true
+			end,
 		},
 		jogadores = function()
 			return jogadores
@@ -346,6 +384,7 @@ local fluxoOk = checar("fluxo da abertura", function()
 			h.vivo = false
 		end,
 		duracaoLeitura = Compartilhado.duracaoLeitura,
+		duracoes = Audio.duracoes,
 	})
 	missao:ligarSequencias(sequencias)
 	interacoes = Interacoes.novo({
@@ -413,11 +452,18 @@ local fluxoOk = checar("fluxo da abertura", function()
 	avancar(8)
 	mover(bia, Vector3.new(87.7, 3, -302.3))
 	passo("terminal", (interacoes:acionar(bia, prompts.ler_terminal)))
-	local texto = pasta.TerminalOficina.Visor.Tela.Fundo.Texto.Text
-	passo("lista com jogadores", string.find(texto, "ANA", 1, true) ~= nil and string.find(texto, "BIA", 1, true) ~= nil)
+	local visor = pasta.TerminalOficina.Visor
+	passo("tela marcada", CollectionService:HasTag(visor, Compartilhado.TAG_TELA) and visor:GetAttribute(Compartilhado.ATR_TELA_ESTADO) == "lista")
+	for _, idioma in Textos.IDIOMAS do
+		local texto = Telas.conteudo(Textos.L[idioma], "oficina", "lista", visor:GetAttribute(Compartilhado.ATR_TELA_NOMES))
+		passo("lista com jogadores (" .. idioma .. ")", string.find(texto, "ANA", 1, true) ~= nil and string.find(texto, "BIA", 1, true) ~= nil)
+	end
 	avancar(30)
 	passo("fim da etapa", missao:final() and objetivo == "piso" and fimEm > 0)
 	out.info.no_final = missao:no()
+	for _, k in { "modulo_encaixe", "alavanca", "porta_desliza", "terminal_bip" } do
+		passo("ruído " .. k, ruidos[k] == true)
+	end
 	out.info.pecas_cenario = #pasta:GetDescendants()
 end)
 for _, m in logMundo do
@@ -425,24 +471,156 @@ for _, m in logMundo do
 end
 out.info.fluxo = fluxoOk
 
--- 6) interface do cliente (montada aqui só para pegar erro de propriedade/enum)
+-- 6) interface do cliente (montada aqui só para pegar erro de propriedade/enum), nas 3 línguas
 checar("interface do cliente", function()
 	local falsa = Instance.new("Folder")
 	falsa.Name = "PlayerGuiFalso"
 	falsa.Parent = pasta
-	local ui = Interface.criar(falsa, Textos)
-	ui.objetivo("terminal")
-	ui.fala("orlov_ordem", 0.5)
-	ui.som("alarme", 0.5)
-	ui.aviso("teste")
+	local idioma = "pt"
+	local ouvintes = {}
+	local function atual()
+		return idioma
+	end
+	local function aoMudar(fn)
+		table.insert(ouvintes, fn)
+	end
+	local ui = Interface.criar(falsa, Textos, atual)
+	Prompts.iniciar(falsa, { textos = Textos, idioma = atual, aoMudar = aoMudar })
+	Telas.iniciar({ playerGui = falsa, textos = Textos, idioma = atual, aoMudar = aoMudar })
+	for _, l in Textos.IDIOMAS do
+		idioma = l
+		for _, fn in ouvintes do
+			fn(l)
+		end
+		ui.idioma()
+		ui.objetivo("terminal")
+		ui.fala("orlov_ordem", 0.5)
+		ui.som("alarme", 0.5)
+		ui.aviso("modulo_com", { "ANA" })
+	end
 	ui.alarme(true)
 	ui.alarme(false)
 	ui.corte()
 	ui.fim()
 	assert(#Interface.quebrar(Textos.falas.orlov_ordem[2], 40) >= 3, "quebra de linha")
-	Prompts.iniciar(falsa)
+	-- telas: uma SurfaceGui por terminal marcado, desenhada na última língua (russo)
+	local telas = falsa:FindFirstChild("BastiaoTelas")
+	assert(telas and #telas:GetChildren() >= 2, "telas dos terminais não foram montadas")
+	local achou = false
+	for _, sg in telas:GetChildren() do
+		if sg:IsA("SurfaceGui") and sg.Adornee == pasta.TerminalOficina.Visor then
+			local t = sg:FindFirstChildWhichIsA("TextLabel", true)
+			assert(t and string.find(t.Text, "ANA", 1, true), "tela da oficina sem a lista")
+			assert(string.find(t.Text, Textos.L.ru.terminais.sokolov, 1, true), "tela da oficina não está em russo")
+			achou = true
+		end
+	end
+	assert(achou, "tela da oficina não achada")
 	task.wait(0.6)
 end)
+
+-- 6b) som do cliente montado de verdade (grupos, eco, vozes, efeitos 3D, loops, alarme, passos)
+checar("som do cliente", function()
+	assert(Som.zona(Vector3.new(-88, 4, -320)) == "sala" and Som.zona(Vector3.new(0, 4, -535)) == "galpao", "zonas de eco")
+	local temId = false
+	for _, id in Audio.ids do
+		if id > 0 then
+			temId = true
+		end
+	end
+	-- sem IDs ainda (sons em moderação ou chave sem permissão), monta com IDs falsos só para
+	-- conferir as propriedades; nada disso fica no jogo (a sessão é descartada)
+	local audio = Audio
+	if not temId then
+		audio = table.clone(Audio)
+		audio.ids = { voz_pt = 1, voz_en = 1, voz_ru = 1, efeitos = 1 }
+	end
+	local alarmeLigado, acessoBloqueado = false, false
+	local idioma = "pt"
+	local som = Som.iniciar({
+		audio = audio,
+		textos = Textos,
+		idioma = function()
+			return idioma
+		end,
+		alarme = function()
+			return alarmeLigado
+		end,
+		acessoBloqueado = function()
+			return acessoBloqueado
+		end,
+	})
+	for _, l in Textos.IDIOMAS do
+		idioma = l
+		som.precarregar()
+		for chave in Textos.FALANTE do
+			som.fala(chave)
+		end
+	end
+	for chave in Som.DA_LEGENDA do
+		som.som(chave, Vector3.new(0, 4, -100))
+		som.som(chave, nil)
+	end
+	for nome in Som.EFEITOS do
+		som.ruido(nome, Vector3.new(0, 4, -100))
+	end
+	alarmeLigado, acessoBloqueado = true, true
+	som.estado()
+	task.wait(0.3)
+	alarmeLigado = false
+	som.estado()
+	som.parar()
+	out.info.som_montado = true
+end)
+
+-- 6c) os arquivos de som enviados carregam e os trechos cabem neles (só informa se ainda não carregou)
+if (function()
+	for _, id in Audio.ids do
+		if id > 0 then
+			return true
+		end
+	end
+	return false
+end)() then
+	out.info.sons = {}
+	for nome, id in Audio.ids do
+		if id > 0 then
+			local s = Instance.new("Sound")
+			s.SoundId = "rbxassetid://" .. id
+			s.Parent = pasta
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ s })
+			end)
+			local inicio = os.clock()
+			while s.TimeLength <= 0 and os.clock() - inicio < 8 do
+				task.wait(0.25)
+			end
+			out.info.sons[nome] = math.floor(s.TimeLength * 100) / 100
+			if s.TimeLength <= 0 then
+				aviso("Som " .. nome .. " (" .. id .. ") ainda não carregou no motor (moderação em análise?)")
+			else
+				local maior = 0
+				if nome == "efeitos" then
+					for _, grupo in { Audio.sfx, Audio.loops } do
+						for _, seg in grupo do
+							local lista = if type(seg[1]) == "table" then seg else { seg }
+							for _, t in lista do
+								maior = math.max(maior, t[1] + t[2])
+							end
+						end
+					end
+				else
+					for _, seg in Audio.vozes[string.sub(nome, 5)] or {} do
+						maior = math.max(maior, seg[1] + seg[2])
+					end
+				end
+				if maior > s.TimeLength + 0.1 then
+					falha(string.format("Som %s tem %.1fs mas os trechos vão até %.1fs (ID trocado?)", nome, s.TimeLength, maior))
+				end
+			end
+		end
+	end
+end
 
 -- 7) o Pavel anda de verdade (rota túnel -> arsenal, ~300 studs)
 if pavelReal and pavelReal.rig then

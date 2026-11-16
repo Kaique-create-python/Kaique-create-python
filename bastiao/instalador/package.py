@@ -1,8 +1,9 @@
-"""Pacote da etapa: lista fixa de scripts novos e o teste nativo. Sem catalogos, sem midia."""
+"""Pacote da etapa: lista fixa de scripts novos, o teste nativo e (opcional) os sons da etapa."""
 import hashlib,json
 from .codec import Failure
 from .patcher import patch_place,validate
 from .runtime import TARGET
+from .midia import fonte_audio,validar_dados,CAMINHO as CAMINHO_AUDIO,CABECALHO as CABECALHO_AUDIO
 
 def sha(raw):return hashlib.sha256(raw).hexdigest()
 def djb(raw):
@@ -29,6 +30,22 @@ class Package:
   self.digest=sha(files['manifest.json']);self.entries=json.loads(files['sources.json'])
   validate(self.entries)
   if not files.get('teste_nuvem.luau','').strip():raise Failure('Teste nativo ausente.')
+  # sons: o modulo Audio e gerado (trechos + IDs); um Audio gerado antes pode ser trocado
+  self.audio=None;self.ids={}
+  row=self._linha_audio()
+  if row is not None and row['source'].startswith(CABECALHO_AUDIO):row['gerado']=CABECALHO_AUDIO
+  if 'audio.json' in files:
+   self.audio=validar_dados(json.loads(files['audio.json']))
+   for info in self.audio['sprites'].values():
+    if info['arquivo'] not in files:raise Failure('Arquivo de som ausente no pacote: '+info['arquivo'])
+   if row is None or row['source']!=fonte_audio(self.audio,{}):raise Failure('Modulo Audio do pacote nao bate com audio.json.')
+ def _linha_audio(self):
+  return next((r for r in self.entries if r['path']==CAMINHO_AUDIO),None)
+ def usar_ids(self,ids):
+  """Coloca os IDs dos sons no modulo Audio (antes do teste; publish usa os mesmos IDs)."""
+  if self.audio is None:return
+  self._linha_audio()['source']=fonte_audio(self.audio,ids)
+  self.ids=dict(ids)
  def patch(self,raw):
   return patch_place(raw,self.entries)
  def scripts(self,version,verify=False):

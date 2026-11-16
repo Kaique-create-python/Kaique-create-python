@@ -43,8 +43,14 @@ def validate(rows):
 
 
 def recognized(row, source):
-    if source != row['source'] and digest(source) not in row.get('known', []):
-        raise Failure('Script com o mesmo nome e fonte desconhecida: ' + '/'.join(row['path']) + '. Nada foi alterado; revisar.')
+    """Só troca um script que é nosso: igual ao novo, de uma etapa anterior (known) ou gerado
+    pelo próprio instalador (o módulo Audio começa com o cabeçalho de gerado)."""
+    if source == row['source'] or digest(source) in row.get('known', []):
+        return
+    gerado = row.get('gerado')
+    if isinstance(gerado, str) and len(gerado) > 20 and source.startswith(gerado):
+        return
+    raise Failure('Script com o mesmo nome e fonte desconhecida: ' + '/'.join(row['path']) + '. Nada foi alterado; revisar.')
 
 
 def patch_place(raw, rows):
