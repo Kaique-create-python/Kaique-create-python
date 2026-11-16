@@ -1,4 +1,70 @@
-# PROJETO BASTIÃO — Etapa 1: "A chamada"
+# PROJETO BASTIÃO
+
+Place **89520940302906** · Universe **10776462844**
+
+| Entrega | Instalador | O que traz |
+|---|---|---|
+| **Etapa 2** (atual) | `bastiao/dist/BASTIAO_ETAPA2.py` | 3 línguas (PT · EN · RU), som do jogo (vozes, rádio, eco, passos, ambiente), terminais na língua de cada um, melhorias e correções |
+| Etapa 1 | `bastiao/dist/BASTIAO_ETAPA1.py` | a abertura (cenas 1, 3, 4, 5, 7 e 8) — descrita mais abaixo |
+
+## Etapa 2: vozes, sons e 3 línguas
+
+### O que entra no jogo
+
+- **Seletor de língua no menu da bodycam** (tecla M ou botão MENU no celular): uma caixa ao lado
+  do painel com **PORTUGUÊS · ENGLISH · РУССКИЙ**. A troca é na hora: legendas, objetivo,
+  avisos, prompts, telas dos terminais e cartão final. A escolha fica salva para cada jogador
+  (DataStore novo `BastiaoPreferencias_v1`, só com a língua; nada antigo é tocado). Quem nunca
+  escolheu começa na língua da conta Roblox (português, russo; o resto em inglês).
+- **Telas dos terminais na língua de cada jogador** (a lista do turno com os nomes também). As
+  placas pintadas no cenário continuam em russo: a base é soviética.
+- **Som do jogo** (cada som toca assim que existir a gravação; sem ela, fica a legenda):
+  - vozes por canal: Pavel ao vivo sai da cabeça dele (3D); rádio com banda estreita, chiado e o
+    clique do botão de falar; gravação velha com fita e zumbido; alto-falante da base com eco;
+  - eco pelo lugar onde o jogador está: sala, corredor abobadado ou galpão do gerador;
+  - sons "de longe" abafados e com cauda longa (três toques, passos pesados, portas);
+  - alarme saindo de cada giroflex; ambiente do bunker, ventilador no túnel e o motor lá fora,
+    que morre quando a base isola; passos no concreto para jogadores e para o Pavel.
+- **Mais tensão**: segunda pancada na porta de contenção; "Shh... Não se mexe." do Pavel antes
+  dos passos na oficina; sons do monstro saindo do lugar certo.
+- **Correções**: tempo das legendas pela língua mais longa (russo e inglês sumiam cedo); "731" dito
+  por extenso; tela em inglês que estourava a largura; cartão final dizia "Etapa 1"; o passo
+  padrão do Roblox só é trocado quando houver gravação de passos.
+
+### Vozes já gravadas nesta entrega (ElevenLabs)
+
+8 falas em português (Pavel: café, conferência, canal três, arsenal, lista, "impressão velha";
+Orlov: a ordem pelo rádio; a gravação do Sokolov) e os três toques ao longe. As outras 12 falas
+em português, todas as de inglês e russo e os outros efeitos (alarme, pancadas, portas, passos,
+ambiente...) entram na próxima leva do ElevenLabs, sem mudar nada no jogo: o roteiro de cada
+geração está em `bastiao/assets/audio/roteiro.json`. Até lá, essas partes aparecem só como legenda.
+
+### Como instalar (Termux, no celular)
+
+1. Baixe `BASTIAO_ETAPA2.py` para a pasta **Downloads**.
+2. Conferir (sem internet e sem chave): `python ~/storage/downloads/BASTIAO_ETAPA2.py testar`
+3. Instalar: `python ~/storage/downloads/BASTIAO_ETAPA2.py instalar`
+   - pede a chave Open Cloud **escondida**; envia os sons (uma vez só; se falhar, segue sem eles);
+   - baixa o jogo, guarda backup, cria uma versão **Saved**, roda o teste dentro do Roblox;
+   - se passar, pede **`PUBLICAR ETAPA2`**. Sem isso, nada é publicado.
+4. Internet caiu no envio: `python ~/storage/downloads/BASTIAO_ETAPA2.py resume`.
+
+Para os sons, a chave precisa da permissão **Assets → asset:read e asset:write** (e, se puder,
+**Asset Permissions → asset-permissions:write**). Sem ela o jogo é instalado igual, só com legendas.
+Os scripts da Etapa 1 só são trocados se estiverem exatamente como a Etapa 1 deixou.
+
+### O que testar no celular
+
+1. Abra o menu da bodycam: a caixa de língua aparece ao lado. Troque para **РУССКИЙ** e veja o
+   objetivo e as legendas mudarem; volte para **PORTUGUÊS**.
+2. Chegue perto do Pavel: em português você **ouve** a voz dele (vem da direção dele).
+3. Peça o rádio: a ordem do Orlov chega com som de rádio.
+4. No terminal da oficina, a lista aparece na língua escolhida.
+5. Com 2 pessoas em línguas diferentes: cada uma lê e ouve na sua.
+
+---
+
+## Etapa 1: "A chamada"
 
 Place **89520940302906** · Universe **10776462844** · instalador: `bastiao/dist/BASTIAO_ETAPA1.py`
 
@@ -63,9 +129,8 @@ cliente). Tudo o que a história cria aparece em tempo de execução em `workspa
 
 ## Limites desta etapa (honesto)
 
-- **Sem vozes e sem efeitos sonoros ainda**: cada fala vira legenda e cada som importante vira
-  legenda de áudio (ex.: `[TRÊS TOQUES CURTOS NO METAL, AO LONGE]`). Vozes e os sons do monstro
-  entram junto com o monstro.
+- (Etapa 1) Sem vozes e sem efeitos sonoros: cada fala vira legenda e cada som importante vira
+  legenda de áudio. A Etapa 2 acrescenta as vozes e os sons.
 - Ponto seguro vale **dentro do servidor** (nada é salvo em DataStore nesta etapa).
 - O relógio da base é de apresentação: começa em 02:49 e anda um minuto por minuto.
 - O carimbo de data no canto da bodycam é do HUD original (mostra a data real) e não foi mexido.
@@ -84,4 +149,5 @@ do Drive: é preciso enviar esse ZIP direto no chat.
 
 - Regras e mapa do projeto: [LEIA_CHATGPT.md](LEIA_CHATGPT.md) e [docs/integration-map.md](docs/integration-map.md).
 - Testes: `bash bastiao/ferramentas/testar_tudo.sh /caminho/place_original.rbxl`
-- Gerar o instalador: `python3 bastiao/ferramentas/gerar_etapa1.py`
+- Tratar os áudios brutos do ElevenLabs: `python3 bastiao/ferramentas/audio_etapa2.py`
+- Gerar o instalador: `python3 bastiao/ferramentas/gerar_etapa2.py`

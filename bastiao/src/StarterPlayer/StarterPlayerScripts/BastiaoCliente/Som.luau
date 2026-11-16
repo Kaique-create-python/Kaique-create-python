@@ -397,6 +397,9 @@ function Som.iniciar(op: Opcoes): any
 	local distancias: { [Model]: number } = {}
 	local parametros = RaycastParams.new()
 	parametros.FilterType = Enum.RaycastFilterType.Exclude
+	-- só troca os passos quando há gravação de passos (sem ela o passo padrão do Roblox continua)
+	local listaPassos = audio.sfx and audio.sfx.passo_concreto
+	local temPassos = type(listaPassos) == "table" and #listaPassos > 0 and type(listaPassos[1]) == "table"
 	local function silenciarPadrao(raiz: BasePart)
 		local padrao = raiz:FindFirstChild("Running")
 		if padrao and padrao:IsA("Sound") and padrao.Volume > 0 then
@@ -450,7 +453,7 @@ function Som.iniciar(op: Opcoes): any
 				aplicarZona(Som.zona(camera.CFrame.Position))
 			end
 		end
-		if acumulado < 0.05 or not temSom(EFEITOS_SPRITE) then
+		if acumulado < 0.05 or not temPassos or not temSom(EFEITOS_SPRITE) then
 			return
 		end
 		local passoDt = acumulado

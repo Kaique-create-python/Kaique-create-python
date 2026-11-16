@@ -6,8 +6,9 @@ X.luau = ModuleScript, pasta X/ = filhos de X), monta o pacote da etapa (fontes,
 nativo da nuvem e manifesto com SHA-256) e embute o instalador. So entram scripts com nome
 "Bastiao..." logo abaixo de ServerScriptService, ReplicatedStorage ou StarterPlayerScripts.
 
-Etapa 2: os scripts da Etapa 1 que ja estao no jogo so sao trocados se a fonte for exatamente a
-que a Etapa 1 instalou (lida do proprio dist/BASTIAO_ETAPA1.py); qualquer outra fonte bloqueia.
+Etapa 2: os scripts que ja estao no jogo so sao trocados se a fonte for exatamente a que um
+instalador anterior entregou (lida dos proprios dist/BASTIAO_ETAPA*.py, inclusive uma entrega
+anterior desta etapa com menos vozes); qualquer outra fonte bloqueia.
 """
 import argparse
 import base64
@@ -44,8 +45,8 @@ def identidade(rel):
     raise Failure('Arquivo fora do formato: ' + rel.as_posix())
 
 
-def fontes_anteriores(caminho=ANTERIOR):
-    """Fontes que o instalador da etapa anterior colocou no jogo (lidas do arquivo entregue)."""
+def fontes_de(caminho):
+    """Fontes que um instalador entregue coloca no jogo (lidas do proprio arquivo)."""
     import ast
     texto = caminho.read_text(encoding='utf-8')
     arvore = ast.parse(texto)
@@ -62,6 +63,19 @@ def fontes_anteriores(caminho=ANTERIOR):
     return {tuple(r['path']): r['source'] for r in linhas}
 
 
+def fontes_anteriores():
+    """Todas as versões já entregues de cada script: {caminho: [fonte, ...]}."""
+    todas = {}
+    for caminho in sorted((RAIZ / 'dist').glob('BASTIAO_ETAPA*.py')):
+        for p, fonte in fontes_de(caminho).items():
+            lista = todas.setdefault(p, [])
+            if fonte not in lista:
+                lista.append(fonte)
+    if not todas.get(('ServerScriptService', 'BastiaoServidor')):
+        raise Failure('Instalador anterior nao encontrado em dist/: ' + ANTERIOR.name)
+    return todas
+
+
 def coletar():
     anteriores = fontes_anteriores()
     linhas = []
@@ -71,9 +85,9 @@ def coletar():
         if '\r' in fonte:
             raise Failure('Fim de linha CRLF em ' + arquivo.name)
         linha = dict(path=caminho, cls=classe, source=fonte)
-        velha = anteriores.get(tuple(caminho))
-        if velha is not None and velha != fonte:
-            linha['known'] = [sha(velha.encode())]
+        conhecidas = sorted({sha(v.encode()) for v in anteriores.get(tuple(caminho), []) if v != fonte})
+        if conhecidas:
+            linha['known'] = conhecidas
         linhas.append(linha)
     # pais antes dos filhos (o patcher exige)
     linhas.sort(key=lambda r: (len(r['path']), r['path']))

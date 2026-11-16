@@ -32,7 +32,8 @@ simples e passo a passo.
 
 ```
 bash bastiao/ferramentas/testar_tudo.sh /caminho/place_original.rbxl
-python3 bastiao/ferramentas/gerar_etapa1.py   # (ou o gerador da etapa nova)
+python3 bastiao/ferramentas/audio_etapa2.py   # sons: brutos do ElevenLabs -> arquivos do jogo
+python3 bastiao/ferramentas/gerar_etapa2.py   # instalador (aprende as fontes já entregues em dist/)
 ```
 
 O teste de cenário monta tudo dentro do place real e reprova peça atravessando parede, porta
@@ -41,6 +42,19 @@ fora do vão, interação sem lugar para ficar em pé e rota do Pavel batendo em
 ## Onde está cada coisa
 
 - Mapa do projeto e coordenadas: `docs/integration-map.md`
-- Resultados e prévias: `docs/VALIDACAO_ETAPA1.md`
+- Resultados e prévias: `docs/VALIDACAO_ETAPA1.md` e `docs/VALIDACAO_ETAPA2.md`
 - Instalador (patch só de scripts `Bastiao...`, backup, Saved, teste nativo, recibo e resume):
-  `instalador/` + `ferramentas/gerar_etapa1.py`
+  `instalador/` + `ferramentas/gerar_etapa2.py`
+
+## Línguas e som (Etapa 2)
+
+- **Texto nunca vai fixo no servidor**: o servidor manda chaves (`fala`, `som`, `ruido`, `aviso`
+  com argumentos) e cada cliente mostra/toca na língua do atributo `BastiaoIdioma` do jogador.
+  Toda chave nova precisa existir em `Textos.L.pt`, `.en` e `.ru` (o `teste_idiomas` reprova).
+- Telas de terminal: o servidor só põe atributos na peça (`BastiaoTela`, `BastiaoTelaEstado`,
+  `BastiaoTelaNomes`); o cliente desenha (`BastiaoCliente/Telas.luau`).
+- Som: `BastiaoCliente/Som.luau` toca trechos de 4 arquivos (`voz_pt`, `voz_en`, `voz_ru`,
+  `efeitos`) descritos no módulo gerado `BastiaoCompartilhado/Audio` (não editar à mão: o
+  instalador escreve os IDs depois de enviar os sons).
+- Vozes novas: gere no ElevenLabs seguindo `assets/audio/roteiro.json`, salve em
+  `assets/audio/brutos/<nome>.mp3`, rode `audio_etapa2.py` e `gerar_etapa2.py`.
