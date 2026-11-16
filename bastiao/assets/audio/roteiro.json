@@ -60,14 +60,14 @@
   "tipo": "voz",
   "voice_id": "pM78bgjPVk0JXtaEnFoj",
   "texto": "[tense] [urgent] Kedr, afasta da porta.",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_sistema_isolamento",
   "tipo": "voz",
   "voice_id": "TUQNWEvVPBLzMBSVDPUA",
   "texto": "[formal] [calm] Exercício Última Formação iniciado. Efetivo: permaneçam em seus setores.",
-  "feito": false
+  "feito": true
  },
  {
   "nome": "pt_pavel_confirma",
