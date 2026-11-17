@@ -93,3 +93,21 @@ sem boiar. Se ela não estiver no Place, aplique o patch à mão. Depois faça:
    da biblioteca do Roblox (Toolbox > Audio).
 4. **Monstro**: conferir no Play que ele ronda, vê, ruge virado para o jogador, persegue e nunca
    entra na oficina. Deixar a perseguição tensa (luzes piscando perto dele, tremor leve de câmera).
+
+## Correção 9: o monstro mata (jumpscare), passos no pé, menu 3D de verdade e Pavel vestido
+`bastiao/dist/CORRIGIR_ETAPA3_9.py` (patch em `bastiao/docs/CORRECAO9_JUMPSCARE_PASSOS_MENU_PAVEL.patch`):
+- **Captura**: quando a garra alcança alguém, o monstro segura a vítima na frente dele e toca
+  `30_JUMPSCARE_FRONTAL_GRAB` (ou `31_JUMPSCARE_FROM_BEHIND` se ela estava de costas). No marcador
+  `Impact` a vítima morre (`Health = 0`) e depois o monstro solta e volta a rondar. Atributos:
+  `BastiaoCapturado`/`BastiaoCapturaTipo` no jogador; `BastiaoCapturaVitima`/`BastiaoCapturaSerial` no monstro.
+- **Jumpscare** (cliente, `BastiaoCliente/Efeitos`): câmera presa no rosto do monstro, tremor, FOV 42,
+  estática, clarão vermelho no rugido e corte para preto no golpe; a câmera volta ao renascer.
+- **Oficina**: quem se tranca lá ouve o monstro esmurrar a porta (`17_ESMURRAR_PORTA`, tremor e som
+  `impacto_porta`); na busca ele fareja e olha para os lados (03/04/05/15).
+- **Passos**: saem nos marcadores do pé da animação (`Foot*`/`Land`), bem mais altos na corrida.
+- **Menu 3D**: o efeito espera o painel do menu ter tamanho real antes de animar (antes abria normal).
+- **Pavel**: uniforme soviético do catálogo (`ApplyDescription`: jaqueta 6865584651, calça 6866147363,
+  ushanka 46348897), aponta ao chegar, acena uma vez para cada jogador e olha em volta quando parado.
+- 6 sons novos do ElevenLabs: jumpscare, impacto na porta, lanterna liga/desliga, menu abre, legenda quebra.
+Se editar esses scripts no Studio, o `testar-nuvem` do celular volta a parar com "fonte desconhecida"
+(de propósito). Peça ao dono para mandar o ZIP de revisão ao Claude antes.
