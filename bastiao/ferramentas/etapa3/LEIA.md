@@ -25,3 +25,16 @@ perseguição e 4 sons novos do monstro (`audio/sources/eleven_*.mp3`, reaprovei
 Cria os arquivos novos, troca só versões conhecidas e, se o `AUDIO_PLAN.json` for de outra versão, troca
 só os 8 sons dela. Depois dela: `preparar-audio` (Enter, sem chave) → `assets` → `testar-nuvem` → `publicar`.
 Patch: `docs/CORRECAO7_MENU3D_LEGENDAS_SONS.patch`.
+
+- `sim_criatura.luau`: roda o `Criatura.luau` INTEIRO no Lune (carregar, rondar, ver, rugir, perseguir,
+  bote e garra) com o mapa Sector7World real (raycast em caixas orientadas), jogadores falsos que andam
+  ou correm por rotas e animações falsas que disparam os marcadores nos tempos do catálogo. Cenários:
+  `anda`, `corre`, `foge_sul`, `corre_sul`, `oficina`, `dois`. Reprova se o monstro entrar na oficina,
+  sair da área, sair do chão, sair do eixo do corredor ou não rugir; nos cenários andando exige o bote.
+  Uso: `lune run sim_criatura.luau <Criatura.luau> <CriaturaCore.luau> <MonsterCatalog.luau> <place.rbxl> <cenario>`.
+
+`dist/CORRIGIR_ETAPA3_8.py` inclui as correções 3 a 7 e destrava o `testar-nuvem` que parou em
+"fonte desconhecida: Criatura": a versão 17 do Place tinha a "Perseguição v2" e o `MonstroSom` feitos pelo
+Antigravity no Studio (salvos, não publicados). Foram conferidos e juntados (merge de 3 vias, sem conflito)
+e o `release_builder.py` ganhou `REVISADAS`: as versões conferidas de cada script Bastiao* que o instalador
+pode trocar. Outra fonte desconhecida continua bloqueada. Patch: `docs/CORRECAO8_PERSEGUICAO_V2_ANTIGRAVITY.patch`.

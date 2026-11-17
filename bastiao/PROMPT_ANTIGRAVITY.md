@@ -66,6 +66,15 @@ tela tensa na perseguição), legendas letra por letra que quebram em pedaços (
 e 4 sons novos do monstro (ElevenLabs). Se ela já estiver no Place, só confira no Play e ajuste; não
 refaça. Ainda faltam uns 30 sons pequenos (portas, rádio, cliques, passos dos soldados).
 
+## Correção 8: o que você salvou no Studio foi juntado
+A "Perseguição v2" (Criatura) e o `MonstroSom` que você salvou no Place (versão 17, sem publicar) foram
+conferidos e juntados com a correção 7 em `bastiao/dist/CORRIGIR_ETAPA3_8.py`
+(patch `bastiao/docs/CORRECAO8_PERSEGUICAO_V2_ANTIGRAVITY.patch`). O `MonstroSom` agora é ligado pelo
+`BastiaoCliente` com `passos=false` (os passos do monstro já saem pelo Foley).
+IMPORTANTE: o instalador do celular só troca scripts Bastiao* que ele reconhece. Se você editar um
+script Bastiao* no Studio e salvar, o próximo `testar-nuvem` do celular para com "fonte desconhecida"
+(de propósito, para não apagar seu trabalho). Avise o dono para mandar o ZIP de revisão ao Claude.
+
 ## Pedidos do dono que ficaram para você (fazer no Studio, testar com Play)
 A correção 6 (`bastiao/dist/CORRIGIR_ETAPA3_6.py`, patch em `bastiao/docs/CORRECAO6_MONSTRO_SOM_FORTE.patch`)
 já deixa o rugido no máximo (grave, estourado, eco, mais longo), os passos 5x com eco e o monstro
