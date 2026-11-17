@@ -1,7 +1,16 @@
 # PROJETO BASTIÃO — contexto para continuar (Antigravity)
 
-Jogo de terror no Roblox. Place 89520940302906, Universe 10776462844. O dono joga e instala só
-pelo celular (Android + Termux). Responda sempre em português, simples e passo a passo.
+Jogo de terror no Roblox. Place 89520940302906, Universe 10776462844.
+AGORA você trabalha DIRETO no Roblox Studio pelo plugin (MCP do Studio), no PC. Não use Termux,
+Open Cloud nem os instaladores `.py` (eles eram o caminho antigo, do celular). Responda sempre em
+português, simples e passo a passo.
+
+Como trabalhar no Studio:
+- Os scripts do Bastião já estão no Place (ServerScriptService.BastiaoServidor, ReplicatedStorage.
+  BastiaoCompartilhado, StarterPlayerScripts.BastiaoCliente). Edite-os lá; o GitHub é referência.
+- Antes de mexer, salve uma cópia do Place (File > Save to File) como backup.
+- Teste com Play no Studio (lá a física roda: monstro andando, animações e sons dá para ver).
+- Publicar (File > Publish to Roblox) só quando o dono pedir e depois de testar.
 
 ## Regras que nunca podem ser quebradas
 1. Nunca peça a chave Open Cloud no chat. O instalador pede escondido no Termux (getpass).
@@ -9,7 +18,7 @@ pelo celular (Android + Termux). Responda sempre em português, simples e passo 
 3. Não apagar/mover/editar o mapa `workspace.Sector7World`, o HUD da bodycam (`Sector7Client`)
    nem scripts `Sector7.*`. Só ACRESCENTAR coisas com nome `Bastiao*`.
 4. Efeitos visuais só de pacotes da Creator Store (nada desenhado por código ou IA).
-5. Publicar só depois do teste na nuvem passar e com confirmação digitada pelo dono.
+5. Publicar só depois de testar no Studio e com o dono confirmando.
 6. Não pôr nome de modelo de IA em commits. E-mail do dono é privado.
 
 ## Código
@@ -30,9 +39,10 @@ pasta `bastiao/`. Leia `bastiao/README.md`, `bastiao/LEIA_CHATGPT.md`,
   Correção 5 (andar/perseguir + rugido mais alto e grave) entregue; falta confirmar no jogo.
 - Teste na nuvem (Open Cloud Luau execution) NÃO roda física nem cria Player: o teste já usa
   jogadores falsos e confere o conteúdo das animações em vez de tocá-las.
-- 36 sons novos não foram gerados (ElevenLabs gratuito bloqueado). Gerar quando o dono pagar o
-  plano: `python BASTIAO_ETAPA3.py preparar-audio` (pede a chave escondida) → `assets` →
-  `testar-nuvem` → `publicar`.
+- 36 sons novos não foram gerados (ElevenLabs gratuito bloqueado). No Studio, dá para usar sons
+  da biblioteca do Roblox (Toolbox > Audio) ou importar arquivos que o dono mandar.
+- Se a correção 5 (`bastiao/dist/CORRIGIR_ETAPA3_5.py`) ainda não estiver no Place, aplique à mão
+  as mudanças de `bastiao/docs/CORRECAO5_MONSTRO_ANDAR_SOM.patch` nos scripts Criatura e Foley.
 
 ## O que fazer agora
 1. Confirmar com o dono se o monstro anda, persegue e ruge forte após a correção 5.
