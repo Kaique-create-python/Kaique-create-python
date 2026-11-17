@@ -57,3 +57,22 @@ pasta `bastiao/`. Leia `bastiao/README.md`, `bastiao/LEIA_CHATGPT.md`,
 - Monstro 35 animações R6 (zip): https://drive.google.com/file/d/1TOVV4_t-RW0hpFs95JGWEwrKIur__uwa/view
 - Monstro + áudio Etapa 3 (zip): https://drive.google.com/file/d/1lGW-BuktjsmldjTeloO2ESG19dThOjZw/view
 - Prévia das animações (vídeo): https://drive.google.com/file/d/1kvCddvBmKKKE3KTEsL6CQCZvLzl2clCe/view
+
+## Pedidos do dono que ficaram para você (fazer no Studio, testar com Play)
+A correção 6 (`bastiao/dist/CORRIGIR_ETAPA3_6.py`, patch em `bastiao/docs/CORRECAO6_MONSTRO_SOM_FORTE.patch`)
+já deixa o rugido no máximo (grave, estourado, eco, mais longo), os passos 5x com eco e o monstro
+sem boiar. Se ela não estiver no Place, aplique o patch à mão. Depois faça:
+
+1. **Menu com abertura cabulosa em 3D** (o menu da bodycam é do `Sector7Client`: o dono AUTORIZOU
+   mexer nele agora, mas faça backup e não quebre câmera, lanterna, fôlego e HUD). Animação de
+   abertura com profundidade (ViewportFrame/CanvasGroup, peças entrando em camadas, leve parallax,
+   brilho e ruído de bodycam), bem detalhado e legível no celular. Pode usar Figma para desenhar.
+2. **Diálogos estilo "Miside" (jogo da Mita)**: as legendas (`BastiaoCliente/Interface`) aparecem
+   letra por letra com leve profundidade 3D (rotação/escala por letra) e, ao sumir, se quebram em
+   pedacinhos que caem e somem. Manter as 3 línguas (PT/EN/RU) e o tamanho legível no celular.
+3. **Sons pequenos**: clique da lanterna (ligar/desligar; detecte a luz da lanterna mudando, sem
+   editar a lógica do Sector7), passos dos jogadores mais presentes, rangidos e metais do bunker.
+   ElevenLabs só se o dono tiver plano pago (a conta grátis foi bloqueada). Sem pago, use sons
+   da biblioteca do Roblox (Toolbox > Audio).
+4. **Monstro**: conferir no Play que ele ronda, vê, ruge virado para o jogador, persegue e nunca
+   entra na oficina. Deixar a perseguição tensa (luzes piscando perto dele, tremor leve de câmera).

@@ -1,0 +1,278 @@
+--- a/src/server/Criatura.luau
++++ b/src/server/Criatura.luau
+@@ -11,7 +11,18 @@
+ local Criatura = {}
+ local V = Vector3.new
+ local TICK = 0.1 -- one creature, ten decisions/second; profile in the real place
+-local WALK_SPEED, RUN_SPEED = 2.3, 12.2
++local WALK_SPEED, RUN_SPEED = 3.5, 13
++-- Andar garantido: o monstro anda pelo eixo dos corredores (grafo abaixo), com o corpo
++-- ancorado e movido a cada quadro. Sem física de Humanoid e sem pathfinding de agente gigante
++-- (que falhava e deixava o monstro parado só respirando). Nós medidos no mapa Sector7World.
++local NODES = {
++    V(0,0,-260), V(-58,0,-260), V(58,0,-260),            -- 1 cruzamento norte, 2 anel oeste, 3 anel leste
++    V(0,0,-300), V(0,0,-360), V(0,0,-400), V(0,0,-440),  -- 4..7 corredor do meio (7 = cruzamento sul)
++    V(-58,0,-440), V(58,0,-440),                         -- 8, 9 cantos sul
++    V(58,0,-300), V(58,0,-338), V(58,0,-400),            -- 10..12 anel leste
++    V(-58,0,-300), V(-58,0,-338), V(-58,0,-400),         -- 13..15 anel oeste
++}
++local EDGES = {{1,2},{1,3},{1,4},{4,5},{5,6},{6,7},{7,8},{7,9},{3,10},{10,11},{11,12},{12,9},{2,13},{13,14},{14,15},{15,8}}
+ local SPAWNS = {V(0,0,-284), V(0,0,-440)}
+ local PATROL = {V(0,0,-260),V(45,0,-260),V(58,0,-280),V(58,0,-338),
+     V(58,0,-440),V(0,0,-440),V(0,0,-360),V(0,0,-300)}
+@@ -55,6 +66,64 @@
+     return result == nil or (character ~= nil and result.Instance:IsDescendantOf(character))
+ end
+ 
++local function project(p: Vector3): (number, Vector3, number)
++    -- ponto mais perto no eixo dos corredores: (aresta, ponto, distância)
++    local best, bestPoint, bestDist = 1, NODES[1], math.huge
++    local q = V(p.X, 0, p.Z)
++    for i, e in EDGES do
++        local a, b = NODES[e[1]], NODES[e[2]]
++        local ab = b - a
++        local t = math.clamp((q - a):Dot(ab) / ab:Dot(ab), 0, 1)
++        local point = a + ab * t
++        local d = (q - point).Magnitude
++        if d < bestDist then best, bestPoint, bestDist = i, point, d end
++    end
++    return best, bestPoint, bestDist
++end
++
++local function graphRoute(from: Vector3, to: Vector3): {Vector3}
++    local e1, p1 = project(from)
++    local e2, p2 = project(to)
++    if e1 == e2 then return {p2} end
++    -- Dijkstra pequeno: início e fim viram nós virtuais ligados às pontas das suas arestas
++    local count = #NODES
++    local START, GOAL = count + 1, count + 2
++    local pos = table.clone(NODES)
++    pos[START], pos[GOAL] = p1, p2
++    local links: {[number]: {{number}}} = {}
++    local function link(a: number, b: number)
++        local w = (pos[a] - pos[b]).Magnitude
++        links[a] = links[a] or {}; links[b] = links[b] or {}
++        table.insert(links[a], {b, w}); table.insert(links[b], {a, w})
++    end
++    for i, e in EDGES do
++        if i ~= e1 and i ~= e2 then link(e[1], e[2]) end
++    end
++    link(START, EDGES[e1][1]); link(START, EDGES[e1][2])
++    link(GOAL, EDGES[e2][1]); link(GOAL, EDGES[e2][2])
++    local dist, prev, done = {[START] = 0}, {}, {}
++    while true do
++        local u, best = nil, math.huge
++        for node, d in dist do
++            if not done[node] and d < best then u, best = node, d end
++        end
++        if not u or u == GOAL then break end
++        done[u] = true
++        for _, l in links[u] or {} do
++            local v, w = l[1], l[2]
++            if not done[v] and (dist[v] == nil or best + w < dist[v]) then dist[v], prev[v] = best + w, u end
++        end
++    end
++    local route = {}
++    local node = GOAL
++    while node and node ~= START do
++        table.insert(route, 1, pos[node])
++        node = prev[node]
++    end
++    if #route == 0 then return {p2} end
++    return route
++end
++
+ function Criatura.start(op: any): any
+     assert(typeof(op.world)=="Instance" and op.world:IsDescendantOf(Workspace),"Criatura needs the existing story folder")
+     assert(type(op.mundo)=="table" and type(op.mundo.estado)=="function","Criatura needs the original Mundo")
+@@ -329,6 +398,70 @@
+         human:TakeDamage(30) -- one readable native claw; no grab, camera takeover, or proximity kill
+     end
+ 
++    local floorParams=RaycastParams.new()
++    floorParams.FilterType=Enum.RaycastFilterType.Exclude
++    floorParams.RespectCanCollide=true
++    local function setGoal(c: any, goal: Vector3?, speed: number, now: number)
++        local m=c.mover
++        m.targetSpeed=speed
++        if not goal then m.route,m.goal=nil,nil; return end
++        if m.route and m.goal and (flat(goal-m.goal)).Magnitude<2.5 and now<m.recomputeAt then return end
++        m.route,m.index,m.goal,m.recomputeAt=graphRoute(c.root.Position,goal),1,goal,now+0.6
++        c.model:SetAttribute("BastiaoNavigation","corredor")
++    end
++    local function moveStep(c: any, dt: number)
++        local m=c.mover
++        if not m then return end
++        local wanted=if m.route then m.targetSpeed else 0
++        m.speed=m.speed+math.clamp(wanted-m.speed,-30*dt,10*dt)
++        local root=c.root.Position
++        local here=V(root.X,0,root.Z)
++        local start=here
++        local remaining=math.max(0,m.speed)*dt
++        local travel: Vector3?=nil
++        while m.route and remaining>0 do
++            local wp=m.route[m.index]
++            if not wp then m.route=nil; break end
++            local delta=V(wp.X,0,wp.Z)-here
++            local d=delta.Magnitude
++            if d>0.01 then travel=delta.Unit end
++            if d<=remaining then
++                here=V(wp.X,0,wp.Z); remaining-=d; m.index+=1
++            else
++                here+=delta.Unit*remaining; remaining=0
++            end
++        end
++        m.actualSpeed=(here-start).Magnitude/math.max(dt,1/240)
++        local look=flat(c.root.CFrame.LookVector)
++        local want=travel
++        if m.face then
++            local f=flat(m.face-here)
++            if f.Magnitude>0.5 then want=f.Unit end
++        end
++        if want and look.Magnitude>0.01 then
++            local angle=math.atan2(look:Cross(want).Y,look:Dot(want))
++            local turn=math.clamp(angle,-3.5*dt,3.5*dt)
++            look=CFrame.Angles(0,turn,0):VectorToWorldSpace(look)
++        elseif want then look=want end
++        -- Chão só do mapa (nunca Pavel, jogadores ou peças do cenário: era isso que fazia boiar)
++        -- e sem degraus maiores que 1 stud entre um quadro e outro.
++        local mapa=Workspace:FindFirstChild("Sector7World")
++        if mapa then
++            floorParams.FilterType=Enum.RaycastFilterType.Include
++            floorParams.FilterDescendantsInstances={mapa}
++        else
++            floorParams.FilterType=Enum.RaycastFilterType.Exclude
++            floorParams.FilterDescendantsInstances=getIgnore(c)
++        end
++        local hit=Workspace:Raycast(here+V(0,2.5,0),V(0,-8,0),floorParams)
++        local floorY=m.floorY or 0
++        if hit and hit.Normal.Y>0.7 and math.abs(hit.Position.Y-floorY)<1 then floorY=hit.Position.Y end
++        m.floorY=floorY
++        local y=floorY+c.height/2+0.12
++        local at=V(here.X,y,here.Z)
++        c.model:PivotTo(CFrame.lookAt(at,at+look))
++    end
++
+     local function update(c: any, now: number)
+         if not c.model.Parent or c.human.Health<=0 or not inArea(c.root.Position) then
+             fail("criatura_fora_da_area_ou_removida"); return
+@@ -361,28 +494,28 @@
+             end
+         end
+         if effect.damageId then damage(c,effect.damageId) end
++        c.mover.face=nil
+         if mode=="alert" or mode=="attack" then
+-            c.human.WalkSpeed=0
+-            c.human:MoveTo(c.root.Position)
++            -- para e encara quem viu (o rugido e a garra saem virados para o jogador)
++            c.mover.face=nextState.lastKnown
++            setGoal(c,nil,0,now)
+             return
+         end
+-        if now<c.brakeUntil then c.human.WalkSpeed=0; return end
++        if now<c.brakeUntil then setGoal(c,nil,0,now); return end
+         local goal: Vector3?=nil
++        local speed=WALK_SPEED
+         if mode=="chase" then
+             goal=nextState.lastKnown
+-            c.human.WalkSpeed=RUN_SPEED*math.clamp(1-(c.accelerateUntil-now)/1.2,0.15,1)
++            speed=RUN_SPEED*math.clamp(1-(c.accelerateUntil-now)/1.2,0.15,1)
+         elseif mode=="search" then
+             if nextState.lastKnown and (flat(nextState.lastKnown-c.root.Position)).Magnitude>3 then goal=nextState.lastKnown end
+-            c.human.WalkSpeed=WALK_SPEED
+         else
+             local patrol=PATROL[c.patrolIndex]
+             if (flat(patrol-c.root.Position)).Magnitude<3 then c.patrolIndex=c.patrolIndex%#PATROL+1 end
+             goal=PATROL[c.patrolIndex]
+-            c.human.WalkSpeed=WALK_SPEED
+         end
+-        if goal then requestPath(c,goal,now); follow(c,now)
+-        elseif c.nav.waypoints or c.nav.busy then stopNavigation(c) end
+-        local speed=flat(c.root.AssemblyLinearVelocity).Magnitude
++        setGoal(c,goal,speed,now)
++        local speed=c.mover.actualSpeed or 0
+         if mode=="chase" and now<c.accelerateUntil then
+             -- Let the authored accelerate clip finish before the run loop.
+         elseif speed>0.4 and goal then
+@@ -434,7 +567,12 @@
+             model:SetAttribute("BastiaoImportScaleNormalized",math.abs(beforeHeight-info.height)>0.015)
+             model:SetAttribute("BastiaoImportRestErrorStuds",importReport.maxRestPositionErrorStuds)
+             local center=V(info.centerX,info.centerY,info.centerZ)
+-            local visualTurn=CFrame.new(center)*CFrame.Angles(0,math.rad(contract.VisualFacingYawDegrees),0)*CFrame.new(-center)
++            -- O importador do Roblox pode já ter girado o modelo (frente +Z do arquivo -> -Z).
++            -- O contrato mede esse giro; aqui só falta o que ainda não foi girado.
++            local importYaw=tonumber(importReport.importYawDegrees) or 0
++            if importYaw~=importYaw or math.abs(importYaw)==math.huge then importYaw=0 end
++            model:SetAttribute("BastiaoImportYawDegrees",importYaw)
++            local visualTurn=CFrame.new(center)*CFrame.Angles(0,math.rad(contract.VisualFacingYawDegrees-importYaw),0)*CFrame.new(-center)
+             for _, item in model:GetDescendants() do
+                 if item:IsA("Humanoid") or item:IsA("AnimationController") or item:IsA("JointInstance") then item:Destroy() end
+             end
+@@ -548,15 +686,9 @@
+             c.attackEnabled=hit~=nil and hit>=0.4 and hit<catalog.animations["19_CLAW_LEFT"].duration-0.2
+             c.timing={hitDelay=hit or math.huge,attackDuration=catalog.animations["19_CLAW_LEFT"].duration,
+                 roarDuration=catalog.animations["06_RUGIDO"].duration}
+-            for _, part in info.parts do part.Anchored=false end
+-            root.Anchored=false
+-            local serverAuthority=false
+-            pcall(function() serverAuthority=Workspace.AuthorityMode==Enum.AuthorityMode.Server end)
+-            if not serverAuthority then
+-                local canSet,whyNot=root:CanSetNetworkOwnership()
+-                assert(canSet,"propriedade_fisica_servidor:"..tostring(whyNot))
+-                root:SetNetworkOwner(nil) -- classic Automatic map; never assign the NPC to a player
+-            end
++            -- O corpo continua ancorado: o servidor move o modelo inteiro a cada quadro pelos
++            -- corredores (moveStep). Nada de física de Humanoid nem dono de rede.
++            c.mover={route=nil,index=1,goal=nil,speed=0,targetSpeed=0,actualSpeed=0,recomputeAt=0,face=nil}
+             c.ready=true
+             c.state=Core.new(os.clock())
+             model:SetAttribute("BastiaoReady",true)
+@@ -602,6 +734,10 @@
+     report("dormant",nil)
+ 
+     heartbeat=RunService.Heartbeat:Connect(function(dt)
++        if active and active.ready and active.mover and not destroyed then
++            local ok,err=pcall(moveStep,active,dt)
++            if not ok then fail("andar:"..tostring(err)); return end
++        end
+         accumulator+=dt
+         if accumulator<TICK or destroyed then return end
+         accumulator=0
+--- a/src/client/Foley.luau
++++ b/src/client/Foley.luau
+@@ -222,12 +222,34 @@
+ 		sound.Name = "Bastiao_" .. key
+ 		sound.SoundId = "rbxassetid://" .. tostring(entry.id)
+ 		sound.Volume = entry.volume * math.clamp(options.gain or 1, 0, 1)
++		if PHYSICAL_KEYS[key] then
++			-- Monstro de dar medo (pedido do dono): volume no máximo, grave forte, estourado e com cauda longa.
++			local rugido = key == "monster_roar"
++			sound.Volume = if rugido then 10 else math.min(10, sound.Volume * 5)
++			local eq = Instance.new("EqualizerSoundEffect")
++			eq.LowGain, eq.MidGain, eq.HighGain = 10, if rugido then 3 else 0, if rugido then -5 else -8
++			eq.Priority = 3
++			eq.Parent = sound
++			local dist = Instance.new("DistortionSoundEffect")
++			dist.Level = if rugido then 0.55 else 0.25
++			dist.Priority = 2
++			dist.Parent = sound
++			local rev = Instance.new("ReverbSoundEffect")
++			rev.DecayTime = if rugido then 3.2 else 1.8 -- eco de corredor de bunker
++			rev.Density, rev.Diffusion = 1, 1
++			rev.DryLevel, rev.WetLevel = 0, if rugido then -2 else -4
++			rev.Priority = 1
++			rev.Parent = sound
++			-- mais grave e mais longo (o rugido dura ~30% a mais)
++			sound.PlaybackSpeed = if rugido then 0.74 else 0.85
++		end
+ 		sound.SoundGroup = groups[entry.category]
+ 		sound.Looped = persistent
+ 		sound.PlayOnRemove = false
+ 		sound.RollOffMode = Enum.RollOffMode.InverseTapered
+ 		sound.RollOffMinDistance = 6
+-		sound.RollOffMaxDistance = if key == "monster_roar" then 190 else 110
++		sound.RollOffMaxDistance = if key == "monster_roar" then 320 elseif PHYSICAL_KEYS[key] then 180 else 110
++		if PHYSICAL_KEYS[key] then sound.RollOffMinDistance = if key == "monster_roar" then 30 else 16 end
+ 		local parent, attachment, emitter = sounds, nil, nil
+ 		if entry.spatial == true and not source then source = playerRoot() end
+ 		if source and entry.spatial ~= false then
