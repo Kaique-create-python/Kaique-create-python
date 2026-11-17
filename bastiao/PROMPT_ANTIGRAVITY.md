@@ -58,6 +58,14 @@ pasta `bastiao/`. Leia `bastiao/README.md`, `bastiao/LEIA_CHATGPT.md`,
 - Monstro + áudio Etapa 3 (zip): https://drive.google.com/file/d/1lGW-BuktjsmldjTeloO2ESG19dThOjZw/view
 - Prévia das animações (vídeo): https://drive.google.com/file/d/1kvCddvBmKKKE3KTEsL6CQCZvLzl2clCe/view
 
+## Correção 7 (feita depois deste prompt): menu 3D, legendas Miside, lanterna e sons
+`bastiao/dist/CORRIGIR_ETAPA3_7.py` (patch em `bastiao/docs/CORRECAO7_MENU3D_LEGENDAS_SONS.patch`) já faz
+os itens 1 a 4 abaixo pelo caminho do celular: módulo novo `BastiaoCliente/Efeitos` (abertura 3D do menu
+por cima do `S7BodycamMenu` sem editar o Sector7, clique da lanterna pelo atributo `FlashlightOn`,
+tela tensa na perseguição), legendas letra por letra que quebram em pedaços (`BastiaoCliente/Interface`)
+e 4 sons novos do monstro (ElevenLabs). Se ela já estiver no Place, só confira no Play e ajuste; não
+refaça. Ainda faltam uns 30 sons pequenos (portas, rádio, cliques, passos dos soldados).
+
 ## Pedidos do dono que ficaram para você (fazer no Studio, testar com Play)
 A correção 6 (`bastiao/dist/CORRIGIR_ETAPA3_6.py`, patch em `bastiao/docs/CORRECAO6_MONSTRO_SOM_FORTE.patch`)
 já deixa o rugido no máximo (grave, estourado, eco, mais longo), os passos 5x com eco e o monstro
