@@ -441,7 +441,7 @@ local function novoJogador(id, x, z, olhar)
 end
 local function moverJogador(j, dt)
 	local alvo = j.rota[j.i]
-	if not alvo or j.hum.Health <= 0 then
+	if not alvo or j.hum.Health <= 0 or j.root.Anchored == true then
 		j.root.AssemblyLinearVelocity = V3.zero
 		j:SetAttribute("Sprinting", false)
 		return
@@ -497,7 +497,7 @@ local j1, j2
 if CENARIO == "anda" then
 	-- parado olhando o monstro chegar; foge andando quando ele chega perto perseguindo
 	j1 = novoJogador(101, 0, -300, V3.new(0, 0, -1))
-	gatilho, espera = "perto", { chase = true, bote = true, garra = true }
+	gatilho, espera = "perto", { chase = true, bote = true, captura = true }
 elseif CENARIO == "corre" then
 	j1 = novoJogador(101, 0, -300, V3.new(0, 0, -1))
 	gatilho, espera = "perto", { chase = true }
@@ -513,6 +513,7 @@ elseif CENARIO == "oficina" then
 	j1 = novoJogador(101, 58, -300, V3.new(0, 0, 1))
 	FUGA = { P(58, -320), P(82, -320) }
 	reacao = 0.3
+	espera = { porta = true }
 elseif CENARIO == "dois" then
 	j1 = novoJogador(101, 0, -300, V3.new(0, 0, -1))
 	j2 = novoJogador(202, -58, -300, V3.new(0, 0, 1))
@@ -529,6 +530,8 @@ local dt = 1 / 60
 local estados, ultimoEstado = {}, nil
 local maxY, maxFora, entrouOficina, maxForaArea = 0, 0, false, false
 local serialAtaque, serialGolpe, serialRugido, passos = 0, 0, 0, 0
+local capturas, tocadas, ultimaAnim = 0, {}, nil
+local presoDepois = false
 local menorDist = math.huge
 local fugiu = false
 local t = 0
@@ -572,6 +575,10 @@ while t < duracao do
 		serialAtaque = monstro:GetAttribute("BastiaoAttackSerial") or serialAtaque
 		serialGolpe = monstro:GetAttribute("BastiaoHitSerial") or serialGolpe
 		serialRugido = monstro:GetAttribute("BastiaoRoarSerial") or serialRugido
+		capturas = monstro:GetAttribute("BastiaoCapturaSerial") or capturas
+		local anim = monstro:GetAttribute("BastiaoAnimation")
+		if anim and anim ~= ultimaAnim then tocadas[anim] = (tocadas[anim] or 0) + 1; ultimaAnim = anim end
+		if capturas > 0 and estado ~= "capture" and j1.root.Anchored == true and j1.hum.Health <= 0 then presoDepois = true end
 		if monstro:GetAttribute("BastiaoMarkerName") and string.sub(monstro:GetAttribute("BastiaoMarkerName"), 1, 4) == "Foot" then
 			passos = monstro:GetAttribute("BastiaoMarkerSerial") or passos
 		end
@@ -588,6 +595,11 @@ print(string.format("rugidos %d | botes %d | garras que acertaram %d | marcadore
 print(string.format("vida do jogador 1: %d | menor distância %.1f | chegou na oficina: %s",
 	j1.hum.Health, menorDist, tostring(CoreReal.inSafeZone({ x = j1.root.CFrame.Position.X, y = j1.root.CFrame.Position.Y, z = j1.root.CFrame.Position.Z }))))
 if j2 then print("vida do jogador 2:", j2.hum.Health) end
+local nomes = {}
+for n, q in tocadas do table.insert(nomes, n .. "×" .. q) end
+table.sort(nomes)
+print(string.format("capturas (jumpscare) %d | extras carregados: %s", capturas, tostring(monstro and monstro:GetAttribute("BastiaoExtras"))))
+print("animações tocadas: " .. table.concat(nomes, " "))
 print(string.format("pior altura fora do chão %.2f studs | pior saída do eixo %.2f studs | entrou na oficina: %s | saiu da área: %s",
 	maxY, maxFora, tostring(entrouOficina), tostring(maxForaArea)))
 for _, a in avisos do print("AVISO:", a) end
@@ -602,6 +614,11 @@ local perseguiu = table.concat(estados, " "):find("chase") ~= nil
 if espera.chase and not perseguiu then table.insert(falhas, "não perseguiu") end
 if espera.bote and serialAtaque < 1 then table.insert(falhas, "não deu o bote no jogador andando") end
 if espera.garra and (serialGolpe < 1 or j1.hum.Health >= 100) then table.insert(falhas, "a garra não acertou o jogador andando") end
+if espera.captura and (capturas < 1 or j1.hum.Health > 0) then table.insert(falhas, "não pegou e matou com jumpscare quem foge andando") end
+if presoDepois then table.insert(falhas, "vítima ficou presa (ancorada) depois do jumpscare") end
+if espera.porta and not tocadas["17_ESMURRAR_PORTA"] then table.insert(falhas, "não esmurrou a porta da oficina") end
+if CENARIO == "corre_sul" and not tocadas["03_FAREJAR"] then table.insert(falhas, "não farejou na busca") end
+if espera.porta and (tocadas["17_ESMURRAR_PORTA"] or 0) < 3 then table.insert(falhas, "esmurrou a porta poucas vezes") end
 if #falhas > 0 then
 	print("FALHOU: " .. table.concat(falhas, "; "))
 	process.exit(1)

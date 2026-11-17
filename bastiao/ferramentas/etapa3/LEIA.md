@@ -38,3 +38,17 @@ Patch: `docs/CORRECAO7_MENU3D_LEGENDAS_SONS.patch`.
 Antigravity no Studio (salvos, não publicados). Foram conferidos e juntados (merge de 3 vias, sem conflito)
 e o `release_builder.py` ganhou `REVISADAS`: as versões conferidas de cada script Bastiao* que o instalador
 pode trocar. Outra fonte desconhecida continua bloqueada. Patch: `docs/CORRECAO8_PERSEGUICAO_V2_ANTIGRAVITY.patch`.
+
+`dist/CORRIGIR_ETAPA3_9.py` inclui as correções 3 a 8 e acrescenta:
+- Captura com jumpscare (`Criatura`: a garra vira agarrão com `30/31_JUMPSCARE_*`, mata no marcador
+  `Impact`; `Efeitos`: câmera presa no rosto do monstro, estática e corte para o preto; volta ao renascer).
+- Pancadas na porta da oficina (`17_ESMURRAR_PORTA`) quando o alvo se tranca lá; busca com
+  `03_FAREJAR`/`04`/`05`. As animações extras são opcionais: se não carregarem, o encontro segue.
+- Passos do monstro nos marcadores `Foot_*` (Foley + baque grave do `MonstroSom`), não mais pela distância.
+- Menu 3D: espera o painel do Sector7 ter altura antes de medir (antes o cartão saía com altura 0).
+- Pavel com uniforme do catálogo via `HumanoidDescription` (camisa 6865584651, calça 6866147363,
+  ushanka 46348897) e gestos R6 do próprio `Animate` do jogo (apontar, acenar, parado variado).
+- 6 sons novos do ElevenLabs (`assets/audio/etapa3/`): jumpscare, impacto_porta, lanterna liga/desliga,
+  menu_abre, legenda_quebra. Precisa de `preparar-audio` e `assets` antes do `testar-nuvem`.
+O `sim_criatura.luau` agora também confere captura (morte), pancadas na porta e farejar na busca.
+Patch: `docs/CORRECAO9_JUMPSCARE_PASSOS_MENU_PAVEL.patch`.
