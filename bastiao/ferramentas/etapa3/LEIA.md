@@ -10,5 +10,11 @@ Rodam no Lune, sem Roblox e sem chave nenhuma.
   `MonsterImportContract` em 15 situações (igual ao arquivo, giro do importador, rotações zeradas,
   troca de eixo, escala, deitado, raiz deslocada...).
 
-O arquivo `dist/CORRIGIR_ETAPA3_3.py` aplica as mudanças de `docs/CORRECAO3_ETAPA3_CHATGPT.patch` na
+- `monstro_sem_fisica.luau`: roda o trecho "monstro real" do teste imitando a nuvem SEM física
+  (a documentação da Open Cloud diz que a execução Luau não roda física). Lê as 35 animações .rbxm
+  de verdade e confere marcadores, duração e nomes de ossos. `passo`/`semPasso` imita a nuvem
+  deixando ou não `Animator:StepAnimations`; `semRoar`, `ossoErrado` e `proibido` estragam de
+  propósito para provar que a conferência reprova (ou só avisa, quando a nuvem não deixa ler).
+
+Os arquivos `dist/CORRIGIR_ETAPA3_3.py` e `dist/CORRIGIR_ETAPA3_4.py` (este inclui o 3) aplicam as mudanças de `docs/CORRECAO4_ETAPA3_CHATGPT.patch` na
 pasta já extraída no celular (mantém os recibos de assets; não reenvia nada).
