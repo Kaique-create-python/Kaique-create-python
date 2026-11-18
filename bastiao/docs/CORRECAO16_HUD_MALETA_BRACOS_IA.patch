@@ -1,0 +1,2723 @@
+--- a/src/client/Maleta.luau
++++ b/src/client/Maleta.luau
+@@ -0,0 +1,480 @@
++--!strict
++-- PROJETO BASTIÃO :: Maleta (cliente) — inventário no estilo da maleta do RE4: uma grade dentro de
++-- uma maleta de couro, com cada item desenhado de verdade (ViewportFrame com o próprio modelo do
++-- jogo: o AK-74, os fusíveis da subestação e o cartão do arsenal). Escolhe arma na mão ou mãos
++-- vazias (EQUIPAR / GUARDAR). Abre no I (ou TAB, se a lista de jogadores estiver desligada), no botão da troca rápida e no ↓ do
++-- controle; fecha no X, no ESC/B ou no mesmo botão.
++-- Itens-chave são do grupo (atributos do workspace que o servidor publica): BastiaoItemFusiveis
++-- (quantos fusíveis estão com o grupo) e BastiaoItemCartao. Munição e fuzil vêm do próprio jogador.
++-- Não pausa o jogo (é cooperativo): enquanto aberta, o tiro fica travado e a mira some.
++
++local Players = game:GetService("Players")
++local UserInputService = game:GetService("UserInputService")
++local TweenService = game:GetService("TweenService")
++local GuiService = game:GetService("GuiService")
++
++local Maleta = {}
++
++local COLS, LINHAS, CEL = 10, 6, 34
++local MONO = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold)
++local MONO_N = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Medium)
++local AMBAR = Color3.fromRGB(244, 186, 88)
++local BRANCO = Color3.fromRGB(238, 238, 232)
++local DIM = Color3.fromRGB(150, 146, 136)
++local COURO = Color3.fromRGB(34, 28, 22)
++local LATAO = Color3.fromRGB(122, 98, 60)
++local FUNDO_GRADE = Color3.fromRGB(19, 17, 14)
++local LINHA_GRADE = Color3.fromRGB(58, 50, 38)
++
++-- Itens: tamanho na grade (colunas x linhas), lugar fixo e textos (PT/EN/RU pelo idioma do jogo).
++Maleta.TEXTOS = {
++	pt = {
++		titulo = "MALETA", naMao = "NA MÃO", nada = "NADA", equipar = "EQUIPAR", guardar = "GUARDAR",
++		chave = "Item-chave do grupo.", vazio = "Escolha um item.",
++		fuzil = { "AK-74", "Fuzil 5,45x39 mm. Pente de 30. Tecla 1 saca, 2 guarda." },
++		municao = { "MUNIÇÃO 5,45", "Balas de reserva para o AK-74." },
++		fusivel = { "FUSÍVEL", "Fusível cerâmico da subestação. O painel precisa de três." },
++		cartao = { "CARTÃO DO ARSENAL", "Cartão de acesso da Guarnição 7. Abre a porta do arsenal." },
++	},
++	en = {
++		titulo = "CASE", naMao = "IN HAND", nada = "NOTHING", equipar = "EQUIP", guardar = "HOLSTER",
++		chave = "Team key item.", vazio = "Pick an item.",
++		fuzil = { "AK-74", "5.45x39 mm rifle. 30-round magazine. Key 1 draws, 2 holsters." },
++		municao = { "5.45 AMMO", "Reserve rounds for the AK-74." },
++		fusivel = { "FUSE", "Ceramic substation fuse. The panel needs three." },
++		cartao = { "ARMORY CARD", "Garrison 7 access card. Opens the armory door." },
++	},
++	ru = {
++		titulo = "КЕЙС", naMao = "В РУКАХ", nada = "НИЧЕГО", equipar = "ВЗЯТЬ", guardar = "УБРАТЬ",
++		chave = "Ключевой предмет группы.", vazio = "Выберите предмет.",
++		fuzil = { "АК-74", "Автомат 5,45x39 мм. Магазин на 30. Клавиша 1 — взять, 2 — убрать." },
++		municao = { "ПАТРОНЫ 5,45", "Запасные патроны для АК-74." },
++		fusivel = { "ПРЕДОХРАНИТЕЛЬ", "Керамический предохранитель подстанции. Щиту нужно три." },
++		cartao = { "КАРТА АРСЕНАЛА", "Карта доступа Гарнизона 7. Открывает арсенал." },
++	},
++}
++
++export type Opcoes = {
++	jogador: Player,
++	playerGui: Instance,
++	compartilhado: Instance,
++	modelo: any, -- ArmaModelo (para desenhar o fuzil)
++	icones: { [string]: string }?,
++	idioma: (() -> string)?,
++	som: ((chave: string) -> Sound?)?,
++	empunhar: ((naMao: boolean) -> ())?,
++}
++
++local function novo(classe: string, props: { [string]: any }, pai: Instance?): any
++	local i = Instance.new(classe)
++	for k, v in props do
++		(i :: any)[k] = v
++	end
++	if pai then
++		i.Parent = pai
++	end
++	return i
++end
++
++local function canto(pai: Instance, r: number)
++	novo("UICorner", { CornerRadius = UDim.new(0, r) }, pai)
++end
++
++-- modelos pequenos dos itens-chave (iguais aos do mapa: Cenario03 e Cenario04)
++local function modeloFusivel(): Model
++	local m = Instance.new("Model")
++	local corpo = novo("Part", { Name = "Corpo", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.0, 0.45, 0.45),
++		Color = Color3.fromRGB(232, 228, 214), Material = Enum.Material.SmoothPlastic, Anchored = true }, m)
++	for _, x in { -0.47, 0.47 } do
++		novo("Part", { Name = "Ponta", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 0.48, 0.48),
++			Color = Color3.fromRGB(150, 150, 154), Material = Enum.Material.Metal, Anchored = true,
++			CFrame = CFrame.new(x, 0, 0) }, m)
++	end
++	m.PrimaryPart = corpo
++	return m
++end
++local function modeloCartao(): Model
++	local m = Instance.new("Model")
++	local c = novo("Part", { Name = "Cartao", Size = Vector3.new(0.7, 0.06, 0.45), Color = Color3.fromRGB(200, 196, 170),
++		Material = Enum.Material.SmoothPlastic, Anchored = true }, m)
++	novo("Part", { Name = "Listra", Size = Vector3.new(0.7, 0.07, 0.1), Color = Color3.fromRGB(170, 30, 24),
++		Material = Enum.Material.SmoothPlastic, Anchored = true, CFrame = CFrame.new(0, 0, -0.12) }, m)
++	m.PrimaryPart = c
++	return m
++end
++
++-- desenha um modelo do jogo dentro da célula (câmera calculada para caber, luz de cima)
++local function vitrine(pai: GuiObject, modelo: Model, giro: CFrame, aspecto: number)
++	local vp = novo("ViewportFrame", {
++		Name = "Vitrine", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
++		Ambient = Color3.fromRGB(150, 146, 140), LightColor = Color3.fromRGB(255, 236, 210),
++		LightDirection = Vector3.new(-0.4, -1, -0.5),
++	}, pai)
++	local cam = novo("Camera", { FieldOfView = 24 }, vp)
++	vp.CurrentCamera = cam
++	modelo:PivotTo(giro)
++	for _, p in modelo:GetDescendants() do
++		if p:IsA("BasePart") then
++			p.Anchored = true
++		end
++	end
++	modelo.Parent = vp
++	local cf, tam = modelo:GetBoundingBox()
++	local tv = math.tan(math.rad(cam.FieldOfView / 2))
++	local th = tv * aspecto
++	-- cabe na largura e na altura, com folga
++	local d = math.max((tam.X / 2) / th, (tam.Y / 2) / tv) * 1.18 + tam.Z / 2
++	cam.CFrame = CFrame.lookAt(cf.Position + Vector3.new(0, 0, d), cf.Position)
++end
++
++function Maleta.iniciar(op: Opcoes)
++	local jogador = op.jogador
++	local api = {}
++	local conexoes: { RBXScriptConnection } = {}
++	local vivo = true
++	local ICO = op.icones or {}
++
++	local function T(): any
++		local l = if op.idioma then op.idioma() else "pt"
++		return Maleta.TEXTOS[l] or Maleta.TEXTOS.pt
++	end
++	local function tocar(chave: string, velocidade: number?, volume: number?)
++		if op.som then
++			local ok, s = pcall(op.som, chave)
++			if ok and typeof(s) == "Instance" and s:IsA("Sound") then
++				if velocidade then
++					s.PlaybackSpeed = velocidade
++				end
++				if volume then
++					s.Volume *= volume
++				end
++			end
++		end
++	end
++
++	local velho = op.playerGui:FindFirstChild("BastiaoMaleta")
++	if velho then
++		velho:Destroy()
++	end
++	local gui = novo("ScreenGui", {
++		Name = "BastiaoMaleta", ResetOnSpawn = false, DisplayOrder = 19, -- acima do HUD e das falas, abaixo do menu (20)
++		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Enabled = false,
++	}, op.playerGui)
++	pcall(function()
++		gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
++	end)
++	local escuro = novo("Frame", {
++		Name = "Escuro", BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45,
++		BorderSizePixel = 0, Size = UDim2.fromScale(1, 1),
++	}, gui)
++	local W, H = 572, 304
++	local cartao = novo("Frame", {
++		Name = "Maleta", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
++		Size = UDim2.fromOffset(W, H), BackgroundColor3 = COURO, BorderSizePixel = 0,
++	}, gui)
++	canto(cartao, 10)
++	novo("UIGradient", {
++		Rotation = 90,
++		Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(170, 160, 150)),
++	}, cartao)
++	novo("UIStroke", { Color = LATAO, Thickness = 2, Transparency = 0.15 }, cartao)
++	local escala = novo("UIScale", {}, cartao)
++	-- cantoneiras de latão (detalhe da maleta)
++	for _, a in { Vector2.new(0, 0), Vector2.new(1, 0), Vector2.new(0, 1), Vector2.new(1, 1) } do
++		local c = novo("Frame", {
++			Name = "Cantoneira", AnchorPoint = a, Position = UDim2.fromScale(a.X, a.Y), Size = UDim2.fromOffset(18, 18),
++			BackgroundColor3 = LATAO, BackgroundTransparency = 0.1, BorderSizePixel = 0,
++		}, cartao)
++		canto(c, 4)
++	end
++	local titulo = novo("TextLabel", {
++		Name = "Titulo", BackgroundTransparency = 1, Position = UDim2.fromOffset(18, 10), Size = UDim2.fromOffset(200, 22),
++		FontFace = MONO, TextSize = 16, TextColor3 = AMBAR, TextXAlignment = Enum.TextXAlignment.Left, Text = "MALETA",
++	}, cartao)
++	-- fechar: quadrado vermelho com X branco no canto (o padrão que todo jogador conhece).
++	-- Modal: no primeira pessoa o mouse fica solto enquanto a maleta está aberta.
++	local fechar = novo("TextButton", {
++		Name = "Fechar", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 8), Size = UDim2.fromOffset(30, 30),
++		BackgroundColor3 = Color3.fromRGB(176, 40, 32), Text = "X", FontFace = MONO, TextSize = 15, TextColor3 = BRANCO,
++		AutoButtonColor = true, Modal = true,
++	}, cartao)
++	canto(fechar, 5)
++	-- área de toque maior que o desenho (44 px)
++	novo("TextButton", {
++		Name = "ToqueFechar", BackgroundTransparency = 1, Text = "", AnchorPoint = Vector2.new(0.5, 0.5),
++		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(44, 44),
++	}, fechar).Activated:Connect(function()
++		api.fechar()
++	end)
++
++	-- grade (10 x 6) com as linhas da maleta
++	local grade = novo("Frame", {
++		Name = "Grade", Position = UDim2.fromOffset(16, 44), Size = UDim2.fromOffset(COLS * CEL, LINHAS * CEL),
++		BackgroundColor3 = FUNDO_GRADE, BorderSizePixel = 0,
++	}, cartao)
++	novo("UIStroke", { Color = LINHA_GRADE, Thickness = 1 }, grade)
++	for x = 1, COLS - 1 do
++		novo("Frame", { Name = "Coluna", BackgroundColor3 = LINHA_GRADE, BackgroundTransparency = 0.35, BorderSizePixel = 0,
++			Position = UDim2.fromOffset(x * CEL, 0), Size = UDim2.new(0, 1, 1, 0) }, grade)
++	end
++	for y = 1, LINHAS - 1 do
++		novo("Frame", { Name = "Linha", BackgroundColor3 = LINHA_GRADE, BackgroundTransparency = 0.35, BorderSizePixel = 0,
++			Position = UDim2.fromOffset(0, y * CEL), Size = UDim2.new(1, 0, 0, 1) }, grade)
++	end
++
++	-- painel da direita: nome, descrição, botão e o que está na mão
++	local lado = novo("Frame", {
++		Name = "Detalhe", BackgroundTransparency = 1, Position = UDim2.fromOffset(16 + COLS * CEL + 14, 44),
++		Size = UDim2.fromOffset(W - (16 + COLS * CEL + 14) - 16, LINHAS * CEL),
++	}, cartao)
++	local nomeItem = novo("TextLabel", {
++		Name = "Nome", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20), FontFace = MONO, TextSize = 15,
++		TextColor3 = BRANCO, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, Text = "",
++	}, lado)
++	local descricao = novo("TextLabel", {
++		Name = "Descricao", BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 92),
++		FontFace = MONO_N, TextSize = 12, TextColor3 = DIM, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
++		TextYAlignment = Enum.TextYAlignment.Top, Text = "",
++	}, lado)
++	local acao = novo("TextButton", {
++		Name = "Acao", Position = UDim2.fromOffset(0, 122), Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Color3.fromRGB(46, 38, 26),
++		FontFace = MONO, TextSize = 14, TextColor3 = AMBAR, Text = "", AutoButtonColor = true, Visible = false,
++	}, lado)
++	canto(acao, 6)
++	novo("UIStroke", { Color = AMBAR, Thickness = 1, Transparency = 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, acao)
++	local naMaoLinha = novo("Frame", {
++		Name = "NaMao", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1),
++		Size = UDim2.new(1, 0, 0, 30),
++	}, lado)
++	local naMaoIcone = novo("ImageLabel", {
++		Name = "Icone", BackgroundTransparency = 1, Size = UDim2.fromOffset(40, 26), ScaleType = Enum.ScaleType.Fit,
++		ImageColor3 = BRANCO, Image = ICO.mao or "",
++	}, naMaoLinha)
++	local naMaoTexto = novo("TextLabel", {
++		Name = "Texto", BackgroundTransparency = 1, Position = UDim2.fromOffset(46, 0), Size = UDim2.new(1, -46, 1, 0),
++		FontFace = MONO, TextSize = 12, TextColor3 = BRANCO, TextXAlignment = Enum.TextXAlignment.Left, Text = "",
++	}, naMaoLinha)
++
++	-- ===== itens =====
++	local botoes: { [string]: TextButton } = {}
++	local escolhido: string? = nil
++	local function naMao(): boolean
++		return jogador:GetAttribute("BastiaoArma") == true and jogador:GetAttribute("BastiaoArmaNaMao") ~= false
++	end
++	local function itens(): { any }
++		local l = {}
++		if jogador:GetAttribute("BastiaoArma") == true then
++			table.insert(l, { id = "fuzil", x = 0, y = 0, w = 7, h = 2 })
++			local r = tonumber(jogador:GetAttribute("BastiaoReserva")) or 0
++			if r > 0 then
++				table.insert(l, { id = "municao", x = 0, y = 2, w = 2, h = 1, conta = "x" .. r })
++			end
++		end
++		local f = math.clamp(tonumber(workspace:GetAttribute("BastiaoItemFusiveis")) or 0, 0, 3)
++		for i = 1, f do
++			table.insert(l, { id = "fusivel", n = i, x = 6 + i, y = 0, w = 1, h = 2 })
++		end
++		if workspace:GetAttribute("BastiaoItemCartao") == true then
++			table.insert(l, { id = "cartao", x = 2, y = 2, w = 2, h = 1 })
++		end
++		return l
++	end
++	local function marcarEscolhido()
++		for chave, b in botoes do
++			local s = b:FindFirstChild("Selecao") :: UIStroke?
++			if s then
++				s.Transparency = if chave == escolhido then 0 else 1
++			end
++			b.BackgroundTransparency = if chave == escolhido then 0.55 else 0.85
++		end
++		local t = T()
++		local item = escolhido and string.match(escolhido, "^(%a+)")
++		local txt = item and t[item]
++		nomeItem.Text = if txt then txt[1] else ""
++		descricao.Text = if txt then txt[2] .. (if item == "fusivel" or item == "cartao" then "\n\n" .. t.chave else "") else t.vazio
++		acao.Visible = item == "fuzil"
++		acao.Text = if naMao() then t.guardar else t.equipar
++		naMaoIcone.Image = if naMao() then (ICO.fuzil or "") else (ICO.mao or "")
++		naMaoTexto.Text = t.naMao .. ": " .. (if naMao() then "AK-74" else t.nada)
++		titulo.Text = t.titulo
++	end
++	local function escolher(chave: string)
++		escolhido = chave
++		tocar("ak_vazio", 1.7, 0.35)
++		marcarEscolhido()
++	end
++	local function redesenhar()
++		for _, b in botoes do
++			b:Destroy()
++		end
++		table.clear(botoes)
++		local primeiro: string? = nil
++		for _, it in itens() do
++			local chave = it.id .. (if it.n then tostring(it.n) else "")
++			primeiro = primeiro or chave
++			local b = novo("TextButton", {
++				Name = chave, Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(70, 60, 44),
++				BackgroundTransparency = 0.85, BorderSizePixel = 0,
++				Position = UDim2.fromOffset(it.x * CEL + 2, it.y * CEL + 2), Size = UDim2.fromOffset(it.w * CEL - 3, it.h * CEL - 3),
++			}, grade)
++			novo("UIStroke", { Name = "Selecao", Color = AMBAR, Thickness = 2, Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
++			local aspecto = (it.w * CEL) / (it.h * CEL)
++			if it.id == "fuzil" and op.modelo and type(op.modelo.construir) == "function" then
++				local ok, m = pcall(op.modelo.construir, { ancorado = true })
++				if ok and m then
++					-- de lado, cano para a direita, mostrando o lado do seletor
++					pcall(vitrine, b, m, CFrame.Angles(0, math.rad(-90), 0), aspecto)
++				end
++			elseif it.id == "fusivel" then
++				pcall(vitrine, b, modeloFusivel(), CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(math.rad(20), 0, 0), aspecto)
++			elseif it.id == "cartao" then
++				pcall(vitrine, b, modeloCartao(), CFrame.Angles(math.rad(70), 0, 0), aspecto)
++			elseif it.id == "municao" then
++				novo("ImageLabel", {
++					Name = "Icone", BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 6, 0.5, 0),
++					Size = UDim2.fromOffset(22, 22), ScaleType = Enum.ScaleType.Fit, Image = ICO.bala or "", ImageColor3 = AMBAR,
++				}, b)
++			end
++			if it.conta then
++				novo("TextLabel", {
++					Name = "Conta", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -2),
++					Size = UDim2.fromOffset(60, 14), FontFace = MONO, TextSize = 11, TextColor3 = BRANCO,
++					TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.4, Text = it.conta,
++				}, b)
++			end
++			b.Activated:Connect(function()
++				if escolhido == chave and it.id == "fuzil" and op.empunhar then
++					op.empunhar(not naMao()) -- dois toques no fuzil: saca ou guarda
++				end
++				escolher(chave)
++			end)
++			botoes[chave] = b
++		end
++		if not (escolhido and botoes[escolhido]) then
++			escolhido = primeiro
++		end
++		marcarEscolhido()
++	end
++	acao.Activated:Connect(function()
++		if op.empunhar then
++			op.empunhar(not naMao())
++		end
++	end)
++
++	-- ===== abrir e fechar =====
++	local aberta = false
++	local function encaixar()
++		local s = gui.AbsoluteSize
++		if s.X > 10 and s.Y > 10 then
++			escala.Scale = math.min(1.25, (s.X - 24) / W, (s.Y - 16) / H)
++		end
++	end
++	function api.abrir()
++		if aberta or not vivo then
++			return
++		end
++		aberta = true
++		jogador:SetAttribute("BastiaoMaletaAberta", true)
++		redesenhar()
++		gui.Enabled = true
++		encaixar()
++		local alvo = escala.Scale
++		escala.Scale = alvo * 0.92
++		cartao.Rotation = -1.5
++		escuro.BackgroundTransparency = 1
++		local info = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
++		TweenService:Create(escala, info, { Scale = alvo }):Play()
++		TweenService:Create(cartao, info, { Rotation = 0 }):Play()
++		TweenService:Create(escuro, TweenInfo.new(0.2), { BackgroundTransparency = 0.45 }):Play()
++		tocar("ak_vazio", 0.6, 0.5)
++		local ok, pref = pcall(function()
++			return UserInputService.PreferredInput
++		end)
++		if ok and pref == Enum.PreferredInput.Gamepad and escolhido and botoes[escolhido] then
++			GuiService.SelectedObject = botoes[escolhido]
++		end
++	end
++	function api.fechar()
++		if not aberta then
++			return
++		end
++		aberta = false
++		jogador:SetAttribute("BastiaoMaletaAberta", false)
++		if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(gui) then
++			GuiService.SelectedObject = nil
++		end
++		gui.Enabled = false
++		tocar("ak_vazio", 0.8, 0.35)
++	end
++	function api.alternar()
++		if aberta then
++			api.fechar()
++		else
++			api.abrir()
++		end
++	end
++	function api.aberta(): boolean
++		return aberta
++	end
++
++	-- o TAB do Roblox também mostra a lista de jogadores: só vale quando o jogo desligou essa lista
++	local function tabLivre(): boolean
++		local ok, ligada = pcall(function()
++			return game:GetService("StarterGui"):GetCoreGuiEnabled(Enum.CoreGuiType.PlayerList)
++		end)
++		return not (ok and ligada == true)
++	end
++	table.insert(conexoes, UserInputService.InputBegan:Connect(function(i: InputObject, processado: boolean)
++		local tecla = i.KeyCode
++		if ((tecla == Enum.KeyCode.Tab and tabLivre()) or tecla == Enum.KeyCode.I) and not processado then
++			if jogador:GetAttribute("BastiaoArma") == true or aberta then
++				api.alternar()
++			end
++		elseif tecla == Enum.KeyCode.DPadDown and jogador:GetAttribute("BastiaoArma") == true then
++			api.alternar()
++		elseif aberta and (tecla == Enum.KeyCode.Escape or tecla == Enum.KeyCode.ButtonB) then
++			api.fechar()
++		end
++	end))
++	-- muda o que está na maleta enquanto ela está aberta
++	for _, nome in { "BastiaoArma", "BastiaoArmaNaMao", "BastiaoReserva" } do
++		table.insert(conexoes, jogador:GetAttributeChangedSignal(nome):Connect(function()
++			if aberta then
++				if nome == "BastiaoArmaNaMao" then
++					marcarEscolhido()
++				else
++					redesenhar()
++				end
++			end
++		end))
++	end
++	for _, nome in { "BastiaoItemFusiveis", "BastiaoItemCartao" } do
++		table.insert(conexoes, workspace:GetAttributeChangedSignal(nome):Connect(function()
++			if aberta then
++				redesenhar()
++			end
++		end))
++	end
++	table.insert(conexoes, gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
++		if aberta then
++			encaixar()
++		end
++	end))
++	-- morreu ou a câmera virou cena: fecha
++	table.insert(conexoes, jogador.CharacterAdded:Connect(function()
++		api.fechar()
++	end))
++
++	function api.destroy()
++		vivo = false
++		api.fechar()
++		for _, c in conexoes do
++			c:Disconnect()
++		end
++		table.clear(conexoes)
++		gui:Destroy()
++	end
++	return api
++end
++
++return Maleta
+--- a/src/server/Arma.luau
++++ b/src/server/Arma.luau
+@@ -17,6 +17,8 @@
+ Arma.RECARGA = Arma.RECARGA_VAZIA
+ Arma.ALCANCE = 320
+ Arma.ANIM_SEGURAR = "rbxassetid://182393478" -- R6 "toolnone": braço direito estendido à frente
++Arma.ESCALA_MAO = 1.6 -- na mão do boneco R6 (braço de 1 stud) o fuzil fica no tamanho dos jogos do Roblox
++Arma.OUVIR_TIRO = 150 -- até onde o 731-A escuta um tiro (studs)
+ 
+ -- menor distância entre o segmento do tiro e o eixo do monstro (s = distância no tiro)
+ function Arma.maisPerto(o: Vector3, d: Vector3, comprimento: number, a: Vector3, b: Vector3): (number, number)
+@@ -55,7 +57,7 @@
+ export type Opcoes = {
+ 	compartilhado: Instance,
+ 	modelo: any, -- ArmaModelo
+-	criatura: any?, -- { corpo(): (BasePart?, number?), atingir(info): string? }
++	criatura: any?, -- { corpo(): (BasePart?, number?), atingir(info): string?, ouvir(pos, raio)? }
+ 	infectados: any?, -- { de(inst): Model?, atingir(parte, jogador): boolean, ouvir(pos, raio) } (capítulo 3)
+ 	ignorar: (() -> { Instance })?, -- coisas que o tiro atravessa (marcadores, peças invisíveis)
+ 	log: ((string) -> ())?,
+@@ -82,14 +84,61 @@
+ 	local remTiro = remoto("BastiaoArmaTiro")
+ 	local remRecarga = remoto("BastiaoArmaRecarga")
+ 	local remEfeito = remoto("BastiaoArmaEfeito")
++	local remEquipar = remoto("BastiaoArmaEquipar") -- true = arma na mão, false = guardada nas costas
+ 
+ 	local function publicar(j: Player, e: any)
+ 		j:SetAttribute("BastiaoArma", e.tem == true)
++		j:SetAttribute("BastiaoArmaNaMao", e.tem == true and e.naMao ~= false)
+ 		j:SetAttribute("BastiaoPente", e.pente)
+ 		j:SetAttribute("BastiaoReserva", e.reserva)
+ 		j:SetAttribute("BastiaoRecarregando", e.recarregandoAte ~= nil)
+ 	end
+ 
++	-- o fuzil atravessado nas costas (bandoleira): cano para cima e para a esquerda, lado do fuzil para fora
++	local function cfCostas(): CFrame
++		local a = math.rad(35)
++		local s, c = math.sin(a), math.cos(a)
++		return CFrame.fromMatrix(Vector3.new(0, 0, 0.62), Vector3.new(0, 0, 1), Vector3.new(-c, -s, 0))
++	end
++	-- põe o fuzil na mão (braço estendido segurando) ou nas costas, conforme o estado
++	local function posicionar(j: Player, personagem: Model)
++		local e = estados[j]
++		local arma = personagem:FindFirstChild("BastiaoAK74")
++		if not e or not e.tem or not arma or not arma:IsA("Model") or not arma.PrimaryPart then
++			return
++		end
++		local corpo = arma.PrimaryPart :: BasePart
++		local solda = corpo:FindFirstChild("BastiaoMaoArma")
++		local braco = personagem:FindFirstChild("Right Arm")
++		local tronco = personagem:FindFirstChild("Torso")
++		local mao = corpo:FindFirstChild("Mao")
++		if not solda or not solda:IsA("Weld") or not mao or not mao:IsA("Attachment") then
++			return
++		end
++		if e.naMao ~= false and braco and braco:IsA("BasePart") then
++			-- braço levantado à frente: o -Y do braço aponta para frente; o cano vai junto
++			solda.Part0 = braco
++			solda.C0 = CFrame.new(0, -1.0, -0.15) * CFrame.Angles(-math.pi / 2, 0, 0)
++			solda.C1 = mao.CFrame
++			if e.faixa and not e.faixa.IsPlaying then
++				pcall(function()
++					e.faixa:Play(0.2)
++				end)
++			end
++		elseif tronco and tronco:IsA("BasePart") then
++			-- centro do fuzil (meio do caminho entre a boca e a soleira) no meio das costas
++			local centro = ((op.modelo.PONTOS.Cano + op.modelo.PONTOS.Ombro) / 2) * op.modelo.CM * Arma.ESCALA_MAO
++			solda.Part0 = tronco
++			solda.C0 = cfCostas()
++			solda.C1 = CFrame.new(Vector3.new(0, 0, centro.Z))
++			if e.faixa and e.faixa.IsPlaying then
++				pcall(function()
++					e.faixa:Stop(0.2)
++				end)
++			end
++		end
++	end
++
+ 	-- arma na mão do personagem (o que os outros veem) e o braço estendido segurando
+ 	local function equipar(j: Player, personagem: Model)
+ 		local e = estados[j]
+@@ -105,14 +154,13 @@
+ 		if velho then
+ 			velho:Destroy()
+ 		end
+-		local arma = op.modelo.construir()
++		local arma = op.modelo.construir({ escala = Arma.ESCALA_MAO })
+ 		local corpo = arma.PrimaryPart :: BasePart
+ 		local mao = corpo:FindFirstChild("Mao") :: Attachment
+ 		local solda = Instance.new("Weld")
+ 		solda.Name = "BastiaoMaoArma"
+ 		solda.Part0 = braco
+ 		solda.Part1 = corpo
+-		-- braço levantado à frente: o -Y do braço aponta para frente; o cano vai junto
+ 		solda.C0 = CFrame.new(0, -1.0, -0.15) * CFrame.Angles(-math.pi / 2, 0, 0)
+ 		solda.C1 = mao.CFrame
+ 		solda.Parent = corpo
+@@ -126,9 +174,41 @@
+ 		if ok and faixa then
+ 			faixa.Priority = Enum.AnimationPriority.Action
+ 			faixa.Looped = true
+-			faixa:Play(0.2)
+ 			e.faixa = faixa
++			if e.naMao ~= false then
++				faixa:Play(0.2)
++			end
++		end
++		posicionar(j, personagem)
++	end
++
++	-- arma na mão ou guardada (mãos vazias): o jogador escolhe no inventário ou na tecla
++	function api.empunhar(j: Player, naMao: any): string
++		local e = estados[j]
++		if not e or not e.tem then
++			return "sem_arma"
++		end
++		if type(naMao) ~= "boolean" then
++			return "invalido"
++		end
++		if (e.naMao ~= false) == naMao then
++			return "igual"
+ 		end
++		local t = agora()
++		if t - (e.trocaEm or -math.huge) < 0.35 then
++			return "rapido_demais"
++		end
++		e.trocaEm = t
++		e.naMao = naMao
++		if not naMao and e.recarregandoAte then
++			-- guardou no meio da recarga: a recarga é cancelada (o pente fica como estava)
++			e.recarregandoAte = nil
++		end
++		publicar(j, e)
++		if j.Character then
++			posicionar(j, j.Character)
++		end
++		return if naMao then "na_mao" else "guardada"
+ 	end
+ 
+ 	function api.dar(j: Player)
+@@ -139,6 +219,9 @@
+ 		end
+ 		local primeira = not e.tem
+ 		e.tem = true
++		if primeira then
++			e.naMao = true -- quem recebe o fuzil já sai com ele na mão
++		end
+ 		e.pente = Arma.PENTE
+ 		e.reserva = math.max(e.reserva, Arma.RESERVA)
+ 		publicar(j, e)
+@@ -168,6 +251,9 @@
+ 		end
+ 		direcao = direcao.Unit
+ 		local t = agora()
++		if e.naMao == false then
++			return "guardada"
++		end
+ 		if e.recarregandoAte then
+ 			return "recarregando"
+ 		end
+@@ -225,6 +311,10 @@
+ 			pcall(inf.ouvir, origem, 60)
+ 		end
+ 		local criatura = op.criatura
++		if criatura and type(criatura.ouvir) == "function" then
++			-- o estampido chama o 731-A (ele vem ver de onde veio)
++			pcall(criatura.ouvir, origem, Arma.OUVIR_TIRO)
++		end
+ 		if criatura then
+ 			local raiz, altura = criatura.corpo()
+ 			if raiz and altura then
+@@ -247,6 +337,9 @@
+ 		if not e or not e.tem then
+ 			return "sem_arma"
+ 		end
++		if e.naMao == false then
++			return "guardada"
++		end
+ 		if e.recarregandoAte or e.pente >= Arma.PENTE or e.reserva <= 0 then
+ 			return "nao_precisa"
+ 		end
+@@ -279,6 +372,9 @@
+ 	table.insert(conexoes, remRecarga.OnServerEvent:Connect(function(j: Player)
+ 		pcall(api.recarregar, j)
+ 	end))
++	table.insert(conexoes, remEquipar.OnServerEvent:Connect(function(j: Player, naMao: any)
++		pcall(api.empunhar, j, naMao)
++	end))
+ 
+ 	local function ligarJogador(j: Player)
+ 		table.insert(conexoes, j.CharacterAdded:Connect(function(personagem)
+--- a/src/client/Arma.luau
++++ b/src/client/Arma.luau
+@@ -7,6 +7,9 @@
+ --    jorrando do monstro. Texturas da Creator Store (lista em TEXTURAS, com os autores);
+ --  * o servidor decide o tiro (Arma no servidor); aqui é só desenho e envio;
+ --  * botões grandes no celular (ATIRAR e RECARREGAR, ao lado do pulo), mouse e controle.
++--  * correção 16: braços do boneco R6 (com a camisa do jogador) segurando o fuzil; arma na mão ou
++--    guardada (mãos vazias, tecla 1/2 e a troca rápida); mira numa tela sem margens (centro de
++--    verdade); HUD limpo com ícones da loja, abaixo das legendas e longe da caixa da fala.
+ -- Nada do HUD do Sector7 é tocado: tudo é tela própria (BastiaoArmaHUD) e peças na câmera.
+ 
+ local Players = game:GetService("Players")
+@@ -30,6 +33,14 @@
+ 	gotas = "rbxassetid://119516896516751", -- blood_splatter_overlay (fool5abcd)
+ 	buraco = "rbxassetid://15887139559", -- impact (666killX_Xkillkill)
+ }
++-- Ícones da Creator Store (imagens brancas, pintadas pelo ImageColor3): autor entre parênteses.
++Arma.ICONES = {
++	fuzil = "rbxassetid://72341677709010", -- AK47 ICON (PerpetualLoyfox)
++	bala = "rbxassetid://11702759774", -- Bullet Icon (santinoOX98)
++	mao = "rbxassetid://10708934384", -- Hand Icon White (TheGhoulHunterHL2)
++	recarga = "rbxassetid://12662723726", -- Icon/Refresh
++	maleta = "rbxassetid://16844592716", -- ios-glyphs/backpack (0opss_Sorry)
++}
+ local T = Arma.TEXTURAS
+ 
+ local AMBAR = Color3.fromRGB(244, 186, 88)
+@@ -38,7 +49,12 @@
+ local CADENCIA = 0.1
+ local DISPERSAO = math.rad(0.9)
+ local MAX_BURACOS = 40
+-local CMV = 0.03 -- 1 cm em studs (igual ao ArmaModelo)
++-- 1 cm do fuzil em studs na primeira pessoa (ArmaModelo.primeiraPessoa: braços R6 com vm 0,45 e o
++-- fuzil 2,4x maior que o real em relação ao braço; 0,45 x 2,4 = 1,08)
++local CMV = 0.03 * 1.08
++-- onde o punho fica na frente da câmera (studs) e o giro da arma (graus): conferido na prévia
++local POSE = Vector3.new(0.35, -0.75, -1.45)
++local POSE_ANG = Vector3.new(6, 34, 0)
+ 
+ -- ===== recargas em quadros-chave =====
+ -- arma: deslocamento (studs) e giro (graus) em volta da mão direita; pente: em volta da trava dianteira (cm);
+@@ -421,11 +437,63 @@
+ 	local modo = "auto"
+ 	local penteVisivel = true
+ 	local pedirRecarga = false
++	local troca: any = nil -- sacar/guardar: { sobe = true|false, desde = os.clock() }
++
++	-- braços do boneco: a cor do braço do personagem e a camisa dele (o Shirt só aparece com Humanoid)
++	local camisaVm: Shirt? = nil
++	local function corDoBraco(): Color3?
++		local c = jogador.Character
++		local b = c and c:FindFirstChild("Right Arm")
++		return if b and b:IsA("BasePart") then b.Color else nil
++	end
++	local function atualizarCamisa(m: Model)
++		local c = jogador.Character
++		local s = c and c:FindFirstChildOfClass("Shirt")
++		local id = if s then s.ShirtTemplate else ""
++		if not (camisaVm and camisaVm.Parent == m and camisaVm.ShirtTemplate == id) then
++			if camisaVm then
++				camisaVm:Destroy()
++				camisaVm = nil
++			end
++			if s and id ~= "" then
++				local nova = Instance.new("Shirt")
++				nova.Name = "Camisa"
++				nova.ShirtTemplate = id
++				pcall(function()
++					nova.Color3 = (s :: Shirt).Color3
++				end)
++				nova.Parent = m
++				camisaVm = nova
++			end
++		end
++		local cor = corDoBraco()
++		if cor then
++			for _, n in { "Right Arm", "Left Arm" } do
++				local b = m:FindFirstChild(n)
++				if b and b:IsA("BasePart") and b.Color ~= cor then
++					b.Color = cor
++				end
++			end
++		end
++	end
++	local function vestirBracos(m: Model)
++		local h = Instance.new("Humanoid")
++		h.Name = "Humanoid"
++		h.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
++		h.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
++		pcall(function()
++			h.RequiresNeck = false
++			h.BreakJointsOnDeath = false
++			h.EvaluateStateMachine = false
++		end)
++		h.Parent = m
++		atualizarCamisa(m)
++	end
+ 
+ 	local function grupoDe(nome: string): string
+ 		if string.sub(nome, 1, 10) == "Carregador" or string.sub(nome, 1, 12) == "NervuraCarr" or nome == "FundoCarr" then
+ 			return "pente"
+-		elseif string.sub(nome, 1, 3) == "Esq" or nome == "MaoEsquerda" or nome == "PolegarEsq" or nome == "PunhoEsquerdo" or nome == "MangaEsquerda" then
++		elseif string.sub(nome, 1, 3) == "Esq" or nome == "Left Arm" or nome == "MaoEsquerda" or nome == "PolegarEsq" or nome == "PunhoEsquerdo" or nome == "MangaEsquerda" then
+ 			return "mao"
+ 		elseif nome == "Ferrolho" or nome == "Manejo" then
+ 			return "ferrolho"
+@@ -437,7 +505,13 @@
+ 		if vm then
+ 			return
+ 		end
+-		local m = op.modelo.construir({ bracos = true, ancorado = true })
++		local m: Model
++		if type(op.modelo.primeiraPessoa) == "function" then
++			m = op.modelo.primeiraPessoa({ vm = 0.45, escala = 2.4, corBraco = corDoBraco() })
++			vestirBracos(m)
++		else
++			m = op.modelo.construir({ bracos = true, ancorado = true })
++		end
+ 		m.Name = "BastiaoAK74_PrimeiraPessoa"
+ 		for _, p in m:GetDescendants() do
+ 			if p:IsA("BasePart") then
+@@ -483,6 +557,7 @@
+ 		table.clear(cfsVm)
+ 		table.clear(pecasPente)
+ 		cano, ejecao, fumacaCano = nil, nil, nil
++		camisaVm = nil
+ 	end
+ 
+ 	local function menuAberto(): boolean
+@@ -497,6 +572,8 @@
+ 			and humano ~= nil and humano.Health > 0 and not menuAberto()
+ 			and jogador:GetAttribute("BastiaoRecarregando") ~= true and recarga == nil
+ 			and UserInputService:GetFocusedTextBox() == nil
++			and troca == nil and jogador:GetAttribute("BastiaoArmaNaMao") ~= false
++			and jogador:GetAttribute("BastiaoMaletaAberta") ~= true
+ 	end
+ 
+ 	-- ===== cápsulas e pentes no chão: física própria por raio (quica, gira, deita, rola e some) =====
+@@ -692,21 +769,34 @@
+ 			{ raio = 0.08, quique = 0.25, som = "pente_chao", sons = 2, deitar = deitarPlaca, limite = 6, vida = 40, tipo = "pente" })
+ 	end
+ 
+-	-- ===== HUD da arma (tela própria) =====
++	-- ===== HUD da arma (correção 16): limpo, ícones da loja, abaixo das legendas e longe da fala =====
++	local DIM = Color3.fromRGB(150, 150, 146)
++	local VERMELHO = Color3.fromRGB(232, 54, 42)
++	local ICO = Arma.ICONES
+ 	local hud = Instance.new("ScreenGui")
+ 	hud.Name = "BastiaoArmaHUD"
+ 	hud.ResetOnSpawn = false
+-	hud.DisplayOrder = 18
++	hud.DisplayOrder = 11 -- abaixo das legendas (BastiaoHUD, 12): a fala fica sempre por cima
+ 	hud.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ 	hud.Enabled = false
+ 	hud.Parent = op.playerGui
++	-- a mira mora numa tela sem margens: o centro dela é o centro da câmera (na tela com margem a
++	-- barra do topo empurrava a mira um pouco para baixo do ponto onde o tiro vai)
++	local telaMira = Instance.new("ScreenGui")
++	telaMira.Name = "BastiaoMira"
++	telaMira.ResetOnSpawn = false
++	telaMira.IgnoreGuiInset = true
++	telaMira.ScreenInsets = Enum.ScreenInsets.None
++	telaMira.DisplayOrder = 11
++	telaMira.Enabled = false
++	telaMira.Parent = op.playerGui
+ 	local mira = Instance.new("Frame")
+ 	mira.Name = "Mira"
+ 	mira.BackgroundTransparency = 1
+ 	mira.AnchorPoint = Vector2.new(0.5, 0.5)
+ 	mira.Position = UDim2.fromScale(0.5, 0.5)
+ 	mira.Size = UDim2.fromOffset(60, 60)
+-	mira.Parent = hud
++	mira.Parent = telaMira
+ 	local tracos = {}
+ 	for i, ang in { 0, 90, 180, 270 } do
+ 		local t = Instance.new("Frame")
+@@ -727,23 +817,164 @@
+ 	ponto.Position = UDim2.fromScale(0.5, 0.5)
+ 	ponto.Size = UDim2.fromOffset(3, 3)
+ 	ponto.Parent = mira
+-	local municao = Instance.new("TextLabel")
+-	municao.Name = "Municao"
+-	municao.BackgroundTransparency = 1
+-	municao.AnchorPoint = Vector2.new(1, 1)
+-	municao.Position = UDim2.new(1, -16, 1, -150)
+-	municao.Size = UDim2.fromOffset(170, 40)
+-	municao.FontFace = MONO
+-	municao.RichText = true
+-	municao.TextYAlignment = Enum.TextYAlignment.Bottom
+-	municao.TextSize = 20
+-	municao.TextColor3 = AMBAR
+-	municao.TextStrokeTransparency = 0.4
+-	municao.TextXAlignment = Enum.TextXAlignment.Right
+-	municao.Text = "30 | 90"
+-	municao.Parent = hud
+ 
+-	local function botao(nome: string, texto: string, tamanho: number): TextButton
++	local function entrada(): any
++		local ok, v = pcall(function()
++			return UserInputService.PreferredInput
++		end)
++		return if ok then v else nil
++	end
++	local function usaToque(): boolean
++		return entrada() == Enum.PreferredInput.Touch
++	end
++	local function usaControle(): boolean
++		return entrada() == Enum.PreferredInput.Gamepad
++	end
++	local function texto(pai: Instance, nome: string, tam: number, cor: Color3, alinhar: Enum.TextXAlignment?): TextLabel
++		local t = Instance.new("TextLabel")
++		t.Name = nome
++		t.BackgroundTransparency = 1
++		t.FontFace = MONO
++		t.TextSize = tam
++		t.TextColor3 = cor
++		t.TextStrokeTransparency = 0.65
++		t.TextXAlignment = alinhar or Enum.TextXAlignment.Right
++		t.Text = ""
++		t.Parent = pai
++		return t
++	end
++	local function icone(pai: Instance, nome: string, img: string, tam: UDim2): ImageLabel
++		local i = Instance.new("ImageLabel")
++		i.Name = nome
++		i.BackgroundTransparency = 1
++		i.Image = img
++		i.ImageColor3 = BRANCO
++		i.ScaleType = Enum.ScaleType.Fit
++		i.Size = tam
++		i.Parent = pai
++		return i
++	end
++	local function cantos(pai: Instance, r: number)
++		local c = Instance.new("UICorner")
++		c.CornerRadius = UDim.new(0, r)
++		c.Parent = pai
++	end
++
++	-- painel da munição: [fuzil]   30 / 90, a barrinha do pente e o modo de tiro (sem caixa dura:
++	-- um degradê escuro que some para a esquerda)
++	local painel = Instance.new("Frame")
++	painel.Name = "Municao"
++	painel.AnchorPoint = Vector2.new(1, 1)
++	painel.Size = UDim2.fromOffset(200, 58)
++	painel.Position = UDim2.new(1, -16, 1, -16)
++	painel.BackgroundColor3 = Color3.fromRGB(8, 9, 10)
++	painel.BackgroundTransparency = 0.2
++	painel.BorderSizePixel = 0
++	painel.Parent = hud
++	cantos(painel, 6)
++	local degrade = Instance.new("UIGradient")
++	degrade.Transparency = NumberSequence.new({
++		NumberSequenceKeypoint.new(0, 1),
++		NumberSequenceKeypoint.new(0.45, 0.55),
++		NumberSequenceKeypoint.new(1, 0.15),
++	})
++	degrade.Parent = painel
++	local fuzilIcone = icone(painel, "Fuzil", ICO.fuzil, UDim2.fromOffset(80, 26))
++	fuzilIcone.Position = UDim2.fromOffset(12, 7)
++	fuzilIcone.ImageTransparency = 0.12
++	local penteTxt = texto(painel, "Pente", 30, BRANCO)
++	penteTxt.AnchorPoint = Vector2.new(1, 0)
++	penteTxt.Position = UDim2.new(1, -50, 0, 3)
++	penteTxt.Size = UDim2.fromOffset(58, 32)
++	local reservaTxt = texto(painel, "Reserva", 14, DIM, Enum.TextXAlignment.Left)
++	reservaTxt.AnchorPoint = Vector2.new(1, 0)
++	reservaTxt.Position = UDim2.new(1, -6, 0, 14)
++	reservaTxt.Size = UDim2.fromOffset(42, 18)
++	local barra = Instance.new("Frame")
++	barra.Name = "Barra"
++	barra.BorderSizePixel = 0
++	barra.BackgroundColor3 = BRANCO
++	barra.BackgroundTransparency = 0.82
++	barra.Position = UDim2.new(0, 12, 1, -13)
++	barra.Size = UDim2.new(1, -78, 0, 3)
++	barra.Parent = painel
++	local cheio = Instance.new("Frame")
++	cheio.Name = "Cheio"
++	cheio.BorderSizePixel = 0
++	cheio.BackgroundColor3 = AMBAR
++	cheio.Size = UDim2.fromScale(1, 1)
++	cheio.Parent = barra
++	local modoIcone = icone(painel, "ModoIcone", ICO.bala, UDim2.fromOffset(11, 11))
++	modoIcone.AnchorPoint = Vector2.new(1, 0.5)
++	modoIcone.Position = UDim2.new(1, -46, 1, -11)
++	modoIcone.ImageColor3 = DIM
++	local modoTxt = texto(painel, "Modo", 11, DIM, Enum.TextXAlignment.Left)
++	modoTxt.AnchorPoint = Vector2.new(1, 0.5)
++	modoTxt.Position = UDim2.new(1, -6, 1, -11)
++	modoTxt.Size = UDim2.fromOffset(36, 12)
++	local avisoTxt = texto(painel, "Aviso", 11, VERMELHO)
++	avisoTxt.AnchorPoint = Vector2.new(1, 1)
++	avisoTxt.Position = UDim2.new(1, -6, 0, -4)
++	avisoTxt.Size = UDim2.fromOffset(200, 14)
++
++	-- troca rápida (estilo RE4): fuzil | mãos vazias | maleta
++	local slots = Instance.new("Frame")
++	slots.Name = "Troca"
++	slots.BackgroundTransparency = 1
++	slots.AnchorPoint = Vector2.new(1, 1)
++	slots.Parent = hud
++	local function slot(nome: string, img: string, tecla: string): TextButton
++		local b = Instance.new("TextButton")
++		b.Name = nome
++		b.Text = ""
++		b.AutoButtonColor = false
++		b.BackgroundColor3 = Color3.fromRGB(10, 11, 12)
++		b.BackgroundTransparency = 0.55
++		cantos(b, 6)
++		local s = Instance.new("UIStroke")
++		s.Name = "Borda"
++		s.Color = BRANCO
++		s.Thickness = 1
++		s.Transparency = 0.85
++		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
++		s.Parent = b
++		local ic = icone(b, "Icone", img, UDim2.fromScale(0.68, 0.68))
++		ic.AnchorPoint = Vector2.new(0.5, 0.5)
++		ic.Position = UDim2.fromScale(0.5, 0.52)
++		local t = texto(b, "Tecla", 9, DIM, Enum.TextXAlignment.Left)
++		t.Position = UDim2.fromOffset(4, 2)
++		t.Size = UDim2.fromOffset(24, 10)
++		t.Text = tecla
++		b.Parent = slots
++		return b
++	end
++	local slotFuzil = slot("Fuzil", ICO.fuzil, "1")
++	local slotMao = slot("Maos", ICO.mao, "2")
++	local slotMaleta = slot("Maleta", ICO.maleta, "I")
++	local function marcar(b: TextButton, ativo: boolean)
++		b.BackgroundTransparency = if ativo then 0.18 else 0.55
++		local borda = b:FindFirstChild("Borda") :: UIStroke?
++		if borda then
++			borda.Transparency = if ativo then 0.3 else 0.85
++			borda.Color = if ativo then AMBAR else BRANCO
++		end
++		local ic = b:FindFirstChild("Icone") :: ImageLabel?
++		if ic then
++			ic.ImageTransparency = if ativo then 0 else 0.45
++		end
++	end
++	local function arrumarSlots(lado: number)
++		local folga = 6
++		slots.Size = UDim2.fromOffset(3 * lado + 2 * folga, lado)
++		for i, b in { slotFuzil, slotMao, slotMaleta } do
++			b.Size = UDim2.fromOffset(lado, lado)
++			b.Position = UDim2.fromOffset((i - 1) * (lado + folga), 0)
++		end
++	end
++	arrumarSlots(40)
++
++	-- botões do celular: ícones em vez de palavras (atirar = bala, recarregar = setas)
++	local function botao(nome: string, img: string?, rotulo: string?, tamanho: number): TextButton
+ 		local b = Instance.new("TextButton")
+ 		b.Name = nome
+ 		b.AutoButtonColor = false
+@@ -752,33 +983,39 @@
+ 		b.AnchorPoint = Vector2.new(0.5, 0.5)
+ 		b.Size = UDim2.fromOffset(tamanho, tamanho)
+ 		b.FontFace = MONO
+-		b.TextSize = if tamanho > 60 then 13 else 10
++		b.TextSize = 11
+ 		b.TextColor3 = AMBAR
+-		b.Text = texto
++		b.Text = rotulo or ""
+ 		local canto = Instance.new("UICorner")
+ 		canto.CornerRadius = UDim.new(1, 0)
+ 		canto.Parent = b
+ 		local borda = Instance.new("UIStroke")
+ 		borda.Color = AMBAR
+-		borda.Transparency = 0.35
+-		borda.Thickness = 2
++		borda.Transparency = 0.45
++		borda.Thickness = 1.5
+ 		borda.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ 		borda.Parent = b
++		if img then
++			local ic = icone(b, "Icone", img, UDim2.fromScale(0.46, 0.46))
++			ic.AnchorPoint = Vector2.new(0.5, 0.5)
++			ic.Position = UDim2.fromScale(0.5, 0.5)
++			ic.ImageColor3 = AMBAR
++		end
+ 		b.Visible = false
+ 		b.Parent = hud
+ 		return b
+ 	end
+-	local botaoTiro = botao("Atirar", "ATIRAR", 78)
+-	local botaoRecarga = botao("Recarregar", "RECARREGAR", 54)
+-	local botaoModo = botao("Modo", "MODO", 44)
++	local botaoTiro = botao("Atirar", ICO.bala, nil, 78)
++	local botaoRecarga = botao("Recarregar", ICO.recarga, nil, 54)
++	local botaoModo = botao("Modo", nil, "AUTO", 44)
+ 
+-	-- botões e munição: medem os botões das outras telas (Sector7: MENU, CORRER, LUZ e o pulo) e
+-	-- escolhem o lugar livre mais perto do ideal; refeito de tempos em tempos (botões aparecem depois)
++	-- lugares: medem os botões das outras telas (Sector7: MENU, CORRER, LUZ e o pulo), a caixa da
++	-- fala e o objetivo, e escolhem o lugar livre mais perto do ideal; refeito de tempos em tempos
+ 	local function ocupados(): { any }
+ 		local l = {}
+ 		local origem = hud.AbsolutePosition
+ 		for _, tela in op.playerGui:GetChildren() do
+-			if tela ~= hud and tela:IsA("ScreenGui") and tela.Enabled then
++			if tela ~= hud and tela:IsA("ScreenGui") and tela.Enabled and tela.Name ~= "BastiaoMaleta" then
+ 				for _, d in tela:GetDescendants() do
+ 					if d:IsA("GuiButton") and d.Visible and d.AbsoluteSize.X > 8 and d.AbsoluteSize.Y > 8 then
+ 						local visivel = true
+@@ -797,6 +1034,21 @@
+ 				end
+ 			end
+ 		end
++		-- a fala e o objetivo ficam reservados mesmo vazios (os botões não pulam quando alguém fala)
++		local legendas = op.playerGui:FindFirstChild("BastiaoHUD")
++		if legendas then
++			for _, nome in { "Legendas", "Topo" } do
++				local f = legendas:FindFirstChild(nome, true)
++				if f and f:IsA("GuiObject") and f.AbsoluteSize.X > 8 then
++					local p, s = f.AbsolutePosition - origem, f.AbsoluteSize
++					if nome == "Legendas" then
++						p = p + Vector2.new(0, s.Y * 0.35)
++						s = Vector2.new(s.X, s.Y * 0.65)
++					end
++					table.insert(l, { p, s })
++				end
++			end
++		end
+ 		return l
+ 	end
+ 	local function livre(centro: Vector2, tam: Vector2, l: { any }, folga: number): boolean
+@@ -824,56 +1076,110 @@
+ 		return melhor
+ 	end
+ 	local function posicionarBotoes()
+-		local toque = false
+-		pcall(function()
+-			toque = UserInputService.PreferredInput == Enum.PreferredInput.Touch
+-		end)
+-		botaoTiro.Visible = toque
+-		botaoRecarga.Visible = toque
+-		botaoModo.Visible = toque
++		local toque = usaToque()
++		local naMao = jogador:GetAttribute("BastiaoArmaNaMao") ~= false
++		botaoTiro.Visible = toque and naMao
++		botaoRecarga.Visible = toque and naMao
++		botaoModo.Visible = toque and naMao
++		for _, s in { slotFuzil, slotMao, slotMaleta } do
++			local t = s:FindFirstChild("Tecla")
++			if t and t:IsA("TextLabel") then
++				t.Visible = not toque
++				t.Text = if usaControle() then (if s == slotMaleta then "↓" else "Y") else (if s == slotFuzil then "1" elseif s == slotMao then "2" else "I")
++			end
++		end
++		arrumarSlots(if toque then 44 else 40)
+ 		local tela = hud.AbsoluteSize
+ 		if tela.X < 50 then
+ 			return
+ 		end
+ 		local l = ocupados()
++		local tamP = Vector2.new(200, 58)
++		local tamS = Vector2.new(slots.Size.X.Offset, slots.Size.Y.Offset)
++		local pPainel, pSlots
+ 		if toque then
+-			local pTiro = lugar(Vector2.new(tela.X - 200, tela.Y - 120), Vector2.new(78, 78), l, tela, tela.Y * 0.3)
+-			table.insert(l, { pTiro - Vector2.new(39, 39), Vector2.new(78, 78) })
+-			local pRec = lugar(pTiro + Vector2.new(-8, -88), Vector2.new(54, 54), l, tela, tela.Y * 0.25)
+-			table.insert(l, { pRec - Vector2.new(27, 27), Vector2.new(54, 54) })
+-			local pModo = lugar(pTiro + Vector2.new(-82, -40), Vector2.new(44, 44), l, tela, tela.Y * 0.25)
+-			table.insert(l, { pModo - Vector2.new(22, 22), Vector2.new(44, 44) })
+-			botaoTiro.Position = UDim2.fromOffset(pTiro.X, pTiro.Y)
+-			botaoRecarga.Position = UDim2.fromOffset(pRec.X, pRec.Y)
+-			botaoModo.Position = UDim2.fromOffset(pModo.X, pModo.Y)
+-			-- munição logo acima dos botões, sem cobrir nada
+-			local pMun = lugar(Vector2.new(pTiro.X - 40, pRec.Y - 52), Vector2.new(170, 40), l, tela, tela.Y * 0.35)
+-			municao.Position = UDim2.fromOffset(pMun.X + 85, pMun.Y + 20)
++			if naMao then
++				-- coluna da direita, logo acima do pulo: atirar, recarregar ao lado e o modo embaixo
++				local pTiro = lugar(Vector2.new(tela.X - 60, tela.Y * 0.6), Vector2.new(78, 78), l, tela, tela.Y * 0.3)
++				table.insert(l, { pTiro - Vector2.new(39, 39), Vector2.new(78, 78) })
++				local pRec = lugar(pTiro + Vector2.new(-78, -8), Vector2.new(54, 54), l, tela, tela.Y * 0.25)
++				table.insert(l, { pRec - Vector2.new(27, 27), Vector2.new(54, 54) })
++				local pModo = lugar(pTiro + Vector2.new(-72, 62), Vector2.new(44, 44), l, tela, tela.Y * 0.25)
++				table.insert(l, { pModo - Vector2.new(22, 22), Vector2.new(44, 44) })
++				botaoTiro.Position = UDim2.fromOffset(pTiro.X, pTiro.Y)
++				botaoRecarga.Position = UDim2.fromOffset(pRec.X, pRec.Y)
++				botaoModo.Position = UDim2.fromOffset(pModo.X, pModo.Y)
++			end
++			-- no celular a munição e a troca ficam no alto, longe dos polegares e da fala
++			pPainel = lugar(Vector2.new(tela.X - 16 - tamP.X / 2, 12 + tamP.Y / 2), tamP, l, tela, 0)
++			table.insert(l, { pPainel - tamP / 2, tamP })
++			pSlots = lugar(Vector2.new(tela.X - 16 - tamS.X / 2, pPainel.Y + tamP.Y / 2 + 10 + tamS.Y / 2), tamS, l, tela, 0)
+ 		else
+-			local pMun = lugar(Vector2.new(tela.X - 110, tela.Y - 70), Vector2.new(170, 40), l, tela, tela.Y * 0.5)
+-			municao.Position = UDim2.fromOffset(pMun.X + 85, pMun.Y + 20)
++			pPainel = lugar(Vector2.new(tela.X - 16 - tamP.X / 2, tela.Y - 16 - tamP.Y / 2), tamP, l, tela, tela.Y * 0.5)
++			table.insert(l, { pPainel - tamP / 2, tamP })
++			pSlots = lugar(Vector2.new(tela.X - 16 - tamS.X / 2, pPainel.Y - tamP.Y / 2 - 12 - tamS.Y / 2), tamS, l, tela, tela.Y * 0.4)
+ 		end
++		painel.Position = UDim2.fromOffset(pPainel.X + tamP.X / 2, pPainel.Y + tamP.Y / 2)
++		slots.Position = UDim2.fromOffset(pSlots.X + tamS.X / 2, pSlots.Y + tamS.Y / 2)
+ 	end
+-	task.spawn(function()
+-		while vivo do
+-			task.wait(2)
+-			if hud.Enabled then
+-				pcall(posicionarBotoes)
+-			end
+-		end
+-	end)
+ 
+ 	local function atualizarMunicao()
+-		local pente = jogador:GetAttribute("BastiaoPente")
+-		local reserva = jogador:GetAttribute("BastiaoReserva")
+-		local p = tonumber(pente) or 0
+-		local r = tonumber(reserva) or 0
+-		local grande = if jogador:GetAttribute("BastiaoRecarregando") == true then "--" else tostring(p)
+-		local aviso = if p == 0 and r == 0 then "  SEM MUNIÇÃO" elseif p <= 5 and r > 0 then "  RECARREGUE" else ""
+-		municao.Text = '<font size="30">' .. grande .. '</font><font size="15"> / ' .. tostring(r) .. '</font>'
+-			.. '<font size="12" color="#EEEEE8">  ' .. string.upper(modo) .. aviso .. '</font>'
+-		municao.TextColor3 = if p <= 5 then Color3.fromRGB(232, 54, 42) else AMBAR
++		local p = tonumber(jogador:GetAttribute("BastiaoPente")) or 0
++		local r = tonumber(jogador:GetAttribute("BastiaoReserva")) or 0
++		local recarregando = jogador:GetAttribute("BastiaoRecarregando") == true
++		local naMao = jogador:GetAttribute("BastiaoArmaNaMao") ~= false
++		local baixo = p <= 5
++		penteTxt.Text = if recarregando then "--" else tostring(p)
++		penteTxt.TextColor3 = if baixo and not recarregando then VERMELHO else BRANCO
++		reservaTxt.Text = "/ " .. tostring(r)
++		cheio.Size = UDim2.fromScale(math.clamp(p / 30, 0, 1), 1)
++		cheio.BackgroundColor3 = if baixo then VERMELHO else AMBAR
++		modoTxt.Text = string.upper(modo)
++		botaoModo.Text = string.upper(modo)
++		local tecla = if usaControle() then "X" elseif usaToque() then "" else "R"
++		if p == 0 and r == 0 then
++			avisoTxt.Text = "SEM MUNIÇÃO"
++		elseif baixo and r > 0 and not recarregando then
++			avisoTxt.Text = if tecla ~= "" then "[" .. tecla .. "] RECARREGAR" else "RECARREGAR"
++		else
++			avisoTxt.Text = ""
++		end
++		-- mãos vazias: some o painel; a troca rápida mostra o que está na mão
++		painel.Visible = naMao
++		marcar(slotFuzil, naMao)
++		marcar(slotMao, not naMao)
++		marcar(slotMaleta, jogador:GetAttribute("BastiaoMaletaAberta") == true)
++	end
++	-- de tempos em tempos: botões que apareceram depois e a camisa (o servidor veste a farda depois)
++	local function revisar()
++		if not vivo then
++			return
++		end
++		if hud.Enabled then
++			pcall(posicionarBotoes)
++		end
++		if vm then
++			pcall(atualizarCamisa, vm)
++		end
++		task.delay(2, revisar)
++	end
++	task.delay(2, revisar)
++
++	-- sacar (true) ou guardar (false) o fuzil: o servidor decide e devolve no atributo BastiaoArmaNaMao
++	local ultimaTroca = 0
++	local function empunhar(naMao: boolean)
++		local rem = op.compartilhado:FindFirstChild("BastiaoArmaEquipar")
++		if jogador:GetAttribute("BastiaoArma") ~= true or not rem or not rem:IsA("RemoteEvent") then
++			return
++		end
++		if (jogador:GetAttribute("BastiaoArmaNaMao") ~= false) == naMao or os.clock() - ultimaTroca < 0.4 then
++			return
++		end
++		ultimaTroca = os.clock()
++		segurando = false
++		rem:FireServer(naMao)
+ 	end
++	local abrirMaleta: (() -> ())? = nil
+ 
+ 	-- ===== tiro =====
+ 	local segurando = false
+@@ -1016,6 +1322,9 @@
+ 	RunService:BindToRenderStep("BastiaoArma", Enum.RenderPriority.Last.Value + 4, function(dt: number)
+ 		local cam = workspace.CurrentCamera
+ 		if not cam or not vm then
++			if telaMira.Enabled then
++				telaMira.Enabled = false
++			end
+ 			return
+ 		end
+ 		dt = math.min(dt, 1 / 20)
+@@ -1119,9 +1428,30 @@
+ 		end
+ 		-- o ferrolho corre para trás e volta a cada tiro
+ 		ferroCm = math.max(ferroCm, 11 * math.sin(math.pi * math.clamp((agora - ultimoTiroEm) / 0.06, 0, 1)))
++		-- sacar e guardar: a arma sobe de baixo da tela girando (ou desce e some)
++		local k = 1
++		if troca then
++			local t = (agora - troca.desde) / (if troca.sobe then 0.34 else 0.24)
++			if troca.sobe then
++				k = suave(math.clamp(t, 0, 1))
++				if t >= 1 then
++					troca = nil
++				end
++			else
++				k = 1 - suave(math.clamp(t, 0, 1))
++				if t >= 1 then
++					troca = nil
++					destruirVm()
++					telaMira.Enabled = false
++					return
++				end
++			end
++		end
++		local fora = 1 - k
+ 		local alvo = cam.CFrame
+-			* CFrame.new(0.28 + bx + atraso.X * 0.6, -0.53 + by - (if veloz and andando then 0.05 else 0), -1.0 + mola.z * 0.02)
+-			* CFrame.Angles(math.rad(3.5) + math.rad(mola.p) * 0.06 + atraso.Y * 0.8 + tx, math.rad(8) - atraso.X * 0.8 + ty, math.rad(-12) + math.rad(mola.r) * 0.05)
++			* CFrame.new(0.15 * fora, -0.95 * fora, 0.1 * fora) * CFrame.Angles(math.rad(-40) * fora, math.rad(12) * fora, math.rad(-28) * fora)
++			* CFrame.new(POSE.X + bx + atraso.X * 0.6, POSE.Y + by - (if veloz and andando then 0.05 else 0), POSE.Z + mola.z * 0.02)
++			* CFrame.Angles(math.rad(POSE_ANG.X) + math.rad(mola.p) * 0.06 + atraso.Y * 0.8 + tx, math.rad(POSE_ANG.Y) - atraso.X * 0.8 + ty, math.rad(POSE_ANG.Z) + math.rad(mola.r) * 0.05)
+ 			* poseArma
+ 		local raiz = alvo * MAO_DIR:Inverse()
+ 		local gF = CFrame.new(0, 0, ferroCm * CMV)
+@@ -1155,6 +1485,12 @@
+ 		if fumacaCano then
+ 			fumacaCano.Rate = if not segurando and agora - ultimoTiroEm > 0.15 and calor > 4 then math.clamp(calor * 2, 3, 20) else 0
+ 		end
++		-- mira: só com a arma pronta na mão, fora das cenas e com a maleta fechada
++		local comMira = troca == nil and cam.CameraType ~= Enum.CameraType.Scriptable
++			and jogador:GetAttribute("BastiaoMaletaAberta") ~= true
++		if telaMira.Enabled ~= comMira then
++			telaMira.Enabled = comMira
++		end
+ 		-- mira abre com o coice
+ 		local abre = 8 + abertura * 18
+ 		for _, t in tracos do
+@@ -1177,6 +1513,17 @@
+ 	end))
+ 	table.insert(conexoes, botaoRecarga.Activated:Connect(recarregar))
+ 	table.insert(conexoes, botaoModo.Activated:Connect(alternarModo))
++	table.insert(conexoes, slotFuzil.Activated:Connect(function()
++		empunhar(true)
++	end))
++	table.insert(conexoes, slotMao.Activated:Connect(function()
++		empunhar(false)
++	end))
++	table.insert(conexoes, slotMaleta.Activated:Connect(function()
++		if abrirMaleta then
++			abrirMaleta()
++		end
++	end))
+ 	table.insert(conexoes, UserInputService.InputBegan:Connect(function(i: InputObject, processado: boolean)
+ 		if not hud.Enabled then
+ 			return
+@@ -1189,6 +1536,12 @@
+ 			recarregar()
+ 		elseif (i.KeyCode == Enum.KeyCode.V and not processado) or i.KeyCode == Enum.KeyCode.DPadUp then
+ 			alternarModo()
++		elseif (i.KeyCode == Enum.KeyCode.One or i.KeyCode == Enum.KeyCode.KeypadOne) and not processado then
++			empunhar(true)
++		elseif (i.KeyCode == Enum.KeyCode.Two or i.KeyCode == Enum.KeyCode.KeypadTwo) and not processado then
++			empunhar(false)
++		elseif i.KeyCode == Enum.KeyCode.ButtonY then
++			empunhar(jogador:GetAttribute("BastiaoArmaNaMao") == false)
+ 		end
+ 	end))
+ 	table.insert(conexoes, UserInputService.InputEnded:Connect(function(i: InputObject)
+@@ -1235,19 +1588,42 @@
+ 	-- ===== ligar/desligar conforme o servidor entrega a arma =====
+ 	local function atualizar()
+ 		local tem = jogador:GetAttribute("BastiaoArma") == true and vivo
++		local naMao = tem and jogador:GetAttribute("BastiaoArmaNaMao") ~= false
+ 		hud.Enabled = tem
+-		if tem then
+-			construirVm()
+-			posicionarBotoes()
++		if naMao then
++			if not vm then
++				construirVm()
++				troca = { sobe = true, desde = os.clock() }
++				local s = tocar("ak_ferrolho")
++				if s then
++					s.Volume *= 0.45
++				end
++			elseif troca and not troca.sobe then
++				troca = { sobe = true, desde = os.clock() } -- mudou de ideia no meio da descida
++			end
+ 		else
+ 			segurando = false
+-			destruirVm()
++			recarga = nil
++			if not tem then
++				troca = nil
++				destruirVm()
++			elseif vm and not (troca and not troca.sobe) then
++				troca = { sobe = false, desde = os.clock() } -- desce e some (o quadro apaga no fim)
++				local s = tocar("ak_vazio")
++				if s then
++					s.Volume *= 0.4
++					s.PlaybackSpeed = 0.8
++				end
++			end
++		end
++		if tem then
++			posicionarBotoes()
+ 		end
+ 		atualizarMunicao()
+ 	end
+-	for _, nome in { "BastiaoArma", "BastiaoPente", "BastiaoReserva", "BastiaoRecarregando" } do
++	for _, nome in { "BastiaoArma", "BastiaoArmaNaMao", "BastiaoPente", "BastiaoReserva", "BastiaoRecarregando", "BastiaoMaletaAberta" } do
+ 		table.insert(conexoes, jogador:GetAttributeChangedSignal(nome):Connect(function()
+-			if nome == "BastiaoArma" then
++			if nome == "BastiaoArma" or nome == "BastiaoArmaNaMao" then
+ 				atualizar()
+ 			else
+ 				atualizarMunicao()
+@@ -1262,6 +1638,11 @@
+ 		segurando = false
+ 		recarga = nil
+ 		task.delay(0.5, atualizar)
++		task.delay(3, function()
++			if vm then
++				pcall(atualizarCamisa, vm)
++			end
++		end)
+ 	end))
+ 	atualizar()
+ 
+@@ -1269,6 +1650,11 @@
+ 	api.segurar = function(v: boolean)
+ 		segurando = v
+ 	end
++	api.empunhar = empunhar
++	-- a maleta (inventário) se registra aqui: o botão da troca rápida abre ela
++	function api.definirMaleta(fn: (() -> ())?)
++		abrirMaleta = fn
++	end
+ 	function api.destroy()
+ 		vivo = false
+ 		segurando = false
+@@ -1283,6 +1669,7 @@
+ 		desfazerCoice()
+ 		destruirVm()
+ 		hud:Destroy()
++		telaMira:Destroy()
+ 		pasta:Destroy()
+ 	end
+ 	return api
+--- a/src/shared/ArmaModelo.luau
++++ b/src/shared/ArmaModelo.luau
+@@ -128,36 +128,36 @@
+ 	Ombro = V3(0, -5, 36.6),
+ }
+ 
+-local function cfDe(peca: Peca): CFrame
++local function cfDe(peca: Peca, cm: number): CFrame
+ 	if peca.cf then
+-		return CFrame.new(peca.cf.Position * CM) * peca.cf.Rotation
++		return CFrame.new(peca.cf.Position * cm) * peca.cf.Rotation
+ 	end
+ 	local g = peca.giro or V3(0, 0, 0)
+-	return CFrame.new(peca.centro * CM) * CFrame.Angles(math.rad(g.X), math.rad(g.Y), math.rad(g.Z))
++	return CFrame.new(peca.centro * cm) * CFrame.Angles(math.rad(g.X), math.rad(g.Y), math.rad(g.Z))
+ end
+ 
+-local function criarParte(peca: Peca): BasePart
++local function criarParte(peca: Peca, cm: number): BasePart
+ 	local parte: BasePart
+ 	if peca.forma == "bola" then
+ 		parte = Instance.new("Part")
+ 		parte.Shape = Enum.PartType.Ball
+-		parte.Size = peca.tam * CM
+-		parte.CFrame = cfDe(peca)
++		parte.Size = peca.tam * cm
++		parte.CFrame = cfDe(peca, cm)
+ 	elseif peca.forma == "cunha" then
+ 		parte = Instance.new("WedgePart")
+-		parte.Size = peca.tam * CM
+-		parte.CFrame = cfDe(peca)
++		parte.Size = peca.tam * cm
++		parte.CFrame = cfDe(peca, cm)
+ 	elseif peca.forma == "cilindro" then
+ 		local cil = Instance.new("Part")
+ 		cil.Shape = Enum.PartType.Cylinder
+ 		-- o cilindro do Roblox tem o eixo em X: gira para o eixo ficar em Z
+-		cil.Size = V3(peca.tam.Z, peca.tam.X, peca.tam.Y) * CM
+-		cil.CFrame = cfDe(peca) * CFrame.Angles(0, math.rad(90), 0)
++		cil.Size = V3(peca.tam.Z, peca.tam.X, peca.tam.Y) * cm
++		cil.CFrame = cfDe(peca, cm) * CFrame.Angles(0, math.rad(90), 0)
+ 		parte = cil
+ 	else
+ 		parte = Instance.new("Part")
+-		parte.Size = peca.tam * CM
+-		parte.CFrame = cfDe(peca)
++		parte.Size = peca.tam * cm
++		parte.CFrame = cfDe(peca, cm)
+ 	end
+ 	parte.Name = peca.nome
+ 	parte.Color = peca.cor
+@@ -237,11 +237,15 @@
+ 	return l
+ end
+ 
+-export type Opcoes = { bracos: boolean?, ancorado: boolean? }
++-- escala: 1 = tamanho real; na mão do boneco R6 e na primeira pessoa o fuzil fica maior
++-- (o braço do Roblox tem 1 stud de grossura; com o fuzil real a mão engolia a arma inteira)
++export type Opcoes = { bracos: boolean?, ancorado: boolean?, escala: number? }
+ 
+ -- Monta o modelo: PrimaryPart "Corpo", tudo soldado nele (WeldConstraint) e os pontos de encaixe.
+ function ArmaModelo.construir(op: Opcoes?): Model
+ 	local opcoes = op or {}
++	local escala = opcoes.escala
++	local cm = CM * (if type(escala) == "number" and escala > 0 and escala < 20 then escala else 1)
+ 	local modelo = Instance.new("Model")
+ 	modelo.Name = "BastiaoAK74"
+ 	local lista = ArmaModelo.pecas()
+@@ -253,7 +257,7 @@
+ 	local corpo: BasePart? = nil
+ 	local partes = {}
+ 	for _, peca in lista do
+-		local parte = criarParte(peca)
++		local parte = criarParte(peca, cm)
+ 		if peca.nome == "Corpo" then
+ 			corpo = parte
+ 		end
+@@ -263,7 +267,7 @@
+ 	for nome, pos in ArmaModelo.PONTOS do
+ 		local a = Instance.new("Attachment")
+ 		a.Name = nome
+-		a.Position = (corpo :: BasePart).CFrame:PointToObjectSpace(pos * CM)
++		a.Position = (corpo :: BasePart).CFrame:PointToObjectSpace(pos * cm)
+ 		a.Parent = corpo
+ 	end
+ 	for _, parte in partes do
+@@ -286,4 +290,71 @@
+ 	return modelo
+ end
+ 
++-- ===== primeira pessoa (correção 16): braços do boneco R6 segurando o fuzil =====
++-- Braços de bloco do Roblox (1 x 2 x 1, com a camisa do jogador) e luvas pretas na mão. A mão
++-- direita envolve o punho e a esquerda o guarda-mão; os braços vão para baixo e para trás, até
++-- sair da tela (podem "flutuar", sem ombro, como na maioria dos jogos de tiro do Roblox).
++-- vm encolhe tudo junto (braços e fuzil) para caber perto da câmera; o fuzil fica na proporção
++-- do que os outros veem na mão do boneco (escala da arma em relação ao braço).
++ArmaModelo.VM = 0.45
++ArmaModelo.ESCALA_MAO = 1.6 -- na mão do boneco (terceira pessoa)
++ArmaModelo.ESCALA_PRIMEIRA = 2.4 -- na primeira pessoa (vm x escala = 1,08: quase o tamanho do fuzil antigo)
++-- direção do cotovelo (eixo do fuzil: x direita, y cima, z para trás) e onde fica a mão (cm do fuzil)
++ArmaModelo.BRACO_DIR = { mao = V3(0.6, -9.6, 6.2), cotovelo = V3(0.55, -0.68, 0.48) }
++ArmaModelo.BRACO_ESQ = { mao = V3(-0.6, -10.5, -27), cotovelo = V3(-0.42, -0.78, 0.46) }
++
++local function blocoBraco(nome: string, maoStuds: Vector3, cotovelo: Vector3, u: number, cor: Color3, luva: string): { BasePart }
++	local y = cotovelo.Unit
++	local xg = V3(1, 0, 0)
++	local x = (xg - y * xg:Dot(y)).Unit
++	local z = x:Cross(y)
++	-- a mão fica a meio stud da ponta do braço; o centro do braço, 1 stud acima da ponta
++	local base = CFrame.fromMatrix(maoStuds, x, y, z)
++	local braco = Instance.new("Part")
++	braco.Name = nome
++	braco.Size = V3(1, 2, 1) * u
++	braco.CFrame = base * CFrame.new(0, 0.5 * u, 0)
++	braco.Color = cor
++	braco.Material = Enum.Material.SmoothPlastic
++	local l = Instance.new("Part")
++	l.Name = luva
++	l.Size = V3(1.06, 0.62, 1.06) * u
++	l.CFrame = base * CFrame.new(0, -0.19 * u, 0)
++	l.Color = LUVA
++	l.Material = Enum.Material.Fabric
++	local partes = { braco, l }
++	for _, p in partes do
++		p.TopSurface = Enum.SurfaceType.Smooth
++		p.BottomSurface = Enum.SurfaceType.Smooth
++		p.CanCollide = false
++		p.CanTouch = false
++		p.CanQuery = false
++		p.Massless = true
++		p.CastShadow = false
++		p.Anchored = true
++	end
++	return partes
++end
++
++export type OpcoesPrimeiraPessoa = { vm: number?, escala: number?, corBraco: Color3? }
++
++-- Fuzil + braços na origem do fuzil (a mesma origem do construir: gatilho, cano para -Z).
++-- Nomes "Right Arm" e "Left Arm" para a camisa (Shirt) do jogador aparecer neles.
++function ArmaModelo.primeiraPessoa(op: OpcoesPrimeiraPessoa?): Model
++	local o = op or {}
++	local u = o.vm or ArmaModelo.VM
++	local esc = (o.escala or ArmaModelo.ESCALA_PRIMEIRA) * u
++	local cm = CM * esc
++	local modelo = ArmaModelo.construir({ ancorado = true, escala = esc })
++	local cor = o.corBraco or UNIFORME
++	local d, e = ArmaModelo.BRACO_DIR, ArmaModelo.BRACO_ESQ
++	for _, p in blocoBraco("Right Arm", d.mao * cm, d.cotovelo, u, cor, "DirLuva") do
++		p.Parent = modelo
++	end
++	for _, p in blocoBraco("Left Arm", e.mao * cm, e.cotovelo, u, cor, "EsqLuva") do
++		p.Parent = modelo
++	end
++	return modelo
++end
++
+ return ArmaModelo
+--- a/src/server/Criatura.luau
++++ b/src/server/Criatura.luau
+@@ -171,6 +171,8 @@
+     local destroyed, loading, failed = false,false,false
+     local generation, loadDeadline, accumulator = 0,0,0
+     local loaderBusy,pathBusy=false,false
++    -- correção 16: o que o 731-A aprendeu nesta partida (lugares quentes e quantas vezes o enganaram)
++    local memoria=Core.novaMemoria()
+     local heartbeat: RBXScriptConnection? = nil
+     local loaderThread: thread? = nil
+ 
+@@ -403,6 +405,7 @@
+         local present={}
+         local eye=c.root.Position+V(0,c.height*0.26,0)
+         local forward=flat(c.root.CFrame.LookVector)
++        local sn=Core.sentidos(memoria.nivel)
+         for _, player in Players:GetPlayers() do
+             local character,root,human=livePlayer(player)
+             if not character or not root or not human then c.samples[player.UserId]=nil; continue end
+@@ -424,8 +427,10 @@
+             local los=false
+             local hearing=false
+             if not isSafe and isInArea then
+-                if dot>=0.5 then los=rayClear(eye,position+V(0,1.2,0),{c.model},character) end
+-                if distance<=30 and player:GetAttribute("Sprinting")==true and measured>=16 then
++                if dot>=sn.cone then los=rayClear(eye,position+V(0,1.2,0),{c.model},character) end
++                local raioOuvir=Core.raioOuvir({sprinting=player:GetAttribute("Sprinting")==true,
++                    speed=flat(root.AssemblyLinearVelocity).Magnitude,measuredSpeed=measured},sn)
++                if raioOuvir>0 and distance<=raioOuvir then
+                     -- A separate lower ray gives running feet physical evidence.
+                     -- No noise is heard through closed containment/workshop doors.
+                     hearing=rayClear(c.root.Position-V(0,c.height*0.25,0),position,{c.model},character)
+@@ -750,7 +755,8 @@
+         if c.atordoadoAte and atualizarRecuo(c,now) then return end
+         local oldMode=c.state.mode
+         local seen=candidates(c,now)
+-        local nextState,effect=Core.step(c.state,{ready=c.ready,candidates=seen,
++        local lastKnownAntes=c.state.lastKnown
++        local nextState,effect=Core.step(c.state,{ready=c.ready,candidates=seen,sentidos=Core.sentidos(memoria.nivel),
+             attackEnabled=c.attackEnabled,attackHit=c.pendingHit,attackFinished=c.pendingFinished},now,c.timing)
+         c.pendingHit,c.pendingFinished=false,false
+         c.state=nextState
+@@ -760,7 +766,21 @@
+             if candidate.id==nextState.targetId or candidate.id==nextState.attackVictim then target=candidate end
+         end
+         if target and target.los and target.velocity then c.targetVelocity=target.velocity end
++        -- aprende: onde perdeu, onde achou e por onde a gente anda
++        if oldMode=="chase" and mode=="search" and nextState.lastKnown then
++            Core.lembrar(memoria,point(nextState.lastKnown),2,now)
++        elseif oldMode=="search" and mode=="roam" then
++            if lastKnownAntes then Core.lembrar(memoria,point(lastKnownAntes),1,now) end
++            c.model:SetAttribute("BastiaoAprendizado",Core.fugiu(memoria))
++        elseif (oldMode=="roam" or oldMode=="search") and (mode=="alert" or mode=="chase") and target then
++            Core.lembrar(memoria,point(target.position),3,now)
++        end
++        if target and target.los and now>=(c.proximaTrilha or 0) then
++            c.proximaTrilha=now+2
++            Core.lembrar(memoria,point(target.position),0.5,now)
++        end
+         if oldMode~=mode then
++            c.revistar,c.investigar=nil,nil
+             stopNavigation(c)
+             c.model:SetAttribute("BastiaoState",mode)
+             if mode=="chase" and oldMode~="attack" then c.chaseStartedAt=now end
+@@ -850,10 +870,40 @@
+                 if (flat(guess-c.root.Position)).Magnitude>3 then goal=guess end
+             end
+             if lost<SEARCH_FAST_SECONDS then speed=SEARCH_SPEED; urgent=true end
++            if not goal and lost>4 then
++                -- chegou onde achava que a pessoa estava e não viu ninguém: revista os esconderijos
++                -- que já conhece por perto (aprendeu nas outras vezes)
++                if c.revistar and (flat(c.revistar-c.root.Position)).Magnitude<3.5 then
++                    Core.visitar(memoria,point(c.revistar),now)
++                    c.revistar,c.revistarPausa=nil,now+2.5
++                end
++                if not c.revistar and now>=(c.revistarPausa or 0) then
++                    local q=Core.pontoQuente(memoria,now,point(c.root.Position),45)
++                    local v=if q then V(q.x,q.y,q.z) else nil
++                    if v and inArea(v) and not safe(v) then c.revistar=v end
++                end
++                if c.revistar then goal,speed=c.revistar,SEARCH_SPEED end
++            end
+         else
+-            local patrol=PATROL[c.patrolIndex]
+-            if (flat(patrol-c.root.Position)).Magnitude<3 then c.patrolIndex=c.patrolIndex%#PATROL+1 end
+-            goal=PATROL[c.patrolIndex]
++            -- ronda: às vezes desvia para revistar um lugar quente (onde já achou, perdeu ou ouviu gente)
++            if c.investigar and (flat(c.investigar-c.root.Position)).Magnitude<4 then
++                Core.visitar(memoria,point(c.investigar),now)
++                c.investigar,c.farejarAte=nil,now+3.2
++            end
++            if c.investigar then
++                goal=c.investigar
++            elseif now>=(c.farejarAte or 0) then
++                local patrol=PATROL[c.patrolIndex]
++                if (flat(patrol-c.root.Position)).Magnitude<3 then
++                    c.patrolIndex=c.patrolIndex%#PATROL+1
++                    if math.random()<0.35+0.15*memoria.nivel then
++                        local q=Core.pontoQuente(memoria,now,point(c.root.Position))
++                        local v=if q then V(q.x,q.y,q.z) else nil
++                        if v and inArea(v) and not safe(v) then c.investigar=v end
++                    end
++                end
++                goal=c.investigar or PATROL[c.patrolIndex]
++            end
+         end
+         setGoal(c,goal,speed,now,urgent)
+         local speed=c.mover.actualSpeed or 0
+@@ -865,7 +915,7 @@
+             local authored=if corre then 3.2 else 0.62
+             local studsPerMeter=c.height/3.000094
+             play(c,name,math.clamp(speed/(authored*studsPerMeter),0.2,1.8))
+-        elseif mode=="search" then
++        elseif mode=="search" or (mode=="roam" and now<(c.farejarAte or 0)) then
+             -- procura viva: vasculha, fareja, olha para um lado e para o outro
+             local atual=if c.animation then c.tracks[c.animation] else nil
+             local buscando=table.find(BUSCA,c.animation)~=nil
+@@ -1125,7 +1175,7 @@
+     if existing then
+         report("unavailable","pasta_criatura_ocupada")
+         warn("[Bastiao731A] pasta Criatura ocupada; nada foi substituído")
+-        return {status=status,corpo=function() return nil,nil end,atingir=function() return nil end,atrair=function() return false end,destroy=function() end}
++        return {status=status,corpo=function() return nil,nil end,atingir=function() return nil end,atrair=function() return false end,ouvir=function() return false end,destroy=function() end}
+     end
+     folder=Instance.new("Folder")
+     folder.Name="Criatura"
+@@ -1203,6 +1253,35 @@
+         return r
+     end
+ 
++    -- tiro (correção 16): o estampido chama o 731-A de longe; ele vem ver de onde veio, com um erro
++    -- que cresce com a distância, e guarda o lugar na memória
++    local function ouvir(pos: Vector3, raio: number?): boolean
++        local c=active
++        if not c or not c.ready or type(c.state)~="table" or typeof(pos)~="Vector3" or pos~=pos then return false end
++        local now=os.clock()
++        if c.captura or (c.atordoadoAte and now<c.atordoadoAte) then return false end
++        if not inArea(pos) or safe(pos) then return false end
++        local alcance=(if type(raio)=="number" and raio>0 then raio else 150)*Core.sentidos(memoria.nivel).ouvido
++        local d=(pos-c.root.Position).Magnitude
++        if d>alcance then return false end
++        Core.lembrar(memoria,point(pos),1.5,now)
++        local m=c.state.mode
++        if m=="chase" or m=="alert" or m=="attack" or m=="disabled" then return true end
++        local erro=math.min(10,d*0.06)
++        local alvo=pos+V((math.random()*2-1)*erro,0,(math.random()*2-1)*erro)
++        if not inArea(alvo) or safe(alvo) then alvo=pos end
++        c.state.lastKnown=alvo; c.state.lastSenseAt=now
++        c.state.memoryUntil=math.max(c.state.memoryUntil or -math.huge,now+Core.sentidos(memoria.nivel).memoria+3)
++        if m~="search" then
++            c.state.mode="search"; c.state.enteredAt=now
++            stopNavigation(c)
++            c.model:SetAttribute("BastiaoState","search")
++        end
++        c.searchStartedAt=now; c.buscaIndice=0; c.revistar,c.investigar=nil,nil
++        c.targetVelocity=nil
++        return true
++    end
++
+     -- a história faz barulho num lugar: o 731-A vai procurar lá (como se tivesse ouvido)
+     local function atrair(pos: Vector3): boolean
+         local c=active
+@@ -1212,7 +1291,7 @@
+         if c.state.mode=="roam" then c.state.mode="search"; c.state.enteredAt=now end
+         return true
+     end
+-    return {status=status,corpo=corpo,atingir=atingir,atrair=atrair,destroy=function()
++    return {status=status,corpo=corpo,atingir=atingir,atrair=atrair,ouvir=ouvir,memoria=function() return memoria end,destroy=function()
+         if destroyed then return end
+         destroyed=true; generation+=1
+         if heartbeat then heartbeat:Disconnect(); heartbeat=nil end
+--- a/src/server/CriaturaCore.luau
++++ b/src/server/CriaturaCore.luau
+@@ -7,6 +7,10 @@
+     return type(n) == "number" and n == n and n > -math.huge and n < math.huge
+ end
+ 
++local function point(p: any): boolean
++    return type(p) == "table" and finite(p.x) and finite(p.y) and finite(p.z)
++end
++
+ local function eligible(c: any): boolean
+     return c.alive == true and c.safe ~= true and c.inArea == true
+         and finite(c.distance) and c.distance >= 0
+@@ -16,22 +20,92 @@
+     return containment == "destravada" and alarm == "ligado"
+ end
+ 
+-function Core.canSee(c: any): boolean
++-- Sentidos crescem com o que o 731-A aprendeu (nível 0 a 3: cada fuga deixa ele mais esperto).
++function Core.sentidos(nivel: number?): any
++    local n = math.clamp(if finite(nivel) then nivel :: number else 0, 0, 3)
++    return {nivel = n, cone = 0.5 - 0.07 * n, ouvido = 1 + 0.15 * n, memoria = 9 + 3 * n}
++end
++
++function Core.canSee(c: any, sn: any?): boolean
++    local cone = if sn and finite(sn.cone) then sn.cone else 0.5
+     return eligible(c) and c.distance <= 86 and finite(c.dot)
+-        and c.dot >= 0.5 and c.los == true
++        and c.dot >= cone and c.los == true
+ end
+ 
+-function Core.canHear(c: any): boolean
++-- Passos: correndo se ouve longe (45 studs); andando, só bem perto (12); devagar, nada.
++Core.OUVIR_CORRIDA, Core.OUVIR_ANDAR = 45, 12
++function Core.raioOuvir(c: any, sn: any?): number
++    if not (finite(c.speed) and finite(c.measuredSpeed)) or c.speed > 38 or c.measuredSpeed > 38 then return 0 end
++    local k = if sn and finite(sn.ouvido) then sn.ouvido else 1
+     -- The existing Sector7 server supplies Sprinting. Require measured movement
+     -- as well, so an attribute or client request alone is not a noise source.
+-    return eligible(c) and c.distance <= 30 and c.sprinting == true
+-        and c.grounded == true and c.hearingClear == true
+-        and finite(c.speed) and c.speed >= 16.5 and c.speed <= 38
+-        and finite(c.measuredSpeed) and c.measuredSpeed >= 16 and c.measuredSpeed <= 38
++    if c.sprinting == true and c.speed >= 16.5 and c.measuredSpeed >= 16 then return Core.OUVIR_CORRIDA * k end
++    if c.speed >= 6 and c.measuredSpeed >= 6 then return Core.OUVIR_ANDAR * k end
++    return 0
++end
++
++function Core.canHear(c: any, sn: any?): boolean
++    return eligible(c) and c.grounded == true and c.hearingClear == true
++        and c.distance <= Core.raioOuvir(c, sn)
++end
++
++-- ===== memória (correção 16): o 731-A aprende por onde os jogadores andam e onde se escondem =====
++-- Mapa de "calor" em células de 12 studs: onde viu gente, onde perdeu, onde achou escondido e de
++-- onde veio um tiro. O calor esfria com o tempo; lugar já revistado sem ninguém esfria mais rápido.
++Core.CELULA, Core.MEIA_VIDA = 12, 240
++local function celula(p: any): string
++    return math.floor(p.x / Core.CELULA) .. ":" .. math.floor(p.z / Core.CELULA)
++end
++function Core.novaMemoria(): any
++    return {calor = {}, fugas = 0, nivel = 0}
++end
++local function calorAgora(e: any, now: number): number
++    return e.calor * 0.5 ^ (math.max(0, now - e.em) / Core.MEIA_VIDA)
++end
++function Core.lembrar(mem: any, p: any, peso: number, now: number)
++    if not point(p) or not finite(peso) or peso <= 0 or not finite(now) then return end
++    local k = celula(p)
++    local e = mem.calor[k]
++    if not e then
++        e = {x = p.x, y = p.y, z = p.z, calor = 0, em = now, visitado = -math.huge}
++        mem.calor[k] = e
++    end
++    local antes = calorAgora(e, now)
++    local total = antes + peso
++    -- o ponto lembrado anda para perto de onde as coisas acontecem
++    e.x = e.x + (p.x - e.x) * peso / total
++    e.y = e.y + (p.y - e.y) * peso / total
++    e.z = e.z + (p.z - e.z) * peso / total
++    e.calor, e.em = math.min(total, 12), now
++end
++function Core.visitar(mem: any, p: any, now: number)
++    if not point(p) then return end
++    local e = mem.calor[celula(p)]
++    if e then
++        e.calor, e.em, e.visitado = calorAgora(e, now) * 0.6, now, now
++    end
+ end
+-
+-local function point(p: any): boolean
+-    return type(p) == "table" and finite(p.x) and finite(p.y) and finite(p.z)
++-- O lugar mais "quente" que vale revistar agora: calor dividido pela distância, longe do próprio
++-- monstro, nada revistado há menos de 25 s e (se pedido) só até um raio.
++function Core.pontoQuente(mem: any, now: number, de: any, raio: number?): any?
++    if not point(de) then return nil end
++    local melhor, nota = nil, 0
++    for _, e in mem.calor do
++        local c = calorAgora(e, now)
++        local d = math.sqrt((e.x - de.x) ^ 2 + (e.z - de.z) ^ 2)
++        if c >= 1 and d >= 8 and now - e.visitado >= 25 and (not raio or d <= raio) then
++            local n = c / (1 + d / 60)
++            if n > nota then melhor, nota = e, n end
++        end
++    end
++    if melhor then return {x = melhor.x, y = melhor.y, z = melhor.z} end
++    return nil
++end
++-- Cada fuga deixa o 731-A mais atento (até o nível 3).
++function Core.fugiu(mem: any): number
++    mem.fugas += 1
++    mem.nivel = math.min(3, mem.fugas)
++    return mem.nivel
+ end
+ 
+ function Core.inSafeZone(p: any): boolean
+@@ -66,20 +140,22 @@
+         return s, effect
+     end
+     local visible, heard, victim = nil, nil, nil
++    local sn = observation.sentidos
++    local memoria = if sn and finite(sn.memoria) then sn.memoria else 9
+     for _, c in observation.candidates do
+         if c.id == s.attackVictim then victim = c end
+-        if Core.canSee(c) then
++        if Core.canSee(c, sn) then
+             if not visible or c.id == s.targetId or (visible.id ~= s.targetId and c.distance < visible.distance) then
+                 visible = c
+             end
+-        elseif Core.canHear(c) and (not heard or c.distance < heard.distance) then
++        elseif Core.canHear(c, sn) and (not heard or c.distance < heard.distance) then
+             heard = c
+         end
+     end
+     if visible then
+-        s.lastKnown, s.lastSenseAt, s.memoryUntil = visible.position, now, now + 9
++        s.lastKnown, s.lastSenseAt, s.memoryUntil = visible.position, now, now + memoria
+     elseif heard then
+-        s.lastKnown, s.lastSenseAt, s.memoryUntil = heard.position, now, now + 9
++        s.lastKnown, s.lastSenseAt, s.memoryUntil = heard.position, now, now + memoria
+     end
+ 
+     if s.mode == "attack" then
+--- a/src/server/BastiaoServidor.luau
++++ b/src/server/BastiaoServidor.luau
+@@ -161,6 +161,12 @@
+ 		atingir = function(info)
+ 			return if criatura then criatura.atingir(info) else nil
+ 		end,
++		-- o estampido do fuzil chama o 731-A (correção 16)
++		ouvir = function(pos: Vector3, raio: number)
++			if criatura and type(criatura.ouvir) == "function" then
++				criatura.ouvir(pos, raio)
++			end
++		end,
+ 	},
+ 	log = warn,
+ })
+--- a/src/client/BastiaoCliente.luau
++++ b/src/client/BastiaoCliente.luau
+@@ -114,13 +114,15 @@
+ 	warn("[Bastiao] sons do bote desligados:", MonstroSom)
+ end
+ -- capítulo 2: o AK-74 em primeira pessoa (opcional: se faltar, o resto do jogo segue igual)
+-local armaCliente = { destroy = function() end }
++local armaCliente: any = { destroy = function() end }
++local modeloDaArma: any = nil
+ if armaCarregou and type(ArmaCliente) == "table" and type(ArmaCliente.iniciar) == "function" then
+ 	local modeloArma = modulo:FindFirstChild("ArmaModelo")
+ 	local okModelo, ArmaModelo = pcall(function()
+ 		return require(modeloArma :: any)
+ 	end)
+ 	if okModelo and type(ArmaModelo) == "table" then
++		modeloDaArma = ArmaModelo
+ 		local criou, criado = pcall(ArmaCliente.iniciar, {
+ 			jogador = jogador, playerGui = playerGui, compartilhado = modulo, modelo = ArmaModelo,
+ 			som = { efeito = function(chave: string, pos: Vector3?) return som.efeito(chave, pos) end },
+@@ -136,6 +138,36 @@
+ else
+ 	warn("[Bastiao] arma desligada:", ArmaCliente)
+ end
++-- correção 16: a maleta (inventário estilo RE4) com arma na mão ou mãos vazias (opcional)
++local maletaCliente: any = { destroy = function() end }
++do
++	local okMaleta, MaletaCliente = pcall(function()
++		return require(script:WaitForChild("Maleta", 10) :: any)
++	end)
++	if okMaleta and type(MaletaCliente) == "table" and type(MaletaCliente.iniciar) == "function" then
++		local criou, criado = pcall(MaletaCliente.iniciar, {
++			jogador = jogador, playerGui = playerGui, compartilhado = modulo, modelo = modeloDaArma,
++			icones = if armaCarregou and type(ArmaCliente) == "table" then ArmaCliente.ICONES else nil,
++			idioma = idioma.atual,
++			som = function(chave: string) return som.efeito(chave) end,
++			empunhar = function(naMao: boolean)
++				if type(armaCliente.empunhar) == "function" then
++					armaCliente.empunhar(naMao)
++				end
++			end,
++		})
++		if criou and type(criado) == "table" and type(criado.destroy) == "function" then
++			maletaCliente = criado
++			if type(armaCliente.definirMaleta) == "function" then
++				armaCliente.definirMaleta(criado.alternar)
++			end
++		else
++			warn("[Bastiao] maleta desligada:", criado)
++		end
++	else
++		warn("[Bastiao] maleta desligada:", MaletaCliente)
++	end
++end
+ -- capítulo 3: animação de infectado, sons deles e o blackout (opcional: se faltar, o resto segue)
+ local infectadosCliente = { destroy = function() end }
+ do
+@@ -171,6 +203,7 @@
+ 	pcall(efeitos.destroy)
+ 	pcall(monstroSom.parar)
+ 	pcall(armaCliente.destroy)
++	pcall(maletaCliente.destroy)
+ 	pcall(infectadosCliente.destroy)
+ 	som.parar()
+ end))
+--- a/src/client/Interface.luau
++++ b/src/client/Interface.luau
+@@ -60,6 +60,16 @@
+ 	return math.ceil((utf8.len(texto) or #texto) * tamanho * AVANCO)
+ end
+ 
++-- O contorno preto acompanha a letra. O UIStroke não some junto com o TextTransparency: sem isto,
++-- a letra apagada (ou ainda não chegada) deixava um "fantasma" preto borrado na tela.
++local function seguirTexto(s: UIStroke, texto: Instance, base: number)
++	local function seguir()
++		s.Transparency = base + (1 - base) * ((texto :: any).TextTransparency :: number)
++	end
++	texto:GetPropertyChangedSignal("TextTransparency"):Connect(seguir)
++	seguir()
++end
++
+ local function borda(pai: Instance)
+ 	local s = Instance.new("UIStroke")
+ 	s.Color = BLACK
+@@ -67,6 +77,9 @@
+ 	s.Transparency = 0.3
+ 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+ 	s.Parent = pai
++	if pai:IsA("TextLabel") or pai:IsA("TextButton") then
++		seguirTexto(s, pai, 0.3)
++	end
+ end
+ 
+ local function rotulo(pai: Instance, nome: string, tamanho: number, fonte: Font, cor: Color3): TextLabel
+@@ -128,7 +141,7 @@
+ 	local gui = Instance.new("ScreenGui")
+ 	gui.Name = "BastiaoHUD"
+ 	gui.ResetOnSpawn = false
+-	gui.DisplayOrder = 11 -- acima do HUD da bodycam (10), abaixo do menu dela (20)
++	gui.DisplayOrder = 12 -- acima do HUD da bodycam (10) e do HUD da arma (11), abaixo do menu dela (20)
+ 	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+ 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ 	gui.Parent = playerGui
+@@ -362,7 +375,6 @@
+ 					TextTransparency = 1,
+ 				}):Play()
+ 				TweenService:Create(g.escala, info, { Scale = 0.2 + math.random() * 0.4 }):Play()
+-				TweenService:Create(g.contorno, info, { Transparency = 1 }):Play()
+ 				if not rapido and i % 3 == 1 then
+ 					for _ = 1, 2 do
+ 						local lasca = Instance.new("Frame")
+@@ -475,6 +487,7 @@
+ 					contorno.Transparency = 0.3
+ 					contorno.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+ 					contorno.Parent = g
++					seguirTexto(contorno, g, 0.3)
+ 					local escala = Instance.new("UIScale")
+ 					escala.Scale = 2.4
+ 					escala.Parent = g
+--- a/src/client/InfectadosCliente.luau
++++ b/src/client/InfectadosCliente.luau
+@@ -30,6 +30,98 @@
+ 	som: any?, -- { efeito(chave, pos?): Sound? }
+ }
+ 
++-- Pose pura de um infectado (sem motor): devolve, para cada junta R6, o giro/deslocamento no espaço
++-- da peça-mãe em volta da junta (vira Motor6D.Transform com naJunta). Mexe só no estado de z.
++--   vel: velocidade no chão (studs/s); dormindo: ajoelhado comendo um corpo; alvo: posição de quem
++--   ele encara, no espaço da raiz (ou nil)
++function InfectadosCliente.pose(z: any, dt: number, agora: number, vel: number, dormindo: boolean, alvo: Vector3?): { [string]: CFrame }
++	local andando = math.clamp(vel / 8, 0, 1)
++	local corrida = math.clamp((vel - 9) / 6, 0, 1)
++	z.fase += dt * (vel * 0.85 * z.ritmo + (if andando < 0.1 then 0.9 else 0))
++	local f = z.fase
++	-- espasmos: a cabeça estala para um lado e volta (de vez em quando)
++	if agora >= z.proxEspasmo then
++		z.proxEspasmo = agora + z.rng:NextNumber(0.8, 3.2)
++		z.alvoEspasmo = CFrame.Angles(z.rng:NextNumber(-0.25, 0.35), z.rng:NextNumber(-0.7, 0.7), z.rng:NextNumber(-0.55, 0.55))
++		z.espasmoAte = agora + z.rng:NextNumber(0.08, 0.2)
++	end
++	local estala = if agora < z.espasmoAte then 1 else 0
++	z.espasmo += (estala - z.espasmo) * math.min(1, dt * (if estala > 0 then 40 else 9))
++	-- tropeço: andando, de vez em quando o corpo cai de lado e a perna ruim arrasta
++	z.proxTropeco = z.proxTropeco or (agora + z.rng:NextNumber(3, 8))
++	if andando > 0.3 and agora >= z.proxTropeco then
++		z.proxTropeco = agora + z.rng:NextNumber(4, 9)
++		z.tropecoEm = agora
++	end
++	local tt = agora - (z.tropecoEm or -10)
++	local tropeco = if tt < 0.55 then math.sin(math.pi * tt / 0.55) else 0
++	-- ataque (garra de cima para baixo) e tranco do tiro
++	local ta = agora - z.ataqueEm
++	local garra, bote = 0, 0
++	if ta < 0.55 then
++		garra = if ta < 0.3 then suave(ta / 0.3) else 1 - suave((ta - 0.3) / 0.25)
++		bote = if ta < 0.3 then 0 else math.sin(math.pi * math.clamp((ta - 0.3) / 0.25, 0, 1))
++	end
++	local td = agora - z.dorEm
++	local tranco = if td < 0.22 then math.sin(math.pi * td / 0.22) else 0
++	-- olhar: a cabeça vira para quem ele encara (até 55 graus para cada lado)
++	local giroOlhar, subirOlhar = 0, 0
++	if alvo and alvo.Magnitude > 0.5 then
++		giroOlhar = math.clamp(math.atan2(-alvo.X, -alvo.Z), -rad(55), rad(55))
++		subirOlhar = math.clamp(math.atan2(alvo.Y - 1.5, Vector3.new(alvo.X, 0, alvo.Z).Magnitude), -rad(25), rad(30))
++	end
++	local espasmo = function(c: CFrame): CFrame
++		return c:Lerp(c * z.alvoEspasmo, z.espasmo)
++	end
++	local p: { [string]: CFrame } = {}
++	if dormindo then
++		-- ajoelhado, curvado sobre um corpo, comendo: a cabeça mergulha e puxa, os braços rasgam no chão
++		local mastiga = math.sin(agora * 5.5 + z.lado)
++		local puxa = math.max(0, math.sin(agora * 1.7 + z.fase))
++		local tronco = rad(48) + rad(6) * puxa
++		p.root = CFrame.new(0, -1.85, 0) * CFrame.Angles(-tronco, rad(5) * z.lado, rad(3) * z.lado)
++		p.pescoco = espasmo(CFrame.Angles(-rad(30) + rad(14) * puxa + rad(5) * mastiga, rad(8) * math.sin(agora * 0.6), rad(14) * z.lado))
++		local rasga = math.sin(agora * 3.3 + z.fase)
++		p.ombroD = CFrame.Angles(tronco + rad(46) + rad(14) * rasga, 0, rad(8) + rad(6) * puxa)
++		p.ombroE = CFrame.Angles(tronco + rad(42) - rad(12) * rasga, 0, -rad(10) - rad(6) * puxa)
++		p.quadrilD = CFrame.Angles(tronco - rad(90), 0, rad(4))
++		p.quadrilE = CFrame.Angles(tronco - rad(90), 0, -rad(4))
++		return p
++	end
++	-- tronco curvado que balança e torce com o passo mancado; correndo, deita para frente
++	local curva = z.curva + rad(16) * corrida + rad(10) * bote - rad(12) * tranco
++	local balanco = math.sin(f) * andando
++	local respira = math.sin(agora * 1.3 + z.lado) * (1 - andando)
++	local pulo = -0.18 * math.abs(math.sin(f)) * corrida
++	p.root = CFrame.new(0, pulo, 0) * CFrame.Angles(-curva + rad(3) * math.sin(2 * f) * andando,
++		rad(9) * balanco * z.lado, rad(7) * balanco + rad(4) * respira * z.lado + rad(16) * tropeco * z.lado)
++	-- cabeça caída de lado, levantada para olhar a presa, com espasmos
++	local olharCima = curva * 0.6 + subirOlhar * 0.7
++	p.pescoco = espasmo(CFrame.Angles(olharCima + rad(8) * tranco, giroOlhar * 0.8 + rad(6) * math.sin(agora * 0.7),
++		rad(20) * z.lado * (1 - 0.5 * corrida) + rad(5) * respira))
++	-- braços: soltos andando (um mole); correndo, se debatem; na garra sobem e descem
++	local pendura = curva * 0.9
++	local molhe = if z.mancaDireita then 1 else -1
++	local debateD = rad(55) * math.sin(f + math.pi) * corrida + rad(22) * corrida
++	local debateE = rad(48) * math.sin(f * 1.3 + 0.7) * corrida + rad(30) * corrida
++	local swD = rad(14) * math.sin(f + math.pi) * andando
++	p.ombroD = CFrame.Angles(pendura + swD + debateD + rad(115) * garra - rad(20) * tranco, 0,
++		rad(7) + rad(18) * garra + rad(22) * corrida * math.abs(math.sin(f * 0.5)))
++	local swE = rad(8) * math.sin(f + 0.6) * andando
++	p.ombroE = CFrame.Angles(pendura + swE + debateE + rad(95) * suave((ta - 0.08) / 0.3) * (if ta < 0.55 then 1 else 0) - rad(15) * tranco,
++		0, -rad(12) - rad(6) * molhe - rad(20) * corrida * math.abs(math.cos(f * 0.65)))
++	-- pernas: uma passa normal, a outra arrasta; correndo, passadas grandes e tortas
++	local amplo = rad(28) + rad(24) * corrida
++	local passoBom = amplo * math.sin(f) * andando
++	local passoRuim = (rad(12) + rad(22) * corrida) * math.sin(f + math.pi) * andando - rad(5) * andando * (1 - corrida)
++	passoRuim -= rad(14) * tropeco
++	local dir = if z.mancaDireita then passoRuim else passoBom
++	local esq = if z.mancaDireita then passoBom else passoRuim
++	p.quadrilD = CFrame.Angles(curva + dir, 0, rad(3))
++	p.quadrilE = CFrame.Angles(curva + esq, 0, -rad(3))
++	return p
++end
++
+ function InfectadosCliente.iniciar(op: Opcoes)
+ 	local api = {}
+ 	local vivo = true
+@@ -113,7 +205,7 @@
+ 		corpos[m :: Model] = nil
+ 	end))
+ 
+-	-- ===== pose de cada quadro =====
++	-- ===== pose de cada quadro (correção 16: ajoelhado comendo, corrida se debatendo, tropeço e olhar) =====
+ 	local function animar(z: any, dt: number, agora: number, cam: Vector3)
+ 		local m = z.modelo
+ 		if m:GetAttribute("BastiaoMorto") == true or not z.root then
+@@ -125,63 +217,15 @@
+ 		end
+ 		local v = z.raiz.AssemblyLinearVelocity
+ 		local vel = Vector3.new(v.X, 0, v.Z).Magnitude
+-		local andando = math.clamp(vel / 8, 0, 1)
+ 		local dormindo = m:GetAttribute("BastiaoEstado") == "dormindo"
+-		z.fase += dt * (vel * 0.85 * z.ritmo + (if andando < 0.1 then 0.9 else 0))
+-		local f = z.fase
+-		-- espasmos: a cabeça estala para um lado e volta (de vez em quando)
+-		if agora >= z.proxEspasmo then
+-			z.proxEspasmo = agora + z.rng:NextNumber(0.8, 3.2)
+-			z.alvoEspasmo = CFrame.Angles(z.rng:NextNumber(-0.25, 0.35), z.rng:NextNumber(-0.7, 0.7), z.rng:NextNumber(-0.55, 0.55))
+-			z.espasmoAte = agora + z.rng:NextNumber(0.08, 0.2)
+-		end
+-		local estala = if agora < z.espasmoAte then 1 else 0
+-		z.espasmo += (estala - z.espasmo) * math.min(1, dt * (if estala > 0 then 40 else 9))
+-		-- ataque (garra de cima para baixo) e tranco do tiro
+-		local ta = agora - z.ataqueEm
+-		local garra, bote = 0, 0
+-		if ta < 0.55 then
+-			garra = if ta < 0.3 then suave(ta / 0.3) else 1 - suave((ta - 0.3) / 0.25)
+-			bote = if ta < 0.3 then 0 else math.sin(math.pi * math.clamp((ta - 0.3) / 0.25, 0, 1))
+-		end
+-		local td = agora - z.dorEm
+-		local tranco = if td < 0.22 then math.sin(math.pi * td / 0.22) else 0
+-		-- tronco curvado que balança e torce com o passo mancado
+-		local curva = z.curva + (if dormindo then rad(14) else 0) + rad(10) * bote - rad(12) * tranco
+-		local balanco = math.sin(f) * andando
+-		local respira = math.sin(agora * 1.3 + z.lado) * (1 - andando)
+-		local root = CFrame.Angles(-curva + rad(3) * math.sin(2 * f) * andando, rad(9) * balanco * z.lado, rad(7) * balanco + rad(4) * respira * z.lado)
+-		z.root.Transform = naJunta(z.root, root)
+-		-- cabeça caída de lado, levantada para olhar a presa, com espasmos
+-		if z.pescoco then
+-			local olhar = if dormindo then -rad(22) else curva * 0.6
+-			local cab = CFrame.Angles(olhar + rad(8) * tranco, rad(6) * math.sin(agora * 0.7), rad(20) * z.lado + rad(5) * respira)
+-			z.pescoco.Transform = naJunta(z.pescoco, cab:Lerp(cab * z.alvoEspasmo, z.espasmo))
+-		end
+-		-- braços soltos (pendurados pelo corpo curvado), um deles mole; na garra sobem e descem
+-		local pendura = curva * 0.9
+-		local molhe = if z.mancaDireita then 1 else -1
+-		if z.ombroD then
+-			local sw = rad(14) * math.sin(f + math.pi) * andando
+-			local e = CFrame.Angles(pendura + sw + rad(115) * garra - rad(20) * tranco, 0, rad(7) + rad(18) * garra)
+-			z.ombroD.Transform = naJunta(z.ombroD, e)
+-		end
+-		if z.ombroE then
+-			local sw = rad(8) * math.sin(f + 0.6) * andando
+-			local e = CFrame.Angles(pendura + sw + rad(95) * suave((ta - 0.08) / 0.3) * (if ta < 0.55 then 1 else 0) - rad(15) * tranco,
+-				0, -rad(12) - rad(6) * molhe)
+-			z.ombroE.Transform = naJunta(z.ombroE, e)
+-		end
+-		-- pernas: uma passa normal, a outra arrasta (passo curto, atrás)
+-		local passoBom = rad(28) * math.sin(f) * andando
+-		local passoRuim = rad(12) * math.sin(f + math.pi) * andando - rad(5) * andando
+-		local dir = if z.mancaDireita then passoRuim else passoBom
+-		local esq = if z.mancaDireita then passoBom else passoRuim
+-		if z.quadrilD then
+-			z.quadrilD.Transform = naJunta(z.quadrilD, CFrame.Angles(curva + dir, 0, rad(3)))
+-		end
+-		if z.quadrilE then
+-			z.quadrilE.Transform = naJunta(z.quadrilE, CFrame.Angles(curva + esq, 0, -rad(3)))
++		local alvo = z.raiz.CFrame:PointToObjectSpace(cam)
++		local p = InfectadosCliente.pose(z, dt, agora, vel, dormindo, alvo)
++		z.root.Transform = naJunta(z.root, p.root)
++		for _, nome in { "pescoco", "ombroD", "ombroE", "quadrilD", "quadrilE" } do
++			local j = z[nome]
++			if j then
++				j.Transform = naJunta(j, p[nome])
++			end
+ 		end
+ 		-- gemidos de tempos em tempos
+ 		if agora >= z.proxGemido then
+--- a/src/server/Infectados.luau
++++ b/src/server/Infectados.luau
+@@ -22,10 +22,24 @@
+ Infectados.RECARGA_ATAQUE = 1.35
+ Infectados.VISAO_DORMINDO = 14
+ Infectados.VISAO_ACORDADO = 70
+--- uniforme da guarnição (catálogo, os mesmos itens soviéticos que o Pavel usava) e pele doente
+-local ROUPA = { camisa = 6865584651, calca = 6866147363 }
+-local CHAPEUS = { "46348897", "" } -- ushanka (Roblox) em metade deles
+-local MASCARA = "21069972" -- Dust Mask (Roblox) em alguns
++-- uniforme da guarnição (catálogo) e pele doente. Correção 16: mais medo — farda soviética ou
++-- roupa rasgada e ensanguentada, capacete SSh-68 ou máscara de gás inteira na cabeça e máscara
++-- de gás tóxica no rosto. Cada infectado sorteia a sua (semente fixa: todos veem igual).
++local CAMISAS = {
++	6865584651, -- farda soviética (Afghanka)
++	5473281165, -- "Scary Bloody Black Torn Up Shirt" (Vehemence Terminal)
++}
++local CALCAS = {
++	6866147363, -- calça da farda soviética
++	5473285145, -- "Scary Bloody Black Torn Up Pants" (Vehemence Terminal)
++}
++local CABECAS = {
++	{ chapeu = "8526476888", rosto = "" }, -- "Korpse Guardsman Standard Issue Gasmask" (Foxtrot Arms): máscara inteira
++	{ chapeu = "14041249070", rosto = "7170073375" }, -- SSh-68 verde + "Toxic Green Gasmask" (HunterIsDev)
++	{ chapeu = "14041249070", rosto = "" }, -- SSh-68 verde, rosto podre à mostra
++	{ chapeu = "46348897", rosto = "7170073375" }, -- ushanka (Roblox) + máscara de gás tóxica
++	{ chapeu = "", rosto = "21069972" }, -- Dust Mask (Roblox)
++}
+ local PELE = Color3.fromRGB(118, 124, 104)
+ local OLHOS = Color3.fromRGB(200, 255, 120)
+ 
+@@ -91,12 +105,12 @@
+ 
+ 	local function vestir(hum: Humanoid, semente: number)
+ 		local d = Instance.new("HumanoidDescription")
+-		d.Shirt = ROUPA.camisa
+-		d.Pants = ROUPA.calca
+ 		local r = Random.new(semente)
+-		local chapeu = CHAPEUS[r:NextInteger(1, #CHAPEUS)]
+-		d.HatAccessory = chapeu
+-		d.FaceAccessory = if r:NextNumber() < 0.35 then MASCARA else ""
++		d.Shirt = CAMISAS[r:NextInteger(1, #CAMISAS)]
++		d.Pants = CALCAS[r:NextInteger(1, #CALCAS)]
++		local cabeca = CABECAS[r:NextInteger(1, #CABECAS)]
++		d.HatAccessory = cabeca.chapeu
++		d.FaceAccessory = cabeca.rosto
+ 		d.HeadColor, d.LeftArmColor, d.RightArmColor = PELE, PELE, PELE
+ 		d.TorsoColor, d.LeftLegColor, d.RightLegColor = PELE, PELE, PELE
+ 		local ok, erro = pcall(function()
+--- a/src/server/Pavel.luau
++++ b/src/server/Pavel.luau
+@@ -28,9 +28,10 @@
+ local SWAT = {
+ 	camisa = 1455700999, -- "[Black Camo] SWAT" (Whatever you like)
+ 	calca = 1455701482, -- "[Black Camo] SWAT Pants" (Whatever you like)
+-	capacete = 6602077191, -- "Custom Tactical FAST Helmet" (JohnDrinkin)
+-	fone = 6602071898, -- "Tactical Helmet Headset" (JohnDrinkin)
+-	oculos = 5164438849, -- "Helmet Goggles" (JohnDrinkin)
++	-- correção 16: capacete de soldado de verdade (SSh-68) e máscara de gás cobrindo o rosto
++	capacete = 14041464143, -- "Black SSh-68 Helmet" (Foxtrot Arms) — jogadores
++	capacetePavel = 14041249070, -- "Olive SSh-68 Helmet" (Foxtrot Arms) — o Pavel (verde, para achar ele)
++	mascara = 7135056846, -- "Tactical GasMask" (HunterIsDev), acessório de rosto
+ 	balaclava = 6238724671, -- "Tactical Stealth Balaclava" (JohnDrinkin)
+ 	colete = 7246494294, -- "Modular Plate Carrier (Black)" (Ardwyck)
+ }
+@@ -38,11 +39,12 @@
+ local ROUPA = {
+ 	camisa = SWAT.camisa,
+ 	calca = SWAT.calca,
+-	chapeu = SWAT.capacete .. "," .. SWAT.fone .. "," .. SWAT.oculos, -- o Pavel fica de rosto à mostra
++	chapeu = SWAT.capacetePavel .. "," .. SWAT.balaclava, -- rosto coberto como os outros, capacete verde
++	rosto = tostring(SWAT.mascara),
+ }
+ Pavel.GRUPO = "BastiaoNPC"
+ 
+--- Veste um jogador de SWAT: primeiro a roupa, depois capacete, fone, óculos, balaclava e colete
++-- Veste um jogador de SWAT: primeiro a roupa, depois capacete SSh-68, balaclava, máscara de gás e colete
+ -- (se algum item do catálogo falhar, a roupa fica). Mantém a cor da pele e o rosto do jogador.
+ function Pavel.vestirSwat(hum: Humanoid, comMascara: boolean, log: ((string) -> ())?)
+ 	local okBase, atual = pcall(function()
+@@ -62,9 +64,10 @@
+ 		end
+ 		d.HatAccessory = ""
+ 		if completo then
+-			local chapeu = SWAT.capacete .. "," .. SWAT.fone
++			local chapeu = tostring(SWAT.capacete)
+ 			if comMascara then
+-				chapeu ..= "," .. SWAT.balaclava .. "," .. SWAT.oculos
++				chapeu ..= "," .. SWAT.balaclava
++				d.FaceAccessory = tostring(SWAT.mascara)
+ 			end
+ 			d.HatAccessory = chapeu
+ 			d.FrontAccessory = tostring(SWAT.colete)
+@@ -220,6 +223,7 @@
+ 			d.Pants = ROUPA.calca
+ 			if comChapeu then
+ 				d.HatAccessory = ROUPA.chapeu
++				d.FaceAccessory = ROUPA.rosto
+ 				d.FrontAccessory = tostring(SWAT.colete)
+ 			end
+ 			d.HeadColor, d.LeftArmColor, d.RightArmColor = CORES.pele, CORES.pele, CORES.pele
+--- a/src/server/Cenario03.luau
++++ b/src/server/Cenario03.luau
+@@ -411,6 +411,14 @@
+ 		for _, f in fusiveisPainel do
+ 			f.Transparency = if colocados then 0 else 1
+ 		end
++		-- maleta (correção 16): fusíveis que o grupo carrega (somem da maleta quando vão para o painel)
++		local n = 0
++		for _, v in pegos do
++			if v then
++				n += 1
++			end
++		end
++		workspace:SetAttribute("BastiaoItemFusiveis", if colocados then 0 else n)
+ 	end
+ 	E("subestacao", { "desligada", "ligada" }, function(estado, instantaneo)
+ 		local ligada = estado == "ligada"
+--- a/src/server/Cenario04.luau
++++ b/src/server/Cenario04.luau
+@@ -426,13 +426,20 @@
+ 			inf.acordarTodos()
+ 		end
+ 	end)
++	local portaAberta = false
+ 	E("cartao3", { "escondido", "visivel", "pego" }, function(estado, _instantaneo)
+ 		local some = estado == "pego"
+ 		cartao.Transparency = if some then 1 else 0
+ 		listra.Transparency = if some then 1 else 0
++		-- maleta (correção 16): o cartão fica com o grupo até abrir o arsenal
++		workspace:SetAttribute("BastiaoItemCartao", some and not portaAberta)
+ 	end)
+ 	E("porta_arsenal", { "fechada", "aberta" }, function(estado, instantaneo)
+ 		local aberta = estado == "aberta"
++		portaAberta = aberta
++		if aberta then
++			workspace:SetAttribute("BastiaoItemCartao", false)
++		end
+ 		luzLeitor.Color = if aberta then Color3.fromRGB(40, 210, 80) else Color3.fromRGB(190, 30, 24)
+ 		local alvo = CFrame.new(0, PISO + (if aberta then 12.2 else 4), -224.3)
+ 		portaArsenal.CanCollide = not aberta
+--- a/tooling/release_builder.py
++++ b/tooling/release_builder.py
+@@ -55,6 +55,7 @@
+     (["ServerScriptService", "BastiaoServidor", "Cenario04"], "src/server/Cenario04.luau"),
+     (["ServerScriptService", "BastiaoServidor", "Infectados"], "src/server/Infectados.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "InfectadosCliente"], "src/client/InfectadosCliente.luau"),
++    (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Maleta"], "src/client/Maleta.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Arma"], "src/client/Arma.luau"),
+ )
+ # Fontes Bastiao* que já estiveram no Place: as versões do Claude (etapa 2, correções 3 a 8) e o
+--- a/tests/client_arma_maleta_test.luau
++++ b/tests/client_arma_maleta_test.luau
+@@ -0,0 +1,217 @@
++-- Correção 16 no harness (sem motor): HUD da arma, mira sem margens, sacar/guardar, braços R6 com a
++-- camisa do jogador e a maleta (inventário estilo RE4) com os itens do grupo.
++local Harness = require("./client_harness")
++local roblox = require("@lune/roblox")
++local h = Harness.new()
++local passed, failed = 0, 0
++local function test(name, fn)
++	local ok, message = pcall(fn)
++	if ok then
++		passed += 1
++		print("PASS", name)
++	else
++		failed += 1
++		print("FAIL", name, tostring(message))
++	end
++end
++
++-- o que o harness básico não tem e estes módulos usam
++local novoOriginal = h.new
++function h:new(class, name, parent)
++	local n = novoOriginal(self, class, name, parent)
++	n._p.InputBegan = self:signal()
++	n._p.InputEnded = self:signal()
++	return n
++end
++local passosRender = {}
++h.services.RunService.RenderStepped = h:signal()
++h.services.RunService.BindToRenderStep = function(_, nome, _, fn) passosRender[nome] = fn end
++h.services.RunService.UnbindFromRenderStep = function(_, nome) passosRender[nome] = nil end
++local entradaComeca, entradaTermina = h:signal(), h:signal()
++h.services.UserInputService.InputBegan = entradaComeca
++h.services.UserInputService.InputEnded = entradaTermina
++h.services.UserInputService.GetFocusedTextBox = function() return nil end
++h.services.GuiService.MenuIsOpen = false
++h.environment.CFrame = roblox.CFrame
++h.environment.ColorSequence = roblox.ColorSequence
++h.environment.ColorSequenceKeypoint = roblox.ColorSequenceKeypoint
++h.environment.NumberSequence = roblox.NumberSequence
++h.environment.NumberSequenceKeypoint = roblox.NumberSequenceKeypoint
++h.environment.math = math
++h.workspace.CurrentCamera = h:new("Camera", "Camera", h.workspace)
++h.workspace.CurrentCamera.CFrame = roblox.CFrame.new(0, 5, 0)
++h.workspace.CurrentCamera.CameraType = roblox.Enum.CameraType.Custom
++function h.workspace:BulkMoveTo(partes, cfs)
++	for i, p in partes do p.CFrame = cfs[i] end
++end
++local function renderizar(dt)
++	h:tick(dt)
++	h.services.RunService.RenderStepped:Fire(dt)
++	for _, fn in table.clone(passosRender) do fn(dt) end
++end
++
++local compartilhado = h:new("Folder", "Compartilhado")
++local equipar = h:new("RemoteEvent", "BastiaoArmaEquipar", compartilhado)
++local pedidos = {}
++function equipar:FireServer(v) table.insert(pedidos, v) end
++local personagem, _, humano = h:character("Jogador")
++h.player.Character = personagem
++local bracoD = h:new("Part", "Right Arm", personagem)
++bracoD.Color = roblox.Color3.fromRGB(200, 160, 120)
++local camisa = h:new("Shirt", "Shirt", personagem)
++camisa.ShirtTemplate = "rbxassetid://1455700999"
++humano.WalkSpeed = 10
++
++local ArmaModelo = h:load("src/shared/ArmaModelo.luau")
++local ArmaCliente = h:load("src/client/Arma.luau")
++local MaletaCliente = h:load("src/client/Maleta.luau")
++local sons = {}
++local function efeito(chave)
++	table.insert(sons, chave)
++	local s = h:new("Sound", "Bastiao_" .. chave)
++	return s
++end
++
++h.player:SetAttribute("BastiaoPente", 30)
++h.player:SetAttribute("BastiaoReserva", 90)
++h.player:SetAttribute("BastiaoArmaNaMao", true)
++local arma = ArmaCliente.iniciar({ jogador = h.player, playerGui = h.playerGui, compartilhado = compartilhado,
++	modelo = ArmaModelo, som = { efeito = function(chave) return efeito(chave) end } })
++local maleta = MaletaCliente.iniciar({ jogador = h.player, playerGui = h.playerGui, compartilhado = compartilhado,
++	modelo = ArmaModelo, icones = ArmaCliente.ICONES, idioma = function() return "pt" end,
++	som = efeito, empunhar = function(v) arma.empunhar(v) end })
++arma.definirMaleta(maleta.alternar)
++
++local hud = h.playerGui:FindFirstChild("BastiaoArmaHUD")
++local telaMira = h.playerGui:FindFirstChild("BastiaoMira")
++local function vm() return h.workspace.CurrentCamera:FindFirstChild("BastiaoAK74_PrimeiraPessoa") end
++
++test("sem fuzil não há HUD nem braços", function()
++	assert(hud and hud.Enabled == false and vm() == nil)
++	assert(hud.DisplayOrder < 12, "o HUD da arma fica abaixo das legendas (BastiaoHUD 12)")
++end)
++
++test("a mira mora numa tela sem margens (centro da câmera de verdade)", function()
++	assert(telaMira and telaMira.ScreenInsets == roblox.Enum.ScreenInsets.None and telaMira.IgnoreGuiInset == true)
++	local mira = telaMira:FindFirstChild("Mira")
++	assert(mira and mira.Position == roblox.UDim2.fromScale(0.5, 0.5) and mira.AnchorPoint == roblox.Vector2.new(0.5, 0.5))
++end)
++
++test("ao receber o fuzil: braços R6 com a camisa do jogador, sobe de baixo e a mira acende", function()
++	h.player:SetAttribute("BastiaoArma", true)
++	assert(hud.Enabled == true)
++	local m = vm()
++	assert(m, "braços e fuzil na câmera")
++	for _, nome in { "Right Arm", "Left Arm", "DirLuva", "EsqLuva", "Corpo" } do
++		assert(m:FindFirstChild(nome), "falta " .. nome)
++	end
++	local braco = m:FindFirstChild("Right Arm")
++	assert(math.abs(braco.Size.Y / braco.Size.X - 2) < 1e-6, "braço do boneco R6 (1 x 2 x 1)")
++	assert(braco.Color == bracoD.Color, "cor do braço do personagem")
++	local c = m:FindFirstChildOfClass("Shirt")
++	assert(c and c.ShirtTemplate == camisa.ShirtTemplate, "camisa do jogador nos braços")
++	assert(m:FindFirstChildOfClass("Humanoid"), "o Shirt só aparece com Humanoid")
++	assert(table.find(sons, "ak_ferrolho"), "som de sacar")
++	renderizar(1 / 60)
++	assert(telaMira.Enabled == false, "sem mira enquanto a arma ainda sobe")
++	for _ = 1, 30 do renderizar(1 / 60) end
++	assert(telaMira.Enabled == true, "mira acesa com a arma pronta")
++end)
++
++test("HUD limpo: munição, barrinha do pente e modo", function()
++	local painel = hud:FindFirstChild("Municao")
++	assert(painel and painel.Visible == true)
++	assert(painel:FindFirstChild("Pente").Text == "30" and painel:FindFirstChild("Reserva").Text == "/ 90")
++	assert(painel:FindFirstChild("Fuzil").Image == ArmaCliente.ICONES.fuzil, "ícone da loja")
++	h.player:SetAttribute("BastiaoPente", 4)
++	assert(painel:FindFirstChild("Aviso").Text == "[R] RECARREGAR")
++	local cheio = painel:FindFirstChild("Barra"):FindFirstChild("Cheio")
++	assert(math.abs(cheio.Size.X.Scale - 4 / 30) < 1e-6)
++	h.player:SetAttribute("BastiaoPente", 30)
++	assert(painel:FindFirstChild("Aviso").Text == "")
++end)
++
++test("tecla 2 pede para guardar; o servidor confirma e a arma desce e some", function()
++	entradaComeca:Fire({ KeyCode = roblox.Enum.KeyCode.Two, UserInputType = roblox.Enum.UserInputType.Keyboard }, false)
++	assert(pedidos[#pedidos] == false, "pediu mãos vazias")
++	h.player:SetAttribute("BastiaoArmaNaMao", false)
++	assert(hud:FindFirstChild("Municao").Visible == false, "sem munição na tela com as mãos vazias")
++	renderizar(1 / 60)
++	assert(telaMira.Enabled == false, "sem mira guardando")
++	for _ = 1, 30 do renderizar(1 / 60) end
++	assert(vm() == nil, "braços e fuzil saem da câmera")
++	assert(telaMira.Enabled == false)
++	local maos = hud:FindFirstChild("Troca"):FindFirstChild("Maos")
++	assert(maos.BackgroundTransparency < 0.3, "a troca rápida mostra as mãos vazias acesas")
++end)
++
++test("tecla 1 saca de novo (e a troca rápida respeita o intervalo)", function()
++	renderizar(0.5)
++	entradaComeca:Fire({ KeyCode = roblox.Enum.KeyCode.One, UserInputType = roblox.Enum.UserInputType.Keyboard }, false)
++	assert(pedidos[#pedidos] == true)
++	h.player:SetAttribute("BastiaoArmaNaMao", true)
++	assert(vm() ~= nil)
++	for _ = 1, 30 do renderizar(1 / 60) end
++	assert(telaMira.Enabled == true)
++end)
++
++test("maleta: abre pelo botão da troca rápida, mostra o fuzil e a munição", function()
++	hud:FindFirstChild("Troca"):FindFirstChild("Maleta").Activated:Fire()
++	local gui = h.playerGui:FindFirstChild("BastiaoMaleta")
++	assert(gui and gui.Enabled == true and maleta.aberta() == true)
++	assert(h.player:GetAttribute("BastiaoMaletaAberta") == true)
++	renderizar(1 / 60)
++	assert(telaMira.Enabled == false, "sem mira com a maleta aberta")
++	local grade = gui:FindFirstChild("Grade", true)
++	assert(grade:FindFirstChild("fuzil") and grade:FindFirstChild("municao"))
++	assert(grade:FindFirstChild("municao"):FindFirstChild("Conta").Text == "x90")
++	assert(gui:FindFirstChild("Nome", true).Text == "AK-74")
++	local acao = gui:FindFirstChild("Acao", true)
++	assert(acao.Visible == true and acao.Text == "GUARDAR")
++	assert(gui:FindFirstChild("Fechar", true).Modal == true, "mouse solto no primeira pessoa")
++end)
++
++test("maleta: itens-chave do grupo aparecem e somem com o mundo", function()
++	h.workspace:SetAttribute("BastiaoItemFusiveis", 2)
++	local grade = h.playerGui:FindFirstChild("BastiaoMaleta"):FindFirstChild("Grade", true)
++	assert(grade:FindFirstChild("fusivel1") and grade:FindFirstChild("fusivel2") and not grade:FindFirstChild("fusivel3"))
++	h.workspace:SetAttribute("BastiaoItemCartao", true)
++	assert(grade:FindFirstChild("cartao"))
++	grade:FindFirstChild("cartao").Activated:Fire()
++	assert(h.playerGui:FindFirstChild("BastiaoMaleta"):FindFirstChild("Nome", true).Text == "CARTÃO DO ARSENAL")
++	h.workspace:SetAttribute("BastiaoItemFusiveis", 0)
++	h.workspace:SetAttribute("BastiaoItemCartao", false)
++	assert(not grade:FindFirstChild("fusivel1") and not grade:FindFirstChild("cartao"))
++end)
++
++test("maleta: GUARDAR no painel guarda o fuzil; o X fecha", function()
++	local gui = h.playerGui:FindFirstChild("BastiaoMaleta")
++	gui:FindFirstChild("fuzil", true).Activated:Fire()
++	renderizar(0.5)
++	local n = #pedidos
++	gui:FindFirstChild("Acao", true).Activated:Fire()
++	assert(#pedidos == n + 1 and pedidos[#pedidos] == false)
++	gui:FindFirstChild("ToqueFechar", true).Activated:Fire()
++	assert(gui.Enabled == false and h.player:GetAttribute("BastiaoMaletaAberta") == false)
++end)
++
++test("I e TAB abrem e fecham; ESC fecha", function()
++	entradaComeca:Fire({ KeyCode = roblox.Enum.KeyCode.I, UserInputType = roblox.Enum.UserInputType.Keyboard }, false)
++	assert(maleta.aberta() == true)
++	entradaComeca:Fire({ KeyCode = roblox.Enum.KeyCode.I, UserInputType = roblox.Enum.UserInputType.Keyboard }, false)
++	assert(maleta.aberta() == false)
++	entradaComeca:Fire({ KeyCode = roblox.Enum.KeyCode.Tab, UserInputType = roblox.Enum.UserInputType.Keyboard }, false)
++	assert(maleta.aberta() == true, "TAB vale quando a lista de jogadores está desligada")
++	entradaComeca:Fire({ KeyCode = roblox.Enum.KeyCode.Escape, UserInputType = roblox.Enum.UserInputType.Keyboard }, false)
++	assert(maleta.aberta() == false)
++end)
++
++test("destroy limpa telas e braços", function()
++	arma.destroy()
++	maleta.destroy()
++	assert(h.playerGui:FindFirstChild("BastiaoArmaHUD") == nil and h.playerGui:FindFirstChild("BastiaoMira") == nil)
++	assert(h.playerGui:FindFirstChild("BastiaoMaleta") == nil and vm() == nil)
++end)
++
++print(string.format("Arma + maleta (cliente): %d passed, %d failed", passed, failed))
++assert(failed == 0, "client weapon/inventory regressions failed")
+--- a/tests/server_creature_core_test.luau
++++ b/tests/server_creature_core_test.luau
+@@ -46,7 +46,7 @@
+ test("sprinting flag alone cannot create a noise source",function()
+     assert(call("canHear",actor({sprinting=true}))==false)
+     assert(call("canHear",actor({sprinting=true,speed=22,measuredSpeed=21}))==true)
+-    for _,change in {{distance=40},{grounded=false},{hearingClear=false},{safe=true},{measuredSpeed=130}} do
++    for _,change in {{distance=50},{grounded=false},{hearingClear=false},{safe=true},{measuredSpeed=130}} do
+         local c=actor({sprinting=true,speed=22,measuredSpeed=21})
+         for k,v in change do c[k]=v end
+         assert(call("canHear",c)==false)
+@@ -167,5 +167,55 @@
+         if change.speed or change.measuredSpeed or change.distance then assert(call("canHear",c)==false) end
+     end
+ end)
++-- correção 16: passos andando quase não fazem barulho; correndo, muito; devagar, nada
++test("walking footsteps are heard only up close, running from far, slow walking never",function()
++    assert(call("canHear",actor({speed=10,measuredSpeed=9.6,distance=10}))==true)
++    assert(call("canHear",actor({speed=10,measuredSpeed=9.6,distance=14}))==false)
++    assert(call("canHear",actor({speed=4,measuredSpeed=4,distance=3}))==false)
++    assert(call("canHear",actor({sprinting=true,speed=18,measuredSpeed=17.5,distance=44}))==true)
++    assert(call("canHear",actor({sprinting=true,speed=18,measuredSpeed=17.5,distance=46}))==false)
++end)
++test("every escape makes the creature sharper, up to level three",function()
++    local mem=call("novaMemoria")
++    local s0=call("sentidos",mem.nivel)
++    assert(call("fugiu",mem)==1 and call("fugiu",mem)==2 and call("fugiu",mem)==3 and call("fugiu",mem)==3)
++    local s3=call("sentidos",mem.nivel)
++    assert(s3.cone<s0.cone and s3.ouvido>s0.ouvido and s3.memoria>s0.memoria)
++    -- um jogador de lado (dot 0.4) só é visto depois que o 731-A aprendeu
++    assert(call("canSee",actor({dot=0.4}),s0)==false and call("canSee",actor({dot=0.4}),s3)==true)
++    -- e o ouvido cresce junto
++    local walker=actor({speed=10,measuredSpeed=10,distance=13})
++    assert(call("canHear",walker,s0)==false and call("canHear",walker,s3)==true)
++end)
++test("hot spots: remembered hiding places are revisited, then cool down",function()
++    local mem=call("novaMemoria")
++    call("lembrar",mem,{x=58,y=3,z=-330},3,10)
++    call("lembrar",mem,{x=0,y=3,z=-440},0.5,10)
++    local q=call("pontoQuente",mem,12,{x=0,y=3,z=-260})
++    assert(q and math.abs(q.x-58)<1 and math.abs(q.z+330)<1,"o lugar mais quente é o esconderijo")
++    -- perto demais do próprio monstro não conta; fora do raio pedido também não
++    assert(call("pontoQuente",mem,12,{x=57,y=3,z=-331})==nil)
++    assert(call("pontoQuente",mem,12,{x=0,y=3,z=-260},20)==nil)
++    call("visitar",mem,{x=58,y=3,z=-330},13)
++    assert(call("pontoQuente",mem,14,{x=0,y=3,z=-260})==nil,"recém revistado e esfriado")
++    -- o calor some com o tempo (meia-vida)
++    call("lembrar",mem,{x=-58,y=3,z=-400},2,0)
++    assert(call("pontoQuente",mem,2000,{x=0,y=3,z=-260})==nil)
++    -- dados ruins não entram
++    call("lembrar",mem,{x=0/0,y=0,z=0},5,0)
++    call("lembrar",mem,{x=1,y=0,z=1},-5,0)
++end)
++test("learned memory keeps the search going longer",function()
++    local sn=call("sentidos",3)
++    local s=call("new",0)
++    s=step(s,1,{actor()},{sentidos=sn})
++    s=step(s,4,{actor()},{sentidos=sn})
++    s=step(s,5,{actor({los=false,dot=-1})},{sentidos=sn})
++    assert(s.mode=="search")
++    s=step(s,4+9+2,{},{sentidos=call("sentidos",3)})
++    assert(s.mode=="search","nível 3: memória de 18 s")
++    s=step(s,4+18+1,{},{sentidos=call("sentidos",3)})
++    assert(s.mode=="roam")
++end)
+ print(string.format("Creature core: %d passed, %d failed",passed,failed))
+ assert(failed==0,"creature decision regressions failed")
+--- a/tests/server_arma_test.luau
++++ b/tests/server_arma_test.luau
+@@ -92,7 +92,9 @@
+ end }
+ local acertos = {}
+ local raiz = { Position = V3.new(0, 4.5, -20) }
+-local criatura = { corpo = function() return raiz, 9 end, atingir = function(info) table.insert(acertos, info); return "doeu" end }
++local ouvidos = {}
++local criatura = { corpo = function() return raiz, 9 end, atingir = function(info) table.insert(acertos, info); return "doeu" end,
++	ouvir = function(pos, raio) table.insert(ouvidos, { pos = pos, raio = raio }) end }
+ local api = Arma.iniciar({ compartilhado = compartilhado, modelo = Modelo, criatura = criatura, agora = function() return agora end, log = function() end })
+ assert(compartilhado:FindFirstChild("BastiaoArmaTiro") and compartilhado:FindFirstChild("BastiaoArmaRecarga") and compartilhado:FindFirstChild("BastiaoArmaEfeito"), "remotos não criados")
+ assert(api.atirar(jogador, V3.new(0, 5, 0), V3.new(0, 0, -1)) == "sem_arma", "atirou sem arma")
+@@ -147,5 +149,20 @@
+ local antes = #efeitos
+ compartilhado:FindFirstChild("BastiaoArmaTiro").OnServerEvent:Fire(jogador, V3.new(0, 5, 0), V3.new(0, 0, -1))
+ assert(#efeitos == antes + 1, "remoto de tiro não chamou o servidor")
++-- correção 16: o estampido chama o 731-A de longe
++assert(#ouvidos > 0 and ouvidos[#ouvidos].raio == Arma.OUVIR_TIRO, "o tiro não chamou o monstro")
++-- correção 16: mãos vazias (fuzil nas costas) não atiram nem recarregam; sacar de novo volta a atirar
++assert(jogador:GetAttribute("BastiaoArmaNaMao") == true, "quem recebe o fuzil começa com ele na mão")
++assert(api.empunhar(jogador, "sim") == "invalido" and api.empunhar(jogador, true) == "igual")
++assert(api.empunhar(jogador, false) == "guardada" and jogador:GetAttribute("BastiaoArmaNaMao") == false)
++rodar(agora + 0.2)
++assert(api.atirar(jogador, V3.new(0, 5, 0), V3.new(0, 0, -1)) == "guardada", "atirou com a arma guardada")
++assert(api.recarregar(jogador) == "guardada", "recarregou com a arma guardada")
++assert(api.empunhar(jogador, true) == "rapido_demais", "troca sem intervalo")
++rodar(agora + 0.4)
++compartilhado:FindFirstChild("BastiaoArmaEquipar").OnServerEvent:Fire(jogador, true)
++assert(jogador:GetAttribute("BastiaoArmaNaMao") == true, "o remoto de sacar não chamou o servidor")
++rodar(agora + 0.2)
++assert(api.atirar(jogador, V3.new(0, 5, 0), V3.new(0, 0, -1)) ~= "guardada", "não atirou depois de sacar")
+ api.destroy()
+-print("PASS Arma servidor: cápsula, parede no caminho, cadência, munição, recarga, tiro falso recusado, morto não atira e efeito para todos")
++print("PASS Arma servidor: cápsula, parede no caminho, cadência, munição, recarga, tiro falso recusado, morto não atira, efeito para todos, arma guardada e tiro que chama o monstro")
+--- a/tests/server_pavel_test.luau
++++ b/tests/server_pavel_test.luau
+@@ -75,7 +75,7 @@
+ metodo(base, "Clone", function() return rig end)
+ local descricoes = {}
+ metodo(hum, "ApplyDescription", function(_, d)
+-	table.insert(descricoes, { shirt = d.Shirt, pants = d.Pants, hat = d.HatAccessory })
++	table.insert(descricoes, { shirt = d.Shirt, pants = d.Pants, hat = d.HatAccessory, face = d.FaceAccessory })
+ 	-- o ApplyDescription troca o rosto: o Pavel tem que devolver o do jogo
+ 	local f = cabeca:FindFirstChildOfClass("Decal")
+ 	if f then f:Destroy() end
+@@ -110,7 +110,7 @@
+ assert(p.rig == rig and rig.Parent == h.story, "Pavel não foi criado")
+ assert(#descricoes == 2, "uniforme: esperava roupa e depois chapéu, veio " .. #descricoes)
+ assert(descricoes[1].shirt == 1455700999 and descricoes[1].pants == 1455701482 and (descricoes[1].hat or "") == "", "roupa errada")
+-assert(descricoes[2].hat == "6602077191,6602071898,5164438849", "capacete errado")
++assert(descricoes[2].hat == "14041249070,6238724671" and descricoes[2].face == "7135056846", "capacete SSh-68 e máscara de gás errados")
+ local rosto = cabeca:FindFirstChildOfClass("Decal")
+ assert(rosto and rosto.Texture == "rbxasset://textures/face.png", "o Pavel perdeu o rosto ao vestir")
+ local function contou(id)
+--- a/tests/release_fixture.py
++++ b/tests/release_fixture.py
+@@ -39,7 +39,7 @@
+     for area, names in {
+         "server": ["BastiaoServidor", "Interacoes", "Sequencias", "CriaturaCore", "Criatura", "Pavel",
+                    "Arma", "Capitulo02", "Cenario02", "Cenario03", "Capitulo03", "Cenario04", "Infectados"],
+-        "client": ["BastiaoCliente", "Interface", "Som", "Foley", "Efeitos", "MonstroSom", "Arma", "InfectadosCliente"],
++        "client": ["BastiaoCliente", "Interface", "Som", "Foley", "Efeitos", "MonstroSom", "Arma", "InfectadosCliente", "Maleta"],
+         "shared": ["Textos", "ArmaModelo"],
+     }.items():
+         for name in names:
+--- a/tests/test_release_builder.py
++++ b/tests/test_release_builder.py
+@@ -50,7 +50,7 @@
+                      ("ServerScriptService", "BastiaoServidor", "Capitulo02"), ("ServerScriptService", "BastiaoServidor", "Cenario02"), ("ServerScriptService", "BastiaoServidor", "Cenario03"), ("ServerScriptService", "BastiaoServidor", "Capitulo03"), ("ServerScriptService", "BastiaoServidor", "Cenario04"), ("ServerScriptService", "BastiaoServidor", "Infectados"),
+                      ("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Arma")):
+             self.assertIn(novo, got)
+-        self.assertEqual(len(rows), 42)
++        self.assertEqual(len(rows), 43)
+         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Foley"), got)
+         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"), got)
+         som = got[("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "MonstroSom")]

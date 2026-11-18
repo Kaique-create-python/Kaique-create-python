@@ -185,3 +185,39 @@ aplicada). Patch em `bastiao/docs/CORRECAO11_MENU3D_CAPITULO2_ARMA.patch` (base:
   - `ColorCorrection` do blackout quando a câmera está abaixo de y -80.
 - Sons do ElevenLabs: `infectado_idle_1/2`, `infectado_grito_1/2`, `infectado_ataque_1/2`, `infectado_dor`, `infectado_morte` e `blackout`.
 - Próximo: capítulo 3, parte 2 (o que o arsenal guarda).
+
+## Correção 16: HUD limpo, mira no centro, braços R6, maleta (RE4), soldados e 731-A que aprende
+`bastiao/dist/CORRIGIR_ETAPA3_16.py` vai em cima da 15. Patch: `bastiao/docs/CORRECAO16_HUD_MALETA_BRACOS_IA.patch`.
+Prévias: `PREVIA_HUD_PC.png`, `PREVIA_HUD_CELULAR.png`, `PREVIA_MALETA_RE4.png`, `PREVIA_BRACOS_R6.png` (também no Figma).
+- `Interface`: o `UIStroke` das letras segue o `TextTransparency` (`seguirTexto`); sem isso ficava o contorno preto
+  "fantasma" das letras apagadas. As legendas sobem para `DisplayOrder` 12.
+- `Arma` (cliente):
+  - Mira numa `ScreenGui` própria (`BastiaoMira`) com `ScreenInsets.None`: o centro dela é o centro da câmera.
+  - HUD (`BastiaoArmaHUD`, `DisplayOrder` 11, abaixo das falas) com ícones da Creator Store (`Arma.ICONES`).
+  - `ocupados()` reserva a área da fala (`Legendas`) e do objetivo (`Topo`).
+  - Primeira pessoa: `ArmaModelo.primeiraPessoa` monta braços R6 (`Right Arm`/`Left Arm`, 1x2x1 x 0,45) com luvas e o fuzil 2,4x.
+    - O cliente põe `Humanoid` + `Shirt` do jogador nos braços.
+    - Pose: `POSE` (0.35, -0.75, -1.45) e `POSE_ANG` (6, 34, 0).
+  - Sacar/guardar animado (`troca`). Teclas 1/2, `ButtonY` e a troca rápida (fuzil | mãos | maleta).
+- `Arma` (servidor): `api.empunhar(j, bool)` e o remoto `BastiaoArmaEquipar`.
+  - Atributo `BastiaoArmaNaMao`. Guardado: o fuzil vai para as costas (solda no `Torso`) e `atirar`/`recarregar` devolvem `guardada`.
+  - Na mão do boneco o fuzil tem escala 1,6 (`Arma.ESCALA_MAO`).
+  - Cada tiro chama `criatura.ouvir(origem, 150)`.
+- `Maleta` (cliente, novo): grade 10x6 estilo RE4.
+  - Itens desenhados com `ViewportFrame`: AK, fusível e cartão. A munição usa o ícone da bala.
+  - Itens-chave do grupo vêm dos atributos do workspace `BastiaoItemFusiveis` (Cenario03) e `BastiaoItemCartao` (Cenario04).
+  - I (ou TAB, se a lista de jogadores estiver desligada) e ↓ abrem. O botão X é `Modal` (solta o mouse). Atributo local `BastiaoMaletaAberta` trava o tiro e esconde a mira.
+- `CriaturaCore`/`Criatura`: o 731-A aprende.
+  - Ouvido: correndo até 45 studs, andando até 12, devagar nada. Tiro até 150.
+  - Memória de "calor" em células de 12 studs (`lembrar`/`pontoQuente`/`visitar`, meia-vida de 240 s): onde viu, perdeu, achou ou ouviu gente.
+  - Na ronda e na busca ele volta para revistar esses lugares.
+  - `fugiu` sobe o nível (0..3) a cada fuga: cone de visão maior, ouvido +15% por nível e memória +3 s por nível. Atributo `BastiaoAprendizado`.
+- Roupas:
+  - Jogadores: SSh-68 preto (14041464143), balaclava e Tactical GasMask (7135056846) no rosto, colete.
+  - Pavel: SSh-68 verde (14041249070).
+  - Infectados sorteiam:
+    - camisa e calça: farda soviética ou roupa rasgada com sangue (5473281165/5473285145);
+    - cabeça: Korpse Gasmask (8526476888), SSh-68 verde com Toxic Green Gasmask (7170073375), ushanka, ou Dust Mask.
+- `InfectadosCliente.pose` (pura, testável): dormindo ficam ajoelhados comendo; correndo se debatem; tropeçam; a cabeça vira para a câmera.
+- Testes novos: `tests/client_arma_maleta_test.luau` (11 casos no harness) e casos novos em `server_creature_core_test` e `server_arma_test`.
+- Próximo: capítulo 3, parte 2 (o que o arsenal guarda); vitrine no instalador; sons da arma que faltam.
