@@ -111,3 +111,22 @@ sem boiar. Se ela não estiver no Place, aplique o patch à mão. Depois faça:
 - 6 sons novos do ElevenLabs: jumpscare, impacto na porta, lanterna liga/desliga, menu abre, legenda quebra.
 Se editar esses scripts no Studio, o `testar-nuvem` do celular volta a parar com "fonte desconhecida"
 (de propósito). Peça ao dono para mandar o ZIP de revisão ao Claude antes.
+
+## Correção 11: menu 3D de verdade + capítulo 2 (parte 1) com o AK-74
+`bastiao/dist/CORRIGIR_ETAPA3_11.py` vai EM CIMA da `CORRIGIR_ETAPA3_10_CODEX.py` (recusa se ela não estiver
+aplicada). Patch em `bastiao/docs/CORRECAO11_MENU3D_CAPITULO2_ARMA.patch` (base: pacote depois da 10 do Codex).
+- **Menu 3D** (`BastiaoCliente/Efeitos`): cópia só visual do `CameraMenu` num SurfaceGui (AlwaysOnTop) sobre uma
+  placa fina na frente da câmera, alinhada pelos cantos do painel (ViewportPointToRay, corrigindo a barra do topo
+  pela diferença `fx.AbsolutePosition`); gira 82° em perspectiva e encaixa; o painel real volta no fim.
+- **Capítulo 2** (`Capitulo02` junta-se ao `Capitulo01` sem mexer nele): depois de `s8_lista_fim` → armário abre
+  (`Cenario02`, parede norte da oficina, x 81,5) → `pegar_fuzil` → porta da oficina abre, Pavel vai para a porta
+  blindada do anel leste (`pavel2`) → evento `monstro_recuou` (kind `criatura`) ou zona `porta_blindada`
+  (59, 3, -389) → fala do elevador sem energia → fim da parte 1 (checkpoint `fim_cap2a`). Próximo: subestação.
+- **Arma** (`BastiaoServidor/Arma` + `BastiaoCliente/Arma` + `BastiaoCompartilhado/ArmaModelo`): AK-74 de 62 peças;
+  o servidor confere cadência (600/min), munição (30 + 90), origem perto da cabeça e parede no caminho; o acerto no
+  monstro é por cápsula (as peças dele têm CanQuery=false). `Criatura.atingir` dá tranco (25/26), 7 acertos em 3,2 s
+  → cambaleia/atordoado (27/28) 2,6 s, levanta (29) e foge 9 s; 4 acertos durante uma captura soltam a vítima viva.
+- Efeitos com texturas da Creator Store (lista com autores em `Arma.TEXTURAS`). Sons novos do ElevenLabs:
+  `ak_tiro`, `ak_recarga`, `bala_carne`, `passos_longe`, `tres_toques_parede`, `alarme`, `portas`.
+- Faltam no ElevenLabs: `ak_vazio`, `capsula`, `bala_concreto` e as falas `pavel_armario`, `pavel_instrucao`,
+  `pavel_porta`, `pavel_recuou`, `pavel_elevador` (por enquanto só legenda).
