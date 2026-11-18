@@ -1,0 +1,149 @@
+[
+  {
+    "asset": "112672322113504",
+    "name": "N_Fire_01",
+    "particles": 2,
+    "path": [
+      "Anime",
+      "Fire-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Fire_02",
+    "particles": 1,
+    "path": [
+      "Anime",
+      "Fire-02"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Fire_03",
+    "particles": 1,
+    "path": [
+      "Anime",
+      "Fire-03"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Flamethrower_01",
+    "particles": 2,
+    "path": [
+      "Anime",
+      "Flamethrower-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Fire_Slash_01",
+    "particles": 2,
+    "path": [
+      "Anime",
+      "Fire-Slash-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Slash_01",
+    "particles": 1,
+    "path": [
+      "Anime",
+      "Slash-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Slashes_01",
+    "particles": 3,
+    "path": [
+      "Anime",
+      "Slashes-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Slash_Impact_01",
+    "particles": 3,
+    "path": [
+      "Anime",
+      "Slash-Impact-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Realistic_Explosion_01",
+    "particles": 2,
+    "path": [
+      "Anime",
+      "Realistic-Explosion-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Smoke_01",
+    "particles": 1,
+    "path": [
+      "Anime",
+      "Smoke-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "112672322113504",
+    "name": "N_Fire_Aura_01",
+    "particles": 6,
+    "path": [
+      "Auras",
+      "Fire-Aura-01"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "94340858809782",
+    "name": "N_Mesh_Slash",
+    "particles": 0,
+    "path": [
+      "Sword Slash Effect",
+      "ReplicatedStorage",
+      "Combat",
+      "Sword",
+      "Fx",
+      "Slash"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "94340858809782",
+    "name": "N_Mesh_Wide",
+    "particles": 0,
+    "path": [
+      "Sword Slash Effect",
+      "ReplicatedStorage",
+      "Combat",
+      "Sword",
+      "Fx",
+      "MeshPart"
+    ],
+    "visibleMeshes": 0
+  },
+  {
+    "asset": "10153386313",
+    "name": "N_Mesh_Arc",
+    "particles": 0,
+    "path": [
+      "Sword Slash Effect"
+    ],
+    "visibleMeshes": 8
+  }
+]

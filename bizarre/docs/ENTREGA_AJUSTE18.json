@@ -1,0 +1,112 @@
+{
+  "stage": 18,
+  "sources": 68,
+  "source_digest": "07fd81a6d7a8cbe808b73af34c81e406f8ba3368f831be56a7e3af5352d81992",
+  "bytes": 418769,
+  "sha256": "a0778d629ebf15b9724cbe3e24c1f6fadb8b0253bf198a60f1bdc1a1d15269e8",
+  "native_script_bytes": 32000,
+  "reproducible_build": true,
+  "commands": [
+    "testar",
+    "instalar",
+    "testar-nuvem",
+    "publicar",
+    "resume",
+    "status"
+  ],
+  "confirmation": "PUBLICAR AJUSTE18",
+  "known_bases": [
+    14,
+    15,
+    16,
+    17
+  ],
+  "fixture": "Place AJ13 do repositorio migrado pelos instaladores de cada etapa (git); nao e backup ao vivo",
+  "chain": [
+    {
+      "stage": 14,
+      "commit": "b39b17d",
+      "base_bytes": 2717212,
+      "patched_bytes": 2643939,
+      "idempotent": true
+    },
+    {
+      "stage": 15,
+      "commit": "0bf3abe",
+      "base_bytes": 2643939,
+      "patched_bytes": 2687883,
+      "idempotent": true
+    },
+    {
+      "stage": 16,
+      "commit": "39f5801",
+      "base_bytes": 2687883,
+      "patched_bytes": 2697800,
+      "idempotent": true
+    },
+    {
+      "stage": 17,
+      "commit": "87c3acf",
+      "base_bytes": 2697800,
+      "patched_bytes": 2708813,
+      "idempotent": true
+    }
+  ],
+  "migration": [
+    {
+      "from_stage": 14,
+      "base_bytes": 2643939,
+      "patched_bytes": 2709514,
+      "original_instances": 185097,
+      "patched_instances": 185210,
+      "sources_aj18": 68,
+      "non_script_removed": 0,
+      "non_script_added": 97,
+      "opaque_property_chunks_preserved": 275,
+      "idempotent": true,
+      "sha256": "9c6afc50129fde8d9caa9ff408ac83deaf9c2dc808dff4684f7e38eaf0524b47"
+    },
+    {
+      "from_stage": 15,
+      "base_bytes": 2687883,
+      "patched_bytes": 2710476,
+      "original_instances": 185196,
+      "patched_instances": 185210,
+      "sources_aj18": 68,
+      "non_script_removed": 0,
+      "non_script_added": 0,
+      "opaque_property_chunks_preserved": 486,
+      "idempotent": true,
+      "sha256": "91d86665a3824b2e2d83a98160ef6a17a111866a8bc406886a83b3638466c94f"
+    },
+    {
+      "from_stage": 16,
+      "base_bytes": 2697800,
+      "patched_bytes": 2710930,
+      "original_instances": 185201,
+      "patched_instances": 185210,
+      "sources_aj18": 68,
+      "non_script_removed": 0,
+      "non_script_added": 0,
+      "opaque_property_chunks_preserved": 486,
+      "idempotent": true,
+      "sha256": "94d9d862bf858a0da217f2853b56f1612a2ab27d91668fdd380f6d348695b2e4"
+    },
+    {
+      "from_stage": 17,
+      "base_bytes": 2708813,
+      "patched_bytes": 2710930,
+      "original_instances": 185210,
+      "patched_instances": 185210,
+      "sources_aj18": 68,
+      "non_script_removed": 0,
+      "non_script_added": 0,
+      "opaque_property_chunks_preserved": 486,
+      "idempotent": true,
+      "sha256": "94d9d862bf858a0da217f2853b56f1612a2ab27d91668fdd380f6d348695b2e4"
+    }
+  ],
+  "same_result_from_16_and_17": true,
+  "native_tested": false,
+  "roblox_publication_performed": false
+}

@@ -1,0 +1,1010 @@
+diff -ruN z13/src/server/BastiaoServidor.luau z14/src/server/BastiaoServidor.luau
+--- z13/src/server/BastiaoServidor.luau	2026-11-18 14:21:28.466410533 +0000
++++ z14/src/server/BastiaoServidor.luau	2026-11-18 14:32:52.711263948 +0000
+@@ -162,6 +162,31 @@
+ 	tween = servicos.tween,
+ 	log = print,
+ })
++-- capítulo 2, parte 2: a subestação (porta nova nas utilidades, rampa de serviço e o salão)
++local Cenario03 = require(script:WaitForChild("Cenario03"))
++local relatosCena = 0
++Cenario03.construir({
++	pasta = pasta,
++	mundo = mundo,
++	cena = cena,
++	reportar = function(nome: string)
++		if missao then
++			relatosCena += 1
++			missao:reportar({ id = "cena:" .. nome .. ":" .. relatosCena, kind = "interacao", name = nome })
++		end
++	end,
++	atrair = function(pos: Vector3)
++		if criatura and type(criatura.atrair) == "function" then
++			criatura.atrair(pos)
++		end
++	end,
++	aviso = function(j: Player, chave: string)
++		apresentacao:FireClient(j, { tipo = "aviso", chave = chave })
++	end,
++	ruido = servicos.ruido,
++	tween = servicos.tween,
++	log = print,
++})
+ 
+ local relatorio = StoryValidator.Validate(Capitulo, mundo:registro())
+ if not relatorio.ok then
+diff -ruN z13/src/server/Capitulo02.luau z14/src/server/Capitulo02.luau
+--- z13/src/server/Capitulo02.luau	2026-11-18 14:17:07.359303881 +0000
++++ z14/src/server/Capitulo02.luau	2026-11-18 14:37:33.287007314 +0000
+@@ -1,5 +1,8 @@
+ --!strict
+--- PROJETO BASTIÃO :: Capítulo 2 — O andar que não existe (parte 1: o fuzil).
++-- PROJETO BASTIÃO :: Capítulo 2 — O andar que não existe (parte 1: o fuzil; parte 2: a subestação).
++-- Parte 2: elevador sem energia -> porta de manutenção nas utilidades -> rampa até a subestação
++--   -> três fusíveis nas caixas -> colocar no painel -> puxar a alavanca -> a luz volta e o barulho
++--   chama o 731-A para a frente do elevador -> voltar correndo -> descida para o andar sem número.
+ -- Conteúdo declarativo, no mesmo formato do Capítulo 1. juntar() devolve a campanha inteira:
+ -- o fim da lista do terminal (s8_lista_fim) não encerra mais a etapa; continua aqui:
+ --   armário abre -> pegar o fuzil -> Pavel explica -> porta da oficina abre -> o 731-A ataca
+@@ -30,7 +33,7 @@
+ 	return t
+ end
+ 
+-Capitulo02.flags = { rifle_taken = false, monster_repelled = false }
++Capitulo02.flags = { rifle_taken = false, monster_repelled = false, substation_on = false }
+ 
+ Capitulo02.nodes = {
+ 	-- os três toques e "eu conheço esse sinal": o Pavel abre o armário de serviço
+@@ -63,7 +66,65 @@
+ 	},
+ 	cap2_elevador = {
+ 		exits = {
+-			{ event = "c2_elevador_fim", kind = "sequencia", to = "fim_etapa", effects = { obj("piso") } },
++			{
++				event = "c2_elevador_fim",
++				kind = "sequencia",
++				to = "cap2_sub_ir",
++				effects = {
++					ent("porta_manutencao", "aberta"), ent("subestacao", "desligada"), ent("fusiveis_sub", "guardados"),
++					ent("monstro_isca", "nenhum"), ent("pavel3", "manutencao"), obj("subestacao"), seq("c2_sub_ir"),
++				},
++			},
++		},
++	},
++	-- parte 2: a subestação
++	cap2_sub_ir = {
++		exits = {
++			{
++				event = "subestacao",
++				kind = "zona",
++				to = "cap2_sub_fusiveis",
++				effects = {
++					obj("fusiveis"), ent("fusiveis_sub", "espalhados"), ent("pavel3", "subestacao"), seq("c2_sub_chegou"),
++					{ tipo = "checkpoint", id = "subestacao" },
++				},
++			},
++		},
++	},
++	cap2_sub_fusiveis = {
++		exits = {
++			{ event = "fusiveis_ok", kind = "interacao", to = "cap2_sub_disjuntor", effects = { obj("disjuntor"), seq("c2_sub_fusiveis") } },
++		},
++	},
++	cap2_sub_disjuntor = {
++		exits = {
++			{
++				event = "religar_disjuntor",
++				kind = "interacao",
++				to = "cap2_sub_luz",
++				set = { substation_on = true },
++				effects = { obj(nil), ent("subestacao", "ligada"), seq("c2_sub_luz") },
++			},
++		},
++	},
++	cap2_sub_luz = {
++		exits = {
++			{
++				event = "c2_sub_luz_fim",
++				kind = "sequencia",
++				to = "cap2_sub_volta",
++				effects = { obj("elevador_volta"), ent("pavel3", "porta_blindada"), ent("monstro_isca", "elevador") },
++			},
++		},
++	},
++	cap2_sub_volta = {
++		exits = {
++			{ event = "porta_blindada", kind = "zona", to = "cap2_descida", effects = { obj(nil), seq("c2_descida") } },
++		},
++	},
++	cap2_descida = {
++		exits = {
++			{ event = "c2_descida_fim", kind = "sequencia", to = "fim_etapa", effects = {} },
+ 		},
+ 	},
+ }
+@@ -95,13 +156,45 @@
+ 			{ t = 0.0, fala = "pavel_elevador" },
+ 		},
+ 	},
++	c2_sub_ir = {
++		cues = {
++			{ t = 0.0, som = "trava", pos = { 112.6, 4, -400 } },
++			{ t = 0.8, fala = "pavel_sub_ir" },
++		},
++	},
++	c2_sub_chegou = {
++		cues = {
++			{ t = 0.4, fala = "pavel_sub_chegou" },
++		},
++	},
++	c2_sub_fusiveis = {
++		cues = {
++			{ t = 0.0, som = "trava", pos = { 223, -19, -400 } },
++			{ t = 0.6, fala = "pavel_sub_fusiveis" },
++		},
++	},
++	c2_sub_luz = {
++		cues = {
++			{ t = 0.0, som = "trava", pos = { 223, -19, -402 } },
++			{ t = 1.4, som = "impacto_porta", pos = { 199, -14, -372 } },
++			{ t = 2.6, som = "impacto_porta", pos = { 199, -14, -372 } },
++			{ t = 3.2, fala = "pavel_sub_luz" },
++		},
++	},
++	c2_descida = {
++		cues = {
++			{ t = 0.0, som = "portas" },
++			{ t = 0.9, fala = "pavel_descida" },
++			{ t = 5.0, som = "impacto_porta", pos = { 60, 4, -396 } },
++		},
++	},
+ }
+ 
+--- campanha completa: capítulo 1 + parte 1 do capítulo 2 (o capítulo 1 não é alterado no disco)
++-- campanha completa: capítulo 1 + capítulo 2 (partes 1 e 2) (o capítulo 1 não é alterado no disco)
+ function Capitulo02.juntar(cap1: any): any
+ 	local def = copia(cap1)
+-	def.id = "bastiao_cap01_cap02a"
+-	def.version = 2
++	def.id = "bastiao_cap01_cap02"
++	def.version = 3
+ 	for k, v in Capitulo02.flags do
+ 		def.flagSchema[k] = v
+ 	end
+@@ -118,10 +211,10 @@
+ 	assert(descoberta and descoberta.exits and descoberta.exits[1] and descoberta.exits[1].event == "s8_lista_fim", "capítulo 1 mudou: s8_lista_fim")
+ 	descoberta.exits[1].to = "cap2_armario"
+ 	descoberta.exits[1].effects = {}
+-	-- o final da etapa passa a ser o fim da parte 1 do capítulo 2 (novo ponto de renascer)
++	-- o final da etapa passa a ser o fim do capítulo 2 (ponto de renascer na frente do elevador)
+ 	local fim = def.nodes.fim_etapa
+ 	assert(fim and fim.final, "capítulo 1 sem fim_etapa")
+-	fim.onEnter = { ent("fim", "visivel"), { tipo = "checkpoint", id = "fim_cap2a" } }
++	fim.onEnter = { ent("fim", "visivel"), { tipo = "checkpoint", id = "fim_cap2" } }
+ 	return def
+ end
+ 
+diff -ruN z13/src/server/Cenario03.luau z14/src/server/Cenario03.luau
+--- z13/src/server/Cenario03.luau	1970-01-01 00:00:00.000000000 +0000
++++ z14/src/server/Cenario03.luau	2026-11-18 14:41:56.164971904 +0000
+@@ -0,0 +1,507 @@
++--!strict
++-- PROJETO BASTIÃO :: Cenario03 — capítulo 2, parte 2: a subestação.
++-- O mapa do Sector7 termina na parede leste da sala de utilidades (x 112). Aqui:
++--   * a parede leste ganha uma porta de manutenção (a parede original fica invisível e sem colisão,
++--     e é refeita em volta da abertura com o mesmo material; nada é apagado);
++--   * corredor curto, rampa de serviço descendo 24 studs e o salão da subestação (54 x 56 x 18):
++--     três transformadores, bandejas de cabo, armários de disjuntores, o painel principal com a
++--     alavanca e três caixas de fusíveis; luz vermelha de emergência até a energia voltar;
++--   * entidades porta_manutencao, fusiveis_sub, subestacao, monstro_isca e pavel3;
++--   * interações pegar_fusivel_1..3, colocar_fusiveis (avisa a história "fusiveis_ok") e
++--     religar_disjuntor; zona "subestacao" e os pontos de renascer "subestacao" e "fim_cap2".
++
++local Cenario03 = {}
++
++local V = Vector3.new
++Cenario03.PORTA = V(112.4, 0, -400)
++Cenario03.ZONA_SUB = V(180, -20.5, -400)
++Cenario03.SPAWN_SUB = CFrame.lookAt(V(178, -20.3, -400), V(192, -20.3, -400))
++Cenario03.SPAWN_FIM = CFrame.lookAt(V(58.5, 3.2, -378), V(58.5, 3.2, -392))
++Cenario03.ISCA = V(60, 0, -392) -- onde o barulho da subestação atrai o 731-A (na frente do elevador)
++local PISO = -23.5 -- topo do piso do salão
++local X0, X1, Z0, Z1 = 172, 226, -428, -372 -- salão
++local TETO = -5.5
++
++local CONCRETO = Color3.fromRGB(92, 93, 88)
++local CONCRETO_ESCURO = Color3.fromRGB(58, 58, 55)
++local METAL = Color3.fromRGB(70, 76, 72)
++local METAL_ESCURO = Color3.fromRGB(40, 43, 42)
++local AMARELO = Color3.fromRGB(214, 168, 32)
++local VERMELHO = Color3.fromRGB(170, 28, 22)
++
++export type Opcoes = {
++	pasta: Instance,
++	mundo: any,
++	cena: any,
++	reportar: (nome: string) -> (),
++	atrair: ((pos: Vector3) -> ())?,
++	aviso: ((jogador: Player, chave: string) -> ())?,
++	ruido: ((chave: string, pos: Vector3) -> ())?,
++	tween: ((inst: Instance, tempo: number, alvo: { [string]: any }) -> ())?,
++	log: ((string) -> ())?,
++}
++
++local function peca(pai: Instance, nome: string, tam: Vector3, cf: CFrame, cor: Color3, material: Enum.Material?, colide: boolean?): Part
++	local p = Instance.new("Part")
++	p.Name = nome
++	p.Anchored = true
++	p.CanCollide = colide ~= false
++	p.CanTouch = false
++	p.Size = tam
++	p.CFrame = cf
++	p.Color = cor
++	p.Material = material or Enum.Material.Concrete
++	p.TopSurface = Enum.SurfaceType.Smooth
++	p.BottomSurface = Enum.SurfaceType.Smooth
++	p.Parent = pai
++	return p
++end
++
++local function cilindro(pai: Instance, nome: string, diametro: number, comprimento: number, cf: CFrame, cor: Color3, material: Enum.Material?): Part
++	local p = peca(pai, nome, V(comprimento, diametro, diametro), cf, cor, material or Enum.Material.Metal, false)
++	p.Shape = Enum.PartType.Cylinder
++	return p
++end
++
++local function placa(p: BasePart, face: Enum.NormalId, linhas: { { string } }, fundo: Color3)
++	local g = Instance.new("SurfaceGui")
++	g.Face = face
++	g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
++	g.PixelsPerStud = 60
++	g.LightInfluence = 1
++	local f = Instance.new("Frame")
++	f.Size = UDim2.fromScale(1, 1)
++	f.BackgroundColor3 = fundo
++	f.BorderSizePixel = 0
++	f.Parent = g
++	local lista = Instance.new("UIListLayout")
++	lista.VerticalAlignment = Enum.VerticalAlignment.Center
++	lista.HorizontalAlignment = Enum.HorizontalAlignment.Center
++	lista.Parent = f
++	for i, l in linhas do
++		local t = Instance.new("TextLabel")
++		t.BackgroundTransparency = 1
++		t.Size = UDim2.fromScale(1, tonumber(l[3]) or 0.4)
++		t.Font = Enum.Font.GothamBlack
++		t.TextScaled = true
++		t.Text = l[1]
++		t.TextColor3 = if l[2] == "vermelho" then VERMELHO else Color3.fromRGB(20, 20, 20)
++		t.LayoutOrder = i
++		t.Parent = f
++	end
++	g.Parent = p
++end
++
++local function promptEm(pai: BasePart, nome: string): ProximityPrompt
++	local p = Instance.new("ProximityPrompt")
++	p.Name = nome
++	p.ActionText = nome
++	p.ObjectText = ""
++	p.Style = Enum.ProximityPromptStyle.Custom
++	p.MaxActivationDistance = 7
++	p.HoldDuration = 0.4
++	p.RequiresLineOfSight = false
++	p.Enabled = false
++	p.KeyboardKeyCode = Enum.KeyCode.E
++	p.GamepadKeyCode = Enum.KeyCode.ButtonX
++	p:SetAttribute("Bastiao", true)
++	p.Parent = pai
++	return p
++end
++
++local function luz(pai: BasePart, cor: Color3, brilho: number, alcance: number, sombra: boolean?): PointLight
++	local l = Instance.new("PointLight")
++	l.Color = cor
++	l.Brightness = brilho
++	l.Range = alcance
++	l.Shadows = sombra == true
++	l.Parent = pai
++	return l
++end
++
++-- a parede leste das utilidades vira parede com porta (a original fica escondida, nunca apagada)
++local function abrirParede(pasta: Instance, log: (string) -> ()): boolean
++	local s7 = workspace:FindFirstChild("Sector7World")
++	local estrutura = s7 and s7:FindFirstChild("Structure")
++	local parede: BasePart? = nil
++	if estrutura then
++		for _, p in estrutura:GetChildren() do
++			if p:IsA("BasePart") and p.Name == "UtilitiesOuterWall" then
++				local c = p.CFrame.Position
++				if math.abs(c.X - 112.4) < 1.5 and math.abs(c.Z + 400) < 3 then
++					parede = p
++				end
++			end
++		end
++	end
++	if not parede then
++		log("[Bastiao] subestação: parede leste das utilidades não encontrada; a porta fica só de enfeite")
++		return false
++	end
++	local p = parede :: BasePart
++	local c, t = p.CFrame.Position, p.Size
++	local baixo, alto = c.Y - t.Y / 2, c.Y + t.Y / 2
++	local zn, zs = c.Z - t.Z / 2, c.Z + t.Z / 2
++	p.Transparency = 1
++	p.CanCollide = false
++	p.CanQuery = false
++	p.CastShadow = false
++	p:SetAttribute("BastiaoEscondidaPelaSubestacao", true)
++	local function pedaco(nome: string, z0: number, z1: number, y0: number, y1: number)
++		local q = peca(pasta, nome, V(t.X, y1 - y0, z1 - z0), CFrame.new(c.X, (y0 + y1) / 2, (z0 + z1) / 2), p.Color, p.Material)
++		q.Transparency = 0
++	end
++	pedaco("BastiaoParedeLesteNorte", zn, -403, baixo, alto)
++	pedaco("BastiaoParedeLesteSul", -397, zs, baixo, alto)
++	pedaco("BastiaoParedeLesteVerga", -403, -397, 8.6, alto)
++	return true
++end
++
++function Cenario03.construir(op: Opcoes): any
++	local log = op.log or print
++	local pasta = Instance.new("Model")
++	pasta.Name = "BastiaoSubestacao"
++	pasta.Parent = op.pasta
++	abrirParede(pasta, log)
++
++	-- ===== porta de manutenção (persiana de aço que sobe) =====
++	local porta = peca(pasta, "BastiaoPortaManutencao", V(0.4, 8.2, 6.2), CFrame.new(113.1, 4.6, -400), METAL, Enum.Material.DiamondPlate)
++	local faixa = peca(pasta, "BastiaoFaixaPorta", V(0.42, 0.6, 6.2), CFrame.new(113.1, 1.0, -400), AMARELO, Enum.Material.SmoothPlastic, false)
++	local placaPorta = peca(pasta, "BastiaoPlacaSubestacao", V(0.1, 1.2, 4.4), CFrame.new(112.85, 9.2, -400) * CFrame.Angles(0, math.rad(180), 0), AMARELO, Enum.Material.SmoothPlastic, false)
++	placa(placaPorta, Enum.NormalId.Front, { { "ПОДСТАНЦИЯ 7-Б", "", 0.55 }, { "↓  −2", "vermelho", 0.4 } }, AMARELO)
++	local portaY = { fechada = 4.6, aberta = 12.4 }
++
++	-- ===== corredor e rampa de serviço =====
++	peca(pasta, "BastiaoCorredorPiso", V(11.2, 1, 8), CFrame.new(118.4, 0, -400), CONCRETO_ESCURO)
++	peca(pasta, "BastiaoCorredorTeto", V(11.2, 1, 8), CFrame.new(118.4, 9.6, -400), CONCRETO_ESCURO)
++	for _, z in { -404.5, -395.5 } do
++		peca(pasta, "BastiaoCorredorParede", V(11.2, 9.6, 1), CFrame.new(118.4, 4.8, z), CONCRETO)
++	end
++	local ang = -math.atan2(24, 48)
++	local normal = V(-math.sin(ang), math.cos(ang), 0)
++	local meio = V(148, -11.5, -400) - normal * 0.5
++	local giro = CFrame.Angles(0, 0, ang)
++	local comp = math.sqrt(48 * 48 + 24 * 24)
++	peca(pasta, "BastiaoRampa", V(comp, 1, 8), CFrame.new(meio) * giro, CONCRETO_ESCURO)
++	peca(pasta, "BastiaoRampaTeto", V(comp, 1, 8), CFrame.new(meio + V(0, 10.4, 0)) * giro, CONCRETO_ESCURO)
++	for _, z in { -404.5, -395.5 } do
++		peca(pasta, "BastiaoRampaParede", V(48.4, 35, 1), CFrame.new(148, -6.5, z), CONCRETO)
++	end
++	-- faixas antiderrapantes, corrimão e lâmpadas de serviço
++	for i = 1, 7 do
++		local k = (i - 0.5) / 7
++		local pt = V(124 + 48 * k, 0.5 - 24 * k, -400) + normal * 0.03
++		peca(pasta, "BastiaoFaixaRampa", V(0.5, 0.06, 7.6), CFrame.new(pt) * giro, AMARELO, Enum.Material.SmoothPlastic, false)
++	end
++	local corr0, corr1 = V(124, 3.6, -403.6), V(172, -20.4, -403.6)
++	cilindro(pasta, "BastiaoCorrimao", 0.25, (corr1 - corr0).Magnitude, CFrame.lookAt((corr0 + corr1) / 2, corr1) * CFrame.Angles(0, math.rad(90), 0), METAL_ESCURO)
++	for i = 0, 3 do
++		local x = 128 + i * 13
++		local y = 0.5 - 24 * ((x - 124) / 48) + 6.5
++		local l = peca(pasta, "BastiaoLampadaRampa", V(0.6, 0.6, 0.3), CFrame.new(x, y, -395.2), Color3.fromRGB(255, 160, 70), Enum.Material.Neon, false)
++		luz(l, Color3.fromRGB(255, 150, 70), 0.9, 16)
++	end
++
++	-- ===== salão =====
++	local cx, cz = (X0 + X1) / 2, (Z0 + Z1) / 2
++	local largX, largZ = X1 - X0, Z1 - Z0
++	local altura = TETO - PISO
++	local yMeio = (PISO + TETO) / 2
++	peca(pasta, "BastiaoSubPiso", V(largX, 1, largZ), CFrame.new(cx, PISO - 0.5, cz), CONCRETO_ESCURO)
++	peca(pasta, "BastiaoSubTeto", V(largX, 1, largZ), CFrame.new(cx, TETO + 0.5, cz), CONCRETO_ESCURO)
++	peca(pasta, "BastiaoSubParedeLeste", V(1, altura + 1, largZ), CFrame.new(X1 + 0.5, yMeio, cz), CONCRETO)
++	peca(pasta, "BastiaoSubParedeNorte", V(largX + 2, altura + 1, 1), CFrame.new(cx, yMeio, Z0 - 0.5), CONCRETO)
++	peca(pasta, "BastiaoSubParedeSul", V(largX + 2, altura + 1, 1), CFrame.new(cx, yMeio, Z1 + 0.5), CONCRETO)
++	peca(pasta, "BastiaoSubParedeOesteN", V(1, altura + 1, -404 - Z0), CFrame.new(X0 - 0.5, yMeio, (Z0 - 404) / 2), CONCRETO)
++	peca(pasta, "BastiaoSubParedeOesteS", V(1, altura + 1, Z1 + 396), CFrame.new(X0 - 0.5, yMeio, (Z1 - 396) / 2), CONCRETO)
++	peca(pasta, "BastiaoSubParedeOesteVerga", V(1, TETO - (PISO + 9), 8), CFrame.new(X0 - 0.5, (TETO + PISO + 9) / 2, -400), CONCRETO)
++	-- rodapé listrado e pilares
++	for _, z in { Z0 + 0.05, Z1 - 0.05 } do
++		peca(pasta, "BastiaoSubRodape", V(largX, 0.8, 0.1), CFrame.new(cx, PISO + 0.4, z), AMARELO, Enum.Material.SmoothPlastic, false)
++	end
++	for _, x in { 190, 210 } do
++		for _, z in { -414, -386 } do
++			peca(pasta, "BastiaoSubPilar", V(2, altura, 2), CFrame.new(x, yMeio, z), CONCRETO)
++			peca(pasta, "BastiaoSubPilarFaixa", V(2.1, 1.2, 2.1), CFrame.new(x, PISO + 1.6, z), AMARELO, Enum.Material.SmoothPlastic, false)
++		end
++	end
++	-- três transformadores na parede norte, com aletas, isoladores e placa de perigo
++	for i, x in { 184, 199, 214 } do
++		local corpo = peca(pasta, "BastiaoTransformador" .. i, V(7, 8, 5), CFrame.new(x, PISO + 4, -422.5), METAL, Enum.Material.Metal)
++		for k = -3, 3 do
++			peca(pasta, "BastiaoTransformadorAleta", V(0.25, 6.4, 1.1), CFrame.new(x + k * 0.95, PISO + 4, -419.5), METAL_ESCURO, Enum.Material.Metal, false)
++		end
++		for k = -1, 1 do
++			cilindro(pasta, "BastiaoIsolador", 0.9, 1.8, CFrame.new(x + k * 2, PISO + 8.9, -422.5) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(150, 74, 44), Enum.Material.SmoothPlastic)
++		end
++		local pl = peca(pasta, "BastiaoPlacaPerigo", V(3.2, 1.8, 0.1), CFrame.new(x, PISO + 5.5, -419.0) * CFrame.Angles(0, math.rad(180), 0), AMARELO, Enum.Material.SmoothPlastic, false)
++		placa(pl, Enum.NormalId.Front, { { "ОПАСНО", "vermelho", 0.5 }, { "Т-" .. i .. "  10 кВ", "", 0.35 } }, AMARELO)
++		corpo:SetAttribute("BastiaoZumbido", true)
++	end
++	-- bandejas de cabo no teto
++	for _, z in { -420, -400, -380 } do
++		peca(pasta, "BastiaoBandejaCabo", V(largX, 0.25, 1.4), CFrame.new(cx, TETO - 1.2, z), METAL_ESCURO, Enum.Material.Metal, false)
++		cilindro(pasta, "BastiaoCaboGrosso", 0.5, largX, CFrame.new(cx, TETO - 0.95, z - 0.3), Color3.fromRGB(24, 24, 24), Enum.Material.SmoothPlastic)
++	end
++	-- armários de disjuntores na parede leste e o painel principal no meio
++	for _, z in { -418, -412, -388, -382 } do
++		local a = peca(pasta, "BastiaoArmarioDisjuntor", V(2, 7, 3), CFrame.new(X1 - 1, PISO + 3.5, z), METAL, Enum.Material.Metal)
++		local lamp = peca(pasta, "BastiaoLampadaDisjuntor", V(0.1, 0.35, 0.35), CFrame.new(X1 - 2.05, PISO + 6, z), VERMELHO, Enum.Material.Neon, false)
++		a:SetAttribute("BastiaoLampada", lamp.Name)
++	end
++	local painel = peca(pasta, "BastiaoPainelPrincipal", V(2.4, 8, 6), CFrame.new(X1 - 1.2, PISO + 4, -400), METAL, Enum.Material.Metal)
++	local placaPainel = peca(pasta, "BastiaoPlacaPainel", V(0.1, 1, 4), CFrame.new(X1 - 2.45, PISO + 7.3, -400) * CFrame.Angles(0, math.rad(-90), 0), AMARELO, Enum.Material.SmoothPlastic, false)
++	placa(placaPainel, Enum.NormalId.Front, { { "ГЛАВНЫЙ РУБИЛЬНИК", "", 0.6 } }, AMARELO)
++	local lampadas = {}
++	for k = -1, 1 do
++		local l = peca(pasta, "BastiaoLampadaPainel", V(0.1, 0.4, 0.4), CFrame.new(X1 - 2.45, PISO + 6.4, -400 + k * 0.9), VERMELHO, Enum.Material.Neon, false)
++		table.insert(lampadas, l)
++	end
++	-- encaixes dos fusíveis (os fusíveis aparecem quando colocados) e a alavanca
++	local fusiveisPainel = {}
++	for k = -1, 1 do
++		peca(pasta, "BastiaoEncaixeFusivel", V(0.2, 1.2, 0.8), CFrame.new(X1 - 2.5, PISO + 4.8, -400 + k * 1.4), METAL_ESCURO, Enum.Material.Metal, false)
++		local f = cilindro(pasta, "BastiaoFusivelPainel", 0.45, 1.0, CFrame.new(X1 - 2.7, PISO + 4.8, -400 + k * 1.4) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(232, 228, 214), Enum.Material.SmoothPlastic)
++		f.Transparency = 1
++		table.insert(fusiveisPainel, f)
++	end
++	local eixo = CFrame.new(X1 - 2.6, PISO + 3.2, -401.9)
++	local alavanca = peca(pasta, "BastiaoAlavanca", V(0.3, 2.6, 0.3), eixo * CFrame.new(0, 1.3, 0), METAL_ESCURO, Enum.Material.Metal, false)
++	local cabo = peca(pasta, "BastiaoAlavancaCabo", V(0.5, 0.5, 0.5), eixo * CFrame.new(0, 2.6, 0), VERMELHO, Enum.Material.SmoothPlastic, false)
++	cabo.Shape = Enum.PartType.Ball
++	local function poseAlavanca(baixa: boolean)
++		local g = eixo * CFrame.Angles(0, 0, if baixa then math.rad(70) else 0)
++		alavanca.CFrame = g * CFrame.new(0, 1.3, 0)
++		cabo.CFrame = g * CFrame.new(0, 2.6, 0)
++	end
++	local faiscas = Instance.new("ParticleEmitter")
++	faiscas.Texture = "rbxassetid://16043528909" -- Spark Particle (unocaards), o mesmo da arma
++	faiscas.LightEmission = 1
++	faiscas.Color = ColorSequence.new(Color3.fromRGB(255, 220, 140), Color3.fromRGB(255, 140, 40))
++	faiscas.Size = NumberSequence.new(0.18, 0)
++	faiscas.Lifetime = NumberRange.new(0.25, 0.6)
++	faiscas.Speed = NumberRange.new(8, 18)
++	faiscas.SpreadAngle = Vector2.new(60, 60)
++	faiscas.Acceleration = V(0, -40, 0)
++	faiscas.EmissionDirection = Enum.NormalId.Back
++	faiscas.Enabled = false
++	faiscas.Parent = painel
++	local function soltarFaiscas(n: number)
++		pcall(function()
++			faiscas:Emit(n)
++		end)
++	end
++
++	-- ===== caixas de fusíveis (três, espalhadas) =====
++	local caixas = {
++		{ cf = CFrame.lookAt(V(191.5, PISO + 3.4, Z0 + 0.6), V(191.5, PISO + 3.4, Z0 + 5)) },
++		{ cf = CFrame.lookAt(V(205, PISO + 3.4, Z1 - 0.6), V(205, PISO + 3.4, Z1 - 5)) },
++		{ cf = CFrame.lookAt(V(X0 + 0.6, PISO + 3.4, -386), V(X0 + 5, PISO + 3.4, -386)) },
++	}
++	local fusiveis = {}
++	local promptsFusivel = {}
++	for i, c in caixas do
++		peca(pasta, "BastiaoCaixaFusivel" .. i, V(2.2, 2.6, 1), c.cf, METAL, Enum.Material.Metal)
++		peca(pasta, "BastiaoCaixaFusivelPorta" .. i, V(0.1, 2.6, 2.2), c.cf * CFrame.new(-1.6, 0, -1.1) * CFrame.Angles(0, math.rad(90), 0), METAL_ESCURO, Enum.Material.Metal, false)
++		local f = cilindro(pasta, "BastiaoFusivel" .. i, 0.45, 1.0, c.cf * CFrame.new(0, 0, -0.62) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(232, 228, 214), Enum.Material.SmoothPlastic)
++		for _, s in { -0.55, 0.55 } do
++			local tampa = cilindro(f, "Tampa", 0.5, 0.15, f.CFrame * CFrame.new(s, 0, 0), Color3.fromRGB(150, 150, 150), Enum.Material.Metal)
++			tampa.Parent = f
++		end
++		local lamp = peca(pasta, "BastiaoLuzCaixa" .. i, V(0.3, 0.3, 0.3), c.cf * CFrame.new(0, 1.7, -0.4), VERMELHO, Enum.Material.Neon, false)
++		luz(lamp, Color3.fromRGB(255, 50, 40), 0.7, 10)
++		local alvo = peca(pasta, "BastiaoCaixaPrompt" .. i, V(2, 2.4, 0.2), c.cf * CFrame.new(0, 0, -1.2), METAL, Enum.Material.Metal, false)
++		alvo.Transparency = 1
++		alvo.CanQuery = false
++		fusiveis[i] = f
++		promptsFusivel[i] = promptEm(alvo, "PegarFusivel")
++	end
++	local alvoPainel = peca(pasta, "BastiaoPainelPrompt", V(0.2, 3, 4), CFrame.new(X1 - 2.9, PISO + 4.5, -400), METAL, Enum.Material.Metal, false)
++	alvoPainel.Transparency = 1
++	alvoPainel.CanQuery = false
++	local promptColocar = promptEm(alvoPainel, "ColocarFusiveis")
++	local promptReligar = promptEm(alavanca, "Religar")
++	promptReligar.HoldDuration = 0.8
++
++	-- ===== luz: vermelha de emergência; a de serviço acende quando a energia volta =====
++	local emergencia = {}
++	for _, p in { V(X0 + 0.8, TETO - 2, -414), V(X0 + 0.8, TETO - 2, -386), V(X1 - 0.8, TETO - 2, -414), V(X1 - 0.8, TETO - 2, -386) } do
++		local l = peca(pasta, "BastiaoLuzEmergencia", V(0.6, 0.6, 0.6), CFrame.new(p), VERMELHO, Enum.Material.Neon, false)
++		table.insert(emergencia, luz(l, Color3.fromRGB(255, 40, 30), 1.1, 26))
++	end
++	local calhas = {}
++	for _, x in { 182, 199, 216 } do
++		for _, z in { -410, -390 } do
++			local c = peca(pasta, "BastiaoCalhaLuz", V(6, 0.3, 0.8), CFrame.new(x, TETO - 0.4, z), Color3.fromRGB(70, 70, 66), Enum.Material.SmoothPlastic, false)
++			local l = luz(c, Color3.fromRGB(235, 240, 255), 0, 32, x == 199)
++			table.insert(calhas, { parte = c, luz = l })
++		end
++	end
++	local function acender(ligada: boolean)
++		for _, c in calhas do
++			c.parte.Material = if ligada then Enum.Material.Neon else Enum.Material.SmoothPlastic
++			c.parte.Color = if ligada then Color3.fromRGB(235, 240, 255) else Color3.fromRGB(70, 70, 66)
++			c.luz.Brightness = if ligada then 1.7 else 0
++		end
++		for _, l in emergencia do
++			l.Enabled = not ligada
++		end
++		for _, l in lampadas do
++			l.Color = if ligada then Color3.fromRGB(40, 210, 80) else VERMELHO
++		end
++	end
++	acender(false)
++
++	-- ===== entidades =====
++	local function E(id: string, estados: { string }, aplicar: (string, boolean) -> (), pronto: (() -> boolean)?)
++		local set = {}
++		for _, e in estados do
++			set[e] = true
++		end
++		op.mundo:registrar(id, { estados = set, aplicar = aplicar, pronto = pronto })
++	end
++	E("porta_manutencao", { "fechada", "aberta" }, function(estado, instantaneo)
++		local y = portaY[estado] or portaY.fechada
++		local alvo = CFrame.new(113.1, y, -400)
++		porta.CanCollide = estado ~= "aberta"
++		if instantaneo or not op.tween then
++			porta.CFrame = alvo
++			faixa.CFrame = alvo * CFrame.new(0, -3.6, 0)
++		else
++			op.tween(porta, 2.2, { CFrame = alvo })
++			op.tween(faixa, 2.2, { CFrame = alvo * CFrame.new(0, -3.6, 0) })
++			if op.ruido then
++				op.ruido("trava", V(112.6, 4, -400))
++			end
++		end
++	end)
++	E("fusiveis_sub", { "guardados", "espalhados" }, function(_estado, _instantaneo) end)
++	local colocados = false
++	local pegos = { false, false, false }
++	local function mostrarFusiveis()
++		for i, f in fusiveis do
++			f.Transparency = if pegos[i] or colocados then 1 else 0
++			for _, t in f:GetChildren() do
++				if t:IsA("BasePart") then
++					t.Transparency = f.Transparency
++				end
++			end
++		end
++		for _, f in fusiveisPainel do
++			f.Transparency = if colocados then 0 else 1
++		end
++	end
++	E("subestacao", { "desligada", "ligada" }, function(estado, instantaneo)
++		local ligada = estado == "ligada"
++		poseAlavanca(ligada)
++		if ligada then
++			colocados = true
++			mostrarFusiveis()
++		end
++		if instantaneo or not ligada then
++			acender(ligada)
++			return
++		end
++		-- a energia volta piscando: faíscas no painel, lâmpadas tremendo, depois firme
++		task.spawn(function()
++			soltarFaiscas(40)
++			for k = 1, 6 do
++				acender(k % 2 == 1)
++				task.wait(0.08 + math.random() * 0.18)
++			end
++			acender(true)
++			soltarFaiscas(25)
++			task.wait(1.6)
++			soltarFaiscas(15)
++		end)
++	end)
++	E("monstro_isca", { "nenhum", "elevador" }, function(estado, instantaneo)
++		if estado ~= "elevador" or instantaneo then
++			return
++		end
++		-- o barulho da subestação chama o 731-A para a frente do elevador (duas vezes, para não perder)
++		local function chamar()
++			if op.atrair then
++				local ok, erro = pcall(op.atrair, Cenario03.ISCA)
++				if not ok then
++					log("[Bastiao] subestação: atrair o monstro falhou: " .. tostring(erro))
++				end
++			end
++		end
++		chamar()
++		task.delay(7, chamar)
++	end)
++	local pavel = op.cena.pavel
++	E("pavel3", { "porta_blindada", "manutencao", "subestacao" }, function(estado, instantaneo)
++		if pavel then
++			pavel:ir(estado, instantaneo)
++		end
++	end, function()
++		return pavel == nil or pavel:chegou()
++	end)
++
++	-- ===== interações =====
++	local function pos(p: BasePart): () -> Vector3
++		return function()
++			return p.CFrame.Position
++		end
++	end
++	local function contagem(): number
++		local n = 0
++		for _, v in pegos do
++			if v then
++				n += 1
++			end
++		end
++		return n
++	end
++	for i, pr in promptsFusivel do
++		table.insert(op.cena.interacoes, {
++			nome = "pegar_fusivel_" .. i, prompt = pr, posicao = pos(pr.Parent :: BasePart), alcance = 9,
++			requer = { { "fusiveis_sub", "espalhados" } },
++			disponivel = function()
++				return not pegos[i] and not colocados
++			end,
++			aoAceitar = function(j: Player)
++				if pegos[i] then
++					return
++				end
++				pegos[i] = true
++				mostrarFusiveis()
++				if op.ruido then
++					op.ruido("trava", (pr.Parent :: BasePart).CFrame.Position)
++				end
++				if op.aviso then
++					op.aviso(j, "fusivel_" .. contagem())
++				end
++			end,
++		})
++	end
++	table.insert(op.cena.interacoes, {
++		nome = "colocar_fusiveis", prompt = promptColocar, posicao = pos(alvoPainel), alcance = 9,
++		requer = { { "fusiveis_sub", "espalhados" } },
++		disponivel = function()
++			return contagem() >= 3 and not colocados
++		end,
++		aoAceitar = function(_j: Player)
++			if colocados then
++				return
++			end
++			colocados = true
++			mostrarFusiveis()
++			op.reportar("fusiveis_ok")
++		end,
++	})
++	table.insert(op.cena.interacoes, {
++		nome = "religar_disjuntor", prompt = promptReligar, posicao = pos(alavanca), alcance = 9,
++		evento = "religar_disjuntor", requer = { { "subestacao", "desligada" } },
++	})
++
++	op.cena.zonas.subestacao = { centro = Cenario03.ZONA_SUB, raio = 9 }
++	op.cena.spawns.subestacao = Cenario03.SPAWN_SUB
++	op.cena.spawns.fim_cap2 = Cenario03.SPAWN_FIM
++	log("[Bastiao] capítulo 2: subestação (porta, rampa, salão, fusíveis e disjuntor) pronta")
++	return { pasta = pasta, prompts = { fusiveis = promptsFusivel, colocar = promptColocar, religar = promptReligar } }
++end
++
++return Cenario03
+diff -ruN z13/src/server/Criatura.luau z14/src/server/Criatura.luau
+--- z13/src/server/Criatura.luau	2026-11-18 14:17:07.358992961 +0000
++++ z14/src/server/Criatura.luau	2026-11-18 14:32:52.710949709 +0000
+@@ -1125,7 +1125,7 @@
+     if existing then
+         report("unavailable","pasta_criatura_ocupada")
+         warn("[Bastiao731A] pasta Criatura ocupada; nada foi substituído")
+-        return {status=status,corpo=function() return nil,nil end,atingir=function() return nil end,destroy=function() end}
++        return {status=status,corpo=function() return nil,nil end,atingir=function() return nil end,atrair=function() return false end,destroy=function() end}
+     end
+     folder=Instance.new("Folder")
+     folder.Name="Criatura"
+@@ -1203,7 +1203,16 @@
+         return r
+     end
+ 
+-    return {status=status,corpo=corpo,atingir=atingir,destroy=function()
++    -- a história faz barulho num lugar: o 731-A vai procurar lá (como se tivesse ouvido)
++    local function atrair(pos: Vector3): boolean
++        local c=active
++        if not c or not c.ready or type(c.state)~="table" or typeof(pos)~="Vector3" then return false end
++        local now=os.clock()
++        c.state.lastKnown=pos; c.state.lastSenseAt=now; c.state.memoryUntil=now+14
++        if c.state.mode=="roam" then c.state.mode="search"; c.state.enteredAt=now end
++        return true
++    end
++    return {status=status,corpo=corpo,atingir=atingir,atrair=atrair,destroy=function()
+         if destroyed then return end
+         destroyed=true; generation+=1
+         if heartbeat then heartbeat:Disconnect(); heartbeat=nil end
+diff -ruN z13/src/server/Pavel.luau z14/src/server/Pavel.luau
+--- z13/src/server/Pavel.luau	2026-11-18 14:21:28.465185016 +0000
++++ z14/src/server/Pavel.luau	2026-11-18 14:32:52.709832485 +0000
+@@ -90,6 +90,9 @@
+ 	oficina = { pos = V(71.5, 0, -304.5), olhar = V(66, 0, -318) },
+ 	-- capítulo 2: no anel leste, de frente para a porta blindada das utilidades
+ 	porta_blindada = { pos = V(58.5, 0, -383), olhar = V(66, 0, -389) },
++	-- capítulo 2, parte 2: porta de manutenção das utilidades e o salão da subestação (piso em y -23.5)
++	manutencao = { pos = V(106, 0, -401.5), olhar = V(112, 0, -400) },
++	subestacao = { pos = V(186, -24, -408), olhar = V(200, -24, -400) },
+ }
+ 
+ -- pontos no eixo dos corredores (cruzamentos em z -80 e -260; anéis de serviço em x ±58)
+@@ -99,6 +102,9 @@
+ 	["enfermaria>porta_oficina"] = { V(-58, 0, -262), V(0, 0, -260), V(57.5, 0, -261), V(58, 0, -300) },
+ 	["porta_oficina>oficina"] = { V(61, 0, -318.5), V(68, 0, -319), V(77, 0, -314), V(77, 0, -305) },
+ 	["oficina>porta_blindada"] = { V(77, 0, -305), V(77, 0, -314), V(68, 0, -319), V(61, 0, -318.5), V(58, 0, -338), V(58, 0, -368) },
++	["porta_blindada>manutencao"] = { V(60, 0, -392), V(70, 0, -398), V(90, 0, -400) },
++	["manutencao>subestacao"] = { V(110, 0, -400), V(118, 0, -400), V(124, 0, -400), V(172, -24, -400), V(178, -24, -402) },
++	["subestacao>porta_blindada"] = { V(178, -24, -400), V(172, -24, -400), V(124, 0, -400), V(112, 0, -400), V(90, 0, -400), V(70, 0, -398), V(60, 0, -392) },
+ }
+ 
+ local CORES = {
+diff -ruN z13/src/shared/Textos.luau z14/src/shared/Textos.luau
+--- z13/src/shared/Textos.luau	2026-11-18 14:17:07.360012145 +0000
++++ z14/src/shared/Textos.luau	2026-11-18 14:33:16.751704613 +0000
+@@ -38,6 +38,11 @@
+ 	pavel_porta = "PAVEL",
+ 	pavel_recuou = "PAVEL",
+ 	pavel_elevador = "PAVEL",
++	pavel_sub_ir = "PAVEL",
++	pavel_sub_chegou = "PAVEL",
++	pavel_sub_fusiveis = "PAVEL",
++	pavel_sub_luz = "PAVEL",
++	pavel_descida = "PAVEL",
+ }
+ 
+ -- por onde a voz chega: na pessoa (3D, sai do Pavel), rádio, gravação velha no rádio, alto-falante
+@@ -111,6 +116,11 @@
+ 		pavel_porta = "A saída de serviço é a porta blindada do anel leste. Eu abro, você cobre.",
+ 		pavel_recuou = "Recuou. Não comemora: agora ele sabe que a gente morde.",
+ 		pavel_elevador = "Elevador de serviço, sem energia. Vamos ter que religar a subestação.",
++		pavel_sub_ir = "A subestação fica dois níveis abaixo das utilidades. Rampa de serviço. Fiquem colados em mim.",
++		pavel_sub_chegou = "O disjuntor principal queimou. Tem fusível de reserva nas caixas da parede. Precisamos de três.",
++		pavel_sub_fusiveis = "Três. No painel. Quando eu puxar essa alavanca, a luz volta... e ele vai saber onde a gente está.",
++		pavel_sub_luz = "Energia! O elevador acordou. Correndo, de volta para a porta blindada! Ele ouviu!",
++		pavel_descida = "Esse painel só tem um botão, e ele não tem número. Segurem-se. Isso não estava na planta.",
+ 	},
+ 	sons = {
+ 		radio_chiado = "[CHIADO DE RÁDIO]",
+@@ -134,6 +144,10 @@
+ 		piso = "Alcance o piso de manutenção",
+ 		fuzil = "Pegue um fuzil no armário da oficina",
+ 		porta_blindada = "Chegue à porta blindada do anel leste",
++		subestacao = "Desça até a subestação pela porta de manutenção",
++		fusiveis = "Encontre os 3 fusíveis nas caixas e coloque no painel",
++		disjuntor = "Puxe a alavanca do disjuntor principal",
++		elevador_volta = "Volte correndo para o elevador na porta blindada",
+ 	},
+ 	prompts = {
+ 		PegarRadio = "PEGAR RÁDIO",
+@@ -143,6 +157,9 @@
+ 		LerTerminal = "LER TERMINAL",
+ 		PegarFuzil = "PEGAR FUZIL",
+ 		PegarMunicao = "PEGAR MUNIÇÃO",
++		PegarFusivel = "PEGAR FUSÍVEL",
++		ColocarFusiveis = "COLOCAR FUSÍVEIS",
++		Religar = "RELIGAR DISJUNTOR",
+ 	},
+ 	avisos = {
+ 		modulo_no_carregador = "O módulo está no carregador do arsenal.",
+@@ -152,6 +169,9 @@
+ 		espere_pavel = "Espere o Pavel entrar.",
+ 		fuzil_pego = "Você pegou um AK-74. Segure ATIRAR (ou o botão do mouse) para atirar.",
+ 		municao_cheia = "Munição reposta.",
++		fusivel_1 = "Fusível 1 de 3.",
++		fusivel_2 = "Fusível 2 de 3.",
++		fusivel_3 = "Fusível 3 de 3. Leve ao painel principal.",
+ 	},
+ 	terminais = {
+ 		enfermaria_sem_energia = "SEVER-9 · ENFERMARIA\nACESSO EXTERNO\n\nRESERVA: SEM CARGA\nINSIRA O MÓDULO",
+@@ -170,7 +190,7 @@
+ 	fim = {
+ 		titulo = "PROJETO BASTIÃO",
+ 		capitulo = "CAPÍTULO 2 — O ANDAR QUE NÃO EXISTE",
+-		linha = "FIM DA PARTE 1 · A SUBESTAÇÃO FICA PARA A PRÓXIMA ATUALIZAÇÃO",
++		linha = "FIM DO CAPÍTULO 2 · O CAPÍTULO 3 COMEÇA NO ANDAR SEM NÚMERO",
+ 	},
+ 	ui = { objetivo = "OBJETIVO", alerta = "● ALERTA · ISOLAMENTO", toque = "TOQUE" },
+ }
+@@ -210,6 +230,11 @@
+ 		pavel_porta = "The service exit is the blast door on the east ring. I open, you cover.",
+ 		pavel_recuou = "It fell back. Don't celebrate: now it knows we bite.",
+ 		pavel_elevador = "Service elevator, no power. We'll have to restart the substation.",
++		pavel_sub_ir = "The substation is two levels below the utilities room. Service ramp. Stay close to me.",
++		pavel_sub_chegou = "The main breaker blew. There are spare fuses in the wall boxes. We need three.",
++		pavel_sub_fusiveis = "Three. Into the panel. When I pull this lever the lights come back... and it'll know where we are.",
++		pavel_sub_luz = "Power! The elevator's awake. Run, back to the blast door! It heard us!",
++		pavel_descida = "This panel has one button, and it has no number. Hold on. This wasn't on the blueprints.",
+ 	},
+ 	sons = {
+ 		radio_chiado = "[RADIO STATIC]",
+@@ -233,6 +258,10 @@
+ 		piso = "Reach the maintenance level",
+ 		fuzil = "Take a rifle from the workshop locker",
+ 		porta_blindada = "Reach the blast door on the east ring",
++		subestacao = "Go down to the substation through the maintenance door",
++		fusiveis = "Find the 3 fuses in the boxes and put them in the panel",
++		disjuntor = "Pull the main breaker lever",
++		elevador_volta = "Run back to the elevator at the blast door",
+ 	},
+ 	prompts = {
+ 		PegarRadio = "TAKE RADIO",
+@@ -242,6 +271,9 @@
+ 		LerTerminal = "READ TERMINAL",
+ 		PegarFuzil = "TAKE RIFLE",
+ 		PegarMunicao = "TAKE AMMO",
++		PegarFusivel = "TAKE FUSE",
++		ColocarFusiveis = "INSERT FUSES",
++		Religar = "RESET BREAKER",
+ 	},
+ 	avisos = {
+ 		modulo_no_carregador = "The module is on the charger in the armory.",
+@@ -251,6 +283,9 @@
+ 		espere_pavel = "Wait for Pavel to get inside.",
+ 		fuzil_pego = "You took an AK-74. Hold FIRE (or the mouse button) to shoot.",
+ 		municao_cheia = "Ammo refilled.",
++		fusivel_1 = "Fuse 1 of 3.",
++		fusivel_2 = "Fuse 2 of 3.",
++		fusivel_3 = "Fuse 3 of 3. Take them to the main panel.",
+ 	},
+ 	terminais = {
+ 		enfermaria_sem_energia = "SEVER-9 · INFIRMARY\nEXTERNAL ACCESS\n\nBACKUP: NO CHARGE\nINSERT MODULE",
+@@ -269,7 +304,7 @@
+ 	fim = {
+ 		titulo = "PROJECT BASTION",
+ 		capitulo = "CHAPTER 2 — THE FLOOR THAT DOESN'T EXIST",
+-		linha = "END OF PART 1 · THE SUBSTATION COMES IN THE NEXT UPDATE",
++		linha = "END OF CHAPTER 2 · CHAPTER 3 BEGINS ON THE UNNUMBERED FLOOR",
+ 	},
+ 	ui = { objetivo = "OBJECTIVE", alerta = "● ALERT · ISOLATION", toque = "TAP" },
+ }
+@@ -309,6 +344,11 @@
+ 		pavel_porta = "Служебный выход — гермодверь в восточном кольце. Я открываю, ты прикрываешь.",
+ 		pavel_recuou = "Отступил. Не радуйся: теперь он знает, что мы кусаемся.",
+ 		pavel_elevador = "Служебный лифт, без питания. Придётся запускать подстанцию.",
++		pavel_sub_ir = "Подстанция двумя уровнями ниже техзала. Служебный спуск. Держитесь рядом со мной.",
++		pavel_sub_chegou = "Главный автомат сгорел. В щитках на стене есть запасные предохранители. Нужно три.",
++		pavel_sub_fusiveis = "Три. В щит. Когда я опущу этот рычаг, свет вернётся... и он поймёт, где мы.",
++		pavel_sub_luz = "Есть питание! Лифт ожил. Бегом к гермодвери! Он услышал!",
++		pavel_descida = "На этой панели одна кнопка, и на ней нет номера. Держитесь. Этого не было в чертежах.",
+ 	},
+ 	sons = {
+ 		radio_chiado = "[ТРЕСК РАЦИИ]",
+@@ -332,6 +372,10 @@
+ 		piso = "Доберись до технического уровня",
+ 		fuzil = "Возьмите автомат из шкафа мастерской",
+ 		porta_blindada = "Доберитесь до гермодвери восточного кольца",
++		subestacao = "Спуститесь на подстанцию через служебную дверь",
++		fusiveis = "Найдите 3 предохранителя в щитках и вставьте в щит",
++		disjuntor = "Опустите рычаг главного автомата",
++		elevador_volta = "Бегом обратно к лифту у гермодвери",
+ 	},
+ 	prompts = {
+ 		PegarRadio = "ВЗЯТЬ РАЦИЮ",
+@@ -341,6 +385,9 @@
+ 		LerTerminal = "ЧИТАТЬ ТЕРМИНАЛ",
+ 		PegarFuzil = "ВЗЯТЬ АВТОМАТ",
+ 		PegarMunicao = "ВЗЯТЬ ПАТРОНЫ",
++		PegarFusivel = "ВЗЯТЬ ПРЕДОХРАНИТЕЛЬ",
++		ColocarFusiveis = "ВСТАВИТЬ ПРЕДОХРАНИТЕЛИ",
++		Religar = "ВКЛЮЧИТЬ АВТОМАТ",
+ 	},
+ 	avisos = {
+ 		modulo_no_carregador = "Модуль на зарядке в оружейной.",
+@@ -350,6 +397,9 @@
+ 		espere_pavel = "Подожди, пока Павел войдёт.",
+ 		fuzil_pego = "Вы взяли АК-74. Удерживайте ОГОНЬ (или кнопку мыши), чтобы стрелять.",
+ 		municao_cheia = "Патроны пополнены.",
++		fusivel_1 = "Предохранитель 1 из 3.",
++		fusivel_2 = "Предохранитель 2 из 3.",
++		fusivel_3 = "Предохранитель 3 из 3. Несите к главному щиту.",
+ 	},
+ 	terminais = {
+ 		enfermaria_sem_energia = "СЕВЕР-9 · МЕДБЛОК\nВНЕШНИЙ ДОСТУП\n\nРЕЗЕРВ: НЕТ ЗАРЯДА\nВСТАВЬТЕ МОДУЛЬ",
+@@ -368,7 +418,7 @@
+ 	fim = {
+ 		titulo = "ПРОЕКТ «БАСТИОН»",
+ 		capitulo = "ГЛАВА 2 — ЭТАЖ, КОТОРОГО НЕТ",
+-		linha = "КОНЕЦ ЧАСТИ 1 · ПОДСТАНЦИЯ — В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ",
++		linha = "КОНЕЦ ГЛАВЫ 2 · ГЛАВА 3 НАЧНЁТСЯ НА ЭТАЖЕ БЕЗ НОМЕРА",
+ 	},
+ 	ui = { objetivo = "ЗАДАЧА", alerta = "● ТРЕВОГА · ИЗОЛЯЦИЯ", toque = "КАСАНИЕ" },
+ }
+diff -ruN z13/src/teste_nuvem.luau z14/src/teste_nuvem.luau
+--- z13/src/teste_nuvem.luau	2026-11-18 14:17:07.359538279 +0000
++++ z14/src/teste_nuvem.luau	2026-11-18 14:32:52.716028394 +0000
+@@ -174,6 +174,7 @@
+ -- campanha da correção 11: capítulo 1 + parte 1 do capítulo 2 (arma e porta blindada)
+ local Cap = require(SRV.Capitulo02).juntar(require(SRV.Capitulo01))
+ local Cenario02 = require(SRV.Cenario02)
++local Cenario03 = require(SRV.Cenario03)
+ local ArmaModelo = require(COMP.ArmaModelo)
+ local Mundo = require(SRV.Mundo)
+ local Missao = require(SRV.Missao)
+@@ -672,6 +673,22 @@
+ 			ruidos[chave] = true
+ 		end,
+ 	})
++	local missaoRef: any = nil
++	local relatosTeste = 0
++	Cenario03.construir({
++		pasta = pasta,
++		mundo = mundo,
++		cena = cena,
++		reportar = function(nome)
++			relatosTeste += 1
++			missaoRef:reportar({ id = "cena:" .. nome .. ":" .. relatosTeste, kind = "interacao", name = nome })
++		end,
++		atrair = function() ruidos.monstro_atraido = true end,
++		aviso = function() end,
++		ruido = function(chave)
++			ruidos[chave] = true
++		end,
++	})
+ 	local rel = Validator.Validate(Cap, mundo:registro())
+ 	assert(rel.ok, "capítulo inválido: " .. table.concat(rel.erros, "; "))
+ 	local objetivo = ""
+@@ -766,6 +783,7 @@
+ 	end
+ 	missao:iniciar()
+ 	interacoes:atualizar()
++	missaoRef = missao
+ 	local function interagir(j: any, p: ProximityPrompt): (boolean, string?)
+ 		if p.HoldDuration > 0 then
+ 			local ok, motivo = interacoes:iniciarSegurar(j, p)
+@@ -830,9 +848,33 @@
+ 	passo("monstro recuou", missao:no() == "cap2_corredor")
+ 	mover(bia, Vector3.new(59, 3, -389))
+ 	zonas:verificar()
+-	esperar("fim da parte 1", function() return missao:final() end)
++	-- capítulo 2 (parte 2): porta de manutenção, subestação, fusíveis, disjuntor, volta e descida
++	esperar("porta de manutenção aberta", function() return missao:no() == "cap2_sub_ir" and mundo:estado("porta_manutencao") == "aberta" and objetivo == "subestacao" end)
++	mover(bia, Vector3.new(180, -21, -400))
++	zonas:verificar()
++	esperar("chegou na subestação", function() return missao:no() == "cap2_sub_fusiveis" and objetivo == "fusiveis" end)
++	passo("checkpoint da subestação", checkpoint:ultimo() ~= nil and checkpoint:ultimo().id == "subestacao")
++	for i, p in { Vector3.new(191.5, -21, -423), Vector3.new(205, -21, -377), Vector3.new(177, -21, -386) } do
++		mover(bia, p)
++		esperar("fusível " .. i .. " disponível", function() return prompts["pegar_fusivel_" .. i].Enabled end)
++		passo("pegar fusível " .. i, (interagir(bia, prompts["pegar_fusivel_" .. i])))
++	end
++	mover(bia, Vector3.new(219, -21, -400))
++	esperar("painel aceita os fusíveis", function() return prompts.colocar_fusiveis.Enabled end)
++	passo("colocar fusíveis", (interagir(bia, prompts.colocar_fusiveis)))
++	esperar("disjuntor", function() return missao:no() == "cap2_sub_disjuntor" and objetivo == "disjuntor" and prompts.religar_disjuntor.Enabled end)
++	mover(bia, Vector3.new(219, -21, -402))
++	passo("puxar a alavanca", (interagir(bia, prompts.religar_disjuntor)))
++	passo("energia voltou", mundo:estado("subestacao") == "ligada")
++	esperar("volta ao elevador", function() return missao:no() == "cap2_sub_volta" and objetivo == "elevador_volta" end)
++	passo("barulho chama o monstro", ruidos.monstro_atraido == true)
++	mover(bia, Vector3.new(118, 3, -400))
++	zonas:verificar()
++	mover(bia, Vector3.new(59, 3, -389))
++	zonas:verificar()
++	esperar("fim do capítulo 2", function() return missao:final() end)
+ 	esperar("término de todas as sequências", function() return #sequencias:tocando() == 0 end)
+-	passo("fim da parte 1", missao:final() and objetivo == "piso" and fimEm > 0 and checkpoint:ultimo() ~= nil and checkpoint:ultimo().id == "fim_cap2a")
++	passo("fim do capítulo 2", missao:final() and fimEm > 0 and checkpoint:ultimo() ~= nil and checkpoint:ultimo().id == "fim_cap2")
+ 	for _, seq in Cap.sequences do
+ 		for _, cue in seq.cues do
+ 			if cue.fala then passo("fala preservada " .. cue.fala, falasApresentadas[cue.fala] == 1) end
+--- z13/tooling/release_builder.py	2026-11-18 14:17:07.369108535 +0000
++++ z14/tooling/release_builder.py	2026-11-18 14:32:52.721008432 +0000
+@@ -48,6 +48,8 @@
+     (["ServerScriptService", "BastiaoServidor", "Arma"], "src/server/Arma.luau"),
+     (["ServerScriptService", "BastiaoServidor", "Capitulo02"], "src/server/Capitulo02.luau"),
+     (["ServerScriptService", "BastiaoServidor", "Cenario02"], "src/server/Cenario02.luau"),
++    # correção 14: capítulo 2, parte 2 — a subestação
++    (["ServerScriptService", "BastiaoServidor", "Cenario03"], "src/server/Cenario03.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Arma"], "src/client/Arma.luau"),
+ )
+ # Fontes Bastiao* que já estiveram no Place: as versões do Claude (etapa 2, correções 3 a 8) e o

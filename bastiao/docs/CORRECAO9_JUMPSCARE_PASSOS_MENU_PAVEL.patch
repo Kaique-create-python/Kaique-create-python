@@ -1,0 +1,1416 @@
+diff -ruN a/audio/AUDIO_PLAN.json b/audio/AUDIO_PLAN.json
+--- a/audio/AUDIO_PLAN.json
++++ b/audio/AUDIO_PLAN.json
+@@ -771,16 +771,17 @@
+     },
+     {
+       "key": "impacto_porta",
+-      "kind": "sfx",
++      "kind": "reuse",
+       "profile": "foley",
+       "category": "Foley",
+-      "text": "One massive heavy humanoid fist slams a thick steel containment door. Deep steel body resonance, sharp structural rattle, short decay. Isolated horror foley without speech or music.",
+-      "durationSeconds": 2.5,
+-      "promptInfluence": 0.7,
+       "volume": 0.65,
+       "loop": false,
+       "spatial": true,
+-      "radio": false
++      "radio": false,
++      "sourcePath": "sources/eleven_impacto_porta.mp3",
++      "sha256": "9fec624514b5783eb3b725e0fe24111be5fb602793172812ba84a78635b1a45c",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "One massive heavy monster fist slams a thick steel bunker door from outside. Deep booming steel body resonance, sharp structural impact, rattling hinges and a long metallic ring with heavy low end. Single violent blow, no voices, no music."
+     },
+     {
+       "key": "porta_desliza",
+@@ -914,55 +915,73 @@
+     },
+     {
+       "key": "lanterna_liga",
+-      "kind": "sfx",
+-      "text": "One crisp mechanical click of a heavy military flashlight switch turning on, small spring and metal body resonance, very short, close and dry. Single click only, no voice, no music.",
+-      "durationSeconds": 0.5,
+-      "promptInfluence": 0.8,
++      "kind": "reuse",
+       "profile": "ui",
+       "category": "UI",
+       "volume": 0.7,
+       "spatial": false,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_lanterna_liga.mp3",
++      "sha256": "063c57bda97ec71462be3ed6f3d396918e7a1f38c28ccdcf4f3c4df82912157d",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "One crisp mechanical click of a heavy military flashlight switch turning on, small spring and metal body resonance, very short, close and dry. Single click only, no voice, no music."
+     },
+     {
+       "key": "lanterna_desliga",
+-      "kind": "sfx",
+-      "text": "One softer mechanical click of a heavy military flashlight switch turning off, small spring release, very short, close and dry. Single click only, no voice, no music.",
+-      "durationSeconds": 0.5,
+-      "promptInfluence": 0.8,
++      "kind": "reuse",
+       "profile": "ui",
+       "category": "UI",
+       "volume": 0.6,
+       "spatial": false,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_lanterna_desliga.mp3",
++      "sha256": "6b5c3e9221c02f824eedbd1b44d5d735ef55aa5723c3b2129f8d5f70f9a7b3c2",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "One softer mechanical click of a heavy military flashlight switch turning off, small spring release, very short, close and dry. Single click only, no voice, no music."
+     },
+     {
+       "key": "menu_abre",
+-      "kind": "sfx",
+-      "text": "A short old bodycam menu opening: quick electronic chirp, servo whir and a tiny relay clack with a hint of CRT static, under one second, no melody, no voice, no music.",
+-      "durationSeconds": 0.8,
+-      "promptInfluence": 0.7,
++      "kind": "reuse",
+       "profile": "ui",
+       "category": "UI",
+       "volume": 0.65,
+       "spatial": false,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_menu_abre.mp3",
++      "sha256": "57544ea1705ed310f8299dfb0334c2165b723f4d570a6d7473b45e200f7801ae",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "A short old bodycam menu opening: quick electronic chirp, servo whir and a tiny relay clack with a hint of CRT static buzz, under one second, dry and close. No voice, no music."
+     },
+     {
+       "key": "legenda_quebra",
+-      "kind": "sfx",
+-      "text": "A brief delicate glassy digital shatter: small pieces of a screen breaking apart with a soft static crackle and tiny tinkles falling, quiet and short, no impact boom, no voice, no music.",
+-      "durationSeconds": 0.8,
+-      "promptInfluence": 0.7,
++      "kind": "reuse",
+       "profile": "ui",
+       "category": "UI",
+       "volume": 0.35,
+       "spatial": false,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_legenda_quebra.mp3",
++      "sha256": "f6d476e86a596ec4bd669f29d083f4d505f196052a9197aaca7a686a36cc514a",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "A brief delicate glassy digital shatter: small pieces of a screen breaking apart with a soft static crackle and tiny glass tinkles falling, under one second, subtle and eerie. No voice, no music."
++    },
++    {
++      "key": "jumpscare",
++      "kind": "reuse",
++      "profile": "foley",
++      "category": "Foley",
++      "volume": 1.0,
++      "spatial": false,
++      "radio": false,
++      "loop": false,
++      "sourcePath": "sources/eleven_jumpscare.mp3",
++      "sha256": "5da2b473fceb307477b603745c23052785de6f9cb6e24a488fd55abb5cc9bff8",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "Sudden violent horror jumpscare sting: a monstrous distorted inhuman shriek right in the ear, layered with tearing metal screech and a deep sub bass body impact, extremely loud, harsh, clipped and blown out, about two seconds. No music, no words."
+     }
+   ],
+   "atlas": {
+diff -ruN a/src/client/BastiaoCliente.luau b/src/client/BastiaoCliente.luau
+--- a/src/client/BastiaoCliente.luau
++++ b/src/client/BastiaoCliente.luau
+@@ -95,8 +95,13 @@
+ end
+ local monstroSom = { parar = function() end }
+ if monstroSomCarregou and type(MonstroSom) == "table" and type(MonstroSom.iniciar) == "function" then
+-	-- passos=false: os passos do monstro já saem pelo Foley; aqui só o bote e o golpe.
+-	local criou, criado = pcall(MonstroSom.iniciar, { jogador = jogador, grupo = som.grupoEfeitos, passos = false })
++	-- passos=true: o baque grave da loja soma com o passo do ElevenLabs (Foley), os dois no pé.
++	local criou, criado = pcall(MonstroSom.iniciar, {
++		jogador = jogador, grupo = som.grupoEfeitos, passos = true,
++		efeito = function(chave: string, pos: Vector3?)
++			return som.efeito(chave, pos)
++		end,
++	})
+ 	if criou and type(criado) == "table" and type(criado.parar) == "function" then
+ 		monstroSom = criado
+ 	else
+diff -ruN a/src/client/Efeitos.luau b/src/client/Efeitos.luau
+--- a/src/client/Efeitos.luau
++++ b/src/client/Efeitos.luau
+@@ -10,9 +10,14 @@
+ --    da lanterna; aqui só se escuta a mudança).
+ --  * Perseguição: quando o 731-A persegue perto, a tela escurece nas bordas e pulsa, e a imagem
+ --    perde cor e treme de leve no brilho, como luz falhando.
++--  * Jumpscare: quando o 731-A agarra ESTE jogador (atributo BastiaoCapturado do servidor), a câmera
++--    prende no rosto dele, treme cada vez mais, dá zoom, a imagem enche de estática e corta para o
++--    preto no golpe; volta ao normal quando o personagem renasce.
++--  * Pancadas na porta da oficina: a câmera de quem está perto treme a cada soco.
+ -- Pode ser exigido no servidor (teste na nuvem): nada roda até Efeitos.iniciar.
+ 
+ local GuiService = game:GetService("GuiService")
++local ReplicatedStorage = game:GetService("ReplicatedStorage")
+ local Lighting = game:GetService("Lighting")
+ local RunService = game:GetService("RunService")
+ local TweenService = game:GetService("TweenService")
+@@ -124,7 +129,7 @@
+ 	end
+ 
+ 	local function retangulo(): (Vector2, Vector2)
+-		if painel and painel.AbsoluteSize.X > 4 then
++		if painel and painel.AbsoluteSize.X > 40 and painel.AbsoluteSize.Y > 40 then
+ 			return painel.AbsolutePosition, painel.AbsoluteSize
+ 		end
+ 		local tela = fx.AbsoluteSize
+@@ -140,10 +145,17 @@
+ 		end
+ 		fx.Enabled = true
+ 		tocar("menu_abre", "ui_confirm")
+-		-- espera o menu terminar de montar (tamanho automático) antes de medir
+-		RunService.Heartbeat:Wait()
+-		if minha ~= geracao or not vivo then
+-			return
++		-- espera o menu terminar de montar: o painel tem altura automática e só ganha tamanho um
++		-- ou dois quadros depois que o Sector7 liga a tela. Medir antes dava altura 0 e o cartão
++		-- 3D saía invisível (só a piscada de TV do fechar aparecia).
++		for _ = 1, 40 do
++			RunService.Heartbeat:Wait()
++			if minha ~= geracao or not vivo then
++				return
++			end
++			if painel and painel.AbsoluteSize.X > 40 and painel.AbsoluteSize.Y > 40 then
++				break
++			end
+ 		end
+ 		local pos, tam = retangulo()
+ 		local centro = pos + tam / 2
+@@ -360,6 +372,181 @@
+ 		end
+ 	end))
+ 
++	-- ===== tremor de câmera (pancadas na porta, golpe do jumpscare) =====
++	local tremorAte, tremorForca = 0, 0
++	local function tremer(forca: number, duracao: number)
++		tremorAte = math.max(tremorAte, os.clock() + duracao)
++		tremorForca = math.max(if os.clock() < tremorAte then tremorForca else 0, forca)
++	end
++	local NOME_TREMOR = "BastiaoTremor"
++	RunService:BindToRenderStep(NOME_TREMOR, Enum.RenderPriority.Last.Value, function()
++		local agora = os.clock()
++		if agora >= tremorAte then
++			tremorForca = 0
++			return
++		end
++		local camera = workspace.CurrentCamera
++		if not camera or camera.CameraType ~= Enum.CameraType.Custom then
++			return
++		end
++		local f = tremorForca * math.clamp((tremorAte - agora) / 0.2, 0, 1)
++		camera.CFrame *= CFrame.Angles((math.random() - 0.5) * 0.05 * f, (math.random() - 0.5) * 0.05 * f, (math.random() - 0.5) * 0.03 * f)
++	end)
++
++	-- ===== jumpscare: quando o 731-A agarra ESTE jogador =====
++	local susto = Instance.new("ScreenGui")
++	susto.Name = "BastiaoJumpscare"
++	susto.ResetOnSpawn = false
++	susto.DisplayOrder = 40
++	susto.IgnoreGuiInset = true
++	susto.ScreenInsets = Enum.ScreenInsets.None
++	susto.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
++	susto.Enabled = false
++	susto.Parent = op.playerGui
++	local clarao = quadro(susto, "Clarao", VERMELHO, 1)
++	clarao.Size = UDim2.fromScale(1, 1)
++	local escuro = quadro(susto, "Preto", PRETO, 1)
++	escuro.Size = UDim2.fromScale(1, 1)
++	escuro.ZIndex = 3
++	local estatica: { Frame } = {}
++	for _ = 1, 16 do
++		local linha = quadro(susto, "Estatica", BRANCO, 1)
++		linha.Size = UDim2.new(1, 0, 0, 3)
++		linha.ZIndex = 4
++		table.insert(estatica, linha)
++	end
++	local NOME_SUSTO = "BastiaoJumpscare"
++	local emSusto = false
++	local function tempos(nome: string): { [string]: number }
++		-- tempos do catálogo (Grip, Roar, Impact, CameraCut); reserva se não achar
++		local t = { Grip = 1.0, Roar = 1.7, Impact = 2.0, CameraCut = 2.63, fim = 3.0 }
++		local ok, catalogo = pcall(function()
++			local pasta = ReplicatedStorage:FindFirstChild("BastiaoCompartilhado")
++			local modulo = pasta and pasta:FindFirstChild("MonsterCatalog")
++			return if modulo and modulo:IsA("ModuleScript") then require(modulo) :: any else nil
++		end)
++		local clip = if ok and type(catalogo) == "table" and type(catalogo.animations) == "table" then catalogo.animations[nome] else nil
++		if type(clip) == "table" then
++			t.fim = tonumber(clip.duration) or t.fim
++			for _, m in clip.markers or {} do
++				if type(m) == "table" and t[m.name] ~= nil and type(m.time) == "number" then
++					t[m.name] = m.time
++				end
++			end
++		end
++		return t
++	end
++	local function jumpscare()
++		if emSusto or not vivo then
++			return
++		end
++		emSusto = true
++		local nome = op.jogador:GetAttribute("BastiaoCapturaAnimacao")
++		local t = tempos(if type(nome) == "string" then nome else "30_JUMPSCARE_FRONTAL_GRAB")
++		local camera = workspace.CurrentCamera
++		local fovAntes = camera.FieldOfView
++		local personagemAntes = op.jogador.Character
++		camera.CameraType = Enum.CameraType.Scriptable
++		susto.Enabled = true
++		clarao.BackgroundColor3 = VERMELHO
++		clarao.BackgroundTransparency = 0.3
++		escuro.BackgroundTransparency = 1
++		tween(clarao, 0.55, { BackgroundTransparency = 1 })
++		tocar("jumpscare", nil) -- som do ElevenLabs quando existir; o MonstroSom já ruge na cabeça
++		local inicio = os.clock()
++		local golpeou = false
++		local encerrado = false
++		local function encerrar()
++			if encerrado then
++				return
++			end
++			encerrado = true
++			RunService:UnbindFromRenderStep(NOME_SUSTO)
++			local cam = workspace.CurrentCamera
++			cam.CameraType = Enum.CameraType.Custom
++			cam.FieldOfView = fovAntes
++			local novo = op.jogador.Character
++			local humanoide = novo and novo:FindFirstChildOfClass("Humanoid")
++			if humanoide then
++				cam.CameraSubject = humanoide
++			end
++			for _, linha in estatica do
++				linha.BackgroundTransparency = 1
++			end
++			tween(escuro, 0.9, { BackgroundTransparency = 1 })
++			task.delay(0.95, function()
++				if encerrado and not emSusto then
++					return
++				end
++				susto.Enabled = false
++				emSusto = false
++			end)
++		end
++		RunService:BindToRenderStep(NOME_SUSTO, Enum.RenderPriority.Last.Value + 1, function()
++			local agora = os.clock() - inicio
++			local historia = workspace:FindFirstChild("BastiaoHistoria")
++			local pasta = historia and historia:FindFirstChild("Criatura")
++			local monstro = pasta and pasta:FindFirstChild("Bastiao731A")
++			local corpo = monstro and monstro:FindFirstChild("HumanoidRootPart")
++			local personagem = op.jogador.Character
++			local cabeca = personagem and (personagem:FindFirstChild("Head") or personagem:FindFirstChild("HumanoidRootPart"))
++			local cam = workspace.CurrentCamera
++			if corpo and corpo:IsA("BasePart") and cabeca and cabeca:IsA("BasePart") and not golpeou then
++				local altura = tonumber(monstro:GetAttribute("BastiaoHeightStuds")) or corpo.Size.Y
++				local rosto = corpo.Position + Vector3.new(0, altura * 0.3, 0)
++				local olho = cabeca.Position + Vector3.new(0, 0.35, 0)
++				local forca = if agora < t.Grip then 0.05 elseif agora < t.Impact then 0.14 + (agora - t.Grip) * 0.25 else 0.4
++				local tremor = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * forca
++				cam.CameraType = Enum.CameraType.Scriptable
++				cam.CFrame = CFrame.lookAt(olho + tremor, rosto + tremor * 4)
++				cam.FieldOfView = fovAntes + (42 - fovAntes) * math.clamp((agora - t.Grip * 0.4) / 1.1, 0, 1)
++			end
++			-- estática: aparece no rugido, toma a tela no golpe
++			local chance = if agora < t.Roar then 0.05 elseif agora < t.Impact then 0.45 else 0.8
++			for _, linha in estatica do
++				linha.Position = UDim2.fromScale(0, math.random())
++				linha.Size = UDim2.new(1, 0, 0, math.random(2, 7))
++				linha.BackgroundTransparency = if math.random() < chance then 0.15 + math.random() * 0.6 else 1
++			end
++			if agora >= t.Roar and agora < t.Roar + 0.05 then
++				clarao.BackgroundColor3 = VERMELHO
++				clarao.BackgroundTransparency = 0.5
++				tween(clarao, 0.3, { BackgroundTransparency = 1 })
++			end
++			if agora >= t.Impact and not golpeou then
++				-- golpe: clarão branco e corte seco para o preto
++				golpeou = true
++				clarao.BackgroundColor3 = BRANCO
++				clarao.BackgroundTransparency = 0
++				tween(clarao, 0.18, { BackgroundTransparency = 1 })
++				escuro.BackgroundTransparency = 0
++			end
++			if agora > t.fim + 6 then
++				encerrar() -- reserva: se o renascer não chegar
++			end
++		end)
++		-- volta quando o personagem renasce (ou se a captura for cancelada sem golpe)
++		local conexao: RBXScriptConnection? = nil
++		conexao = op.jogador.CharacterAdded:Connect(function(novo)
++			if novo ~= personagemAntes then
++				if conexao then
++					conexao:Disconnect()
++				end
++				task.wait(0.2)
++				encerrar()
++			end
++		end)
++		table.insert(conexoes, conexao :: RBXScriptConnection)
++	end
++	local ultimoCapturado = op.jogador:GetAttribute("BastiaoCapturado")
++	table.insert(conexoes, op.jogador:GetAttributeChangedSignal("BastiaoCapturado"):Connect(function()
++		local valor = op.jogador:GetAttribute("BastiaoCapturado")
++		if valor ~= ultimoCapturado and type(valor) == "number" then
++			ultimoCapturado = valor
++			task.spawn(jumpscare)
++		end
++	end))
++
+ 	-- ===== perseguição: tela fecha nas bordas, perde cor e a luz falha =====
+ 	local cor = Instance.new("ColorCorrectionEffect")
+ 	cor.Name = "BastiaoTensao"
+@@ -391,6 +578,7 @@
+ 	end
+ 	local intensidade = 0
+ 	local acumulado = 0
++	local ultimoMarcador: any = nil
+ 	table.insert(conexoes, RunService.RenderStepped:Connect(function(dt)
+ 		acumulado += dt
+ 		if acumulado < 0.05 then
+@@ -409,7 +597,15 @@
+ 			local estado = monstro:GetAttribute("BastiaoState")
+ 			local d = (corpo.Position - raiz.Position).Magnitude
+ 			local perto = math.clamp(1 - (d - 8) / 55, 0, 1)
+-			if estado == "chase" or estado == "attack" or estado == "alert" then
++			local marcador = monstro:GetAttribute("BastiaoMarkerSerial")
++			if marcador ~= ultimoMarcador then
++				ultimoMarcador = marcador
++				local nomeMarcador = monstro:GetAttribute("BastiaoMarkerName")
++				if (nomeMarcador == "DoorHit" or nomeMarcador == "Impact") and estado == "search" and d < 45 then
++					tremer(1 - d / 60, 0.3)
++				end
++			end
++			if estado == "chase" or estado == "attack" or estado == "alert" or estado == "capture" then
+ 				alvo = perto
+ 			elseif estado == "search" then
+ 				alvo = perto * 0.45
+@@ -444,7 +640,17 @@
+ 		end
+ 		limparCantos()
+ 		mostrarPainel()
++		pcall(function()
++			RunService:UnbindFromRenderStep(NOME_TREMOR)
++		end)
++		if emSusto then
++			pcall(function()
++				RunService:UnbindFromRenderStep(NOME_SUSTO)
++				workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
++			end)
++		end
+ 		fx:Destroy()
++		susto:Destroy()
+ 		borda:Destroy()
+ 		cor:Destroy()
+ 	end
+diff -ruN a/src/client/Foley.luau b/src/client/Foley.luau
+--- a/src/client/Foley.luau
++++ b/src/client/Foley.luau
+@@ -396,6 +396,29 @@
+ 		end))
+ 
+ 		if kind == "monster" then
++			-- Passos do monstro no instante em que o pé encosta (marcadores Foot_* das animações,
++			-- repassados pelo servidor). O monstro é movido sem física, então o estado do Humanoid
++			-- não diz se ele anda: por isso o ritmo por distância quase não tocava.
++			actor.marker = model:GetAttribute("BastiaoMarkerSerial")
++			table.insert(actor.connections, model:GetAttributeChangedSignal("BastiaoMarkerSerial"):Connect(function()
++				local serial = model:GetAttribute("BastiaoMarkerSerial")
++				if serial == actor.marker then return end
++				actor.marker = serial
++				local name = model:GetAttribute("BastiaoMarkerName")
++				if type(name) ~= "string" then return end
++				local foot = string.sub(name, 1, 4) == "Foot" or name == "Scuff" or name == "Land" or name == "WeightImpact"
++				if not foot then return end
++				actor.markerAt = os.clock()
++				local listener = playerRoot()
++				if listener and (actor.root.Position - listener.Position).Magnitude > 170 then return end
++				local keys = stepKeys("monster", "concrete")
++				if #keys == 0 then return end
++				actor.index = actor.index % #keys + 1
++				local running = model:GetAttribute("BastiaoAnimation") == "08_CORRER" or model:GetAttribute("BastiaoState") == "chase"
++				play(keys[actor.index], actor.root, {
++					actor = model, gain = if running then 1.3 else 1.05, offset = Vector3.new(0, -2.5, 0),
++				})
++			end))
+ 			table.insert(actor.connections, model:GetAttributeChangedSignal("BastiaoRoarSerial"):Connect(function()
+ 				local value = model:GetAttribute("BastiaoRoarSerial")
+ 				if value ~= actor.lastRoar and type(value) == "number" then
+@@ -488,6 +511,9 @@
+ 			end
+ 			local near = actor.isLocal or (listener and (actor.root.Position - listener.Position).Magnitude < 140)
+ 			local keys = if actor.kind == "monster" or ownsSteps then stepKeys(actor.kind, Timing.surface(material)) else {}
++			-- monstro com marcadores: os passos já saem no pé (acima); o ritmo por distância só
++			-- fica de reserva para um servidor antigo sem marcadores.
++			if actor.kind == "monster" and type(model:GetAttribute("BastiaoMarkerSerial")) == "number" then keys = {} end
+ 			if #keys == 0 and actor.kind == "soldier" and ownsSteps then keys = stepKeys("soldier", "concrete") end
+ 			local replace = healthy and #keys > 0
+ 			suppressDefault(actor, "Running", replace)
+diff -ruN a/src/client/MonstroSom.luau b/src/client/MonstroSom.luau
+--- a/src/client/MonstroSom.luau
++++ b/src/client/MonstroSom.luau
+@@ -2,9 +2,10 @@
+ -- Só sons publicados na Creator Store (Pro Sound Effects, licenciados pela Roblox) e o rugido do 731-A.
+ -- Passos: seguem os marcadores Foot_L/Foot_R das animações (o servidor repassa em BastiaoMarkerSerial),
+ -- então batem junto com os pés. Bote: BastiaoAttackSerial / BastiaoHitSerial vindos da Criatura.
+--- Feito pelo Antigravity no Studio (Perseguição v2). Ligado pelo BastiaoCliente com passos=false:
+--- os passos do monstro já saem pelo Foley (sons do ElevenLabs no ritmo do andar); aqui ficam
+--- o bote (rugido na cabeça de quem foi alcançado) e o golpe da garra.
++-- Feito pelo Antigravity no Studio (Perseguição v2). O BastiaoCliente liga com passos=true: o
++-- baque grave daqui soma com o passo do ElevenLabs do Foley, os dois no mesmo marcador do pé.
++-- Também: o bote (rugido na cabeça de quem foi alcançado), o golpe da garra, o jumpscare
++-- (captura) e as pancadas na porta da oficina.
+ local Players = game:GetService("Players")
+ local SoundService = game:GetService("SoundService")
+ local TweenService = game:GetService("TweenService")
+@@ -61,7 +62,8 @@
+ 	op = op or {}
+ 	local jogador = op.jogador or Players.LocalPlayer
+ 	local grupo = op.grupo
+-	local comPassos = op.passos ~= false -- false: passos ficam com o Foley (sem passo dobrado)
++	local comPassos = op.passos ~= false -- false: passos ficam só com o Foley
++	local efeito = op.efeito -- sons do ElevenLabs (Som.efeito); nil enquanto não existirem
+ 	local vivo = true
+ 	local conexoes, monstros, vivos = {}, {}, {}
+ 	local random = Random.new()
+@@ -165,6 +167,60 @@
+ 			})
+ 		end)) end
+ 
++		-- CAPTURA (jumpscare) e PORTA: os marcadores das animações extras
++		table.insert(m.conexoes, model:GetAttributeChangedSignal("BastiaoMarkerSerial"):Connect(function()
++			local nome = model:GetAttribute("BastiaoMarkerName")
++			local estado = model:GetAttribute("BastiaoState")
++			if type(nome) ~= "string" then return end
++			local vitima = model:GetAttribute("BastiaoCapturaVitima") == jogador.UserId
++			if estado == "capture" then
++				if nome == "Grip" then
++					tocar(IDS.impacto, if vitima then pasta2D else boca, {
++						nome = "captura_agarra", volume = 7, velocidade = 0.55, eq = { 9, 0, -6 },
++						distorcao = 0.5, perto = 14, longe = 160, duracao = 1.2, fade = 0.3,
++					})
++				elseif nome == "Roar" then
++					tocar(IDS.rugido, boca, {
++						nome = "captura_rugido", volume = AJUSTE.boteVolume, velocidade = 0.66,
++						eq = { 10, 0, -6 }, ganho = AJUSTE.boteGanhoDb, distorcao = AJUSTE.boteDistorcao,
++						perto = 25, longe = 260, duracao = 2.4, fade = 0.5,
++					})
++					tocar(IDS.grito, if vitima then pasta2D else boca, {
++						nome = "captura_grito", volume = 9, velocidade = 0.72,
++						eq = { 10, -1, -6 }, ganho = AJUSTE.boteGanhoDb - 2, distorcao = 0.85,
++						perto = 25, longe = 240, duracao = 2.2, fade = 0.5,
++					})
++					if vitima then
++						tocar(IDS.rugido, pasta2D, {
++							nome = "captura_cabeca", volume = AJUSTE.boteVolume, velocidade = 0.6,
++							eq = { 10, 2, -4 }, ganho = AJUSTE.boteGanhoDb + 3, distorcao = 0.95,
++							duracao = 2.4, fade = 0.4,
++						})
++					end
++				elseif nome == "Impact" then
++					tocar(IDS.impacto, if vitima then pasta2D else boca, {
++						nome = "captura_golpe", volume = 10, velocidade = 0.5, eq = { 10, 0, -5 },
++						ganho = AJUSTE.boteGanhoDb, distorcao = 0.95, perto = 14, longe = 180,
++						duracao = 1.6, fade = 0.3,
++					})
++				end
++			elseif nome == "DoorHit" or (nome == "Impact" and model:GetAttribute("BastiaoAnimation") == "17_ESMURRAR_PORTA") then
++				-- pancada na porta da oficina: baque metálico grave que se ouve longe
++				local tocou = false
++				if efeito then
++					local ok, som = pcall(efeito, "impacto_porta", boca.WorldPosition)
++					tocou = ok and som ~= nil
++				end
++				if not tocou then
++					tocar(IDS.impacto, boca, {
++						nome = "porta_pancada", volume = 9, velocidade = random:NextNumber(0.42, 0.5),
++						eq = { 10, 2, -3 }, ganho = 8, distorcao = 0.6, perto = 22, longe = 220,
++						grupo = grupo, duracao = 1.6, fade = 0.4,
++					})
++				end
++			end
++		end))
++
+ 		-- BOTE: quando alcança o jogador, rugido gravíssimo, altíssimo e estourado
+ 		table.insert(m.conexoes, model:GetAttributeChangedSignal("BastiaoAttackSerial"):Connect(function()
+ 			local serial = model:GetAttribute("BastiaoAttackSerial")
+diff -ruN a/src/client/Som.luau b/src/client/Som.luau
+--- a/src/client/Som.luau
++++ b/src/client/Som.luau
+@@ -42,7 +42,7 @@
+ 	toques_perto = { vol = 1.0, raio = 70 },
+ 	inspiracao = { vol = 1.0, raio = 80 },
+ 	vapor = { vol = 0.75, raio = 45 },
+-	impacto_porta = { vol = 1.0, raio = 180 },
++	impacto_porta = { vol = 2.0, raio = 180 }, -- pancadas do monstro na porta (bem pesadas)
+ 	portas = { vol = 0.9, longe = true },
+ 	passos_monstro = { vol = 1.0, longe = true },
+ 	trava = { vol = 0.95, raio = 45 },
+@@ -58,6 +58,7 @@
+ 	lanterna_desliga = { vol = 0.65 },
+ 	menu_abre = { vol = 0.7 },
+ 	legenda_quebra = { vol = 0.35 },
++	jumpscare = { vol = 3.0 }, -- grito do jumpscare (na cabeça de quem foi pego)
+ }
+ Som.EFEITOS = EFEITOS
+ -- legenda do capítulo -> efeito do sprite (o alarme é o loop ligado pelo atributo)
+diff -ruN a/src/server/Criatura.luau b/src/server/Criatura.luau
+--- a/src/server/Criatura.luau
++++ b/src/server/Criatura.luau
+@@ -43,6 +43,21 @@
+     ["15_VASCULHAR"]=Enum.AnimationPriority.Action,
+     ["19_CLAW_LEFT"]=Enum.AnimationPriority.Action,
+ }
++-- Animações extras (opcionais): se alguma faltar no catálogo ou não carregar, o encontro segue
++-- sem ela. Os jumpscares matam quem a garra alcança; farejar e olhar dão vida à busca; esmurrar
++-- a porta acontece quando o jogador se tranca na oficina.
++local EXTRAS = {
++    ["30_JUMPSCARE_FRONTAL_GRAB"]=Enum.AnimationPriority.Action2,
++    ["31_JUMPSCARE_FROM_BEHIND"]=Enum.AnimationPriority.Action2,
++    ["03_FAREJAR"]=Enum.AnimationPriority.Action,
++    ["04_OLHAR_ESQUERDA"]=Enum.AnimationPriority.Action,
++    ["05_OLHAR_DIREITA"]=Enum.AnimationPriority.Action,
++    ["17_ESMURRAR_PORTA"]=Enum.AnimationPriority.Action,
++}
++local CAPTURA = {frente="30_JUMPSCARE_FRONTAL_GRAB", costas="31_JUMPSCARE_FROM_BEHIND"}
++local BUSCA = {"03_FAREJAR","04_OLHAR_ESQUERDA","05_OLHAR_DIREITA","15_VASCULHAR"}
++local PORTA_FORA = V(60.5,0,-319) -- no anel leste, colado na porta da oficina (fora da sala segura)
++local PORTA = V(66,0,-319)
+ 
+ local function point(v: Vector3): any return {x=v.X,y=v.Y,z=v.Z} end
+ local function inArea(v: Vector3): boolean return Core.inEncounterArea(point(v)) end
+@@ -406,20 +421,100 @@
+         return found
+     end
+ 
+-    local function damage(c: any, id: number)
++    local function vitimaValida(c: any, id: number): (Player?, BasePart?, Humanoid?)
+         local player=Players:GetPlayerByUserId(id)
+-        if not player then return end
++        if not player then return nil,nil,nil end
+         local character,root,human=livePlayer(player)
+         if not character or not root or not human or not c.ready or c.state.mode~="attack"
+             or c.animation~="19_CLAW_LEFT" or not c.tracks["19_CLAW_LEFT"].IsPlaying
+-            or safe(root.Position) or not inArea(root.Position) or (root.Position-c.root.Position).Magnitude>6 then return end
+-        if not rayClear(c.root.Position+V(0,c.height*0.26,0),root.Position+V(0,1.2,0),{c.model},character) then return end
+-        human:TakeDamage(30) -- one readable native claw; no grab, camera takeover, or proximity kill
++            or safe(root.Position) or not inArea(root.Position) or (root.Position-c.root.Position).Magnitude>6 then return nil,nil,nil end
++        if not rayClear(c.root.Position+V(0,c.height*0.26,0),root.Position+V(0,1.2,0),{c.model},character) then return nil,nil,nil end
++        return player,root,human
++    end
++
++    local function damage(c: any, id: number)
++        local player,_,human=vitimaValida(c,id)
++        if not player or not human then return end
++        human:TakeDamage(30) -- sem as animações de jumpscare: uma garra legível
+         -- avisa os clientes: quem levou o golpe ouve o impacto estourado (MonstroSom)
+         c.model:SetAttribute("BastiaoHitVictim",id)
+         c.model:SetAttribute("BastiaoHitSerial",(c.model:GetAttribute("BastiaoHitSerial") or 0)+1)
+     end
+ 
++    -- CAPTURA: a garra que alcança agarra o jogador (jumpscare de frente ou pelas costas) e mata
++    -- no golpe final. O jogador fica preso na frente do monstro; o cliente dele faz a câmera.
++    local function capturar(c: any, id: number, now: number): boolean
++        local player,root,human=vitimaValida(c,id)
++        if not player or not root or not human then return false end
++        local paraMonstro=flat(c.root.Position-root.Position)
++        local olhando=flat(root.CFrame.LookVector)
++        local tipo=if paraMonstro.Magnitude>0.01 and olhando.Magnitude>0.01
++            and olhando.Unit:Dot(paraMonstro.Unit)<-0.2 then "costas" else "frente"
++        local nome=CAPTURA[tipo]
++        if not c.tracks[nome] then tipo,nome="frente",CAPTURA.frente end
++        if not c.tracks[nome] then return false end
++        local frente=flat(c.root.CFrame.LookVector)
++        frente=if frente.Magnitude>0.01 then frente.Unit else V(0,0,1)
++        local onde=c.root.Position+frente*3.4
++        onde=V(onde.X,root.Position.Y,onde.Z)
++        local mira=if tipo=="frente" then V(c.root.Position.X,onde.Y,c.root.Position.Z) else onde+frente
++        root.Anchored=true
++        root.CFrame=CFrame.lookAt(onde,mira)
++        human.WalkSpeed=0
++        human.JumpPower=0
++        human.JumpHeight=0
++        local clip=c.catalog.animations[nome]
++        c.captura={id=id,player=player,root=root,human=human,nome=nome,inicio=now,
++            golpe=Core.markerTime(clip,"Impact") or clip.duration*0.65,fim=clip.duration,matou=false}
++        player:SetAttribute("BastiaoCapturaTipo",tipo)
++        player:SetAttribute("BastiaoCapturaAnimacao",nome)
++        player:SetAttribute("BastiaoCapturado",(player:GetAttribute("BastiaoCapturado") or 0)+1)
++        c.model:SetAttribute("BastiaoCapturaVitima",id)
++        c.model:SetAttribute("BastiaoCapturaSerial",(c.model:GetAttribute("BastiaoCapturaSerial") or 0)+1)
++        c.model:SetAttribute("BastiaoState","capture")
++        stopNavigation(c)
++        -- parado e virado para a vítima (setGoal é definido mais abaixo; aqui basta zerar a rota)
++        c.mover.route,c.mover.goal,c.mover.targetSpeed,c.mover.urgent=nil,nil,0,true
++        c.mover.face=onde
++        play(c,nome)
++        return true
++    end
++
++    local function soltarCaptura(c: any, now: number)
++        local cap=c.captura
++        c.captura=nil
++        if cap and cap.root and cap.root.Parent then cap.root.Anchored=false end
++        if cap and cap.player and cap.player.Parent then cap.player:SetAttribute("BastiaoCapturaTipo",nil) end
++        c.model:SetAttribute("BastiaoCapturaVitima",0)
++        c.state=Core.new(now)
++        c.state.nextRoarAt=now+12
++        c.pendingHit,c.pendingFinished=false,false
++        c.ultimoAlvo=nil
++        c.mover.face=nil
++        c.model:SetAttribute("BastiaoState","roam")
++    end
++
++    local function atualizarCaptura(c: any, now: number)
++        local cap=c.captura
++        local t=now-cap.inicio
++        local vivo=cap.human.Parent~=nil and cap.human.Health>0
++        if vivo and cap.root.Parent then cap.root.Anchored=true end
++        if t>=cap.golpe and vivo and not cap.matou then
++            cap.matou=true
++            cap.human.Health=0
++            c.model:SetAttribute("BastiaoHitVictim",cap.id)
++            c.model:SetAttribute("BastiaoHitSerial",(c.model:GetAttribute("BastiaoHitSerial") or 0)+1)
++        end
++        if t>=cap.fim+0.15 or not cap.player.Parent or not cap.root.Parent then soltarCaptura(c,now) end
++    end
++
++    local function alvoNaOficina(c: any): boolean
++        local player=if c.ultimoAlvo then Players:GetPlayerByUserId(c.ultimoAlvo) else nil
++        if not player then return false end
++        local _,root=livePlayer(player)
++        return root~=nil and safe(root.Position)
++    end
++
+     local floorParams=RaycastParams.new()
+     floorParams.FilterType=Enum.RaycastFilterType.Exclude
+     floorParams.RespectCanCollide=true
+@@ -512,6 +607,7 @@
+                 fail("mesh_nativo_removido"); return
+             end
+         end
++        if c.captura then atualizarCaptura(c,now); return end
+         local oldMode=c.state.mode
+         local seen=candidates(c,now)
+         local nextState,effect=Core.step(c.state,{ready=c.ready,candidates=seen,
+@@ -528,7 +624,7 @@
+             stopNavigation(c)
+             c.model:SetAttribute("BastiaoState",mode)
+             if mode=="chase" and oldMode~="attack" then c.chaseStartedAt=now end
+-            if mode=="search" then c.searchStartedAt=now end
++            if mode=="search" then c.searchStartedAt=now; c.buscaIndice=0; c.pancadasDesde=nil end
+             if mode=="attack" then
+                 -- clientes tocam o rugido estourado do bote (MonstroSom)
+                 c.model:SetAttribute("BastiaoAttackVictim",nextState.attackVictim or 0)
+@@ -547,7 +643,11 @@
+                 c.brakeUntil=now+c.catalog.animations["10_FREAR"].duration
+             end
+         end
+-        if effect.damageId then damage(c,effect.damageId) end
++        if nextState.targetId then c.ultimoAlvo=nextState.targetId end
++        if effect.damageId then
++            if capturar(c,effect.damageId,now) then return end
++            damage(c,effect.damageId)
++        end
+         c.mover.face=nil
+         if mode=="attack" then
+             -- Bote: até a garra descer, avança colado no alvo (antes parava e o jogador escapava andando).
+@@ -575,6 +675,27 @@
+             goal=nextState.lastKnown
+             speed=chaseSpeed(c,now)
+             urgent=true
++        elseif mode=="search" and c.tracks["17_ESMURRAR_PORTA"] and alvoNaOficina(c) then
++            -- o jogador se trancou na oficina: vai até a porta e esmurra até desistir
++            if (flat(PORTA_FORA-c.root.Position)).Magnitude>1.6 then
++                goal,speed,urgent=PORTA_FORA,SEARCH_SPEED,true
++            else
++                -- enquanto esmurra, não esquece quem está lá dentro (até ~12 s de pancadas)
++                c.pancadasDesde=c.pancadasDesde or now
++                if now-c.pancadasDesde<12 then c.state.memoryUntil=math.max(c.state.memoryUntil,now+1) end
++                setGoal(c,nil,0,now)
++                c.mover.face=PORTA
++                local pancada=c.tracks["17_ESMURRAR_PORTA"]
++                if c.animation~="17_ESMURRAR_PORTA" or not pancada.IsPlaying then
++                    if now>=(c.proximaPancada or 0) then
++                        play(c,"17_ESMURRAR_PORTA")
++                        c.proximaPancada=now+pancada.Length+0.4
++                    elseif c.animation~="01_RESPIRACAO" then
++                        play(c,"01_RESPIRACAO")
++                    end
++                end
++                return
++            end
+         elseif mode=="search" then
+             local lost=now-(c.searchStartedAt or now)
+             if nextState.lastKnown then
+@@ -602,7 +723,17 @@
+             local authored=if name=="08_CORRER" then 3.2 else 0.62
+             local studsPerMeter=c.height/3.000094
+             play(c,name,math.clamp(speed/(authored*studsPerMeter),0.2,1.8))
+-        elseif mode=="search" then play(c,"15_VASCULHAR")
++        elseif mode=="search" then
++            -- procura viva: vasculha, fareja, olha para um lado e para o outro
++            local atual=if c.animation then c.tracks[c.animation] else nil
++            local buscando=table.find(BUSCA,c.animation)~=nil
++            if not buscando or not (atual and atual.IsPlaying) then
++                for _ = 1, #BUSCA do
++                    c.buscaIndice=(c.buscaIndice or 0)%#BUSCA+1
++                    local n=BUSCA[c.buscaIndice]
++                    if c.tracks[n] then play(c,n); break end
++                end
++            end
+         elseif mode=="chase" then play(c,"02_ALERTA")
+         else play(c,"01_RESPIRACAO") end
+     end
+@@ -736,9 +867,7 @@
+                 task.wait(0.1)
+             end
+             if not current() then return end
+-            for name, track in c.tracks do
+-                assert(track.Length>0 and math.abs(track.Length-catalog.animations[name].duration)
+-                    <=math.max(0.25,catalog.animations[name].duration*0.15),"duracao_nativa_invalida:"..name)
++            local function ligarMarcadores(name: string, track: AnimationTrack)
+                 local markerNames={}
+                 for _, marker in catalog.animations[name].markers or {} do
+                     if type(marker)=="table" and type(marker.name)=="string" and not markerNames[marker.name]
+@@ -756,9 +885,70 @@
+                     end
+                 end
+             end
++            for name, track in c.tracks do
++                assert(track.Length>0 and math.abs(track.Length-catalog.animations[name].duration)
++                    <=math.max(0.25,catalog.animations[name].duration*0.15),"duracao_nativa_invalida:"..name)
++                ligarMarcadores(name,track)
++            end
+             table.insert(c.connections,c.tracks["19_CLAW_LEFT"].Stopped:Connect(function()
+                 if c.ready and c.animation=="19_CLAW_LEFT" and c.state.mode=="attack" then c.pendingFinished=true end
+             end))
++            -- extras opcionais (jumpscare, busca, porta): falha aqui só desliga o extra
++            c.extras={}
++            local extrasAnim,idParaNome={},{}
++            for name in EXTRAS do
++                local clip=catalog.animations[name]
++                if type(clip)=="table" and type(clip.id)=="number" and clip.id>0 and clip.id%1==0
++                    and type(clip.duration)=="number" and clip.duration>0.25 and clip.duration<12 then
++                    local animation=Instance.new("Animation")
++                    animation.Name=name
++                    animation.AnimationId="rbxassetid://"..tostring(clip.id)
++                    animation.Parent=animator
++                    extrasAnim[name]=animation
++                    idParaNome[animation.AnimationId]=name
++                end
++            end
++            local extrasFalhos={}
++            pcall(function()
++                local lista={}
++                for _, a in extrasAnim do table.insert(lista,a) end
++                ContentProvider:PreloadAsync(lista,function(conteudo,fetchStatus)
++                    local nome=idParaNome[tostring(conteudo)]
++                    if fetchStatus~=Enum.AssetFetchStatus.Success and nome then extrasFalhos[nome]=true end
++                end)
++            end)
++            if not current() then return end
++            for name, animation in extrasAnim do
++                if not extrasFalhos[name] then
++                    local ok,track=pcall(function() return animator:LoadAnimation(animation) end)
++                    if ok and track then
++                        track.Priority,track.Looped=EXTRAS[name],false
++                        c.tracks[name]=track
++                        c.extras[name]=true
++                    end
++                end
++            end
++            local extrasDeadline=os.clock()+4
++            while current() and os.clock()<extrasDeadline do
++                local pronto=true
++                for name in c.extras do if c.tracks[name].Length<=0 then pronto=false; break end end
++                if pronto then break end
++                task.wait(0.1)
++            end
++            if not current() then return end
++            local extrasProntos={}
++            for name in table.clone(c.extras) do
++                local track=c.tracks[name]
++                local clip=catalog.animations[name]
++                if track.Length<=0 or math.abs(track.Length-clip.duration)>math.max(0.25,clip.duration*0.15) then
++                    c.extras[name]=nil; c.tracks[name]=nil; track:Destroy()
++                else
++                    ligarMarcadores(name,track)
++                    table.insert(extrasProntos,name)
++                end
++            end
++            table.sort(extrasProntos)
++            model:SetAttribute("BastiaoExtras",table.concat(extrasProntos,","))
+             local hit=Core.markerTime(catalog.animations["19_CLAW_LEFT"],"Hit")
+             local roar=Core.markerTime(catalog.animations["06_RUGIDO"],"Roar")
+             assert(roar,"marcador_Roar_nativo_ausente")
+diff -ruN a/src/server/Pavel.luau b/src/server/Pavel.luau
+--- a/src/server/Pavel.luau
++++ b/src/server/Pavel.luau
+@@ -1,9 +1,12 @@
+ --!strict
+ -- PROJETO BASTIÃO :: Pavel (Sgt. Pavel Antonov, NPC da abertura)
+--- Clone do StarterCharacter R6 do próprio jogo, com uniforme de outra cor para não ser
+--- confundido com os jogadores. Anda pelos eixos dos corredores medidos no mapa, usa as
+--- animações R6 padrão do Roblox (andar/parado) e, parado, vira o corpo para o jogador mais
+--- perto. Não morre, não atravessa portas fechadas e não colide com jogadores (grupo próprio).
++-- Clone do StarterCharacter R6 do próprio jogo, vestido com um uniforme soviético do catálogo
++-- (jaqueta e calça Afghanka cáqui + ushanka; se o catálogo falhar, fica com as cores de antes,
++-- diferentes das dos jogadores). Anda pelos eixos dos corredores medidos no mapa, usa as
++-- animações R6 padrão do Roblox (as mesmas do Animate do jogo): parado (com a variação de olhar
++-- em volta), andar, apontar ao chegar num lugar e acenar quando alguém chega perto pela primeira
++-- vez. Parado, vira o corpo para o jogador mais perto. Não morre, não atravessa portas fechadas
++-- e não colide com jogadores (grupo próprio).
+ 
+ local Players = game:GetService("Players")
+ local StarterPlayer = game:GetService("StarterPlayer")
+@@ -16,6 +19,15 @@
+ local ALTURA_RAIZ = 3 -- R6 em pé: raiz 3 studs acima do chão
+ local ANIM_PARADO = "rbxassetid://180435571" -- animações R6 padrão do Roblox
+ local ANIM_ANDAR = "rbxassetid://180426354"
++local ANIM_PARADO_OLHAR = "rbxassetid://180435792" -- variação do parado (olha em volta)
++local ANIM_APONTAR = "rbxassetid://128853357"
++local ANIM_ACENAR = "rbxassetid://128777973"
++-- uniforme do catálogo (itens públicos; IDs conferidos na API do catálogo do Roblox)
++local ROUPA = {
++	camisa = 6865584651, -- "Soviet Afghanka Jacket" (Zairian Military Industries)
++	calca = 6866147363, -- "Soviet Afghanka Trousers" (Zairian Military Industries)
++	chapeu = "46348897", -- "Soviet Ushanka" (Roblox)
++}
+ Pavel.GRUPO = "BastiaoNPC"
+ 
+ -- onde ele fica em cada estado e para onde olha quando não há ninguém perto
+@@ -125,11 +137,56 @@
+ 	pcall(function()
+ 		raiz:SetNetworkOwner(nil)
+ 	end)
++	-- uniforme do catálogo: primeiro roupa, depois o chapéu (se o chapéu falhar, a roupa fica)
++	task.spawn(function()
++		local cabeca = rig:FindFirstChild("Head")
++		local rosto = cabeca and cabeca:FindFirstChildOfClass("Decal")
++		local textura = rosto and rosto.Texture
++		local function descricao(comChapeu: boolean): HumanoidDescription
++			local d = Instance.new("HumanoidDescription")
++			d.Shirt = ROUPA.camisa
++			d.Pants = ROUPA.calca
++			if comChapeu then
++				d.HatAccessory = ROUPA.chapeu
++			end
++			d.HeadColor, d.LeftArmColor, d.RightArmColor = CORES.pele, CORES.pele, CORES.pele
++			d.TorsoColor, d.LeftLegColor, d.RightLegColor = CORES.tronco, CORES.pernas, CORES.pernas
++			return d
++		end
++		local vestiu = false
++		for _, comChapeu in { false, true } do
++			local ok, erro = pcall(function()
++				hum:ApplyDescription(descricao(comChapeu))
++			end)
++			if ok then
++				vestiu = true
++			else
++				self.log("[Bastiao] uniforme do Pavel " .. (if comChapeu then "(chapéu)" else "(roupa)") .. " falhou: " .. tostring(erro))
++			end
++		end
++		-- o ApplyDescription pode trocar o rosto: devolve o rosto do personagem do jogo
++		if vestiu and textura and cabeca and cabeca.Parent then
++			local atual = cabeca:FindFirstChildOfClass("Decal")
++			if not atual then
++				atual = Instance.new("Decal")
++				atual.Name = "face"
++				atual.Face = Enum.NormalId.Front
++				atual.Parent = cabeca
++			end
++			atual.Texture = textura
++		end
++		for _, d in rig:GetDescendants() do
++			if d:IsA("BasePart") then
++				d.CollisionGroup = Pavel.GRUPO
++				d.CanTouch = false
++			end
++		end
++	end)
+ 
+ 	-- animações padrão R6 tocadas pelo servidor (replicam para todos)
+ 	local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+ 	animator.Parent = hum
+-	local function faixa(id: string, prioridade: Enum.AnimationPriority): AnimationTrack?
++	local function faixa(id: string, prioridade: Enum.AnimationPriority, repetir: boolean?): AnimationTrack?
+ 		local a = Instance.new("Animation")
+ 		a.AnimationId = id
+ 		local ok, t = pcall(function()
+@@ -139,12 +196,17 @@
+ 			self.log("[Bastiao] animação do Pavel falhou: " .. tostring(t))
+ 			return nil
+ 		end
+-		t.Looped = true
++		t.Looped = repetir ~= false
+ 		t.Priority = prioridade
+ 		return t
+ 	end
+ 	local parado = faixa(ANIM_PARADO, Enum.AnimationPriority.Idle)
+ 	local andar = faixa(ANIM_ANDAR, Enum.AnimationPriority.Movement)
++	local paradoOlhar = faixa(ANIM_PARADO_OLHAR, Enum.AnimationPriority.Idle, false)
++	self.apontar = faixa(ANIM_APONTAR, Enum.AnimationPriority.Action, false)
++	self.acenar = faixa(ANIM_ACENAR, Enum.AnimationPriority.Action, false)
++	self.gestoAte = 0
++	self.cumprimentados = {}
+ 	if parado then
+ 		parado:Play(0.2)
+ 	end
+@@ -191,11 +253,21 @@
+ 	self.chegouFlag = true
+ 	self:_parar(inicio.olhar)
+ 
++	-- de vez em quando, parado, olha em volta (variação do parado do Roblox)
++	task.spawn(function()
++		while self.vivo and rig.Parent do
++			task.wait(9 + math.random() * 8)
++			if paradoOlhar and self.chegouFlag and os.clock() > self.gestoAte and not (andar and andar.IsPlaying) then
++				paradoOlhar:Play(0.3)
++			end
++		end
++	end)
++
+ 	-- olhar para quem está perto (4 vezes por segundo)
+ 	task.spawn(function()
+ 		while self.vivo and rig.Parent do
+ 			task.wait(0.25)
+-			if self.chegouFlag and self.estado then
++			if self.chegouFlag and self.estado and os.clock() > self.gestoAte then
+ 				local alvo = Pavel.LUGARES[self.estado].olhar
+ 				local melhor = 16
+ 				for _, p in Players:GetPlayers() do
+@@ -208,6 +280,11 @@
+ 							melhor = d
+ 							alvo = r.Position
+ 						end
++						-- primeira vez que alguém chega perto: acena
++						if d < 12 and not self.cumprimentados[p.UserId] then
++							self.cumprimentados[p.UserId] = true
++							self:_gesto(self.acenar, 1.6)
++						end
+ 					end
+ 				end
+ 				self:_olhar(alvo)
+@@ -225,6 +302,15 @@
+ 	end
+ end
+ 
++-- gesto curto (apontar/acenar) sem girar o corpo no meio dele
++function Pavel:_gesto(faixa: AnimationTrack?, duracao: number)
++	if not faixa or not self.rig then
++		return
++	end
++	self.gestoAte = os.clock() + duracao
++	faixa:Play(0.15)
++end
++
+ function Pavel:_parar(olhar: Vector3)
+ 	if not self.rig then
+ 		return
+@@ -293,6 +379,11 @@
+ 		if minha == self.geracao then
+ 			self.chegouFlag = true
+ 			self:_parar(lugar.olhar)
++			-- chegou: aponta para onde a turma tem que ir (já virado para lá)
++			task.wait(0.35)
++			if minha == self.geracao then
++				self:_gesto(self.apontar, 1.8)
++			end
+ 		end
+ 	end)
+ end
+diff -ruN a/tests/client_efeitos_test.luau b/tests/client_efeitos_test.luau
+--- a/tests/client_efeitos_test.luau
++++ b/tests/client_efeitos_test.luau
+@@ -4,7 +4,21 @@
+ local h = Harness.new()
+ -- o que o harness básico não tem e estes módulos usam
+ h.services.RunService.RenderStepped = h:signal()
+-h.heartbeat.Wait = function() return 0 end
++local esperas = 0
++local aoEsperar: (() -> ())? = nil
++h.heartbeat.Wait = function()
++	esperas += 1
++	if aoEsperar then aoEsperar() end
++	return 0
++end
++local passosRender = {}
++h.services.RunService.BindToRenderStep = function(_, nome, _, fn) passosRender[nome] = fn end
++h.services.RunService.UnbindFromRenderStep = function(_, nome) passosRender[nome] = nil end
++local function renderizar() for _, fn in table.clone(passosRender) do fn(1 / 60) end end
++h.services.ReplicatedStorage = h:new("ReplicatedStorage", "ReplicatedStorage")
++h.services.GuiService.ReducedMotionEnabled = false -- o harness vem com movimento reduzido; aqui testa o giro 3D de verdade
++h.environment.CFrame = roblox.CFrame
++h.workspace.CurrentCamera = { CFrame = roblox.CFrame.new(), FieldOfView = 70, CameraType = roblox.Enum.CameraType.Custom }
+ h.services.Lighting = h:new("Lighting", "Lighting")
+ h.environment.ColorSequence = roblox.ColorSequence
+ h.environment.ColorSequenceKeypoint = roblox.ColorSequenceKeypoint
+@@ -60,8 +74,15 @@
+ 	efeito = function(k) table.insert(tocados, k); return nil end,
+ 	ui = function(k) table.insert(uis, k) end })
+ h:flush()
++painel.AbsoluteSize = roblox.Vector2.new(540, 0) -- o Sector7 só calcula a altura depois de ligar a tela
++esperas = 0
++aoEsperar = function() if esperas >= 3 then painel.AbsoluteSize = roblox.Vector2.new(540, 360) end end
+ menu.Enabled = true; menu:GetPropertyChangedSignal("Enabled"):Fire()
+-h:tick(0.01); h:tick(0.1)
++h:tick(0.01)
++local cartao = h.playerGui:FindFirstChild("BastiaoMenuFX"):FindFirstChild("Cartao")
++assert(cartao and cartao.Size.Y.Offset == 360, "cartão 3D usou o tamanho errado do painel: " .. tostring(cartao and cartao.Size))
++aoEsperar = nil
++h:tick(0.1)
+ assert(table.find(tocados, "menu_abre") and table.find(uis, "ui_confirm"), "menu não tocou o som de abrir (nem a reserva)")
+ local fxGui = h.playerGui:FindFirstChild("BastiaoMenuFX")
+ assert(fxGui and fxGui.Enabled, "tela de efeitos do menu não ligou")
+@@ -98,6 +119,40 @@
+ monstro:SetAttribute("BastiaoState", "roam")
+ for _ = 1, 60 do h.services.RunService.RenderStepped:Fire(0.1) end
+ assert(cor.Enabled == false, "tela não voltou ao normal com o monstro longe")
++-- pancada na porta da oficina perto: a câmera treme
++local camera = h.workspace.CurrentCamera
++corpo.Position = roblox.Vector3.new(60.5, 4.7, -319)
++ana:FindFirstChild("HumanoidRootPart").Position = roblox.Vector3.new(75, 3, -319)
++monstro:SetAttribute("BastiaoState", "search")
++monstro:SetAttribute("BastiaoMarkerName", "DoorHit")
++monstro:SetAttribute("BastiaoMarkerSerial", 1)
++h.services.RunService.RenderStepped:Fire(0.1)
++camera.CFrame = roblox.CFrame.new()
++renderizar()
++assert(camera.CFrame ~= roblox.CFrame.new(), "pancada na porta não tremeu a câmera")
++-- jumpscare: o servidor marca este jogador como capturado
++monstro:SetAttribute("BastiaoHeightStuds", 9.1)
++monstro:SetAttribute("BastiaoState", "capture")
++h:new("Part", "Head", ana).Position = roblox.Vector3.new(75, 4.5, -319)
++h.player:SetAttribute("BastiaoCapturaAnimacao", "31_JUMPSCARE_FROM_BEHIND")
++h.player:SetAttribute("BastiaoCapturado", 1)
++h:flush()
++local susto = h.playerGui:FindFirstChild("BastiaoJumpscare")
++assert(susto and susto.Enabled, "jumpscare não abriu a tela")
++assert(camera.CameraType == roblox.Enum.CameraType.Scriptable, "jumpscare não prendeu a câmera")
++assert(table.find(tocados, "jumpscare"), "jumpscare não pediu o som")
++for _ = 1, 40 do h.now += 0.1; renderizar() end
++assert(susto:FindFirstChild("Preto").BackgroundTransparency == 0, "golpe do jumpscare não cortou para o preto")
++assert(camera.FieldOfView < 60, "jumpscare não deu zoom no rosto")
++-- renasce: câmera volta ao normal e a tela some
++local novo = h:character("Ana2")
++h.player.Character = novo
++h.player.CharacterAdded:Fire(novo)
++h:tick(1.2)
++assert(camera.CameraType == roblox.Enum.CameraType.Custom and camera.FieldOfView == 70, "câmera não voltou depois do jumpscare")
++assert(susto.Enabled == false, "tela do jumpscare ficou ligada")
++assert(passosRender.BastiaoJumpscare == nil, "passo de câmera do jumpscare ficou preso")
+ fx.destroy()
+ assert(h.playerGui:FindFirstChild("BastiaoMenuFX") == nil, "destroy não limpou a tela de efeitos")
+-print("PASS legendas em 3 línguas que quebram, menu 3D (abrir/fechar/rápido), lanterna e perseguição")
++assert(passosRender.BastiaoTremor == nil, "destroy não soltou o tremor")
++print("PASS legendas em 3 línguas que quebram, menu 3D (espera o painel; abrir/fechar/rápido), lanterna, perseguição, pancada na porta e jumpscare")
+diff -ruN a/tests/client_foley_runtime_test.luau b/tests/client_foley_runtime_test.luau
+--- a/tests/client_foley_runtime_test.luau
++++ b/tests/client_foley_runtime_test.luau
+@@ -60,6 +60,18 @@
+ local groundedCount = h:countPlaying("monster_step_01")
+ for _ = 1, 10 do monsterRoot.Position += h.environment.Vector3.new(1, 0, 0); h:tick(0.1) end
+ assert(h:countPlaying("monster_step_01") == groundedCount, "a raycast near the floor must not permit airborne monster steps")
++-- Servidor com marcadores: o passo sai no pé (Foot_*), não pelo ritmo de distância, mesmo
++-- quando o Humanoid do monstro (movido sem física) não diz que está andando.
++monster:SetAttribute("BastiaoMarkerSerial", 0)
++local byMarker = h:countPlaying("monster_step_01")
++for _ = 1, 10 do monsterRoot.Position += h.environment.Vector3.new(1, 0, 0); h:tick(0.1) end
++assert(h:countPlaying("monster_step_01") == byMarker, "with markers the distance cadence must stay silent")
++monster:SetAttribute("BastiaoMarkerName", "Foot_R"); monster:SetAttribute("BastiaoMarkerSerial", 1)
++assert(h:countPlaying("monster_step_01") == byMarker + 1, "foot marker must play a monster step")
++monster:SetAttribute("BastiaoMarkerName", "NeckSnap"); monster:SetAttribute("BastiaoMarkerSerial", 2)
++assert(h:countPlaying("monster_step_01") == byMarker + 1, "non-foot marker must not play a step")
++monster:SetAttribute("BastiaoMarkerName", "Foot_L"); monster:SetAttribute("BastiaoMarkerSerial", 3)
++assert(h:countPlaying("monster_step_01") == byMarker + 2, "every foot contact plays")
+ assert(api.ui("ui_click") == true and api.ui("ui_click") == false)
+ assert(api.ui("pavel_cafe") == false)
+ local countBeforeDestroy = h:countPlaying()
+diff -ruN a/tests/client_harness.luau b/tests/client_harness.luau
+--- a/tests/client_harness.luau
++++ b/tests/client_harness.luau
+@@ -25,8 +25,18 @@
+ 		for _, child in node._children do table.insert(list, child); descendants(child, list) end
+ 		return list
+ 	end
++	-- hierarquia mínima de classes que os módulos perguntam (no Roblox, Frame é um GuiObject)
++	local HIERARQUIA = {
++		BasePart = { Part = true, MeshPart = true },
++		GuiObject = { Frame = true, TextLabel = true, TextButton = true, ImageLabel = true, ImageButton = true,
++			ScrollingFrame = true, CanvasGroup = true, ViewportFrame = true, TextBox = true },
++		GuiButton = { TextButton = true, ImageButton = true },
++		LayerCollector = { ScreenGui = true, SurfaceGui = true, BillboardGui = true },
++	}
+ 	function methods:IsA(class)
+-		return self.ClassName == class or (class == "BasePart" and (self.ClassName == "Part" or self.ClassName == "MeshPart"))
++		if self.ClassName == class or class == "Instance" then return true end
++		local filhos = HIERARQUIA[class]
++		return filhos ~= nil and filhos[self.ClassName] == true
+ 	end
+ 	function methods:FindFirstChild(name, recursive)
+ 		for _, child in self._children do if child.Name == name then return child end end
+diff -ruN a/tests/client_monstro_som_test.luau b/tests/client_monstro_som_test.luau
+--- a/tests/client_monstro_som_test.luau
++++ b/tests/client_monstro_som_test.luau
+@@ -68,4 +68,36 @@
+ 	assert(#h.played == antes, "depois de parar não pode tocar mais nada")
+ 	assert(h.soundService:FindFirstChild("BastiaoMonstroSomLocal") == nil, "pasta local do som ficou para trás")
+ end
+-print("PASS MonstroSom: bote e garra (na cabeça de quem foi pego), sem passo dobrado com o Foley, limpa tudo ao parar")
++-- jumpscare (captura) e pancadas na porta da oficina
++do
++	local h = Harness.new()
++	h.environment.TweenInfo = { new = function(...) return { ... } end }
++	h.player.UserId = 101
++	local pedidos = {}
++	local MonstroSom = h:load("src/client/MonstroSom.luau")
++	local api = MonstroSom.iniciar({ jogador = h.player, passos = true,
++		efeito = function(chave) table.insert(pedidos, chave); return nil end })
++	local m = monstro(h)
++	m:SetAttribute("BastiaoCapturaVitima", 101)
++	m:SetAttribute("BastiaoState", "capture")
++	for i, nome in { "Grip", "Roar", "Impact" } do
++		m:SetAttribute("BastiaoMarkerName", nome)
++		m:SetAttribute("BastiaoMarkerSerial", 10 + i)
++	end
++	for _, nome in { "captura_agarra", "captura_rugido", "captura_grito", "captura_cabeca", "captura_golpe" } do
++		assert(tocados(h, nome) == 1, "jumpscare sem o som " .. nome)
++	end
++	-- quem só assiste não ouve o rugido "na cabeça"
++	m:SetAttribute("BastiaoCapturaVitima", 202)
++	m:SetAttribute("BastiaoMarkerName", "Roar")
++	m:SetAttribute("BastiaoMarkerSerial", 20)
++	assert(tocados(h, "captura_cabeca") == 1, "rugido na cabeça tocou para quem não foi pego")
++	-- porta: sem o som do ElevenLabs ainda, cai no baque grave da loja
++	m:SetAttribute("BastiaoState", "search")
++	m:SetAttribute("BastiaoAnimation", "17_ESMURRAR_PORTA")
++	m:SetAttribute("BastiaoMarkerName", "DoorHit")
++	m:SetAttribute("BastiaoMarkerSerial", 21)
++	assert(table.find(pedidos, "impacto_porta") and tocados(h, "porta_pancada") == 1, "pancada na porta sem som")
++	api.parar()
++end
++print("PASS MonstroSom: bote e garra (na cabeça de quem foi pego), passos opcionais, jumpscare e pancadas na porta, limpa tudo ao parar")
+diff -ruN a/tests/client_router_test.luau b/tests/client_router_test.luau
+--- a/tests/client_router_test.luau
++++ b/tests/client_router_test.luau
+@@ -77,7 +77,8 @@
+ 		return foley
+ 	end },
+ 	MonstroSom = { iniciar = function(op)
+-		assert(op.jogador == player and op.passos == false and op.grupo == sound.grupoEfeitos, "MonstroSom sem passos dobrados")
++		assert(op.jogador == player and op.passos == true and op.grupo == sound.grupoEfeitos and type(op.efeito) == "function",
++			"MonstroSom com passos no pé e sons do ElevenLabs")
+ 		mark("monstro_som_ligado")
+ 		return { parar = function() mark("monstro_som_parado") end }
+ 	end },
+diff -ruN a/tests/release_fixture.py b/tests/release_fixture.py
+--- a/tests/release_fixture.py
++++ b/tests/release_fixture.py
+@@ -37,7 +37,7 @@
+     baseline = json.loads((real / "BASE_CLAUDE_ETAPA2.json").read_text())
+     write_json(root / "BASE_CLAUDE_ETAPA2.json", baseline)
+     for area, names in {
+-        "server": ["BastiaoServidor", "Interacoes", "Sequencias", "CriaturaCore", "Criatura"],
++        "server": ["BastiaoServidor", "Interacoes", "Sequencias", "CriaturaCore", "Criatura", "Pavel"],
+         "client": ["BastiaoCliente", "Interface", "Som", "Foley", "Efeitos", "MonstroSom"],
+     }.items():
+         for name in names:
+diff -ruN a/tests/server_pavel_test.luau b/tests/server_pavel_test.luau
+--- a/tests/server_pavel_test.luau
++++ b/tests/server_pavel_test.luau
+@@ -0,0 +1,139 @@
++-- Pavel: veste o uniforme do catálogo (roupa e depois chapéu, sem perder o rosto), anda pela rota,
++-- aponta ao chegar, acena para quem chega perto (uma vez) e varia o parado. Ambiente falso com
++-- agendador de tarefas de verdade (task.wait cede), sem motor.
++local fs = require("@lune/fs")
++local luau = require("@lune/luau")
++local roblox = require("@lune/roblox")
++local Harness = require("./client_harness")
++local V3, CF = roblox.Vector3, roblox.CFrame
++
++local h = Harness.new()
++-- ===== agendador: task.spawn/delay criam corrotinas, task.wait cede até o tempo chegar =====
++local fila = {}
++local function agendar(co, at, ...)
++	table.insert(fila, { co = co, at = at, args = table.pack(...) })
++end
++local taskLib = h.environment.task
++taskLib.spawn = function(fn, ...)
++	local co = coroutine.create(fn)
++	agendar(co, h.now, ...)
++	return co
++end
++taskLib.defer = taskLib.spawn
++taskLib.delay = function(t, fn, ...)
++	local co = coroutine.create(fn)
++	agendar(co, h.now + t, ...)
++	return co
++end
++taskLib.wait = function(t)
++	local co = coroutine.running()
++	agendar(co, h.now + (t or 0.03))
++	coroutine.yield()
++	return t or 0.03
++end
++local function rodar(ate)
++	while true do
++		table.sort(fila, function(a, b) return a.at < b.at end)
++		local item = fila[1]
++		if not item or item.at > ate then break end
++		table.remove(fila, 1)
++		h.now = math.max(h.now, item.at)
++		local ok, erro = coroutine.resume(item.co, table.unpack(item.args, 1, item.args.n))
++		assert(ok, "erro no Pavel: " .. tostring(erro))
++	end
++	h.now = ate
++end
++
++-- ===== rig R6 falso =====
++local function metodo(no, nome, fn) no._p[nome] = fn end
++local tocadas = {}
++local function rigFalso()
++	local rig = h:new("Model", "StarterCharacter")
++	local raiz = h:new("Part", "HumanoidRootPart", rig)
++	raiz.CFrame = CF.new()
++	local cabeca = h:new("Part", "Head", rig)
++	local rosto = h:new("Decal", "face", cabeca)
++	rosto.Texture = "rbxasset://textures/face.png"
++	h:new("BodyColors", "Body Colors", rig)
++	local hum = h:new("Humanoid", "Humanoid", rig)
++	hum.Running = h:signal()
++	metodo(hum, "SetStateEnabled", function() end)
++	metodo(hum, "MoveTo", function(_, alvo)
++		-- anda na hora (o teste não simula física): começa a andar e já chega (Running 15, depois 0)
++		local longe = (V3.new(alvo.X, 0, alvo.Z) - V3.new(raiz.Position.X, 0, raiz.Position.Z)).Magnitude > 0.5
++		if longe then hum.Running:Fire(15) end
++		raiz.Position = V3.new(alvo.X, 3, alvo.Z)
++		raiz.CFrame = CF.new(raiz.Position)
++		hum.Running:Fire(0)
++	end)
++	metodo(rig, "PivotTo", function(_, cf) raiz.CFrame = cf; raiz.Position = cf.Position end)
++	metodo(raiz, "SetNetworkOwner", function() end)
++	return rig, hum, cabeca
++end
++local base = rigFalso()
++local rig, hum, cabeca = rigFalso()
++metodo(base, "Clone", function() return rig end)
++local descricoes = {}
++metodo(hum, "ApplyDescription", function(_, d)
++	table.insert(descricoes, { shirt = d.Shirt, pants = d.Pants, hat = d.HatAccessory })
++	-- o ApplyDescription troca o rosto: o Pavel tem que devolver o do jogo
++	local f = cabeca:FindFirstChildOfClass("Decal")
++	if f then f:Destroy() end
++end)
++h.services.StarterPlayer = h:new("StarterPlayer", "StarterPlayer")
++base.Parent = h.services.StarterPlayer
++metodo(h.workspace, "RegisterCollisionGroup", function() end)
++h.environment.CFrame = CF
++h.environment.math = math
++h.environment.Instance = { new = function(classe)
++	local no = h:new(classe)
++	if classe == "Animator" then
++		metodo(no, "LoadAnimation", function(_, anim)
++			local t = { IsPlaying = false, Looped = true, Priority = nil, id = anim.AnimationId }
++			function t:Play() self.IsPlaying = true; table.insert(tocadas, self.id) end
++			function t:Stop() self.IsPlaying = false end
++			function t:AdjustSpeed() end
++			return t
++		end)
++	end
++	return no
++end }
++
++local Pavel = luau.load(fs.readFile("src/server/Pavel.luau"), { environment = h.environment, injectGlobals = true })()
++local logs = {}
++local p = Pavel.criar(h.story, function(m) table.insert(logs, m) end)
++rodar(h.now + 0.1)
++assert(p.rig == rig and rig.Parent == h.story, "Pavel não foi criado")
++assert(#descricoes == 2, "uniforme: esperava roupa e depois chapéu, veio " .. #descricoes)
++assert(descricoes[1].shirt == 6865584651 and descricoes[1].pants == 6866147363 and (descricoes[1].hat or "") == "", "roupa errada")
++assert(descricoes[2].hat == "46348897", "chapéu errado")
++local rosto = cabeca:FindFirstChildOfClass("Decal")
++assert(rosto and rosto.Texture == "rbxasset://textures/face.png", "o Pavel perdeu o rosto ao vestir")
++local function contou(id)
++	local n = 0
++	for _, t in tocadas do if t == id then n += 1 end end
++	return n
++end
++assert(contou("rbxassetid://180435571") >= 1, "parado não tocou")
++-- anda até o arsenal e aponta ao chegar
++p:ir("arsenal", false)
++rodar(h.now + 3)
++assert(p:chegou(), "não chegou no arsenal")
++assert(contou("rbxassetid://180426354") >= 1, "andar não tocou")
++assert(contou("rbxassetid://128853357") == 1, "não apontou ao chegar")
++-- alguém chega perto pela primeira vez: acena uma vez só
++local ana = h:character("Ana", h.workspace)
++ana:FindFirstChild("HumanoidRootPart").Position = rig:FindFirstChild("HumanoidRootPart").Position + V3.new(6, 0, 0)
++local jogador = h.player
++jogador.Character = ana
++jogador.UserId = 101
++rodar(h.now + 2.5)
++assert(contou("rbxassetid://128777973") == 1, "não acenou para quem chegou")
++rodar(h.now + 5)
++assert(contou("rbxassetid://128777973") == 1, "acenou de novo para a mesma pessoa")
++-- parado por um tempo: olha em volta de vez em quando
++rodar(h.now + 40)
++assert(contou("rbxassetid://180435792") >= 1, "não variou o parado")
++p.vivo = false
++rodar(h.now + 1)
++print("PASS Pavel: uniforme do catálogo (roupa, chapéu, rosto mantido), anda, aponta ao chegar, acena uma vez e varia o parado")
+diff -ruN a/tooling/release_builder.py b/tooling/release_builder.py
+--- a/tooling/release_builder.py
++++ b/tooling/release_builder.py
+@@ -29,6 +29,7 @@
+     "BastiaoCliente": "src/client/BastiaoCliente.luau",
+     "Interface": "src/client/Interface.luau",
+     "Som": "src/client/Som.luau",
++    "Pavel": "src/server/Pavel.luau",
+ }
+ EXTRAS = (
+     (["ReplicatedStorage", "BastiaoCompartilhado", "AudioCatalog"], None),
+@@ -40,9 +41,9 @@
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"], "src/client/Efeitos.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "MonstroSom"], "src/client/MonstroSom.luau"),
+ )
+-# Fontes Bastiao* que já estiveram no Place: as versões do Claude (etapa 2, correções 3 a 7) e o
++# Fontes Bastiao* que já estiveram no Place: as versões do Claude (etapa 2, correções 3 a 8) e o
+ # Place versão 17, conferido script por script (as nossas publicadas + a Perseguição v2 e o
+-# MonstroSom do Antigravity, juntados neste pacote). O instalador pode trocá-las; qualquer outra
++# MonstroSom do Antigravity, juntados no pacote). O instalador pode trocá-las; qualquer outra
+ # fonte desconhecida continua bloqueada.
+ REVISADAS = {
+     ('ReplicatedStorage', 'BastiaoCompartilhado'): (
+@@ -74,6 +75,7 @@
+         '4c505e975bb7da5f21ba5a0c4e16d39cef5642f03f99437b10804c3bcdbf3adb',
+     ),
+     ('ServerScriptService', 'BastiaoServidor', 'Criatura'): (
++        '55f9221fd34e407ed298bae137245622e7fa98eb31aef5988b92ae6f8c794c0f',
+         '57534ab5b08836746b944f5002fc62041840a60cdbe277a858a652a778b3e69f',
+         '99cc40970dc2da58b8911eb81b04d85e93b75cfcd7e2712661f15284b5e9904b',
+         'bf9d9b847278c484c074257c099d2ec3a2b1a09fedc7f454e2eaa5658a5d476e',
+@@ -116,6 +118,7 @@
+         'c265c3aa290dd97a57274a23eaf8eb7f6500b1fe27ce9881105aede315d566c7',
+     ),
+     ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente'): (
++        '12f4322708c84f820b33f2dc1b7ea1f269355f7ce16d3e5abe4bd4f1a33db316',
+         '769d35e69d661c8af243b00de6f011e79c36c4f28228eec96c76d347dc896127',
+         'f27a4d0a47ad13f7c0a977194222de23cdc0d98ef5751e793f2bc867c401d463',
+     ),
+@@ -138,6 +141,7 @@
+         '3b1eaa6581112032bfe8294d55da6aa483a4fb287e8bc16121c3fbc9b3eed151',
+     ),
+     ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'MonstroSom'): (
++        '03b4f2a860f957c2a2e8f1c1858f8a558f3e70f321bc213b03562fdab48caca2',
+         '6c1303567f0bd8f99441187cc37adf49df2fc8ace0e6e19195891728cfbc5510',
+     ),
+     ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Prompts'): (

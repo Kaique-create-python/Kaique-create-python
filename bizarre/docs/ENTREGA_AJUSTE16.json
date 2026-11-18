@@ -1,0 +1,28 @@
+{
+  "stage": 16,
+  "sources": 59,
+  "source_digest": "652ce1ecaf30063e8c53123a9ab0d862d38a02e1eab0d532f90286bc57fbb2d5",
+  "bytes": 398141,
+  "sha256": "9948d2e8708fcce77f73350a851b1c95000d4a53a626b1fe1c2f6e9fe2995838",
+  "native_script_bytes": 28080,
+  "migration": [
+    {
+      "from_stage": 14,
+      "base_bytes": 2643753,
+      "patched_bytes": 2696694,
+      "original_instances": 185097,
+      "patched_instances": 185201,
+      "opaque_property_chunks_preserved": 323,
+      "idempotent": true
+    },
+    {
+      "from_stage": 15,
+      "base_bytes": 2687727,
+      "patched_bytes": 2697636,
+      "original_instances": 185196,
+      "patched_instances": 185201,
+      "opaque_property_chunks_preserved": 545,
+      "idempotent": true
+    }
+  ]
+}

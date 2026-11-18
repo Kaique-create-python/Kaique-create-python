@@ -1,0 +1,96 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+/* prévia da tela de carregamento do Roblox (mesmas posições/cores de ReplicatedFirst/Carregando.client.luau) */
+@font-face { font-family: Creepster; src: local("Creepster"); }
+html, body { margin: 0; height: 100%; background: #040508; overflow: hidden; }
+#tela { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: linear-gradient(#0a0d14, #1a202a 60%, #08090c); }
+#palco { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; }
+#arte { position: absolute; inset: 0; width: 100%; height: 100%; filter: brightness(0.88); }
+.brilho { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
+.nuvem { position: absolute; transform: translate(-50%, -50%); }
+.nuvem i { position: absolute; left: 50%; border-radius: 50%; transform: translate(-50%, -50%);
+  background: linear-gradient(rgba(176,186,200,0), rgba(176,186,200,1) 50%, rgba(176,186,200,0)); }
+.borda { position: absolute; }
+#clarao { position: absolute; inset: 0; background: #d6e0ff; opacity: 0; }
+.titulo { position: absolute; left: 50%; top: 25%; transform: translate(-50%, -50%); font-family: Creepster, "Rubik Wet Paint", Impact, fantasy; line-height: 1; white-space: nowrap; }
+#sub { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); font-family: "Special Elite", "Courier New", monospace; color: #c4baaa; letter-spacing: 0.08em; }
+#trilho { position: absolute; left: 27%; width: 46%; bottom: 54px; height: 6px; background: rgba(30,28,32,0.8); border: 1px solid rgba(92,78,62,0.55); border-radius: 4px; }
+#enche { height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #781414, #e25440); }
+#estado, #pct { position: absolute; bottom: 64px; font-family: "Special Elite", "Courier New", monospace; font-size: 15px; }
+#estado { left: 27%; color: #b0a698; } #pct { right: 27%; color: #d6ccbc; }
+#dica { position: absolute; bottom: 22px; left: 10%; width: 80%; text-align: center; font: italic 17px "Source Sans Pro", Arial, sans-serif; color: #968e82; }
+</style></head>
+<body><div id="tela">
+  <div id="palco"><img id="arte" src="ARTE"></div>
+  <div id="clarao"></div>
+  <div class="titulo" id="brilhoT" style="color:#b01e1e;opacity:.45;-webkit-text-stroke:2px #780a0a">OI3</div>
+  <div class="titulo" id="titulo" style="color:#e8e2d6;-webkit-text-stroke:2px #140404">OI3</div>
+  <div id="sub">CAPÍTULO 1</div>
+  <div id="estado">carregando o orfanato</div><div id="pct">0%</div>
+  <div id="trilho"><div id="enche"></div></div>
+  <div id="dica">Dica: correr cansa. Fique de olho na barrinha de fôlego.</div>
+</div>
+<script>
+const PROP = 1024 / 575, JANELA = [0.6724, 0.7403], LUA = [0.8064, 0.5333];
+const tela = document.getElementById("tela"), palco = document.getElementById("palco");
+const W = innerWidth, H = innerHeight;
+const pw = Math.max(W, H * PROP), ph = pw / PROP;
+palco.style.width = pw + "px"; palco.style.height = ph + "px";
+function brilho(pos, raio, cor, forca, camadas = 6) {
+  const els = [];
+  for (let i = 1; i <= camadas; i++) {
+    const r = raio * (1 - (i - 1) / camadas) * pw;
+    const d = document.createElement("div"); d.className = "brilho";
+    d.style.left = pos[0] * 100 + "%"; d.style.top = pos[1] * 100 + "%";
+    d.style.width = d.style.height = 2 * r + "px"; d.style.background = cor;
+    d.dataset.base = forca * (0.05 + 0.09 * i / camadas); d.style.opacity = d.dataset.base;
+    palco.appendChild(d); els.push(d);
+  }
+  return els;
+}
+const lua = brilho(LUA, 0.075, "rgb(206,220,240)", 0.55);
+const jan = brilho(JANELA, 0.03, "rgb(255,196,120)", 0.9);
+const nucleo = brilho(JANELA, 0.007, "rgb(255,226,170)", 0.65 / 0.14, 1);
+// neblina
+const nuvens = [[0.86, 0.9, 0.2, 0.82, 46], [0.93, 1.1, 0.16, 0.78, 58], [0.78, 0.7, 0.12, 0.88, 38], [0.97, 0.8, 0.14, 0.8, 50], [0.66, 0.6, 0.08, 0.93, 64]];
+const nEls = nuvens.map(([y, l, a, t, d], i) => {
+  const n = document.createElement("div"); n.className = "nuvem";
+  n.style.width = l * W + "px"; n.style.height = a * H + "px"; n.style.top = y * 100 + "%";
+  [1, 0.72, 0.46].forEach((e, k) => { const el = document.createElement("i"); el.style.width = e * 100 + "%"; el.style.height = e * 90 + "%";
+    el.style.top = (50 + (k - 1) * 4) + "%"; el.style.opacity = (1 - t) * 0.5; n.appendChild(el); });
+  tela.insertBefore(n, document.getElementById("clarao")); return { n, y, d, ini: -0.4 + (i + 1) / nuvens.length * 1.8 };
+});
+// bordas escuras
+function borda(css, ang, forca) { const b = document.createElement("div"); b.className = "borda"; Object.assign(b.style, css);
+  b.style.background = `linear-gradient(${ang}deg, rgba(0,0,0,${forca}), rgba(0,0,0,0))`; tela.insertBefore(b, document.getElementById("clarao")); }
+borda({ left: 0, top: 0, width: "100%", height: "42%" }, 180, 0.75);
+borda({ left: 0, bottom: 0, width: "100%", height: "30%" }, 0, 0.85);
+borda({ left: 0, top: 0, width: "22%", height: "100%" }, 90, 0.6);
+borda({ right: 0, top: 0, width: "22%", height: "100%" }, 270, 0.6);
+// tamanhos de texto como TextScaled
+const tit = document.getElementById("titulo"), bt = document.getElementById("brilhoT");
+tit.style.fontSize = 0.27 * H * 0.95 + "px"; bt.style.fontSize = 0.3 * H * 0.95 + "px";
+document.getElementById("sub").style.fontSize = 0.045 * H * 0.9 + "px";
+window.quadro = function (t) { // t em segundos
+  const z = 1 + 0.09 * (1 - Math.cos(Math.PI * Math.min(t / 22, 1))) / 2;
+  const dx = -W * 0.025 * (1 - Math.cos(Math.PI * Math.min(t / 22, 1))) / 2, dy = -H * 0.012 * (1 - Math.cos(Math.PI * Math.min(t / 22, 1))) / 2;
+  palco.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${z})`;
+  for (const { n, y, d, ini } of nEls) { let x = ini + (t / d) * 1.8; x = ((x + 0.4) % 1.8) - 0.4; n.style.left = x * 100 + "%"; }
+  const pisca = 0.82 + 0.18 * Math.abs(Math.sin(t * 23.7) * Math.sin(t * 7.3));
+  const apagada = (t > 3.1 && t < 3.7) ? 0.05 : pisca;
+  jan.forEach(e => e.style.opacity = e.dataset.base * apagada); nucleo.forEach(e => e.style.opacity = 0.65 * apagada);
+  lua.forEach(e => e.style.opacity = e.dataset.base * (0.85 + 0.15 * Math.cos(t * 2)));
+  bt.style.opacity = 0.22 + 0.23 * (1 + Math.cos(t * 1.3)) / 2;
+  tit.style.opacity = Math.min(1, t / 1.6);
+  document.getElementById("sub").style.opacity = Math.min(0.85, t / 2.2);
+  // relâmpago em 4.6s
+  const r = t - 4.6; let cl = 0; if (r > 0 && r < 0.25) cl = 0.45 * (1 - r / 0.25); if (r > 0.3 && r < 0.55) cl = 0.25 * (1 - (r - 0.3) / 0.25);
+  document.getElementById("clarao").style.opacity = cl;
+  document.getElementById("arte").style.filter = `brightness(${0.88 + cl * 0.9})`;
+  const p = Math.min(1, t / 6.5); document.getElementById("enche").style.width = p * 100 + "%";
+  document.getElementById("pct").textContent = Math.round(p * 100) + "%";
+  document.getElementById("estado").textContent = (p >= 1 ? "abrindo a porta" : "carregando o orfanato") + ".".repeat(Math.floor(t / 0.4) % 4);
+};
+quadro(0);
+</script></body></html>

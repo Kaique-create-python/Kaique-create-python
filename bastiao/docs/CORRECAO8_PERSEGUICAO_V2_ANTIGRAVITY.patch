@@ -1,0 +1,815 @@
+diff -ruN a/src/client/BastiaoCliente.luau b/src/client/BastiaoCliente.luau
+--- a/src/client/BastiaoCliente.luau
++++ b/src/client/BastiaoCliente.luau
+@@ -31,6 +31,10 @@
+ local efeitosCarregou, Efeitos = pcall(function()
+ 	return require(script:WaitForChild("Efeitos", 10) :: any)
+ end)
++-- Sons do bote e da garra do monstro (MonstroSom, do Antigravity): também opcionais.
++local monstroSomCarregou, MonstroSom = pcall(function()
++	return require(script:WaitForChild("MonstroSom", 10) :: any)
++end)
+ local catalogo = nil
+ local moduloCatalogo = modulo:FindFirstChild("AudioCatalog")
+ if moduloCatalogo then
+@@ -89,6 +93,18 @@
+ else
+ 	warn("[Bastiao] efeitos visuais desligados:", Efeitos)
+ end
++local monstroSom = { parar = function() end }
++if monstroSomCarregou and type(MonstroSom) == "table" and type(MonstroSom.iniciar) == "function" then
++	-- passos=false: os passos do monstro já saem pelo Foley; aqui só o bote e o golpe.
++	local criou, criado = pcall(MonstroSom.iniciar, { jogador = jogador, grupo = som.grupoEfeitos, passos = false })
++	if criou and type(criado) == "table" and type(criado.parar) == "function" then
++		monstroSom = criado
++	else
++		warn("[Bastiao] sons do bote desligados:", criado)
++	end
++else
++	warn("[Bastiao] sons do bote desligados:", MonstroSom)
++end
+ ui.definirSom(function(chave: string)
+ 	som.efeito(chave)
+ end)
+@@ -105,6 +121,7 @@
+ 	-- Restaura os sons padrão antes de desmontar o dono dos grupos/reverb.
+ 	foley.destroy()
+ 	pcall(efeitos.destroy)
++	pcall(monstroSom.parar)
+ 	som.parar()
+ end))
+ table.insert(conexoes, ProximityPromptService.PromptTriggered:Connect(function(prompt, quem)
+diff -ruN a/src/client/MonstroSom.luau b/src/client/MonstroSom.luau
+--- a/src/client/MonstroSom.luau
++++ b/src/client/MonstroSom.luau
+@@ -0,0 +1,256 @@
++-- PROJETO BASTIÃO :: sons do monstro 731-A (passos pesados e o bote quando ele alcança o jogador).
++-- Só sons publicados na Creator Store (Pro Sound Effects, licenciados pela Roblox) e o rugido do 731-A.
++-- Passos: seguem os marcadores Foot_L/Foot_R das animações (o servidor repassa em BastiaoMarkerSerial),
++-- então batem junto com os pés. Bote: BastiaoAttackSerial / BastiaoHitSerial vindos da Criatura.
++-- Feito pelo Antigravity no Studio (Perseguição v2). Ligado pelo BastiaoCliente com passos=false:
++-- os passos do monstro já saem pelo Foley (sons do ElevenLabs no ritmo do andar); aqui ficam
++-- o bote (rugido na cabeça de quem foi alcançado) e o golpe da garra.
++local Players = game:GetService("Players")
++local SoundService = game:GetService("SoundService")
++local TweenService = game:GetService("TweenService")
++local ContentProvider = game:GetService("ContentProvider")
++local Workspace = game:GetService("Workspace")
++
++local MonstroSom = {}
++
++local IDS = {
++	passos = { 9114078861, 9114077211 }, -- Dinosaur Footsteps Boomy Thumps 6 e 10 (SFX)
++	rugido = 89672266220613, -- rugido do 731-A (o mesmo do alerta), aqui bem grave e estourado
++	grito = 9113980319, -- Creature Mix Giant Crab Monster Roar Growl 1 (SFX)
++	impacto = 9113525391, -- Body Impact 1 (SFX)
++}
++MonstroSom.IDS = IDS
++
++-- Ajustes fáceis de mexer (volume vai de 0 a 10 no Roblox)
++local AJUSTE = {
++	passoAndando = 3.5,
++	passoCorrendo = 6,
++	boteVolume = 10,
++	boteGanhoDb = 14, -- ganho extra do compressor (deixa MUITO mais alto e saturado)
++	boteDistorcao = 0.9, -- 0 a 1: quanto mais, mais estourado
++	raioNaCabeca = 22, -- quem estiver até essa distância ouve o bote "dentro da cabeça"
++}
++MonstroSom.AJUSTE = AJUSTE
++
++local function efeitos(sound: Sound, cfg)
++	if cfg.eq then
++		local eq = Instance.new("EqualizerSoundEffect")
++		eq.LowGain, eq.MidGain, eq.HighGain = cfg.eq[1], cfg.eq[2], cfg.eq[3]
++		eq.Priority = 3
++		eq.Parent = sound
++	end
++	if cfg.ganho then
++		local comp = Instance.new("CompressorSoundEffect")
++		comp.Threshold = -30
++		comp.Ratio = 8
++		comp.Attack = 0.003
++		comp.Release = 0.2
++		comp.GainMakeup = cfg.ganho
++		comp.Priority = 2
++		comp.Parent = sound
++	end
++	if cfg.distorcao then
++		local dist = Instance.new("DistortionSoundEffect")
++		dist.Level = cfg.distorcao
++		dist.Priority = 1
++		dist.Parent = sound
++	end
++end
++
++function MonstroSom.iniciar(op)
++	op = op or {}
++	local jogador = op.jogador or Players.LocalPlayer
++	local grupo = op.grupo
++	local comPassos = op.passos ~= false -- false: passos ficam com o Foley (sem passo dobrado)
++	local vivo = true
++	local conexoes, monstros, vivos = {}, {}, {}
++	local random = Random.new()
++
++	local pasta2D = Instance.new("Folder")
++	pasta2D.Name = "BastiaoMonstroSomLocal"
++	pasta2D.Parent = SoundService
++
++	local function tocar(id: number, pai: Instance, cfg)
++		if not vivo or not pai.Parent then return nil end
++		local s = Instance.new("Sound")
++		s.Name = "BastiaoMonstro_" .. (cfg.nome or "som")
++		s.SoundId = "rbxassetid://" .. tostring(id)
++		s.Volume = math.clamp(cfg.volume or 1, 0, 10)
++		s.PlaybackSpeed = cfg.velocidade or 1
++		s.RollOffMode = Enum.RollOffMode.InverseTapered
++		s.RollOffMinDistance = cfg.perto or 10
++		s.RollOffMaxDistance = cfg.longe or 160
++		if cfg.grupo then s.SoundGroup = cfg.grupo end
++		efeitos(s, cfg)
++		s.Parent = pai
++		vivos[s] = true
++		local function apagar()
++			vivos[s] = nil
++			if s.Parent then s:Destroy() end
++		end
++		s.Ended:Connect(apagar)
++		s:Play()
++		local fade = cfg.fade or 0.35
++		task.delay(cfg.duracao or 2, function()
++			if not s.Parent then vivos[s] = nil; return end
++			TweenService:Create(s, TweenInfo.new(fade), { Volume = 0 }):Play()
++			task.delay(fade + 0.05, apagar)
++		end)
++		return s
++	end
++
++	local function meuRoot(): BasePart?
++		local ch = jogador.Character
++		local r = ch and ch:FindFirstChild("HumanoidRootPart")
++		return if r and r:IsA("BasePart") then r else nil
++	end
++
++	local function soltar(model)
++		local m = monstros[model]
++		if not m then return end
++		monstros[model] = nil
++		for _, c in m.conexoes do c:Disconnect() end
++		if m.pes then m.pes:Destroy() end
++		if m.boca then m.boca:Destroy() end
++	end
++
++	local function ligar(model: Model)
++		if not vivo or monstros[model] then return end
++		local root = model:FindFirstChild("HumanoidRootPart") or model:WaitForChild("HumanoidRootPart", 10)
++		if not vivo or monstros[model] or not root or not root:IsA("BasePart") then return end
++		local h = root.Size.Y
++		local pes = Instance.new("Attachment")
++		pes.Name = "BastiaoMonstroPes"
++		pes.Position = Vector3.new(0, -h / 2 + 0.3, 0)
++		pes.Parent = root
++		local boca = Instance.new("Attachment")
++		boca.Name = "BastiaoMonstroBoca"
++		boca.Position = Vector3.new(0, h * 0.32, 0)
++		boca.Parent = root
++		local m = {
++			conexoes = {}, pes = pes, boca = boca, lado = 0, ultimoPasso = 0,
++			marcador = model:GetAttribute("BastiaoMarkerSerial"),
++			ataque = model:GetAttribute("BastiaoAttackSerial"),
++			golpe = model:GetAttribute("BastiaoHitSerial"),
++		}
++		monstros[model] = m
++
++		local function pertoDeMim(raio: number): boolean
++			local r = meuRoot()
++			return r ~= nil and root.Parent ~= nil and (r.Position - root.Position).Magnitude <= raio
++		end
++
++		-- PASSOS: um baque grave a cada pé que encosta no chão
++		if comPassos then table.insert(m.conexoes, model:GetAttributeChangedSignal("BastiaoMarkerSerial"):Connect(function()
++			local serial = model:GetAttribute("BastiaoMarkerSerial")
++			if serial == m.marcador then return end
++			m.marcador = serial
++			local nome = model:GetAttribute("BastiaoMarkerName")
++			if type(nome) ~= "string" or nome:sub(1, 4) ~= "Foot" then return end
++			local agora = os.clock()
++			if agora - m.ultimoPasso < 0.18 then return end
++			m.ultimoPasso = agora
++			local estado = model:GetAttribute("BastiaoState")
++			local correndo = estado == "chase" or estado == "attack"
++				or model:GetAttribute("BastiaoAnimation") == "08_CORRER"
++			m.lado = m.lado % #IDS.passos + 1
++			tocar(IDS.passos[m.lado], pes, {
++				nome = "passo",
++				volume = if correndo then AJUSTE.passoCorrendo else AJUSTE.passoAndando,
++				velocidade = random:NextNumber(0.78, 0.9), -- mais grave e com variação entre um pé e outro
++				eq = { 9, -2, -8 },
++				perto = 14, longe = 170,
++				grupo = grupo, -- mesmo eco dos corredores
++				duracao = 1.1, fade = 0.4,
++			})
++		end)) end
++
++		-- BOTE: quando alcança o jogador, rugido gravíssimo, altíssimo e estourado
++		table.insert(m.conexoes, model:GetAttributeChangedSignal("BastiaoAttackSerial"):Connect(function()
++			local serial = model:GetAttribute("BastiaoAttackSerial")
++			if serial == m.ataque or serial == 0 then m.ataque = serial; return end
++			m.ataque = serial
++			tocar(IDS.rugido, boca, {
++				nome = "bote_rugido", volume = AJUSTE.boteVolume, velocidade = 0.7,
++				eq = { 10, 0, -6 }, ganho = AJUSTE.boteGanhoDb, distorcao = AJUSTE.boteDistorcao,
++				perto = 25, longe = 240, duracao = 2.6, fade = 0.5,
++			})
++			tocar(IDS.grito, boca, {
++				nome = "bote_grito", volume = 8, velocidade = 0.78,
++				eq = { 10, -1, -6 }, ganho = AJUSTE.boteGanhoDb - 4, distorcao = AJUSTE.boteDistorcao - 0.2,
++				perto = 25, longe = 220, duracao = 2.2, fade = 0.6,
++			})
++			if model:GetAttribute("BastiaoAttackVictim") == jogador.UserId or pertoDeMim(AJUSTE.raioNaCabeca) then
++				-- na cabeça de quem foi alcançado: sem distância, sem grupo, no máximo
++				tocar(IDS.rugido, pasta2D, {
++					nome = "bote_cabeca", volume = AJUSTE.boteVolume, velocidade = 0.64,
++					eq = { 10, 2, -4 }, ganho = AJUSTE.boteGanhoDb + 2, distorcao = 0.95,
++					duracao = 2.6, fade = 0.5,
++				})
++			end
++		end))
++
++		-- GOLPE: quando a garra acerta, um impacto seco e estourado para quem apanhou
++		table.insert(m.conexoes, model:GetAttributeChangedSignal("BastiaoHitSerial"):Connect(function()
++			local serial = model:GetAttribute("BastiaoHitSerial")
++			if serial == m.golpe or serial == 0 then m.golpe = serial; return end
++			m.golpe = serial
++			if model:GetAttribute("BastiaoHitVictim") == jogador.UserId then
++				tocar(IDS.impacto, pasta2D, {
++					nome = "golpe_cabeca", volume = 10, velocidade = 0.62,
++					eq = { 10, 0, -5 }, ganho = AJUSTE.boteGanhoDb, distorcao = 0.9,
++					duracao = 1.4, fade = 0.3,
++				})
++			else
++				tocar(IDS.impacto, boca, {
++					nome = "golpe", volume = 7, velocidade = 0.7,
++					eq = { 8, 0, -5 }, distorcao = 0.6, perto = 12, longe = 140,
++					duracao = 1.4, fade = 0.3,
++				})
++			end
++		end))
++
++		table.insert(m.conexoes, model.AncestryChanged:Connect(function()
++			if not model:IsDescendantOf(Workspace) then soltar(model) end
++		end))
++	end
++
++	local function considerar(inst: Instance)
++		if inst:IsA("Model") and (inst:GetAttribute("BastiaoCreature") == true or inst.Name == "Bastiao731A") then
++			task.spawn(ligar, inst)
++		end
++	end
++	for _, inst in Workspace:GetDescendants() do considerar(inst) end
++	table.insert(conexoes, Workspace.DescendantAdded:Connect(considerar))
++
++	-- pré-carrega para o primeiro passo/bote não sair atrasado
++	task.spawn(function()
++		local probes = {}
++		local ids = if comPassos then { IDS.passos[1], IDS.passos[2], IDS.rugido, IDS.grito, IDS.impacto } else { IDS.rugido, IDS.grito, IDS.impacto }
++		for _, id in ids do
++			local p = Instance.new("Sound")
++			p.SoundId = "rbxassetid://" .. tostring(id)
++			p.Volume = 0
++			p.Parent = pasta2D
++			table.insert(probes, p)
++		end
++		local ok, erro = pcall(function() ContentProvider:PreloadAsync(probes) end)
++		if not ok then warn("[Bastiao MonstroSom] pré-carregamento falhou: " .. tostring(erro)) end
++		for _, p in probes do p:Destroy() end
++	end)
++
++	local api = {}
++	function api.parar()
++		if not vivo then return end
++		vivo = false
++		for _, c in conexoes do c:Disconnect() end
++		local lista = {}
++		for model in monstros do table.insert(lista, model) end
++		for _, model in lista do soltar(model) end
++		for s in vivos do if s.Parent then s:Destroy() end end
++		pasta2D:Destroy()
++	end
++	return api
++end
++
++return MonstroSom
+diff -ruN a/src/server/Criatura.luau b/src/server/Criatura.luau
+--- a/src/server/Criatura.luau
++++ b/src/server/Criatura.luau
+@@ -11,7 +11,13 @@
+ local Criatura = {}
+ local V = Vector3.new
+ local TICK = 0.1 -- one creature, ten decisions/second; profile in the real place
+-local WALK_SPEED, RUN_SPEED = 3.5, 13
++local WALK_SPEED, RUN_SPEED = 3.5, 14.5
++-- Perseguição v2: quanto mais tempo persegue, mais rápido fica (o jogador anda a 10 e corre a 18
++-- enquanto tiver fôlego). Fugir correndo funciona por um tempo; a oficina é a única salvação.
++local RUN_SPEED_MAX, RUN_RAMP_SECONDS = 17, 6
++local SEARCH_SPEED, SEARCH_FAST_SECONDS = 8, 4 -- ao perder de vista, corre até onde o jogador ia
++local LOCK_ON_DISTANCE = 50 -- perseguindo, continua vendo o alvo fora do cone se nada bloquear
++local LATERAL_REACH = 2.5 -- quanto pode sair do eixo do corredor na aproximação final
+ -- Andar garantido: o monstro anda pelo eixo dos corredores (grafo abaixo), com o corpo
+ -- ancorado e movido a cada quadro. Sem física de Humanoid e sem pathfinding de agente gigante
+ -- (que falhava e deixava o monstro parado só respirando). Nós medidos no mapa Sector7World.
+@@ -124,6 +130,14 @@
+     return route
+ end
+ 
++local function corridorPoint(target: Vector3): Vector3
++    -- posição real do alvo, presa perto do eixo do corredor (o corpo não entra na parede)
++    local _, axis = project(target)
++    local off = V(target.X, 0, target.Z) - axis
++    if off.Magnitude > LATERAL_REACH then off = off.Unit * LATERAL_REACH end
++    return axis + off
++end
++
+ function Criatura.start(op: any): any
+     assert(typeof(op.world)=="Instance" and op.world:IsDescendantOf(Workspace),"Criatura needs the existing story folder")
+     assert(type(op.mundo)=="table" and type(op.mundo.estado)=="function","Criatura needs the original Mundo")
+@@ -377,10 +391,15 @@
+                 if c.state.mode=="attack" and player.UserId==c.state.attackVictim and distance<=6 then
+                     los=rayClear(eye,position+V(0,1.2,0),{c.model},character)
+                 end
++                -- Trava no alvo: perseguindo, não perde o jogador só porque ele passou pelo lado.
++                if not los and c.state.mode=="chase" and player.UserId==c.state.targetId and distance<=LOCK_ON_DISTANCE then
++                    los=rayClear(eye,position+V(0,1.2,0),{c.model},character)
++                    if los then dot=1 end
++                end
+             end
+             table.insert(found,{id=player.UserId,position=position,alive=true,safe=isSafe,inArea=isInArea,
+                 distance=distance,dot=dot,los=los,sprinting=player:GetAttribute("Sprinting")==true,
+-                speed=flat(root.AssemblyLinearVelocity).Magnitude,measuredSpeed=measured,
++                speed=flat(root.AssemblyLinearVelocity).Magnitude,velocity=flat(root.AssemblyLinearVelocity),measuredSpeed=measured,
+                 grounded=human.FloorMaterial~=Enum.Material.Air,hearingClear=hearing})
+         end
+         for id in c.samples do if not present[id] then c.samples[id]=nil end end
+@@ -396,24 +415,39 @@
+             or safe(root.Position) or not inArea(root.Position) or (root.Position-c.root.Position).Magnitude>6 then return end
+         if not rayClear(c.root.Position+V(0,c.height*0.26,0),root.Position+V(0,1.2,0),{c.model},character) then return end
+         human:TakeDamage(30) -- one readable native claw; no grab, camera takeover, or proximity kill
++        -- avisa os clientes: quem levou o golpe ouve o impacto estourado (MonstroSom)
++        c.model:SetAttribute("BastiaoHitVictim",id)
++        c.model:SetAttribute("BastiaoHitSerial",(c.model:GetAttribute("BastiaoHitSerial") or 0)+1)
+     end
+ 
+     local floorParams=RaycastParams.new()
+     floorParams.FilterType=Enum.RaycastFilterType.Exclude
+     floorParams.RespectCanCollide=true
+-    local function setGoal(c: any, goal: Vector3?, speed: number, now: number)
++    local function setGoal(c: any, goal: Vector3?, speed: number, now: number, urgent: boolean?)
+         local m=c.mover
+         m.targetSpeed=speed
++        m.urgent=urgent==true
+         if not goal then m.route,m.goal=nil,nil; return end
+-        if m.route and m.goal and (flat(goal-m.goal)).Magnitude<2.5 and now<m.recomputeAt then return end
+-        m.route,m.index,m.goal,m.recomputeAt=graphRoute(c.root.Position,goal),1,goal,now+0.6
+-        c.model:SetAttribute("BastiaoNavigation","corredor")
++        -- perseguindo: recalcula 5x por segundo e mira no jogador de verdade, não só no eixo
++        local tolerance,interval=if urgent then 1 else 2.5,if urgent then 0.2 else 0.6
++        if m.route and m.goal and (flat(goal-m.goal)).Magnitude<tolerance and now<m.recomputeAt then return end
++        local route=graphRoute(c.root.Position,goal)
++        if urgent then
++            local final=corridorPoint(goal)
++            if #route<=1 then
++                route={final}
++            elseif (flat(final-route[#route])).Magnitude>0.5 then
++                table.insert(route,final)
++            end
++        end
++        m.route,m.index,m.goal,m.recomputeAt=route,1,goal,now+interval
++        c.model:SetAttribute("BastiaoNavigation",if urgent then "perseguicao" else "corredor")
+     end
+     local function moveStep(c: any, dt: number)
+         local m=c.mover
+         if not m then return end
+         local wanted=if m.route then m.targetSpeed else 0
+-        m.speed=m.speed+math.clamp(wanted-m.speed,-30*dt,10*dt)
++        m.speed=m.speed+math.clamp(wanted-m.speed,-30*dt,(if m.urgent then 16 else 10)*dt)
+         local root=c.root.Position
+         local here=V(root.X,0,root.Z)
+         local start=here
+@@ -440,7 +474,8 @@
+         end
+         if want and look.Magnitude>0.01 then
+             local angle=math.atan2(look:Cross(want).Y,look:Dot(want))
+-            local turn=math.clamp(angle,-3.5*dt,3.5*dt)
++            local turnRate=if m.urgent then 7 else 3.5 -- perseguindo vira bem mais rápido
++            local turn=math.clamp(angle,-turnRate*dt,turnRate*dt)
+             look=CFrame.Angles(0,turn,0):VectorToWorldSpace(look)
+         elseif want then look=want end
+         -- Chão só do mapa (nunca Pavel, jogadores ou peças do cenário: era isso que fazia boiar)
+@@ -462,6 +497,12 @@
+         c.model:PivotTo(CFrame.lookAt(at,at+look))
+     end
+ 
++    local function chaseSpeed(c: any, now: number): number
++        local heat=math.clamp((now-(c.chaseStartedAt or now))/RUN_RAMP_SECONDS,0,1)
++        local top=RUN_SPEED+(RUN_SPEED_MAX-RUN_SPEED)*heat
++        return top*math.clamp(1-(c.accelerateUntil-now)/1.2,0.15,1)
++    end
++
+     local function update(c: any, now: number)
+         if not c.model.Parent or c.human.Health<=0 or not inArea(c.root.Position) then
+             fail("criatura_fora_da_area_ou_removida"); return
+@@ -472,14 +513,27 @@
+             end
+         end
+         local oldMode=c.state.mode
+-        local nextState,effect=Core.step(c.state,{ready=c.ready,candidates=candidates(c,now),
++        local seen=candidates(c,now)
++        local nextState,effect=Core.step(c.state,{ready=c.ready,candidates=seen,
+             attackEnabled=c.attackEnabled,attackHit=c.pendingHit,attackFinished=c.pendingFinished},now,c.timing)
+         c.pendingHit,c.pendingFinished=false,false
+         c.state=nextState
+         local mode=nextState.mode
++        local target: any=nil
++        for _, candidate in seen do
++            if candidate.id==nextState.targetId or candidate.id==nextState.attackVictim then target=candidate end
++        end
++        if target and target.los and target.velocity then c.targetVelocity=target.velocity end
+         if oldMode~=mode then
+             stopNavigation(c)
+             c.model:SetAttribute("BastiaoState",mode)
++            if mode=="chase" and oldMode~="attack" then c.chaseStartedAt=now end
++            if mode=="search" then c.searchStartedAt=now end
++            if mode=="attack" then
++                -- clientes tocam o rugido estourado do bote (MonstroSom)
++                c.model:SetAttribute("BastiaoAttackVictim",nextState.attackVictim or 0)
++                c.model:SetAttribute("BastiaoAttackSerial",(c.model:GetAttribute("BastiaoAttackSerial") or 0)+1)
++            end
+             c.human.AutoRotate=mode~="alert" and mode~="attack"
+             if mode=="alert" then
+                 play(c,"06_RUGIDO")
+@@ -495,8 +549,20 @@
+         end
+         if effect.damageId then damage(c,effect.damageId) end
+         c.mover.face=nil
+-        if mode=="alert" or mode=="attack" then
+-            -- para e encara quem viu (o rugido e a garra saem virados para o jogador)
++        if mode=="attack" then
++            -- Bote: até a garra descer, avança colado no alvo (antes parava e o jogador escapava andando).
++            c.mover.face=nextState.lastKnown
++            local elapsed=now-(nextState.attackStartedAt or now)
++            local victim=if target then target.position else nextState.lastKnown
++            if victim and elapsed<(c.timing.hitDelay or 0.5)+0.05 and (flat(victim-c.root.Position)).Magnitude>2.6 then
++                setGoal(c,victim,chaseSpeed(c,now),now,true)
++            else
++                setGoal(c,nil,0,now,true)
++            end
++            return
++        end
++        if mode=="alert" then
++            -- para e encara quem viu (o rugido sai virado para o jogador)
+             c.mover.face=nextState.lastKnown
+             setGoal(c,nil,0,now)
+             return
+@@ -504,22 +570,35 @@
+         if now<c.brakeUntil then setGoal(c,nil,0,now); return end
+         local goal: Vector3?=nil
+         local speed=WALK_SPEED
++        local urgent=false
+         if mode=="chase" then
+             goal=nextState.lastKnown
+-            speed=RUN_SPEED*math.clamp(1-(c.accelerateUntil-now)/1.2,0.15,1)
++            speed=chaseSpeed(c,now)
++            urgent=true
+         elseif mode=="search" then
+-            if nextState.lastKnown and (flat(nextState.lastKnown-c.root.Position)).Magnitude>3 then goal=nextState.lastKnown end
++            local lost=now-(c.searchStartedAt or now)
++            if nextState.lastKnown then
++                -- vai aonde o jogador estava indo, não só onde foi visto pela última vez
++                local guess=nextState.lastKnown
++                local vel=c.targetVelocity
++                if vel and lost<SEARCH_FAST_SECONDS and vel.Magnitude>2 then
++                    local ahead=guess+vel.Unit*math.min(vel.Magnitude*1.5,24)
++                    if inArea(ahead) and not safe(ahead) then guess=ahead end
++                end
++                if (flat(guess-c.root.Position)).Magnitude>3 then goal=guess end
++            end
++            if lost<SEARCH_FAST_SECONDS then speed=SEARCH_SPEED; urgent=true end
+         else
+             local patrol=PATROL[c.patrolIndex]
+             if (flat(patrol-c.root.Position)).Magnitude<3 then c.patrolIndex=c.patrolIndex%#PATROL+1 end
+             goal=PATROL[c.patrolIndex]
+         end
+-        setGoal(c,goal,speed,now)
++        setGoal(c,goal,speed,now,urgent)
+         local speed=c.mover.actualSpeed or 0
+         if mode=="chase" and now<c.accelerateUntil then
+             -- Let the authored accelerate clip finish before the run loop.
+         elseif speed>0.4 and goal then
+-            local name=if mode=="chase" then "08_CORRER" else "07_ANDAR"
++            local name=if mode=="chase" or speed>6 then "08_CORRER" else "07_ANDAR"
+             local authored=if name=="08_CORRER" then 3.2 else 0.62
+             local studsPerMeter=c.height/3.000094
+             play(c,name,math.clamp(speed/(authored*studsPerMeter),0.2,1.8))
+@@ -688,7 +767,9 @@
+                 roarDuration=catalog.animations["06_RUGIDO"].duration}
+             -- O corpo continua ancorado: o servidor move o modelo inteiro a cada quadro pelos
+             -- corredores (moveStep). Nada de física de Humanoid nem dono de rede.
+-            c.mover={route=nil,index=1,goal=nil,speed=0,targetSpeed=0,actualSpeed=0,recomputeAt=0,face=nil}
++            c.mover={route=nil,index=1,goal=nil,speed=0,targetSpeed=0,actualSpeed=0,recomputeAt=0,face=nil,urgent=false}
++            model:SetAttribute("BastiaoAttackSerial",0)
++            model:SetAttribute("BastiaoHitSerial",0)
+             c.ready=true
+             c.state=Core.new(os.clock())
+             model:SetAttribute("BastiaoReady",true)
+diff -ruN a/tests/client_monstro_som_test.luau b/tests/client_monstro_som_test.luau
+--- a/tests/client_monstro_som_test.luau
++++ b/tests/client_monstro_som_test.luau
+@@ -0,0 +1,71 @@
++-- Sons do bote e da garra do monstro (MonstroSom, do Antigravity) no harness, sem motor.
++-- Com passos=false (como o BastiaoCliente liga) os passos ficam só com o Foley.
++local Harness = require("./client_harness")
++local roblox = require("@lune/roblox")
++local V3 = roblox.Vector3
++
++local function tocados(h, nome)
++	local n = 0
++	for _, p in h.played do if p.sound.Name == "BastiaoMonstro_" .. nome then n += 1 end end
++	return n
++end
++
++local function monstro(h)
++	local model = h:new("Model", "Bastiao731A")
++	model:SetAttribute("BastiaoCreature", true)
++	local root = h:new("Part", "HumanoidRootPart", model)
++	root.Size = V3.new(6, 9, 4)
++	model.Parent = h.story
++	h:tick(0.5) -- o ligar() roda no task.spawn (e o relógio passa do intervalo mínimo entre passos)
++	return model
++end
++
++for _, comPassos in { false, true } do
++	local h = Harness.new()
++	h.environment.TweenInfo = { new = function(...) return { ... } end }
++	h.player.UserId = 101
++	local MonstroSom = h:load("src/client/MonstroSom.luau")
++	local api = MonstroSom.iniciar({ jogador = h.player, passos = comPassos })
++	local m = monstro(h)
++	assert(m:FindFirstChild("HumanoidRootPart"):FindFirstChild("BastiaoMonstroBoca"), "monstro não foi ligado")
++
++	-- pé encostando no chão (marcador da animação)
++	m:SetAttribute("BastiaoMarkerName", "Foot_L")
++	m:SetAttribute("BastiaoMarkerSerial", 1)
++	if comPassos then
++		assert(tocados(h, "passo") == 1, "com passos=true o pé tem que tocar")
++	else
++		assert(tocados(h, "passo") == 0, "com passos=false os passos ficam só com o Foley (sem passo dobrado)")
++	end
++
++	-- bote em quem foi alcançado: rugido + grito no monstro e o rugido "dentro da cabeça"
++	m:SetAttribute("BastiaoAttackVictim", 101)
++	m:SetAttribute("BastiaoAttackSerial", 1)
++	assert(tocados(h, "bote_rugido") == 1 and tocados(h, "bote_grito") == 1, "bote sem rugido/grito")
++	assert(tocados(h, "bote_cabeca") == 1, "quem foi alcançado tem que ouvir o rugido na cabeça")
++	-- o serial voltando a 0 (monstro novo) não toca nada
++	m:SetAttribute("BastiaoAttackSerial", 0)
++	assert(tocados(h, "bote_rugido") == 1, "serial zerado não pode tocar")
++
++	-- garra que acertou outro jogador: impacto no monstro, não na cabeça deste
++	m:SetAttribute("BastiaoHitVictim", 202)
++	m:SetAttribute("BastiaoHitSerial", 1)
++	assert(tocados(h, "golpe") == 1 and tocados(h, "golpe_cabeca") == 0, "golpe em outro jogador")
++	m:SetAttribute("BastiaoHitVictim", 101)
++	m:SetAttribute("BastiaoHitSerial", 2)
++	assert(tocados(h, "golpe_cabeca") == 1, "golpe em mim tem que soar na cabeça")
++
++	-- os sons somem sozinhos (fade + destroy) e nada fica tocando depois de parar
++	for _ = 1, 40 do h:tick(0.1) end
++	local sobrando = 0
++	for _, d in h.workspace:GetDescendants() do if d.ClassName == "Sound" then sobrando += 1 end end
++	for _, d in h.soundService:GetDescendants() do if d.ClassName == "Sound" then sobrando += 1 end end
++	assert(sobrando == 0, "sons do monstro não foram apagados: " .. sobrando)
++	api.parar()
++	local antes = #h.played
++	m:SetAttribute("BastiaoAttackSerial", 2)
++	m:SetAttribute("BastiaoHitSerial", 3)
++	assert(#h.played == antes, "depois de parar não pode tocar mais nada")
++	assert(h.soundService:FindFirstChild("BastiaoMonstroSomLocal") == nil, "pasta local do som ficou para trás")
++end
++print("PASS MonstroSom: bote e garra (na cabeça de quem foi pego), sem passo dobrado com o Foley, limpa tudo ao parar")
+diff -ruN a/tests/client_router_test.luau b/tests/client_router_test.luau
+--- a/tests/client_router_test.luau
++++ b/tests/client_router_test.luau
+@@ -76,6 +76,11 @@
+ 		op.aoPassosMudar(false)
+ 		return foley
+ 	end },
++	MonstroSom = { iniciar = function(op)
++		assert(op.jogador == player and op.passos == false and op.grupo == sound.grupoEfeitos, "MonstroSom sem passos dobrados")
++		mark("monstro_som_ligado")
++		return { parar = function() mark("monstro_som_parado") end }
++	end },
+ 	Efeitos = { iniciar = function(op)
+ 		assert(op.jogador == player and op.playerGui == playerGui and type(op.efeito) == "function" and type(op.ui) == "function")
+ 		mark("efeitos_ligados")
+@@ -97,6 +102,7 @@
+ assert(count("sound_som", "tres_toques") == 1 and count("sound_ruido", "terminal_bip") == 1)
+ assert(count("prompts_localized") == 1 and count("terminals_localized") == 1)
+ assert(count("efeitos_ligados") == 1, "efeitos do cliente (menu/lanterna/perseguição) não foram ligados")
++assert(count("monstro_som_ligado") == 1, "sons do bote do monstro não foram ligados")
+ lang = "ru"
+ for _, listener in languageListeners do listener(lang) end
+ assert(count("caption_idioma") == 1 and count("sound_precarregar") == 1)
+@@ -123,23 +129,26 @@
+ presentation.OnClientEvent:Fire({ tipo = "som", chave = "trava" })
+ promptService.PromptTriggered:Fire(storyPrompt, player)
+ for _, listener in languageListeners do listener("pt") end
+-assert(count("sound_parar") == 1 and count("destroy_foley") == 1)
++assert(count("sound_parar") == 1 and count("destroy_foley") == 1 and count("monstro_som_parado") == 1)
+ assert(count("sound_som", "trava") == 0 and count("ui", "ui_click") == 2 and count("caption_idioma") == 1)
+ -- Os efeitos visuais são opcionais: se quebrarem ou faltarem, legendas, som e prompts continuam.
+ local AVISO = "[Bastiao] efeitos visuais desligados:"
++local AVISO_SOM = "[Bastiao] sons do bote desligados:"
+ for _, caso in { "erro", "ausente" } do
+ 	calls = {}
+ 	if caso == "erro" then
+ 		modules.Efeitos = { iniciar = function() error("menu quebrado de proposito") end }
++		modules.MonstroSom = { iniciar = function() error("som quebrado de proposito") end }
+ 	else
+-		scriptNode.WaitForChild = function(_, name) return if name == "Efeitos" then nil else name end
++		scriptNode.WaitForChild = function(_, name) return if name == "Efeitos" or name == "MonstroSom" then nil else name end
+ 	end
+ 	luau.load(fs.readFile("src/client/BastiaoCliente.luau"), { environment = environment, injectGlobals = true })()
+ 	assert(count("warn", AVISO) == 1, "falha dos efeitos (" .. caso .. ") deve virar só um aviso")
++	assert(count("warn", AVISO_SOM) == 1, "falha do MonstroSom (" .. caso .. ") deve virar só um aviso")
+ 	presentation.OnClientEvent:Fire({ tipo = "fala", chave = "pavel_cafe", duracao = 4 })
+ 	assert(count("sound_fala", "pavel_cafe") == 1 and count("caption_fala", "pavel_cafe") == 1, "cliente parou junto com os efeitos")
+ 	assert(count("prompts_localized") == 1 and count("terminals_localized") == 1)
+ 	scriptNode.Destroying:Fire()
+ 	assert(count("sound_parar") == 1 and count("destroy_foley") == 1, "desmontar sem efeitos falhou")
+ end
+-print("PASS latest locale/terminal hooks, chapter event routing, prompt activation and teardown; client survives broken or missing effects (service harness; no engine)")
++print("PASS latest locale/terminal hooks, chapter event routing, prompt activation and teardown; client survives broken or missing effects and bite sounds (service harness; no engine)")
+diff -ruN a/tests/release_fixture.py b/tests/release_fixture.py
+--- a/tests/release_fixture.py
++++ b/tests/release_fixture.py
+@@ -38,7 +38,7 @@
+     write_json(root / "BASE_CLAUDE_ETAPA2.json", baseline)
+     for area, names in {
+         "server": ["BastiaoServidor", "Interacoes", "Sequencias", "CriaturaCore", "Criatura"],
+-        "client": ["BastiaoCliente", "Interface", "Som", "Foley", "Efeitos"],
++        "client": ["BastiaoCliente", "Interface", "Som", "Foley", "Efeitos", "MonstroSom"],
+     }.items():
+         for name in names:
+             path = root / "src" / area / (name + ".luau")
+diff -ruN a/tests/test_release_builder.py b/tests/test_release_builder.py
+--- a/tests/test_release_builder.py
++++ b/tests/test_release_builder.py
+@@ -44,9 +44,15 @@
+         self.assertIn(hashlib.sha256(previous["source"].encode()).hexdigest(), server["known"])
+         self.assertTrue(set(previous.get("known", [])).issubset(server["known"]))
+         self.assertEqual(report["stage"], 3)
+-        self.assertEqual(len(rows), 30)
++        self.assertEqual(len(rows), 31)
+         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Foley"), got)
+         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"), got)
++        som = got[("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "MonstroSom")]
++        criatura = got[("ServerScriptService", "BastiaoServidor", "Criatura")]
++        # versão 17 (Antigravity no Studio) conferida e juntada: pode ser trocada; o resto continua bloqueado
++        self.assertIn("57534ab5b08836746b944f5002fc62041840a60cdbe277a858a652a778b3e69f", criatura["known"])
++        self.assertIn("6c1303567f0bd8f99441187cc37adf49df2fc8ace0e6e19195891728cfbc5510", som["known"])
++        self.assertNotIn(hashlib.sha256(b"-- outra fonte").hexdigest(), criatura["known"])
+ 
+     def test_combined_audio_preserves_eight_voices_and_knock_and_binds_new_segments(self):
+         files, _ = builder.build_files(self.root)
+diff -ruN a/tooling/release_builder.py b/tooling/release_builder.py
+--- a/tooling/release_builder.py
++++ b/tooling/release_builder.py
+@@ -38,7 +38,119 @@
+     (["ServerScriptService", "BastiaoServidor", "Criatura"], "src/server/Criatura.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Foley"], "src/client/Foley.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"], "src/client/Efeitos.luau"),
++    (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "MonstroSom"], "src/client/MonstroSom.luau"),
+ )
++# Fontes Bastiao* que já estiveram no Place: as versões do Claude (etapa 2, correções 3 a 7) e o
++# Place versão 17, conferido script por script (as nossas publicadas + a Perseguição v2 e o
++# MonstroSom do Antigravity, juntados neste pacote). O instalador pode trocá-las; qualquer outra
++# fonte desconhecida continua bloqueada.
++REVISADAS = {
++    ('ReplicatedStorage', 'BastiaoCompartilhado'): (
++        '0b75886d1bf621cc4d550184a5d59e03d17eac133699415c571bf3c20e25e96a',
++    ),
++    ('ReplicatedStorage', 'BastiaoCompartilhado', 'Audio'): (
++        '0ee8af436a4fb36a78e6c8db0c5dcaecd34c0c794552f1200f469b4dacd86dfb',
++    ),
++    ('ReplicatedStorage', 'BastiaoCompartilhado', 'AudioCatalog'): (
++        '84df270f9977df0f7c52c67b167b98b6f944042798ea64dff58a037b7610096b',
++    ),
++    ('ReplicatedStorage', 'BastiaoCompartilhado', 'MonsterCatalog'): (
++        'f330b25753d6bfb1b38d1b482862ec2c9f0d9c12774fcc6159aff2ee4785f2bb',
++    ),
++    ('ReplicatedStorage', 'BastiaoCompartilhado', 'Textos'): (
++        'c4dd8bba1062859358e1b314aa8375d769220e691c9dcfdb40ba260aa9be6fe8',
++    ),
++    ('ServerScriptService', 'BastiaoServidor'): (
++        '55d96d2dc59ddd0747e86351e83f857e02cf6618cca66a2c35f057016a11bb8c',
++        '652f17600b6548f4be8e65f9cdb2ed46c47cfb60ccf5f4284e8a92a58c90a820',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Capitulo01'): (
++        'd626534aa7079d8064a84b529f1acc9825043eff7859742c7a759a3c78b44f58',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Cenario'): (
++        '4ab0cb8805ae76b7ae362921ed50715ef59512e3d003ee5a6139a075e3239e4b',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Checkpoint'): (
++        '4c505e975bb7da5f21ba5a0c4e16d39cef5642f03f99437b10804c3bcdbf3adb',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Criatura'): (
++        '57534ab5b08836746b944f5002fc62041840a60cdbe277a858a652a778b3e69f',
++        '99cc40970dc2da58b8911eb81b04d85e93b75cfcd7e2712661f15284b5e9904b',
++        'bf9d9b847278c484c074257c099d2ec3a2b1a09fedc7f454e2eaa5658a5d476e',
++        'deae663ac8b5de62ee19a393000d02cb6ca33ab33b7bd0be7f8993d4d4fc2ad3',
++        'f3b6480aee2f94c73b2ee2108fab5f2edb0486ab726b54b128cd83c8ec499653',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'CriaturaCore'): (
++        '4faa5d352f1037dba956ed86594d2243014b29ca9e4221a8f418560042b7317d',
++        'dcc06c43edd75a21aac0adbf73825bbe6b37a2ce4e4bc3b93e1a3efcf3192deb',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Interacoes'): (
++        '1c21bba4115946d2718f99ac7c47536b6d13d78413014c22a2f306fcc2b299ea',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Missao'): (
++        '98aebbf6fe1c8be2e6d875d88f391dfeb047d2368328be40e8249dea0282d574',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'MonsterImportContract'): (
++        'e5d67e6d1caa00e93f420d4595a7d2dc3eb3b9c01656d5139f81492ba7fcab72',
++        'f3c01505b744e2a342ffbd58e94813a91bfceb9255000ea1c69add9f32e43dd3',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Mundo'): (
++        '70250de9630b03b00297d87f9fb1b260345be661b98859cd144440032face126',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Pavel'): (
++        '2c163ae560d565b2823296218e233a9af077c0a6740a7d5841fb78b5b65f7a2a',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Preferencias'): (
++        'c72ebe6aafe2486779954edc631a6bc3956ee55ce9fba7e015bddc62f9f4983c',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Sequencias'): (
++        'e0364c865a0c25557b94fce54496541b31a016f24a5d25a043a6fc37d6544269',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'StoryRunner'): (
++        '7318655eb590fb221e422a6c0e180944900dd654495673d6736f7255a3ea9595',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'StoryValidator'): (
++        'e3fcaeb4aa93da89269e5a246fa0836fbb38dc98a9d5cb07c22a352e35884e68',
++    ),
++    ('ServerScriptService', 'BastiaoServidor', 'Zonas'): (
++        'c265c3aa290dd97a57274a23eaf8eb7f6500b1fe27ce9881105aede315d566c7',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente'): (
++        '769d35e69d661c8af243b00de6f011e79c36c4f28228eec96c76d347dc896127',
++        'f27a4d0a47ad13f7c0a977194222de23cdc0d98ef5751e793f2bc867c401d463',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Efeitos'): (
++        '775b9e0cd57feaa85fe37dd90e4244e3d090c707bac2391b582dd85d4ea1ef70',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Foley'): (
++        '0772d929888633ed21c952fa45c900589ceb885c8d1a3dbe1b7d4b8a8c661bda',
++        '5170f72665537b37307658061c11e3b39fe8fe0eae14b91221ab02e14c4c42e2',
++        'd3219e362fba416e6e5e63f2f02b20c1ff37d3324ed5518d577b583dadea4c45',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Giroflex'): (
++        'a37b9ad356460955bca3994772666760bbb41ed77f81e17b70d6edb6379b313c',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Idioma'): (
++        '9e93af5bb91bb8102df824888eb100ea4bcceff33ed69505467d52f9833abe27',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Interface'): (
++        '020f9cb55f8864d014905d7fe1e3c72043514db58551268231048a0e836b4a20',
++        '3b1eaa6581112032bfe8294d55da6aa483a4fb287e8bc16121c3fbc9b3eed151',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'MonstroSom'): (
++        '6c1303567f0bd8f99441187cc37adf49df2fc8ace0e6e19195891728cfbc5510',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Prompts'): (
++        '63a658eb42dce24193fdae1f3f4b660f112cf2581c74804e64a3e5b7eca2118e',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Som'): (
++        '20cdf652f796045091608949a4dd32879156b82e486b5b4c327686937d94cccd',
++        '56649bb86dc2afd4569c9cf78282244bbef864ce373937e8aeb8b5f6c104d3d3',
++    ),
++    ('StarterPlayer', 'StarterPlayerScripts', 'BastiaoCliente', 'Telas'): (
++        'f127f5100ac3f1daa90e2a533e093030d0a46ec54f19d9c4aaf2ad4207cdd847',
++    ),
++}
+ SFX_ALIASES = {
+     "radio_chiado": "estatica", "tres_toques": "toques_longe", "pressurizacao": "vapor",
+     "passos_longe": "passos_monstro", "tres_toques_parede": "toques_perto",
+@@ -321,6 +433,9 @@
+         source = _text(root, relative) if relative else "return " + lua_value(audio if path[-1] == "AudioCatalog" else monster) + "\n"
+         rows.append({"path": path, "cls": "ModuleScript", "source": source})
+         occupied.add(tuple(path))
++    for row in rows:
++        revisadas = REVISADAS.get(tuple(row["path"]))
++        if revisadas:row["known"] = sorted(set(row.get("known", [])) | set(revisadas))
+     validate(rows)
+     report = {"stage": STAGE, "replacedSources": changed, "addedSources": ["/".join(path) for path, _ in EXTRAS],
+               "sourceCount": len(rows), "preservedLegacyVoices": len(old_audio["vozes"].get("pt", {})),

@@ -1,0 +1,419 @@
+diff -ruN z12/src/client/Arma.luau z13/src/client/Arma.luau
+--- z12/src/client/Arma.luau	2026-11-18 10:49:14.161477208 +0000
++++ z13/src/client/Arma.luau	2026-11-18 14:21:28.461374552 +0000
+@@ -425,7 +425,7 @@
+ 	local function grupoDe(nome: string): string
+ 		if string.sub(nome, 1, 10) == "Carregador" or string.sub(nome, 1, 12) == "NervuraCarr" or nome == "FundoCarr" then
+ 			return "pente"
+-		elseif nome == "MaoEsquerda" or nome == "PolegarEsq" or nome == "PunhoEsquerdo" or nome == "MangaEsquerda" then
++		elseif string.sub(nome, 1, 3) == "Esq" or nome == "MaoEsquerda" or nome == "PolegarEsq" or nome == "PunhoEsquerdo" or nome == "MangaEsquerda" then
+ 			return "mao"
+ 		elseif nome == "Ferrolho" or nome == "Manejo" then
+ 			return "ferrolho"
+@@ -732,8 +732,10 @@
+ 	municao.BackgroundTransparency = 1
+ 	municao.AnchorPoint = Vector2.new(1, 1)
+ 	municao.Position = UDim2.new(1, -16, 1, -150)
+-	municao.Size = UDim2.fromOffset(160, 26)
++	municao.Size = UDim2.fromOffset(170, 40)
+ 	municao.FontFace = MONO
++	municao.RichText = true
++	municao.TextYAlignment = Enum.TextYAlignment.Bottom
+ 	municao.TextSize = 20
+ 	municao.TextColor3 = AMBAR
+ 	municao.TextStrokeTransparency = 0.4
+@@ -770,7 +772,57 @@
+ 	local botaoRecarga = botao("Recarregar", "RECARREGAR", 54)
+ 	local botaoModo = botao("Modo", "MODO", 44)
+ 
+-	-- botões ao lado do pulo (medidos no TouchGui do jogador; sem toque, ficam escondidos)
++	-- botões e munição: medem os botões das outras telas (Sector7: MENU, CORRER, LUZ e o pulo) e
++	-- escolhem o lugar livre mais perto do ideal; refeito de tempos em tempos (botões aparecem depois)
++	local function ocupados(): { any }
++		local l = {}
++		local origem = hud.AbsolutePosition
++		for _, tela in op.playerGui:GetChildren() do
++			if tela ~= hud and tela:IsA("ScreenGui") and tela.Enabled then
++				for _, d in tela:GetDescendants() do
++					if d:IsA("GuiButton") and d.Visible and d.AbsoluteSize.X > 8 and d.AbsoluteSize.Y > 8 then
++						local visivel = true
++						local pai = d.Parent
++						while pai and pai ~= tela do
++							if pai:IsA("GuiObject") and not pai.Visible then
++								visivel = false
++								break
++							end
++							pai = pai.Parent
++						end
++						if visivel then
++							table.insert(l, { d.AbsolutePosition - origem, d.AbsoluteSize })
++						end
++					end
++				end
++			end
++		end
++		return l
++	end
++	local function livre(centro: Vector2, tam: Vector2, l: { any }, folga: number): boolean
++		local a0 = centro - tam / 2 - Vector2.new(folga, folga)
++		local a1 = centro + tam / 2 + Vector2.new(folga, folga)
++		for _, r in l do
++			local b0, b1 = r[1], r[1] + r[2]
++			if a0.X < b1.X and a1.X > b0.X and a0.Y < b1.Y and a1.Y > b0.Y then
++				return false
++			end
++		end
++		return true
++	end
++	local function lugar(ideal: Vector2, tam: Vector2, l: { any }, tela: Vector2, minY: number): Vector2
++		local melhor, dist = ideal, math.huge
++		for y = tam.Y / 2 + minY, tela.Y - tam.Y / 2 - 6, 8 do
++			for x = tela.X * 0.42, tela.X - tam.X / 2 - 8, 8 do
++				local c = Vector2.new(x, y)
++				local d = (c - ideal).Magnitude
++				if d < dist and livre(c, tam, l, 6) then
++					melhor, dist = c, d
++				end
++			end
++		end
++		return melhor
++	end
+ 	local function posicionarBotoes()
+ 		local toque = false
+ 		pcall(function()
+@@ -779,37 +831,48 @@
+ 		botaoTiro.Visible = toque
+ 		botaoRecarga.Visible = toque
+ 		botaoModo.Visible = toque
+-		if not toque then
++		local tela = hud.AbsoluteSize
++		if tela.X < 50 then
+ 			return
+ 		end
+-		local pulo = nil
+-		local tg = op.playerGui:FindFirstChild("TouchGui")
+-		if tg then
+-			pulo = tg:FindFirstChild("JumpButton", true)
+-		end
+-		local tela = hud.AbsoluteSize
+-		if pulo and pulo:IsA("GuiObject") and pulo.AbsoluteSize.X > 10 then
+-			local p, t = pulo.AbsolutePosition - hud.AbsolutePosition, pulo.AbsoluteSize
+-			botaoTiro.Position = UDim2.fromOffset(p.X - 52, p.Y - 30)
+-			botaoRecarga.Position = UDim2.fromOffset(p.X + t.X / 2, p.Y - 70)
+-			botaoModo.Position = UDim2.fromOffset(p.X - 40, p.Y - 112)
++		local l = ocupados()
++		if toque then
++			local pTiro = lugar(Vector2.new(tela.X - 200, tela.Y - 120), Vector2.new(78, 78), l, tela, tela.Y * 0.3)
++			table.insert(l, { pTiro - Vector2.new(39, 39), Vector2.new(78, 78) })
++			local pRec = lugar(pTiro + Vector2.new(-8, -88), Vector2.new(54, 54), l, tela, tela.Y * 0.25)
++			table.insert(l, { pRec - Vector2.new(27, 27), Vector2.new(54, 54) })
++			local pModo = lugar(pTiro + Vector2.new(-82, -40), Vector2.new(44, 44), l, tela, tela.Y * 0.25)
++			table.insert(l, { pModo - Vector2.new(22, 22), Vector2.new(44, 44) })
++			botaoTiro.Position = UDim2.fromOffset(pTiro.X, pTiro.Y)
++			botaoRecarga.Position = UDim2.fromOffset(pRec.X, pRec.Y)
++			botaoModo.Position = UDim2.fromOffset(pModo.X, pModo.Y)
++			-- munição logo acima dos botões, sem cobrir nada
++			local pMun = lugar(Vector2.new(pTiro.X - 40, pRec.Y - 52), Vector2.new(170, 40), l, tela, tela.Y * 0.35)
++			municao.Position = UDim2.fromOffset(pMun.X + 85, pMun.Y + 20)
+ 		else
+-			botaoTiro.Position = UDim2.fromOffset(tela.X - 150, tela.Y - 110)
+-			botaoRecarga.Position = UDim2.fromOffset(tela.X - 60, tela.Y - 190)
+-			botaoModo.Position = UDim2.fromOffset(tela.X - 190, tela.Y - 200)
++			local pMun = lugar(Vector2.new(tela.X - 110, tela.Y - 70), Vector2.new(170, 40), l, tela, tela.Y * 0.5)
++			municao.Position = UDim2.fromOffset(pMun.X + 85, pMun.Y + 20)
+ 		end
+-		municao.Position = UDim2.new(1, -16, 1, if toque then -230 else -150)
+ 	end
++	task.spawn(function()
++		while vivo do
++			task.wait(2)
++			if hud.Enabled then
++				pcall(posicionarBotoes)
++			end
++		end
++	end)
+ 
+ 	local function atualizarMunicao()
+ 		local pente = jogador:GetAttribute("BastiaoPente")
+ 		local reserva = jogador:GetAttribute("BastiaoReserva")
+-		if jogador:GetAttribute("BastiaoRecarregando") == true then
+-			municao.Text = "-- | " .. tostring(reserva or 0)
+-		else
+-			municao.Text = tostring(pente or 0) .. " | " .. tostring(reserva or 0) .. "  " .. string.upper(modo)
+-		end
+-		municao.TextColor3 = if (tonumber(pente) or 0) <= 5 then Color3.fromRGB(232, 54, 42) else AMBAR
++		local p = tonumber(pente) or 0
++		local r = tonumber(reserva) or 0
++		local grande = if jogador:GetAttribute("BastiaoRecarregando") == true then "--" else tostring(p)
++		local aviso = if p == 0 and r == 0 then "  SEM MUNIÇÃO" elseif p <= 5 and r > 0 then "  RECARREGUE" else ""
++		municao.Text = '<font size="30">' .. grande .. '</font><font size="15"> / ' .. tostring(r) .. '</font>'
++			.. '<font size="12" color="#EEEEE8">  ' .. string.upper(modo) .. aviso .. '</font>'
++		municao.TextColor3 = if p <= 5 then Color3.fromRGB(232, 54, 42) else AMBAR
+ 	end
+ 
+ 	-- ===== tiro =====
+@@ -1048,8 +1111,8 @@
+ 		-- o ferrolho corre para trás e volta a cada tiro
+ 		ferroCm = math.max(ferroCm, 11 * math.sin(math.pi * math.clamp((agora - ultimoTiroEm) / 0.06, 0, 1)))
+ 		local alvo = cam.CFrame
+-			* CFrame.new(0.27 + bx + atraso.X * 0.6, -0.47 + by - (if veloz and andando then 0.05 else 0), -0.70 + mola.z * 0.02)
+-			* CFrame.Angles(math.rad(1.5) + math.rad(mola.p) * 0.06 + atraso.Y * 0.8 + tx, math.rad(4) - atraso.X * 0.8 + ty, math.rad(mola.r) * 0.05)
++			* CFrame.new(0.28 + bx + atraso.X * 0.6, -0.53 + by - (if veloz and andando then 0.05 else 0), -1.0 + mola.z * 0.02)
++			* CFrame.Angles(math.rad(3.5) + math.rad(mola.p) * 0.06 + atraso.Y * 0.8 + tx, math.rad(8) - atraso.X * 0.8 + ty, math.rad(-12) + math.rad(mola.r) * 0.05)
+ 			* poseArma
+ 		local raiz = alvo * MAO_DIR:Inverse()
+ 		local gF = CFrame.new(0, 0, ferroCm * CMV)
+diff -ruN z12/src/server/BastiaoServidor.luau z13/src/server/BastiaoServidor.luau
+--- z12/src/server/BastiaoServidor.luau	2026-11-18 10:47:07.162742644 +0000
++++ z13/src/server/BastiaoServidor.luau	2026-11-18 14:21:28.466410533 +0000
+@@ -459,10 +459,36 @@
+ 	preferencias:trocar(j, idioma)
+ end)
+ 
++-- equipe tática: todo jogador entra de SWAT (depois que a aparência da conta carregar)
++local function vestirSwat(j: Player, c: Model)
++	if type(Pavel.vestirSwat) ~= "function" then
++		return
++	end
++	local hum = c:WaitForChild("Humanoid", 10)
++	if not hum or not hum:IsA("Humanoid") then
++		return
++	end
++	if not j:HasAppearanceLoaded() then
++		local pronto = false
++		local con = j.CharacterAppearanceLoaded:Connect(function()
++			pronto = true
++		end)
++		local inicio = os.clock()
++		while not pronto and os.clock() - inicio < 6 and c.Parent do
++			task.wait(0.2)
++		end
++		con:Disconnect()
++	end
++	if c.Parent and j.Character == c then
++		Pavel.vestirSwat(hum :: Humanoid, true, warn)
++	end
++end
++
+ local function jogadorEntrou(j: Player)
+ 	preferencias:carregar(j)
+ 	j.CharacterAdded:Connect(function(c)
+ 		prepararPersonagem(j, c)
++		task.spawn(vestirSwat, j, c)
+ 	end)
+ 	j.CharacterRemoving:Connect(function()
+ 		interacoes:cancelar(j)
+@@ -470,6 +496,7 @@
+ 	end)
+ 	if j.Character then
+ 		task.spawn(prepararPersonagem, j, j.Character)
++		task.spawn(vestirSwat, j, j.Character)
+ 	end
+ end
+ Players.PlayerAdded:Connect(jogadorEntrou)
+diff -ruN z12/src/server/Pavel.luau z13/src/server/Pavel.luau
+--- z12/src/server/Pavel.luau	2026-11-18 10:47:07.164282661 +0000
++++ z13/src/server/Pavel.luau	2026-11-18 14:21:28.465185016 +0000
+@@ -24,13 +24,63 @@
+ local ANIM_APONTAR = "rbxassetid://128853357"
+ local ANIM_ACENAR = "rbxassetid://128777973"
+ -- uniforme do catálogo (itens públicos; IDs conferidos na API do catálogo do Roblox)
++-- equipe tática (SWAT) preta, itens públicos do catálogo conferidos na API e nas miniaturas
++local SWAT = {
++	camisa = 1455700999, -- "[Black Camo] SWAT" (Whatever you like)
++	calca = 1455701482, -- "[Black Camo] SWAT Pants" (Whatever you like)
++	capacete = 6602077191, -- "Custom Tactical FAST Helmet" (JohnDrinkin)
++	fone = 6602071898, -- "Tactical Helmet Headset" (JohnDrinkin)
++	oculos = 5164438849, -- "Helmet Goggles" (JohnDrinkin)
++	balaclava = 6238724671, -- "Tactical Stealth Balaclava" (JohnDrinkin)
++	colete = 7246494294, -- "Modular Plate Carrier (Black)" (Ardwyck)
++}
++Pavel.SWAT = SWAT
+ local ROUPA = {
+-	camisa = 6865584651, -- "Soviet Afghanka Jacket" (Zairian Military Industries)
+-	calca = 6866147363, -- "Soviet Afghanka Trousers" (Zairian Military Industries)
+-	chapeu = "46348897", -- "Soviet Ushanka" (Roblox)
++	camisa = SWAT.camisa,
++	calca = SWAT.calca,
++	chapeu = SWAT.capacete .. "," .. SWAT.fone .. "," .. SWAT.oculos, -- o Pavel fica de rosto à mostra
+ }
+ Pavel.GRUPO = "BastiaoNPC"
+ 
++-- Veste um jogador de SWAT: primeiro a roupa, depois capacete, fone, óculos, balaclava e colete
++-- (se algum item do catálogo falhar, a roupa fica). Mantém a cor da pele e o rosto do jogador.
++function Pavel.vestirSwat(hum: Humanoid, comMascara: boolean, log: ((string) -> ())?)
++	local okBase, atual = pcall(function()
++		return hum:GetAppliedDescription()
++	end)
++	local base: HumanoidDescription = if okBase and atual then atual else Instance.new("HumanoidDescription")
++	local function montar(completo: boolean): HumanoidDescription
++		local d = base:Clone()
++		pcall(function()
++			d:SetAccessories({}, true)
++		end)
++		d.Shirt = SWAT.camisa
++		d.Pants = SWAT.calca
++		d.GraphicTShirt = 0
++		for _, campo in { "HairAccessory", "FaceAccessory", "NeckAccessory", "ShouldersAccessory", "BackAccessory", "WaistAccessory", "FrontAccessory" } do
++			(d :: any)[campo] = ""
++		end
++		d.HatAccessory = ""
++		if completo then
++			local chapeu = SWAT.capacete .. "," .. SWAT.fone
++			if comMascara then
++				chapeu ..= "," .. SWAT.balaclava .. "," .. SWAT.oculos
++			end
++			d.HatAccessory = chapeu
++			d.FrontAccessory = tostring(SWAT.colete)
++		end
++		return d
++	end
++	for _, completo in { false, true } do
++		local ok, erro = pcall(function()
++			hum:ApplyDescription(montar(completo))
++		end)
++		if not ok and log then
++			log("[Bastiao] uniforme tático " .. (if completo then "(equipamento)" else "(roupa)") .. " falhou: " .. tostring(erro))
++		end
++	end
++end
++
+ -- onde ele fica em cada estado e para onde olha quando não há ninguém perto
+ Pavel.LUGARES = {
+ 	tunel = { pos = V(3.4, 0, 2.2), olhar = V(0, 0, 12) },
+@@ -158,6 +208,7 @@
+ 			d.Pants = ROUPA.calca
+ 			if comChapeu then
+ 				d.HatAccessory = ROUPA.chapeu
++				d.FrontAccessory = tostring(SWAT.colete)
+ 			end
+ 			d.HeadColor, d.LeftArmColor, d.RightArmColor = CORES.pele, CORES.pele, CORES.pele
+ 			d.TorsoColor, d.LeftLegColor, d.RightLegColor = CORES.tronco, CORES.pernas, CORES.pernas
+diff -ruN z12/src/shared/ArmaModelo.luau z13/src/shared/ArmaModelo.luau
+--- z12/src/shared/ArmaModelo.luau	2026-11-18 10:47:07.168906519 +0000
++++ z13/src/shared/ArmaModelo.luau	2026-11-18 14:18:44.140068995 +0000
+@@ -18,8 +18,11 @@
+ local MADEIRA = Color3.fromRGB(116, 54, 33)
+ local MADEIRA_ESCURA = Color3.fromRGB(78, 34, 20)
+ local BAQUELITE = Color3.fromRGB(112, 46, 27)
+-local UNIFORME = Color3.fromRGB(118, 112, 80)
+-local LUVA = Color3.fromRGB(32, 31, 29)
++local UNIFORME = Color3.fromRGB(34, 38, 46) -- manga do uniforme tático (azul-marinho quase preto)
++local PUNHO_MANGA = Color3.fromRGB(26, 28, 34)
++local LUVA = Color3.fromRGB(22, 22, 24)
++local LUVA_COURO = Color3.fromRGB(44, 42, 40)
++local PROTETOR = Color3.fromRGB(52, 54, 58) -- protetor rígido dos nós dos dedos
+ 
+ local V3 = Vector3.new
+ 
+@@ -31,6 +34,7 @@
+ 	giro: Vector3?, -- graus (X, Y, Z)
+ 	cor: Color3,
+ 	material: Enum.Material,
++	cf: CFrame?, -- (opcional) posição e giro prontos, em cm (para peças encaixadas no punho ou entre dois pontos)
+ }
+ 
+ local function P(nome: string, forma: string, tam: Vector3, centro: Vector3, cor: Color3, material: Enum.Material, giro: Vector3?): Peca
+@@ -125,13 +129,21 @@
+ }
+ 
+ local function cfDe(peca: Peca): CFrame
++	if peca.cf then
++		return CFrame.new(peca.cf.Position * CM) * peca.cf.Rotation
++	end
+ 	local g = peca.giro or V3(0, 0, 0)
+ 	return CFrame.new(peca.centro * CM) * CFrame.Angles(math.rad(g.X), math.rad(g.Y), math.rad(g.Z))
+ end
+ 
+ local function criarParte(peca: Peca): BasePart
+ 	local parte: BasePart
+-	if peca.forma == "cunha" then
++	if peca.forma == "bola" then
++		parte = Instance.new("Part")
++		parte.Shape = Enum.PartType.Ball
++		parte.Size = peca.tam * CM
++		parte.CFrame = cfDe(peca)
++	elseif peca.forma == "cunha" then
+ 		parte = Instance.new("WedgePart")
+ 		parte.Size = peca.tam * CM
+ 		parte.CFrame = cfDe(peca)
+@@ -161,19 +173,68 @@
+ 	return parte
+ end
+ 
+--- Antebraços com manga do uniforme e luvas (só para a primeira pessoa)
++-- Braços da primeira pessoa: luvas táticas pretas (dedos de verdade em volta do punho e do guarda-mão,
++-- polegar, protetor rígido nos nós dos dedos) e antebraços redondos com a manga do uniforme.
++-- Nomes: "Esq..." andam com a mão esquerda na recarga; "Dir..." ficam presos ao punho.
++local function pecaCF(nome: string, forma: string, tam: Vector3, cf: CFrame, cor: Color3, material: Enum.Material): Peca
++	return { nome = nome, forma = forma, tam = tam, centro = cf.Position, cor = cor, material = material, cf = cf }
++end
++-- cilindro (eixo Z) de um ponto a outro, em cm
++local function entre(nome: string, a: Vector3, b: Vector3, diametro: number, cor: Color3, material: Enum.Material): Peca
++	local meio = (a + b) / 2
++	return pecaCF(nome, "cilindro", V3(diametro, diametro, (b - a).Magnitude), CFrame.lookAt(meio, b), cor, material)
++end
+ local function bracos(): { Peca }
+ 	local S, F = Enum.Material.SmoothPlastic, Enum.Material.Fabric
+-	return {
+-		P("MaoDireita", "bloco", V3(3.4, 3.6, 4.4), V3(0.6, -7.8, 6.2), LUVA, S, V3(-18, 0, 0)),
+-		P("DedoGatilho", "bloco", V3(1.0, 1.0, 3.2), V3(0.5, -5.2, 0.6), LUVA, S, V3(-10, 0, 0)),
+-		P("PunhoDireito", "bloco", V3(4.0, 4.0, 5), V3(1.6, -10.6, 10.6), LUVA, S, V3(-40, 8, 0)),
+-		P("MangaDireita", "bloco", V3(5.0, 5.0, 26), V3(5.0, -16.5, 21), UNIFORME, F, V3(-34, 14, 0)),
+-		P("MaoEsquerda", "bloco", V3(3.6, 3.4, 5.2), V3(-0.6, -4.6, -25), LUVA, S, V3(0, 0, -8)),
+-		P("PolegarEsq", "bloco", V3(1.0, 1.0, 3.6), V3(1.8, -2.6, -25.6), LUVA, S),
+-		P("PunhoEsquerdo", "bloco", V3(4.0, 4.0, 5), V3(-2.6, -7.4, -21.5), LUVA, S, V3(-32, -14, 0)),
+-		P("MangaEsquerda", "bloco", V3(5.0, 5.0, 26), V3(-7.4, -14.0, -9.5), UNIFORME, F, V3(-34, -24, 0)),
+-	}
++	local R = function(x: number, y: number, z: number): CFrame
++		return CFrame.Angles(math.rad(x), math.rad(y), math.rad(z))
++	end
++	local l: { Peca } = {}
++	local function add(p: Peca)
++		table.insert(l, p)
++	end
++	-- ===== mão direita no punho (coordenadas do punho: x lado, y ao longo do punho, z frente(-)/trás(+)) =====
++	local G = CFrame.new(0, -9.4, 6.1) * R(-18, 0, 0)
++	local function g(nome: string, forma: string, tam: Vector3, x: number, y: number, z: number, cor: Color3, rx: number?, ry: number?, rz: number?)
++		add(pecaCF(nome, forma, tam, G * CFrame.new(x, y, z) * R(rx or 0, ry or 0, rz or 0), cor, S))
++	end
++	g("DirDorso", "bloco", V3(2.0, 7.4, 4.8), 2.3, 0.2, 0.4, LUVA)
++	g("DirPalma", "bloco", V3(3.6, 5.8, 1.6), 0.9, -0.4, 2.6, LUVA)
++	g("DirProtetor", "bloco", V3(0.7, 5.6, 3.4), 3.55, 0.6, -0.4, PROTETOR)
++	for i, y in { 1.5, -0.5, -2.5 } do
++		g("DirDedo" .. i, "bloco", V3(3.4, 1.75, 1.45), 0.5, y, -2.5, LUVA)
++		g("DirPonta" .. i, "bloco", V3(1.4, 1.6, 2.3), -1.95, y, -1.55, LUVA)
++		g("DirNo" .. i, "bola", V3(1.7, 1.7, 1.7), 2.2, y, -2.3, LUVA)
++	end
++	g("DirPolegar", "bloco", V3(1.35, 1.45, 4.2), -1.95, 3.9, 0.1, LUVA, 6, 0, 0)
++	g("DirPolegarPonta", "bola", V3(1.4, 1.4, 1.4), -1.9, 4.05, -2.0, LUVA_COURO)
++	-- indicador no gatilho
++	add(pecaCF("DirIndicador", "bloco", V3(1.15, 1.2, 2.8), CFrame.new(0.95, -5.0, 1.5) * R(-6, 0, 0), LUVA, S))
++	add(pecaCF("DirIndicadorPonta", "bloco", V3(1.0, 1.05, 1.7), CFrame.new(0.35, -5.55, -0.1) * R(38, 0, 0), LUVA_COURO, S))
++	-- pulso e antebraço direito (vai para trás, para baixo e para a direita, até sair da tela)
++	local pulsoD = (G * CFrame.new(1.4, -4.6, 2.6)).Position
++	local cotoveloD = V3(11, -27, 30)
++	local d = (cotoveloD - pulsoD).Unit
++	add(entre("DirPunho", pulsoD - d * 1.5, pulsoD + d * 4.5, 4.6, LUVA, S))
++	add(entre("DirPunhoManga", pulsoD + d * 4.5, pulsoD + d * 6.0, 6.0, PUNHO_MANGA, F))
++	add(entre("DirManga", pulsoD + d * 6.0, cotoveloD, 5.6, UNIFORME, F))
++	-- ===== mão esquerda no guarda-mão (palma embaixo, dedos subindo pelo lado direito, polegar pelo esquerdo) =====
++	add(pecaCF("EsqPalma", "bloco", V3(4.8, 2.0, 8.0), CFrame.new(-1.5, -4.5, -25.5) * R(0, 0, -32), LUVA, S))
++	add(pecaCF("EsqProtetor", "bloco", V3(4.0, 0.8, 4.8), CFrame.new(-2.7, -5.2, -26.2) * R(0, 0, -32), PROTETOR, S))
++	for i, z in { -28.6, -26.9, -25.2, -23.5 } do
++		add(pecaCF("EsqDedo" .. i, "bloco", V3(1.3, 3.0, 1.45), CFrame.new(2.65, -2.75, z) * R(0, 0, 4), LUVA, S))
++		add(pecaCF("EsqPonta" .. i, "bloco", V3(1.2, 1.45, 1.35), CFrame.new(2.2, -0.95, z) * R(0, 0, 32), LUVA, S))
++		add(pecaCF("EsqNo" .. i, "bola", V3(1.6, 1.6, 1.6), CFrame.new(-0.2, -5.3, z), LUVA, S))
++	end
++	add(pecaCF("EsqPolegar", "bloco", V3(1.6, 1.6, 4.2), CFrame.new(-2.8, -2.3, -23.4) * R(-10, 0, 0), LUVA, S))
++	add(pecaCF("EsqPolegarPonta", "bola", V3(1.55, 1.55, 1.55), CFrame.new(-2.7, -2.0, -25.6), LUVA_COURO, S))
++	local pulsoE = V3(-3.4, -6.0, -21.4)
++	local cotoveloE = V3(-26, -22, -8)
++	local e = (cotoveloE - pulsoE).Unit
++	add(entre("EsqPunho", pulsoE - e * 2.0, pulsoE + e * 4.0, 4.6, LUVA, S))
++	add(entre("EsqPunhoManga", pulsoE + e * 4.0, pulsoE + e * 5.5, 6.0, PUNHO_MANGA, F))
++	add(entre("EsqManga", pulsoE + e * 5.5, cotoveloE, 5.6, UNIFORME, F))
++	return l
+ end
+ 
+ export type Opcoes = { bracos: boolean?, ancorado: boolean? }

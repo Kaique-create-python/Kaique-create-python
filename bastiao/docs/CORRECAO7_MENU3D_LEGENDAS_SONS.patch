@@ -1,0 +1,1524 @@
+diff -ruN a/audio/AUDIO_PLAN.json b/audio/AUDIO_PLAN.json
+--- a/audio/AUDIO_PLAN.json
++++ b/audio/AUDIO_PLAN.json
+@@ -439,17 +439,18 @@
+     },
+     {
+       "key": "inspiracao",
+-      "kind": "sfx",
+-      "text": "One unnaturally long deep inhalation by a large flesh-and-metal creature behind a thick closed steel door, low air suction and strained chest, restrained horror, no roar, no words, no music.",
+-      "durationSeconds": 3.8,
+-      "promptInfluence": 0.7,
++      "kind": "reuse",
+       "profile": "foley",
+       "category": "Foley",
+-      "volume": 0.72,
++      "volume": 1.0,
+       "spatial": true,
+       "radio": false,
+       "loop": false,
+-      "caption": "[UMA INSPIRAÇÃO LONGA ATRÁS DA PORTA]"
++      "caption": "[UMA INSPIRAÇÃO LONGA ATRÁS DA PORTA]",
++      "sourcePath": "sources/eleven_inspiracao.mp3",
++      "sha256": "3ae8ec9c6a409176b5e918ab59b6357f98feafd2fda6ec54bacfb06df59cd63a",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "One unnaturally long deep inhalation by a large flesh-and-metal creature behind a thick closed steel door, low air suction and strained chest, restrained horror, no roar, no words, no music."
+     },
+     {
+       "key": "pressurizacao",
+@@ -654,42 +655,45 @@
+     },
+     {
+       "key": "monster_step_01",
+-      "kind": "sfx",
+-      "text": "Exactly one isolated very heavy creature footstep, variation 1: massive deformed flesh-and-metal foot lands on bunker concrete with a low weighty thud, hard scraping claw and short restraint hardware rattle, close and dry. One step only, no roar, no voices, no music.",
+-      "durationSeconds": 1.0,
+-      "promptInfluence": 0.85,
++      "kind": "reuse",
+       "profile": "foley",
+       "category": "Foley",
+-      "volume": 0.78,
++      "volume": 1.0,
+       "spatial": true,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_monster_step_01.mp3",
++      "sha256": "7bad84e9773772abc9882e1d134a4722fc14efaddcbcc2cf68ac28db4bd12d7a",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "Exactly one isolated very heavy creature footstep, variation 1: massive deformed flesh-and-metal foot lands on bunker concrete with a low weighty thud, hard scraping claw and short restraint hardware rattle, close and dry. One step only, no roar, no voices, no music."
+     },
+     {
+       "key": "monster_step_02",
+-      "kind": "sfx",
+-      "text": "Exactly one isolated very heavy creature footstep, variation 2: massive deformed flesh-and-metal foot lands on bunker concrete with a low weighty thud, hard scraping claw and short restraint hardware rattle, close and dry. One step only, no roar, no voices, no music.",
+-      "durationSeconds": 1.0,
+-      "promptInfluence": 0.85,
++      "kind": "reuse",
+       "profile": "foley",
+       "category": "Foley",
+-      "volume": 0.78,
++      "volume": 1.0,
+       "spatial": true,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_monster_step_02.mp3",
++      "sha256": "6ebc3d91f337492945e313d74a58ac781dc3416bc445ceb9cdc253fcf8af1131",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "Exactly one isolated very heavy creature footstep, variation 2: massive deformed flesh-and-metal foot lands on bunker concrete with a low weighty thud, hard scraping claw and short restraint hardware rattle, close and dry. One step only, no roar, no voices, no music."
+     },
+     {
+       "key": "monster_breath",
+-      "kind": "sfx",
+-      "text": "One close slow breathing cycle from an enormous restrained creature, deep labored chest inhale and ragged exhale with faint throat rasp and tiny harness rattle, controlled horror, no roar, no speech, no music.",
+-      "durationSeconds": 4.5,
+-      "promptInfluence": 0.7,
++      "kind": "reuse",
+       "profile": "foley",
+       "category": "Foley",
+-      "volume": 0.5,
++      "volume": 1.0,
+       "spatial": true,
+       "radio": false,
+-      "loop": false
++      "loop": false,
++      "sourcePath": "sources/eleven_monster_breath.mp3",
++      "sha256": "a9fe960cdc3960b1688bdb983bc4dde05936dac65532550cfcb9f2ba971d84e7",
++      "provider": "ElevenLabs eleven_text_to_sound_v2 (gerado pelo Claude no conector, 2026-11-17)",
++      "prompt": "One close slow breathing cycle from an enormous restrained creature, deep labored chest inhale and ragged exhale with faint throat rasp and tiny harness rattle, controlled horror, no roar, no speech, no music."
+     },
+     {
+       "key": "bunker_air",
+@@ -907,6 +911,58 @@
+       "loop": true,
+       "spatial": false,
+       "radio": false
++    },
++    {
++      "key": "lanterna_liga",
++      "kind": "sfx",
++      "text": "One crisp mechanical click of a heavy military flashlight switch turning on, small spring and metal body resonance, very short, close and dry. Single click only, no voice, no music.",
++      "durationSeconds": 0.5,
++      "promptInfluence": 0.8,
++      "profile": "ui",
++      "category": "UI",
++      "volume": 0.7,
++      "spatial": false,
++      "radio": false,
++      "loop": false
++    },
++    {
++      "key": "lanterna_desliga",
++      "kind": "sfx",
++      "text": "One softer mechanical click of a heavy military flashlight switch turning off, small spring release, very short, close and dry. Single click only, no voice, no music.",
++      "durationSeconds": 0.5,
++      "promptInfluence": 0.8,
++      "profile": "ui",
++      "category": "UI",
++      "volume": 0.6,
++      "spatial": false,
++      "radio": false,
++      "loop": false
++    },
++    {
++      "key": "menu_abre",
++      "kind": "sfx",
++      "text": "A short old bodycam menu opening: quick electronic chirp, servo whir and a tiny relay clack with a hint of CRT static, under one second, no melody, no voice, no music.",
++      "durationSeconds": 0.8,
++      "promptInfluence": 0.7,
++      "profile": "ui",
++      "category": "UI",
++      "volume": 0.65,
++      "spatial": false,
++      "radio": false,
++      "loop": false
++    },
++    {
++      "key": "legenda_quebra",
++      "kind": "sfx",
++      "text": "A brief delicate glassy digital shatter: small pieces of a screen breaking apart with a soft static crackle and tiny tinkles falling, quiet and short, no impact boom, no voice, no music.",
++      "durationSeconds": 0.8,
++      "promptInfluence": 0.7,
++      "profile": "ui",
++      "category": "UI",
++      "volume": 0.35,
++      "spatial": false,
++      "radio": false,
++      "loop": false
+     }
+   ],
+   "atlas": {
+diff -ruN a/src/client/BastiaoCliente.luau b/src/client/BastiaoCliente.luau
+--- a/src/client/BastiaoCliente.luau
++++ b/src/client/BastiaoCliente.luau
+@@ -26,6 +26,11 @@
+ local Telas = require(script:WaitForChild("Telas"))
+ local Som = require(script:WaitForChild("Som"))
+ local Foley = require(script:WaitForChild("Foley"))
++-- Efeitos visuais (menu 3D, lanterna, perseguição) são opcionais: se faltarem ou falharem,
++-- o resto do cliente segue normal.
++local efeitosCarregou, Efeitos = pcall(function()
++	return require(script:WaitForChild("Efeitos", 10) :: any)
++end)
+ local catalogo = nil
+ local moduloCatalogo = modulo:FindFirstChild("AudioCatalog")
+ if moduloCatalogo then
+@@ -64,6 +69,29 @@
+ 	grupo = som.grupoEfeitos,
+ 	aoPassosMudar = som.passosExternos,
+ })
++local efeitos = { destroy = function() end }
++if efeitosCarregou and type(Efeitos) == "table" and type(Efeitos.iniciar) == "function" then
++	local criou, criado = pcall(Efeitos.iniciar, {
++		jogador = jogador,
++		playerGui = playerGui,
++		efeito = function(chave: string)
++			return som.efeito(chave)
++		end,
++		ui = function(chave: string)
++			foley.ui(chave)
++		end,
++	})
++	if criou and type(criado) == "table" and type(criado.destroy) == "function" then
++		efeitos = criado
++	else
++		warn("[Bastiao] efeitos visuais desligados:", criado)
++	end
++else
++	warn("[Bastiao] efeitos visuais desligados:", Efeitos)
++end
++ui.definirSom(function(chave: string)
++	som.efeito(chave)
++end)
+ local ativo = true
+ local conexoes = {}
+ local ultimoPrompt: number? = nil
+@@ -76,6 +104,7 @@
+ 	for _, conexao in conexoes do conexao:Disconnect() end
+ 	-- Restaura os sons padrão antes de desmontar o dono dos grupos/reverb.
+ 	foley.destroy()
++	pcall(efeitos.destroy)
+ 	som.parar()
+ end))
+ table.insert(conexoes, ProximityPromptService.PromptTriggered:Connect(function(prompt, quem)
+diff -ruN a/src/client/Efeitos.luau b/src/client/Efeitos.luau
+--- a/src/client/Efeitos.luau
++++ b/src/client/Efeitos.luau
+@@ -0,0 +1,454 @@
++--!strict
++-- PROJETO BASTIÃO :: efeitos do cliente (Etapa 3)
++--  * Abertura do menu da bodycam (S7BodycamMenu): quando ele abre, um cartão escuro vira de lado
++--    para a frente (como uma placa em 3D girando), camadas de profundidade se juntam atrás dele,
++--    cantos de mira chegam das bordas da tela, uma linha de varredura passa e o menu aparece com
++--    um clarão. Ao fechar, ele apaga como uma TV antiga (linha que encolhe até um ponto).
++--    Nada do menu é trocado: tudo é desenhado numa tela própria por cima; só o painel do menu
++--    fica invisível durante os 0,35 s do giro e volta sozinho (inclusive se o menu fechar antes).
++--  * Clique da lanterna: quando o atributo FlashlightOn do jogador muda (o Sector7 continua dono
++--    da lanterna; aqui só se escuta a mudança).
++--  * Perseguição: quando o 731-A persegue perto, a tela escurece nas bordas e pulsa, e a imagem
++--    perde cor e treme de leve no brilho, como luz falhando.
++-- Pode ser exigido no servidor (teste na nuvem): nada roda até Efeitos.iniciar.
++
++local GuiService = game:GetService("GuiService")
++local Lighting = game:GetService("Lighting")
++local RunService = game:GetService("RunService")
++local TweenService = game:GetService("TweenService")
++
++local Efeitos = {}
++
++local BRANCO = Color3.fromRGB(238, 238, 232)
++local AMBAR = Color3.fromRGB(244, 186, 88)
++local VERMELHO = Color3.fromRGB(232, 54, 42)
++local CIANO = Color3.fromRGB(110, 220, 235)
++local PRETO = Color3.new(0, 0, 0)
++
++export type Opcoes = {
++	jogador: Player,
++	playerGui: Instance,
++	efeito: ((chave: string) -> any)?, -- toca um efeito do Som (nil se o som ainda não existe)
++	ui: ((chave: string) -> ())?, -- clique de interface do Foley (reserva)
++}
++
++local function tween(inst: Instance, tempo: number, alvo: { [string]: any }, estilo: Enum.EasingStyle?, direcao: Enum.EasingDirection?)
++	local t = TweenService:Create(inst, TweenInfo.new(tempo, estilo or Enum.EasingStyle.Quad, direcao or Enum.EasingDirection.Out), alvo)
++	t:Play()
++	return t
++end
++
++local function quadro(pai: Instance, nome: string, cor: Color3, transparencia: number): Frame
++	local f = Instance.new("Frame")
++	f.Name = nome
++	f.BackgroundColor3 = cor
++	f.BackgroundTransparency = transparencia
++	f.BorderSizePixel = 0
++	f.Active = false
++	f.Parent = pai
++	return f
++end
++
++local function contorno(pai: Instance, cor: Color3, transparencia: number, espessura: number): UIStroke
++	local s = Instance.new("UIStroke")
++	s.Color = cor
++	s.Transparency = transparencia
++	s.Thickness = espessura
++	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
++	s.Parent = pai
++	return s
++end
++
++-- canto em "L" (duas barras) usado como mira da bodycam
++local function canto(pai: Instance, cor: Color3): Frame
++	local c = Instance.new("Frame")
++	c.Name = "Canto"
++	c.BackgroundTransparency = 1
++	c.Size = UDim2.fromOffset(22, 22)
++	c.AnchorPoint = Vector2.new(0.5, 0.5)
++	c.Parent = pai
++	local h = quadro(c, "H", cor, 0)
++	h.Size = UDim2.new(1, 0, 0, 2)
++	local v = quadro(c, "V", cor, 0)
++	v.Size = UDim2.new(0, 2, 1, 0)
++	return c
++end
++
++function Efeitos.iniciar(op: Opcoes): { destroy: () -> () }
++	local conexoes: { RBXScriptConnection } = {}
++	local vivo = true
++	local function tocar(chave: string, reserva: string?)
++		local ok, som = pcall(function()
++			return if op.efeito then op.efeito(chave) else nil
++		end)
++		if (not ok or som == nil) and reserva and op.ui then
++			pcall(op.ui, reserva)
++		end
++	end
++
++	-- tela própria por cima do menu (o menu usa DisplayOrder 20)
++	local fx = Instance.new("ScreenGui")
++	fx.Name = "BastiaoMenuFX"
++	fx.ResetOnSpawn = false
++	fx.DisplayOrder = 21
++	fx.IgnoreGuiInset = true
++	fx.ScreenInsets = Enum.ScreenInsets.None
++	fx.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
++	fx.Enabled = false
++	fx.Parent = op.playerGui
++
++	-- ===== menu =====
++	local menuGui: ScreenGui? = nil
++	local painel: GuiObject? = nil
++	local geracao = 0
++	local cantos: { Frame } = {}
++	local seguindo: RBXScriptConnection? = nil
++	local painelEscondido = false
++
++	local function mostrarPainel()
++		if painel and painelEscondido then
++			painel.Visible = true
++		end
++		painelEscondido = false
++	end
++
++	local function limparCantos()
++		if seguindo then
++			seguindo:Disconnect()
++			seguindo = nil
++		end
++		for _, c in cantos do
++			c:Destroy()
++		end
++		table.clear(cantos)
++	end
++
++	local function retangulo(): (Vector2, Vector2)
++		if painel and painel.AbsoluteSize.X > 4 then
++			return painel.AbsolutePosition, painel.AbsoluteSize
++		end
++		local tela = fx.AbsoluteSize
++		return Vector2.new(tela.X * 0.5 - 270, tela.Y * 0.5 - 180), Vector2.new(540, 360)
++	end
++
++	local function abrir()
++		geracao += 1
++		local minha = geracao
++		limparCantos()
++		for _, filho in fx:GetChildren() do
++			filho:Destroy()
++		end
++		fx.Enabled = true
++		tocar("menu_abre", "ui_confirm")
++		-- espera o menu terminar de montar (tamanho automático) antes de medir
++		RunService.Heartbeat:Wait()
++		if minha ~= geracao or not vivo then
++			return
++		end
++		local pos, tam = retangulo()
++		local centro = pos + tam / 2
++		local reduzido = GuiService.ReducedMotionEnabled
++		local tela = fx.AbsoluteSize
++
++		-- cantos de mira: chegam das bordas da tela e ficam presos nos cantos do menu
++		local alvos = {
++			Vector2.new(pos.X, pos.Y), Vector2.new(pos.X + tam.X, pos.Y),
++			Vector2.new(pos.X, pos.Y + tam.Y), Vector2.new(pos.X + tam.X, pos.Y + tam.Y),
++		}
++		local origens = { Vector2.new(0, 0), Vector2.new(tela.X, 0), Vector2.new(0, tela.Y), Vector2.new(tela.X, tela.Y) }
++		local giros = { 0, 90, 270, 180 }
++		for i, alvo in alvos do
++			local c = canto(fx, AMBAR)
++			c.Rotation = giros[i]
++			c.Position = UDim2.fromOffset(origens[i].X, origens[i].Y)
++			tween(c, if reduzido then 0.01 else 0.42, { Position = UDim2.fromOffset(alvo.X, alvo.Y) }, Enum.EasingStyle.Quint)
++			table.insert(cantos, c)
++		end
++		-- enquanto o menu estiver aberto, os cantos acompanham o painel (respiram de leve)
++		seguindo = RunService.RenderStepped:Connect(function()
++			if not painel or not painel.Parent then
++				return
++			end
++			local p, t = painel.AbsolutePosition, painel.AbsoluteSize
++			local folga = 6 + math.sin(os.clock() * 3) * 2
++			local pontos = {
++				Vector2.new(p.X - folga, p.Y - folga), Vector2.new(p.X + t.X + folga, p.Y - folga),
++				Vector2.new(p.X - folga, p.Y + t.Y + folga), Vector2.new(p.X + t.X + folga, p.Y + t.Y + folga),
++			}
++			for i, c in cantos do
++				if os.clock() - (c:GetAttribute("Desde") or 0) > 0.45 then
++					c.Position = UDim2.fromOffset(pontos[i].X, pontos[i].Y)
++				end
++			end
++		end)
++		for _, c in cantos do
++			c:SetAttribute("Desde", os.clock())
++		end
++		if reduzido or not painel then
++			return
++		end
++
++		-- cartão que gira de lado para a frente (o painel real fica escondido nesse tempo)
++		painel.Visible = false
++		painelEscondido = true
++		local cartao = quadro(fx, "Cartao", Color3.fromRGB(16, 18, 17), 0.05)
++		cartao.AnchorPoint = Vector2.new(0.5, 0.5)
++		cartao.Position = UDim2.fromOffset(centro.X, centro.Y)
++		cartao.Size = UDim2.fromOffset(4, tam.Y)
++		cartao.Rotation = -7
++		cartao.ClipsDescendants = true
++		contorno(cartao, BRANCO, 0.45, 1)
++		local luz = Instance.new("UIGradient")
++		luz.Color = ColorSequence.new({
++			ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 74, 70)),
++			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 156, 148)),
++			ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 42, 40)),
++		})
++		luz.Offset = Vector2.new(-0.8, 0)
++		luz.Parent = cartao
++		-- linhas da tela da câmera
++		for k = 1, 9 do
++			local linha = quadro(cartao, "Linha", BRANCO, 0.9)
++			linha.Size = UDim2.new(1, 0, 0, 1)
++			linha.Position = UDim2.fromScale(0, k / 10)
++		end
++		-- camadas de profundidade: contornos atrás do cartão que se juntam nele (efeito extrudado)
++		local camadas = {}
++		for k = 1, 5 do
++			local camada = quadro(fx, "Camada", PRETO, 1)
++			camada.AnchorPoint = Vector2.new(0.5, 0.5)
++			camada.Size = UDim2.fromOffset(tam.X, tam.Y)
++			camada.Position = UDim2.fromOffset(centro.X + k * 9, centro.Y + k * 7)
++			camada.Rotation = -7 + k
++			camada.ZIndex = 0
++			contorno(camada, if k % 2 == 0 then CIANO else AMBAR, 0.35 + k * 0.1, 1)
++			table.insert(camadas, camada)
++			tween(camada, 0.38 + k * 0.03, { Position = UDim2.fromOffset(centro.X, centro.Y), Rotation = 0 }, Enum.EasingStyle.Quint)
++		end
++		-- fantasmas vermelho/ciano (aberração da lente) piscando no giro
++		local fantasmas = {}
++		for k, cor in { VERMELHO, CIANO } do
++			local f = quadro(fx, "Fantasma", cor, 1)
++			f.AnchorPoint = Vector2.new(0.5, 0.5)
++			f.Size = UDim2.fromOffset(tam.X, tam.Y)
++			f.Position = UDim2.fromOffset(centro.X + (if k == 1 then -5 else 5), centro.Y)
++			contorno(f, cor, 0.3, 2)
++			table.insert(fantasmas, f)
++		end
++		tween(cartao, 0.34, { Size = UDim2.fromOffset(tam.X, tam.Y), Rotation = 0 }, Enum.EasingStyle.Back)
++		tween(luz, 0.5, { Offset = Vector2.new(0.8, 0) })
++		-- varredura: barra clara que desce pelo cartão
++		local barra = quadro(cartao, "Varredura", BRANCO, 0.35)
++		barra.Size = UDim2.new(1, 0, 0, 3)
++		barra.Position = UDim2.fromScale(0, 0)
++		tween(barra, 0.36, { Position = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Linear)
++		task.delay(0.12, function()
++			for _, f in fantasmas do
++				f.Position = UDim2.fromOffset(centro.X, centro.Y)
++			end
++		end)
++		task.delay(0.36, function()
++			if minha ~= geracao then
++				return
++			end
++			mostrarPainel()
++			-- clarão no lugar do menu e o cartão some
++			local clarao = quadro(fx, "Clarao", BRANCO, 0.55)
++			clarao.AnchorPoint = Vector2.new(0.5, 0.5)
++			clarao.Position = UDim2.fromOffset(centro.X, centro.Y)
++			clarao.Size = UDim2.fromOffset(tam.X, tam.Y)
++			tween(clarao, 0.22, { BackgroundTransparency = 1 })
++			tween(cartao, 0.18, { BackgroundTransparency = 1 })
++			for _, d in cartao:GetDescendants() do
++				if d:IsA("Frame") then
++					tween(d, 0.18, { BackgroundTransparency = 1 })
++				elseif d:IsA("UIStroke") then
++					tween(d, 0.18, { Transparency = 1 })
++				end
++			end
++			for _, c in camadas do
++				c:Destroy()
++			end
++			for _, f in fantasmas do
++				f:Destroy()
++			end
++			task.delay(0.3, function()
++				cartao:Destroy()
++				clarao:Destroy()
++			end)
++		end)
++	end
++
++	local function fechar()
++		geracao += 1
++		local minha = geracao
++		mostrarPainel()
++		local pos, tam = retangulo()
++		limparCantos()
++		for _, filho in fx:GetChildren() do
++			filho:Destroy()
++		end
++		fx.Enabled = true
++		tocar("ui_click", "ui_click")
++		if GuiService.ReducedMotionEnabled then
++			fx.Enabled = false
++			return
++		end
++		-- desliga como TV antiga: vira uma linha e depois um ponto
++		local centro = pos + tam / 2
++		local tela = quadro(fx, "Desliga", BRANCO, 0.15)
++		tela.AnchorPoint = Vector2.new(0.5, 0.5)
++		tela.Position = UDim2.fromOffset(centro.X, centro.Y)
++		tela.Size = UDim2.fromOffset(tam.X, tam.Y * 0.6)
++		tween(tela, 0.12, { Size = UDim2.fromOffset(tam.X, 2) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
++		task.delay(0.12, function()
++			tween(tela, 0.12, { Size = UDim2.fromOffset(3, 2), BackgroundTransparency = 0 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
++		end)
++		task.delay(0.3, function()
++			tween(tela, 0.15, { BackgroundTransparency = 1 })
++		end)
++		task.delay(0.5, function()
++			if minha == geracao then
++				for _, filho in fx:GetChildren() do
++					filho:Destroy()
++				end
++				fx.Enabled = false
++			end
++		end)
++	end
++
++	local function ligarMenu(gui: Instance)
++		if not gui:IsA("ScreenGui") or gui.Name ~= "S7BodycamMenu" then
++			return
++		end
++		menuGui = gui
++		local canvas = gui:WaitForChild("Canvas", 10)
++		local overlay = canvas and canvas:WaitForChild("MenuOverlay", 10)
++		local achado = overlay and overlay:WaitForChild("CameraMenu", 10)
++		painel = if achado and achado:IsA("GuiObject") then achado else nil
++		local estava = gui.Enabled
++		table.insert(conexoes, gui:GetPropertyChangedSignal("Enabled"):Connect(function()
++			if not vivo then
++				return
++			end
++			if gui.Enabled and not estava then
++				estava = true
++				task.spawn(abrir)
++			elseif not gui.Enabled and estava then
++				estava = false
++				fechar()
++			end
++		end))
++	end
++	local existente = op.playerGui:FindFirstChild("S7BodycamMenu")
++	if existente then
++		task.spawn(ligarMenu, existente)
++	end
++	table.insert(conexoes, op.playerGui.ChildAdded:Connect(function(filho)
++		if filho.Name == "S7BodycamMenu" and filho ~= menuGui then
++			task.spawn(ligarMenu, filho)
++		end
++	end))
++
++	-- ===== lanterna =====
++	local lanternaAntes = op.jogador:GetAttribute("FlashlightOn") == true
++	table.insert(conexoes, op.jogador:GetAttributeChangedSignal("FlashlightOn"):Connect(function()
++		local agora = op.jogador:GetAttribute("FlashlightOn") == true
++		if agora ~= lanternaAntes then
++			lanternaAntes = agora
++			tocar(if agora then "lanterna_liga" else "lanterna_desliga", "ui_click")
++		end
++	end))
++
++	-- ===== perseguição: tela fecha nas bordas, perde cor e a luz falha =====
++	local cor = Instance.new("ColorCorrectionEffect")
++	cor.Name = "BastiaoTensao"
++	cor.Enabled = false
++	cor.Parent = Lighting
++	local borda = Instance.new("ScreenGui")
++	borda.Name = "BastiaoTensaoTela"
++	borda.ResetOnSpawn = false
++	borda.DisplayOrder = 9 -- abaixo do HUD da bodycam (10)
++	borda.IgnoreGuiInset = true
++	borda.ScreenInsets = Enum.ScreenInsets.None
++	borda.Enabled = false
++	borda.Parent = op.playerGui
++	-- duas faixas escuras (laterais e cima/baixo) formam a borda que fecha
++	local sombras = {}
++	for _, giro in { 0, 90 } do
++		local sombra = quadro(borda, "Sombra", PRETO, 1)
++		sombra.Size = UDim2.fromScale(1, 1)
++		local degrade = Instance.new("UIGradient")
++		degrade.Rotation = giro
++		degrade.Transparency = NumberSequence.new({
++			NumberSequenceKeypoint.new(0, 0),
++			NumberSequenceKeypoint.new(0.24, 1),
++			NumberSequenceKeypoint.new(0.76, 1),
++			NumberSequenceKeypoint.new(1, 0),
++		})
++		degrade.Parent = sombra
++		table.insert(sombras, sombra)
++	end
++	local intensidade = 0
++	local acumulado = 0
++	table.insert(conexoes, RunService.RenderStepped:Connect(function(dt)
++		acumulado += dt
++		if acumulado < 0.05 then
++			return
++		end
++		local passo = acumulado
++		acumulado = 0
++		local alvo = 0
++		local personagem = op.jogador.Character
++		local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
++		local historia = workspace:FindFirstChild("BastiaoHistoria")
++		local pasta = historia and historia:FindFirstChild("Criatura")
++		local monstro = pasta and pasta:FindFirstChild("Bastiao731A")
++		local corpo = monstro and monstro:FindFirstChild("HumanoidRootPart")
++		if raiz and raiz:IsA("BasePart") and corpo and corpo:IsA("BasePart") then
++			local estado = monstro:GetAttribute("BastiaoState")
++			local d = (corpo.Position - raiz.Position).Magnitude
++			local perto = math.clamp(1 - (d - 8) / 55, 0, 1)
++			if estado == "chase" or estado == "attack" or estado == "alert" then
++				alvo = perto
++			elseif estado == "search" then
++				alvo = perto * 0.45
++			else
++				alvo = perto * 0.25
++			end
++		end
++		intensidade += (alvo - intensidade) * math.clamp(passo * 3, 0, 1)
++		local ativo = intensidade > 0.02
++		cor.Enabled = ativo
++		borda.Enabled = ativo
++		if ativo then
++			local pulso = 0.5 + 0.5 * math.sin(os.clock() * (4 + intensidade * 5))
++			local falha = if math.random() < intensidade * 0.12 then -0.18 * intensidade else 0
++			cor.Saturation = -0.55 * intensidade
++			cor.Contrast = 0.18 * intensidade
++			cor.Brightness = -0.05 * intensidade + falha
++			cor.TintColor = Color3.new(1, 1 - 0.12 * intensidade, 1 - 0.14 * intensidade)
++			for _, sombra in sombras do
++				sombra.BackgroundTransparency = math.clamp(1 - intensidade * (0.55 + 0.25 * pulso), 0, 1)
++			end
++		end
++	end))
++
++	local function destroy()
++		if not vivo then
++			return
++		end
++		vivo = false
++		for _, c in conexoes do
++			c:Disconnect()
++		end
++		limparCantos()
++		mostrarPainel()
++		fx:Destroy()
++		borda:Destroy()
++		cor:Destroy()
++	end
++	return { destroy = destroy }
++end
++
++return Efeitos
+diff -ruN a/src/client/Interface.luau b/src/client/Interface.luau
+--- a/src/client/Interface.luau
++++ b/src/client/Interface.luau
+@@ -101,6 +101,7 @@
+ 	corte: () -> (),
+ 	fim: () -> (),
+ 	idioma: () -> (), -- a língua mudou: redesenha o que está na tela
++	definirSom: (fn: ((chave: string) -> ())?) -> (), -- toca o "estalo" quando a legenda quebra
+ }
+ 
+ -- cor do nome de quem fala (o rádio de cada um tem a sua)
+@@ -315,8 +316,83 @@
+ 		end)
+ 	end
+ 
+-	-- ===== legendas =====
++	-- ===== legendas (letra por letra em 3D; somem quebrando em pedaços) =====
++	-- Cada letra chega sozinha, de perto da câmera (grande, girada) até o lugar dela, na ordem da
++	-- leitura e na cor de quem fala; depois fica branca. Ao terminar, as letras se partem: caem
++	-- girando, encolhem e soltam lascas. A fonte é monoespaçada, então cada letra tem lugar exato.
++	local glifosPasta = Instance.new("Frame")
++	glifosPasta.Name = "Glifos"
++	glifosPasta.BackgroundTransparency = 1
++	glifosPasta.BorderSizePixel = 0
++	glifosPasta.Active = false
++	glifosPasta.Parent = caixa
++	local caixaEscala = Instance.new("UIScale")
++	caixaEscala.Parent = caixa
++	local tocarEfeito: ((string) -> ())? = nil
++	local atuais: { any } = {}
+ 	local geracaoFala = 0
++
++	local function letras(texto: string): { string }
++		local r = {}
++		for _, c in utf8.codes(texto) do
++			table.insert(r, utf8.char(c))
++		end
++		return r
++	end
++
++	local function quebrarGlifos(glifos: { any }, rapido: boolean)
++		for i, g in glifos do
++			local label = g.label
++			if not label.Parent then
++				continue
++			end
++			local atraso = if rapido then 0 else math.min(0.32, g.ordem * 0.006) + math.random() * 0.06
++			local tempo = (if rapido then 0.26 else 0.55) + math.random() * 0.25
++			task.delay(atraso, function()
++				if not label.Parent then
++					return
++				end
++				local base = label.Position
++				local dx = (math.random() * 2 - 1) * 48
++				local dy = 22 + math.random() * 74
++				local info = TweenInfo.new(tempo, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
++				TweenService:Create(label, info, {
++					Position = base + UDim2.fromOffset(dx, dy),
++					Rotation = (math.random() * 2 - 1) * 210,
++					TextTransparency = 1,
++				}):Play()
++				TweenService:Create(g.escala, info, { Scale = 0.2 + math.random() * 0.4 }):Play()
++				TweenService:Create(g.contorno, info, { Transparency = 1 }):Play()
++				if not rapido and i % 3 == 1 then
++					for _ = 1, 2 do
++						local lasca = Instance.new("Frame")
++						lasca.Name = "Lasca"
++						lasca.BorderSizePixel = 0
++						lasca.Active = false
++						lasca.BackgroundColor3 = label.TextColor3
++						lasca.BackgroundTransparency = 0.05
++						lasca.AnchorPoint = Vector2.new(0.5, 0.5)
++						lasca.Size = UDim2.fromOffset(2 + math.random(0, 3), 2 + math.random(0, 4))
++						lasca.Position = base
++						lasca.Rotation = math.random(0, 90)
++						lasca.Parent = glifosPasta
++						TweenService:Create(lasca, TweenInfo.new(tempo + 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
++							Position = base + UDim2.fromOffset(dx * 1.8 + (math.random() * 2 - 1) * 34, dy * 1.6),
++							Rotation = lasca.Rotation + (math.random() * 2 - 1) * 400,
++							BackgroundTransparency = 1,
++						}):Play()
++						task.delay(tempo + 0.35, function()
++							lasca:Destroy()
++						end)
++					end
++				end
++				task.delay(tempo + 0.1, function()
++					label:Destroy()
++				end)
++			end)
++		end
++	end
++
+ 	function api.fala(chave: string, duracao: number)
+ 		local quem = textos.FALANTE[chave]
+ 		local frase = L().falas[chave]
+@@ -325,8 +401,14 @@
+ 		end
+ 		geracaoFala += 1
+ 		local minha = geracaoFala
++		-- a fala anterior quebra rápido antes da nova chegar
++		if #atuais > 0 then
++			quebrarGlifos(atuais, true)
++			atuais = {}
++		end
+ 		local nome = L().falantes[quem] or quem
+-		falante.TextColor3 = COR_FALANTE[quem] or AMBER
++		local destaque = COR_FALANTE[quem] or AMBER
++		falante.TextColor3 = destaque
+ 		local tamanho = falaTexto.TextSize
+ 		local padX, padY = 14, 8
+ 		local largura = maxLegenda()
+@@ -347,21 +429,105 @@
+ 		falaTexto.Position = UDim2.fromOffset(padX, padY + 16)
+ 		falaTexto.Size = UDim2.fromOffset(w - padX * 2, #linhas * alturaLinha)
+ 		falaTexto.LineHeight = 1.25
+-		falaTexto.Text = table.concat(linhas, "\n")
++		falaTexto.Text = table.concat(linhas, "\n") -- texto inteiro guardado (leitores/testes); quem desenha são as letras
++		falaTexto.TextTransparency = 1
++		glifosPasta.Position = falaTexto.Position
++		glifosPasta.Size = falaTexto.Size
+ 		somTexto.Position = UDim2.new(0, 0, 1, -h - 26)
+ 		somTexto.Size = UDim2.new(1, 0, 0, 20)
+-		caixa.BackgroundTransparency = 0.42
++		-- a caixa chega inclinada e assenta (sensação de profundidade)
++		caixa.Rotation = -2.5
++		caixaEscala.Scale = 0.94
++		caixa.BackgroundTransparency = 0.85
++		suave(caixa, 0.32, { BackgroundTransparency = 0.42 })
++		TweenService:Create(caixa, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 0 }):Play()
++		TweenService:Create(caixaEscala, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+ 		falante.TextTransparency = 0
+-		falaTexto.TextTransparency = 0
++
++		local cw = tamanho * AVANCO
++		local glifos = {}
++		local ordem = 0
++		for li, linha in linhas do
++			local coluna = 0
++			for _, ch in letras(linha) do
++				if ch ~= " " then
++					ordem += 1
++					local g = Instance.new("TextLabel")
++					g.Name = "Letra"
++					g.BackgroundTransparency = 1
++					g.BorderSizePixel = 0
++					g.Active = false
++					g.FontFace = MONO_MEDIUM
++					g.TextSize = tamanho
++					g.TextColor3 = destaque
++					g.Text = ch
++					g.TextTransparency = 1
++					g.TextXAlignment = Enum.TextXAlignment.Center
++					g.TextYAlignment = Enum.TextYAlignment.Center
++					g.AnchorPoint = Vector2.new(0.5, 0.5)
++					g.Size = UDim2.fromOffset(math.ceil(cw) + 2, alturaLinha)
++					local final = UDim2.fromOffset(coluna * cw + cw / 2, (li - 1) * alturaLinha + alturaLinha / 2)
++					g.Position = final + UDim2.fromOffset((math.random() * 2 - 1) * 6, -12)
++					g.Rotation = (math.random() * 2 - 1) * 42
++					local contorno = Instance.new("UIStroke")
++					contorno.Color = BLACK
++					contorno.Thickness = 1
++					contorno.Transparency = 0.3
++					contorno.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
++					contorno.Parent = g
++					local escala = Instance.new("UIScale")
++					escala.Scale = 2.4
++					escala.Parent = g
++					g.Parent = glifosPasta
++					table.insert(glifos, { label = g, escala = escala, contorno = contorno, final = final, ordem = ordem })
++				end
++				coluna += 1
++			end
++		end
++		atuais = glifos
++
++		-- entrada: letra por letra; a fala inteira fica legível bem antes de acabar
++		local total = #glifos
++		local janela = math.clamp(math.min(duracao * 0.45, total / 34), 0.15, 3.5)
++		local porQuadro = math.max(1, math.ceil(total / math.max(1, janela * 60)))
++		task.spawn(function()
++			for i, g in glifos do
++				if minha ~= geracaoFala then
++					return
++				end
++				local label = g.label
++				if label.Parent then
++					local chegada = TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
++					TweenService:Create(label, chegada, { Position = g.final, Rotation = 0 }):Play()
++					TweenService:Create(g.escala, chegada, { Scale = 1 }):Play()
++					TweenService:Create(label, TweenInfo.new(0.12), { TextTransparency = 0 }):Play()
++					TweenService:Create(label, TweenInfo.new(0.5), { TextColor3 = WHITE }):Play()
++				end
++				if i % porQuadro == 0 then
++					task.wait()
++				end
++			end
++		end)
++
+ 		task.delay(duracao, function()
+-			if minha == geracaoFala then
+-				suave(caixa, 0.35, { BackgroundTransparency = 1 })
+-				suave(falante, 0.35, { TextTransparency = 1 })
+-				suave(falaTexto, 0.35, { TextTransparency = 1 })
++			if minha ~= geracaoFala then
++				return
+ 			end
++			if tocarEfeito then
++				pcall(tocarEfeito, "legenda_quebra")
++			end
++			quebrarGlifos(glifos, false)
++			atuais = {}
++			TweenService:Create(caixa, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Rotation = 1.5 }):Play()
++			suave(caixa, 0.45, { BackgroundTransparency = 1 })
++			suave(falante, 0.3, { TextTransparency = 1 })
+ 		end)
+ 	end
+ 
++	function api.definirSom(fn: ((chave: string) -> ())?)
++		tocarEfeito = fn
++	end
++
+ 	local geracaoSom = 0
+ 	function api.som(chave: string, duracao: number)
+ 		local s = L().sons[chave]
+diff -ruN a/src/client/Som.luau b/src/client/Som.luau
+--- a/src/client/Som.luau
++++ b/src/client/Som.luau
+@@ -40,11 +40,11 @@
+ 	squelch = { vol = 0.55 },
+ 	toques_longe = { vol = 0.85, longe = true },
+ 	toques_perto = { vol = 1.0, raio = 70 },
+-	inspiracao = { vol = 1.0, raio = 55 },
++	inspiracao = { vol = 1.0, raio = 80 },
+ 	vapor = { vol = 0.75, raio = 45 },
+-	impacto_porta = { vol = 1.0, raio = 140 },
++	impacto_porta = { vol = 1.0, raio = 180 },
+ 	portas = { vol = 0.9, longe = true },
+-	passos_monstro = { vol = 0.9, longe = true },
++	passos_monstro = { vol = 1.0, longe = true },
+ 	trava = { vol = 0.95, raio = 45 },
+ 	porta_desliza = { vol = 0.8, raio = 55 },
+ 	alavanca = { vol = 0.85, raio = 35 },
+@@ -53,6 +53,11 @@
+ 	terminal_bip = { vol = 0.5, raio = 28 },
+ 	terminal_liga = { vol = 0.6, raio = 28 },
+ 	chime_pa = { vol = 0.8, pa = true },
++	-- Etapa 3: lanterna, menu da bodycam e a legenda que se quebra (2D, perto do ouvido)
++	lanterna_liga = { vol = 0.75 },
++	lanterna_desliga = { vol = 0.65 },
++	menu_abre = { vol = 0.7 },
++	legenda_quebra = { vol = 0.35 },
+ }
+ Som.EFEITOS = EFEITOS
+ -- legenda do capítulo -> efeito do sprite (o alarme é o loop ligado pelo atributo)
+diff -ruN a/tests/_textos_base.luau b/tests/_textos_base.luau
+--- a/tests/_textos_base.luau
++++ b/tests/_textos_base.luau
+@@ -0,0 +1,399 @@
++-- PROJETO BASTIÃO :: todos os textos em 3 línguas (pt = português, en = English, ru = русский)
++-- Chaves estáveis: a lógica nunca usa o texto. O servidor manda só chaves; cada cliente mostra
++-- e toca na língua escolhida pelo jogador (menu da bodycam ou a língua da conta Roblox).
++-- Placas e etiquetas pintadas no cenário ficam em russo (a base é soviética); as telas dos
++-- terminais, que contam a história, aparecem na língua de cada jogador.
++
++local Textos = {}
++
++Textos.IDIOMAS = { "pt", "en", "ru" }
++Textos.PADRAO = "pt"
++Textos.NOME_IDIOMA = { pt = "PORTUGUÊS", en = "ENGLISH", ru = "РУССКИЙ" }
++Textos.TITULO_MENU = "IDIOMA · LANGUAGE · ЯЗЫК"
++
++-- quem diz cada fala (não muda com a língua)
++Textos.FALANTE = {
++	pavel_cafe = "PAVEL",
++	pavel_conferencia = "PAVEL",
++	pavel_canal = "PAVEL",
++	orlov_ordem = "ORLOV_RADIO",
++	pavel_arsenal = "PAVEL",
++	pavel_lista1 = "PAVEL",
++	pavel_lista2 = "PAVEL",
++	gravacao_sokolov = "GRAVACAO",
++	pavel_afasta = "PAVEL",
++	sistema_isolamento = "SISTEMA",
++	pavel_confirma = "PAVEL_RADIO",
++	orlov_falha = "ORLOV_RADIO",
++	pavel_vamos = "PAVEL",
++	pavel_entra = "PAVEL",
++	pavel_silencio = "PAVEL",
++	elena_placa = "ELENA_RADIO",
++	pavel_731 = "PAVEL",
++	elena_nome = "ELENA_RADIO",
++	pavel_registro = "PAVEL",
++	pavel_sinal = "PAVEL",
++}
++
++-- por onde a voz chega: na pessoa (3D, sai do Pavel), rádio, gravação velha no rádio, alto-falante
++Textos.CANAL = {
++	PAVEL = "pessoa",
++	PAVEL_RADIO = "radio",
++	ORLOV_RADIO = "radio",
++	ELENA_RADIO = "radio",
++	GRAVACAO = "gravacao",
++	SISTEMA = "pa",
++}
++
++-- orientação de interpretação para gerar as vozes (tags do ElevenLabs v4; não vão para a tela)
++Textos.DIRECAO = {
++	pavel_cafe = "[tired]",
++	pavel_conferencia = "[casual]",
++	pavel_canal = "[serious]",
++	orlov_ordem = "[cold] [formal]",
++	pavel_arsenal = "[firm]",
++	pavel_lista1 = "[slowly] [hesitant]",
++	pavel_lista2 = "[quickly] [dismissive]",
++	gravacao_sokolov = "[flat] [formal]",
++	pavel_afasta = "[tense] [urgent]",
++	sistema_isolamento = "[formal] [calm]",
++	pavel_confirma = "[tense]",
++	orlov_falha = "[cold] [curt]",
++	pavel_vamos = "[urgent]",
++	pavel_entra = "[whispers] [urgent]",
++	pavel_silencio = "[whispers]",
++	elena_placa = "[calm] [tired]",
++	pavel_731 = "[quietly]",
++	elena_nome = "[softly] [sad]",
++	pavel_registro = "[low voice] [disturbed]",
++	pavel_sinal = "[whispers] [fearful]",
++}
++
++local L = {}
++
++L.pt = {
++	falantes = {
++		PAVEL = "PAVEL",
++		PAVEL_RADIO = "PAVEL (RÁDIO)",
++		ORLOV_RADIO = "ORLOV (RÁDIO)",
++		ELENA_RADIO = "ELENA (RÁDIO)",
++		GRAVACAO = "GRAVAÇÃO",
++		SISTEMA = "SISTEMA DA BASE",
++	},
++	falas = {
++		pavel_cafe = "Você pegou o turno em que até o café pede transferência.",
++		pavel_conferencia = "KEDR, conferência de equipamento. Depois liberam a troca.",
++		pavel_canal = "Canal três. Fala comigo antes de falar com o comando.",
++		orlov_ordem = "KEDR, o terminal da enfermaria perdeu a reserva. Levem o módulo. Deixem no acesso externo. Não aguardem atendimento.",
++		pavel_arsenal = "O módulo está no carregador do arsenal. Eu vou na frente.",
++		pavel_lista1 = "Antonov. KEDR. Sokolov...",
++		pavel_lista2 = "Impressão velha.",
++		gravacao_sokolov = "Sokolov, Mikhail. Apresentar-se para avaliação.",
++		pavel_afasta = "KEDR, afasta da porta.",
++		sistema_isolamento = "Exercício Última Formação iniciado. Efetivo: permaneçam em seus setores.",
++		pavel_confirma = "Comando, aqui Antonov. Que exercício? Ninguém avisou o turno.",
++		orlov_falha = "Falha de protocolo. Sigam pela saída de serviço. Oficina, lado leste.",
++		pavel_vamos = "Saída de serviço é pela oficina. Anda.",
++		pavel_entra = "Entra. Fecha a trava atrás de você.",
++		pavel_silencio = "Shh... Não se mexe.",
++		elena_placa = "Tem uma placa de identificação no suporte das costas. Conseguiu ver o número?",
++		pavel_731 = "731.",
++		elena_nome = "Ele tinha um nome.",
++		pavel_registro = "O nosso turno já está no arquivo do exercício. Preenchido antes de abrirem aquela porta.",
++		pavel_sinal = "Eu conheço esse sinal.",
++	},
++	sons = {
++		radio_chiado = "[CHIADO DE RÁDIO]",
++		tres_toques = "[TRÊS TOQUES CURTOS NO METAL, AO LONGE]",
++		inspiracao = "[UMA INSPIRAÇÃO LONGA ATRÁS DA PORTA]",
++		pressurizacao = "[PRESSURIZAÇÃO DE UM RESERVATÓRIO · VAZAMENTO BREVE]",
++		impacto_porta = "[ALGO PESADO BATE NA PORTA POR DENTRO]",
++		alarme = "[ALARME DE ISOLAMENTO]",
++		portas = "[PORTAS EXTERNAS FECHANDO]",
++		passos_longe = "[PASSOS PESADOS EM OUTRO SETOR]",
++		trava = "[TRAVA MECÂNICA FECHADA]",
++		tres_toques_parede = "[TRÊS TOQUES CURTOS, DO OUTRO LADO DA PAREDE]",
++	},
++	objetivos = {
++		radio = "Confira o rádio com Pavel",
++		bateria = "Pegue o módulo de bateria no arsenal",
++		terminal = "Leve o módulo ao terminal externo da enfermaria",
++		oficina = "Chegue à oficina pelo corredor de serviço",
++		trava = "Feche a trava da oficina",
++		terminal_oficina = "Examine o terminal da oficina",
++		piso = "Alcance o piso de manutenção",
++	},
++	prompts = {
++		PegarRadio = "PEGAR RÁDIO",
++		PegarModulo = "PEGAR MÓDULO",
++		EncaixarModulo = "ENCAIXAR MÓDULO",
++		FecharTrava = "FECHAR TRAVA",
++		LerTerminal = "LER TERMINAL",
++	},
++	avisos = {
++		modulo_no_carregador = "O módulo está no carregador do arsenal.",
++		modulo_com = "O módulo está com %s.",
++		modulo_voltou = "O módulo voltou ao carregador do arsenal.",
++		entre_oficina = "Entre na oficina antes de fechar a trava.",
++		espere_pavel = "Espere o Pavel entrar.",
++	},
++	terminais = {
++		enfermaria_sem_energia = "SEVER-9 · ENFERMARIA\nACESSO EXTERNO\n\nRESERVA: SEM CARGA\nINSIRA O MÓDULO",
++		enfermaria_ligado = "SEVER-9 · ENFERMARIA\nRESERVA: OK\n\nCIRCULAÇÃO ALA B: NOMINAL\nCONTENÇÃO: TRAVADA",
++		enfermaria_autorizado = "AUTORIZAÇÃO EXTERNA RECEBIDA\n\nEXERCÍCIO AUTORIZADO\n\nCONTENÇÃO: LIBERADA",
++		oficina_apagado = "SEVER-9 · OFICINA\nREDE DE MANUTENÇÃO\n\nAGUARDANDO OPERADOR",
++		oficina_aguardando = "SEVER-9 · OFICINA\nREDE DE MANUTENÇÃO\n\n1 ARQUIVO NOVO:\nEXERCÍCIO ÚLTIMA FORMAÇÃO\n\n> LER",
++		oficina_cabecalho = "ARQUIVO: EXERCÍCIO ÚLTIMA FORMAÇÃO\nEFETIVO AVALIADO (TURNO 02:00):",
++		oficina_rodape = "REGISTRO: 02:31 · ANTES DA ABERTURA\nAUTORIZAÇÃO: [BLOQUEADO]",
++		sgt = "SGT",
++		presente = "PRESENTE",
++		avaliacao = "AVALIAÇÃO",
++		antonov = "ANTONOV, P.",
++		sokolov = "SOKOLOV, M.",
++	},
++	fim = {
++		titulo = "PROJETO BASTIÃO",
++		capitulo = "CAPÍTULO 1 — A CHAMADA",
++		linha = "FIM DA ABERTURA · O CAPÍTULO CONTINUA NA PRÓXIMA ATUALIZAÇÃO",
++	},
++	ui = { objetivo = "OBJETIVO", alerta = "● ALERTA · ISOLAMENTO", toque = "TOQUE" },
++}
++
++L.en = {
++	falantes = {
++		PAVEL = "PAVEL",
++		PAVEL_RADIO = "PAVEL (RADIO)",
++		ORLOV_RADIO = "ORLOV (RADIO)",
++		ELENA_RADIO = "ELENA (RADIO)",
++		GRAVACAO = "RECORDING",
++		SISTEMA = "BASE SYSTEM",
++	},
++	falas = {
++		pavel_cafe = "You picked the shift where even the coffee asks for a transfer.",
++		pavel_conferencia = "KEDR, equipment check. Then they'll clear the shift change.",
++		pavel_canal = "Channel three. Talk to me before you talk to command.",
++		orlov_ordem = "KEDR, the infirmary terminal lost its backup power. Bring the module. Leave it at the external access. Do not wait for anyone.",
++		pavel_arsenal = "The module is on the charger in the armory. I'll go ahead.",
++		pavel_lista1 = "Antonov. KEDR. Sokolov...",
++		pavel_lista2 = "Old printout.",
++		gravacao_sokolov = "Sokolov, Mikhail. Report for evaluation.",
++		pavel_afasta = "KEDR, get away from the door.",
++		sistema_isolamento = "Exercise Last Formation has begun. All personnel: remain in your sectors.",
++		pavel_confirma = "Command, this is Antonov. What exercise? Nobody told the shift.",
++		orlov_falha = "Protocol fault. Use the service exit. The workshop, east side.",
++		pavel_vamos = "The service exit is through the workshop. Move.",
++		pavel_entra = "Get in. Lock it behind you.",
++		pavel_silencio = "Shh... Don't move.",
++		elena_placa = "There's an ID plate on the back brace. Could you see the number?",
++		pavel_731 = "731.",
++		elena_nome = "He had a name.",
++		pavel_registro = "Our shift is already in the exercise file. Filled in before they opened that door.",
++		pavel_sinal = "I know that signal.",
++	},
++	sons = {
++		radio_chiado = "[RADIO STATIC]",
++		tres_toques = "[THREE SHORT KNOCKS ON METAL, FAR AWAY]",
++		inspiracao = "[A LONG INHALE BEHIND THE DOOR]",
++		pressurizacao = "[A TANK PRESSURIZING · BRIEF LEAK]",
++		impacto_porta = "[SOMETHING HEAVY SLAMS THE DOOR FROM INSIDE]",
++		alarme = "[ISOLATION ALARM]",
++		portas = "[EXTERNAL DOORS SLAMMING SHUT]",
++		passos_longe = "[HEAVY FOOTSTEPS IN ANOTHER SECTOR]",
++		trava = "[MECHANICAL LATCH LOCKED]",
++		tres_toques_parede = "[THREE SHORT KNOCKS, ON THE OTHER SIDE OF THE WALL]",
++	},
++	objetivos = {
++		radio = "Check the radio with Pavel",
++		bateria = "Get the battery module from the armory",
++		terminal = "Take the module to the infirmary's external terminal",
++		oficina = "Reach the workshop through the service corridor",
++		trava = "Lock the workshop latch",
++		terminal_oficina = "Examine the workshop terminal",
++		piso = "Reach the maintenance level",
++	},
++	prompts = {
++		PegarRadio = "TAKE RADIO",
++		PegarModulo = "TAKE MODULE",
++		EncaixarModulo = "INSERT MODULE",
++		FecharTrava = "LOCK LATCH",
++		LerTerminal = "READ TERMINAL",
++	},
++	avisos = {
++		modulo_no_carregador = "The module is on the charger in the armory.",
++		modulo_com = "%s has the module.",
++		modulo_voltou = "The module went back to the armory charger.",
++		entre_oficina = "Get inside the workshop before locking the latch.",
++		espere_pavel = "Wait for Pavel to get inside.",
++	},
++	terminais = {
++		enfermaria_sem_energia = "SEVER-9 · INFIRMARY\nEXTERNAL ACCESS\n\nBACKUP: NO CHARGE\nINSERT MODULE",
++		enfermaria_ligado = "SEVER-9 · INFIRMARY\nBACKUP: OK\n\nWARD B CIRCULATION: NOMINAL\nCONTAINMENT: LOCKED",
++		enfermaria_autorizado = "EXTERNAL AUTHORIZATION:\nRECEIVED\n\nEXERCISE AUTHORIZED\n\nCONTAINMENT: RELEASED",
++		oficina_apagado = "SEVER-9 · WORKSHOP\nMAINTENANCE NETWORK\n\nAWAITING OPERATOR",
++		oficina_aguardando = "SEVER-9 · WORKSHOP\nMAINTENANCE NETWORK\n\n1 NEW FILE:\nEXERCISE LAST FORMATION\n\n> READ",
++		oficina_cabecalho = "FILE: EXERCISE LAST FORMATION\nPERSONNEL UNDER EVALUATION (SHIFT 02:00):",
++		oficina_rodape = "LOGGED: 02:31 · BEFORE THE OPENING\nAUTHORIZATION: [BLOCKED]",
++		sgt = "SGT",
++		presente = "PRESENT",
++		avaliacao = "EVALUATION",
++		antonov = "ANTONOV, P.",
++		sokolov = "SOKOLOV, M.",
++	},
++	fim = {
++		titulo = "PROJECT BASTION",
++		capitulo = "CHAPTER 1 — THE CALL",
++		linha = "END OF THE OPENING · THE CHAPTER CONTINUES IN THE NEXT UPDATE",
++	},
++	ui = { objetivo = "OBJECTIVE", alerta = "● ALERT · ISOLATION", toque = "TAP" },
++}
++
++L.ru = {
++	falantes = {
++		PAVEL = "ПАВЕЛ",
++		PAVEL_RADIO = "ПАВЕЛ (РАЦИЯ)",
++		ORLOV_RADIO = "ОРЛОВ (РАЦИЯ)",
++		ELENA_RADIO = "ЕЛЕНА (РАЦИЯ)",
++		GRAVACAO = "ЗАПИСЬ",
++		SISTEMA = "СИСТЕМА БАЗЫ",
++	},
++	falas = {
++		pavel_cafe = "Тебе досталась смена, где даже кофе просится на перевод.",
++		pavel_conferencia = "КЕДР, проверка снаряжения. Потом дадут смену.",
++		pavel_canal = "Третий канал. Сначала говоришь со мной, потом — с командованием.",
++		orlov_ordem = "КЕДР, терминал медблока потерял резерв. Доставьте модуль. Оставьте у внешнего доступа. Ответа не ждать.",
++		pavel_arsenal = "Модуль на зарядке в оружейной. Я пойду первым.",
++		pavel_lista1 = "Антонов. КЕДР. Соколов...",
++		pavel_lista2 = "Старая распечатка.",
++		gravacao_sokolov = "Соколов, Михаил. Явиться на освидетельствование.",
++		pavel_afasta = "КЕДР, отойди от двери.",
++		sistema_isolamento = "Учение «Последнее построение» начато. Личному составу оставаться в своих секторах.",
++		pavel_confirma = "Командование, это Антонов. Какое учение? Смену никто не предупреждал.",
++		orlov_falha = "Сбой протокола. Уходите через служебный выход. Мастерская, восточная сторона.",
++		pavel_vamos = "Служебный выход — через мастерскую. Пошли.",
++		pavel_entra = "Заходи. Закрой засов за собой.",
++		pavel_silencio = "Тсс... Не двигайся.",
++		elena_placa = "На спинном креплении есть табличка. Ты разглядел номер?",
++		pavel_731 = "731.",
++		elena_nome = "У него было имя.",
++		pavel_registro = "Наша смена уже в файле учения. Заполнено ещё до того, как открыли ту дверь.",
++		pavel_sinal = "Я знаю этот сигнал.",
++	},
++	sons = {
++		radio_chiado = "[ТРЕСК РАЦИИ]",
++		tres_toques = "[ТРИ КОРОТКИХ УДАРА ПО МЕТАЛЛУ, ВДАЛЕКЕ]",
++		inspiracao = "[ДОЛГИЙ ВДОХ ЗА ДВЕРЬЮ]",
++		pressurizacao = "[СБРОС ДАВЛЕНИЯ · КОРОТКАЯ УТЕЧКА]",
++		impacto_porta = "[ЧТО-ТО ТЯЖЁЛОЕ БЬЁТ В ДВЕРЬ ИЗНУТРИ]",
++		alarme = "[СИРЕНА ИЗОЛЯЦИИ]",
++		portas = "[ЗАКРЫВАЮТСЯ ВНЕШНИЕ ДВЕРИ]",
++		passos_longe = "[ТЯЖЁЛЫЕ ШАГИ В ДРУГОМ СЕКТОРЕ]",
++		trava = "[ЗАСОВ ЗАКРЫТ]",
++		tres_toques_parede = "[ТРИ КОРОТКИХ УДАРА — ПО ТУ СТОРОНУ СТЕНЫ]",
++	},
++	objetivos = {
++		radio = "Проверь рацию у Павла",
++		bateria = "Возьми аккумуляторный модуль в оружейной",
++		terminal = "Отнеси модуль к внешнему терминалу медблока",
++		oficina = "Доберись до мастерской по служебному коридору",
++		trava = "Закрой засов мастерской",
++		terminal_oficina = "Осмотри терминал мастерской",
++		piso = "Доберись до технического уровня",
++	},
++	prompts = {
++		PegarRadio = "ВЗЯТЬ РАЦИЮ",
++		PegarModulo = "ВЗЯТЬ МОДУЛЬ",
++		EncaixarModulo = "ВСТАВИТЬ МОДУЛЬ",
++		FecharTrava = "ЗАКРЫТЬ ЗАСОВ",
++		LerTerminal = "ЧИТАТЬ ТЕРМИНАЛ",
++	},
++	avisos = {
++		modulo_no_carregador = "Модуль на зарядке в оружейной.",
++		modulo_com = "Модуль у %s.",
++		modulo_voltou = "Модуль вернулся на зарядку в оружейной.",
++		entre_oficina = "Сначала зайди в мастерскую.",
++		espere_pavel = "Подожди, пока Павел войдёт.",
++	},
++	terminais = {
++		enfermaria_sem_energia = "СЕВЕР-9 · МЕДБЛОК\nВНЕШНИЙ ДОСТУП\n\nРЕЗЕРВ: НЕТ ЗАРЯДА\nВСТАВЬТЕ МОДУЛЬ",
++		enfermaria_ligado = "СЕВЕР-9 · МЕДБЛОК\nРЕЗЕРВ: НОРМА\n\nЦИРКУЛЯЦИЯ БЛОК Б: НОРМА\nИЗОЛЯЦИЯ: ЗАКРЫТО",
++		enfermaria_autorizado = "ПОЛУЧЕНА ВНЕШНЯЯ АВТОРИЗАЦИЯ\n\nУЧЕНИЕ РАЗРЕШЕНО\n\nИЗОЛЯЦИЯ: СНЯТА",
++		oficina_apagado = "СЕВЕР-9 · МАСТЕРСКАЯ\nТЕХНИЧЕСКАЯ СЕТЬ\n\nОЖИДАНИЕ ОПЕРАТОРА",
++		oficina_aguardando = "СЕВЕР-9 · МАСТЕРСКАЯ\nТЕХНИЧЕСКАЯ СЕТЬ\n\n1 НОВЫЙ ФАЙЛ:\nУЧЕНИЕ «ПОСЛЕДНЕЕ ПОСТРОЕНИЕ»\n\n> ЧИТАТЬ",
++		oficina_cabecalho = "ФАЙЛ: УЧЕНИЕ «ПОСЛЕДНЕЕ ПОСТРОЕНИЕ»\nОЦЕНИВАЕМЫЙ СОСТАВ (СМЕНА 02:00):",
++		oficina_rodape = "ЗАПИСЬ: 02:31 · ДО ОТКРЫТИЯ\nПОДПИСЬ: [ЗАБЛОКИРОВАНО]",
++		sgt = "СЕРЖ.",
++		presente = "НА МЕСТЕ",
++		avaliacao = "НА ОЦЕНКЕ",
++		antonov = "АНТОНОВ П.",
++		sokolov = "СОКОЛОВ М.",
++	},
++	fim = {
++		titulo = "ПРОЕКТ «БАСТИОН»",
++		capitulo = "ГЛАВА 1 — ВЫЗОВ",
++		linha = "КОНЕЦ ПРОЛОГА · ПРОДОЛЖЕНИЕ В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ",
++	},
++	ui = { objetivo = "ЗАДАЧА", alerta = "● ТРЕВОГА · ИЗОЛЯЦИЯ", toque = "КАСАНИЕ" },
++}
++
++Textos.L = L
++
++-- como a voz deve LER algumas falas (só para gerar o áudio; a legenda fica como está acima):
++-- números por extenso e o indicativo KEDR dito como palavra ("Kedr", cedro em russo)
++Textos.FALADO = {
++	pt = { pavel_731 = "Sete... três... um." },
++	en = { pavel_731 = "Seven... three... one." },
++	ru = { pavel_731 = "Семь... три... один." },
++}
++Textos.PRONUNCIA = {
++	pt = { KEDR = "Kedr" },
++	en = { KEDR = "Kedr" },
++	ru = { ["КЕДР"] = "Кедр" },
++}
++
++-- placas, etiquetas e telas fixas do cenário (pintadas na base: em russo para todos)
++Textos.MUNDO = {
++	lista_turno = "СПИСОК СМЕНЫ\n02:00 · СЕВЕР-9\n\nАНТОНОВ П.\n  СЕРЖАНТ\nКЕДР\n  ГРУППА\nСОКОЛОВ М.\n  НА ОЦЕНКЕ",
++	modulo = "РЕЗЕРВ 24В\nОПЛОМБИРОВАН",
++	carregador = "ЗАРЯДКА · РЕЗЕРВ",
++	contencao = "ИЗОЛЯЦИЯ · БЛОК Б\nДОСТУП ОГРАНИЧЕН\nМЕДОСМОТР",
++	oficina = "МАСТЕРСКАЯ",
++	trava = "ЗАСОВ",
++	acesso_aberto = "ВНЕШНИЙ ДОСТУП\nОТКРЫТ",
++	acesso_bloqueado = "ВНЕШНИЙ ДОСТУП\nЗАКРЫТ",
++}
++
++-- língua válida (qualquer outra coisa vira a padrão)
++function Textos.normalizar(idioma: any): string
++	if type(idioma) == "string" and L[idioma] then
++		return idioma
++	end
++	return Textos.PADRAO
++end
++
++-- língua inicial a partir da língua da conta Roblox (ex.: "pt-br", "ru-ru", "en-us")
++function Textos.daLocalidade(localidade: any): string
++	local s = string.lower(tostring(localidade or ""))
++	if string.sub(s, 1, 2) == "pt" then
++		return "pt"
++	elseif string.sub(s, 1, 2) == "ru" then
++		return "ru"
++	end
++	return "en"
++end
++
++function Textos.de(idioma: any)
++	return L[Textos.normalizar(idioma)]
++end
++
++-- compatibilidade com o código da Etapa 1 (servidor e testes usam o português como base)
++Textos.falantes = L.pt.falantes
++Textos.sons = L.pt.sons
++Textos.objetivos = L.pt.objetivos
++Textos.avisos = L.pt.avisos
++Textos.fim = L.pt.fim
++Textos.falas = {}
++for chave, texto in L.pt.falas do
++	Textos.falas[chave] = { Textos.FALANTE[chave], texto }
++end
++
++return Textos
+diff -ruN a/tests/client_efeitos_test.luau b/tests/client_efeitos_test.luau
+--- a/tests/client_efeitos_test.luau
++++ b/tests/client_efeitos_test.luau
+@@ -0,0 +1,103 @@
++-- Legendas que se quebram (Interface) e efeitos do cliente (Efeitos) no harness, sem motor.
++local Harness = require("./client_harness")
++local roblox = require("@lune/roblox")
++local h = Harness.new()
++-- o que o harness básico não tem e estes módulos usam
++h.services.RunService.RenderStepped = h:signal()
++h.heartbeat.Wait = function() return 0 end
++h.services.Lighting = h:new("Lighting", "Lighting")
++h.environment.ColorSequence = roblox.ColorSequence
++h.environment.ColorSequenceKeypoint = roblox.ColorSequenceKeypoint
++h.environment.NumberSequence = roblox.NumberSequence
++h.environment.NumberSequenceKeypoint = roblox.NumberSequenceKeypoint
++
++local texts = h:load("tests/_textos_base.luau")
++local lang = "pt"
++local Interface = h:load("src/client/Interface.luau")
++local ui = Interface.criar(h.playerGui, texts, function() return lang end)
++local quebras = 0
++ui.definirSom(function(chave) if chave == "legenda_quebra" then quebras += 1 end end)
++local caixa = h.playerGui:FindFirstChild("Fala", true)
++local glifos = caixa:FindFirstChild("Glifos")
++local caption = caixa:FindFirstChild("Texto")
++local function letras()
++	local n = 0
++	for _, c in glifos:GetChildren() do if c.Name == "Letra" then n += 1 end end
++	return n
++end
++for _, locale in { "pt", "en", "ru" } do
++	lang = locale
++	ui.fala("pavel_cafe", 2)
++	h:tick(0.05)
++	local frase = texts.de(locale).falas.pavel_cafe
++	local semEspaco = utf8.len((string.gsub(frase, "%s", ""))) or 0
++	assert(letras() == semEspaco, locale .. ": letras " .. letras() .. " ~= " .. semEspaco)
++	assert(string.gsub(caption.Text, "\n", " ") == frase, "texto guardado diferente")
++	assert(caption.TextTransparency == 1, "texto inteiro não pode aparecer por cima das letras")
++	for _ = 1, 40 do h:tick(0.1) end -- passa a duração e a quebra
++	assert(letras() == 0, locale .. ": letras não foram embora depois da quebra (" .. letras() .. ")")
++end
++assert(quebras == 3, "estalo da legenda tocou " .. quebras .. " vezes")
++-- fala nova por cima de uma em andamento: a velha quebra rápido, a nova entra inteira
++ui.fala("pavel_cafe", 3); h:tick(0.05)
++ui.fala("pavel_canal", 3); h:tick(0.05)
++for _ = 1, 6 do h:tick(0.1) end
++for _ = 1, 6 do h:tick(0.1) end
++assert(letras() == utf8.len((string.gsub(texts.de("ru").falas.pavel_canal, "%s", ""))), "troca de fala deixou letras velhas")
++
++-- efeitos: menu, lanterna e perseguição
++local menu = h:new("ScreenGui", "S7BodycamMenu", h.playerGui)
++menu.Enabled = false
++local canvas = h:new("Frame", "Canvas", menu)
++local overlay = h:new("Frame", "MenuOverlay", canvas)
++local painel = h:new("Frame", "CameraMenu", overlay)
++painel.Visible = true
++painel.AbsolutePosition = roblox.Vector2.new(370, 180)
++painel.AbsoluteSize = roblox.Vector2.new(540, 360)
++local tocados, uis = {}, {}
++local Efeitos = h:load("src/client/Efeitos.luau")
++local fx = Efeitos.iniciar({ jogador = h.player, playerGui = h.playerGui,
++	efeito = function(k) table.insert(tocados, k); return nil end,
++	ui = function(k) table.insert(uis, k) end })
++h:flush()
++menu.Enabled = true; menu:GetPropertyChangedSignal("Enabled"):Fire()
++h:tick(0.01); h:tick(0.1)
++assert(table.find(tocados, "menu_abre") and table.find(uis, "ui_confirm"), "menu não tocou o som de abrir (nem a reserva)")
++local fxGui = h.playerGui:FindFirstChild("BastiaoMenuFX")
++assert(fxGui and fxGui.Enabled, "tela de efeitos do menu não ligou")
++assert(#fxGui:GetChildren() >= 4, "cantos/cartão do menu não apareceram")
++h.services.RunService.RenderStepped:Fire(1 / 60)
++h:tick(0.5)
++assert(painel.Visible == true, "painel do menu ficou escondido depois da abertura")
++menu.Enabled = false; menu:GetPropertyChangedSignal("Enabled"):Fire()
++assert(table.find(uis, "ui_click"), "menu não tocou o som de fechar")
++h:tick(0.6)
++assert(fxGui.Enabled == false, "tela de efeitos ficou ligada depois de fechar")
++-- abrir e fechar rápido não pode deixar o painel escondido
++menu.Enabled = true; menu:GetPropertyChangedSignal("Enabled"):Fire(); h:tick(0.01)
++menu.Enabled = false; menu:GetPropertyChangedSignal("Enabled"):Fire(); h:tick(0.6)
++assert(painel.Visible == true, "fechar no meio do giro deixou o painel escondido")
++-- lanterna
++h.player:SetAttribute("FlashlightOn", true)
++h.player:SetAttribute("FlashlightOn", false)
++assert(table.find(tocados, "lanterna_liga") and table.find(tocados, "lanterna_desliga"), "clique da lanterna não tocou")
++-- perseguição perto: tela pesa; longe: volta ao normal
++local ana = h:character("Ana")
++h.player.Character = ana
++ana:FindFirstChild("HumanoidRootPart").Position = roblox.Vector3.new(0, 3, -260)
++local historia = h.workspace:FindFirstChild("BastiaoHistoria") or h:new("Folder", "BastiaoHistoria", h.workspace)
++local pasta = h:new("Folder", "Criatura", historia)
++local monstro = h:new("Model", "Bastiao731A", pasta)
++local corpo = h:new("Part", "HumanoidRootPart", monstro)
++corpo.Position = roblox.Vector3.new(0, 4.7, -275)
++monstro:SetAttribute("BastiaoState", "chase")
++for _ = 1, 30 do h.services.RunService.RenderStepped:Fire(0.1) end
++local cor = h.services.Lighting:FindFirstChild("BastiaoTensao")
++assert(cor and cor.Enabled == true and cor.Saturation < -0.2, "perseguição perto não pesou a tela")
++corpo.Position = roblox.Vector3.new(0, 4.7, -440)
++monstro:SetAttribute("BastiaoState", "roam")
++for _ = 1, 60 do h.services.RunService.RenderStepped:Fire(0.1) end
++assert(cor.Enabled == false, "tela não voltou ao normal com o monstro longe")
++fx.destroy()
++assert(h.playerGui:FindFirstChild("BastiaoMenuFX") == nil, "destroy não limpou a tela de efeitos")
++print("PASS legendas em 3 línguas que quebram, menu 3D (abrir/fechar/rápido), lanterna e perseguição")
+diff -ruN a/tests/client_router_test.luau b/tests/client_router_test.luau
+--- a/tests/client_router_test.luau
++++ b/tests/client_router_test.luau
+@@ -48,11 +48,11 @@
+ 	PASTA_REMOTOS = "BastiaoRemotos", REMOTO_APRESENTACAO = "presentation", REMOTO_IDIOMA = "language",
+ }
+ local ui = {}
+-for _, name in { "objetivo", "alarme", "fim", "fala", "aviso", "corte", "som", "idioma" } do
++for _, name in { "objetivo", "alarme", "fim", "fala", "aviso", "corte", "som", "idioma", "definirSom" } do
+ 	ui[name] = function(...) mark("caption_" .. name, ...); mark("caption_locale", lang) end
+ end
+ local sound = { grupoEfeitos = {} }
+-for _, name in { "fala", "som", "ruido", "estado", "precarregar", "passosExternos", "parar" } do
++for _, name in { "fala", "som", "ruido", "estado", "precarregar", "passosExternos", "parar", "efeito" } do
+ 	sound[name] = function(...) mark("sound_" .. name, ...); mark("sound_locale", lang) end
+ end
+ local foley = { ui = function(key) mark("ui", key) end, destroy = function() mark("destroy_foley") end }
+@@ -76,6 +76,11 @@
+ 		op.aoPassosMudar(false)
+ 		return foley
+ 	end },
++	Efeitos = { iniciar = function(op)
++		assert(op.jogador == player and op.playerGui == playerGui and type(op.efeito) == "function" and type(op.ui) == "function")
++		mark("efeitos_ligados")
++		return { destroy = function() mark("efeitos_desligados") end }
++	end },
+ }
+ local environment = {
+ 	game = { GetService = function(_, name) return ({ Players = { LocalPlayer = player }, ReplicatedStorage = storage, ProximityPromptService = promptService })[name] end },
+@@ -91,6 +96,7 @@
+ assert(count("sound_fala", "pavel_cafe") == 1 and count("caption_fala", "pavel_cafe") == 1)
+ assert(count("sound_som", "tres_toques") == 1 and count("sound_ruido", "terminal_bip") == 1)
+ assert(count("prompts_localized") == 1 and count("terminals_localized") == 1)
++assert(count("efeitos_ligados") == 1, "efeitos do cliente (menu/lanterna/perseguição) não foram ligados")
+ lang = "ru"
+ for _, listener in languageListeners do listener(lang) end
+ assert(count("caption_idioma") == 1 and count("sound_precarregar") == 1)
+@@ -119,4 +125,21 @@
+ for _, listener in languageListeners do listener("pt") end
+ assert(count("sound_parar") == 1 and count("destroy_foley") == 1)
+ assert(count("sound_som", "trava") == 0 and count("ui", "ui_click") == 2 and count("caption_idioma") == 1)
+-print("PASS latest locale/terminal hooks, chapter event routing, prompt activation and teardown (service harness; no engine)")
++-- Os efeitos visuais são opcionais: se quebrarem ou faltarem, legendas, som e prompts continuam.
++local AVISO = "[Bastiao] efeitos visuais desligados:"
++for _, caso in { "erro", "ausente" } do
++	calls = {}
++	if caso == "erro" then
++		modules.Efeitos = { iniciar = function() error("menu quebrado de proposito") end }
++	else
++		scriptNode.WaitForChild = function(_, name) return if name == "Efeitos" then nil else name end
++	end
++	luau.load(fs.readFile("src/client/BastiaoCliente.luau"), { environment = environment, injectGlobals = true })()
++	assert(count("warn", AVISO) == 1, "falha dos efeitos (" .. caso .. ") deve virar só um aviso")
++	presentation.OnClientEvent:Fire({ tipo = "fala", chave = "pavel_cafe", duracao = 4 })
++	assert(count("sound_fala", "pavel_cafe") == 1 and count("caption_fala", "pavel_cafe") == 1, "cliente parou junto com os efeitos")
++	assert(count("prompts_localized") == 1 and count("terminals_localized") == 1)
++	scriptNode.Destroying:Fire()
++	assert(count("sound_parar") == 1 and count("destroy_foley") == 1, "desmontar sem efeitos falhou")
++end
++print("PASS latest locale/terminal hooks, chapter event routing, prompt activation and teardown; client survives broken or missing effects (service harness; no engine)")
+diff -ruN a/tests/release_fixture.py b/tests/release_fixture.py
+--- a/tests/release_fixture.py
++++ b/tests/release_fixture.py
+@@ -38,7 +38,7 @@
+     write_json(root / "BASE_CLAUDE_ETAPA2.json", baseline)
+     for area, names in {
+         "server": ["BastiaoServidor", "Interacoes", "Sequencias", "CriaturaCore", "Criatura"],
+-        "client": ["BastiaoCliente", "Interface", "Som", "Foley"],
++        "client": ["BastiaoCliente", "Interface", "Som", "Foley", "Efeitos"],
+     }.items():
+         for name in names:
+             path = root / "src" / area / (name + ".luau")
+diff -ruN a/tests/test_release_builder.py b/tests/test_release_builder.py
+--- a/tests/test_release_builder.py
++++ b/tests/test_release_builder.py
+@@ -44,8 +44,9 @@
+         self.assertIn(hashlib.sha256(previous["source"].encode()).hexdigest(), server["known"])
+         self.assertTrue(set(previous.get("known", [])).issubset(server["known"]))
+         self.assertEqual(report["stage"], 3)
+-        self.assertEqual(len(rows), 29)
++        self.assertEqual(len(rows), 30)
+         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Foley"), got)
++        self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"), got)
+ 
+     def test_combined_audio_preserves_eight_voices_and_knock_and_binds_new_segments(self):
+         files, _ = builder.build_files(self.root)
+diff -ruN a/tooling/release_builder.py b/tooling/release_builder.py
+--- a/tooling/release_builder.py
++++ b/tooling/release_builder.py
+@@ -37,6 +37,7 @@
+     (["ServerScriptService", "BastiaoServidor", "CriaturaCore"], "src/server/CriaturaCore.luau"),
+     (["ServerScriptService", "BastiaoServidor", "Criatura"], "src/server/Criatura.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Foley"], "src/client/Foley.luau"),
++    (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"], "src/client/Efeitos.luau"),
+ )
+ SFX_ALIASES = {
+     "radio_chiado": "estatica", "tres_toques": "toques_longe", "pressurizacao": "vapor",

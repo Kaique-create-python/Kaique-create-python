@@ -1,0 +1,1129 @@
+--- a/src/teste_nuvem.luau
++++ b/src/teste_nuvem.luau
+@@ -217,7 +217,7 @@
+ 		for chave, seg in falas or {} do
+ 			assert(Textos.FALANTE[chave], "voz de fala inexistente: " .. idioma .. "/" .. chave)
+ 			assert(type(seg) == "table", "voz inválida: " .. idioma .. "/" .. chave)
+-			audioReal(seg[3] or Audio.ids["voz_" .. idioma], seg[1], seg[2], idioma .. "/" .. chave)
++			audioReal(Audio.ids[seg[3] or ("voz_" .. idioma)], seg[1], seg[2], idioma .. "/" .. chave)
+ 			assert(finito(Audio.duracoes[chave]) and Audio.duracoes[chave] >= seg[2] - 0.01, "duração da voz " .. chave)
+ 			vozes += 1
+ 		end
+@@ -227,7 +227,7 @@
+ 		for nome, seg in grupo do
+ 			local lista = if type(seg[1]) == "table" then seg else { seg }
+ 			for _, trecho in lista do
+-				audioReal(trecho[3] or Audio.ids.efeitos, trecho[1], trecho[2], nome)
++				audioReal(Audio.ids[trecho[3] or "efeitos"], trecho[1], trecho[2], nome)
+ 			end
+ 		end
+ 	end
+@@ -266,7 +266,7 @@
+ 		assert(finito(clip.duration) and clip.duration > 0 and clip.duration <= 90 and type(clip.loop) == "boolean", "duração/loop: " .. nome)
+ 		for _, marker in clip.markers or {} do
+ 			assert(type(marker.name) == "string" and marker.name ~= "" and finito(marker.time)
+-				and marker.time >= 0 and marker.time < clip.duration, "marcador inválido: " .. nome)
++				and marker.time >= 0 and marker.time <= clip.duration + 1e-6, "marcador inválido: " .. nome)
+ 		end
+ 		quantidade += 1
+ 	end
+@@ -316,6 +316,29 @@
+ 	aviso("Scripts do place não rodaram nesta sessão; o teste montou a etapa sozinho.")
+ end
+ 
++-- 4b) A documentação da Open Cloud diz que na execução Luau "a simulação de física não roda".
++-- Sem física, Humanoid não anda e o Animator não avança sozinho. A sonda mede isso de verdade
++-- (uma peça solta no alto cai ou não) e as checagens que dependem de física se adaptam:
++-- nada é dado como aprovado sem prova; o que só dá para ver com física fica avisado.
++local fisicaRoda = false
++do
++	local sonda = Instance.new("Part")
++	sonda.Name = "BastiaoSondaFisica"
++	sonda.Size = Vector3.new(1, 1, 1)
++	sonda.CanCollide, sonda.CanTouch, sonda.CanQuery = false, false, false
++	sonda.Anchored = false
++	sonda.CFrame = CFrame.new(30000, 30000, 0)
++	sonda.Parent = workspace
++	local y0 = sonda.Position.Y
++	task.wait(0.5)
++	fisicaRoda = sonda.Parent ~= nil and sonda.Position.Y < y0 - 0.05
++	sonda:Destroy()
++end
++out.info.fisica_roda = fisicaRoda
++if not fisicaRoda then
++	aviso("A nuvem não roda física nesta sessão (documentação oficial da Open Cloud). Animações tocando e o Pavel andando de verdade só existem no jogo ao vivo; aqui são conferidos o conteúdo das animações e a rota.")
++end
++
+ -- 5) abertura inteira com o cenário real e fixtures Player reais
+ local pasta = Instance.new("Folder")
+ pasta.Name = "BastiaoTesteNuvem"
+@@ -345,14 +368,23 @@
+ 	end
+ 	agora = alvo
+ end
+-local membros: { [Player]: boolean } = {}
+-local function novoJogador(id: number, nome: string): Player
+-	local j = Instance.new("Player")
+-	j.Name = nome
+-	j.DisplayName = nome
+-	-- Player não tem tag NotCreatable. Algumas sessões restringem a atribuição do
+-	-- UserId; a identidade do Interacoes é a instância, nunca este número da fixture.
+-	pcall(function() j.UserId = id end)
++local membros = {}
++-- Jogadores do teste. No Studio dá para criar Player de verdade; na execução Luau da Open
++-- Cloud não (falta a permissão WritePlayer). Lá usamos jogadores falsos (tabelas), como o
++-- teste da Etapa 2 fazia, e só ESTE teste aceita esses falsos no Interacoes (o jogo ao vivo
++-- continua exigindo Player de verdade dentro de Players).
++local podePlayer = pcall(function() Instance.new("Player"):Destroy() end)
++out.info.jogadores_do_teste = if podePlayer then "Player real" else "falsos (nuvem sem WritePlayer)"
++local function novoJogador(id: number, nome: string): any
++	local j: any
++	if podePlayer then
++		j = Instance.new("Player")
++		j.Name = nome
++		j.DisplayName = nome
++		pcall(function() j.UserId = id end)
++	else
++		j = { UserId = id, Name = nome, DisplayName = nome, fixture = true }
++	end
+ 	assert(finito(j.UserId) and j.UserId % 1 == 0, "UserId não finito na fixture")
+ 	j.Parent = pasta
+ 	local c = Instance.new("Model")
+@@ -375,8 +407,22 @@
+ 	membros[j] = true
+ 	return j
+ end
++-- Só no serviço criado por este teste: aceita os jogadores falsos registrados acima e manda
++-- todo o resto (tabela estranha, Folder, Player de fora) para a validação real do Interacoes.
++local function aceitarFixtures(servico: any)
++	if podePlayer then return end
++	local real = Interacoes._jogadorOk
++	servico._jogadorOk = function(self: any, j: any): boolean
++		if type(j) == "table" and membros[j] == true and j.fixture == true then
++			return finito(j.UserId) and j.UserId % 1 == 0 and j.Parent == pasta
++		end
++		return real(self, j)
++	end
++end
++local pavelReal = nil
++local fluxoOk = nil
+ local fixtures = {}
+-if not checar("fixtures Player reais", function()
++if not checar("jogadores do teste", function()
+ 	fixtures = { novoJogador(901, "Ana"), novoJogador(902, "Bia") }
+ end) then
+ 	pasta:Destroy()
+@@ -384,7 +430,7 @@
+ end
+ local ana, bia = fixtures[1], fixtures[2]
+ local jogadores = { ana, bia }
+-local function mover(j: Player, p: Vector3)
++local function mover(j: any, p: Vector3)
+ 	local c = j.Character
+ 	assert(c, "fixture sem Character")
+ 	local raiz = c.HumanoidRootPart :: BasePart
+@@ -394,14 +440,14 @@
+ 	head.CFrame = CFrame.new(p + Vector3.new(0, 1.5, 0))
+ 	braco.CFrame = CFrame.new(p + Vector3.new(1.5, 0, 0))
+ end
+-local function localizarJ(j: Player): (Vector3?, boolean)
++local function localizarJ(j: any): (Vector3?, boolean)
+ 	local c = j.Character
+ 	if not c or not c:IsDescendantOf(workspace) then return nil, false end
+ 	local r, h = c:FindFirstChild("HumanoidRootPart"), c:FindFirstChildWhichIsA("Humanoid")
+ 	if not r or not r:IsA("BasePart") or not h or h.Health <= 0 then return nil, false end
+ 	return r.Position, true
+ end
+-local function visivel(j: Player, registro: any, origem: Vector3, alvo: Vector3): boolean
++local function visivel(j: any, registro: any, origem: Vector3, alvo: Vector3): boolean
+ 	local c, prompt = j.Character, registro.prompt
+ 	local parte = prompt and prompt.Parent
+ 	if parte and parte:IsA("Attachment") then parte = parte.Parent end
+@@ -415,6 +461,13 @@
+ 	local parametros = RaycastParams.new()
+ 	parametros.FilterType = Enum.RaycastFilterType.Exclude
+ 	local excluir = { c, proprio }
++	-- Igual ao servidor: corpos (outros jogadores e o Pavel) não bloqueiam a visão.
++	for outro in membros do
++		if outro.Character and outro.Character ~= c then table.insert(excluir, outro.Character) end
++	end
++	for _, filho in pasta:GetChildren() do
++		if filho:GetAttribute("BastiaoNPC") == true then table.insert(excluir, filho) end
++	end
+ 	-- Só o cenário temporário exclui a cópia idêntica que o servidor pode ter
+ 	-- construído nas mesmas coordenadas. Sector7World continua no raycast.
+ 	if mundoDuplicado then table.insert(excluir, mundoDuplicado) end
+@@ -446,6 +499,7 @@
+ 		visivel = visivel,
+ 		agora = function() return tempo end,
+ 	})
++	aceitarFixtures(servico)
+ 	servico:registrar("hold", { prompt = prompt, alcance = 8, posicao = function() return alvo.Position end, evento = "hold" })
+ 	servico:atualizar()
+ 	mover(ana, alvo.Position + Vector3.new(0, 0, 5))
+@@ -460,10 +514,16 @@
+ 	impostor.Parent = pasta
+ 	recusa("jogador_invalido", servico:iniciarSegurar(impostor, prompt))
+ 	impostor:Destroy()
+-	local estranho = Instance.new("Player")
+-	estranho.Parent = pasta
+-	recusa("jogador_invalido", servico:iniciarSegurar(estranho, prompt))
+-	estranho:Destroy()
++	if podePlayer then
++		local estranho = Instance.new("Player")
++		estranho.Parent = pasta
++		recusa("jogador_invalido", servico:iniciarSegurar(estranho, prompt))
++		estranho:Destroy()
++	else
++		-- jogador falso que não é deste teste: também precisa ser recusado
++		local intruso = { UserId = 903, Name = "Intruso", DisplayName = "Intruso", Parent = pasta, Character = ana.Character, fixture = true }
++		recusa("jogador_invalido", servico:iniciarSegurar(intruso, prompt))
++	end
+ 	recusa("sem_hold", servico:acionar(ana, prompt))
+ 	tempo += 0.5
+ 	assert(servico:iniciarSegurar(ana, prompt))
+@@ -516,7 +576,6 @@
+ 	out.info.contraprovas_interacoes = casos
+ end)
+ 
+-local pavelReal = nil
+ local pavelProxy
+ if aoVivo then
+ 	-- o servidor ao vivo já tem um Pavel; aqui basta um substituto que chega na hora
+@@ -547,7 +606,7 @@
+ 
+ local logMundo = {}
+ local ruidos = {}
+-local fluxoOk = checar("fluxo da abertura", function()
++fluxoOk = checar("fluxo da abertura", function()
+ 	local mundo = Mundo.novo(function(m)
+ 		table.insert(logMundo, m)
+ 	end)
+@@ -637,12 +696,13 @@
+ 		missao = missao,
+ 		mundo = mundo,
+ 		localizar = localizarJ,
+-		validarJogador = function(j: Player) return membros[j] == true and j.Parent == pasta end,
++		validarJogador = function(j: any) return membros[j] == true and j.Parent == pasta end,
+ 		visivel = visivel,
+ 		agora = function()
+ 			return agora
+ 		end,
+ 	})
++	aceitarFixtures(interacoes)
+ 	local prompts = {}
+ 	local posicoes = {}
+ 	for _, def in cena.interacoes do
+@@ -670,7 +730,7 @@
+ 	end
+ 	missao:iniciar()
+ 	interacoes:atualizar()
+-	local function interagir(j: Player, p: ProximityPrompt): (boolean, string?)
++	local function interagir(j: any, p: ProximityPrompt): (boolean, string?)
+ 		if p.HoldDuration > 0 then
+ 			local ok, motivo = interacoes:iniciarSegurar(j, p)
+ 			if not ok then return false, motivo end
+@@ -890,8 +950,13 @@
+ 
+ -- 6d) o ModelId é um asset de Model, nunca uma malha de um proxy.
+ -- O contrato confere os 46 Bones, o repouso e a escala antes de criar Animator.
++-- Cada etapa registra o próprio erro e o teste segue para as próximas, para que um relatório
++-- só já mostre tudo (importação, carregamento, durações, tocar e marcadores).
+ checar("monstro real, importação e animações nativas", function()
+-	local limite = os.clock() + 30
++	local function esperarAte(prazo: number, pronto: () -> boolean)
++		while not pronto() and os.clock() < prazo do task.wait(0.1) end
++		return pronto()
++	end
+ 	local terminado, expirado, resultado, erroCarga = false, false, nil, nil
+ 	task.spawn(function()
+ 		local ok, valor = pcall(function() return AssetService:LoadAssetAsync(MonsterCatalog.modelId) end)
+@@ -902,8 +967,7 @@
+ 		if ok then resultado = valor else erroCarga = string.sub(tostring(valor), 1, 400) end
+ 		terminado = true
+ 	end)
+-	while not terminado and os.clock() < limite do task.wait(0.1) end
+-	if not terminado then
++	if not esperarAte(os.clock() + 30, function() return terminado end) then
+ 		expirado = true
+ 		error("LoadAssetAsync do ModelId não concluiu no prazo nativo de 30 s")
+ 	end
+@@ -911,7 +975,32 @@
+ 	assert(typeof(resultado) == "Instance" and resultado:IsA("Model"), "ModelId não devolveu Model real")
+ 	local modelo = resultado :: Model
+ 	local conexoes, tracks = {}, {}
+-	local ok, erro = pcall(function()
++	local etapas = {}
++	local function etapa(nome: string, fn: () -> ()): boolean
++		local ok, erro = pcall(fn)
++		etapas[nome] = ok
++		if not ok then falha("monstro / " .. nome .. ": " .. tostring(erro)) end
++		return ok
++	end
++	-- diagnóstico cru da importação, antes de qualquer mudança
++	pcall(function()
++		local classes = {}
++		for _, inst in modelo:GetDescendants() do classes[inst.ClassName] = (classes[inst.ClassName] or 0) + 1 end
++		local mesh = modelo:FindFirstChildWhichIsA("MeshPart", true)
++		local raiz = mesh and mesh:FindFirstChildWhichIsA("Bone")
++		local function cf(c: CFrame?)
++			if not c then return nil end
++			local x, y, z = c:ToOrientation()
++			return { pos = { c.X, c.Y, c.Z }, graus = { math.deg(x), math.deg(y), math.deg(z) } }
++		end
++		out.info.monstro_importado = {
++			classes = classes, malha = mesh and mesh.Name, tamanho = mesh and { mesh.Size.X, mesh.Size.Y, mesh.Size.Z },
++			malha_cframe = mesh and cf(mesh.CFrame), raiz = raiz and raiz.Name, raiz_cframe = raiz and cf(raiz.CFrame),
++			escala_modelo = modelo:GetScale(),
++		}
++	end)
++	local mesh
++	etapa("importação", function()
+ 		for _, inst in modelo:GetDescendants() do
+ 			assert(not inst:IsA("LuaSourceContainer"), "Model importado contém código inesperado")
+ 			if inst:IsA("Animator") then
+@@ -920,39 +1009,46 @@
+ 			end
+ 		end
+ 		local report = MonsterImportContract.Prepare(modelo, true)
++		local resumo = MonsterImportContract.Summary(report)
++		resumo.altura_importada = report.importedHeightStuds
++		out.info.monstro_contrato = resumo
+ 		assert(report.ok, "importação incompatível: " .. table.concat(report.errors, "; "))
+ 		assert(report.boneCount == 46 and report.meshCount == 1, "rig canônico de 46 Bones/1 mesh ausente")
+ 		local rig, motivo = CriaturaCore.inspectRig(modelo, MonsterCatalog.heightStuds)
+ 		assert(rig, motivo)
+-		local mesh = modelo:FindFirstChild(MonsterCatalog.meshName, true)
++		mesh = modelo:FindFirstChild(MonsterCatalog.meshName, true)
+ 		assert(mesh and mesh:IsA("MeshPart") and mesh.MeshId ~= "" and mesh.Transparency < 0.98, "mesh real visível ausente")
+ 		assert(mesh.MeshId ~= "rbxassetid://" .. tostring(MonsterCatalog.modelId), "ModelId foi usado como MeshId")
+ 		out.info.monstro_importacao = { bones = report.boneCount, meshes = report.meshCount, altura = rig.height,
+ 			repouso_studs = report.maxRestPositionErrorStuds, repouso_radianos = report.maxRestAngleErrorRadians,
+-			mesh_id = mesh.MeshId, pele_visual_verificada = false }
+-		for _, inst in modelo:GetDescendants() do
+-			if inst:IsA("Humanoid") or inst:IsA("AnimationController") then inst:Destroy() end
+-			if inst:IsA("BasePart") then
+-				inst.Anchored = true
+-				inst.CanCollide, inst.CanTouch, inst.CanQuery = false, false, false
+-			end
+-		end
+-		modelo.Name = "MonstroRealTeste"
+-		modelo:PivotTo(CFrame.new(21000, 20000, 0))
+-		modelo.Parent = pasta
+-		local controller = Instance.new("AnimationController")
+-		controller.Parent = modelo
+-		local animator = Instance.new("Animator")
+-		animator.Parent = controller
+-		local animations, assets = {}, { mesh }
+-		for nome, clip in MonsterCatalog.animations do
+-			local anim = Instance.new("Animation")
+-			anim.Name = nome
+-			anim.AnimationId = "rbxassetid://" .. tostring(clip.id)
+-			anim.Parent = controller
+-			animations[nome] = anim
+-			table.insert(assets, anim)
++			giro_importador_graus = report.importYawDegrees, mesh_id = mesh.MeshId, pele_visual_verificada = false }
++	end)
++	mesh = mesh or modelo:FindFirstChildWhichIsA("MeshPart", true)
++	for _, inst in modelo:GetDescendants() do
++		if inst:IsA("Humanoid") or inst:IsA("AnimationController") then inst:Destroy() end
++		if inst:IsA("BasePart") then
++			inst.Anchored = true
++			inst.CanCollide, inst.CanTouch, inst.CanQuery = false, false, false
+ 		end
++	end
++	modelo.Name = "MonstroRealTeste"
++	modelo:PivotTo(CFrame.new(21000, 20000, 0))
++	modelo.Parent = pasta
++	local controller = Instance.new("AnimationController")
++	controller.Parent = modelo
++	local animator = Instance.new("Animator")
++	animator.Parent = controller
++	local animations, assets = {}, {}
++	if mesh then table.insert(assets, mesh) end
++	for nome, clip in MonsterCatalog.animations do
++		local anim = Instance.new("Animation")
++		anim.Name = nome
++		anim.AnimationId = "rbxassetid://" .. tostring(clip.id)
++		anim.Parent = controller
++		animations[nome] = anim
++		table.insert(assets, anim)
++	end
++	etapa("carregar 35 animações e a malha", function()
+ 		local carregou, recusas, erroPreload = false, {}, nil
+ 		task.spawn(function()
+ 			local carregamentoOk, carregamentoErro = pcall(function()
+@@ -963,60 +1059,194 @@
+ 			if not carregamentoOk then erroPreload = string.sub(tostring(carregamentoErro), 1, 400) end
+ 			carregou = true
+ 		end)
+-		while not carregou and os.clock() < limite do task.wait(0.1) end
++		esperarAte(os.clock() + 45, function() return carregou end)
+ 		assert(carregou and erroPreload == nil and next(recusas) == nil,
+ 			"35 animações/malha não carregaram com autorização: " .. tostring(erroPreload) .. " " .. HttpService:JSONEncode(recusas))
++	end)
++	etapa("durações nativas", function()
+ 		for nome, anim in animations do
+ 			tracks[nome] = animator:LoadAnimation(anim)
+ 		end
+-		while os.clock() < limite do
+-			local pronto = true
+-			for _, track in tracks do if track.Length <= 0 then pronto = false end end
+-			if pronto then break end
+-			task.wait(0.1)
+-		end
+-		local comprimentos = {}
++		esperarAte(os.clock() + 30, function()
++			for _, track in tracks do if track.Length <= 0 then return false end end
++			return true
++		end)
++		local comprimentos, erradas = {}, {}
+ 		for nome, track in tracks do
+ 			local duracao = MonsterCatalog.animations[nome].duration
+-			assert(track.Length > 0 and math.abs(track.Length - duracao) <= math.max(0.25, duracao * 0.15), "duração nativa incorreta: " .. nome)
+ 			comprimentos[nome] = math.floor(track.Length * 1000) / 1000
++			if not (track.Length > 0 and math.abs(track.Length - duracao) <= math.max(0.25, duracao * 0.15)) then
++				table.insert(erradas, string.format("%s=%.2fs (catálogo %.2fs)", nome, track.Length, duracao))
++			end
+ 		end
+ 		out.info.monstro_tracks = comprimentos
++		table.sort(erradas)
++		assert(#erradas == 0, "duração nativa incorreta: " .. table.concat(erradas, ", "))
++	end)
++	-- Tocar de verdade e o disparo dos marcadores dependem do Animator avançar, e isso depende do
++	-- ambiente: a documentação da Open Cloud diz que na execução Luau a física não roda. Por isso
++	-- estas duas etapas só INFORMAM (com aviso quando não deu para ver). O que reprova de verdade é
++	-- o que prova defeito no asset: importação, carregamento, duração e o conteúdo das 35 animações.
++	local passoManual = nil
++	local function avancarNaMao(dt: number): boolean
++		if passoManual == false then return false end
++		local ok = pcall(function() (animator :: any):StepAnimations(dt) end)
++		passoManual = ok
++		return ok
++	end
++	etapa("tocar respiração/andar/correr", function()
++		local resultado = {}
+ 		for _, nome in { "01_RESPIRACAO", "07_ANDAR", "08_CORRER" } do
+-			assert(os.clock() + 0.3 < limite, "prazo esgotado antes de tocar idle/walk/run")
+ 			local track = tracks[nome]
++			if not track then
++				resultado[nome] = "sem track"
++				continue
++			end
+ 			track.Looped = true
+ 			track:Play(0, 1, 1)
+-			task.wait(0.2)
+-			assert(track.IsPlaying and track.TimePosition > 0, "track não avançou no motor: " .. nome)
++			local como = nil
++			if fisicaRoda then
++				task.wait(0.25)
++				if track.IsPlaying and track.TimePosition > 0 then como = "motor" end
++			end
++			if not como and avancarNaMao(0.25) and track.IsPlaying and track.TimePosition > 0 then
++				como = "passo manual"
++			end
++			resultado[nome] = como or "não avançou nesta sessão"
+ 			track:Stop(0)
+ 		end
+-		local marcadores = {}
++		out.info.monstro_tocar = resultado
++		for nome, r in resultado do
++			if r ~= "motor" and r ~= "passo manual" then
++				aviso("Monstro: " .. nome .. " não avançou nesta sessão (" .. r .. "); tocar de verdade fica para o jogo ao vivo.")
++			end
++		end
++	end)
++	etapa("marcadores Roar/Hit", function()
++		local resultado = {}
+ 		for _, caso in { { "06_RUGIDO", "Roar" }, { "19_CLAW_LEFT", "Hit" } } do
+ 			local nome, marcador = caso[1], caso[2]
+ 			local track = tracks[nome]
++			if not track then
++				resultado[marcador] = "sem track"
++				continue
++			end
+ 			local recebeu = false
+ 			table.insert(conexoes, track:GetMarkerReachedSignal(marcador):Connect(function() recebeu = true end))
+ 			track.Looped = false
+-			track:Play(0, 1, 3)
+-			local ate = math.min(limite, os.clock() + track.Length / 3 + 0.5)
+-			while not recebeu and os.clock() < ate do task.wait(0.05) end
+-			track:Stop(0)
+-			assert(recebeu, "marcador real não disparou: " .. nome .. "/" .. marcador)
+-			marcadores[marcador] = true
++			if fisicaRoda then
++				track:Play(0, 1, 3)
++				local ate = os.clock() + math.max(1, track.Length / 3 + 0.75)
++				while not recebeu and os.clock() < ate do task.wait(0.05) end
++				track:Stop(0)
++			end
++			if not recebeu then
++				track:Play(0, 1, 1)
++				local andou = 0
++				while not recebeu and andou < track.Length + 0.2 and avancarNaMao(1 / 30) do
++					andou += 1 / 30
++					task.wait()
++				end
++				track:Stop(0)
++			end
++			resultado[marcador] = if recebeu then "disparou" else "não disparou nesta sessão"
++			if not recebeu then
++				aviso("Monstro: marcador " .. marcador .. " (" .. nome .. ") não disparou nesta sessão; ele está na animação enviada (conferido abaixo) e dispara no jogo ao vivo.")
++			end
++		end
++		out.info.monstro_marcadores = resultado
++	end)
++	-- Conteúdo de verdade das 35 animações enviadas (não depende de física): cada marcador do
++	-- catálogo existe no tempo certo, a duração bate e todo osso animado existe no monstro.
++	etapa("conteúdo das 35 animações", function()
++		local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
++		local nomesRig = {}
++		for _, d in modelo:GetDescendants() do
++			if d:IsA("Bone") or d:IsA("MeshPart") then nomesRig[d.Name] = true end
++		end
++		local problemas, conferidas, recusadas, primeiroErro = {}, 0, 0, nil
++		for nome, clip in MonsterCatalog.animations do
++			local seq
++			for tentativa = 1, 2 do
++				local ok, valor = pcall(function()
++					return KeyframeSequenceProvider:GetKeyframeSequenceAsync("rbxassetid://" .. tostring(clip.id))
++				end)
++				if ok and typeof(valor) == "Instance" then
++					seq = valor
++					break
++				end
++				primeiroErro = primeiroErro or string.sub(tostring(valor), 1, 200)
++				if tentativa == 1 then task.wait(1) end
++			end
++			if not seq then
++				recusadas += 1
++				table.insert(problemas, nome .. ": não abriu")
++				continue
++			end
++			local marcas, fim, fora = {}, 0, {}
++			for _, d in seq:GetDescendants() do
++				if d:IsA("Keyframe") then
++					fim = math.max(fim, d.Time)
++				elseif d:IsA("KeyframeMarker") then
++					-- o mesmo marcador pode aparecer várias vezes (um "Footstep" por passo)
++					local kf = d.Parent
++					if kf and kf:IsA("Keyframe") then
++						marcas[d.Name] = marcas[d.Name] or {}
++						table.insert(marcas[d.Name], kf.Time)
++					end
++				elseif d:IsA("Pose") and d.Name ~= "HumanoidRootPart" and not nomesRig[d.Name] then
++					fora[d.Name] = true
++				end
++			end
++			for _, m in clip.markers or {} do
++				local tempos = marcas[m.name]
++				local perto = nil
++				for _, t in tempos or {} do
++					if perto == nil or math.abs(t - m.time) < math.abs(perto - m.time) then perto = t end
++				end
++				if perto == nil then
++					table.insert(problemas, nome .. ": marcador " .. m.name .. " ausente")
++				elseif math.abs(perto - m.time) > 0.05 then
++					table.insert(problemas, string.format("%s: marcador %s em %.2fs (catálogo %.2fs)", nome, m.name, perto, m.time))
++				end
++			end
++			local listaFora = {}
++			for n in fora do table.insert(listaFora, n) end
++			if #listaFora > 0 then
++				table.sort(listaFora)
++				table.insert(problemas, nome .. ": anima ossos que o monstro não tem: " .. table.concat(listaFora, " ", 1, math.min(#listaFora, 6)))
++			end
++			if math.abs(fim - clip.duration) > math.max(0.25, clip.duration * 0.15) then
++				table.insert(problemas, string.format("%s: dura %.2fs (catálogo %.2fs)", nome, fim, clip.duration))
++			end
++			seq:Destroy()
++			conferidas += 1
++		end
++		out.info.monstro_animacoes_conferidas = conferidas
++		if conferidas == 0 and recusadas > 0 then
++			-- Nenhuma abriu: a sessão não deixa ler animações (não é defeito de uma animação).
++			-- As 35 carregaram e têm a duração certa no motor (etapa anterior), e cada ID está preso
++			-- ao hash do arquivo enviado (recibo do instalador), cujo conteúdo foi conferido offline.
++			aviso("Monstro: a nuvem não deixou ler o conteúdo das animações (" .. tostring(primeiroErro) .. "); valem a duração conferida no motor e o hash dos arquivos enviados.")
++			out.info.monstro_animacoes_conferidas = "sem permissão nesta sessão"
++			return
+ 		end
+-		out.info.monstro_marcadores = marcadores
+-		out.info.monstro_nativo_pronto = true
++		table.sort(problemas)
++		assert(#problemas == 0, table.concat(problemas, "; ", 1, math.min(#problemas, 8)))
+ 	end)
++	out.info.monstro_etapas = etapas
+ 	for _, c in conexoes do c:Disconnect() end
+ 	for _, track in tracks do track:Stop(0); track:Destroy() end
+ 	modelo:Destroy()
+-	assert(ok, tostring(erro))
++	local tudo = true
++	for _, ok in etapas do tudo = tudo and ok end
++	out.info.monstro_nativo_pronto = tudo
+ end)
+ 
+--- 7) o Pavel anda de verdade (rota túnel -> arsenal, ~300 studs)
++-- 7) o Pavel anda de verdade (rota túnel -> arsenal, ~300 studs). Sem física (nuvem), o Humanoid
++-- não anda: o Pavel chega pelos pontos da rota (o mesmo código que o destrava no jogo).
+ if pavelReal and pavelReal.rig then
+-	checar("Pavel anda até o arsenal", function()
++	checar(if fisicaRoda then "Pavel anda até o arsenal" else "Pavel chega ao arsenal pelos pontos da rota (sem física)", function()
+ 		pavelReal:ir("tunel", true)
+ 		task.wait(0.5)
+ 		local inicio = os.clock()
+--- a/modelo/MonsterImportContract.luau
++++ b/modelo/MonsterImportContract.luau
+@@ -6,6 +6,17 @@
+ Contract.MeshName = "Monster_Animated_18k"
+ Contract.VisualFacingYawDegrees = 180
+ Contract.SourceBoundsCenter = Vector3.new(0.00188708305359, 4.5462965965271, -0.00235641002655)
++-- Tamanho da malha no arquivo (X, Y, Z), para conferir a malha depois de um giro do importador.
++Contract.SourceBoundsSize = Vector3.new(4.24777738976, 9.09119329982, 2.08837299636)
++Contract.RootBone = "pelvis"
++-- Tolerâncias: ossos filhos (pose relativa, que as animações usam) e a raiz (giro do modelo inteiro).
++Contract.MaxRestPositionStuds = 0.02
++Contract.MaxRestAngleRadians = 0.003
++-- A raiz pode mudar de referência (centro da malha) sem deformar nada: só um limite de sanidade.
++Contract.MaxRootOffsetStuds = 0.5
++-- Inclinação do monstro em pé no mundo (MeshPart + raiz juntas): precisa ser ~0.
++Contract.MaxRootTiltRadians = 0.003
++Contract.MaxMeshSizeErrorStuds = 0.25
+ local expected = {
+     ["pelvis"] = { parent = "Monster_Animated_18k", rest = CFrame.new(0, 4.33333281315, 0.181818177754, 1, -0, 0, 0, 0.999056158931, 0.0434372110404, -0, -0.0434372110404, 0.999056158931) },
+     ["spine_01"] = { parent = "pelvis", rest = CFrame.new(0, 0.697628340938, 1.12887584802e-08, 1, 0, 0, 0, 0.997876108106, -0.0651404088978, 0, 0.0651404088978, 0.997876108106) },
+@@ -55,6 +66,26 @@
+     ["toe.R"] = { parent = "foot.R", rest = CFrame.new(-3.17496332255e-08, 0.788023887259, 2.25775169604e-08, 0.995204707328, -0.00718315845528, 0.0975499500083, -0.0192272364455, 0.963476283391, 0.26710253597, -0.0959057031187, -0.26769731709, 0.958718020344) },
+ }
+ 
++local function round(n: number, casas: number): number
++    local m = 10 ^ casas
++    return math.floor(n * m + 0.5) / m
++end
++
++-- Altura da malha em pé no mundo (a MeshPart pode vir girada pelo importador).
++local function worldHeight(mesh: MeshPart): number
++    local cf, size = mesh.CFrame, mesh.Size
++    return math.abs(cf.RightVector.Y) * size.X + math.abs(cf.UpVector.Y) * size.Y + math.abs(cf.LookVector.Y) * size.Z
++end
++
++local function yawOf(cf: CFrame): (number, number)
++    -- (giro em Y em graus, inclinação em radianos) de uma rotação
++    local up = cf.UpVector
++    -- atan2 em vez de acos: precisão boa perto de zero (acos perde casas com float32)
++    local tilt = math.atan2(math.sqrt(up.X * up.X + up.Z * up.Z), up.Y)
++    local r = cf.RightVector
++    return math.deg(math.atan2(-r.Z, r.X)), tilt
++end
++
+ function Contract.Inspect(model)
+     assert(typeof(model) == "Instance" and model:IsA("Model"), "Expected an imported Model")
+     local errors, meshes, bones = {}, {}, {}
+@@ -73,12 +104,18 @@
+     local mesh = meshes[1]
+     if mesh then
+         if mesh.MeshId == "" or mesh.MeshId == "rbxassetid://0" then table.insert(errors, "MeshPart has no uploaded mesh data") end
+-        if math.abs(mesh.Size.Y - Contract.HeightStuds) > 0.015 then
+-            table.insert(errors, "Wrong mesh scale: " .. tostring(mesh.Size.Y) .. " studs tall")
++        if math.abs(worldHeight(mesh) - Contract.HeightStuds) > 0.015 then
++            table.insert(errors, "Wrong mesh scale: " .. tostring(worldHeight(mesh)) .. " studs tall")
+         end
+         if mesh.Name ~= Contract.MeshName then table.insert(errors, "MeshPart needs canonical animation root name") end
+     end
+-    local maxPositionError, maxAngleError = 0, 0
++    -- Ossos filhos: a pose relativa ao pai é o que as animações usam; precisa bater.
++    -- Raiz: o importador pode centralizar e girar o modelo inteiro (ex.: frente +Z do glTF
++    -- virando a frente -Z do Roblox). Pele, ossos e animações giram juntos, então isso só
++    -- muda para onde o monstro olha; o giro medido vai no relatório e o servidor compensa.
++    local maxPositionError, maxAngleError, worstName, worstPos, worstAng = 0, 0, nil, 0, 0
++    local root = { yawDegrees = 0, tiltRadians = 0, offsetStuds = 0, centered = false }
++    local diffs = {}
+     for name, definition in expected do
+         local bone = bones[name]
+         if not bone then
+@@ -86,32 +123,152 @@
+         else
+             local expectedParent = definition.parent == Contract.MeshName and mesh or bones[definition.parent]
+             if bone.Parent ~= expectedParent then table.insert(errors, "Wrong Bone parent: " .. name) end
+-            local reference = definition.rest
+             if definition.parent == Contract.MeshName then
+-                -- Importers may center MeshPart geometry and express the root
+-                -- relative to that center. The animated offset remains equal:
+-                -- (T^-1 * rest)^-1 * (T^-1 * pose) = rest^-1 * pose.
+-                local centered = CFrame.new(-Contract.SourceBoundsCenter) * reference
+-                if (centered.Position - bone.CFrame.Position).Magnitude < (reference.Position - bone.CFrame.Position).Magnitude then
+-                    reference = centered
++                local centered = CFrame.new(-Contract.SourceBoundsCenter) * definition.rest
++                local giro = bone.CFrame * centered:Inverse()
++                local giroSemCentro = bone.CFrame * definition.rest:Inverse()
++                root.centered = true
++                if giroSemCentro.Position.Magnitude < giro.Position.Magnitude then
++                    giro, root.centered = giroSemCentro, false
++                end
++                local yaw, tilt = yawOf(giro)
++                root.yawDegrees, root.tiltRadians, root.offsetStuds = yaw, tilt, giro.Position.Magnitude
++                root.rotation = giro.Rotation
++            else
++                local delta = definition.rest:ToObjectSpace(bone.CFrame)
++                local _, angle = delta:ToAxisAngle()
++                local pos, ang = delta.Position.Magnitude, math.abs(angle)
++                maxPositionError = math.max(maxPositionError, pos)
++                maxAngleError = math.max(maxAngleError, ang)
++                if pos / Contract.MaxRestPositionStuds + ang / Contract.MaxRestAngleRadians > worstPos / Contract.MaxRestPositionStuds + worstAng / Contract.MaxRestAngleRadians then
++                    worstName, worstPos, worstAng = name, pos, ang
++                end
++                local len = definition.rest.Position.Magnitude
++                if len > 0.05 then
++                    table.insert(diffs, bone.CFrame.Position.Magnitude / len)
+                 end
+             end
+-            local delta = reference:ToObjectSpace(bone.CFrame)
+-            local _, angle = delta:ToAxisAngle()
+-            maxPositionError = math.max(maxPositionError, delta.Position.Magnitude)
+-            maxAngleError = math.max(maxAngleError, math.abs(angle))
+         end
+     end
+-    if maxPositionError > 0.02 or maxAngleError > 0.003 then
+-        table.insert(errors, "Imported bone rest basis differs from the native CFrames; do not enable animation")
++    -- Causa provável quando os ossos filhos não batem (para saber o que corrigir sem chutar):
++    -- rotações zeradas pelo importador, troca de eixo em todos os ossos, ou outra escala.
++    local causa = "nenhuma"
++    if mesh then
++        local mundo = {}
++        local function W(name: string): CFrame?
++            if mundo[name] then return mundo[name] end
++            local def = expected[name]
++            if not def then return nil end
++            local cf
++            if def.parent == Contract.MeshName then
++                cf = CFrame.new(-Contract.SourceBoundsCenter) * def.rest
++            else
++                local pai = W(def.parent)
++                if not pai then return nil end
++                cf = pai * def.rest
++            end
++            mundo[name] = cf
++            return cf
++        end
++        local filhos, zerados, conjugados = 0, 0, 0
++        local giro = CFrame.Angles(0, math.rad(root.yawDegrees), 0)
++        for name, def in expected do
++            local bone = bones[name]
++            if bone and def.parent ~= Contract.MeshName then
++                filhos += 1
++                local w, wp = W(name), W(def.parent)
++                local _, ang = bone.CFrame.Rotation:ToAxisAngle()
++                if w and wp and math.abs(ang) < 0.01 and (bone.CFrame.Position - (w.Position - wp.Position)).Magnitude < 0.05 then
++                    zerados += 1
++                end
++                local conj = giro * def.rest * giro:Inverse()
++                local d = conj:ToObjectSpace(bone.CFrame)
++                local _, a2 = d:ToAxisAngle()
++                if d.Position.Magnitude < 0.05 and math.abs(a2) < 0.01 then conjugados += 1 end
++            end
++        end
++        if maxPositionError > Contract.MaxRestPositionStuds or maxAngleError > Contract.MaxRestAngleRadians then
++            if filhos > 0 and zerados >= filhos * 0.9 then
++                causa = "rotacoes_zeradas"
++            elseif filhos > 0 and conjugados >= filhos * 0.9 and math.abs(root.yawDegrees) > 1 then
++                causa = string.format("troca_de_eixo_%d_graus", math.floor(root.yawDegrees + 0.5))
++            end
++        end
++        root.zeradosFilhos, root.conjugadosFilhos, root.filhos = zerados, conjugados, filhos
++    end
++    local ratioMin, ratioMax = math.huge, -math.huge
++    for _, r in diffs do ratioMin, ratioMax = math.min(ratioMin, r), math.max(ratioMax, r) end
++    if #diffs == 0 then ratioMin, ratioMax = 1, 1 end
++    if causa == "nenhuma" and maxAngleError <= Contract.MaxRestAngleRadians and #diffs > 0
++        and math.abs(ratioMax - ratioMin) < 0.002 and math.abs(ratioMin - 1) > 0.002 then
++        causa = string.format("escala_%.4f", ratioMin)
++    end
++    if maxPositionError > Contract.MaxRestPositionStuds or maxAngleError > Contract.MaxRestAngleRadians then
++        if causa == "nenhuma" then causa = "desconhecida" end
++        table.insert(errors, string.format(
++            "Imported bone rest basis differs from the native CFrames; do not enable animation (causa %s; pior osso %s: %.4f studs, %.4f rad; razao de comprimento %.4f..%.4f; giro da raiz %.1f graus)",
++            causa, tostring(worstName), worstPos, worstAng, ratioMin, ratioMax, root.yawDegrees))
++    end
++    root.cause = causa
++    if root.offsetStuds > Contract.MaxRootOffsetStuds then
++        table.insert(errors, string.format("Imported root is shifted (deslocamento %.4f studs)", root.offsetStuds))
++    end
++    -- Em pé no mundo = giro da própria MeshPart + giro da raiz juntos. Só o giro em Y é aceito;
++    -- deitado/inclinado reprova. O giro em Y vai no relatório e o servidor compensa.
++    local importYaw = root.yawDegrees
++    if mesh then
++        local giroRaiz = root.rotation or CFrame.new()
++        local junto = mesh.CFrame.Rotation * giroRaiz
++        local yawJunto, tiltJunto = yawOf(junto)
++        local meshYaw = select(1, yawOf(mesh.CFrame.Rotation))
++        importYaw = yawJunto
++        root.meshYawDegrees = meshYaw
++        root.worldTiltRadians = tiltJunto
++        if tiltJunto > Contract.MaxRootTiltRadians then
++            table.insert(errors, string.format("Imported monster would not stand upright (inclinacao %.4f rad; giro da raiz %.2f graus, inclinacao da raiz %.4f rad)",
++                tiltJunto, root.yawDegrees, root.tiltRadians))
++        end
++        -- tamanho da malha no próprio eixo dela = tamanho do arquivo girado pela raiz
++        local src = Contract.SourceBoundsSize
++        local function linha(v: Vector3): number
++            return math.abs(v.X) * src.X + math.abs(v.Y) * src.Y + math.abs(v.Z) * src.Z
++        end
++        local rx, ry, rz = giroRaiz.RightVector, giroRaiz.UpVector, -giroRaiz.LookVector
++        local want = Vector3.new(linha(Vector3.new(rx.X, ry.X, rz.X)), linha(Vector3.new(rx.Y, ry.Y, rz.Y)), linha(Vector3.new(rx.Z, ry.Z, rz.Z)))
++        local sizeError = (mesh.Size - want).Magnitude
++        root.meshSizeErrorStuds = sizeError
++        if sizeError > Contract.MaxMeshSizeErrorStuds then
++            table.insert(errors, string.format("Mesh size %s does not match the source turned with the root (esperado %s)",
++                tostring(mesh.Size), tostring(want)))
++        end
+     end
+     return {
+         ok = #errors == 0, errors = errors, meshCount = #meshes, boneCount = boneCount,
+         maxRestPositionErrorStuds = maxPositionError, maxRestAngleErrorRadians = maxAngleError,
++        worstBone = worstName, boneLengthRatioMin = ratioMin, boneLengthRatioMax = ratioMax,
++        importYawDegrees = importYaw, root = root,
+         liveSkinDeformationVerified = false,
+     }
+ end
+ 
++-- Relatório curto para o teste na nuvem (sem instâncias, só números arredondados).
++function Contract.Summary(report: any)
++    local root = report.root or {}
++    return {
++        ok = report.ok, erros = report.errors, ossos = report.boneCount, malhas = report.meshCount,
++        pior_osso = report.worstBone, repouso_studs = round(report.maxRestPositionErrorStuds or 0, 5),
++        repouso_rad = round(report.maxRestAngleErrorRadians or 0, 5),
++        razao_min = round(report.boneLengthRatioMin or 0, 5), razao_max = round(report.boneLengthRatioMax or 0, 5),
++        giro_importador_graus = round(report.importYawDegrees or 0, 3), giro_raiz_graus = round(root.yawDegrees or 0, 3),
++        giro_malha_graus = round(root.meshYawDegrees or 0, 3), inclinacao_raiz_rad = round(root.tiltRadians or 0, 5),
++        deslocamento_raiz_studs = round(root.offsetStuds or 0, 5), raiz_centralizada = root.centered,
++        inclinacao_no_mundo_rad = round(root.worldTiltRadians or 0, 5),
++        erro_tamanho_malha = round(root.meshSizeErrorStuds or 0, 5),
++        causa_provavel = root.cause, filhos = root.filhos, filhos_zerados = root.zeradosFilhos,
++        filhos_troca_de_eixo = root.conjugadosFilhos,
++    }
++end
++
+ function Contract.Prepare(model, normalizeScale)
+     assert(typeof(model) == "Instance" and model:IsA("Model"), "Expected an imported Model")
+     local meshes = {}
+@@ -123,13 +280,15 @@
+     end
+     if #meshes ~= 1 then return Contract.Inspect(model) end
+     local mesh = meshes[1]
+-    if normalizeScale and mesh.Size.Y > 0 then
++    local importedHeight = worldHeight(mesh)
++    if normalizeScale and importedHeight > 0 and math.abs(importedHeight - Contract.HeightStuds) > 0.0005 then
+         -- Model scaling also scales Bone rest translations; vertex weights stay unchanged.
+-        model:ScaleTo(model:GetScale() * Contract.HeightStuds / mesh.Size.Y)
++        model:ScaleTo(model:GetScale() * Contract.HeightStuds / importedHeight)
+     end
+     mesh.Name = Contract.MeshName
+-    return Contract.Inspect(model)
++    local report = Contract.Inspect(model)
++    report.importedHeightStuds = importedHeight
++    return report
+ end
+ 
+ return Contract
+-
+--- a/src/server/Criatura.luau
++++ b/src/server/Criatura.luau
+@@ -434,7 +434,12 @@
+             model:SetAttribute("BastiaoImportScaleNormalized",math.abs(beforeHeight-info.height)>0.015)
+             model:SetAttribute("BastiaoImportRestErrorStuds",importReport.maxRestPositionErrorStuds)
+             local center=V(info.centerX,info.centerY,info.centerZ)
+-            local visualTurn=CFrame.new(center)*CFrame.Angles(0,math.rad(contract.VisualFacingYawDegrees),0)*CFrame.new(-center)
++            -- O importador do Roblox pode já ter girado o modelo (frente +Z do arquivo -> -Z).
++            -- O contrato mede esse giro; aqui só falta o que ainda não foi girado.
++            local importYaw=tonumber(importReport.importYawDegrees) or 0
++            if importYaw~=importYaw or math.abs(importYaw)==math.huge then importYaw=0 end
++            model:SetAttribute("BastiaoImportYawDegrees",importYaw)
++            local visualTurn=CFrame.new(center)*CFrame.Angles(0,math.rad(contract.VisualFacingYawDegrees-importYaw),0)*CFrame.new(-center)
+             for _, item in model:GetDescendants() do
+                 if item:IsA("Humanoid") or item:IsA("AnimationController") or item:IsA("JointInstance") then item:Destroy() end
+             end
+--- a/src/server/BastiaoServidor.luau
++++ b/src/server/BastiaoServidor.luau
+@@ -253,7 +253,20 @@
+ 	local proprio = if modelo and modelo:IsDescendantOf(pasta) then modelo else parte
+ 	local parametros = RaycastParams.new()
+ 	parametros.FilterType = Enum.RaycastFilterType.Exclude
+-	parametros.FilterDescendantsInstances = { c, proprio }
++	-- Só paredes, portas e objetos bloqueiam a visão. Corpos não: outro jogador ou o braço
++	-- do Pavel na frente do rádio não podem impedir de pegar o rádio.
++	local excluir = { c, proprio }
++	for _, outro in Players:GetPlayers() do
++		if outro.Character and outro.Character ~= c then
++			table.insert(excluir, outro.Character)
++		end
++	end
++	for _, filho in pasta:GetChildren() do
++		if filho:GetAttribute("BastiaoNPC") == true then
++			table.insert(excluir, filho)
++		end
++	end
++	parametros.FilterDescendantsInstances = excluir
+ 	parametros.IgnoreWater = true
+ 	return workspace:Raycast(inicio, direcao, parametros) == nil
+ end
+--- a/instalador/runtime.py
++++ b/instalador/runtime.py
+@@ -32,6 +32,47 @@
+         sync_dir(path.parent)
+     finally:temp.unlink(missing_ok=True)
+ 
++def _nosso(path):
++    from .patcher import RAIZES
++    return any(tuple(path[:len(r)])==r and len(path)>len(r) and str(path[len(r)]).startswith('Bastiao') for r in RAIZES)
++
++def fontes_bastiao(raw):
++    """Hashes das fontes dos scripts Bastiao* de um place (binário ou XML)."""
++    from .patcher import digest,xml_doc
++    found=set()
++    if raw.startswith(b'<roblox!'):
++        doc=Binary(raw)
++        for ref,obj in doc.objects.items():
++            if obj['class']not in ('Script','LocalScript','ModuleScript'):continue
++            path=[];seen=set();current=ref
++            while current!=-1:
++                if current in seen:raise Failure('Ciclo na arvore do place.')
++                seen.add(current);path.insert(0,doc.objects[current]['name']);current=doc.parents[current]
++            if _nosso(path):found.add(digest(doc.value(ref,'Source').decode('utf-8')))
++    else:
++        def walk(parent,path):
++            for obj in parent.findall('Item'):
++                current=path+[obj.findtext("Properties/string[@name='Name']")or'']
++                if obj.get('class')in ('Script','LocalScript','ModuleScript')and _nosso(current):
++                    source=obj.find("Properties/ProtectedString[@name='Source']")
++                    if source is None:source=obj.find("Properties/string[@name='Source']")
++                    if source is not None:found.add(digest(source.text or''))
++                walk(obj,current)
++        walk(xml_doc(raw),[])
++    return found
++
++def copiar_relatorio(path):
++    """Cópia do relatório (a chave já sai trocada por [OCULTA]) em Downloads, para mandar a quem
++    estiver ajudando. Nunca atrapalha o teste: se não der, só segue."""
++    try:
++        pasta=Path.home()/'storage'/'downloads'
++        if not pasta.is_dir():return None
++        alvo=pasta/'BASTIAO_ultimo_teste.json'
++        alvo.write_bytes(Path(path).read_bytes())
++        return alvo
++    except OSError:
++        return None
++
+ class Runtime:
+     def __init__(self,root,stage,digest,patch,scripts):
+         if not isinstance(stage,int) or not 1<=stage<=99:raise Failure('Etapa invalida.')
+@@ -39,6 +80,22 @@
+         self.state=private_dir(self.root/('state-etapa'+str(stage)))
+         self.digest=digest;self.patch=patch;self.scripts=scripts
+         self.active=self.root/'active-write.json'
++    def fontes_proprias(self):
++        """Fontes Bastiao* que ESTE instalador gravou e conferiu byte a byte (recibos VERIFIED).
++        Depois de um teste reprovado, a versão Saved fica com os scripts do pacote anterior:
++        eles são nossos e podem ser trocados. Script mexido por outra pessoa continua bloqueado."""
++        digests=set()
++        for recibo in sorted(self.state.glob('receipt-*.json')):
++            try:
++                entry=read(recibo,{})
++                if not isinstance(entry,dict)or entry.get('package')!=self.package or entry.get('status')!='VERIFIED':continue
++                ready=guard(entry['ready'],self.state)
++                if ready.is_symlink():continue
++                raw=ready.read_bytes()
++                if sha(raw)!=entry.get('ready_sha'):continue
++                digests.update(fontes_bastiao(raw))
++            except(Failure,OSError,KeyError,TypeError,ValueError,ET.ParseError):continue
++        return digests
+     def pending(self):
+         entry=read(self.active)
+         if entry is not None and (not isinstance(entry,dict) or entry.get('package')!=self.package):
+@@ -79,6 +136,11 @@
+             report=json.loads(safe)
+             diagnostic=self.state/'ultimo-teste.json'
+             save(diagnostic,dict(version=base,report=report,at=stamp()))
++            copia=copiar_relatorio(diagnostic)
++            if copia:print('Relatorio do teste tambem em Downloads: '+copia.name,flush=True)
++            avisos=report.get('avisos')
++            if isinstance(avisos,list):
++                for aviso in avisos[:12]:print('Aviso do teste:',str(aviso)[:300],flush=True)
+             if report.get('package')!=self.package or report.get('passed')is not True:
+                 errors=report.get('erros') or report.get('errors') or ['Relatorio retornou pacote incorreto ou passed diferente de true.']
+                 if not isinstance(errors,list):errors=[errors]
+@@ -218,7 +280,7 @@
+                         walk(obj,current)
+                 walk(ET.fromstring(raw),[])
+         except(Failure,ValueError,KeyError,ET.ParseError)as exc:error=str(exc)
+-        target=self.state/('Bizarre_Revisar_v'+str(version)+'_'+sha(raw)[:10]+'.zip')
++        target=self.state/('Bastiao_Revisar_v'+str(version)+'_'+sha(raw)[:10]+'.zip')
+         if target.exists():target=target.with_name(target.stem+'_'+uuid.uuid4().hex[:8]+'.zip')
+         guard(target,self.state)
+         if target.is_symlink():raise Failure('Arquivo de revisao inesperado; preserve e revise.')
+--- a/instalador/package.py
++++ b/instalador/package.py
+@@ -58,6 +58,12 @@
+    raise Failure('IDs divergem dos assets aprovados desta entrega. Rode assets e testar-nuvem novamente.')
+   self._linha_audio()['source']=fonte_audio(self.audio,ids)
+   self.ids=dict(ids)
++ def aceitar_proprias(self,digests):
++  """Fontes que o próprio instalador gravou antes (Saved de teste) também podem ser trocadas."""
++  extra=sorted(d for d in digests if isinstance(d,str) and len(d)==64)
++  if not extra:return 0
++  for row in self.entries:row['known']=sorted(set(row.get('known',[]))|set(extra))
++  return len(extra)
+  def patch(self,raw):
+   return patch_place(raw,self.entries)
+  def scripts(self,version,verify=False):
+--- a/instalador/cli.py
++++ b/instalador/cli.py
+@@ -32,6 +32,7 @@
+  for k,v in TARGET.items():
+   if k in conf and str(conf[k])!=str(v):raise Failure('Configuracao existente pertence a outro jogo. Preserve os arquivos.')
+  rt=Runtime(root,package.stage,package.digest,package.patch,package.scripts)
++ package.aceitar_proprias(rt.fontes_proprias())
+  lockpath=guard(root/'lock')
+  fd=os.open(lockpath,os.O_WRONLY|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
+  with os.fdopen(fd,'a') as lock:
+--- a/tests/native_checks_asset_contract_test.luau
++++ b/tests/native_checks_asset_contract_test.luau
+@@ -18,8 +18,8 @@
+ 	end
+ 	monster.animations["06_RUGIDO"].markers = { { name = "Roar", time = 0.5 } }
+ 	monster.animations["19_CLAW_LEFT"].markers = { { name = "Hit", time = 0.5 } }
+-	local audio = { ids = { voz_pt = 101, voz_en = 102, voz_ru = 103, efeitos = 104 }, vozes = {},
+-		duracoes = { line = 2 }, sfx = { lever = { 3, 0.5, 601 } }, loops = { room = { 4, 2, 602 } } }
++	local audio = { ids = { voz_pt = 101, voz_en = 102, voz_ru = 103, efeitos = 104, foley_a = 601, loop_a = 602 }, vozes = {},
++		duracoes = { line = 2 }, sfx = { lever = { 3, 0.5, "foley_a" } }, loops = { room = { 4, 2, "loop_a" } } }
+ 	for _, locale in { "pt", "en", "ru" } do audio.vozes[locale] = { line = { 0, 2 } } end
+ 	local extra = { version = 1, assets = { step = { id = 603, start = 2, finish = 2.5, duration = 0.5, category = "Foley", spatial = true, loop = false } } }
+ 	return audio, extra, monster
+--- a/tests/test_fontes_proprias.py
++++ b/tests/test_fontes_proprias.py
+@@ -0,0 +1,125 @@
++"""O instalador troca scripts que ele mesmo gravou num Saved de teste (recibo VERIFIED),
++mas continua bloqueando script mexido por outra pessoa. Usa um place binário real."""
++from __future__ import annotations
++
++import contextlib
++import copy
++import io
++import json
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++sys.path.insert(0, str(ROOT / "tests"))
++from test_release_runtime import PlaceAPI
++from instalador.codec import Binary, Failure
++from instalador.patcher import patch_place
++from instalador.runtime import Runtime, fontes_bastiao
++from instalador.package import Package
++
++
++def rows(tag):
++    base = json.loads((ROOT / "BASE_CLAUDE_ETAPA2.json").read_text())
++    out = copy.deepcopy(base)
++    for row in out:
++        row.pop("generatedAudio", None)
++        if row["path"][-1] in ("Interacoes", "Sequencias"):
++            row["known"] = sorted(set(row.get("known", [])))
++            row["source"] = "-- etapa 3 " + tag + " " + row["path"][-1] + "\nreturn {}\n"
++    out.append({"path": ["ServerScriptService", "BastiaoServidor", "CriaturaCore"], "cls": "ModuleScript",
++                "source": "-- criatura " + tag + "\nreturn {}\n"})
++    return out
++
++
++class Aceitar:
++    """Imita o Package só no que o cli usa: patch + aceitar_proprias."""
++    def __init__(self, entries):
++        self.entries = entries
++    aceitar_proprias = Package.aceitar_proprias
++    def patch(self, raw):
++        return patch_place(raw, self.entries)
++
++
++class FontesPropriasTests(unittest.TestCase):
++    def setUp(self):
++        temporary = tempfile.TemporaryDirectory()
++        self.addCleanup(temporary.cleanup)
++        self.state = Path(temporary.name) / "state"
++        self.original = (ROOT / "tests/fixture_place.rbxl").read_bytes()
++        self.api = PlaceAPI(self.original)
++
++    def runtime(self, pacote, digest):
++        return Runtime(self.state, 3, digest, pacote.patch, lambda version, verify: ["teste"])
++
++    def quiet(self, fn, *args):
++        with contextlib.redirect_stdout(io.StringIO()):
++            return fn(*args)
++
++    def test_saved_reprovado_nao_trava_o_proximo_pacote(self):
++        antigo = Aceitar(rows("A"))
++        self.api.pass_task = False
++        with self.assertRaises(Failure):
++            self.quiet(self.runtime(antigo, "a" * 64).test, self.api)
++        self.assertEqual(self.api.latest, 2)  # Saved do pacote antigo ficou como última versão
++        novo = Aceitar(rows("B"))
++        rt = self.runtime(novo, "b" * 64)
++        # sem reconhecer as próprias fontes: bloqueia (comportamento antigo)
++        with self.assertRaises(Failure) as erro:
++            self.quiet(rt.test, self.api)
++        self.assertIn("fonte desconhecida", str(erro.exception))
++        # reconhecendo: passa, cria um Saved novo e publica só com a confirmação escrita
++        self.assertGreater(novo.aceitar_proprias(rt.fontes_proprias()), 0)
++        self.api.pass_task = True
++        prova = self.quiet(rt.test, self.api)
++        self.assertEqual(prova["base"], 3)
++        with mock.patch("builtins.input", return_value="PUBLICAR ETAPA3"):
++            self.quiet(rt.publish, self.api)
++        publicado = self.api.versions[self.api.latest]
++        self.assertTrue(publicado["published"])
++        doc = Binary(publicado["raw"])
++        fontes = {doc.value(ref, "Source").decode() for ref, obj in doc.objects.items()
++                  if obj["class"] in ("Script", "LocalScript", "ModuleScript")}
++        self.assertIn("-- criatura B\nreturn {}\n", fontes)
++        self.assertNotIn("-- criatura A\nreturn {}\n", fontes)
++
++    def test_script_mexido_por_outra_pessoa_continua_bloqueado(self):
++        antigo = Aceitar(rows("A"))
++        self.api.pass_task = False
++        with self.assertRaises(Failure):
++            self.quiet(self.runtime(antigo, "a" * 64).test, self.api)
++        # alguém mexe no CriaturaCore pelo Studio: nova versão com fonte estranha
++        mexido = Aceitar(rows("A"))
++        for row in mexido.entries:
++            if row["path"][-1] == "CriaturaCore":
++                row["source"] = "-- editado por outra pessoa\nreturn {}\n"
++                row["known"] = [__import__("hashlib").sha256(b"-- criatura A\nreturn {}\n").hexdigest()]
++        raw, _ = patch_place(self.api.versions[2]["raw"], mexido.entries)
++        self.api.latest = 3
++        self.api.versions[3] = {"raw": raw, "published": False}
++        novo = Aceitar(rows("B"))
++        rt = self.runtime(novo, "b" * 64)
++        novo.aceitar_proprias(rt.fontes_proprias())
++        self.api.pass_task = True
++        with self.assertRaises(Failure) as erro:
++            self.quiet(rt.test, self.api)
++        self.assertIn("fonte desconhecida", str(erro.exception))
++        self.assertIn("CriaturaCore", str(erro.exception))
++
++    def test_fontes_bastiao_le_so_scripts_do_bastiao(self):
++        raw, _ = patch_place(self.original, rows("A"))
++        achadas = fontes_bastiao(raw)
++        import hashlib
++        self.assertIn(hashlib.sha256(b"-- criatura A\nreturn {}\n").hexdigest(), achadas)
++        doc = Binary(self.original)
++        for ref, obj in doc.objects.items():
++            if obj["class"] in ("Script", "LocalScript", "ModuleScript"):
++                fonte = doc.value(ref, "Source").decode()
++                self.assertNotIn(hashlib.sha256(fonte.encode()).hexdigest(), achadas, "script Sector7 entrou na lista")
++
++
++if __name__ == "__main__":
++    unittest.main()

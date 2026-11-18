@@ -1,0 +1,576 @@
+[
+ {
+  "nome": "pt_pavel_cafe",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tired] Você pegou o turno em que até o café pede transferência.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_conferencia",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[casual] Kedr, conferência de equipamento. Depois liberam a troca.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_canal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[serious] Canal três. Fala comigo antes de falar com o comando.",
+  "feito": true
+ },
+ {
+  "nome": "pt_orlov_ordem",
+  "tipo": "voz",
+  "voice_id": "SkGOoi8yfK3ONMNKMKj0",
+  "texto": "[cold] [formal] Kedr, o terminal da enfermaria perdeu a reserva. Levem o módulo. Deixem no acesso externo. Não aguardem atendimento.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_arsenal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[firm] O módulo está no carregador do arsenal. Eu vou na frente.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_lista1",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[slowly] [hesitant] Antonov. Kedr. Sokolov...",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_lista2",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[quickly] [dismissive] Impressão velha.",
+  "feito": true
+ },
+ {
+  "nome": "pt_gravacao_sokolov",
+  "tipo": "voz",
+  "voice_id": "Vt0E1AMTZdoht6B8DhXP",
+  "texto": "[flat] [formal] Sokolov, Mikhail. Apresentar-se para avaliação.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_afasta",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tense] [urgent] Kedr, afasta da porta.",
+  "feito": true
+ },
+ {
+  "nome": "pt_sistema_isolamento",
+  "tipo": "voz",
+  "voice_id": "TUQNWEvVPBLzMBSVDPUA",
+  "texto": "[formal] [calm] Exercício Última Formação iniciado. Efetivo: permaneçam em seus setores.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_confirma",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tense] Comando, aqui Antonov. Que exercício? Ninguém avisou o turno.",
+  "feito": true
+ },
+ {
+  "nome": "pt_orlov_falha",
+  "tipo": "voz",
+  "voice_id": "SkGOoi8yfK3ONMNKMKj0",
+  "texto": "[cold] [curt] Falha de protocolo. Sigam pela saída de serviço. Oficina, lado leste.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_vamos",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[urgent] Saída de serviço é pela oficina. Anda.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_entra",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] [urgent] Entra. Fecha a trava atrás de você.",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_silencio",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] Shh... Não se mexe.",
+  "feito": true
+ },
+ {
+  "nome": "pt_elena_placa",
+  "tipo": "voz",
+  "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
+  "texto": "[calm] [tired] Tem uma placa de identificação no suporte das costas. Conseguiu ver o número?",
+  "feito": true
+ },
+ {
+  "nome": "pt_pavel_731",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[quietly] Sete... três... um.",
+  "feito": true
+ },
+ {
+  "nome": "pt_elena_nome",
+  "tipo": "voz",
+  "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
+  "texto": "[softly] [sad] Ele tinha um nome.",
+  "feito": false
+ },
+ {
+  "nome": "pt_pavel_registro",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[low voice] [disturbed] O nosso turno já está no arquivo do exercício. Preenchido antes de abrirem aquela porta.",
+  "feito": false
+ },
+ {
+  "nome": "pt_pavel_sinal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] [fearful] Eu conheço esse sinal.",
+  "feito": false
+ },
+ {
+  "nome": "sfx_impacto_porta",
+  "tipo": "sfx",
+  "prompt": "Something heavy slamming against a thick steel door from the inside of a room, one violent metallic impact with deep resonance and rattling hinges, in a silent concrete bunker",
+  "segundos": 4,
+  "feito": false
+ },
+ {
+  "nome": "sfx_inspiracao",
+  "tipo": "sfx",
+  "prompt": "A long, deep, rattling inhale of a huge creature right behind a steel door, wet and heavy, unsettling, silent concrete room",
+  "segundos": 5,
+  "feito": false
+ },
+ {
+  "nome": "sfx_estatica",
+  "tipo": "sfx",
+  "prompt": "Short burst of military walkie-talkie radio static, harsh analog crackle, ending with a push-to-talk squelch click",
+  "segundos": 2,
+  "feito": false
+ },
+ {
+  "nome": "sfx_squelch",
+  "tipo": "sfx",
+  "prompt": "Single walkie-talkie squelch tail: a short click followed by a quick burst of static, dry",
+  "segundos": 1,
+  "feito": false
+ },
+ {
+  "nome": "sfx_toques_perto",
+  "tipo": "sfx",
+  "prompt": "Three slow, heavy, deliberate knocks on a thick concrete wall from the other side, very close and muffled, silent underground bunker",
+  "segundos": 4,
+  "feito": false
+ },
+ {
+  "nome": "sfx_trava",
+  "tipo": "sfx",
+  "prompt": "A heavy mechanical bolt lock slammed shut on a steel door, loud metallic clack, close up",
+  "segundos": 2,
+  "feito": false
+ },
+ {
+  "nome": "sfx_portas",
+  "tipo": "sfx",
+  "prompt": "Distant heavy blast doors slamming shut one after another down a long concrete corridor, deep metallic booms echoing",
+  "segundos": 6,
+  "feito": false
+ },
+ {
+  "nome": "loop_alarme",
+  "tipo": "sfx",
+  "prompt": "Soviet military bunker isolation alarm siren, rising and falling wail, steady and continuous",
+  "segundos": 9,
+  "feito": false
+ },
+ {
+  "nome": "loop_ambiente",
+  "tipo": "sfx",
+  "prompt": "Underground Soviet bunker ambience: low ventilation rumble, distant machinery hum, faint metallic creaks, steady, no music",
+  "segundos": 22,
+  "feito": false
+ },
+ {
+  "nome": "passos_concreto",
+  "tipo": "sfx",
+  "prompt": "Eight slow separate footsteps of military boots on a concrete floor, about half a second apart, dry, no music",
+  "segundos": 6,
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_cafe",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tired] You picked the shift where even the coffee asks for a transfer.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_conferencia",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[casual] Kedr, equipment check. Then they'll clear the shift change.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_canal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[serious] Channel three. Talk to me before you talk to command.",
+  "feito": false
+ },
+ {
+  "nome": "en_orlov_ordem",
+  "tipo": "voz",
+  "voice_id": "SkGOoi8yfK3ONMNKMKj0",
+  "texto": "[cold] [formal] Kedr, the infirmary terminal lost its backup power. Bring the module. Leave it at the external access. Do not wait for anyone.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_arsenal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[firm] The module is on the charger in the armory. I'll go ahead.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_lista1",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[slowly] [hesitant] Antonov. Kedr. Sokolov...",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_lista2",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[quickly] [dismissive] Old printout.",
+  "feito": false
+ },
+ {
+  "nome": "en_gravacao_sokolov",
+  "tipo": "voz",
+  "voice_id": "Vt0E1AMTZdoht6B8DhXP",
+  "texto": "[flat] [formal] Sokolov, Mikhail. Report for evaluation.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_afasta",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tense] [urgent] Kedr, get away from the door.",
+  "feito": false
+ },
+ {
+  "nome": "en_sistema_isolamento",
+  "tipo": "voz",
+  "voice_id": "TUQNWEvVPBLzMBSVDPUA",
+  "texto": "[formal] [calm] Exercise Last Formation has begun. All personnel: remain in your sectors.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_confirma",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tense] Command, this is Antonov. What exercise? Nobody told the shift.",
+  "feito": false
+ },
+ {
+  "nome": "en_orlov_falha",
+  "tipo": "voz",
+  "voice_id": "SkGOoi8yfK3ONMNKMKj0",
+  "texto": "[cold] [curt] Protocol fault. Use the service exit. The workshop, east side.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_vamos",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[urgent] The service exit is through the workshop. Move.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_entra",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] [urgent] Get in. Lock it behind you.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_silencio",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] Shh... Don't move.",
+  "feito": false
+ },
+ {
+  "nome": "en_elena_placa",
+  "tipo": "voz",
+  "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
+  "texto": "[calm] [tired] There's an ID plate on the back brace. Could you see the number?",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_731",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[quietly] Seven... three... one.",
+  "feito": false
+ },
+ {
+  "nome": "en_elena_nome",
+  "tipo": "voz",
+  "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
+  "texto": "[softly] [sad] He had a name.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_registro",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[low voice] [disturbed] Our shift is already in the exercise file. Filled in before they opened that door.",
+  "feito": false
+ },
+ {
+  "nome": "en_pavel_sinal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] [fearful] I know that signal.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_cafe",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tired] Тебе досталась смена, где даже кофе просится на перевод.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_conferencia",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[casual] Кедр, проверка снаряжения. Потом дадут смену.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_canal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[serious] Третий канал. Сначала говоришь со мной, потом — с командованием.",
+  "feito": false
+ },
+ {
+  "nome": "ru_orlov_ordem",
+  "tipo": "voz",
+  "voice_id": "SkGOoi8yfK3ONMNKMKj0",
+  "texto": "[cold] [formal] Кедр, терминал медблока потерял резерв. Доставьте модуль. Оставьте у внешнего доступа. Ответа не ждать.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_arsenal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[firm] Модуль на зарядке в оружейной. Я пойду первым.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_lista1",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[slowly] [hesitant] Антонов. Кедр. Соколов...",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_lista2",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[quickly] [dismissive] Старая распечатка.",
+  "feito": false
+ },
+ {
+  "nome": "ru_gravacao_sokolov",
+  "tipo": "voz",
+  "voice_id": "Vt0E1AMTZdoht6B8DhXP",
+  "texto": "[flat] [formal] Соколов, Михаил. Явиться на освидетельствование.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_afasta",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tense] [urgent] Кедр, отойди от двери.",
+  "feito": false
+ },
+ {
+  "nome": "ru_sistema_isolamento",
+  "tipo": "voz",
+  "voice_id": "TUQNWEvVPBLzMBSVDPUA",
+  "texto": "[formal] [calm] Учение «Последнее построение» начато. Личному составу оставаться в своих секторах.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_confirma",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[tense] Командование, это Антонов. Какое учение? Смену никто не предупреждал.",
+  "feito": false
+ },
+ {
+  "nome": "ru_orlov_falha",
+  "tipo": "voz",
+  "voice_id": "SkGOoi8yfK3ONMNKMKj0",
+  "texto": "[cold] [curt] Сбой протокола. Уходите через служебный выход. Мастерская, восточная сторона.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_vamos",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[urgent] Служебный выход — через мастерскую. Пошли.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_entra",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] [urgent] Заходи. Закрой засов за собой.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_silencio",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] Тсс... Не двигайся.",
+  "feito": false
+ },
+ {
+  "nome": "ru_elena_placa",
+  "tipo": "voz",
+  "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
+  "texto": "[calm] [tired] На спинном креплении есть табличка. Ты разглядел номер?",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_731",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[quietly] Семь... три... один.",
+  "feito": false
+ },
+ {
+  "nome": "ru_elena_nome",
+  "tipo": "voz",
+  "voice_id": "ELWVgJ5Mo9lF5Tha9ahW",
+  "texto": "[softly] [sad] У него было имя.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_registro",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[low voice] [disturbed] Наша смена уже в файле учения. Заполнено ещё до того, как открыли ту дверь.",
+  "feito": false
+ },
+ {
+  "nome": "ru_pavel_sinal",
+  "tipo": "voz",
+  "voice_id": "pM78bgjPVk0JXtaEnFoj",
+  "texto": "[whispers] [fearful] Я знаю этот сигнал.",
+  "feito": false
+ },
+ {
+  "nome": "sfx_passos_monstro",
+  "tipo": "sfx",
+  "prompt": "Very heavy slow footsteps of a large creature walking on concrete in another sector of an underground bunker, distant, muffled, uneven gait",
+  "segundos": 6,
+  "feito": false
+ },
+ {
+  "nome": "loop_estatica",
+  "tipo": "sfx",
+  "prompt": "Constant soft walkie-talkie radio static hiss with faint low crackle, steady and continuous",
+  "segundos": 9,
+  "feito": false
+ },
+ {
+  "nome": "sfx_vapor",
+  "tipo": "sfx",
+  "prompt": "A pressurized tank valve leaking a short hissing burst of gas that stops abruptly, inside a concrete bunker",
+  "segundos": 3,
+  "feito": false
+ },
+ {
+  "nome": "sfx_porta_desliza",
+  "tipo": "sfx",
+  "prompt": "A heavy sliding steel door moving on rusty rails, grinding metal rumble ending with a thud",
+  "segundos": 3,
+  "feito": false
+ },
+ {
+  "nome": "sfx_alavanca",
+  "tipo": "sfx",
+  "prompt": "Pulling a heavy old industrial lever switch, metallic clunk with a spring",
+  "segundos": 2,
+  "feito": false
+ },
+ {
+  "nome": "sfx_modulo_encaixe",
+  "tipo": "sfx",
+  "prompt": "Inserting a heavy battery module into a metal slot: sliding, a firm locking clunk and a short electrical hum",
+  "segundos": 2,
+  "feito": false
+ },
+ {
+  "nome": "sfx_modulo_pegar",
+  "tipo": "sfx",
+  "prompt": "Picking up a heavy metal battery case from a charging dock, a release click and a metal handle rattle",
+  "segundos": 2,
+  "feito": false
+ },
+ {
+  "nome": "sfx_terminal_bip",
+  "tipo": "sfx",
+  "prompt": "Old computer terminal beep, one short electronic tone",
+  "segundos": 1,
+  "feito": false
+ },
+ {
+  "nome": "sfx_terminal_liga",
+  "tipo": "sfx",
+  "prompt": "Old CRT computer terminal powering on: high-pitched whine, a relay click and a soft electrical hum rising",
+  "segundos": 3,
+  "feito": false
+ },
+ {
+  "nome": "sfx_chime_pa",
+  "tipo": "sfx",
+  "prompt": "Old public address system chime before an announcement, two descending tones through a cheap loudspeaker in a concrete bunker",
+  "segundos": 3,
+  "feito": false
+ },
+ {
+  "nome": "loop_motor",
+  "tipo": "sfx",
+  "prompt": "Military truck diesel engine idling outside, heard through a thick concrete wall, steady low rumble",
+  "segundos": 9,
+  "feito": false
+ },
+ {
+  "nome": "loop_ventilador",
+  "tipo": "sfx",
+  "prompt": "Large industrial ventilation fan spinning steadily inside a concrete duct, constant whooshing hum",
+  "segundos": 9,
+  "feito": false
+ }
+]

@@ -1,0 +1,89 @@
+{
+  "ambiente": "Offline Lune/Python; sem execução autenticada Roblox",
+  "checks": [
+    {
+      "name": "python",
+      "exit": 0
+    },
+    {
+      "name": "teste_geral",
+      "exit": 0
+    },
+    {
+      "name": "tests_ajuste15",
+      "exit": 0
+    },
+    {
+      "name": "tests_combate14_server",
+      "exit": 0
+    },
+    {
+      "name": "tests_effects15",
+      "exit": 0
+    },
+    {
+      "name": "tests_graphics14",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_admin",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_main",
+      "exit": 0
+    },
+    {
+      "name": "tests_integration14_renderer",
+      "exit": 0
+    },
+    {
+      "name": "tests_poses15",
+      "exit": 0
+    },
+    {
+      "name": "tests_preflight14_reset",
+      "exit": 0
+    },
+    {
+      "name": "tests_preview15",
+      "exit": 0
+    },
+    {
+      "name": "tests_projectile15",
+      "exit": 0
+    },
+    {
+      "name": "tests_renderer15",
+      "exit": 0
+    },
+    {
+      "name": "tests_validacao14",
+      "exit": 0
+    },
+    {
+      "name": "lint",
+      "exit": 0
+    },
+    {
+      "name": "tests_rastro15",
+      "exit": 0
+    },
+    {
+      "name": "patch-build",
+      "exit": 0
+    },
+    {
+      "name": "offline",
+      "exit": 0
+    },
+    {
+      "name": "diff",
+      "exit": 0
+    }
+  ]
+}

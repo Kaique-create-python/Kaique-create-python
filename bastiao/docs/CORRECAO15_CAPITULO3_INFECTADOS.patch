@@ -1,0 +1,1817 @@
+diff -ruN z14/src/client/Arma.luau z15/src/client/Arma.luau
+--- z14/src/client/Arma.luau	2026-11-18 14:31:19.635826504 +0000
++++ z15/src/client/Arma.luau	2026-11-18 15:11:36.821733217 +0000
+@@ -915,6 +915,15 @@
+ 		local tipo, alvo, normal = "nada", origem + direcao * alcance, -direcao
+ 		if r then
+ 			tipo, alvo, normal = "parede", r.Position, r.Normal
++			-- soldado infectado (capítulo 3): sangue em vez de faísca
++			local m = r.Instance and r.Instance:FindFirstAncestorWhichIsA("Model")
++			while m do
++				if m:GetAttribute("BastiaoInfectado") == true then
++					tipo = "carne"
++					break
++				end
++				m = m:FindFirstAncestorWhichIsA("Model")
++			end
+ 		end
+ 		local raiz, altura = monstroAgora()
+ 		if raiz and altura then
+diff -ruN z14/src/client/BastiaoCliente.luau z15/src/client/BastiaoCliente.luau
+--- z14/src/client/BastiaoCliente.luau	2026-11-18 14:31:19.635788272 +0000
++++ z15/src/client/BastiaoCliente.luau	2026-11-18 15:11:36.823178011 +0000
+@@ -136,6 +136,23 @@
+ else
+ 	warn("[Bastiao] arma desligada:", ArmaCliente)
+ end
++-- capítulo 3: animação de infectado, sons deles e o blackout (opcional: se faltar, o resto segue)
++local infectadosCliente = { destroy = function() end }
++do
++	local okInf, InfectadosCliente = pcall(function()
++		return require(script:WaitForChild("InfectadosCliente", 10) :: any)
++	end)
++	if okInf and type(InfectadosCliente) == "table" and type(InfectadosCliente.iniciar) == "function" then
++		local criou, criado = pcall(InfectadosCliente.iniciar, {
++			som = { efeito = function(chave: string, pos: Vector3?) return som.efeito(chave, pos) end },
++		})
++		if criou and type(criado) == "table" then
++			infectadosCliente = criado
++		else
++			warn("[Bastiao] infectados (cliente) desligados:", criado)
++		end
++	end
++end
+ ui.definirSom(function(chave: string)
+ 	som.efeito(chave)
+ end)
+@@ -154,6 +171,7 @@
+ 	pcall(efeitos.destroy)
+ 	pcall(monstroSom.parar)
+ 	pcall(armaCliente.destroy)
++	pcall(infectadosCliente.destroy)
+ 	som.parar()
+ end))
+ table.insert(conexoes, ProximityPromptService.PromptTriggered:Connect(function(prompt, quem)
+diff -ruN z14/src/client/InfectadosCliente.luau z15/src/client/InfectadosCliente.luau
+--- z14/src/client/InfectadosCliente.luau	1970-01-01 00:00:00.000000000 +0000
++++ z15/src/client/InfectadosCliente.luau	2026-11-18 15:05:35.520284333 +0000
+@@ -0,0 +1,260 @@
++--!strict
++-- PROJETO BASTIÃO :: InfectadosCliente — como os soldados infectados se mexem e soam (capítulo 3).
++-- Nada de andar duro com os braços para frente: corpo curvado, uma perna mancando e arrastando,
++-- um braço mole, ombros que se contraem, cabeça caída de lado com espasmos rápidos, arrancadas
++-- e uma garra de cima para baixo no ataque. Tudo procedural nas juntas R6 (Motor6D.Transform),
++-- cada infectado com o seu jeito (BastiaoSemente). Também toca os sons (gemido, grito, ataque, dor
++-- e morte, na cabeça deles) e escurece a tela no blackout do andar sem número.
++
++local RunService = game:GetService("RunService")
++local CollectionService = game:GetService("CollectionService")
++local Lighting = game:GetService("Lighting")
++local TweenService = game:GetService("TweenService")
++
++local InfectadosCliente = {}
++InfectadosCliente.TAG = "BastiaoInfectado"
++local rad = math.rad
++
++local function suave(a: number): number
++	a = math.clamp(a, 0, 1)
++	return a * a * (3 - 2 * a)
++end
++
++-- rotação E (nos eixos da peça-mãe, em volta da junta) convertida para Transform da Motor6D
++local function naJunta(m: Motor6D, e: CFrame): CFrame
++	local r = m.C0.Rotation
++	return r:Inverse() * e * r
++end
++
++export type Opcoes = {
++	som: any?, -- { efeito(chave, pos?): Sound? }
++}
++
++function InfectadosCliente.iniciar(op: Opcoes)
++	local api = {}
++	local vivo = true
++	local conexoes: { RBXScriptConnection } = {}
++	local corpos: { [Model]: any } = {}
++
++	local function tocar(chave: string, pos: Vector3, pitch: number?): Sound?
++		if op.som and op.som.efeito then
++			local ok, s = pcall(op.som.efeito, chave, pos)
++			if ok and typeof(s) == "Instance" then
++				if pitch then
++					(s :: Sound).PlaybackSpeed = pitch
++				end
++				return s :: Sound
++			end
++		end
++		return nil
++	end
++
++	local function ligar(m: Instance)
++		if not m:IsA("Model") or corpos[m] then
++			return
++		end
++		local raiz = m:WaitForChild("HumanoidRootPart", 5)
++		local torso = m:WaitForChild("Torso", 5)
++		if not raiz or not torso or not raiz:IsA("BasePart") then
++			return
++		end
++		local function junta(pai: Instance, nome: string): Motor6D?
++			local j = pai:FindFirstChild(nome)
++			return if j and j:IsA("Motor6D") then j else nil
++		end
++		local semente = tonumber(m:GetAttribute("BastiaoSemente")) or 1
++		local r = Random.new(semente)
++		local z = {
++			modelo = m, raiz = raiz :: BasePart, cabeca = m:FindFirstChild("Head") :: BasePart?,
++			root = junta(raiz, "RootJoint"), pescoco = junta(torso, "Neck"),
++			ombroD = junta(torso, "Right Shoulder"), ombroE = junta(torso, "Left Shoulder"),
++			quadrilD = junta(torso, "Right Hip"), quadrilE = junta(torso, "Left Hip"),
++			fase = r:NextNumber() * 6.28, curva = rad(r:NextNumber(22, 34)), lado = if r:NextNumber() < 0.5 then -1 else 1,
++			mancaDireita = r:NextNumber() < 0.5, ritmo = r:NextNumber(0.75, 1.1),
++			espasmo = 0, alvoEspasmo = CFrame.identity, espasmoAte = 0, proxEspasmo = os.clock() + r:NextNumber(0.5, 2.5),
++			proxGemido = os.clock() + r:NextNumber(1, 6), ataqueEm = -10, dorEm = -10, rng = r,
++			ultimoGrito = m:GetAttribute("BastiaoGrito"), ultimoAtaque = m:GetAttribute("BastiaoAtaque"), ultimaDor = m:GetAttribute("BastiaoDor"),
++			somDorEm = -10, morreuSom = false,
++		}
++		corpos[m] = z
++		table.insert(conexoes, m:GetAttributeChangedSignal("BastiaoGrito"):Connect(function()
++			if z.cabeca then
++				tocar(if z.rng:NextNumber() < 0.5 then "infectado_grito_1" else "infectado_grito_2", z.cabeca.Position, z.rng:NextNumber(0.9, 1.08))
++			end
++		end))
++		table.insert(conexoes, m:GetAttributeChangedSignal("BastiaoAtaque"):Connect(function()
++			z.ataqueEm = os.clock()
++			if z.cabeca then
++				tocar(if z.rng:NextNumber() < 0.5 then "infectado_ataque_1" else "infectado_ataque_2", z.cabeca.Position, z.rng:NextNumber(0.92, 1.1))
++			end
++		end))
++		table.insert(conexoes, m:GetAttributeChangedSignal("BastiaoDor"):Connect(function()
++			local agora = os.clock()
++			z.dorEm = agora
++			if z.cabeca and agora - z.somDorEm > 0.3 then
++				z.somDorEm = agora
++				tocar("infectado_dor", z.cabeca.Position, z.rng:NextNumber(0.85, 1.15))
++			end
++		end))
++		table.insert(conexoes, m:GetAttributeChangedSignal("BastiaoMorto"):Connect(function()
++			if m:GetAttribute("BastiaoMorto") == true and not z.morreuSom and z.cabeca then
++				z.morreuSom = true
++				tocar("infectado_morte", z.cabeca.Position, z.rng:NextNumber(0.9, 1.05))
++			end
++		end))
++	end
++	for _, m in CollectionService:GetTagged(InfectadosCliente.TAG) do
++		task.spawn(ligar, m)
++	end
++	table.insert(conexoes, CollectionService:GetInstanceAddedSignal(InfectadosCliente.TAG):Connect(function(m)
++		task.spawn(ligar, m)
++	end))
++	table.insert(conexoes, CollectionService:GetInstanceRemovedSignal(InfectadosCliente.TAG):Connect(function(m)
++		corpos[m :: Model] = nil
++	end))
++
++	-- ===== pose de cada quadro =====
++	local function animar(z: any, dt: number, agora: number, cam: Vector3)
++		local m = z.modelo
++		if m:GetAttribute("BastiaoMorto") == true or not z.root then
++			return
++		end
++		local pos = z.raiz.Position
++		if (pos - cam).Magnitude > 140 then
++			return
++		end
++		local v = z.raiz.AssemblyLinearVelocity
++		local vel = Vector3.new(v.X, 0, v.Z).Magnitude
++		local andando = math.clamp(vel / 8, 0, 1)
++		local dormindo = m:GetAttribute("BastiaoEstado") == "dormindo"
++		z.fase += dt * (vel * 0.85 * z.ritmo + (if andando < 0.1 then 0.9 else 0))
++		local f = z.fase
++		-- espasmos: a cabeça estala para um lado e volta (de vez em quando)
++		if agora >= z.proxEspasmo then
++			z.proxEspasmo = agora + z.rng:NextNumber(0.8, 3.2)
++			z.alvoEspasmo = CFrame.Angles(z.rng:NextNumber(-0.25, 0.35), z.rng:NextNumber(-0.7, 0.7), z.rng:NextNumber(-0.55, 0.55))
++			z.espasmoAte = agora + z.rng:NextNumber(0.08, 0.2)
++		end
++		local estala = if agora < z.espasmoAte then 1 else 0
++		z.espasmo += (estala - z.espasmo) * math.min(1, dt * (if estala > 0 then 40 else 9))
++		-- ataque (garra de cima para baixo) e tranco do tiro
++		local ta = agora - z.ataqueEm
++		local garra, bote = 0, 0
++		if ta < 0.55 then
++			garra = if ta < 0.3 then suave(ta / 0.3) else 1 - suave((ta - 0.3) / 0.25)
++			bote = if ta < 0.3 then 0 else math.sin(math.pi * math.clamp((ta - 0.3) / 0.25, 0, 1))
++		end
++		local td = agora - z.dorEm
++		local tranco = if td < 0.22 then math.sin(math.pi * td / 0.22) else 0
++		-- tronco curvado que balança e torce com o passo mancado
++		local curva = z.curva + (if dormindo then rad(14) else 0) + rad(10) * bote - rad(12) * tranco
++		local balanco = math.sin(f) * andando
++		local respira = math.sin(agora * 1.3 + z.lado) * (1 - andando)
++		local root = CFrame.Angles(-curva + rad(3) * math.sin(2 * f) * andando, rad(9) * balanco * z.lado, rad(7) * balanco + rad(4) * respira * z.lado)
++		z.root.Transform = naJunta(z.root, root)
++		-- cabeça caída de lado, levantada para olhar a presa, com espasmos
++		if z.pescoco then
++			local olhar = if dormindo then -rad(22) else curva * 0.6
++			local cab = CFrame.Angles(olhar + rad(8) * tranco, rad(6) * math.sin(agora * 0.7), rad(20) * z.lado + rad(5) * respira)
++			z.pescoco.Transform = naJunta(z.pescoco, cab:Lerp(cab * z.alvoEspasmo, z.espasmo))
++		end
++		-- braços soltos (pendurados pelo corpo curvado), um deles mole; na garra sobem e descem
++		local pendura = curva * 0.9
++		local molhe = if z.mancaDireita then 1 else -1
++		if z.ombroD then
++			local sw = rad(14) * math.sin(f + math.pi) * andando
++			local e = CFrame.Angles(pendura + sw + rad(115) * garra - rad(20) * tranco, 0, rad(7) + rad(18) * garra)
++			z.ombroD.Transform = naJunta(z.ombroD, e)
++		end
++		if z.ombroE then
++			local sw = rad(8) * math.sin(f + 0.6) * andando
++			local e = CFrame.Angles(pendura + sw + rad(95) * suave((ta - 0.08) / 0.3) * (if ta < 0.55 then 1 else 0) - rad(15) * tranco,
++				0, -rad(12) - rad(6) * molhe)
++			z.ombroE.Transform = naJunta(z.ombroE, e)
++		end
++		-- pernas: uma passa normal, a outra arrasta (passo curto, atrás)
++		local passoBom = rad(28) * math.sin(f) * andando
++		local passoRuim = rad(12) * math.sin(f + math.pi) * andando - rad(5) * andando
++		local dir = if z.mancaDireita then passoRuim else passoBom
++		local esq = if z.mancaDireita then passoBom else passoRuim
++		if z.quadrilD then
++			z.quadrilD.Transform = naJunta(z.quadrilD, CFrame.Angles(curva + dir, 0, rad(3)))
++		end
++		if z.quadrilE then
++			z.quadrilE.Transform = naJunta(z.quadrilE, CFrame.Angles(curva + esq, 0, -rad(3)))
++		end
++		-- gemidos de tempos em tempos
++		if agora >= z.proxGemido then
++			z.proxGemido = agora + z.rng:NextNumber(3.5, 8)
++			if z.cabeca and (pos - cam).Magnitude < 70 then
++				tocar(if z.rng:NextNumber() < 0.5 then "infectado_idle_1" else "infectado_idle_2", z.cabeca.Position, z.rng:NextNumber(0.88, 1.1))
++			end
++		end
++	end
++	table.insert(conexoes, RunService.Stepped:Connect(function(_t: number, dt: number)
++		if not vivo then
++			return
++		end
++		local camera = workspace.CurrentCamera
++		local cam = if camera then camera.CFrame.Position else Vector3.zero
++		local agora = os.clock()
++		for m, z in corpos do
++			if not m.Parent then
++				corpos[m] = nil
++			else
++				local ok = pcall(animar, z, math.min(dt, 0.1), agora, cam)
++				if not ok then
++					corpos[m] = nil
++				end
++			end
++		end
++	end))
++
++	-- ===== blackout: a tela escurece e perde a cor no andar sem número =====
++	local cc: ColorCorrectionEffect? = nil
++	local escuroAtual = false
++	local function atualizarBlackout()
++		local camera = workspace.CurrentCamera
++		local abaixo = camera ~= nil and camera.CFrame.Position.Y < -80
++		local quer = workspace:GetAttribute("BastiaoBlackout") == true and abaixo
++		if quer == escuroAtual then
++			return
++		end
++		escuroAtual = quer
++		if not cc then
++			local novo = Instance.new("ColorCorrectionEffect")
++			novo.Name = "BastiaoBlackoutCC"
++			novo.Brightness = 0
++			novo.Contrast = 0
++			novo.Saturation = 0
++			novo.Parent = Lighting
++			cc = novo
++		end
++		local alvo = if quer then { Brightness = -0.16, Contrast = 0.3, Saturation = -0.7, TintColor = Color3.fromRGB(205, 215, 255) }
++			else { Brightness = 0, Contrast = 0, Saturation = 0, TintColor = Color3.new(1, 1, 1) }
++		TweenService:Create(cc :: ColorCorrectionEffect, TweenInfo.new(if quer then 0.25 else 1.2), alvo):Play()
++	end
++	table.insert(conexoes, workspace:GetAttributeChangedSignal("BastiaoBlackout"):Connect(atualizarBlackout))
++	task.spawn(function()
++		while vivo do
++			pcall(atualizarBlackout)
++			task.wait(1)
++		end
++	end)
++
++	function api.destroy()
++		vivo = false
++		for _, c in conexoes do
++			c:Disconnect()
++		end
++		table.clear(conexoes)
++		table.clear(corpos)
++		if cc then
++			cc:Destroy()
++			cc = nil
++		end
++	end
++	return api
++end
++
++return InfectadosCliente
+diff -ruN z14/src/client/Som.luau z15/src/client/Som.luau
+--- z14/src/client/Som.luau	2026-11-18 14:31:19.635710748 +0000
++++ z15/src/client/Som.luau	2026-11-18 15:11:36.823672844 +0000
+@@ -71,6 +71,16 @@
+ 	ak_ferrolho = { vol = 0.9, raio = 28 },
+ 	pente_chao = { vol = 0.7, raio = 30 },
+ 	bala_metal = { vol = 0.8, raio = 80 },
++	-- capítulo 3: soldados infectados e o blackout
++	infectado_idle_1 = { vol = 0.9, raio = 55 },
++	infectado_idle_2 = { vol = 0.9, raio = 55 },
++	infectado_grito_1 = { vol = 1.5, raio = 120 },
++	infectado_grito_2 = { vol = 1.5, raio = 120 },
++	infectado_ataque_1 = { vol = 1.3, raio = 60 },
++	infectado_ataque_2 = { vol = 1.3, raio = 60 },
++	infectado_dor = { vol = 1.0, raio = 60 },
++	infectado_morte = { vol = 1.2, raio = 80 },
++	blackout = { vol = 1.6, longe = true },
+ 	bala_carne = { vol = 1.1, raio = 70 },
+ 	bala_concreto = { vol = 0.8, raio = 80 },
+ }
+@@ -83,6 +93,7 @@
+ 	pressurizacao = "vapor",
+ 	impacto_porta = "impacto_porta",
+ 	portas = "portas",
++	blackout = "blackout",
+ 	passos_longe = "passos_monstro",
+ 	trava = "trava",
+ 	tres_toques_parede = "toques_perto",
+diff -ruN z14/src/server/Arma.luau z15/src/server/Arma.luau
+--- z14/src/server/Arma.luau	2026-11-18 14:31:19.635997980 +0000
++++ z15/src/server/Arma.luau	2026-11-18 15:11:36.820844870 +0000
+@@ -56,6 +56,7 @@
+ 	compartilhado: Instance,
+ 	modelo: any, -- ArmaModelo
+ 	criatura: any?, -- { corpo(): (BasePart?, number?), atingir(info): string? }
++	infectados: any?, -- { de(inst): Model?, atingir(parte, jogador): boolean, ouvir(pos, raio) } (capítulo 3)
+ 	ignorar: (() -> { Instance })?, -- coisas que o tiro atravessa (marcadores, peças invisíveis)
+ 	log: ((string) -> ())?,
+ 	agora: (() -> number)?,
+@@ -211,6 +212,18 @@
+ 			tipo, ponto, normal = "parede", parede.Position, parede.Normal
+ 		end
+ 		local material = if parede then parede.Material and parede.Material.Name else nil
++		-- capítulo 3: soldado infectado leva o tiro (estes morrem); todo tiro acorda quem está perto
++		local inf = op.infectados
++		if inf then
++			if parede and inf.de(parede.Instance) then
++				tipo = "carne"
++				local ok, r = pcall(inf.atingir, parede.Instance, j)
++				if not ok then
++					log("[Bastiao] tiro no infectado falhou: " .. tostring(r))
++				end
++			end
++			pcall(inf.ouvir, origem, 60)
++		end
+ 		local criatura = op.criatura
+ 		if criatura then
+ 			local raiz, altura = criatura.corpo()
+diff -ruN z14/src/server/BastiaoServidor.luau z15/src/server/BastiaoServidor.luau
+--- z14/src/server/BastiaoServidor.luau	2026-11-18 14:32:52.711263948 +0000
++++ z15/src/server/BastiaoServidor.luau	2026-11-18 15:11:36.822906398 +0000
+@@ -23,7 +23,8 @@
+ local Cenario02 = require(script:WaitForChild("Cenario02"))
+ local Arma = require(script:WaitForChild("Arma"))
+ local ArmaModelo = require(moduloCompartilhado:WaitForChild("ArmaModelo"))
+-local Capitulo = Capitulo02.juntar(Capitulo01)
++local Capitulo03 = require(script:WaitForChild("Capitulo03"))
++local Capitulo = Capitulo03.juntar(Capitulo02.juntar(Capitulo01))
+ local Mundo = require(script:WaitForChild("Mundo"))
+ local Missao = require(script:WaitForChild("Missao"))
+ local Sequencias = require(script:WaitForChild("Sequencias"))
+@@ -133,7 +134,21 @@
+ local criatura: any = nil
+ local missao: any = nil
+ local recuos = 0
++-- capítulo 3: os soldados infectados (estes morrem com tiro; avisam a história quando a onda acaba)
++local Infectados = require(script:WaitForChild("Infectados"))
++local ondasLimpas = 0
++local infectados = Infectados.iniciar({
++	pasta = pasta,
++	aoTodosMortos = function()
++		if missao then
++			ondasLimpas += 1
++			missao:reportar({ id = "infectados:mortos:" .. ondasLimpas, kind = "criatura", name = "infectados_mortos" })
++		end
++	end,
++	log = warn,
++})
+ local arma = Arma.iniciar({
++	infectados = infectados,
+ 	compartilhado = moduloCompartilhado,
+ 	modelo = ArmaModelo,
+ 	criatura = {
+@@ -183,6 +198,22 @@
+ 	aviso = function(j: Player, chave: string)
+ 		apresentacao:FireClient(j, { tipo = "aviso", chave = chave })
+ 	end,
++	ruido = servicos.ruido,
++	tween = servicos.tween,
++	log = print,
++})
++-- capítulo 3: o andar sem número (Guarnição 7)
++local Cenario04 = require(script:WaitForChild("Cenario04"))
++Cenario04.construir({
++	pasta = pasta,
++	mundo = mundo,
++	cena = cena,
++	modelo = ArmaModelo,
++	arma = arma,
++	infectados = infectados,
++	aviso = function(j: Player, chave: string)
++		apresentacao:FireClient(j, { tipo = "aviso", chave = chave })
++	end,
+ 	ruido = servicos.ruido,
+ 	tween = servicos.tween,
+ 	log = print,
+diff -ruN z14/src/server/Capitulo03.luau z15/src/server/Capitulo03.luau
+--- z14/src/server/Capitulo03.luau	1970-01-01 00:00:00.000000000 +0000
++++ z15/src/server/Capitulo03.luau	2026-11-18 15:10:09.299204696 +0000
+@@ -0,0 +1,146 @@
++--!strict
++-- PROJETO BASTIÃO :: Capítulo 3 — A Guarnição (parte 1).
++-- O elevador do capítulo 2 desce para o andar sem número: a Guarnição 7, a antiga unidade do Pavel.
++--   chegada (todos na cabine, fuzis entregues) -> alojamento -> o cartão do arsenal no corpo do
++--   tenente Orlov -> BLACKOUT: as grades caem e os soldados infectados atacam (estes morrem; o 731-A
++--   não) -> todos mortos (evento da criatura "infectados_mortos") -> luz vermelha de emergência ->
++--   leitor de cartão abre o arsenal -> fim da parte 1 (checkpoint fim_cap3a).
++-- juntar() recebe a campanha já com os capítulos 1 e 2 e não mexe neles no disco.
++
++local Capitulo03 = {}
++
++local function obj(texto: string?)
++	return { tipo = "objetivo", texto = texto }
++end
++local function ent(id: string, estado: string)
++	return { tipo = "entidade", id = id, estado = estado }
++end
++local function seq(id: string)
++	return { tipo = "sequencia", id = id }
++end
++local function copia(v: any): any
++	if type(v) ~= "table" then
++		return v
++	end
++	local t = {}
++	for k, x in v do
++		t[k] = copia(x)
++	end
++	return t
++end
++
++Capitulo03.flags = { card_taken = false, infected_cleared = false }
++
++Capitulo03.nodes = {
++	cap3_chegada = {
++		exits = {
++			{
++				event = "cap3_quartel",
++				kind = "zona",
++				to = "cap3_quartel",
++				effects = { obj("cartao"), ent("cartao3", "visivel"), ent("pavel4", "cap3_quartel"), seq("c3_quartel"), { tipo = "checkpoint", id = "cap3_quartel" } },
++			},
++		},
++	},
++	cap3_quartel = {
++		exits = {
++			{
++				event = "pegar_cartao",
++				kind = "interacao",
++				to = "cap3_onda",
++				set = { card_taken = true },
++				effects = { ent("cartao3", "pego"), ent("luz3", "apagada"), ent("infectados3", "acordados"), obj("sobreviver"), seq("c3_blackout") },
++			},
++		},
++	},
++	cap3_onda = {
++		exits = {
++			{
++				event = "infectados_mortos",
++				kind = "criatura",
++				to = "cap3_limpo",
++				set = { infected_cleared = true },
++				effects = { ent("luz3", "emergencia"), obj("arsenal"), seq("c3_limpo") },
++			},
++		},
++	},
++	cap3_limpo = {
++		exits = {
++			{
++				event = "abrir_arsenal",
++				kind = "interacao",
++				to = "cap3_arsenal",
++				effects = { ent("porta_arsenal", "aberta"), ent("pavel4", "cap3_arsenal"), obj(nil), seq("c3_arsenal") },
++			},
++		},
++	},
++	cap3_arsenal = {
++		exits = {
++			{ event = "c3_arsenal_fim", kind = "sequencia", to = "fim_etapa", effects = {} },
++		},
++	},
++}
++
++Capitulo03.sequences = {
++	c3_chegada = {
++		cues = {
++			{ t = 0.0, som = "portas" },
++			{ t = 2.6, fala = "pavel_c3_chegada" },
++		},
++	},
++	c3_quartel = {
++		cues = {
++			{ t = 0.4, fala = "pavel_c3_quartel" },
++		},
++	},
++	c3_blackout = {
++		cues = {
++			{ t = 0.0, som = "blackout" },
++			{ t = 1.2, fala = "pavel_c3_blackout" },
++		},
++	},
++	c3_limpo = {
++		cues = {
++			{ t = 0.8, fala = "pavel_c3_limpo" },
++		},
++	},
++	c3_arsenal = {
++		cues = {
++			{ t = 0.0, som = "trava", pos = { 5, -116, -223.7 } },
++			{ t = 1.4, fala = "pavel_c3_arsenal" },
++		},
++	},
++}
++
++-- campanha completa: capítulos 1 e 2 + a parte 1 do capítulo 3
++function Capitulo03.juntar(anterior: any): any
++	local def = copia(anterior)
++	def.id = "bastiao_cap01_cap03"
++	def.version = 4
++	for k, v in Capitulo03.flags do
++		def.flagSchema[k] = v
++	end
++	for id, no in Capitulo03.nodes do
++		assert(def.nodes[id] == nil, "nó repetido no capítulo 3: " .. id)
++		def.nodes[id] = copia(no)
++	end
++	for id, s in Capitulo03.sequences do
++		assert(def.sequences[id] == nil, "sequência repetida no capítulo 3: " .. id)
++		def.sequences[id] = copia(s)
++	end
++	-- a descida do elevador do capítulo 2 agora chega no andar sem número
++	local descida = def.nodes.cap2_descida
++	assert(descida and descida.exits and descida.exits[1] and descida.exits[1].event == "c2_descida_fim", "capítulo 2 mudou: c2_descida_fim")
++	descida.exits[1].to = "cap3_chegada"
++	descida.exits[1].effects = {
++		ent("elevador3", "chegou"), ent("armas3", "entregues"), ent("luz3", "acesa"), ent("infectados3", "dormindo"),
++		ent("cartao3", "escondido"), ent("porta_arsenal", "fechada"), ent("pavel4", "cap3_elevador"),
++		obj("cap3_explorar"), seq("c3_chegada"), { tipo = "checkpoint", id = "cap3_elevador" },
++	}
++	local fim = def.nodes.fim_etapa
++	assert(fim and fim.final, "campanha sem fim_etapa")
++	fim.onEnter = { ent("fim", "visivel"), { tipo = "checkpoint", id = "fim_cap3a" } }
++	return def
++end
++
++return Capitulo03
+diff -ruN z14/src/server/Cenario03.luau z15/src/server/Cenario03.luau
+--- z14/src/server/Cenario03.luau	2026-11-18 14:41:56.164971904 +0000
++++ z15/src/server/Cenario03.luau	2026-11-18 15:12:40.920729680 +0000
+@@ -316,6 +316,27 @@
+ 		fusiveis[i] = f
+ 		promptsFusivel[i] = promptEm(alvo, "PegarFusivel")
+ 	end
++	-- um soldado da guarnição caído perto da caixa de fusíveis do sul (prenúncio do capítulo 3)
++	do
++		local base = CFrame.new(198, PISO + 0.5, Z1 - 6) * CFrame.Angles(0, math.rad(-35), 0)
++		local farda = Color3.fromRGB(86, 96, 70)
++		peca(pasta, "BastiaoSoldadoTronco", V(2, 1, 2), base, farda, Enum.Material.Fabric, false)
++		peca(pasta, "BastiaoSoldadoCabeca", V(1, 1, 1), base * CFrame.new(0, 0, -1.6) * CFrame.Angles(0, 0, math.rad(80)), Color3.fromRGB(150, 140, 120), Enum.Material.SmoothPlastic, false)
++		peca(pasta, "BastiaoSoldadoBraco", V(1, 1, 2), base * CFrame.new(1.7, 0, -0.9) * CFrame.Angles(0, math.rad(-60), 0), farda, Enum.Material.Fabric, false)
++		peca(pasta, "BastiaoSoldadoPerna", V(1, 1, 2), base * CFrame.new(0.5, 0, 2), Color3.fromRGB(60, 66, 50), Enum.Material.Fabric, false)
++		peca(pasta, "BastiaoSoldadoPerna", V(1, 1, 2), base * CFrame.new(-0.6, 0, 2.1), Color3.fromRGB(60, 66, 50), Enum.Material.Fabric, false)
++		for i, p in { { base * CFrame.new(0, -0.47, 0), V(6, 0.05, 6) }, { CFrame.new(X0 + 0.5, PISO + 3, -386), V(0.1, 4, 3) }, { CFrame.new(205, PISO + 3, Z1 - 0.4), V(3, 4, 0.1) } } do
++			local m = peca(pasta, "BastiaoSangueSub" .. i, p[2], p[1], CONCRETO_ESCURO, Enum.Material.Concrete, false)
++			m.Transparency = 1
++			for _, face in { Enum.NormalId.Top, Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right } do
++				local d = Instance.new("Decal")
++				d.Texture = "rbxassetid://123520418475309" -- Blood Splatter (mihailuser1), a mesma da arma
++				d.Face = face
++				d.Color3 = Color3.fromRGB(90, 10, 10)
++				d.Parent = m
++			end
++		end
++	end
+ 	local alvoPainel = peca(pasta, "BastiaoPainelPrompt", V(0.2, 3, 4), CFrame.new(X1 - 2.9, PISO + 4.5, -400), METAL, Enum.Material.Metal, false)
+ 	alvoPainel.Transparency = 1
+ 	alvoPainel.CanQuery = false
+diff -ruN z14/src/server/Cenario04.luau z15/src/server/Cenario04.luau
+--- z14/src/server/Cenario04.luau	1970-01-01 00:00:00.000000000 +0000
++++ z15/src/server/Cenario04.luau	2026-11-18 15:39:10.720816271 +0000
+@@ -0,0 +1,501 @@
++--!strict
++-- PROJETO BASTIÃO :: Cenario04 — capítulo 3: o andar sem número (a Guarnição 7).
++-- Área nova, 120 studs abaixo de tudo (nada encosta no mapa do Sector7 nem na subestação):
++--   cabine do elevador (um botão sem número) -> saguão com barricada -> corredor -> alojamento
++--   (beliches, armários, o corpo do tenente Orlov com o cartão do arsenal, grades de ventilação)
++--   -> corredor curto -> porta do arsenal com leitor de cartão -> arsenal.
++-- Entidades: elevador3, armas3, luz3 (acesa/apagada/emergencia: o blackout), infectados3
++-- (nenhum/dormindo/acordados), cartao3, porta_arsenal e pavel4. Interações: pegar_cartao,
++-- abrir_arsenal, municao3_1 e municao3_2. Zona cap3_quartel e os pontos de renascer.
++
++local Players = game:GetService("Players")
++
++local Cenario04 = {}
++local V = Vector3.new
++local PISO = -120 -- topo do piso
++Cenario04.PISO = PISO
++Cenario04.ZONA_QUARTEL = V(0, PISO + 3, -168)
++Cenario04.SPAWN_ELEVADOR = CFrame.lookAt(V(0, PISO + 3.2, -80), V(0, PISO + 3.2, -95))
++Cenario04.SPAWN_QUARTEL = CFrame.lookAt(V(0, PISO + 3.2, -158), V(0, PISO + 3.2, -175))
++Cenario04.SPAWN_ARSENAL = CFrame.lookAt(V(0, PISO + 3.2, -232), V(0, PISO + 3.2, -245))
++Cenario04.DORMINDO = { CFrame.lookAt(V(2.6, PISO, -140), V(4, PISO, -140)), CFrame.lookAt(V(-16, PISO, -178), V(-20, PISO, -178)),
++	CFrame.lookAt(V(17, PISO, -197), V(22, PISO, -197)) }
++Cenario04.ONDA = { CFrame.lookAt(V(-21.5, PISO, -172), V(0, PISO, -180)), CFrame.lookAt(V(21.5, PISO, -174), V(0, PISO, -180)),
++	CFrame.lookAt(V(-21.5, PISO, -197), V(0, PISO, -185)), CFrame.lookAt(V(21.5, PISO, -199), V(0, PISO, -185)),
++	CFrame.lookAt(V(0, PISO, -216), V(0, PISO, -190)), CFrame.lookAt(V(0, PISO, -118), V(0, PISO, -150)),
++	CFrame.lookAt(V(-10, PISO, -98), V(0, PISO, -110)) }
++
++local CONCRETO = Color3.fromRGB(84, 86, 82)
++local CONCRETO_ESCURO = Color3.fromRGB(52, 53, 50)
++local PINTURA = Color3.fromRGB(70, 88, 78) -- verde-cinza soviético na metade de baixo das paredes
++local METAL = Color3.fromRGB(66, 70, 68)
++local METAL_ESCURO = Color3.fromRGB(38, 40, 40)
++local AREIA = Color3.fromRGB(138, 122, 88)
++local SANGUE = "rbxassetid://123520418475309" -- Blood Splatter (mihailuser1), a mesma da arma
++
++export type Opcoes = {
++	pasta: Instance,
++	mundo: any,
++	cena: any,
++	modelo: any?, -- ArmaModelo (fuzis no arsenal)
++	arma: any?, -- Arma (servidor): dar/tem
++	infectados: any?, -- Infectados (servidor)
++	aviso: ((jogador: Player, chave: string) -> ())?,
++	ruido: ((chave: string, pos: Vector3) -> ())?,
++	tween: ((inst: Instance, tempo: number, alvo: { [string]: any }) -> ())?,
++	log: ((string) -> ())?,
++}
++
++local function peca(pai: Instance, nome: string, tam: Vector3, cf: CFrame, cor: Color3, material: Enum.Material?, colide: boolean?): Part
++	local p = Instance.new("Part")
++	p.Name = nome
++	p.Anchored = true
++	p.CanCollide = colide ~= false
++	p.CanTouch = false
++	p.Size = tam
++	p.CFrame = cf
++	p.Color = cor
++	p.Material = material or Enum.Material.Concrete
++	p.TopSurface = Enum.SurfaceType.Smooth
++	p.BottomSurface = Enum.SurfaceType.Smooth
++	p.Parent = pai
++	return p
++end
++
++local function promptEm(pai: BasePart, nome: string): ProximityPrompt
++	local p = Instance.new("ProximityPrompt")
++	p.Name = nome
++	p.ActionText = nome
++	p.ObjectText = ""
++	p.Style = Enum.ProximityPromptStyle.Custom
++	p.MaxActivationDistance = 7
++	p.HoldDuration = 0.4
++	p.RequiresLineOfSight = false
++	p.Enabled = false
++	p.KeyboardKeyCode = Enum.KeyCode.E
++	p.GamepadKeyCode = Enum.KeyCode.ButtonX
++	p:SetAttribute("Bastiao", true)
++	p.Parent = pai
++	return p
++end
++
++local function mancha(pai: BasePart, face: Enum.NormalId, transp: number?)
++	local d = Instance.new("Decal")
++	d.Texture = SANGUE
++	d.Face = face
++	d.Color3 = Color3.fromRGB(90, 10, 10)
++	d.Transparency = transp or 0.1
++	d.Parent = pai
++end
++
++-- sala retangular: piso, teto e quatro paredes (com vãos de porta de 8 de largura onde pedir)
++local function jogadores(): { Player }
++	local ok, l = pcall(function()
++		return Players:GetPlayers()
++	end)
++	return if ok and type(l) == "table" then l else {}
++end
++
++local function sala(pai: Instance, nome: string, x0: number, x1: number, z0: number, z1: number, altura: number, vaos: { [string]: number })
++	local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
++	local lx, lz = x1 - x0, z1 - z0
++	peca(pai, nome .. "Piso", V(lx, 1, lz), CFrame.new(cx, PISO - 0.5, cz), CONCRETO_ESCURO)
++	peca(pai, nome .. "Teto", V(lx, 1, lz), CFrame.new(cx, PISO + altura + 0.5, cz), CONCRETO_ESCURO)
++	local function parede(lado: string, a0: number, a1: number, fixo: number, eixoX: boolean)
++		local vao = vaos[lado]
++		local trechos = if vao then { { a0, vao - 4 }, { vao + 4, a1 } } else { { a0, a1 } }
++		for _, t in trechos do
++			local comp = t[2] - t[1]
++			if comp > 0.05 then
++				local meio = (t[1] + t[2]) / 2
++				local tam = if eixoX then V(comp, altura, 1) else V(1, altura, comp)
++				local cf = if eixoX then CFrame.new(meio, PISO + altura / 2, fixo) else CFrame.new(fixo, PISO + altura / 2, meio)
++				peca(pai, nome .. "Parede", tam, cf, CONCRETO)
++				-- metade de baixo pintada (padrão de quartel soviético)
++				local tamP = if eixoX then V(comp, 3.2, 1.06) else V(1.06, 3.2, comp)
++				local cfP = if eixoX then CFrame.new(meio, PISO + 1.6, fixo) else CFrame.new(fixo, PISO + 1.6, meio)
++				peca(pai, nome .. "Barrado", tamP, cfP, PINTURA, Enum.Material.SmoothPlastic, false)
++			end
++		end
++		if vao and altura > 8 then
++			local tamV = if eixoX then V(8, altura - 8, 1) else V(1, altura - 8, 8)
++			local cfV = if eixoX then CFrame.new(vao, PISO + 8 + (altura - 8) / 2, fixo) else CFrame.new(fixo, PISO + 8 + (altura - 8) / 2, vao)
++			peca(pai, nome .. "Verga", tamV, cfV, CONCRETO)
++		end
++	end
++	parede("norte", x0, x1, z1 + 0.5, true)
++	parede("sul", x0, x1, z0 - 0.5, true)
++	parede("oeste", z0, z1, x0 - 0.5, false)
++	parede("leste", z0, z1, x1 + 0.5, false)
++end
++
++function Cenario04.construir(op: Opcoes): any
++	local log = op.log or print
++	local pasta = Instance.new("Model")
++	pasta.Name = "BastiaoGuarnicao"
++	pasta.Parent = op.pasta
++
++	-- ===== estrutura =====
++	sala(pasta, "BastiaoCabine", -4, 4, -84, -76, 9, { sul = 0 })
++	sala(pasta, "BastiaoSaguao", -14, 14, -104, -84, 11, { norte = 0, sul = 0 })
++	sala(pasta, "BastiaoCorredor3", -4, 4, -164, -104, 9, { norte = 0, sul = 0 })
++	sala(pasta, "BastiaoAlojamento", -24, 24, -206, -164, 11, { norte = 0, sul = 0 })
++	sala(pasta, "BastiaoCorredorArsenal", -4, 4, -224, -206, 9, { norte = 0, sul = 0 })
++	sala(pasta, "BastiaoArsenal", -12, 12, -250, -224, 10, { norte = 0 })
++
++	-- ===== cabine do elevador: portas que abrem e o painel de um botão só =====
++	local portas = {}
++	for i, x in { -1.5, 1.5 } do
++		portas[i] = peca(pasta, "BastiaoElevadorPorta", V(3, 8, 0.3), CFrame.new(x, PISO + 4, -84.1), METAL, Enum.Material.DiamondPlate)
++	end
++	local painel = peca(pasta, "BastiaoElevadorPainel", V(0.2, 1.6, 0.9), CFrame.new(3.4, PISO + 4.2, -82), METAL_ESCURO, Enum.Material.Metal, false)
++	peca(pasta, "BastiaoBotaoSemNumero", V(0.12, 0.35, 0.35), painel.CFrame * CFrame.new(-0.15, 0, 0), Color3.fromRGB(190, 30, 24), Enum.Material.Neon, false)
++	peca(pasta, "BastiaoCorrimaoCabine", V(0.2, 0.2, 7), CFrame.new(-3.6, PISO + 3.4, -80), METAL_ESCURO, Enum.Material.Metal, false)
++
++	-- ===== saguão: barricada de sacos de areia, mesa virada, sangue =====
++	for i = 0, 7 do
++		local x = -7 + (i % 4) * 2.1
++		local y = PISO + 0.45 + math.floor(i / 4) * 0.85
++		peca(pasta, "BastiaoSacoAreia", V(2, 0.85, 1.1), CFrame.new(x, y, -96) * CFrame.Angles(0, math.rad((i * 7) % 11 - 5), 0), AREIA, Enum.Material.Fabric)
++	end
++	local mesa = peca(pasta, "BastiaoMesaVirada", V(5, 0.3, 2.6), CFrame.new(7, PISO + 1.3, -92) * CFrame.Angles(math.rad(80), math.rad(20), 0), Color3.fromRGB(92, 64, 40), Enum.Material.Wood)
++	mancha(mesa, Enum.NormalId.Top, 0.3)
++	local chaoSaguao = peca(pasta, "BastiaoManchaSaguao", V(6, 0.05, 6), CFrame.new(-2, PISO + 0.03, -100), CONCRETO_ESCURO, Enum.Material.Concrete, false)
++	chaoSaguao.Transparency = 1
++	mancha(chaoSaguao, Enum.NormalId.Top, 0.05)
++	local placa = peca(pasta, "BastiaoPlacaGuarnicao", V(6, 1.4, 0.1), CFrame.new(0, PISO + 8.6, -84.6), Color3.fromRGB(150, 24, 20), Enum.Material.SmoothPlastic, false)
++	local g = Instance.new("SurfaceGui")
++	g.Face = Enum.NormalId.Back
++	g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
++	g.PixelsPerStud = 50
++	local t = Instance.new("TextLabel")
++	t.Size = UDim2.fromScale(1, 1)
++	t.BackgroundTransparency = 1
++	t.Font = Enum.Font.GothamBlack
++	t.TextScaled = true
++	t.TextColor3 = Color3.fromRGB(235, 225, 200)
++	t.Text = "ГАРНИЗОН-7"
++	t.Parent = g
++	g.Parent = placa
++
++	-- ===== corredor: canos no teto, portas fechadas dos lados, barricada furada =====
++	for _, x in { -3, -2.2 } do
++		peca(pasta, "BastiaoCano3", V(0.5, 0.5, 60), CFrame.new(x, PISO + 8.2, -134), METAL_ESCURO, Enum.Material.Metal, false)
++	end
++	for i, z in { -116, -136, -152 } do
++		local lado = if i % 2 == 0 then 1 else -1
++		peca(pasta, "BastiaoPortaLateral", V(0.3, 7, 4), CFrame.new(3.85 * lado, PISO + 3.5, z), METAL, Enum.Material.Metal)
++	end
++	for i = 0, 3 do
++		peca(pasta, "BastiaoSacoAreia", V(2, 0.85, 1.1), CFrame.new(-3 + i * 1.6, PISO + 0.45, -128), AREIA, Enum.Material.Fabric)
++	end
++	local rastro = peca(pasta, "BastiaoRastroSangue", V(2, 0.05, 14), CFrame.new(-1, PISO + 0.03, -148), CONCRETO_ESCURO, Enum.Material.Concrete, false)
++	rastro.Transparency = 1
++	mancha(rastro, Enum.NormalId.Top, 0.15)
++
++	-- ===== alojamento: beliches, armários, grades de ventilação e o tenente =====
++	for _, x in { -18, 18 } do
++		for k = 0, 4 do
++			local z = -170 - k * 7.4
++			local base = CFrame.new(x, PISO, z)
++			for _, c in { { -0.9, -2.9 }, { 0.9, -2.9 }, { -0.9, 2.9 }, { 0.9, 2.9 } } do
++				peca(pasta, "BastiaoBelichePe", V(0.2, 6, 0.2), base * CFrame.new(c[1], 3, c[2]), METAL_ESCURO, Enum.Material.Metal, false)
++			end
++			for _, y in { 1.2, 4.4 } do
++				peca(pasta, "BastiaoBelicheEstrado", V(2, 0.2, 6), base * CFrame.new(0, y, 0), METAL, Enum.Material.Metal)
++				peca(pasta, "BastiaoColchao", V(1.9, 0.45, 5.8), base * CFrame.new(0, y + 0.32, 0) * CFrame.Angles(0, math.rad((k * 3) % 7 - 3), 0), Color3.fromRGB(96, 104, 82), Enum.Material.Fabric)
++			end
++		end
++	end
++	for i = 0, 5 do
++		local x = -10 + i * 4
++		peca(pasta, "BastiaoArmarioSoldado", V(1.8, 6, 1.6), CFrame.new(x, PISO + 3, -205), METAL, Enum.Material.Metal)
++	end
++	local grades = {}
++	for _, p in { V(-23.4, PISO + 2, -172), V(23.4, PISO + 2, -174), V(-23.4, PISO + 2, -197), V(23.4, PISO + 2, -199) } do
++		local gr = peca(pasta, "BastiaoGradeVentilacao", V(0.3, 2.4, 3), CFrame.new(p), METAL_ESCURO, Enum.Material.DiamondPlate)
++		table.insert(grades, gr)
++	end
++	-- mesa do tenente e o corpo dele no chão (peças, sem ser personagem), com o cartão no bolso
++	peca(pasta, "BastiaoMesaTenente", V(5, 0.3, 3), CFrame.new(6, PISO + 2.6, -186), Color3.fromRGB(92, 64, 40), Enum.Material.Wood)
++	for _, c in { { 3.8, -184.8 }, { 8.2, -184.8 }, { 3.8, -187.2 }, { 8.2, -187.2 } } do
++		peca(pasta, "BastiaoMesaPe", V(0.25, 2.5, 0.25), CFrame.new(c[1], PISO + 1.25, c[2]), Color3.fromRGB(70, 48, 30), Enum.Material.Wood, false)
++	end
++	local corpo = CFrame.new(5.5, PISO + 0.5, -190) * CFrame.Angles(0, math.rad(25), 0)
++	local tronco = peca(pasta, "BastiaoTenenteTronco", V(2, 1, 2), corpo, Color3.fromRGB(86, 96, 70), Enum.Material.Fabric, false)
++	peca(pasta, "BastiaoTenenteCabeca", V(1, 1, 1), corpo * CFrame.new(0, 0, -1.6) * CFrame.Angles(0, math.rad(20), math.rad(70)), Color3.fromRGB(150, 140, 120), Enum.Material.SmoothPlastic, false)
++	peca(pasta, "BastiaoTenenteBraco", V(1, 1, 2), corpo * CFrame.new(1.6, 0, -0.6) * CFrame.Angles(0, math.rad(-40), 0), Color3.fromRGB(86, 96, 70), Enum.Material.Fabric, false)
++	peca(pasta, "BastiaoTenenteBraco", V(1, 1, 2), corpo * CFrame.new(-1.5, 0, 0.4) * CFrame.Angles(0, math.rad(15), 0), Color3.fromRGB(86, 96, 70), Enum.Material.Fabric, false)
++	peca(pasta, "BastiaoTenentePerna", V(1, 1, 2), corpo * CFrame.new(0.5, 0, 2), Color3.fromRGB(60, 66, 50), Enum.Material.Fabric, false)
++	peca(pasta, "BastiaoTenentePerna", V(1, 1, 2), corpo * CFrame.new(-0.6, 0, 2.1) * CFrame.Angles(0, math.rad(-12), 0), Color3.fromRGB(60, 66, 50), Enum.Material.Fabric, false)
++	local poca = peca(pasta, "BastiaoPocaSangue", V(5, 0.05, 5), CFrame.new(5.5, PISO + 0.03, -190), CONCRETO_ESCURO, Enum.Material.Concrete, false)
++	poca.Transparency = 1
++	mancha(poca, Enum.NormalId.Top, 0)
++	local cartao = peca(pasta, "BastiaoCartaoArsenal", V(0.7, 0.06, 0.45), corpo * CFrame.new(0.4, 0.55, -0.3), Color3.fromRGB(200, 196, 170), Enum.Material.SmoothPlastic, false)
++	local listra = peca(pasta, "BastiaoCartaoListra", V(0.7, 0.07, 0.1), cartao.CFrame * CFrame.new(0, 0, -0.12), Color3.fromRGB(170, 30, 24), Enum.Material.SmoothPlastic, false)
++	local alvoCartao = peca(pasta, "BastiaoCartaoPrompt", V(2, 1.5, 2), corpo * CFrame.new(0, 0.8, 0), METAL, Enum.Material.Metal, false)
++	alvoCartao.Transparency = 1
++	alvoCartao.CanQuery = false
++	local promptCartao = promptEm(alvoCartao, "PegarCartao")
++
++	-- ===== porta do arsenal com leitor de cartão; fuzis no suporte lá dentro =====
++	local portaArsenal = peca(pasta, "BastiaoPortaArsenal", V(8, 8, 0.6), CFrame.new(0, PISO + 4, -224.3), METAL, Enum.Material.DiamondPlate)
++	local faixaArsenal = peca(pasta, "BastiaoFaixaArsenal", V(8.02, 0.6, 0.62), CFrame.new(0, PISO + 7.4, -224.3), Color3.fromRGB(214, 168, 32), Enum.Material.SmoothPlastic, false)
++	local leitor = peca(pasta, "BastiaoLeitorCartao", V(0.8, 1.2, 0.3), CFrame.new(5, PISO + 4, -223.7), METAL_ESCURO, Enum.Material.Metal, false)
++	local luzLeitor = peca(pasta, "BastiaoLuzLeitor", V(0.3, 0.3, 0.05), leitor.CFrame * CFrame.new(0, 0.35, 0.17), Color3.fromRGB(190, 30, 24), Enum.Material.Neon, false)
++	local promptArsenal = promptEm(leitor, "UsarCartao")
++	if op.modelo then
++		for i, x in { -6, -3, 0, 3, 6 } do
++			local ok, f = pcall(op.modelo.construir, { ancorado = true })
++			if ok and f then
++				f.Name = "BastiaoFuzilArsenal" .. i
++				local corpoF = f.PrimaryPart :: BasePart
++				local destino = CFrame.new(x, PISO + 2.2, -249) * CFrame.Angles(math.rad(-90), 0, 0)
++				local delta = destino * corpoF.CFrame:Inverse()
++				for _, d in f:GetDescendants() do
++					if d:IsA("BasePart") then
++						d.CFrame = delta * d.CFrame
++					end
++				end
++				f.Parent = pasta
++			end
++		end
++	end
++	peca(pasta, "BastiaoSuporteFuzis", V(16, 0.4, 1), CFrame.new(0, PISO + 1, -249.2), METAL_ESCURO, Enum.Material.Metal)
++	local caixas = {}
++	for i, c in { V(10, PISO + 0.6, -100), V(20, PISO + 0.6, -167), V(-8, PISO + 0.6, -236) } do
++		local caixa = peca(pasta, "BastiaoCaixaMunicao3", V(2.2, 1.2, 1.4), CFrame.new(c), Color3.fromRGB(70, 82, 52), Enum.Material.Metal)
++		caixas[i] = caixa
++	end
++
++	-- ===== luz: calhas que piscam, blackout e a luz vermelha de emergência =====
++	local calhas = {}
++	for _, p in { V(0, PISO + 8.6, -80), V(0, PISO + 10.6, -94), V(0, PISO + 8.6, -116), V(0, PISO + 8.6, -136), V(0, PISO + 8.6, -156),
++		V(-10, PISO + 10.6, -176), V(10, PISO + 10.6, -176), V(-10, PISO + 10.6, -196), V(10, PISO + 10.6, -196), V(0, PISO + 8.6, -215),
++		V(0, PISO + 9.6, -237) } do
++		local c = peca(pasta, "BastiaoCalha3", V(5, 0.3, 0.8), CFrame.new(p), Color3.fromRGB(235, 238, 230), Enum.Material.Neon, false)
++		local l = Instance.new("PointLight")
++		l.Color = Color3.fromRGB(225, 232, 255)
++		l.Brightness = 1.3
++		l.Range = 24
++		l.Shadows = false
++		l.Parent = c
++		table.insert(calhas, { parte = c, luz = l })
++	end
++	local giroflex = {}
++	for _, p in { V(-13.5, PISO + 9.5, -86), V(-23.5, PISO + 9.5, -166), V(23.5, PISO + 9.5, -204), V(3.5, PISO + 8, -222) } do
++		local b = peca(pasta, "BastiaoGiroflex", V(0.6, 0.6, 0.6), CFrame.new(p), Color3.fromRGB(80, 10, 8), Enum.Material.SmoothPlastic, false)
++		local l = Instance.new("SpotLight")
++		l.Color = Color3.fromRGB(255, 30, 20)
++		l.Brightness = 0
++		l.Range = 30
++		l.Angle = 70
++		l.Parent = b
++		table.insert(giroflex, { parte = b, luz = l })
++	end
++	local modoLuz = "acesa"
++	local function calhasLigadas(sim: boolean)
++		for _, c in calhas do
++			c.parte.Material = if sim then Enum.Material.Neon else Enum.Material.SmoothPlastic
++			c.parte.Color = if sim then Color3.fromRGB(235, 238, 230) else Color3.fromRGB(60, 60, 58)
++			c.luz.Enabled = sim
++		end
++	end
++	-- calhas que falham de vez em quando (acesa) e a luz vermelha girando (emergência), em passos
++	-- agendados (task.delay): nada de laço preso esperando
++	local giro = 0
++	local function tique()
++		if not pasta.Parent then
++			return
++		end
++		if modoLuz == "acesa" then
++			local c = calhas[math.random(1, #calhas)]
++			c.luz.Enabled = false
++			c.parte.Material = Enum.Material.SmoothPlastic
++			task.delay(0.05 + math.random() * 0.2, function()
++				if modoLuz == "acesa" then
++					c.luz.Enabled = true
++					c.parte.Material = Enum.Material.Neon
++				end
++			end)
++			task.delay(0.6 + math.random() * 1.8, tique)
++		elseif modoLuz == "emergencia" then
++			giro += 0.35
++			for i, gf in giroflex do
++				gf.parte.CFrame = CFrame.new(gf.parte.CFrame.Position) * CFrame.Angles(0, giro + i, 0) * CFrame.Angles(math.rad(-25), 0, 0)
++			end
++			task.delay(0.06, tique)
++		else
++			task.delay(0.5, tique)
++		end
++	end
++	task.delay(1, tique)
++
++	-- ===== entidades =====
++	local function E(id: string, estados: { string }, aplicar: (string, boolean) -> (), pronto: (() -> boolean)?)
++		local set = {}
++		for _, e in estados do
++			set[e] = true
++		end
++		op.mundo:registrar(id, { estados = set, aplicar = aplicar, pronto = pronto })
++	end
++	local function abrirPortasCabine(abrir: boolean, instantaneo: boolean)
++		for i, p in portas do
++			local x = if i == 1 then -1.5 else 1.5
++			local alvo = CFrame.new(if abrir then x * 3.2 else x, PISO + 4, -84.1)
++			p.CanCollide = not abrir
++			if instantaneo or not op.tween then
++				p.CFrame = alvo
++			else
++				op.tween(p, 1.6, { CFrame = alvo })
++			end
++		end
++	end
++	E("elevador3", { "fechado", "chegou" }, function(estado, instantaneo)
++		if estado ~= "chegou" then
++			abrirPortasCabine(false, true)
++			return
++		end
++		-- todos descem juntos: quem estiver vivo aparece dentro da cabine
++		local lugares = { V(-2, PISO + 3, -79), V(2, PISO + 3, -79), V(-2, PISO + 3, -81.5), V(2, PISO + 3, -81.5), V(0, PISO + 3, -77.6), V(0, PISO + 3, -82.6) }
++		for i, j in jogadores() do
++			local c = j.Character
++			local h = c and c:FindFirstChildOfClass("Humanoid")
++			if c and h and h.Health > 0 then
++				local p = lugares[((i - 1) % #lugares) + 1]
++				c:PivotTo(CFrame.lookAt(p, p + V(0, 0, -1)))
++			end
++		end
++		if instantaneo then
++			abrirPortasCabine(true, true)
++		else
++			abrirPortasCabine(false, true)
++			task.delay(2.2, function()
++				abrirPortasCabine(true, false)
++				if op.ruido then
++					op.ruido("trava", V(0, PISO + 4, -84))
++				end
++			end)
++		end
++	end)
++	E("armas3", { "nao", "entregues" }, function(estado, _instantaneo)
++		if estado == "entregues" and op.arma then
++			for _, j in jogadores() do
++				pcall(op.arma.dar, j)
++			end
++		end
++	end)
++	E("luz3", { "acesa", "apagada", "emergencia" }, function(estado, instantaneo)
++		modoLuz = estado
++		calhasLigadas(estado == "acesa")
++		for _, gf in giroflex do
++			gf.luz.Brightness = if estado == "emergencia" then 4 else 0
++			gf.parte.Material = if estado == "emergencia" then Enum.Material.Neon else Enum.Material.SmoothPlastic
++		end
++		workspace:SetAttribute("BastiaoBlackout", estado == "apagada")
++		if estado == "apagada" and not instantaneo and op.ruido then
++			op.ruido("blackout", V(0, PISO + 5, -180))
++		end
++	end)
++	local criados = false
++	local onda = false
++	E("infectados3", { "nenhum", "dormindo", "acordados" }, function(estado, _instantaneo)
++		local inf = op.infectados
++		if not inf then
++			return
++		end
++		if estado ~= "nenhum" and not criados then
++			criados = true
++			for _, cf in Cenario04.DORMINDO do
++				inf.criar(cf, false)
++			end
++		end
++		if estado == "acordados" and not onda then
++			onda = true
++			-- as grades de ventilação caem e eles saem de dentro das paredes
++			for _, gr in grades do
++				pcall(function()
++					gr.Anchored = false
++					gr.CanCollide = true
++					gr.AssemblyLinearVelocity = (V(0, PISO + 2, -185) - gr.CFrame.Position).Unit * 12
++				end)
++			end
++			for _, cf in Cenario04.ONDA do
++				inf.criar(cf, true)
++			end
++			inf.acordarTodos()
++		end
++	end)
++	E("cartao3", { "escondido", "visivel", "pego" }, function(estado, _instantaneo)
++		local some = estado == "pego"
++		cartao.Transparency = if some then 1 else 0
++		listra.Transparency = if some then 1 else 0
++	end)
++	E("porta_arsenal", { "fechada", "aberta" }, function(estado, instantaneo)
++		local aberta = estado == "aberta"
++		luzLeitor.Color = if aberta then Color3.fromRGB(40, 210, 80) else Color3.fromRGB(190, 30, 24)
++		local alvo = CFrame.new(0, PISO + (if aberta then 12.2 else 4), -224.3)
++		portaArsenal.CanCollide = not aberta
++		if instantaneo or not op.tween then
++			portaArsenal.CFrame = alvo
++			faixaArsenal.CFrame = alvo * CFrame.new(0, 3.4, 0)
++		else
++			op.tween(portaArsenal, 2.4, { CFrame = alvo })
++			op.tween(faixaArsenal, 2.4, { CFrame = alvo * CFrame.new(0, 3.4, 0) })
++			if op.ruido then
++				op.ruido("trava", leitor.CFrame.Position)
++			end
++		end
++	end)
++	local pavel = op.cena.pavel
++	E("pavel4", { "cap3_elevador", "cap3_quartel", "cap3_arsenal" }, function(estado, instantaneo)
++		if pavel then
++			pavel:ir(estado, instantaneo)
++		end
++	end, function()
++		return pavel == nil or pavel:chegou()
++	end)
++
++	-- ===== interações =====
++	local function pos(p: BasePart): () -> Vector3
++		return function()
++			return p.CFrame.Position
++		end
++	end
++	table.insert(op.cena.interacoes, {
++		nome = "pegar_cartao", prompt = promptCartao, posicao = pos(alvoCartao), alcance = 9,
++		evento = "pegar_cartao", requer = { { "cartao3", "visivel" } },
++	})
++	table.insert(op.cena.interacoes, {
++		nome = "abrir_arsenal", prompt = promptArsenal, posicao = pos(leitor), alcance = 9,
++		evento = "abrir_arsenal", requer = { { "porta_arsenal", "fechada" } },
++	})
++	for i, caixa in caixas do
++		local pr = promptEm(caixa, "PegarMunicao")
++		pr.MaxActivationDistance = 8
++		table.insert(op.cena.interacoes, {
++			nome = "municao3_" .. i, prompt = pr, posicao = pos(caixa), alcance = 10,
++			requer = { { "armas3", "entregues" } },
++			disponivel = function()
++				return op.arma ~= nil
++			end,
++			aoAceitar = function(j: Player)
++				if op.arma then
++					op.arma.dar(j)
++					if op.aviso then
++						op.aviso(j, "municao_cheia")
++					end
++				end
++			end,
++		})
++	end
++
++	op.cena.zonas.cap3_quartel = { centro = Cenario04.ZONA_QUARTEL, raio = 9 }
++	op.cena.spawns.cap3_elevador = Cenario04.SPAWN_ELEVADOR
++	op.cena.spawns.cap3_quartel = Cenario04.SPAWN_QUARTEL
++	op.cena.spawns.fim_cap3a = Cenario04.SPAWN_ARSENAL
++	log("[Bastiao] capítulo 3: andar sem número (Guarnição 7) pronto")
++	return { pasta = pasta, prompts = { cartao = promptCartao, arsenal = promptArsenal } }
++end
++
++return Cenario04
+diff -ruN z14/src/server/Infectados.luau z15/src/server/Infectados.luau
+--- z14/src/server/Infectados.luau	1970-01-01 00:00:00.000000000 +0000
++++ z15/src/server/Infectados.luau	2026-11-18 15:03:33.061296211 +0000
+@@ -0,0 +1,433 @@
++--!strict
++-- PROJETO BASTIÃO :: Infectados — a guarnição do andar sem número (capítulo 3).
++-- Soldados soviéticos infectados. Diferente do 731-A, estes MORREM: 100 de vida, tiro no corpo
++-- tira 34, tiro na cabeça mata na hora. O servidor anda com eles (PathfindingService), decide quando
++-- veem, gritam e atacam (garra, 18 de dano) e derruba o corpo (ragdoll) quando morrem.
++-- A animação de infectado (curvado, mancando, espasmos) e os sons ficam no cliente
++-- (InfectadosCliente), guiados pelos atributos do modelo: BastiaoEstado, BastiaoGrito, BastiaoAtaque,
++-- BastiaoDor, BastiaoMorto e BastiaoSemente.
++
++local Players = game:GetService("Players")
++local StarterPlayer = game:GetService("StarterPlayer")
++local RunService = game:GetService("RunService")
++local CollectionService = game:GetService("CollectionService")
++local PathfindingService = game:GetService("PathfindingService")
++
++local Infectados = {}
++Infectados.TAG = "BastiaoInfectado"
++Infectados.VIDA = 100
++Infectados.DANO_CORPO = 34
++Infectados.DANO_CABECA = 100
++Infectados.DANO_ATAQUE = 18
++Infectados.RECARGA_ATAQUE = 1.35
++Infectados.VISAO_DORMINDO = 14
++Infectados.VISAO_ACORDADO = 70
++-- uniforme da guarnição (catálogo, os mesmos itens soviéticos que o Pavel usava) e pele doente
++local ROUPA = { camisa = 6865584651, calca = 6866147363 }
++local CHAPEUS = { "46348897", "" } -- ushanka (Roblox) em metade deles
++local MASCARA = "21069972" -- Dust Mask (Roblox) em alguns
++local PELE = Color3.fromRGB(118, 124, 104)
++local OLHOS = Color3.fromRGB(200, 255, 120)
++
++export type Opcoes = {
++	pasta: Instance,
++	aoTodosMortos: (() -> ())?,
++	log: ((string) -> ())?,
++}
++
++local function criarRig(): Model?
++	local base = StarterPlayer:FindFirstChild("StarterCharacter")
++	if base and base:IsA("Model") then
++		return base:Clone()
++	end
++	local ok, r = pcall(function()
++		return Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R6)
++	end)
++	return if ok then r else nil
++end
++
++-- corpo mole: cada junta vira uma rótula com limite e o corpo cai de verdade
++local function ragdoll(m: Model)
++	for _, j in m:GetDescendants() do
++		if j:IsA("Motor6D") and j.Part0 and j.Part1 then
++			local a0 = Instance.new("Attachment")
++			a0.CFrame = j.C0
++			a0.Parent = j.Part0
++			local a1 = Instance.new("Attachment")
++			a1.CFrame = j.C1
++			a1.Parent = j.Part1
++			local b = Instance.new("BallSocketConstraint")
++			b.Attachment0 = a0
++			b.Attachment1 = a1
++			b.LimitsEnabled = true
++			b.UpperAngle = 55
++			b.TwistLimitsEnabled = true
++			b.TwistLowerAngle = -40
++			b.TwistUpperAngle = 40
++			b.Parent = j.Parent
++			j.Enabled = false
++		end
++	end
++	for _, p in m:GetDescendants() do
++		if p:IsA("BasePart") then
++			p.CanCollide = p.Name ~= "HumanoidRootPart"
++		end
++	end
++end
++
++function Infectados.iniciar(op: Opcoes)
++	local log = op.log or print
++	local api = {}
++	local lista: { any } = {}
++	local conexoes: { RBXScriptConnection } = {}
++	local vivo = true
++	local ondaAtiva = false
++	local avisouFim = false
++	local pasta = Instance.new("Folder")
++	pasta.Name = "BastiaoInfectados"
++	pasta.Parent = op.pasta
++	local paramsVista = RaycastParams.new()
++	paramsVista.FilterType = Enum.RaycastFilterType.Exclude
++
++	local function vestir(hum: Humanoid, semente: number)
++		local d = Instance.new("HumanoidDescription")
++		d.Shirt = ROUPA.camisa
++		d.Pants = ROUPA.calca
++		local r = Random.new(semente)
++		local chapeu = CHAPEUS[r:NextInteger(1, #CHAPEUS)]
++		d.HatAccessory = chapeu
++		d.FaceAccessory = if r:NextNumber() < 0.35 then MASCARA else ""
++		d.HeadColor, d.LeftArmColor, d.RightArmColor = PELE, PELE, PELE
++		d.TorsoColor, d.LeftLegColor, d.RightLegColor = PELE, PELE, PELE
++		local ok, erro = pcall(function()
++			hum:ApplyDescription(d)
++		end)
++		if not ok then
++			log("[Bastiao] uniforme do infectado falhou: " .. tostring(erro))
++		end
++	end
++
++	local function olhos(cabeca: BasePart)
++		for _, x in { -0.2, 0.2 } do
++			local o = Instance.new("Part")
++			o.Name = "BastiaoOlho"
++			o.Size = Vector3.new(0.14, 0.07, 0.05)
++			o.Material = Enum.Material.Neon
++			o.Color = OLHOS
++			o.CanCollide = false
++			o.CanQuery = false
++			o.CanTouch = false
++			o.Massless = true
++			o.CastShadow = false
++			o.CFrame = cabeca.CFrame * CFrame.new(x, 0.12, -0.5)
++			local w = Instance.new("WeldConstraint")
++			w.Part0 = cabeca
++			w.Part1 = o
++			w.Parent = o
++			o.Parent = cabeca
++		end
++		local l = Instance.new("PointLight")
++		l.Color = OLHOS
++		l.Brightness = 0.7
++		l.Range = 5
++		l.Parent = cabeca
++	end
++
++	local function contarVivos(): number
++		local n = 0
++		for _, z in lista do
++			if not z.morto then
++				n += 1
++			end
++		end
++		return n
++	end
++	local function talvezFim()
++		if ondaAtiva and not avisouFim and contarVivos() == 0 then
++			avisouFim = true
++			if op.aoTodosMortos then
++				task.spawn(op.aoTodosMortos)
++			end
++		end
++	end
++
++	local function morrer(z: any)
++		if z.morto then
++			return
++		end
++		z.morto = true
++		z.modelo:SetAttribute("BastiaoMorto", true)
++		z.modelo:SetAttribute("BastiaoEstado", "morto")
++		pcall(ragdoll, z.modelo)
++		pcall(function()
++			z.hum:ChangeState(Enum.HumanoidStateType.Physics)
++		end)
++		task.delay(40, function()
++			if z.modelo.Parent then
++				z.modelo:Destroy()
++			end
++		end)
++		talvezFim()
++	end
++
++	-- cria um infectado num ponto; acordado = já sai caçando
++	function api.criar(cf: CFrame, acordado: boolean?): Model?
++		local rig = criarRig()
++		if not rig then
++			log("[Bastiao] infectado: sem StarterCharacter para clonar")
++			return nil
++		end
++		for _, d in rig:GetDescendants() do
++			if d:IsA("LuaSourceContainer") then
++				d:Destroy()
++			end
++		end
++		local hum = rig:FindFirstChildOfClass("Humanoid")
++		local raiz = rig:FindFirstChild("HumanoidRootPart")
++		local cabeca = rig:FindFirstChild("Head")
++		if not hum or not raiz or not raiz:IsA("BasePart") or not cabeca or not cabeca:IsA("BasePart") then
++			rig:Destroy()
++			return nil
++		end
++		local semente = math.random(1, 1000000)
++		rig.Name = "BastiaoInfectado"
++		rig.PrimaryPart = raiz
++		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
++		hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
++		hum.BreakJointsOnDeath = false
++		hum.RequiresNeck = false
++		hum.MaxHealth = Infectados.VIDA
++		hum.Health = Infectados.VIDA
++		hum.WalkSpeed = 8 + (semente % 5)
++		rig:SetAttribute(Infectados.TAG, true)
++		rig:SetAttribute("BastiaoSemente", semente)
++		rig:SetAttribute("BastiaoEstado", if acordado then "cacando" else "dormindo")
++		rig:SetAttribute("BastiaoGrito", 0)
++		rig:SetAttribute("BastiaoAtaque", 0)
++		rig:SetAttribute("BastiaoDor", 0)
++		rig:PivotTo(cf + Vector3.new(0, 3, 0))
++		olhos(cabeca)
++		rig.Parent = pasta
++		CollectionService:AddTag(rig, Infectados.TAG)
++		pcall(function()
++			raiz:SetNetworkOwner(nil)
++		end)
++		local z = {
++			modelo = rig, hum = hum, raiz = raiz, cabeca = cabeca, semente = semente,
++			estado = if acordado then "cacando" else "dormindo", alvo = nil :: Player?, morto = false,
++			ultimoAtaque = -10, proxCaminho = 0, pontos = {} :: { Vector3 }, pi = 1, calculando = false,
++		}
++		table.insert(lista, z)
++		table.insert(conexoes, hum.Died:Connect(function()
++			morrer(z)
++		end))
++		task.spawn(vestir, hum, semente)
++		return rig
++	end
++
++	local function acordar(z: any)
++		if z.morto or z.estado ~= "dormindo" then
++			return
++		end
++		z.estado = "cacando"
++		z.modelo:SetAttribute("BastiaoEstado", "cacando")
++		z.modelo:SetAttribute("BastiaoGrito", (z.modelo:GetAttribute("BastiaoGrito") or 0) + 1)
++	end
++	function api.acordarTodos()
++		ondaAtiva = true
++		for _, z in lista do
++			acordar(z)
++		end
++		talvezFim()
++	end
++	function api.comecarOnda()
++		ondaAtiva = true
++		avisouFim = false
++		talvezFim()
++	end
++	-- tiro faz barulho: quem está perto acorda
++	function api.ouvir(pos: Vector3, raio: number)
++		for _, z in lista do
++			if not z.morto and z.estado == "dormindo" and (z.raiz.Position - pos).Magnitude <= raio then
++				acordar(z)
++			end
++		end
++	end
++
++	-- o modelo de infectado de uma peça (ou nil)
++	function api.de(inst: Instance?): Model?
++		local m = inst and inst:FindFirstAncestorWhichIsA("Model")
++		while m do
++			if m:GetAttribute(Infectados.TAG) == true then
++				return m
++			end
++			m = m:FindFirstAncestorWhichIsA("Model")
++		end
++		return nil
++	end
++	-- tiro do servidor (Arma) acertou uma peça de infectado
++	function api.atingir(parte: BasePart, _jogador: Player?): boolean
++		local m = api.de(parte)
++		if not m then
++			return false
++		end
++		for _, z in lista do
++			if z.modelo == m and not z.morto then
++				local dano = if parte.Name == "Head" or parte.Name == "BastiaoOlho" then Infectados.DANO_CABECA else Infectados.DANO_CORPO
++				m:SetAttribute("BastiaoDor", (m:GetAttribute("BastiaoDor") or 0) + 1)
++				acordar(z)
++				z.hum:TakeDamage(dano)
++				if z.hum.Health <= 0 then
++					morrer(z)
++				end
++				return true
++			end
++		end
++		return true
++	end
++	function api.restantes(): number
++		return contarVivos()
++	end
++	function api.total(): number
++		return #lista
++	end
++	function api.matarTodos()
++		for _, z in lista do
++			if not z.morto then
++				z.hum.Health = 0
++				morrer(z)
++			end
++		end
++	end
++
++	-- ===== cérebro (10 vezes por segundo) =====
++	local function maisPerto(z: any, alcance: number): (Player?, Vector3?, number)
++		local melhor, pos, dist = nil, nil, alcance
++		for _, j in Players:GetPlayers() do
++			local c = j.Character
++			local h = c and c:FindFirstChildOfClass("Humanoid")
++			local r = c and c:FindFirstChild("HumanoidRootPart")
++			if h and h.Health > 0 and r and r:IsA("BasePart") then
++				local d = (r.Position - z.raiz.Position).Magnitude
++				if d < dist then
++					melhor, pos, dist = j, r.Position, d
++				end
++			end
++		end
++		return melhor, pos, dist
++	end
++	local function enxerga(z: any, alvo: Vector3): boolean
++		local filtro: { Instance } = { pasta }
++		for _, j in Players:GetPlayers() do
++			if j.Character then
++				table.insert(filtro, j.Character)
++			end
++		end
++		paramsVista.FilterDescendantsInstances = filtro
++		local o = z.cabeca.Position
++		return workspace:Raycast(o, alvo - o, paramsVista) == nil
++	end
++	local function caminhar(z: any, destino: Vector3, agora: number)
++		if agora >= z.proxCaminho and not z.calculando then
++			z.proxCaminho = agora + 0.8
++			z.calculando = true
++			task.spawn(function()
++				local ok, pontos = pcall(function()
++					local caminho = PathfindingService:CreatePath({ AgentRadius = 1.6, AgentHeight = 5, AgentCanJump = false })
++					caminho:ComputeAsync(z.raiz.Position, destino)
++					if caminho.Status ~= Enum.PathStatus.Success then
++						return nil
++					end
++					local l = {}
++					for _, w in caminho:GetWaypoints() do
++						table.insert(l, w.Position)
++					end
++					return l
++				end)
++				z.calculando = false
++				if ok and pontos and #pontos > 1 then
++					z.pontos, z.pi = pontos, 2
++				else
++					z.pontos, z.pi = { destino }, 1
++				end
++			end)
++		end
++		local p = z.pontos[z.pi]
++		if p and (Vector3.new(p.X, 0, p.Z) - Vector3.new(z.raiz.Position.X, 0, z.raiz.Position.Z)).Magnitude < 2 then
++			z.pi += 1
++			p = z.pontos[z.pi]
++		end
++		z.hum:MoveTo(p or destino)
++	end
++	local function pensar(z: any, agora: number)
++		if z.morto or not z.modelo.Parent then
++			return
++		end
++		local alcance = if z.estado == "dormindo" then Infectados.VISAO_DORMINDO else Infectados.VISAO_ACORDADO
++		local alvo, pos, dist = maisPerto(z, alcance)
++		if z.estado == "dormindo" then
++			if alvo and pos and enxerga(z, pos) then
++				acordar(z)
++			else
++				z.hum:MoveTo(z.raiz.Position)
++				return
++			end
++		end
++		if not alvo or not pos then
++			z.hum:MoveTo(z.raiz.Position)
++			return
++		end
++		-- arrancada quando chega perto: anda torto e de repente corre
++		local base = 8 + (z.semente % 5)
++		z.hum.WalkSpeed = if dist < 12 then base + 7 else base
++		if dist <= 3.6 then
++			z.hum:MoveTo(pos)
++			if agora - z.ultimoAtaque >= Infectados.RECARGA_ATAQUE then
++				z.ultimoAtaque = agora
++				z.modelo:SetAttribute("BastiaoAtaque", (z.modelo:GetAttribute("BastiaoAtaque") or 0) + 1)
++				local vitima = alvo
++				task.delay(0.32, function()
++					local c = vitima.Character
++					local h = c and c:FindFirstChildOfClass("Humanoid")
++					local r = c and c:FindFirstChild("HumanoidRootPart")
++					if not z.morto and h and h.Health > 0 and r and r:IsA("BasePart") and (r.Position - z.raiz.Position).Magnitude <= 4.6 then
++						h:TakeDamage(Infectados.DANO_ATAQUE)
++					end
++				end)
++			end
++			return
++		end
++		caminhar(z, pos, agora)
++	end
++	local acumulado = 0
++	table.insert(conexoes, RunService.Heartbeat:Connect(function(dt: number)
++		if not vivo then
++			return
++		end
++		acumulado += dt
++		if acumulado < 0.1 then
++			return
++		end
++		acumulado = 0
++		local agora = os.clock()
++		for _, z in lista do
++			local ok, erro = pcall(pensar, z, agora)
++			if not ok then
++				log("[Bastiao] infectado: " .. tostring(erro))
++			end
++		end
++	end))
++
++	function api.destroy()
++		vivo = false
++		for _, c in conexoes do
++			c:Disconnect()
++		end
++		table.clear(conexoes)
++		pasta:Destroy()
++		table.clear(lista)
++	end
++	return api
++end
++
++return Infectados
+diff -ruN z14/src/server/Pavel.luau z15/src/server/Pavel.luau
+--- z14/src/server/Pavel.luau	2026-11-18 14:32:52.709832485 +0000
++++ z15/src/server/Pavel.luau	2026-11-18 15:11:36.824147550 +0000
+@@ -93,6 +93,10 @@
+ 	-- capítulo 2, parte 2: porta de manutenção das utilidades e o salão da subestação (piso em y -23.5)
+ 	manutencao = { pos = V(106, 0, -401.5), olhar = V(112, 0, -400) },
+ 	subestacao = { pos = V(186, -24, -408), olhar = V(200, -24, -400) },
++	-- capítulo 3: andar sem número (piso em y -120)
++	cap3_elevador = { pos = V(2.5, -120.5, -80.5), olhar = V(0, -120.5, -90) },
++	cap3_quartel = { pos = V(-3, -120.5, -166), olhar = V(0, -120.5, -180) },
++	cap3_arsenal = { pos = V(-3, -120.5, -228), olhar = V(0, -120.5, -240) },
+ }
+ 
+ -- pontos no eixo dos corredores (cruzamentos em z -80 e -260; anéis de serviço em x ±58)
+@@ -104,6 +108,8 @@
+ 	["oficina>porta_blindada"] = { V(77, 0, -305), V(77, 0, -314), V(68, 0, -319), V(61, 0, -318.5), V(58, 0, -338), V(58, 0, -368) },
+ 	["porta_blindada>manutencao"] = { V(60, 0, -392), V(70, 0, -398), V(90, 0, -400) },
+ 	["manutencao>subestacao"] = { V(110, 0, -400), V(118, 0, -400), V(124, 0, -400), V(172, -24, -400), V(178, -24, -402) },
++	["cap3_elevador>cap3_quartel"] = { V(0, -120.5, -88), V(0, -120.5, -104), V(0, -120.5, -150) },
++	["cap3_quartel>cap3_arsenal"] = { V(0, -120.5, -190), V(0, -120.5, -210), V(0, -120.5, -222) },
+ 	["subestacao>porta_blindada"] = { V(178, -24, -400), V(172, -24, -400), V(124, 0, -400), V(112, 0, -400), V(90, 0, -400), V(70, 0, -398), V(60, 0, -392) },
+ }
+ 
+diff -ruN z14/src/shared/Textos.luau z15/src/shared/Textos.luau
+--- z14/src/shared/Textos.luau	2026-11-18 14:33:16.751704613 +0000
++++ z15/src/shared/Textos.luau	2026-11-18 15:12:01.873510440 +0000
+@@ -43,6 +43,11 @@
+ 	pavel_sub_fusiveis = "PAVEL",
+ 	pavel_sub_luz = "PAVEL",
+ 	pavel_descida = "PAVEL",
++	pavel_c3_chegada = "PAVEL",
++	pavel_c3_quartel = "PAVEL",
++	pavel_c3_blackout = "PAVEL",
++	pavel_c3_limpo = "PAVEL",
++	pavel_c3_arsenal = "PAVEL",
+ }
+ 
+ -- por onde a voz chega: na pessoa (3D, sai do Pavel), rádio, gravação velha no rádio, alto-falante
+@@ -121,6 +126,11 @@
+ 		pavel_sub_fusiveis = "Três. No painel. Quando eu puxar essa alavanca, a luz volta... e ele vai saber onde a gente está.",
+ 		pavel_sub_luz = "Energia! O elevador acordou. Correndo, de volta para a porta blindada! Ele ouviu!",
+ 		pavel_descida = "Esse painel só tem um botão, e ele não tem número. Segurem-se. Isso não estava na planta.",
++		pavel_c3_chegada = "Esse andar não existe em planta nenhuma. A placa diz Guarnição 7... era a minha unidade.",
++		pavel_c3_quartel = "O alojamento. O tenente Orlov guardava o cartão do arsenal no bolso. Procurem o corpo dele.",
++		pavel_c3_blackout = "A luz caiu! Eles estão acordando... não são mais homens! Atirem na cabeça!",
++		pavel_c3_limpo = "Acabou... por enquanto. Eram meus companheiros. O arsenal fica no fim do corredor.",
++		pavel_c3_arsenal = "O cartão funcionou. O que tiver aqui dentro vai ter que bastar para o que vem lá embaixo.",
+ 	},
+ 	sons = {
+ 		radio_chiado = "[CHIADO DE RÁDIO]",
+@@ -148,6 +158,10 @@
+ 		fusiveis = "Encontre os 3 fusíveis nas caixas e coloque no painel",
+ 		disjuntor = "Puxe a alavanca do disjuntor principal",
+ 		elevador_volta = "Volte correndo para o elevador na porta blindada",
++		cap3_explorar = "Explore o andar sem número",
++		cartao = "Encontre o cartão do arsenal no corpo do tenente",
++		sobreviver = "Sobreviva: mate todos os infectados",
++		arsenal = "Abra o arsenal com o cartão",
+ 	},
+ 	prompts = {
+ 		PegarRadio = "PEGAR RÁDIO",
+@@ -160,6 +174,8 @@
+ 		PegarFusivel = "PEGAR FUSÍVEL",
+ 		ColocarFusiveis = "COLOCAR FUSÍVEIS",
+ 		Religar = "RELIGAR DISJUNTOR",
++		PegarCartao = "PEGAR CARTÃO",
++		UsarCartao = "USAR CARTÃO",
+ 	},
+ 	avisos = {
+ 		modulo_no_carregador = "O módulo está no carregador do arsenal.",
+@@ -189,8 +205,8 @@
+ 	},
+ 	fim = {
+ 		titulo = "PROJETO BASTIÃO",
+-		capitulo = "CAPÍTULO 2 — O ANDAR QUE NÃO EXISTE",
+-		linha = "FIM DO CAPÍTULO 2 · O CAPÍTULO 3 COMEÇA NO ANDAR SEM NÚMERO",
++		capitulo = "CAPÍTULO 3 — A GUARNIÇÃO",
++		linha = "FIM DA PARTE 1 · O ARSENAL GUARDA MAIS DO QUE ARMAS",
+ 	},
+ 	ui = { objetivo = "OBJETIVO", alerta = "● ALERTA · ISOLAMENTO", toque = "TOQUE" },
+ }
+@@ -235,6 +251,11 @@
+ 		pavel_sub_fusiveis = "Three. Into the panel. When I pull this lever the lights come back... and it'll know where we are.",
+ 		pavel_sub_luz = "Power! The elevator's awake. Run, back to the blast door! It heard us!",
+ 		pavel_descida = "This panel has one button, and it has no number. Hold on. This wasn't on the blueprints.",
++		pavel_c3_chegada = "This floor isn't on any blueprint. The sign says Garrison 7... that was my unit.",
++		pavel_c3_quartel = "The barracks. Lieutenant Orlov kept the armory card in his pocket. Find his body.",
++		pavel_c3_blackout = "The power's gone! They're waking up... they're not men anymore! Aim for the head!",
++		pavel_c3_limpo = "It's over... for now. They were my comrades. The armory is at the end of the hall.",
++		pavel_c3_arsenal = "The card worked. Whatever is in here will have to be enough for what's down below.",
+ 	},
+ 	sons = {
+ 		radio_chiado = "[RADIO STATIC]",
+@@ -262,6 +283,10 @@
+ 		fusiveis = "Find the 3 fuses in the boxes and put them in the panel",
+ 		disjuntor = "Pull the main breaker lever",
+ 		elevador_volta = "Run back to the elevator at the blast door",
++		cap3_explorar = "Explore the unnumbered floor",
++		cartao = "Find the armory card on the lieutenant's body",
++		sobreviver = "Survive: kill every infected",
++		arsenal = "Open the armory with the card",
+ 	},
+ 	prompts = {
+ 		PegarRadio = "TAKE RADIO",
+@@ -274,6 +299,8 @@
+ 		PegarFusivel = "TAKE FUSE",
+ 		ColocarFusiveis = "INSERT FUSES",
+ 		Religar = "RESET BREAKER",
++		PegarCartao = "TAKE CARD",
++		UsarCartao = "USE CARD",
+ 	},
+ 	avisos = {
+ 		modulo_no_carregador = "The module is on the charger in the armory.",
+@@ -303,8 +330,8 @@
+ 	},
+ 	fim = {
+ 		titulo = "PROJECT BASTION",
+-		capitulo = "CHAPTER 2 — THE FLOOR THAT DOESN'T EXIST",
+-		linha = "END OF CHAPTER 2 · CHAPTER 3 BEGINS ON THE UNNUMBERED FLOOR",
++		capitulo = "CHAPTER 3 — THE GARRISON",
++		linha = "END OF PART 1 · THE ARMORY HOLDS MORE THAN WEAPONS",
+ 	},
+ 	ui = { objetivo = "OBJECTIVE", alerta = "● ALERT · ISOLATION", toque = "TAP" },
+ }
+@@ -349,6 +376,11 @@
+ 		pavel_sub_fusiveis = "Три. В щит. Когда я опущу этот рычаг, свет вернётся... и он поймёт, где мы.",
+ 		pavel_sub_luz = "Есть питание! Лифт ожил. Бегом к гермодвери! Он услышал!",
+ 		pavel_descida = "На этой панели одна кнопка, и на ней нет номера. Держитесь. Этого не было в чертежах.",
++		pavel_c3_chegada = "Этого этажа нет ни на одном чертеже. Табличка: Гарнизон-7... это было моё подразделение.",
++		pavel_c3_quartel = "Казарма. Лейтенант Орлов носил карту арсенала в кармане. Найдите его тело.",
++		pavel_c3_blackout = "Свет вырубило! Они просыпаются... это больше не люди! Стреляйте в голову!",
++		pavel_c3_limpo = "Всё... пока что. Это были мои товарищи. Арсенал в конце коридора.",
++		pavel_c3_arsenal = "Карта сработала. Того, что здесь есть, должно хватить на то, что ждёт внизу.",
+ 	},
+ 	sons = {
+ 		radio_chiado = "[ТРЕСК РАЦИИ]",
+@@ -376,6 +408,10 @@
+ 		fusiveis = "Найдите 3 предохранителя в щитках и вставьте в щит",
+ 		disjuntor = "Опустите рычаг главного автомата",
+ 		elevador_volta = "Бегом обратно к лифту у гермодвери",
++		cap3_explorar = "Исследуйте этаж без номера",
++		cartao = "Найдите карту арсенала у тела лейтенанта",
++		sobreviver = "Выживите: убейте всех заражённых",
++		arsenal = "Откройте арсенал картой",
+ 	},
+ 	prompts = {
+ 		PegarRadio = "ВЗЯТЬ РАЦИЮ",
+@@ -388,6 +424,8 @@
+ 		PegarFusivel = "ВЗЯТЬ ПРЕДОХРАНИТЕЛЬ",
+ 		ColocarFusiveis = "ВСТАВИТЬ ПРЕДОХРАНИТЕЛИ",
+ 		Religar = "ВКЛЮЧИТЬ АВТОМАТ",
++		PegarCartao = "ВЗЯТЬ КАРТУ",
++		UsarCartao = "ПРИЛОЖИТЬ КАРТУ",
+ 	},
+ 	avisos = {
+ 		modulo_no_carregador = "Модуль на зарядке в оружейной.",
+@@ -417,8 +455,8 @@
+ 	},
+ 	fim = {
+ 		titulo = "ПРОЕКТ «БАСТИОН»",
+-		capitulo = "ГЛАВА 2 — ЭТАЖ, КОТОРОГО НЕТ",
+-		linha = "КОНЕЦ ГЛАВЫ 2 · ГЛАВА 3 НАЧНЁТСЯ НА ЭТАЖЕ БЕЗ НОМЕРА",
++		capitulo = "ГЛАВА 3 — ГАРНИЗОН",
++		linha = "КОНЕЦ ЧАСТИ 1 · В АРСЕНАЛЕ НЕ ТОЛЬКО ОРУЖИЕ",
+ 	},
+ 	ui = { objetivo = "ЗАДАЧА", alerta = "● ТРЕВОГА · ИЗОЛЯЦИЯ", toque = "КАСАНИЕ" },
+ }
+diff -ruN z14/src/teste_nuvem.luau z15/src/teste_nuvem.luau
+--- z14/src/teste_nuvem.luau	2026-11-18 14:32:52.716028394 +0000
++++ z15/src/teste_nuvem.luau	2026-11-18 15:12:40.922601895 +0000
+@@ -172,9 +172,10 @@
+ local Runner = require(SRV.StoryRunner)
+ local Validator = require(SRV.StoryValidator)
+ -- campanha da correção 11: capítulo 1 + parte 1 do capítulo 2 (arma e porta blindada)
+-local Cap = require(SRV.Capitulo02).juntar(require(SRV.Capitulo01))
++local Cap = require(SRV.Capitulo03).juntar(require(SRV.Capitulo02).juntar(require(SRV.Capitulo01)))
+ local Cenario02 = require(SRV.Cenario02)
+ local Cenario03 = require(SRV.Cenario03)
++local Cenario04 = require(SRV.Cenario04)
+ local ArmaModelo = require(COMP.ArmaModelo)
+ local Mundo = require(SRV.Mundo)
+ local Missao = require(SRV.Missao)
+@@ -689,6 +690,32 @@
+ 			ruidos[chave] = true
+ 		end,
+ 	})
++	-- capítulo 3: o andar sem número, com infectados de mentira (o teste avisa a história quando a onda acaba)
++	local infectadosTeste = { criados = 0, acordados = false }
++	Cenario04.construir({
++		pasta = pasta,
++		mundo = mundo,
++		cena = cena,
++		modelo = ArmaModelo,
++		arma = {
++			dar = function(j)
++				local primeira = not armados[j]
++				armados[j] = true
++				return primeira
++			end,
++			tem = function(j)
++				return armados[j] == true
++			end,
++		},
++		infectados = {
++			criar = function() infectadosTeste.criados += 1 end,
++			acordarTodos = function() infectadosTeste.acordados = true end,
++		},
++		aviso = function() end,
++		ruido = function(chave)
++			ruidos[chave] = true
++		end,
++	})
+ 	local rel = Validator.Validate(Cap, mundo:registro())
+ 	assert(rel.ok, "capítulo inválido: " .. table.concat(rel.erros, "; "))
+ 	local objetivo = ""
+@@ -872,9 +899,28 @@
+ 	zonas:verificar()
+ 	mover(bia, Vector3.new(59, 3, -389))
+ 	zonas:verificar()
+-	esperar("fim do capítulo 2", function() return missao:final() end)
++	-- capítulo 3: chegada, alojamento, cartão, blackout com a onda, arsenal
++	esperar("chegou no andar sem número", function() return missao:no() == "cap3_chegada" and objetivo == "cap3_explorar" end)
++	passo("checkpoint do elevador", checkpoint:ultimo() ~= nil and checkpoint:ultimo().id == "cap3_elevador")
++	passo("infectados dormindo", infectadosTeste.criados == 3)
++	mover(bia, Vector3.new(0, -117, -168))
++	zonas:verificar()
++	esperar("alojamento", function() return missao:no() == "cap3_quartel" and objetivo == "cartao" and prompts.pegar_cartao.Enabled end)
++	mover(bia, Vector3.new(4, -117, -189))
++	passo("pegar o cartão", (interagir(bia, prompts.pegar_cartao)))
++	esperar("blackout", function() return missao:no() == "cap3_onda" and objetivo == "sobreviver" end)
++	passo("luz apagada", mundo:estado("luz3") == "apagada" and workspace:GetAttribute("BastiaoBlackout") == true)
++	passo("onda de infectados", infectadosTeste.acordados == true and infectadosTeste.criados == 10)
++	missao:reportar({ id = "infectados:mortos:1", kind = "criatura", name = "infectados_mortos" })
++	esperar("onda limpa", function() return missao:no() == "cap3_limpo" and objetivo == "arsenal" end)
++	passo("luz de emergência", mundo:estado("luz3") == "emergencia" and workspace:GetAttribute("BastiaoBlackout") == false)
++	mover(bia, Vector3.new(4, -117, -221))
++	esperar("leitor do arsenal", function() return prompts.abrir_arsenal.Enabled end)
++	passo("usar o cartão", (interagir(bia, prompts.abrir_arsenal)))
++	esperar("fim da parte 1 do capítulo 3", function() return missao:final() end)
+ 	esperar("término de todas as sequências", function() return #sequencias:tocando() == 0 end)
+-	passo("fim do capítulo 2", missao:final() and fimEm > 0 and checkpoint:ultimo() ~= nil and checkpoint:ultimo().id == "fim_cap2")
++	passo("fim da parte 1 do capítulo 3", missao:final() and fimEm > 0 and checkpoint:ultimo() ~= nil and checkpoint:ultimo().id == "fim_cap3a")
++	workspace:SetAttribute("BastiaoBlackout", nil)
+ 	for _, seq in Cap.sequences do
+ 		for _, cue in seq.cues do
+ 			if cue.fala then passo("fala preservada " .. cue.fala, falasApresentadas[cue.fala] == 1) end
+--- z14/tooling/release_builder.py	2026-11-18 14:32:52.721008432 +0000
++++ z15/tooling/release_builder.py	2026-11-18 15:11:36.825978749 +0000
+@@ -50,6 +50,11 @@
+     (["ServerScriptService", "BastiaoServidor", "Cenario02"], "src/server/Cenario02.luau"),
+     # correção 14: capítulo 2, parte 2 — a subestação
+     (["ServerScriptService", "BastiaoServidor", "Cenario03"], "src/server/Cenario03.luau"),
++    # correção 15: capítulo 3 — a Guarnição (infectados, blackout e o andar sem número)
++    (["ServerScriptService", "BastiaoServidor", "Capitulo03"], "src/server/Capitulo03.luau"),
++    (["ServerScriptService", "BastiaoServidor", "Cenario04"], "src/server/Cenario04.luau"),
++    (["ServerScriptService", "BastiaoServidor", "Infectados"], "src/server/Infectados.luau"),
++    (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "InfectadosCliente"], "src/client/InfectadosCliente.luau"),
+     (["StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Arma"], "src/client/Arma.luau"),
+ )
+ # Fontes Bastiao* que já estiveram no Place: as versões do Claude (etapa 2, correções 3 a 8) e o

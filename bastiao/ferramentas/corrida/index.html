@@ -1,0 +1,105 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}</style>
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+const W = 1280, H = 720;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07080a);
+scene.fog = new THREE.Fog(0x07080a, 26, 70);
+const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 200);
+
+// luz de bunker: fraca, fria, com um "facho de lanterna" e luz de emergência vermelha
+const hemi = new THREE.HemisphereLight(0x9fb3c8, 0x1a1410, 0.55); scene.add(hemi);
+const sol = new THREE.DirectionalLight(0xffffff, 0); sol.position.set(10, 20, 15); scene.add(sol);
+const key = new THREE.SpotLight(0xfff1dc, 260, 60, Math.PI / 6, 0.55, 1.6);
+key.position.set(7, 12, 14); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+scene.add(key); scene.add(key.target);
+const rim = new THREE.PointLight(0xff2a1a, 60, 30, 1.8); rim.position.set(-8, 7, -6); scene.add(rim);
+const chao = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x2a2b2d, roughness: 0.95 }));
+chao.rotation.x = -Math.PI / 2; chao.receiveShadow = true; scene.add(chao);
+const grade = new THREE.GridHelper(200, 100, 0x3a3d42, 0x232528); grade.position.y = 0.01; scene.add(grade);
+
+let base = null, clips = {}, atores = [], titulo = [];
+window.carregar = async () => {
+  const gltf = await new GLTFLoader().loadAsync('monstro.glb');
+  base = gltf.scene;
+  for (const c of gltf.animations) clips[c.name] = c;
+  return Object.keys(clips).length;
+};
+
+// offsets: {fps, frames, cycle, cycles, bones:{nome:[[qx,qy,qz,qw] por quadro]}}
+function clipMedonho(orig, off, nome) {
+  const fps = off.fps, n = off.frames, dur = off.cycle * off.cycles;
+  const tempos = new Float32Array(n);
+  for (let k = 0; k < n; k++) tempos[k] = k / fps;
+  const tracks = [];
+  const q = new THREE.Quaternion(), qo = new THREE.Quaternion();
+  const porNome = {};
+  for (const k in off.bones) porNome[THREE.PropertyBinding.sanitizeNodeName(k)] = off.bones[k];
+  for (const tr of orig.tracks) {
+    const interp = tr.createInterpolant();
+    const [osso, prop] = tr.name.split('.');
+    const dim = tr.getValueSize();
+    const vals = new Float32Array(n * dim);
+    for (let k = 0; k < n; k++) {
+      let t = (k / fps) % off.cycle;
+      if (k === n - 1) t = 0; // fecha o loop no primeiro quadro
+      const v = interp.evaluate(Math.min(t, orig.duration));
+      if (prop === 'quaternion' && porNome[osso]) {
+        q.set(v[0], v[1], v[2], v[3]);
+        const o = porNome[osso][k];
+        qo.set(o[0], o[1], o[2], o[3]);
+        q.multiply(qo).normalize();
+        vals.set([q.x, q.y, q.z, q.w], k * 4);
+      } else {
+        vals.set(Array.from(v).slice(0, dim), k * dim);
+      }
+    }
+    const Cls = prop === 'quaternion' ? THREE.QuaternionKeyframeTrack : THREE.VectorKeyframeTrack;
+    tracks.push(new Cls(tr.name, tempos, vals));
+  }
+  return new THREE.AnimationClip(nome, dur, tracks);
+}
+
+function ator(clip, x, cor) {
+  const m = SkeletonUtils.clone(base);
+  m.position.set(x, 0, 0);
+  m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  scene.add(m);
+  const mixer = new THREE.AnimationMixer(m);
+  const a = mixer.clipAction(clip); a.play();
+  return { m, mixer, clip };
+}
+
+// cena: lista de {clip, offsets?} lado a lado; camera: {pos:[x,y,z], alvo:[x,y,z]}
+window.montar = (cfg) => {
+  for (const a of atores) scene.remove(a.m);
+  atores = [];
+  const n = cfg.atores.length, passo = cfg.espaco || 7;
+  cfg.atores.forEach((a, i) => {
+    let clip = clips[a.clip];
+    if (a.offsets) clip = clipMedonho(clip, a.offsets, a.clip + '_medonho');
+    atores.push(ator(clip, (i - (n - 1) / 2) * passo));
+  });
+  hemi.intensity = cfg.claro ? 2.2 : 0.55; sol.intensity = cfg.claro ? 2.5 : 0; scene.fog.far = cfg.claro ? 400 : 70;
+  camera.position.set(...cfg.camera.pos); camera.lookAt(new THREE.Vector3(...cfg.camera.alvo));
+  key.target.position.set(...cfg.camera.alvo);
+  return atores.map(a => a.clip.duration);
+};
+window.quadro = (t) => {
+  for (const a of atores) { a.mixer.setTime(t % a.clip.duration); }
+  renderer.render(scene, camera);
+};
+window.pronto = true;
+</script></body></html>

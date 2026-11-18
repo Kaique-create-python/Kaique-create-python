@@ -1,0 +1,13 @@
+{
+  "stage": 15,
+  "sources": 54,
+  "source_digest": "05aa4de59978e4b389434c229d0727a3fda314358dd759658c9863b8eabd0fbd",
+  "original_instances": 185097,
+  "patched_instances": 185196,
+  "base_bytes": 2643753,
+  "patched_bytes": 2687727,
+  "opaque_property_chunks_preserved": 323,
+  "native_script_bytes": 25953,
+  "bytes": 384654,
+  "sha256": "52f4de87826b9d8e72f62fc668366995fa92b17dda32dcfcb66f05cb77f5915b"
+}

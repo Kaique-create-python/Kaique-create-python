@@ -1,0 +1,60 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+/* prévia do painel MULTIPLAYER (mesmas medidas/cores de Cliente/Paineis.luau, escala do celular) */
+body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; font-family: "Source Sans Pro", "Segoe UI", Arial, sans-serif; color: #e8e2d6;
+  background: #000 url(FUNDO) center/cover no-repeat; }
+#escuro { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+#cartao { position: absolute; left: 50%; top: 50%; width: 560px; height: 400px; transform: translate(-50%, -50%) scale(var(--esc));
+  background: rgba(16,15,19,.96); border: 1px solid rgba(92,78,62,.8); border-radius: 4px; box-sizing: border-box; }
+#titulo { position: absolute; left: 18px; top: 10px; height: 34px; line-height: 34px; font: 700 22px Merriweather, Georgia, serif; }
+#contador { position: absolute; right: 56px; top: 18px; font-weight: 700; font-size: 14px; color: #a0988c; }
+#fechar { position: absolute; right: 10px; top: 9px; width: 38px; height: 36px; border-radius: 4px; background: #221f24; border: 1px solid rgba(92,78,62,.65);
+  font-size: 26px; text-align: center; line-height: 34px; }
+#div { position: absolute; left: 16px; right: 16px; top: 52px; height: 1px; background: rgba(92,78,62,.5); }
+#conteudo { position: absolute; left: 18px; right: 22px; top: 60px; display: flex; flex-direction: column; gap: 6px; }
+.fraco { color: #a0988c; font-size: 15px; }
+#vagas { display: flex; gap: 8px; height: 150px; }
+.vaga { flex: 1; position: relative; border-radius: 4px; background: #161419; border: 1px solid rgba(92,78,62,.5); }
+.vaga.livre { background: rgba(22,20,25,.55); border-color: rgba(92,78,62,.4); }
+.vaga.eu { border-color: rgba(176,142,86,.75); }
+.foto { position: absolute; left: 50%; top: 12px; width: 66px; height: 66px; transform: translateX(-50%); border-radius: 4px; background: #26222a; box-sizing: border-box; border: 2px solid #a0988c; overflow: hidden; }
+.foto.ok { border-color: #60a870; }
+.nome { position: absolute; left: 6px; right: 6px; top: 84px; height: 22px; text-align: center; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { position: absolute; left: 50%; bottom: 10px; width: 104px; height: 22px; transform: translateX(-50%); border-radius: 4px; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; background: #2e2a30; color: #a0988c; }
+.chip.ok { background: #264a2e; color: #60a870; }
+.mais { position: absolute; left: 0; right: 0; top: 18px; text-align: center; font: 700 40px Merriweather, serif; color: #5c4e3e; }
+.conv { position: absolute; left: 6px; right: 6px; top: 86px; text-align: center; font-weight: 600; font-size: 13px; color: #a0988c; line-height: 1.25; }
+#status { height: 30px; line-height: 30px; text-align: center; font-weight: 600; font-size: 17px; }
+#botoes { display: flex; gap: 10px; height: 48px; }
+.botao { flex: 1; border-radius: 4px; border: 1px solid rgba(92,78,62,.65); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; background: #221f24; }
+#rodape { text-align: center; color: #a0988c; font-size: 13px; }
+#aviso { position: absolute; left: 14px; top: 12px; width: 210px; height: 40px; border-radius: 4px; background: rgba(16,15,19,.9); border: 1px solid rgba(176,38,38,.8); display: none; transform-origin: 0 0; transform: scale(var(--esc)); }
+#aviso b { position: absolute; left: 12px; top: 15px; width: 10px; height: 10px; border-radius: 4px; background: #d64a40; }
+#aviso span { position: absolute; left: 30px; top: 0; line-height: 40px; font-weight: 700; font-size: 15px; }
+svg.av { width: 100%; height: 100%; }
+</style></head><body>
+<div id="escuro"></div>
+<div id="aviso"><b></b><span>SALA 2/3 · ENTRAR</span></div>
+<div id="cartao">
+  <div id="titulo">MULTIPLAYER</div><div id="contador">SALA 2/3</div><div id="fechar">×</div><div id="div"></div>
+  <div id="conteudo">
+    <div class="fraco">Entrem na sala, apertem ESTOU PRONTO e a história começa para o grupo. Cada um vai ser uma criança diferente.</div>
+    <div id="vagas">
+      <div class="vaga eu"><div class="foto ok">AV1</div><div class="nome" style="color:#b08e56">prahimer (você)</div><div class="chip ok">PRONTO</div></div>
+      <div class="vaga"><div class="foto">AV2</div><div class="nome">amigo_2</div><div class="chip">ESPERANDO</div></div>
+      <div class="vaga livre"><div class="mais">+</div><div class="conv">VAGA LIVRE<br>toque para convidar</div></div>
+    </div>
+    <div id="status">Falta 1 pessoa apertar ESTOU PRONTO.</div>
+    <div id="botoes"><div class="botao" style="background:#343038">CANCELAR</div><div class="botao">CONVIDAR AMIGOS</div></div>
+    <div id="rodape">Até 3 pessoas por grupo. Quem não estiver na sala continua no menu.</div>
+  </div>
+</div>
+<script>
+const esc = Math.min(Math.max(innerHeight / 430, 0.82), 1.5);
+document.documentElement.style.setProperty('--esc', esc);
+// avatar genérico (cabeça amarela) no lugar da foto do Roblox
+const av = c => `<svg class="av" viewBox="0 0 66 66"><rect width="66" height="66" fill="#3a3440"/><rect x="17" y="14" width="32" height="34" rx="8" fill="#f5cd30"/><rect x="13" y="48" width="40" height="18" rx="4" fill="${c}"/><circle cx="27" cy="29" r="2.4" fill="#222"/><circle cx="39" cy="29" r="2.4" fill="#222"/><path d="M26 37 Q33 42 40 37" stroke="#222" stroke-width="2" fill="none"/></svg>`;
+document.querySelectorAll('.foto').forEach((f, i) => f.innerHTML = av(i ? '#c8a2e8' : '#2b2b30'));
+if (location.hash === '#aviso') { document.getElementById('cartao').style.display = 'none'; document.getElementById('escuro').style.display = 'none'; document.getElementById('aviso').style.display = 'block'; }
+</script></body></html>

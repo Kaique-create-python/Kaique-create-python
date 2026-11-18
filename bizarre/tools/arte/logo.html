@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Bangers;src:url(fontes/Bangers-Regular.ttf)}
+@font-face{font-family:Anton;src:url(fontes/Anton-Regular.ttf)}
+html,body{margin:0;background:transparent}
+svg{display:block}
+</style></head><body>
+<svg id="s" width="1024" height="512" viewBox="0 0 1024 512" xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <linearGradient id="ouro" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#fffbe0"/><stop offset=".28" stop-color="#ffe46b"/>
+  <stop offset=".55" stop-color="#ffb81c"/><stop offset=".56" stop-color="#e98a00"/>
+  <stop offset="1" stop-color="#ffcf4a"/></linearGradient>
+ <linearGradient id="prata" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#e9ddff"/>
+  <stop offset=".51" stop-color="#b79cff"/><stop offset="1" stop-color="#f3ecff"/></linearGradient>
+ <filter id="brilho" x="-20%" y="-30%" width="140%" height="160%">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="b"/>
+  <feFlood flood-color="#a23cff" flood-opacity=".95"/><feComposite in2="b" operator="in" result="g"/>
+  <feMerge><feMergeNode in="g"/><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="leve" x="-20%" y="-40%" width="140%" height="180%">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="b"/>
+  <feFlood flood-color="#7b2cff" flood-opacity=".9"/><feComposite in2="b" operator="in" result="g"/>
+  <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <radialGradient id="someRaio" cx=".5" cy=".5" r=".5"><stop offset=".35" stop-color="#fff"/><stop offset=".92" stop-color="#000"/></radialGradient>
+ <mask id="mascara"><rect width="1024" height="512" fill="url(#someRaio)"/></mask>
+ <linearGradient id="roxo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0c8ff"/><stop offset="1" stop-color="#9b3cff"/></linearGradient>
+</defs>
+<g id="raios" opacity=".9" mask="url(#mascara)"></g>
+<g transform="translate(512 228) rotate(-5) skewX(-10)">
+ <g id="ext1" font-family="Bangers" font-size="214" text-anchor="middle" letter-spacing="6"></g>
+ <g filter="url(#brilho)">
+  <text font-family="Bangers" font-size="214" text-anchor="middle" letter-spacing="6" fill="url(#ouro)" stroke="#000" stroke-width="13" paint-order="stroke" stroke-linejoin="round">BIZARRE</text>
+ </g>
+ <text font-family="Bangers" font-size="214" text-anchor="middle" letter-spacing="6" fill="none" stroke="#fff8d0" stroke-width="2.2" opacity=".85" transform="translate(-2 -3)">BIZARRE</text>
+</g>
+<g transform="translate(530 352) rotate(-5) skewX(-10)">
+ <g id="ext2" font-family="Anton" font-size="92" text-anchor="middle" letter-spacing="9"></g>
+ <g filter="url(#leve)">
+  <text font-family="Anton" font-size="92" text-anchor="middle" letter-spacing="9" fill="url(#prata)" stroke="#000" stroke-width="10" paint-order="stroke" stroke-linejoin="round">BATTLEGROUNDS</text>
+ </g>
+</g>
+<g font-family="IPAGothic" fill="url(#roxo)" stroke="#12001f" stroke-width="10" paint-order="stroke" stroke-linejoin="round" filter="url(#leve)">
+ <text x="868" y="122" font-size="96" transform="rotate(14 868 122)">ゴ</text>
+ <text x="922" y="208" font-size="78" transform="rotate(10 922 208)">ゴ</text>
+ <text x="890" y="282" font-size="60" transform="rotate(16 890 282)">ゴ</text>
+ <text x="52" y="408" font-size="74" transform="rotate(-12 52 408)">ゴ</text>
+ <text x="104" y="478" font-size="56" transform="rotate(-8 104 478)">ゴ</text>
+</g>
+</svg>
+<script>
+const ns='http://www.w3.org/2000/svg';
+function extrusao(id,texto,passos,cor){const g=document.getElementById(id);
+ for(let i=passos;i>=1;i--){const t=document.createElementNS(ns,'text');t.textContent=texto;
+  t.setAttribute('x',i*1.15);t.setAttribute('y',i*1.35);t.setAttribute('fill',i==passos?'#000':cor);
+  t.setAttribute('stroke','#000');t.setAttribute('stroke-width',i==passos?16:12);t.setAttribute('paint-order','stroke');
+  t.setAttribute('stroke-linejoin','round');g.appendChild(t);}}
+extrusao('ext1','BIZARRE',14,'#4a0f86');
+extrusao('ext2','BATTLEGROUNDS',8,'#2c0a55');
+// raios de mangá atrás do título
+const r=document.getElementById('raios');let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+for(let i=0;i<46;i++){const a=i/46*Math.PI*2+rnd()*0.08;const r1=120+rnd()*40,r2=330+rnd()*170;const w=0.018+rnd()*0.03;
+ const cx=512,cy=250,p=(rr,aa)=>[cx+Math.cos(aa)*rr*1.9,cy+Math.sin(aa)*rr*0.78];
+ const [x1,y1]=p(r1,a-w),[x2,y2]=p(r2,a),[x3,y3]=p(r1,a+w);
+ const pl=document.createElementNS(ns,'polygon');pl.setAttribute('points',`${x1},${y1} ${x2},${y2} ${x3},${y3}`);
+ pl.setAttribute('fill',i%3==0?'#ffd84a':'#b45cff');pl.setAttribute('opacity',(0.25+rnd()*0.45).toFixed(2));r.appendChild(pl);}
+</script></body></html>

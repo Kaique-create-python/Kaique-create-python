@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  :root { --painel:#100f13; --borda:#5c4e3e; --texto:#e8e2d6; --fraco:#a0988c; --ouro:#b08e56; --verm:#d64a40; --botao:#221f24; }
+  html,body { margin:0; height:100%; background:#050507; font-family: "Source Sans Pro", Arial, sans-serif; color:var(--texto); overflow:hidden; }
+  .cena { position:absolute; inset:0; background: radial-gradient(ellipse at 40% 60%, #2a1d16 0%, #0b0807 60%, #050505 100%); }
+  .cena:after { content:"(o jogo continua atrás do painel)"; position:absolute; left:24px; bottom:18px; color:#5d554c; font-size:13px; }
+  .menu { position:absolute; right:12px; top:10px; width:88px; height:36px; background:#100f13; border:1px solid var(--borda); border-radius:4px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .adm { position:absolute; right:12px; top:54px; width:58px; height:30px; background:#6e1c1c; border:1px solid var(--borda); border-radius:4px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; }
+  .painel { position:absolute; right:8px; top:92px; bottom:12px; width:min(540px, calc(100% - 24px)); background:var(--painel); border:1px solid var(--borda); border-radius:6px; box-sizing:border-box; }
+  .alto .painel { top:92px; bottom:auto; }
+  .status { position:absolute; left:10px; top:6px; right:56px; font-size:13px; line-height:1.25; }
+  .x { position:absolute; right:6px; top:6px; width:36px; height:30px; background:var(--botao); border:1px solid var(--borda); border-radius:4px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .rolar { position:absolute; left:8px; right:8px; top:44px; bottom:8px; overflow:hidden; }
+  .alto .rolar { position:relative; left:0; right:0; top:0; bottom:0; margin:44px 8px 8px 8px; }
+  .secao { margin-bottom:10px; }
+  .titulo { color:var(--ouro); font-weight:700; font-size:14px; margin-bottom:4px; }
+  .grade { display:grid; grid-template-columns: repeat(auto-fill, 122px); gap:5px; }
+  .b { height:36px; background:var(--botao); border:1px solid rgba(92,78,62,.65); border-radius:4px; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; text-align:center; padding:0 4px; box-sizing:border-box; }
+  .on { color:var(--verm); }
+  .caixa { height:36px; background:#18161a; border-radius:4px; color:var(--fraco); font-size:13px; display:flex; align-items:center; padding-left:8px; box-sizing:border-box; }
+</style></head>
+<body>
+<div class="cena"></div>
+<div class="menu">MENU</div>
+<div class="adm">ADM</div>
+<div class="painel">
+  <div class="status">Missão 1 — Esconde-esconde · passo 2/5 · modo teste · AJUSTE-10</div>
+  <div class="x">X</div>
+  <div class="rolar">
+    <div class="secao"><div class="titulo">CRIANÇA (para os pulos)</div><div class="grade"><div class="b on">✔ Keko</div><div class="b">Nina</div><div class="b">Menino</div></div></div>
+    <div class="secao"><div class="titulo">IR PARA (modo teste: não salva)</div><div class="grade"><div class="b">TARDE</div><div class="b">JANTAR</div><div class="b">RITUAL</div><div class="b">FINAL</div><div class="b">MENU</div></div></div>
+    <div class="secao"><div class="titulo">MISSÕES (toque para ver os passos)</div><div class="grade">
+      <div class="b">M1 Esconde-escond</div><div class="b">M2 A festa de an</div><div class="b">M3 A lavanderia</div><div class="b">M4 Os espelhos</div>
+      <div class="b">M5 A parede</div><div class="b">M6 O projetor</div><div class="b">M7 As três cadei</div><div class="b">M8 O porão</div></div></div>
+    <div class="secao"><div class="titulo">PASSOS DA MISSÃO ESCOLHIDA</div><div class="grade">
+      <div class="b">1 · cena</div><div class="b">2 · Esconda-se da sombra</div><div class="b">3 · Olhe embaixo da últ</div><div class="b">4 · cena</div><div class="b">5 · Saia para o corredo</div></div></div>
+    <div class="secao"><div class="titulo">MISSÃO ATUAL</div><div class="grade">
+      <div class="b">PULAR PASSO</div><div class="b">REINICIAR PASSO</div><div class="b">PRÓXIMA MISSÃO</div><div class="b">MISSÃO ANTERIOR</div><div class="b">CHAMAR A SOMBRA</div><div class="b">PULAR CUTSCENE</div><div class="b">ONDE ESTOU?</div></div></div>
+    <div class="secao"><div class="titulo">EU</div><div class="grade">
+      <div class="b on">✔ IMORTAL</div><div class="b">CORRER RÁPIDO</div><div class="b">VOAR (atravessa)</div><div class="b">IR AO OBJETIVO</div><div class="b">INÍCIO DA SALA</div></div></div>
+    <div class="secao"><div class="titulo">MONSTRO</div><div class="grade">
+      <div class="b">VER O MONSTRO</div><div class="b">PRÓXIMA POSE</div><div class="b">SUMIR MONSTRO</div><div class="b">SUSTO (jumpscare)</div><div class="b">MEDO 6s</div></div></div>
+    <div class="secao"><div class="titulo">TROCAR O MODELO DO MONSTRO (fica salvo)</div><div class="grade">
+      <div class="b on">✔ Magrelo de braços longos</div><div class="b">Wendigo (caveira de cervo)</div><div class="b">Pele-branca (caveira)</div><div class="b">Sombra do catálogo (sorriso)</div></div></div>
+    <div class="secao"><div class="titulo">SONS E TELA</div><div class="grade"><div class="b">TESTAR SONS</div><div class="b">DIA</div><div class="b">NOITE</div></div></div>
+    <div class="secao"><div class="titulo">DAR ADM PARA ALGUÉM (só o dono)</div><div class="grade"><div class="caixa">nome do jogador</div><div class="b">DAR ADM</div></div></div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,422 @@
+{
+ "sfx": {
+  "vento": {
+   "inicio": 0.1,
+   "dur": 14.0
+  },
+  "interior": {
+   "inicio": 14.45,
+   "dur": 12.0
+  },
+  "drone": {
+   "inicio": 26.8,
+   "dur": 16.0
+  },
+  "coracao": {
+   "inicio": 43.15,
+   "dur": 1.334
+  },
+  "relogio": {
+   "inicio": 44.834,
+   "dur": 2.0
+  },
+  "passo1": {
+   "inicio": 47.184,
+   "dur": 0.32
+  },
+  "passo2": {
+   "inicio": 47.854,
+   "dur": 0.32
+  },
+  "passo3": {
+   "inicio": 48.524,
+   "dur": 0.32
+  },
+  "rangido": {
+   "inicio": 49.194,
+   "dur": 2.4
+  },
+  "susto": {
+   "inicio": 51.944,
+   "dur": 3.6
+  },
+  "impacto": {
+   "inicio": 55.894,
+   "dur": 4.6
+  },
+  "clique": {
+   "inicio": 60.844,
+   "dur": 0.16
+  },
+  "estatica": {
+   "inicio": 61.354,
+   "dur": 1.2
+  },
+  "sussurro": {
+   "inicio": 62.904,
+   "dur": 1.7
+  },
+  "respiracao": {
+   "inicio": 64.954,
+   "dur": 2.7
+  },
+  "whoosh": {
+   "inicio": 68.004,
+   "dur": 1.4
+  },
+  "tensao": {
+   "inicio": 69.754,
+   "dur": 6.0
+  }
+ },
+ "vozes1": {
+  "ME_4A": {
+   "inicio": 8.05,
+   "dur": 1.29
+  },
+  "ME_4B": {
+   "inicio": 9.69,
+   "dur": 1.29
+  },
+  "ME_4C": {
+   "inicio": 11.33,
+   "dur": 1.29
+  },
+  "ME_5": {
+   "inicio": 12.97,
+   "dur": 1.58
+  },
+  "NI_1": {
+   "inicio": 14.9,
+   "dur": 1.37
+  },
+  "NI_2": {
+   "inicio": 16.62,
+   "dur": 1.56
+  },
+  "NI_3": {
+   "inicio": 18.53,
+   "dur": 3.38
+  },
+  "VO_1": {
+   "inicio": 22.26,
+   "dur": 3.53
+  },
+  "ME_1_v1": {
+   "inicio": 0.1,
+   "dur": 2.52
+  },
+  "ME_2_v1": {
+   "inicio": 2.97,
+   "dur": 2.96
+  },
+  "ME_3_v1": {
+   "inicio": 6.28,
+   "dur": 1.42
+  }
+ },
+ "vozes2": {
+  "VO_2": {
+   "inicio": 20.63,
+   "dur": 2.97
+  }
+ },
+ "musica": {
+  "musica_menu": {
+   "inicio": 0.0,
+   "dur": 161.75
+  }
+ },
+ "ambiente": {
+  "lanterna_liga": {
+   "inicio": 0.1,
+   "dur": 0.24
+  },
+  "lanterna_desliga": {
+   "inicio": 0.69,
+   "dur": 0.21
+  },
+  "grilos": {
+   "inicio": 1.25,
+   "dur": 16.0
+  },
+  "lareira": {
+   "inicio": 17.6,
+   "dur": 14.0
+  },
+  "assobio": {
+   "inicio": 31.95,
+   "dur": 16.0
+  },
+  "goteira1": {
+   "inicio": 48.3,
+   "dur": 1.1
+  },
+  "goteira2": {
+   "inicio": 49.75,
+   "dur": 1.1
+  },
+  "estalo1": {
+   "inicio": 51.2,
+   "dur": 0.8
+  },
+  "estalo2": {
+   "inicio": 52.35,
+   "dur": 0.8
+  },
+  "galhos": {
+   "inicio": 53.5,
+   "dur": 1.8
+  },
+  "passo_madeira1": {
+   "inicio": 55.65,
+   "dur": 0.42
+  },
+  "passo_madeira2": {
+   "inicio": 56.42,
+   "dur": 0.42
+  },
+  "passo_madeira3": {
+   "inicio": 57.19,
+   "dur": 0.42
+  },
+  "passo_grama1": {
+   "inicio": 57.96,
+   "dur": 0.42
+  },
+  "passo_grama2": {
+   "inicio": 58.73,
+   "dur": 0.42
+  },
+  "passo_grama3": {
+   "inicio": 59.5,
+   "dur": 0.42
+  }
+ },
+ "passos": {
+  "pisada_madeira1": {
+   "inicio": 0.1,
+   "dur": 0.5214
+  },
+  "pisada_madeira2": {
+   "inicio": 0.8714,
+   "dur": 0.4987
+  },
+  "pisada_madeira3": {
+   "inicio": 1.62,
+   "dur": 0.4985
+  },
+  "pisada_madeira4": {
+   "inicio": 2.3685,
+   "dur": 0.4986
+  },
+  "pisada_madeira5": {
+   "inicio": 3.1171,
+   "dur": 0.495
+  },
+  "pisada_grama1": {
+   "inicio": 3.8622,
+   "dur": 0.2
+  },
+  "pisada_grama2": {
+   "inicio": 4.3122,
+   "dur": 0.2
+  },
+  "pisada_grama3": {
+   "inicio": 4.7622,
+   "dur": 0.2
+  },
+  "pisada_grama4": {
+   "inicio": 5.2122,
+   "dur": 0.2
+  },
+  "pisada_grama5": {
+   "inicio": 5.6622,
+   "dur": 0.2
+  },
+  "pisada_tapete1": {
+   "inicio": 6.1122,
+   "dur": 0.2
+  },
+  "pisada_tapete2": {
+   "inicio": 6.5622,
+   "dur": 0.2
+  },
+  "pisada_tapete3": {
+   "inicio": 7.0122,
+   "dur": 0.2
+  },
+  "pisada_tapete4": {
+   "inicio": 7.4622,
+   "dur": 0.2
+  },
+  "pisada_tapete5": {
+   "inicio": 7.9122,
+   "dur": 0.2
+  },
+  "pisada_pedra1": {
+   "inicio": 8.3622,
+   "dur": 0.2
+  },
+  "pisada_pedra2": {
+   "inicio": 8.8122,
+   "dur": 0.2
+  },
+  "pisada_pedra3": {
+   "inicio": 9.2622,
+   "dur": 0.2
+  },
+  "pisada_pedra4": {
+   "inicio": 9.7122,
+   "dur": 0.2
+  },
+  "pisada_pedra5": {
+   "inicio": 10.1622,
+   "dur": 0.2
+  }
+ },
+ "historia": {
+  "KE_1": {
+   "inicio": 0.1,
+   "dur": 3.28
+  },
+  "KE_2": {
+   "inicio": 3.73,
+   "dur": 3.03
+  },
+  "KE_3": {
+   "inicio": 7.11,
+   "dur": 8.15
+  },
+  "KE_4": {
+   "inicio": 15.61,
+   "dur": 1.39
+  },
+  "KE_5": {
+   "inicio": 17.35,
+   "dur": 3.71
+  },
+  "KE_6": {
+   "inicio": 21.4099,
+   "dur": 3.71
+  },
+  "KE_8": {
+   "inicio": 25.4699,
+   "dur": 0.7
+  },
+  "RISADA_RADIO": {
+   "inicio": 26.5199,
+   "dur": 1.2
+  },
+  "MU_1": {
+   "inicio": 28.0699,
+   "dur": 3.75
+  },
+  "CR_1": {
+   "inicio": 32.1699,
+   "dur": 2.01
+  },
+  "CONTA_1": {
+   "inicio": 34.5299,
+   "dur": 0.7
+  },
+  "CONTA_2": {
+   "inicio": 35.5799,
+   "dur": 0.84
+  },
+  "CONTA_3": {
+   "inicio": 36.7699,
+   "dur": 0.74
+  },
+  "CONTA_4": {
+   "inicio": 37.8599,
+   "dur": 0.68
+  },
+  "CONTA_5": {
+   "inicio": 38.8899,
+   "dur": 0.82
+  },
+  "CONTA_6": {
+   "inicio": 40.0599,
+   "dur": 0.84
+  },
+  "CONTA_7": {
+   "inicio": 41.2499,
+   "dur": 0.8
+  },
+  "CONTA_8": {
+   "inicio": 42.3999,
+   "dur": 0.65
+  },
+  "CONTA_9": {
+   "inicio": 43.3999,
+   "dur": 0.74
+  },
+  "CONTA_10": {
+   "inicio": 44.4899,
+   "dur": 0.82
+  },
+  "caixinha": {
+   "inicio": 45.6599,
+   "dur": 10.98
+  },
+  "maquina": {
+   "inicio": 56.9899,
+   "dur": 6.0
+  },
+  "batida_oca": {
+   "inicio": 63.3399,
+   "dur": 2.05
+  },
+  "batida_macica": {
+   "inicio": 65.7399,
+   "dur": 0.95
+  },
+  "arrastar": {
+   "inicio": 67.0399,
+   "dur": 1.7
+  },
+  "projetor": {
+   "inicio": 69.0899,
+   "dur": 4.0
+  },
+  "motor": {
+   "inicio": 73.4399,
+   "dur": 5.0
+  },
+  "partida": {
+   "inicio": 78.7899,
+   "dur": 2.2
+  },
+  "tres_batidas": {
+   "inicio": 81.3399,
+   "dur": 3.2
+  },
+  "vela_apaga": {
+   "inicio": 84.8899,
+   "dur": 0.7
+  },
+  "radio": {
+   "inicio": 85.9399,
+   "dur": 3.0
+  },
+  "desmoronar": {
+   "inicio": 89.2899,
+   "dur": 6.0
+  }
+ },
+ "vozes3": {
+  "ME_1": {
+   "inicio": 0.1,
+   "dur": 2.54
+  },
+  "ME_3": {
+   "inicio": 2.99,
+   "dur": 1.78
+  },
+  "ME_6": {
+   "inicio": 5.12,
+   "dur": 1.92
+  }
+ }
+}

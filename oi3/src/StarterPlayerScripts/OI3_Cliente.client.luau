@@ -1,0 +1,5 @@
+-- OI3 :: início do cliente (toda a lógica fica nos ModuleScripts em ReplicatedStorage.OI3.Cliente)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local OI3 = ReplicatedStorage:WaitForChild("OI3")
+local Main = require(OI3:WaitForChild("Cliente"):WaitForChild("Main"))
+Main.iniciar()

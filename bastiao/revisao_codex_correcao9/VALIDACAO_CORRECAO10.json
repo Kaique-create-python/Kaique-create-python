@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-17",
+  "base": "CORRIGIR_ETAPA3_9.py",
+  "baseSha256": "8b12238c02a2fcdd673d6218ce11e367aa1668ad2e22dc6c12b15a83a9034bf9",
+  "gitBase": "6aee1bf2c330d4c39633c7654717791633e3596b",
+  "python": {
+    "passed": 111,
+    "failed": 0,
+    "command": "python -m unittest discover -s tests -p 'test_*.py'"
+  },
+  "luau": {
+    "suitesPassed": 21,
+    "failed": 0,
+    "runtime": "Lune 0.11.1",
+    "details": [
+      {
+        "test": "tests/camera_audio_test.luau",
+        "exit": 0,
+        "output": "PASS catalog-bound tinnitus routing, bounded region, cleanup and missing-ID silence\n"
+      },
+      {
+        "test": "tests/camera_envelope_test.luau",
+        "exit": 0,
+        "output": "PASS pure bounded impact envelope, early kick, monotonic recovery and finite inputs\n"
+      },
+      {
+        "test": "tests/camera_runtime_test.luau",
+        "exit": 0,
+        "output": "PASS damage, door+injury+Sector7 composition, accessibility, cutscene, death, respawn, capture and layered cleanup\n"
+      },
+      {
+        "test": "tests/client_compile.luau",
+        "exit": 0,
+        "output": "PASS all four merged client sources compile with Lune 0.11.1 (no engine)\n"
+      },
+      {
+        "test": "tests/client_efeitos_test.luau",
+        "exit": 0,
+        "output": "PASS legendas em 3 línguas que quebram, menu 3D (espera o painel; abrir/fechar/rápido), lanterna, perseguição, pancada na porta e jumpscare\n"
+      },
+      {
+        "test": "tests/client_foley_runtime_test.luau",
+        "exit": 0,
+        "output": "PASS Foley preload handoff, regions, grounded travel, creature cues, limits and cleanup (service harness; no audio engine)\n"
+      },
+      {
+        "test": "tests/client_foley_timing_test.luau",
+        "exit": 0,
+        "output": "PASS Foley accepts only published numeric IDs and its supported sound categories\nPASS atlas boundaries must match duration and stay inside a finite asset\nPASS regions stop one shots and loop only their own segment\nPASS steps use real horizontal travel and faster running cadence\nPASS air dead stationary and uncommanded motion cannot make footsteps\nPASS teleports and long frames reset cadence without catch up\nPASS material families and dormant creature states cannot leak effects\nPASS effect caps preserve persistent breath while evicting oldest one shot\nPASS 8 Foley timing/validation cases (no Roblox engine)\n"
+      },
+      {
+        "test": "tests/client_localization_test.luau",
+        "exit": 0,
+        "output": "PASS real latest Interface speech captions and streamed terminal redraw in PT/EN/RU (UI boundary; no rendering engine)\n"
+      },
+      {
+        "test": "tests/client_monstro_som_test.luau",
+        "exit": 0,
+        "output": "PASS MonstroSom: bote e garra (na cabeça de quem foi pego), passos opcionais, jumpscare e pancadas na porta, limpa tudo ao parar\n"
+      },
+      {
+        "test": "tests/client_router_test.luau",
+        "exit": 0,
+        "output": "PASS latest locale/terminal hooks, chapter event routing, prompt activation and teardown; client survives broken or missing effects and bite sounds (service harness; no engine)\n"
+      },
+      {
+        "test": "tests/client_som_test.luau",
+        "exit": 0,
+        "output": "PASS Som legacy/new atlas routing, selected voice language, radio/PA, reverb zones, step handoff and cleanup (no audio engine)\n"
+      },
+      {
+        "test": "tests/native_checks_asset_contract_test.luau",
+        "exit": 0,
+        "output": "PASS 16 actual native catalog validator cases under Lune; engine asset readiness not executed\n"
+      },
+      {
+        "test": "tests/native_checks_compile.luau",
+        "exit": 0,
+        "output": "PASS native Saved-cloud script compiles with Lune 0.11.1; Roblox engine not executed\n"
+      },
+      {
+        "test": "tests/native_checks_contract_test.luau",
+        "exit": 0,
+        "output": "PASS 11 native report boundary cases under Lune; engine-only checks not executed\n"
+      },
+      {
+        "test": "tests/server_capture_test.luau",
+        "exit": 0,
+        "output": "PASS captura: limpeza recupera vítima; saída cancela golpe; Impact continua fatal\n"
+      },
+      {
+        "test": "tests/server_compile.luau",
+        "exit": 0,
+        "output": "PASS 4 server sources compile in Lune 0.11.1; no Roblox engine execution\n"
+      },
+      {
+        "test": "tests/server_creature_core_test.luau",
+        "exit": 0,
+        "output": "PASS containment and alarm must both be ready after the introduction\nPASS sight uses distance, FOV, life and an unobstructed ray\nPASS sprinting flag alone cannot create a noise source\nPASS the real Sector7 18stud sprint remains audible with ordinary velocity variation\nPASS the encounter stays on tall corridors and excludes eightstud room portals\nPASS workshop bounds protect every side and reject malformed positions\nPASS a new visible player causes a readable roar before a chase\nPASS losing LOS searches the last seen position instead of tracking through walls\nPASS unseen movement never refreshes memory and the search expires\nPASS audible sprinting creates a bounded investigation, without granting sight\nPASS entering the workshop prevents targeting and damage even through an open doorway\nPASS a missing ready model cannot acquire targets or deliver damage\nPASS attack starts with windup and only a matching hit marker can attempt damage\nPASS range LOS life and safe zone are revalidated when a swing lands\nPASS recovery and cooldown prevent repeated proximity attacks\nPASS an unavailable verified attack leaves the encounter harmless\nPASS dead or departed players are forgotten without acquiring their live position\nPASS invalid numeric sensing data cannot grant a perception or attack\nCreature core: 18 passed, 0 failed\n"
+      },
+      {
+        "test": "tests/server_interactions_test.luau",
+        "exit": 0,
+        "output": "PASS forged Triggered cannot grant a held interaction\nPASS direct tentar cannot bypass a held interaction\nPASS an observed complete hold advances the original story event exactly once\nPASS HoldEnded before Triggered can complete during the ordering grace\nPASS ending early and waiting does not manufacture a hold\nPASS a short hold without HoldEnded cannot complete\nPASS a positive hold shorter than frame tolerance still requires measured time\nPASS an old begin cannot be saved and replayed\nPASS an old completed release cannot be replayed after the grace\nPASS a wall prevents starting the server hold\nPASS a wall at completion consumes and rejects the hold\nPASS instant radio and terminal actions retain instant behavior with visibility validation\nPASS player and target non-finite coordinates cannot pass the distance check\nPASS a table or wrong Instance cannot impersonate a Player\nPASS a Player outside the live Players service cannot interact\nPASS distance and life are checked both before and after the hold\nPASS disabled and removed prompts cannot complete\nPASS required world state and expected mission event are checked at completion\nPASS story revision invalidation removes old holds even when the same event is available again\nPASS a reused prompt cannot transfer an old hold to its newly available action\nPASS begin requests have a per-player cooldown which release cannot erase\nPASS one player's Triggered cannot consume another player's hold\nPASS character removal clears the hold while preserving the request cooldown\nPASS leaving removes the hold and request history\nPASS invalid clocks and backwards time cannot complete a hold\nPASS server registration captures hold duration so a later property change cannot waive it\nPASS an own rule still denies completion and preserves its original warning\nPASS unknown interaction and unknown prompt cannot change the story\nPASS malformed cleanup identities cannot throw or remove another player's hold\nPASS localized rule warning keeps its key and interpolation arguments\nInteracoes: 30 passed, 0 failed\n"
+      },
+      {
+        "test": "tests/server_merge_test.luau",
+        "exit": 0,
+        "output": "PASS real server wiring accepts HoldBegan then a measured Triggered\nPASS real server wiring records early HoldEnded before a late Triggered\nPASS instant actions still accept through their own prop and character\nPASS a wall at begin prevents a hold even if removed before Triggered\nPASS a wall at completion rejects a hold that began in sight\nPASS a wall behind the target's own trim still obstructs its center\nPASS another story model is still an obstacle\nPASS vision starts at the server character head\nPASS mission advancement invalidates a hold even if its event becomes available again\nPASS a world transition invalidates the old hold\nPASS death then revival cannot reuse the old body hold\nPASS CharacterRemoving cannot leave a usable hold\nPASS leaving cannot leave a usable hold\nPASS a wrongly typed character root rejects cleanly\nPASS non-finite health cannot qualify as alive\nPASS non-finite head coordinates do not reach the raycast\nPASS the new language remote applies and saves the player's language preference\nPASS localized interaction warnings retain interpolation arguments\nPASS module drop sends a localized broadcast without resolving the viewer's language\nPASS scene sound and sequence services retain audio duration and spatial messages\nPASS world state keeps alarm and outdoor-access replication\nPASS creature starts in the validated existing scene and is removed once with its owner\nPASS an invalid chapter cannot start a creature runtime\nBastiaoServidor interactions: 23 passed, 0 failed\n"
+      },
+      {
+        "test": "tests/server_pavel_test.luau",
+        "exit": 0,
+        "output": "PASS Pavel: uniforme do catálogo (roupa, chapéu, rosto mantido), anda, aponta ao chegar, acena uma vez e varia o parado\n"
+      },
+      {
+        "test": "tests/server_sequences_test.luau",
+        "exit": 0,
+        "output": "PASS the received chapter cannot overlap voices when workshop actions finish promptly\nPASS legacy measured voice duration pushes later cues within the same sequence\nPASS queued speech preserves following world effects and positioned noises\nPASS canceling all sequences cancels their messages and frees the voice window\nPASS expired reservations do not delay later dialogue after idle time\nSequencias: 5 passed, 0 failed\n"
+      }
+    ]
+  },
+  "existingStoryTests": {
+    "passed": 9,
+    "continuationImplemented": false
+  },
+  "binaryPreservation": {
+    "passed": true,
+    "originalInstancesPreserved": 9004,
+    "protectedOriginalSourcesUnchanged": 12,
+    "nonSourcePropertyChunksUnchanged": 1747,
+    "sourceRows": 32,
+    "idempotent": true,
+    "mapAndHudGeometryUnchanged": true,
+    "onlyOriginalSourceChange": "ReplicatedStorage/Sector7/Config: DrainRate 22 -> 19",
+    "fixtureAssetIdsOnly": true,
+    "engineExecuted": false,
+    "published": false
+  },
+  "standalone": {
+    "sha256": "7065d1c88895e754c4289bc86ffe228c57274207759dfb5954c712631dd430ab",
+    "bytes": 1305688,
+    "actualC9UpgradePassed": true,
+    "repeatNoWritesPassed": true,
+    "foreignSourceRefusalPassed": true,
+    "concurrentInstallerLockPassed": true
+  },
+  "engineExecuted": false,
+  "robloxPublished": false,
+  "pending": [
+    "Run Saved cloud test and real mobile playtest",
+    "Upload/approve/authorize new tinnitus atlas before playback",
+    "Capitulo02 is not implemented",
+    "Three C9 voice lines are still planned unless already generated in phone cache"
+  ],
+  "audioProvenance": "New tinnitus: original DSP, 5.6s. Incoming ElevenLabs sources preserved; no new ElevenLabs generation claimed."
+}

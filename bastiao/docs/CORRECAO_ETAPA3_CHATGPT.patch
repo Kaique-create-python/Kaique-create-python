@@ -1,0 +1,536 @@
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/LEIA_PRIMEIRO.md y/LEIA_PRIMEIRO.md
+--- xo/LEIA_PRIMEIRO.md	2026-11-17 09:00:15.280091823 +0000
++++ y/LEIA_PRIMEIRO.md	2026-11-17 09:05:59.313709473 +0000
+@@ -1,3 +1,14 @@
++# Correção (17/11/2026) — leia primeiro
++
++- **Chave do ElevenLabs agora é opcional**: no `preparar-audio` ou no `instalar`, aperte Enter sem digitar a chave e o
++  instalador segue com os sons que já existem. O que não tiver gravação aparece só como legenda.
++- Se o ElevenLabs recusar (HTTP 401/402/403/429), o instalador mostra o **motivo real** (ex.: chave sem permissão,
++  conta gratuita bloqueada por "atividade incomum", créditos acabaram), não cobra nada e **continua** a instalação.
++- As **9 falas que já tinham sido gravadas** na sessão do Claude (Pavel afasta/confirma/vamos/entra/silêncio/731, Orlov
++  falha, sistema, Elena placa) agora são reaproveitadas: mesma voz do Pavel das primeiras falas, sem gastar crédito.
++  Faltam só 3 falas em português e os efeitos.
++- O teste na nuvem não exige mais voz em inglês e russo (o plano só gera português); confere só as vozes que existem.
++
+ # Bastião — instalador da Etapa 3
+ 
+ Atualização baseada no **último BASTIAO_ETAPA2.py do Claude**, recebido em 17/11/2026. Preserva as missões, seleção de idioma, telas traduzidas e as oito falas gravadas existentes. Não instala em paralelo o prólogo antigo parcial.
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/STATUS_ENTREGA.json y/STATUS_ENTREGA.json
+--- xo/STATUS_ENTREGA.json	2026-11-17 09:00:15.280222006 +0000
++++ y/STATUS_ENTREGA.json	2026-11-17 09:05:44.542297967 +0000
+@@ -5,11 +5,13 @@
+   "monsterNativeAnimations": 35,
+   "weightedBones": 46,
+   "monsterHeightStuds": 9.091193199157715,
+-  "existingVoicesPreserved": 8,
+-  "newVoicesPending": 12,
++  "existingVoicesPreserved": 17,
++  "newVoicesPending": 3,
+   "providerBusy": true,
+   "robloxPublished": false,
+   "engineTestedHere": false,
+   "localTests": "VALIDACAO_LOCAL.json",
+-  "audioPreparation": "Run locally with ElevenLabs key; no key included"
++  "audioPreparation": "Run locally with ElevenLabs key; no key included",
++  "audioOptional": true,
++  "fixedBy": "Claude 2026-11-17: motivo da recusa do ElevenLabs visível; recusa 4xx não trava; instala com os sons prontos; teste na nuvem confere só vozes que existem; 9 vozes já gravadas reaproveitadas"
+ }
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/audio/AUDIO_PLAN.json y/audio/AUDIO_PLAN.json
+--- xo/audio/AUDIO_PLAN.json	2026-11-17 09:00:15.280532070 +0000
++++ y/audio/AUDIO_PLAN.json	2026-11-17 09:03:21.096256646 +0000
+@@ -207,7 +207,7 @@
+     },
+     {
+       "key": "pavel_afasta",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "PAVEL",
+       "text": "KEDR, afasta da porta.",
+       "tags": [
+@@ -220,11 +220,14 @@
+       "spatial": true,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_pavel_afasta.mp3",
++      "sha256": "ee58d14a9f09dd66f6ecdc8e44966188d43f19ed2c080255088bb4c4b145a7f7",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "sistema_isolamento",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "SISTEMA",
+       "text": "Exercício Última Formação iniciado. Efetivo: permaneçam em seus setores.",
+       "tags": [],
+@@ -235,11 +238,14 @@
+       "spatial": false,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_sistema_isolamento.mp3",
++      "sha256": "80a696a9234208a71f075988d3c14301894d3bde7a13a15fcc23189d72d2e9d9",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "pavel_confirma",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "PAVEL_RADIO",
+       "text": "Comando, aqui Antonov. Que exercício? Ninguém avisou o turno.",
+       "tags": [
+@@ -252,11 +258,14 @@
+       "spatial": false,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_pavel_confirma.mp3",
++      "sha256": "fd180fe42c7cae47e9a1487746eb0f5ed286cb5550f30480bc83e82a4136b1f4",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "orlov_falha",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "ORLOV_RADIO",
+       "text": "Falha de protocolo. Sigam pela saída de serviço. Oficina, lado leste.",
+       "tags": [],
+@@ -267,11 +276,14 @@
+       "spatial": false,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_orlov_falha.mp3",
++      "sha256": "a7c9ece35f473044b10e35f17d8a18a7b099af383276e9388a0510026167eb50",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "pavel_vamos",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "PAVEL",
+       "text": "Saída de serviço é pela oficina. Anda.",
+       "tags": [],
+@@ -282,11 +294,14 @@
+       "spatial": true,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_pavel_vamos.mp3",
++      "sha256": "9cb3a7536f3c54ba7f5f1f5db0acc709801d8882f791eef374f241a4ea388d33",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "pavel_entra",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "PAVEL",
+       "text": "Entra. Fecha a trava atrás de você.",
+       "tags": [],
+@@ -297,11 +312,14 @@
+       "spatial": true,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_pavel_entra.mp3",
++      "sha256": "609ac2505a94e27e2f5fd67eacd88ddf39a4d84f0c63e2219a9fb6dbd0b5aaf8",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "elena_placa",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "ELENA_RADIO",
+       "text": "Tem uma placa de identificação no suporte das costas. Conseguiu ver o número?",
+       "tags": [
+@@ -314,11 +332,14 @@
+       "spatial": false,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_elena_placa.mp3",
++      "sha256": "763f63ca1ebd1242999d4355ef3d9e0af7319dbe84670986167ba3b82d6b2157",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "pavel_731",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "PAVEL",
+       "text": "731.",
+       "tags": [],
+@@ -329,7 +350,10 @@
+       "spatial": true,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_pavel_731.mp3",
++      "sha256": "485842d8dd89f6e990df9b24b3c654ad31bf0ea702e26158f721ea5f6f186341",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "elena_nome",
+@@ -710,7 +734,7 @@
+     },
+     {
+       "key": "pavel_silencio",
+-      "kind": "tts",
++      "kind": "reuse",
+       "role": "PAVEL",
+       "text": "Shh... Não se mexe.",
+       "tags": [
+@@ -723,7 +747,10 @@
+       "spatial": true,
+       "radio": false,
+       "loop": false,
+-      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime."
++      "processingNote": "Dry dialogue; spatial room/radio/PA effects are applied once by the existing Som runtime.",
++      "sourcePath": "sources/claude_pavel_silencio.mp3",
++      "sha256": "192e82b6025c2887df88952d114f196bd7dc393c94771053b998cec802f597b0",
++      "provider": "ElevenLabs (gerado na sessão Claude da etapa 2; mesma voz das falas anteriores)"
+     },
+     {
+       "key": "squelch",
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/instalar.py y/instalar.py
+--- xo/instalar.py	2026-11-17 09:00:15.308354664 +0000
++++ y/instalar.py	2026-11-17 09:03:08.597547044 +0000
+@@ -28,6 +28,17 @@
+     return value
+ 
+ 
++def optional_key(label):
++    """Como hidden_key, mas Enter vazio devolve "" (pular a geração opcional)."""
++    try:
++        with warnings.catch_warnings():
++            warnings.simplefilter("error", getpass.GetPassWarning)
++            return getpass.getpass(label + ": ").strip()
++    except (getpass.GetPassWarning, EOFError, KeyboardInterrupt):
++        print("Não foi possível ocultar a chave; seguindo sem gerar sons novos.", flush=True)
++        return ""
++
++
+ def _state_root():
+     return Path.home() / ".bastiao_instalador"
+ 
+@@ -55,11 +66,25 @@
+     if args.command == "preparar-audio":
+         plan = root / "audio/AUDIO_PLAN.json"
+         prepare_audio.load_plan(plan)
+-        key = hidden_key("Chave ElevenLabs")
+-        try:
+-            manifest = prepare_audio.prepare(plan, key)
+-        finally:key = ""
+-        print("Áudio produzido e verificado:", len(manifest["segments"]), "segmentos. Agora execute assets.")
++        status = prepare_audio.inspect_plan(plan)
++        faltam = sorted(k for k, v in status["clips"].items() if v["status"] != "completed")
++        manifest = None
++        if faltam:
++            print(f"Faltam {len(faltam)} sons para gerar no ElevenLabs ({status['completedSources']} já prontos).", flush=True)
++            key = optional_key("Chave ElevenLabs (oculta; Enter = pular e instalar só com os sons prontos)")
++            if key:
++                try:
++                    manifest = prepare_audio.prepare(plan, key)
++                except prepare_audio.AudioProductionError as exc:
++                    print("AVISO:", exc, flush=True)
++                    print("Seguindo com os sons que já existem; o que faltar aparece só como legenda.", flush=True)
++                finally:key = ""
++            else:
++                print("Sem chave do ElevenLabs: seguindo com os sons que já existem.", flush=True)
++        if manifest is None:
++            manifest = prepare_audio.build_atlases(plan, allow_missing=True)
++        missing = manifest.get("production", {}).get("missing", [])
++        print("Áudio montado e verificado:", len(manifest["segments"]), "segmentos" + (f"; sem gravação ainda: {len(missing)} (ficam só na legenda)" if missing else "") + ". Agora execute assets.")
+         return
+     if args.command == "assets":
+         paths = builder.upload_manifests(root)
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/src/teste_nuvem.luau y/src/teste_nuvem.luau
+--- xo/src/teste_nuvem.luau	2026-11-17 09:00:15.391228950 +0000
++++ y/src/teste_nuvem.luau	2026-11-17 09:05:01.009830589 +0000
+@@ -204,21 +204,25 @@
+ 	item.trechos += 1
+ end
+ checar("tabela de áudio", function()
++	-- Fala sem gravação aparece só como legenda (o jogo foi feito para isso). Aqui só se confere
++	-- que cada voz que EXISTE tem ID real e trecho dentro do arquivo; ID 0 = língua ainda sem voz.
+ 	for _, nome in { "voz_pt", "voz_en", "voz_ru", "efeitos" } do
+-		assert(idValido(Audio.ids[nome]), "ID de áudio obrigatório: " .. nome)
++		local id = Audio.ids[nome]
++		assert(id == nil or id == 0 or idValido(id), "ID de áudio inválido: " .. nome)
+ 	end
+ 	local vozes = 0
+ 	for _, idioma in Textos.IDIOMAS do
+ 		local falas = Audio.vozes[idioma]
+-		assert(type(falas) == "table", "vozes ausentes: " .. idioma)
+-		for chave in Textos.FALANTE do
+-			local seg = falas[chave]
+-			assert(type(seg) == "table", "voz ausente: " .. idioma .. "/" .. chave)
++		assert(falas == nil or type(falas) == "table", "vozes inválidas: " .. idioma)
++		for chave, seg in falas or {} do
++			assert(Textos.FALANTE[chave], "voz de fala inexistente: " .. idioma .. "/" .. chave)
++			assert(type(seg) == "table", "voz inválida: " .. idioma .. "/" .. chave)
+ 			audioReal(seg[3] or Audio.ids["voz_" .. idioma], seg[1], seg[2], idioma .. "/" .. chave)
+ 			assert(finito(Audio.duracoes[chave]) and Audio.duracoes[chave] >= seg[2] - 0.01, "duração da voz " .. chave)
+ 			vozes += 1
+ 		end
+ 	end
++	assert(vozes > 0, "nenhuma voz gravada")
+ 	for _, grupo in { Audio.sfx, Audio.loops } do
+ 		for nome, seg in grupo do
+ 			local lista = if type(seg[1]) == "table" then seg else { seg }
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/tests/native_checks_asset_contract_test.luau y/tests/native_checks_asset_contract_test.luau
+--- xo/tests/native_checks_asset_contract_test.luau	2026-11-17 09:00:15.392020720 +0000
++++ y/tests/native_checks_asset_contract_test.luau	2026-11-17 09:05:19.235591186 +0000
+@@ -57,8 +57,18 @@
+ 	end
+ 	error("missing failure: " .. fragment)
+ end
+-rejects(function(a) a.ids.voz_pt = 0 end, "ID de áudio obrigatório")
+-rejects(function(a) a.vozes.ru.line = nil end, "voz ausente")
++-- fala sem gravação numa língua fica só na legenda: aceito
++local function accepts(fn, why)
++	local result = validate(fn)
++	assert(result.passed, why .. ": " .. table.concat(result.erros, "; "))
++	cases += 1
++end
++accepts(function(a) a.vozes.ru.line = nil end, "voz russa ausente deve ficar só na legenda")
++accepts(function(a) a.vozes.ru = nil; a.vozes.en = nil; a.ids.voz_en = 0; a.ids.voz_ru = 0 end, "língua ainda sem vozes")
++rejects(function(a) a.ids.voz_pt = 0 end, "ID real inválido")
++rejects(function(a) a.ids.voz_en = -5 end, "ID de áudio inválido")
++rejects(function(a) a.vozes.pt.fantasma = { 0, 1 } end, "voz de fala inexistente")
++rejects(function(a) a.vozes = { pt = {}, en = {}, ru = {} } end, "nenhuma voz gravada")
+ rejects(function(a) a.duracoes.line = 0.1 end, "duração da voz")
+ rejects(function(_, a) a.assets.step.id = 0 end, "ID real inválido")
+ rejects(function(_, a) a.assets.step.start = 0 / 0 end, "limites")
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/tests/test_media_provenance.py y/tests/test_media_provenance.py
+--- xo/tests/test_media_provenance.py	2026-11-17 09:00:15.393095135 +0000
++++ y/tests/test_media_provenance.py	2026-11-17 09:03:56.907837089 +0000
+@@ -28,10 +28,11 @@
+             self.assertEqual(result['segments']['knock']['fileKey'],'foley_atlas')
+             self.assertIn('User-provided Claude stage2',result['production']['providers'])
+ 
+-    def test_supplied_eight_voices_and_knocks_have_hash_verified_sources(self):
++    def test_supplied_voices_and_knocks_have_hash_verified_sources(self):
++        # 8 falas da etapa 2 + 9 geradas depois na mesma voz (sessão Claude) = 17 reaproveitadas
+         plan=audio.load_plan(ROOT/'audio/AUDIO_PLAN.json')
+         reused=[c for c in plan['clips'] if c['kind']=='reuse' and c['category']=='Voice']
+-        self.assertEqual(len(reused),8)
++        self.assertEqual(len(reused),17)
+         for clip in reused:
+             self.assertEqual(hashlib.sha256((ROOT/'audio'/clip['sourcePath']).read_bytes()).hexdigest(),clip['sha256'])
+         self.assertEqual(len([c for c in plan['clips'] if c['category']=='Voice']),20)
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/tests/test_prepare_audio.py y/tests/test_prepare_audio.py
+--- xo/tests/test_prepare_audio.py	2026-11-17 09:00:15.393222024 +0000
++++ y/tests/test_prepare_audio.py	2026-11-17 09:03:56.908571267 +0000
+@@ -258,6 +258,55 @@
+         self.assertEqual(audio.inspect_plan(self.plan_path)["clips"]["line1"]["status"], "missing")
+ 
+ 
++class RecusaElevenLabsTests(AudioProductionTests):
++    """Recusa clara do ElevenLabs: motivo visível, nada incerto, instalação segue com o que existe."""
++    def recusa(self, caminho, status, detalhe):
++        base = self.api()
++        def transporte(method, url, headers, body):
++            path = url.split("api.elevenlabs.io", 1)[-1]
++            if path.startswith(caminho) and (method == "POST" or caminho == "/v1/voices"):
++                base.calls.append((method, path, None))
++                return audio.HTTPResponse(status, {"content-type": "application/json"},
++                                          json.dumps({"detail": detalhe}).encode())
++            return base(method, url, headers, body)
++        transporte.calls = base.calls
++        return transporte
++
++    def test_401_na_lista_de_vozes_mostra_o_motivo_sem_a_chave(self):
++        api = self.recusa("/v1/voices", 401, {"status": "detected_unusual_activity", "message": "Free Tier usage disabled for secret-token-must-never-be-written"})
++        with self.assertRaises(audio.AudioProductionError) as caught:
++            audio.prepare(self.plan_path, "secret-token-must-never-be-written", transport=api)
++        texto = str(caught.exception)
++        self.assertIn("detected_unusual_activity", texto)
++        self.assertIn("plano pago", texto)
++        self.assertNotIn("secret-token", texto)
++        self.assertFalse((self.root / "receipts" / "line1.json").exists())
++
++    def test_post_recusado_nao_fica_incerto_e_pode_tentar_de_novo(self):
++        api = self.recusa("/v1/text-to-speech", 401, {"status": "missing_permissions", "message": "The API key you used is missing the permission text_to_speech"})
++        with self.assertRaises(audio.AudioProductionError) as caught:
++            audio.prepare(self.plan_path, "test-key", transport=api)
++        self.assertIn("nada foi gerado nem cobrado", str(caught.exception))
++        self.assertIn("permissões", str(caught.exception))
++        self.assertEqual(audio.inspect_plan(self.plan_path)["clips"]["line1"]["status"], "missing")
++        manifest = audio.prepare(self.plan_path, "test-key", transport=self.api())
++        self.assertIn("line1", manifest["segments"])
++
++    def test_monta_so_com_o_que_existe_quando_permitido(self):
++        fonte = self.root / "pronto.mp3"
++        fonte.write_bytes(self.mp3)
++        self.plan["clips"].append({"key": "pronto", "kind": "reuse", "sourcePath": "pronto.mp3",
++                                   "sha256": hashlib.sha256(self.mp3).hexdigest(), "profile": "foley",
++                                   "category": "Foley", "volume": 0.5})
++        self.write_plan()
++        with self.assertRaises(audio.AudioProductionError):
++            audio.build_atlases(self.plan_path)
++        manifest = audio.build_atlases(self.plan_path, allow_missing=True)
++        self.assertEqual(set(manifest["segments"]), {"pronto"})
++        self.assertTrue(manifest["production"]["partial"])
++        self.assertEqual(manifest["production"]["missing"], ["line1"])
++
++
+ class ShippedPlanTests(unittest.TestCase):
+     def test_all_textos_lines_and_sound_keys_are_real_planned_sources(self):
+         self.assertIsNotNone(audio, "The production implementation is missing")
+@@ -271,8 +320,8 @@
+         lines = [(key, roles[key], text) for key,text in re.findall(r'(\w+) = "([^"]+)"', original)]
+         planned = {c["key"]: c for c in plan["clips"]}
+         self.assertEqual(len(lines), 20)
+-        self.assertEqual(len([c for c in planned.values() if c["kind"] == "tts"]), 12)
+-        self.assertEqual(len([c for c in planned.values() if c["kind"] == "reuse" and c["category"] == "Voice"]), 8)
++        self.assertEqual(len([c for c in planned.values() if c["kind"] == "tts"]), 3)
++        self.assertEqual(len([c for c in planned.values() if c["kind"] == "reuse" and c["category"] == "Voice"]), 17)
+         for key, role, text in lines:
+             self.assertEqual(planned[key]["text"], text)
+             self.assertEqual(planned[key]["role"], role)
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/tooling/prepare_audio.py y/tooling/prepare_audio.py
+--- xo/tooling/prepare_audio.py	2026-11-17 09:00:15.394376241 +0000
++++ y/tooling/prepare_audio.py	2026-11-17 09:03:08.597056833 +0000
+@@ -227,6 +227,41 @@
+         path.unlink(missing_ok=True)
+ 
+ 
++def _motivo(response, secret=""):
++    """Motivo curto que o ElevenLabs deu para a recusa (ex.: missing_permissions,
++    detected_unusual_activity, quota_exceeded). Nunca devolve a chave."""
++    try:
++        data = json.loads(response.body.decode("utf-8", "replace"))
++    except (ValueError, AttributeError):
++        return ""
++    detail = data.get("detail") if isinstance(data, dict) else None
++    if isinstance(detail, dict):
++        texto = " - ".join(str(detail.get(k)) for k in ("status", "message") if detail.get(k))
++    elif isinstance(detail, str):
++        texto = detail
++    else:
++        texto = ""
++    texto = re.sub(r"\s+", " ", texto)[:240]
++    if secret:
++        texto = texto.replace(secret, "[OCULTA]")
++    return texto
++
++
++def _dica(status, motivo):
++    m = motivo.lower()
++    if "unusual" in m or "free tier" in m or "free_tier" in m:
++        return " A conta gratuita do ElevenLabs foi bloqueada por 'atividade incomum'; só volta a gerar com plano pago (elevenlabs.io/pricing)."
++    if "permission" in m:
++        return " A chave não tem todas as permissões: crie uma chave nova no ElevenLabs (Developers > API Keys) com acesso total ou marcando Text to Speech, Sound Effects, Voices, Models e User."
++    if "quota" in m or "credit" in m or status == 402:
++        return " Acabaram os créditos da conta ElevenLabs deste mês."
++    if status == 401:
++        return " Chave errada, apagada ou sem permissão: copie de novo a chave inteira em ElevenLabs > Developers > API Keys."
++    if status == 429:
++        return " Muitos pedidos ao mesmo tempo (fila gratuita cheia); tente mais tarde."
++    return ""
++
++
+ class _NoRedirect(urllib.request.HTTPRedirectHandler):
+     def redirect_request(self, req, fp, code, msg, headers, newurl):
+         return None
+@@ -272,7 +307,8 @@
+         except Exception:
+             raise AudioProductionError("Falha de rede em consulta ElevenLabs; nenhuma geração iniciada por esta consulta.") from None
+         if response.status != 200:
+-            raise AudioProductionError(f"Consulta ElevenLabs recusada (HTTP {response.status}). Confira chave e permissões de leitura.")
++            motivo = _motivo(response, self.key)
++            raise AudioProductionError(f"Consulta ElevenLabs recusada (HTTP {response.status}" + (f": {motivo}" if motivo else "") + ")." + _dica(response.status, motivo))
+         try:
+             return json.loads(response.body)
+         except (ValueError, UnicodeError):
+@@ -483,6 +519,19 @@
+                 print(f"Gerando uma vez: {clip['key']}", flush=True)
+                 try:
+                     response = client.request("POST", path, payload)
++                except Exception:
++                    response = None
++                if (response is not None and 400 <= response.status < 500 and response.status != 408
++                        and not response.headers.get("content-type", "").lower().startswith("audio/")):
++                    # O ElevenLabs recusou antes de gerar (chave, permissão, conta, créditos):
++                    # não houve áudio nem cobrança, então o pedido pode ser feito de novo depois.
++                    motivo = _motivo(response, key)
++                    _receipt_path(root, clip).unlink(missing_ok=True)
++                    raise AudioProductionError(f"{clip['key']}: ElevenLabs recusou (HTTP {response.status}" + (f": {motivo}" if motivo else "")
++                                               + "); nada foi gerado nem cobrado." + _dica(response.status, motivo))
++                try:
++                    if response is None:
++                        raise AudioProductionError("sem resposta")
+                     receipt["requestId"] = _safe_header(response.headers, "request-id", key)
+                     receipt["historyItemId"] = _safe_header(response.headers, "history-item-id", key)
+                     receipt["httpStatus"] = response.status
+@@ -578,11 +627,17 @@
+     return locations
+ 
+ 
+-def _build_atlases(plan, root, ffmpeg, ffprobe):
++def _build_atlases(plan, root, ffmpeg, ffprobe, allow_missing=False):
+     clips = _enabled(plan)
+     sources = {c["key"]: _source_status(root, c) for c in clips}
+     not_ready = [k for k, v in sources.items() if v["status"] != "completed"]
+-    if not_ready:
++    if not_ready and allow_missing:
++        # Recurso opcional nunca trava a instalação: monta só com as fontes prontas.
++        clips = [c for c in clips if c["key"] not in not_ready]
++        sources = {k: v for k, v in sources.items() if k not in not_ready}
++        if not clips:
++            raise AudioProductionError("Nenhuma fonte de áudio pronta para montar.")
++    elif not_ready:
+         (root / "AUDIO_MANIFEST.json").unlink(missing_ok=True)
+         raise AudioProductionError("Fontes ainda pendentes/alteradas: " + ", ".join(not_ready))
+     report_path = root / "PROCESSING_REPORT.json"
+@@ -630,20 +685,22 @@
+     providers = sorted({item["provider"] for item in processed.values()})
+     manifest = {"schemaVersion": 1, "target": plan["target"], "assets": assets, "segments": segments,
+                 "planHash": _json_hash(plan), "clips": processed, "production": {"complete": True,
+-                "provider": providers[0] if len(providers) == 1 else "Mixed", "providers": providers, "profileVersion": PROFILE_VERSION}}
++                "provider": providers[0] if len(providers) == 1 else "Mixed", "providers": providers, "profileVersion": PROFILE_VERSION,
++                "partial": bool(not_ready), "missing": sorted(not_ready)}}
+     validate_manifest(manifest, root, ffprobe=ffprobe)
+     _write_json(root / "AUDIO_MANIFEST.json", manifest)
+-    _write_json(root / "PRODUCTION_STATUS.json", {"schemaVersion": 1, "complete": True, "completedSources": len(sources), "requiredClips": len(sources), "updatedAt": _now()})
++    _write_json(root / "PRODUCTION_STATUS.json", {"schemaVersion": 1, "complete": not not_ready, "completedSources": len(sources),
++                                                   "requiredClips": len(sources) + len(not_ready), "missing": sorted(not_ready), "updatedAt": _now()})
+     return manifest
+ 
+ 
+-def build_atlases(plan_path, *, ffmpeg="ffmpeg", ffprobe="ffprobe"):
++def build_atlases(plan_path, *, ffmpeg="ffmpeg", ffprobe="ffprobe", allow_missing=False):
+     """Offline DSP and manifest construction; safe to retry without any API key."""
+     plan_path = Path(plan_path).resolve()
+     plan = load_plan(plan_path)
+     _ensure_tools(ffmpeg, ffprobe)
+     with _lock(plan_path.parent):
+-        return _build_atlases(plan, plan_path.parent, ffmpeg, ffprobe)
++        return _build_atlases(plan, plan_path.parent, ffmpeg, ffprobe, allow_missing=allow_missing)
+ 
+ 
+ def validate_manifest(manifest, audio_root, *, ffprobe="ffprobe", probe=True):
+diff -ruN '--exclude=*.mp3' '--exclude=*.wav' '--exclude=*.ogg' '--exclude=*.glb' '--exclude=*.rbxm' '--exclude=*.png' '--exclude=MANIFESTO_ENTREGA.json' xo/tooling/release_builder.py y/tooling/release_builder.py
+--- xo/tooling/release_builder.py	2026-11-17 09:00:15.394606969 +0000
++++ y/tooling/release_builder.py	2026-11-17 09:03:08.597400371 +0000
+@@ -254,7 +254,10 @@
+     required = {clip["key"] for clip in plan.get("clips", []) if clip.get("enabled", True)}
+     if not required:raise BuildError("Plano de áudio sem clipes obrigatórios.")
+     missing = required - set(audio_manifest.get("segments", {}))
+-    if missing:raise BuildError("Clipes obrigatórios ausentes: " + ", ".join(sorted(missing)))
++    # Sons que o ElevenLabs não gerou ficam de fora (o jogo mostra a legenda), desde que o
++    # manifesto declare exatamente quais faltam.
++    declared = set(audio_manifest.get("production", {}).get("missing", []))
++    if missing - declared:raise BuildError("Clipes obrigatórios ausentes: " + ", ".join(sorted(missing - declared)))
+     monster_plan = _load(root / "modelo/MONSTER_ASSET_PLAN.json")
+     _check_assets(root / "modelo", monster_upload_plan(monster_plan)["assets"])
+     return baseline, legacy_plan, audio_manifest, monster_plan

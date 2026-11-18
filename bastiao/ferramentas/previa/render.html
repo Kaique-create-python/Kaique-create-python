@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}
+#rot{position:absolute;left:12px;bottom:10px;color:#eee;font:14px sans-serif;background:rgba(0,0,0,.6);padding:4px 9px;border-radius:4px;max-width:92%}
+#aviso{position:absolute;right:10px;top:8px;color:#9aa;font:11px sans-serif;background:rgba(0,0,0,.45);padding:2px 6px;border-radius:3px}</style>
+</head>
+<body>
+<div id="rot"></div><div id="aviso">prévia aproximada (three.js) · não é o render do Roblox</div>
+<script src="../../../bizarre/tools/preview/three.min.js"></script>
+<script>
+// PROJETO BASTIÃO :: prévia aproximada do cenário. Mapa e peças vêm do place real (Lune).
+// Iluminação do jogo: ambiente quase preto, neblina 55..200, lâmpadas do mapa e a
+// lanterna de peito da bodycam (Angle 62, Range 50, Brightness 2.6).
+const MAT = {
+  Neon: {basic: true}, Glass: {rough: 0.12, metal: 0.25, vidro: true}, Metal: {rough: 0.45, metal: 0.55},
+  DiamondPlate: {rough: 0.4, metal: 0.7}, SmoothPlastic: {rough: 0.5, metal: 0}, Plastic: {rough: 0.65, metal: 0},
+  Wood: {rough: 0.8, metal: 0}, WoodPlanks: {rough: 0.85, metal: 0}, Concrete: {rough: 0.95, metal: 0},
+  Rubber: {rough: 0.95, metal: 0}, Slate: {rough: 0.9, metal: 0}, Brick: {rough: 0.95, metal: 0},
+};
+function rgb(c) { return new THREE.Color(`rgb(${c[0]},${c[1]},${c[2]})`); }
+
+function quebrar(g, texto, larguraMax) {
+  const linhas = [];
+  for (const par of texto.split('\n')) {
+    let atual = '';
+    for (const palavra of par.split(' ')) {
+      const t = atual === '' ? palavra : atual + ' ' + palavra;
+      if (g.measureText(t).width <= larguraMax || atual === '') atual = t; else { linhas.push(atual); atual = palavra; }
+    }
+    linhas.push(atual);
+  }
+  return linhas;
+}
+function canvasTela(t, w, h) {
+  let W = Math.round(w * t.pps), H = Math.round(h * t.pps);
+  const k = Math.min(1, 1400 / Math.max(W, H));
+  W = Math.max(8, Math.round(W * k)); H = Math.max(8, Math.round(H * k));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  if (t.bgt < 0.99) { g.fillStyle = `rgba(${t.bg[0]},${t.bg[1]},${t.bg[2]},${1 - t.bgt})`; g.fillRect(0, 0, W, H); }
+  const px = t.px * k;
+  g.font = `bold ${px}px "DejaVu Sans Mono","Liberation Mono",monospace`;
+  g.fillStyle = `rgb(${t.cor[0]},${t.cor[1]},${t.cor[2]})`;
+  const padL = Math.floor(t.px * 0.8) * k, padR = Math.floor(t.px * 0.6) * k, padT = Math.floor(t.px * 0.7) * k;
+  const linhas = quebrar(g, t.txt, W - padL - padR);
+  const lh = px * 1.12;
+  let y0 = padT;
+  if (t.ay === 'Center') y0 = (H - linhas.length * lh) / 2 + padT * 0.5;
+  g.textBaseline = 'top';
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+    let x = padL;
+    if (t.ax === 'Center') { g.textAlign = 'center'; x = padL + (W - padL - padR) / 2; } else g.textAlign = 'left';
+    g.fillText(l, x, y0 + i * lh);
+  }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  return tex;
+}
+function planoTela(mesh, s, t) {
+  let w, h; const pl = new THREE.Object3D();
+  const e = 0.006;
+  if (t.face === 'Front') { w = s[0]; h = s[1]; pl.position.set(0, 0, -s[2] / 2 - e); pl.rotation.y = Math.PI; }
+  else if (t.face === 'Back') { w = s[0]; h = s[1]; pl.position.set(0, 0, s[2] / 2 + e); }
+  else if (t.face === 'Right') { w = s[2]; h = s[1]; pl.position.set(s[0] / 2 + e, 0, 0); pl.rotation.y = Math.PI / 2; }
+  else if (t.face === 'Left') { w = s[2]; h = s[1]; pl.position.set(-s[0] / 2 - e, 0, 0); pl.rotation.y = -Math.PI / 2; }
+  else if (t.face === 'Top') { w = s[0]; h = s[2]; pl.position.set(0, s[1] / 2 + e, 0); pl.rotation.x = -Math.PI / 2; }
+  else return;
+  const tex = canvasTela(t, w, h);
+  const mat = t.luz ? new THREE.MeshStandardMaterial({map: tex, transparent: true, roughness: 0.85})
+                    : new THREE.MeshBasicMaterial({map: tex, transparent: true, color: new THREE.Color(1.35, 1.35, 1.35)});
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  pl.add(m); mesh.add(pl);
+}
+
+window.renderCena = function (pecas, o) {
+  const W = o.w || 1280, H = o.h || 720;
+  const renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
+  renderer.setSize(W, H);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = o.exposicao || 1.1;
+  document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const fogCor = new THREE.Color('rgb(18,23,24)');
+  scene.background = fogCor.clone();
+  scene.fog = new THREE.Fog(fogCor, 55, 200);
+  scene.add(new THREE.AmbientLight(0x9aa6a6, o.ambiente || 0.22));
+  scene.add(new THREE.HemisphereLight(0x5c6466, 0x1a1712, 0.18));
+  let luzes = 0;
+  for (const p of pecas) {
+    const s = p.s; let geo;
+    if (p.f === 'Cylinder') { geo = new THREE.CylinderGeometry(Math.min(s[1], s[2]) / 2, Math.min(s[1], s[2]) / 2, s[0], 24); geo.rotateZ(-Math.PI / 2); }
+    else if (p.f === 'Ball') geo = new THREE.SphereGeometry(Math.min(s[0], s[1], s[2]) / 2, 20, 14);
+    else geo = new THREE.BoxGeometry(s[0], s[1], s[2]);
+    const def = MAT[p.m] || {rough: 0.75, metal: 0};
+    let mat;
+    if (def.basic) mat = new THREE.MeshBasicMaterial({color: rgb(p.c).multiplyScalar(1.5)});
+    else mat = new THREE.MeshStandardMaterial({color: rgb(p.c), roughness: def.rough, metalness: def.metal});
+    if (p.t > 0.01 || def.vidro) { mat.transparent = true; mat.opacity = def.vidro && p.t < 0.01 ? 0.8 : Math.max(1 - p.t, 0.08); mat.depthWrite = p.t < 0.5; }
+    const mesh = new THREE.Mesh(geo, mat);
+    const r = p.r;
+    mesh.applyMatrix4(new THREE.Matrix4().set(r[0], r[1], r[2], p.p[0], r[3], r[4], r[5], p.p[1], r[6], r[7], r[8], p.p[2], 0, 0, 0, 1));
+    scene.add(mesh);
+    if (p.tela) planoTela(mesh, s, p.tela);
+    for (const l of (p.luz || [])) {
+      if (luzes >= 40) break;
+      const cor = rgb(l.c); let L;
+      if (l.tipo === 'SpotLight') {
+        const eixo = {Front: [0, 0, -1], Back: [0, 0, 1], Right: [1, 0, 0], Left: [-1, 0, 0], Top: [0, 1, 0], Bottom: [0, -1, 0]}[l.face] || [0, 0, -1];
+        const d = new THREE.Vector3(r[0] * eixo[0] + r[1] * eixo[1] + r[2] * eixo[2], r[3] * eixo[0] + r[4] * eixo[1] + r[5] * eixo[2], r[6] * eixo[0] + r[7] * eixo[1] + r[8] * eixo[2]);
+        L = new THREE.SpotLight(cor, l.b * 45, l.a * 1.3, THREE.MathUtils.degToRad(l.ang / 2), 0.5, 1.5);
+        L.position.set(p.p[0], p.p[1], p.p[2]);
+        L.target.position.set(p.p[0] + d.x * 10, p.p[1] + d.y * 10, p.p[2] + d.z * 10); scene.add(L.target);
+      } else {
+        L = new THREE.PointLight(cor, l.b * 32, l.a * 1.3, 1.5);
+        L.position.set(p.p[0], p.p[1], p.p[2]);
+      }
+      scene.add(L); luzes++;
+    }
+  }
+  const cam = new THREE.PerspectiveCamera(o.fov || 72, W / H, 0.05, 1000);
+  cam.position.set(...o.cam); cam.lookAt(new THREE.Vector3(...o.alvo));
+  // lanterna de peito da bodycam (um pouco abaixo e à direita do olho)
+  const dir = new THREE.Vector3(...o.alvo).sub(cam.position).normalize();
+  const lan = new THREE.SpotLight(0xe4eafc, 2.6 * 22, 65, THREE.MathUtils.degToRad(31), 0.55, 1.4);
+  lan.position.copy(cam.position).add(new THREE.Vector3(0, -0.5, 0));
+  lan.target.position.copy(cam.position).add(dir.multiplyScalar(10)); scene.add(lan.target); scene.add(lan);
+  renderer.render(scene, cam);
+  document.getElementById('rot').textContent = o.rotulo || '';
+};
+</script>
+</body>
+</html>

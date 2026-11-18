@@ -1,0 +1,264 @@
+-- BIZARRE BATTLEGROUNDS :: projéteis (rolamento, facas, ankh de fogo, rapieira, moeda, tanquinho...)
+-- O servidor calcula o caminho e os acertos; os celulares desenham o mesmo caminho.
+-- "guiado" (Sheer Heart Attack): vira devagar atrás do inimigo mais perto e avisa os celulares.
+
+local RunService = game:GetService("RunService")
+local Perfil=require(game:GetService("ReplicatedStorage"):WaitForChild("BB"):WaitForChild("PerfilCombate14"))
+
+local Hitbox = require(script.Parent.Hitbox)
+local Mapa = require(script.Parent.Mapa)
+local Vinculos16=require(script.Parent.Vinculos16)
+
+local Projeteis = {}
+
+local ativos: { [number]: any } = {}
+local proximoId = 0
+local remoto: RemoteEvent? = nil
+local aoAcertar: ((p: any, alvo: any, pos: Vector3) -> ())? = nil
+local aoExplodir: ((p: any, pos: Vector3) -> ())? = nil
+local contraDe: ((alvo: any, p: any) -> boolean)? = nil
+
+local paramsRaio = RaycastParams.new()
+paramsRaio.FilterType = Enum.RaycastFilterType.Include
+pcall(function()
+	paramsRaio.RespectCanCollide = true
+end)
+
+local function agora(): number
+	return workspace:GetServerTimeNow()
+end
+local filtroDe: any = nil
+
+function Projeteis.iniciar(efeito: RemoteEvent, acertar: any, explodir: any, contra: any)
+	remoto = efeito
+	aoAcertar = acertar
+	aoExplodir = explodir
+	contraDe = contra
+	RunService.Heartbeat:Connect(function(dt)
+		Projeteis.passo(dt)
+	end)
+end
+
+function Projeteis.lancar(dono: any, def: any, origem: Vector3, dir: Vector3, golpeId: string?): number
+	proximoId += 1
+	local id = proximoId
+	local p = {
+		id = id,
+		dono = dono,
+		def = table.clone(def),
+		pos = origem,
+		dir = dir.Unit,
+		vel = def.vel or 80,
+		raio = def.raio or 1.5,
+		dist = 0,
+		alcance = def.alcance or 80,
+		acertou = {},
+		golpe = golpeId,
+		t0 = agora(),
+		congeladoAte = 0,
+        visualPausa=0,
+		congelamentos = {},
+		avisoT = 0,
+	}
+	ativos[id] = p
+	if remoto then
+		remoto:FireAllClients("proj", {
+			id = id,
+			dono = dono.modelo,
+			visual = def.visual,
+			moveId=golpeId or (def.context14 and def.context14.moveId),
+			actionId=def.context14 and def.context14.actionId,
+			origem = origem,
+			dir = p.dir,
+			vel = p.vel,
+			alcance = p.alcance,
+			raio = p.raio,
+			t = p.t0,
+			stand = dono.standId,
+		})
+	end
+	return id
+end
+
+-- A esfera pode alcançar um corpo do outro lado de uma parede lateral mesmo com
+-- trajetória central livre. O piloto confirma LOS por vítima antes de consumir hit.
+local function piloto14(p)
+	local ctx=p.def.context14
+	return ctx and Perfil.suporta(ctx.stand)
+end
+local function linhaVitima(p,alvo)
+	local v=alvo.raiz.Position-p.pos
+	if v.Magnitude<1e-4 then return true end
+	local hit=workspace:Raycast(p.pos,v,paramsRaio)
+	return not hit or (hit.Position-p.pos).Magnitude>=v.Magnitude-0.05
+end
+
+-- persegue o inimigo mais perto (só no plano do chão) virando no máximo "guiado" radianos/s
+local function guiar(p: any, dt: number, t: number)
+	local melhor, melhorD = nil, 70
+	for _, l in Hitbox.esfera(p.pos, 70, p.dono) do
+		local d = (l.raiz.Position - p.pos).Magnitude
+		if d < melhorD then
+			melhor, melhorD = l, d
+		end
+	end
+	if not melhor then
+		return
+	end
+	local quer = melhor.raiz.Position - p.pos
+	quer = Vector3.new(quer.X, 0, quer.Z)
+	if quer.Magnitude < 0.5 then
+		return
+	end
+	quer = quer.Unit
+	local atual = Vector3.new(p.dir.X, 0, p.dir.Z)
+	if atual.Magnitude < 1e-3 then
+		atual = quer
+	end
+	atual = atual.Unit
+	local ang = math.acos(math.clamp(atual:Dot(quer), -1, 1))
+	local maximo = p.def.guiado * dt
+	local novo = quer
+	if ang > maximo then
+		local lado = if atual:Cross(quer).Y >= 0 then 1 else -1
+		novo = CFrame.Angles(0, maximo * lado, 0):VectorToWorldSpace(atual)
+	end
+	p.dir = novo.Unit
+	if remoto and t - p.avisoT >= 0.12 then
+		p.avisoT = t
+		remoto:FireAllClients("projVirar", { id = p.id, pos = p.pos, dir = p.dir, t = t, resta = math.max(0, p.alcance - p.dist) })
+	end
+end
+
+local function terminar(p: any, pos: Vector3, explodiu: boolean)
+	ativos[p.id] = nil
+	if explodiu and p.def.explosao and aoExplodir then
+		aoExplodir(p, pos)
+	end
+	if remoto then
+		remoto:FireAllClients("projFim", { id = p.id, pos = pos, explodiu = explodiu })
+	end
+end
+
+-- Each session owns only its overlay. The optional ID keeps old deadline calls
+-- compatible while allowing independent sessions with equal or different ends.
+local function chaveCongelamento(ate, sessao)
+	return sessao or ("legado:"..tostring(ate))
+end
+local function atualizarCongelamentos(p,t)
+	local fim=0
+	for chave,ate in p.congelamentos do
+		if ate<=t then p.congelamentos[chave]=nil else fim=math.max(fim,ate) end
+	end
+	p.congeladoAte=fim
+end
+local function avisarEstado(p)
+ local untilTime=p.congeladoAte
+ if p.visualPausa==untilTime then return end
+ p.visualPausa=untilTime
+ if remoto then remoto:FireAllClients("projEstado",{id=p.id,pos=p.pos,dir=p.dir,t=agora(),ate=untilTime,resta=math.max(0,p.alcance-p.dist),vel=p.vel})end
+end
+function Projeteis.descongelar(ate: number, sessao: any?)
+	local chave=chaveCongelamento(ate,sessao)
+	for _, p in ativos do
+		p.congelamentos[chave]=nil
+		atualizarCongelamentos(p,agora());avisarEstado(p)
+	end
+end
+
+function Projeteis.congelar(ate: number, exceto: any?, sessao: any?)
+	local chave=chaveCongelamento(ate,sessao)
+	for _, p in ativos do
+		if p.dono ~= exceto then
+			p.congelamentos[chave]=ate
+			atualizarCongelamentos(p,agora());avisarEstado(p)
+		end
+	end
+end
+
+function Projeteis.passo(dt: number)
+	local t = agora()
+	if next(ativos) == nil then
+		return
+	end
+	if filtroDe ~= Mapa.pasta then
+		filtroDe = Mapa.pasta
+		paramsRaio.FilterDescendantsInstances = Mapa.filtro()
+	end
+	for _, p in ativos do
+		atualizarCongelamentos(p,t);avisarEstado(p)
+		if p.def.vinculo16 and not Vinculos16.vigente(p.def.vinculo16,p.dono)then terminar(p,p.pos,false);continue end
+		if t < p.congeladoAte then
+			continue
+		end
+		if p.def.guiado then
+			guiar(p, dt, t)
+		end
+		local passo = p.dir * p.vel * dt
+		-- bateu no mapa?
+		local hit = workspace:Raycast(p.pos, passo + p.dir * p.raio * 0.5, paramsRaio)
+		if hit and hit.Instance.CanCollide then
+			local parte = hit.Instance :: BasePart
+			if Mapa.ehQuebravel(parte) then
+				Mapa.quebrar(parte, p.dir, if p.def.explosao then p.def.explosao.quebra or 1 else 1)
+			end
+			terminar(p, hit.Position, true)
+			continue
+		end
+		p.pos += passo
+		p.dist += passo.Magnitude
+		-- acertou alguém?
+		local fim = false
+		for _, alvo in Hitbox.esfera(p.pos, p.raio + 1.2, p.dono, piloto14(p)) do
+			if piloto14(p) and not linhaVitima(p,alvo) then continue end
+			if p.acertou[alvo] then
+				continue
+			end
+			p.acertou[alvo] = true
+			-- contra-ataque que devolve projéteis (sombrinha do FREVO)
+			if contraDe and contraDe(alvo, p) then
+				p.dono = alvo
+				if p.def.vinculo16 then
+     p.def.vinculo16=Vinculos16.capturar(alvo)
+     local ctx=table.clone(p.def.context14 or{})
+     ctx.actionId=tostring(ctx.actionId or p.id)..":refletido:"..tostring(alvo.geracao14)..":"..tostring(p.id)
+     ctx.token=alvo.estado.token;ctx.t=t;p.def.context14=ctx
+    end
+				p.dir = -p.dir
+				p.acertou = { [alvo] = true }
+				p.dist = 0
+				if remoto then
+					remoto:FireAllClients("projRefletir", { id = p.id, pos = p.pos, dir = p.dir, t = t, dono = alvo.modelo })
+				end
+				fim = false
+				break
+			end
+			if p.def.explosao then
+				terminar(p, p.pos, true)
+				fim = true
+				break
+			end
+			if aoAcertar then
+				aoAcertar(p, alvo, p.pos)
+			end
+			if not p.def.perfura then
+				terminar(p, p.pos, false)
+				fim = true
+				break
+			end
+		end
+		if not fim and ativos[p.id] and p.dist >= p.alcance then
+			terminar(p, p.pos, p.def.explodeNoFim == true)
+		end
+	end
+end
+
+function Projeteis.quantos(): number
+	local n = 0
+	for _ in ativos do
+		n += 1
+	end
+	return n
+end
+
+return Projeteis
