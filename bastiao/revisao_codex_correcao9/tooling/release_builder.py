@@ -21,6 +21,8 @@ from instalador.stamina import source_row as stamina_row
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = {"userId": "10735737143", "universeId": "10776462844", "placeId": "89520940302906"}
 STAGE = 3
+LIGHTING_PATH = ["StarterPlayer", "StarterPlayerScripts", "BastiaoIluminacao"]
+LIGHTING_SOURCE = "src/client/BastiaoIluminacao.client.luau"
 _KEY = re.compile(r"[a-z][a-z0-9_]*\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
 REPLACEMENTS = {
@@ -361,7 +363,7 @@ def _source_inputs(root):
     baseline = _load(root / "BASE_CLAUDE_ETAPA2.json")
     if not isinstance(baseline, list) or len(baseline) != 23:raise BuildError("Base Claude requer os 23 scripts revisados.")
     validate(baseline)
-    for relative in (*REPLACEMENTS.values(), *(path for _, path in EXTRAS if path), "src/teste_nuvem.luau"):
+    for relative in (*REPLACEMENTS.values(), *(path for _, path in EXTRAS if path), LIGHTING_SOURCE, "src/teste_nuvem.luau"):
         _text(root, relative)
     return baseline
 
@@ -449,8 +451,10 @@ def _assemble(root):
         revisadas = REVISADAS.get(tuple(row["path"]))
         if revisadas:row["known"] = sorted(set(row.get("known", [])) | set(revisadas))
     rows.append(stamina_row())
+    rows.append({"path": LIGHTING_PATH.copy(), "cls": "LocalScript", "source": _text(root, LIGHTING_SOURCE)})
     validate(rows)
-    report = {"stage": STAGE, "replacedSources": changed, "addedSources": ["/".join(path) for path, _ in EXTRAS],
+    report = {"stage": STAGE, "replacedSources": changed,
+              "addedSources": ["/".join(path) for path, _ in EXTRAS] + ["/".join(LIGHTING_PATH)],
               "sourceCount": len(rows), "preservedLegacyVoices": len(old_audio["vozes"].get("pt", {})),
               "audioClips": len(audio["assets"]), "monsterAnimations": len(monster["animations"]),
               "modelHeightStuds": monster["heightStuds"], "readyToBuild": True, "engineValidated": False,
@@ -490,7 +494,7 @@ def verify(root=ROOT):
     legacy = legacy_upload_plan(root)
     model = _load(root / "modelo/MONSTER_ASSET_PLAN.json")
     _check_assets(root / "modelo", monster_upload_plan(model)["assets"])
-    report = {"stage": STAGE, "baseScripts": len(baseline), "finalScripts": len(baseline) + len(EXTRAS) + 1,
+    report = {"stage": STAGE, "baseScripts": len(baseline), "finalScripts": len(baseline) + len(EXTRAS) + 2,
               "sourceIntegrity": True, "legacySprites": len(legacy["assets"]),
               "readyToBuild": False, "engineValidated": False, "pending": []}
     try:

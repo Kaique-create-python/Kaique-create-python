@@ -134,6 +134,12 @@ local SRV = ServerScriptService:FindFirstChild("BastiaoServidor")
 local COMP = ReplicatedStorage:FindFirstChild("BastiaoCompartilhado")
 local SPS = StarterPlayer:FindFirstChild("StarterPlayerScripts")
 local CLI = SPS and SPS:FindFirstChild("BastiaoCliente")
+local iluminacao = SPS and SPS:FindFirstChild("BastiaoIluminacao")
+if not iluminacao or not iluminacao:IsA("LocalScript") or iluminacao.Disabled then
+	falha("LocalScript de iluminação ausente, incorreto ou desligado")
+else
+	out.info.iluminacao_cliente_instalada = true -- Source conferido acima. Render exige cliente real.
+end
 if not SRV or not COMP or not CLI then
 	falha("Scripts do Bastião não estão nos lugares esperados")
 	return relatorio()

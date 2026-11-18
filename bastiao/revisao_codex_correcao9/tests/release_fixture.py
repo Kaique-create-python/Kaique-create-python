@@ -45,6 +45,9 @@ def make_release(root):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("-- replacement fixture " + name + "\nreturn {}\n")
     (root / "src/teste_nuvem.luau").write_text("return {package=cfg.package,passed=false}\n")
+    (root / "src/client/BastiaoIluminacao.client.luau").write_text(
+        (real / "src/client/BastiaoIluminacao.client.luau").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     legacy = json.loads((real / "legado/audio.json").read_text())
     write_json(root / "legado/audio.json", legacy)
     legacy_rows = []

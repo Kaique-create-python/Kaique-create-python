@@ -44,7 +44,10 @@ class ReleaseBuilderTests(unittest.TestCase):
         self.assertIn(hashlib.sha256(previous["source"].encode()).hexdigest(), server["known"])
         self.assertTrue(set(previous.get("known", [])).issubset(server["known"]))
         self.assertEqual(report["stage"], 3)
-        self.assertEqual(len(rows), 32)
+        self.assertEqual(len(rows), 33)
+        lighting = got[("StarterPlayer", "StarterPlayerScripts", "BastiaoIluminacao")]
+        self.assertEqual(lighting["cls"], "LocalScript")
+        self.assertEqual(lighting["source"], (self.root / builder.LIGHTING_SOURCE).read_text(encoding="utf-8"))
         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Foley"), got)
         self.assertIn(("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "Efeitos"), got)
         som = got[("StarterPlayer", "StarterPlayerScripts", "BastiaoCliente", "MonstroSom")]
