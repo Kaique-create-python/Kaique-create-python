@@ -159,3 +159,29 @@ aplicada). Patch em `bastiao/docs/CORRECAO11_MENU3D_CAPITULO2_ARMA.patch` (base:
 - Nós novos: `cap2_sub_ir` → zona `subestacao` → 3 fusíveis + `colocar_fusiveis` (relata `fusiveis_ok`) → `religar_disjuntor` → luz volta.
 - Depois da luz: `monstro_isca` chama `criatura.atrair(pos)` (API nova no `Criatura`) → zona `porta_blindada` → `c2_descida` → fim (checkpoint `fim_cap2`).
 - Próximo: capítulo 3, o andar sem número (o elevador desce).
+
+## Correção 15: capítulo 3, parte 1 (A Guarnição: infectados e blackout)
+`bastiao/dist/CORRIGIR_ETAPA3_15.py` vai em cima da 14. Patch: `bastiao/docs/CORRECAO15_CAPITULO3_INFECTADOS.patch`.
+- `Capitulo03.juntar(Capitulo02.juntar(Capitulo01))`: a saída da `cap2_descida` vai para `cap3_chegada`.
+  - Os efeitos da chegada põem todos na cabine, entregam fuzis e deixam 3 infectados dormindo.
+  - Depois vêm, nesta ordem:
+    1. zona `cap3_quartel`;
+    2. `pegar_cartao`, que dispara o blackout (`luz3=apagada`, atributo `BastiaoBlackout` no workspace) e a onda (`infectados3=acordados`);
+    3. evento de criatura `infectados_mortos`;
+    4. `abrir_arsenal`;
+    5. fim, com o checkpoint `fim_cap3a`.
+- `Cenario04`: o andar sem número em y -120 (x -24..24, z -250..-76), longe de todo o resto.
+  - Salas: cabine, saguão, corredor, alojamento e arsenal.
+  - Detalhes: grades de ventilação que caem, o corpo do tenente com o cartão e 3 caixas de munição.
+- `Infectados` (servidor):
+  - Clones R6 do StarterCharacter com o uniforme soviético (catálogo), pele doente e olhos Neon.
+  - Andam com PathfindingService.
+  - Tiro no corpo tira 34; na cabeça, 100. A garra tira 18. Morrem com ragdoll (BallSocket).
+  - Atributos para o cliente: `BastiaoEstado`, `BastiaoGrito`, `BastiaoAtaque`, `BastiaoDor`, `BastiaoMorto`, `BastiaoSemente`.
+  - A arma do servidor chama `infectados.atingir` e `ouvir`.
+- `InfectadosCliente`:
+  - Animação procedural no `Motor6D.Transform` (curvado, manca, braço mole, espasmos na cabeça, garra, tranco).
+  - Sons na cabeça deles.
+  - `ColorCorrection` do blackout quando a câmera está abaixo de y -80.
+- Sons do ElevenLabs: `infectado_idle_1/2`, `infectado_grito_1/2`, `infectado_ataque_1/2`, `infectado_dor`, `infectado_morte` e `blackout`.
+- Próximo: capítulo 3, parte 2 (o que o arsenal guarda).
