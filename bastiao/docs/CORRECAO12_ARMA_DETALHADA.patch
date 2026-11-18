@@ -1,0 +1,810 @@
+diff -ruN z11/src/client/Arma.luau z12/src/client/Arma.luau
+--- z11/src/client/Arma.luau	2026-11-18 09:16:21.847182321 +0000
++++ z12/src/client/Arma.luau	2026-11-18 10:49:14.161477208 +0000
+@@ -38,6 +38,85 @@
+ local CADENCIA = 0.1
+ local DISPERSAO = math.rad(0.9)
+ local MAX_BURACOS = 40
++local CMV = 0.03 -- 1 cm em studs (igual ao ArmaModelo)
++
++-- ===== recargas em quadros-chave =====
++-- arma: deslocamento (studs) e giro (graus) em volta da mão direita; pente: em volta da trava dianteira (cm);
++-- mão esquerda: em volta do ponto onde ela segura o guarda-mão (cm). "segura": janelas em que a mão leva o pente.
++local function suave(a: number): number
++	return a * a * (3 - 2 * a)
++end
++local function preparar(chaves: { { number } }, esc: number): { any }
++	local l = {}
++	for _, k in chaves do
++		table.insert(l, { k[1], CFrame.new((k[2] or 0) * esc, (k[3] or 0) * esc, (k[4] or 0) * esc)
++			* CFrame.Angles(math.rad(k[5] or 0), math.rad(k[6] or 0), math.rad(k[7] or 0)) })
++	end
++	return l
++end
++local function amostra(l: { any }, t: number): CFrame
++	if t <= l[1][1] then
++		return l[1][2]
++	end
++	for i = 1, #l - 1 do
++		local a, b = l[i], l[i + 1]
++		if t < b[1] then
++			return a[2]:Lerp(b[2], suave((t - a[1]) / (b[1] - a[1])))
++		end
++	end
++	return l[#l][2]
++end
++local function amostraN(l: { { number } }, t: number): number
++	if t <= l[1][1] then
++		return l[1][2]
++	end
++	for i = 1, #l - 1 do
++		local a, b = l[i], l[i + 1]
++		if t < b[1] then
++			return a[2] + (b[2] - a[2]) * suave((t - a[1]) / (b[1] - a[1]))
++		end
++	end
++	return l[#l][2]
++end
++local INICIO_PENTE = { { 0 }, { 0.40 }, { 0.48, 0, -0.3, 0, 14, 0, 0 }, { 0.62, 0, -5, 1.5, 24, 0, -4 } }
++local LINHAS = {
++	-- pente vazio: o pente cai no chão, entra outro e a mão puxa o ferrolho (arma girada mostrando o lado direito)
++	vazia = {
++		dur = 2.6,
++		arma = preparar({ { 0 }, { 0.28, -0.05, 0.035, 0.01, 7, -5, -22 }, { 0.46, -0.055, 0.03, 0.01, 8, -5, -24 },
++			{ 0.56, -0.05, 0.045, 0.01, 11, -5, -23 }, { 0.75, -0.06, 0.035, 0.01, 9, -6, -25 }, { 1.30, -0.065, 0.035, 0.015, 9, -6, -26 },
++			{ 1.44, -0.06, 0.04, 0.012, 11, -5, -25 }, { 1.50, -0.06, 0.025, 0.012, 7, -5, -24 }, { 1.62, -0.03, 0.03, 0, 5, 0, 4 },
++			{ 1.80, -0.01, 0.045, 0, 6, 3, 30 }, { 1.98, -0.01, 0.045, 0.01, 5, 3, 32 }, { 2.06, -0.01, 0.05, 0.03, 4, 3, 31 },
++			{ 2.10, -0.01, 0.03, 0, 9, 3, 28 }, { 2.34, 0, -0.006, 0, -1.5, 0, -3 }, { 2.60 } }, 1),
++		pente = preparar({ INICIO_PENTE[1], INICIO_PENTE[2], INICIO_PENTE[3], INICIO_PENTE[4], { 0.70, 0, -8, 2, 28, 0, -6 },
++			{ 1.05, -2, -40, 8, 40, 0, 8 }, { 1.28, -0.6, -9, 1, 28, 0, 4 }, { 1.42, 0, -0.8, 0, 20, 0, 0 }, { 1.50, 0, 0, 0, -2, 0, 0 },
++			{ 1.56 } }, CMV),
++		mao = preparar({ { 0 }, { 0.14, 0, -1, 1.5, 0, 0, -6 }, { 0.86, -3, -34, 8, 30, 0, 10 }, { 1.58, 0.5, 4, 12, -10, 0, -30 },
++			{ 1.80, 3.8, 6.8, 16.5, -10, 0, -70 }, { 1.98, 3.8, 6.8, 16.5, -10, 0, -70 }, { 2.06, 3.8, 6.8, 29.5, -10, 0, -70 },
++			{ 2.10, 4.1, 7.6, 28.5, -10, 0, -65 }, { 2.38, 0, -0.6, 0.8, 0, 0, -3 }, { 2.60 } }, CMV),
++		segura = { { 0.30, 0.72 }, { 1.00, 1.52 } },
++		oculto = { 0.70, 1.05 },
++		ferro = { { 0, 0 }, { 1.98, 0 }, { 2.06, 12.5 }, { 2.085, 12.5 }, { 2.11, 0 } },
++		ev = { { 0.42, "ak_pente_sai" }, { 0.70, "cai" }, { 1.48, "ak_pente_entra" }, { 1.98, "ak_ferrolho" } },
++	},
++	-- ainda com bala: o pente vai para o colete e entra outro (fica 30 + 1 na câmara)
++	tatica = {
++		dur = 2.1,
++		arma = preparar({ { 0 }, { 0.28, -0.05, 0.035, 0.01, 7, -5, -22 }, { 0.46, -0.055, 0.03, 0.01, 8, -5, -24 },
++			{ 0.56, -0.05, 0.045, 0.01, 11, -5, -23 }, { 1.10, -0.06, 0.035, 0.01, 9, -6, -25 }, { 1.24, -0.06, 0.04, 0.012, 11, -5, -25 },
++			{ 1.32, -0.06, 0.025, 0.012, 7, -5, -24 }, { 1.65, -0.02, 0.01, 0, 2, -2, -8 }, { 1.85, 0, -0.006, 0, -1.2, 0, 2 }, { 2.10 } }, 1),
++		pente = preparar({ INICIO_PENTE[1], INICIO_PENTE[2], INICIO_PENTE[3], { 0.60, 0, -5, 1.5, 24, 0, -4 },
++			{ 0.82, -2, -40, 8, 40, 0, 8 }, { 0.90, -2, -40, 8, 40, 0, 8 }, { 1.12, -0.6, -9, 1, 28, 0, 4 }, { 1.24, 0, -0.8, 0, 20, 0, 0 },
++			{ 1.32, 0, 0, 0, -2, 0, 0 }, { 1.38 } }, CMV),
++		mao = preparar({ { 0 }, { 0.14, 0, -1, 1.5, 0, 0, -6 }, { 0.86, -3, -34, 8, 30, 0, 10 }, { 1.62, 0, -0.6, 0.8, 0, 0, -3 }, { 2.10 } }, CMV),
++		segura = { { 0.30, 1.34 } },
++		oculto = { 0.82, 0.90 },
++		ferro = { { 0, 0 } },
++		ev = { { 0.42, "ak_pente_sai" }, { 1.30, "ak_pente_entra" } },
++	},
++}
++Arma.RECARGAS = LINHAS
++Arma.amostra, Arma.amostraN = amostra, amostraN
+ 
+ local function ns(pontos: { { number } }): NumberSequence
+ 	local k = {}
+@@ -99,10 +178,14 @@
+ 	local remRecarga = op.compartilhado:WaitForChild("BastiaoArmaRecarga", 15) :: RemoteEvent?
+ 	local remEfeito = op.compartilhado:WaitForChild("BastiaoArmaEfeito", 15) :: RemoteEvent?
+ 
+-	local function tocar(chave: string, pos: Vector3?)
++	local function tocar(chave: string, pos: Vector3?): Sound?
+ 		if op.som and op.som.efeito then
+-			pcall(op.som.efeito, chave, pos)
++			local ok, s = pcall(op.som.efeito, chave, pos)
++			if ok and typeof(s) == "Instance" then
++				return s :: Sound
++			end
+ 		end
++		return nil
+ 	end
+ 
+ 	-- ===== efeitos que servem para mim e para os outros =====
+@@ -133,6 +216,25 @@
+ 			Lifetime = NumberRange.new(0.6, 1.1), Speed = NumberRange.new(1.2, 2.4), SpreadAngle = Vector2.new(12, 12),
+ 			Acceleration = Vector3.new(0, 1.2, 0), Drag = 3, EmissionDirection = Enum.NormalId.Front,
+ 		})
++		-- o freio de boca do AK-74 joga o fogo para os lados
++		local jatos = {}
++		for _, dir in { Enum.NormalId.Left, Enum.NormalId.Right } do
++			local j = emissor(anexo, {
++				Texture = T.claraoLado, LightEmission = 1, LightInfluence = 0, Brightness = 3,
++				Color = ColorSequence.new(Color3.fromRGB(255, 200, 130)), Size = ns({ { 0, 0.45 * escala }, { 1, 0.8 * escala } }),
++				Transparency = ns({ { 0, 0.1 }, { 1, 1 } }), Lifetime = NumberRange.new(0.035, 0.05), Speed = NumberRange.new(6, 9),
++				Orientation = Enum.ParticleOrientation.VelocityParallel, EmissionDirection = dir, SpreadAngle = Vector2.new(8, 8),
++			})
++			j:Emit(1)
++			table.insert(jatos, j)
++		end
++		local brasas = emissor(anexo, {
++			Texture = T.faisca, LightEmission = 1, LightInfluence = 0, Color = ColorSequence.new(Color3.fromRGB(255, 190, 110)),
++			Size = ns({ { 0, 0.06 * escala }, { 1, 0 } }), Lifetime = NumberRange.new(0.05, 0.12), Speed = NumberRange.new(30, 55),
++			SpreadAngle = Vector2.new(6, 6), Orientation = Enum.ParticleOrientation.VelocityParallel, EmissionDirection = Enum.NormalId.Front,
++		})
++		brasas:Emit(math.random(2, 4))
++		table.insert(jatos, brasas)
+ 		frente:Emit(1)
+ 		lado:Emit(1)
+ 		pacote:Emit(1)
+@@ -150,6 +252,9 @@
+ 			for _, e in { frente, lado, pacote, fumaca } do
+ 				e:Destroy()
+ 			end
++			for _, e in jatos do
++				e:Destroy()
++			end
+ 		end)
+ 	end
+ 
+@@ -292,17 +397,41 @@
+ 
+ 	-- ===== arma em primeira pessoa =====
+ 	local vm: Model? = nil
+-	local carregadores: { BasePart } = {}
++	local partesVm: { BasePart } = {}
++	local repouso: { CFrame } = {}
++	local grupoVm: { string } = {}
++	local cfsVm: { CFrame } = {}
++	local pecasPente: { BasePart } = {}
+ 	local cano: Attachment? = nil
+ 	local ejecao: Attachment? = nil
+-	local maoLocal = CFrame.new()
++	local fumacaCano: ParticleEmitter? = nil
++	-- pontos do modelo (studs): punho, trava dianteira do pente e a mão esquerda no guarda-mão
++	local MAO_DIR = CFrame.new(0, -8 * CMV, 5.6 * CMV)
++	local PIV_PENTE = CFrame.new(0, -4.5 * CMV, -11.9 * CMV)
++	local PIV_MAO = CFrame.new(-0.6 * CMV, -4.6 * CMV, -25 * CMV)
++	local GRIP_PENTE = (CFrame.new(-2.0 * CMV, -9.0 * CMV, -10.5 * CMV) * CFrame.Angles(math.rad(25), 0, math.rad(12))) * PIV_MAO:Inverse()
+ 	local mola = { z = 0, vz = 0, p = 0, vp = 0, r = 0, vr = 0 }
+ 	local balanco = 0
+ 	local ultimoGiro: CFrame? = nil
+ 	local atraso = Vector2.zero
+-	local recargaDesde: number? = nil
+-	local coice = { p = 0, y = 0 }
++	local recarga: any = nil -- { tipo, desde, ev, confirmada, inteiro }
++	local coice = { p = 0, y = 0, vp = 0, vy = 0 }
+ 	local coiceAplicado: CFrame? = nil
++	local trauma, calor, rajada, ultimoTiroEm = 0, 0, 0, -10
++	local modo = "auto"
++	local penteVisivel = true
++	local pedirRecarga = false
++
++	local function grupoDe(nome: string): string
++		if string.sub(nome, 1, 10) == "Carregador" or string.sub(nome, 1, 12) == "NervuraCarr" or nome == "FundoCarr" then
++			return "pente"
++		elseif nome == "MaoEsquerda" or nome == "PolegarEsq" or nome == "PunhoEsquerdo" or nome == "MangaEsquerda" then
++			return "mao"
++		elseif nome == "Ferrolho" or nome == "Manejo" then
++			return "ferrolho"
++		end
++		return "corpo"
++	end
+ 
+ 	local function construirVm()
+ 		if vm then
+@@ -313,25 +442,47 @@
+ 		for _, p in m:GetDescendants() do
+ 			if p:IsA("BasePart") then
+ 				p.CastShadow = false
+-				if string.sub(p.Name, 1, 10) == "Carregador" or p.Name == "FundoCarr" or string.sub(p.Name, 1, 12) == "NervuraCarr" then
+-					table.insert(carregadores, p)
++				local g = grupoDe(p.Name)
++				table.insert(partesVm, p)
++				table.insert(repouso, p.CFrame) -- montado na origem: CFrame = posição no modelo
++				table.insert(grupoVm, g)
++				table.insert(cfsVm, p.CFrame)
++				if g == "pente" then
++					table.insert(pecasPente, p)
+ 				end
+ 			end
+ 		end
+ 		local corpo = m.PrimaryPart :: BasePart
+ 		cano = corpo:FindFirstChild("Cano") :: Attachment
+ 		ejecao = corpo:FindFirstChild("Ejecao") :: Attachment
+-		maoLocal = (corpo:FindFirstChild("Mao") :: Attachment).CFrame
++		if cano then
++			-- fumaça saindo do cano depois de uma rajada (o "calor")
++			local f = emissor(cano, {
++				Texture = T.fumaca, FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4, FlipbookMode = Enum.ParticleFlipbookMode.OneShot,
++				Color = ColorSequence.new(Color3.fromRGB(170, 166, 160)), LightInfluence = 1,
++				Size = ns({ { 0, 0.06 }, { 1, 0.55 } }), Transparency = ns({ { 0, 0.65 }, { 1, 1 } }),
++				Lifetime = NumberRange.new(1.0, 1.8), Speed = NumberRange.new(0.2, 0.5), SpreadAngle = Vector2.new(20, 20),
++				Acceleration = Vector3.new(0, 1.6, 0), Drag = 1.5, Rotation = NumberRange.new(0, 360), RotSpeed = NumberRange.new(-30, 30),
++			})
++			f.Rate = 0
++			f.Enabled = true
++			fumacaCano = f
++		end
+ 		m.Parent = workspace.CurrentCamera
+ 		vm = m
++		penteVisivel = true
+ 	end
+ 	local function destruirVm()
+ 		if vm then
+ 			vm:Destroy()
+ 			vm = nil
+ 		end
+-		table.clear(carregadores)
+-		cano, ejecao = nil, nil
++		table.clear(partesVm)
++		table.clear(repouso)
++		table.clear(grupoVm)
++		table.clear(cfsVm)
++		table.clear(pecasPente)
++		cano, ejecao, fumacaCano = nil, nil, nil
+ 	end
+ 
+ 	local function menuAberto(): boolean
+@@ -344,38 +495,201 @@
+ 		local humano = personagem and personagem:FindFirstChildOfClass("Humanoid")
+ 		return vivo and vm ~= nil and cam ~= nil and cam.CameraType ~= Enum.CameraType.Scriptable
+ 			and humano ~= nil and humano.Health > 0 and not menuAberto()
+-			and jogador:GetAttribute("BastiaoRecarregando") ~= true
++			and jogador:GetAttribute("BastiaoRecarregando") ~= true and recarga == nil
+ 			and UserInputService:GetFocusedTextBox() == nil
+ 	end
+ 
+-	local function capsula()
+-		if not ejecao then
++	-- ===== cápsulas e pentes no chão: física própria por raio (quica, gira, deita, rola e some) =====
++	local corpos: { any } = {}
++	local paramsCorpo = RaycastParams.new()
++	paramsCorpo.FilterType = Enum.RaycastFilterType.Exclude
++	local filtroEm = -10
++	local ultimoTinido = 0
++	local GRAV = 80
++
++	local function remover(i: number)
++		local c = table.remove(corpos, i)
++		if c then
++			for _, par in c.partes do
++				par[1]:Destroy()
++			end
++		end
++	end
++	local function novoCorpo(partes: { any }, cf: CFrame, v: Vector3, w: Vector3, opc: any)
++		local c = { partes = partes, cf = cf, v = v, w = w, raio = opc.raio, quique = opc.quique or 0.35, atrito = opc.atrito or 0.3,
++			som = opc.som, sons = opc.sons or 2, vida = opc.vida or 30, nasc = os.clock(), parado = false, quiques = 0,
++			deitar = opc.deitar, tipo = opc.tipo }
++		table.insert(corpos, c)
++		local n = 0
++		for i = #corpos, 1, -1 do
++			if corpos[i].tipo == c.tipo then
++				n += 1
++				if n > (opc.limite or 60) then
++					remover(i)
++				end
++			end
++		end
++	end
++	local function deitarCilindro(pos: Vector3, n: Vector3, cf: CFrame): CFrame
++		local e = cf.RightVector - n * cf.RightVector:Dot(n)
++		if e.Magnitude < 1e-3 then
++			e = n:Cross(Vector3.new(0, 0, 1))
++		end
++		return CFrame.fromMatrix(pos + n * 0.025, e.Unit, n)
++	end
++	local function deitarPlaca(pos: Vector3, n: Vector3, cf: CFrame): CFrame
++		local y = cf.UpVector - n * cf.UpVector:Dot(n)
++		if y.Magnitude < 1e-3 then
++			y = cf.LookVector - n * cf.LookVector:Dot(n)
++		end
++		local lado = if cf.RightVector:Dot(n) >= 0 then 1 else -1
++		return CFrame.fromMatrix(pos + n * 0.045, n * lado, y.Unit)
++	end
++	local function passoCorpos(dt: number)
++		if #corpos == 0 then
+ 			return
+ 		end
++		dt = math.min(dt, 1 / 20)
++		local agora = os.clock()
++		if agora - filtroEm > 1 then
++			filtroEm = agora
++			local lista: { Instance } = { pasta }
++			if workspace.CurrentCamera then
++				table.insert(lista, workspace.CurrentCamera)
++			end
++			for _, outro in Players:GetPlayers() do
++				if outro.Character then
++					table.insert(lista, outro.Character)
++				end
++			end
++			paramsCorpo.FilterDescendantsInstances = lista
++		end
++		for i = #corpos, 1, -1 do
++			local c = corpos[i]
++			local idade = agora - c.nasc
++			if idade > c.vida then
++				remover(i)
++				continue
++			end
++			if idade > c.vida - 1.5 then
++				local tr = (idade - (c.vida - 1.5)) / 1.5
++				for _, par in c.partes do
++					par[1].Transparency = tr
++				end
++			end
++			if not c.parado then
++				local passos = math.max(1, math.ceil(dt * 120))
++				local h = dt / passos
++				for _ = 1, passos do
++					c.v += Vector3.new(0, -GRAV * h, 0)
++					local p = c.cf.Position
++					local d = c.v * h
++					local dm = d.Magnitude
++					local r = if dm > 1e-5 then workspace:Raycast(p, d.Unit * (dm + c.raio), paramsCorpo) else nil
++					if r and c.v:Dot(r.Normal) < 0 then
++						local n = r.Normal
++						local vn = c.v:Dot(n)
++						local vt = c.v - n * vn
++						c.v = vt * (1 - c.atrito) - n * (vn * c.quique)
++						c.w *= 0.5
++						c.quiques += 1
++						c.cf = CFrame.new(r.Position + n * c.raio) * c.cf.Rotation
++						if -vn > 3 and c.sons > 0 and c.som and agora - ultimoTinido > 0.04 then
++							c.sons -= 1
++							ultimoTinido = agora
++							local s = tocar(c.som, r.Position)
++							if s then
++								s.Volume *= math.clamp(-vn / 16, 0.25, 1)
++								s.PlaybackSpeed = 0.9 + math.random() * 0.25
++							end
++						end
++						if n.Y > 0.55 and (c.v.Magnitude < 2 or c.quiques >= 5) then
++							c.parado = true
++							c.cf = c.deitar(r.Position, n, c.cf)
++							break
++						end
++					else
++						local ang = c.w.Magnitude * h
++						local giro = if ang > 1e-6 then CFrame.fromAxisAngle(c.w.Unit, ang) else CFrame.identity
++						c.cf = CFrame.new(p + d) * giro * c.cf.Rotation
++					end
++				end
++				for _, par in c.partes do
++					par[1].CFrame = c.cf * par[2]
++				end
++			end
++		end
++	end
++	table.insert(conexoes, RunService.RenderStepped:Connect(passoCorpos))
++
++	local function velocidadeJogador(): Vector3
++		local raiz = jogador.Character and jogador.Character:FindFirstChild("HumanoidRootPart")
++		return if raiz and raiz:IsA("BasePart") then raiz.AssemblyLinearVelocity else Vector3.zero
++	end
++	-- cápsula 5,45x39 (1,6x maior para aparecer), sai pela janela girando e cai quicando no chão
++	local function ejetar(anexo: Attachment, velBase: Vector3, comFumaca: boolean)
++		local w = anexo.WorldCFrame
+ 		local p = Instance.new("Part")
+ 		p.Name = "BastiaoCapsula"
+ 		p.Shape = Enum.PartType.Cylinder
+-		p.Size = Vector3.new(0.11, 0.035, 0.035)
+-		p.Color = Color3.fromRGB(176, 132, 62)
++		p.Size = Vector3.new(0.19, 0.05, 0.05)
++		p.Color = Color3.fromRGB(181, 140, 70)
+ 		p.Material = Enum.Material.Metal
+-		p.CanCollide = true
++		p.Reflectance = 0.2
++		p.Anchored = true
++		p.CanCollide = false
+ 		p.CanQuery = false
+ 		p.CanTouch = false
+ 		p.CastShadow = false
+-		p.Massless = true
+-		local w = ejecao.WorldCFrame
+-		p.CFrame = w
++		local cf = CFrame.fromMatrix(w.Position, w.LookVector, w.UpVector)
++		p.CFrame = cf
+ 		p.Parent = pasta
+-		p.AssemblyLinearVelocity = w.RightVector * (7 + math.random() * 3) + w.UpVector * (4 + math.random() * 2) + w.LookVector * 1.5
+-		p.AssemblyAngularVelocity = Vector3.new(math.random() * 30, math.random() * 30, math.random() * 30)
+-		task.delay(0.35 + math.random() * 0.2, function()
+-			if p.Parent then
+-				tocar("capsula", p.Position)
+-			end
+-		end)
+-		task.delay(1.6, function()
+-			p:Destroy()
+-		end)
++		if comFumaca then
++			local f = emissor(p, {
++				Texture = T.fumaca, FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4, FlipbookMode = Enum.ParticleFlipbookMode.OneShot,
++				Color = ColorSequence.new(Color3.fromRGB(180, 176, 170)), LightInfluence = 1, Size = ns({ { 0, 0.04 }, { 1, 0.22 } }),
++				Transparency = ns({ { 0, 0.7 }, { 1, 1 } }), Lifetime = NumberRange.new(0.4, 0.7), Speed = NumberRange.new(0.1, 0.3),
++				Acceleration = Vector3.new(0, 1.2, 0),
++			})
++			f.Rate = 28
++			f.Enabled = true
++			task.delay(0.35, function()
++				f.Enabled = false
++			end)
++		end
++		local sinal = if math.random() < 0.5 then -1 else 1
++		local v = w.RightVector * (5.5 + math.random() * 2) + w.UpVector * (3 + math.random() * 1.5) - w.LookVector * (0.5 + math.random()) + velBase
++		local giro = w.UpVector * ((25 + math.random() * 15) * sinal)
++			+ Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 8
++		local tripla = math.random() < 0.3
++		novoCorpo({ { p, CFrame.identity } }, cf, v, giro, { raio = 0.025, som = if tripla then "capsula_b" else "capsula",
++			sons = if tripla then 1 else 2, deitar = deitarCilindro, limite = 60, vida = 30, tipo = "capsula" })
++	end
++	local function capsula()
++		if ejecao then
++			ejetar(ejecao, velocidadeJogador(), true)
++		end
++	end
++	-- pente vazio caindo da mão (recarga vazia): cópia das peças do pente, com a mesma física
++	local function soltarPente()
++		if #pecasPente == 0 then
++			return
++		end
++		local soma = Vector3.zero
++		for _, p in pecasPente do
++			soma += p.Position
++		end
++		local centro = CFrame.new(soma / #pecasPente) * pecasPente[1].CFrame.Rotation
++		local lista = {}
++		for _, p in pecasPente do
++			local copia = p:Clone()
++			copia.Transparency = 0
++			copia.Parent = pasta
++			table.insert(lista, { copia, centro:ToObjectSpace(p.CFrame) })
++		end
++		local giro = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 10
++		novoCorpo(lista, centro, velocidadeJogador() + Vector3.new(0, -3, 0) + centro.LookVector * 1.2, giro,
++			{ raio = 0.08, quique = 0.25, som = "pente_chao", sons = 2, deitar = deitarPlaca, limite = 6, vida = 40, tipo = "pente" })
+ 	end
+ 
+ 	-- ===== HUD da arma (tela própria) =====
+@@ -454,6 +768,7 @@
+ 	end
+ 	local botaoTiro = botao("Atirar", "ATIRAR", 78)
+ 	local botaoRecarga = botao("Recarregar", "RECARREGAR", 54)
++	local botaoModo = botao("Modo", "MODO", 44)
+ 
+ 	-- botões ao lado do pulo (medidos no TouchGui do jogador; sem toque, ficam escondidos)
+ 	local function posicionarBotoes()
+@@ -463,6 +778,7 @@
+ 		end)
+ 		botaoTiro.Visible = toque
+ 		botaoRecarga.Visible = toque
++		botaoModo.Visible = toque
+ 		if not toque then
+ 			return
+ 		end
+@@ -476,9 +792,11 @@
+ 			local p, t = pulo.AbsolutePosition - hud.AbsolutePosition, pulo.AbsoluteSize
+ 			botaoTiro.Position = UDim2.fromOffset(p.X - 52, p.Y - 30)
+ 			botaoRecarga.Position = UDim2.fromOffset(p.X + t.X / 2, p.Y - 70)
++			botaoModo.Position = UDim2.fromOffset(p.X - 40, p.Y - 112)
+ 		else
+ 			botaoTiro.Position = UDim2.fromOffset(tela.X - 150, tela.Y - 110)
+ 			botaoRecarga.Position = UDim2.fromOffset(tela.X - 60, tela.Y - 190)
++			botaoModo.Position = UDim2.fromOffset(tela.X - 190, tela.Y - 200)
+ 		end
+ 		municao.Position = UDim2.new(1, -16, 1, if toque then -230 else -150)
+ 	end
+@@ -489,7 +807,7 @@
+ 		if jogador:GetAttribute("BastiaoRecarregando") == true then
+ 			municao.Text = "-- | " .. tostring(reserva or 0)
+ 		else
+-			municao.Text = tostring(pente or 0) .. " | " .. tostring(reserva or 0)
++			municao.Text = tostring(pente or 0) .. " | " .. tostring(reserva or 0) .. "  " .. string.upper(modo)
+ 		end
+ 		municao.TextColor3 = if (tonumber(pente) or 0) <= 5 then Color3.fromRGB(232, 54, 42) else AMBAR
+ 	end
+@@ -508,6 +826,8 @@
+ 		if pente <= 0 then
+ 			tocar("ak_vazio")
+ 			segurando = false
++			mola.vp += 6
++			pedirRecarga = true -- clique seco e já puxa a recarga
+ 			return
+ 		end
+ 		local espalha = DISPERSAO * (1 + abertura * 1.5)
+@@ -571,12 +891,20 @@
+ 		capsula()
+ 		tocar("ak_tiro")
+ 		impacto(tipo, alvo, normal, true)
+-		-- coice: arma para trás e para cima, câmera sobe (e volta devagar), mira abre
++		-- coice: padrão do AK-74 (sobe forte no 1º tiro, depois puxa de um lado para o outro),
++		-- tremor de tela, molas da arma, calor do cano e a mira abrindo
++		local agoraT = os.clock()
++		rajada = if agoraT - ultimoTiroEm < 0.25 then rajada + 1 else 1
++		ultimoTiroEm = agoraT
++		local sobe = 0.62 + 0.38 * math.exp(-(rajada - 1) / 2.5)
++		local lado = 0.22 * math.sin(rajada * 0.85 + 0.6) + (if rajada > 5 then 0.14 * math.sin(rajada * 2.1) else 0)
++		coice.p = math.min(coice.p + math.rad(sobe * (0.9 + math.random() * 0.2)), math.rad(9))
++		coice.y += math.rad(lado + (math.random() * 2 - 1) * 0.06)
++		trauma = math.min(0.7, trauma + 0.14)
++		calor += 1
+ 		mola.vz += 7.5
+ 		mola.vp += 55
+ 		mola.vr += (math.random() * 2 - 1) * 30
+-		coice.p += math.rad(0.55 + math.random() * 0.35)
+-		coice.y += math.rad((math.random() * 2 - 1) * 0.35)
+ 		abertura = math.min(1, abertura + 0.22)
+ 	end
+ 
+@@ -586,12 +914,22 @@
+ 		end
+ 		local pente = tonumber(jogador:GetAttribute("BastiaoPente")) or 0
+ 		local reserva = tonumber(jogador:GetAttribute("BastiaoReserva")) or 0
+-		if pente >= 30 or reserva <= 0 or jogador:GetAttribute("BastiaoRecarregando") == true then
++		if recarga or pente >= 30 or reserva <= 0 or jogador:GetAttribute("BastiaoRecarregando") == true then
+ 			return
+ 		end
+ 		remRecarga:FireServer()
+-		tocar("ak_recarga")
+-		recargaDesde = os.clock()
++		segurando = false
++		recarga = { tipo = if pente <= 0 then "vazia" else "tatica", desde = os.clock(), ev = 1, confirmada = false, inteiro = false }
++	end
++	local function alternarModo()
++		modo = if modo == "auto" then "semi" else "auto"
++		local s = tocar("ak_vazio")
++		if s then
++			s.PlaybackSpeed = 1.4
++			s.Volume *= 0.6
++		end
++		mola.vr += 8
++		atualizarMunicao()
+ 	end
+ 
+ 	-- ===== quadro a quadro: arma na câmera, mola do coice, mira e a cápsula =====
+@@ -610,9 +948,16 @@
+ 		end
+ 		dt = math.min(dt, 1 / 20)
+ 		local agora = os.clock()
++		if pedirRecarga then
++			pedirRecarga = false
++			recarregar()
++		end
+ 		if segurando and agora >= proximoTiro then
+ 			proximoTiro = agora + CADENCIA
+ 			disparar()
++			if modo == "semi" then
++				segurando = false
++			end
+ 		end
+ 		-- mola (coice) e volta da câmera
+ 		local function passo(x: number, v: number, k: number, amort: number): (number, number)
+@@ -624,11 +969,19 @@
+ 		mola.z, mola.vz = passo(mola.z, mola.vz, 160, 18)
+ 		mola.p, mola.vp = passo(mola.p, mola.vp, 150, 16)
+ 		mola.r, mola.vr = passo(mola.r, mola.vr, 120, 14)
+-		coice.p *= math.exp(-dt * 7)
+-		coice.y *= math.exp(-dt * 7)
++		-- a mira sobe com a rajada e volta devagar enquanto atira; parado, volta rápido
++		local volta = if agora - ultimoTiroEm < 0.15 then 1.2 else 5.5
++		coice.p *= math.exp(-dt * volta)
++		coice.y *= math.exp(-dt * volta)
++		local seg = math.min(1, dt * 28)
++		coice.vp += (coice.p - coice.vp) * seg
++		coice.vy += (coice.y - coice.vy) * seg
++		trauma = math.max(0, trauma - dt * 1.8)
+ 		abertura *= math.exp(-dt * 4)
+ 		if cam.CameraType ~= Enum.CameraType.Scriptable then
+-			coiceAplicado = CFrame.Angles(coice.p, coice.y, 0)
++			local sh = trauma * trauma * math.rad(0.7)
++			local ts = agora * 22
++			coiceAplicado = CFrame.Angles(coice.vp + math.noise(ts, 0.5) * sh, coice.vy + math.noise(ts, 7.3) * sh, math.noise(ts, 13.1) * sh)
+ 			cam.CFrame = cam.CFrame * coiceAplicado
+ 		end
+ 		-- atraso ao virar a câmera e balanço ao andar
+@@ -649,27 +1002,87 @@
+ 		local amp = if andando then (if veloz then 1.6 else 1) else 0.25
+ 		local bx = math.sin(balanco) * 0.012 * amp
+ 		local by = -math.abs(math.cos(balanco)) * 0.016 * amp
+-		-- recarga: a arma tomba de lado, o pente sai e volta
+-		local tomba = 0
+-		if recargaDesde then
+-			local t = (agora - recargaDesde) / 2.4
+-			if t >= 1 or jogador:GetAttribute("BastiaoRecarregando") ~= true and t > 0.2 then
+-				recargaDesde = nil
+-				for _, c in carregadores do
+-					c.Transparency = 0
+-				end
++		-- tremedeira: respiração, medo (monstro a menos de 35 studs) e a rajada
++		local medo = 0
++		local raizM = monstroCache.raiz
++		if raizM and raizM.Parent then
++			medo = math.clamp((35 - (raizM.Position - cam.CFrame.Position).Magnitude) / 25, 0, 1)
++		end
++		local forca = medo + math.min(1, trauma * 1.4) * 0.5
++		local tr = agora * 9
++		local tx = math.noise(tr, 1.37, 0.2) * math.rad(1.3) * forca + math.sin(agora * 1.6) * math.rad(0.3)
++		local ty = math.noise(tr, 4.11, 2.9) * math.rad(1.3) * forca
++		-- recarga em quadros-chave (mão esquerda tira o pente, põe outro e, se vazio, puxa o ferrolho)
++		local poseArma, gPente, gMao, ferroCm, vis = CFrame.identity, CFrame.identity, CFrame.identity, 0, true
++		if recarga then
++			local tl = LINHAS[recarga.tipo]
++			local t = agora - recarga.desde
++			if jogador:GetAttribute("BastiaoRecarregando") == true then
++				recarga.confirmada = true
++			end
++			if t >= tl.dur or (not recarga.confirmada and t > 0.6) then
++				recarga = nil
+ 			else
+-				tomba = math.sin(math.clamp(t, 0, 1) * math.pi)
+-				local fora = t > 0.25 and t < 0.62
+-				for _, c in carregadores do
+-					c.Transparency = if fora then 1 else 0
++				while tl.ev[recarga.ev] and t >= tl.ev[recarga.ev][1] do
++					local nome = tl.ev[recarga.ev][2]
++					recarga.ev += 1
++					if nome == "cai" then
++						soltarPente()
++					elseif not tocar(nome) and nome == "ak_pente_sai" and not recarga.inteiro then
++						recarga.inteiro = true
++						tocar("ak_recarga") -- sem os pedaços: o som inteiro da recarga
++					end
+ 				end
++				poseArma = amostra(tl.arma, t)
++				gPente = PIV_PENTE * amostra(tl.pente, t) * PIV_PENTE:Inverse()
++				local livre = PIV_MAO * amostra(tl.mao, t) * PIV_MAO:Inverse()
++				local w = 0
++				for _, j in tl.segura do
++					w = math.max(w, math.clamp(math.min(t - j[1], j[2] - t) / 0.08, 0, 1))
++				end
++				gMao = livre:Lerp(gPente * GRIP_PENTE, w)
++				ferroCm = amostraN(tl.ferro, t)
++				vis = not (t >= tl.oculto[1] and t < tl.oculto[2])
+ 			end
+ 		end
++		-- o ferrolho corre para trás e volta a cada tiro
++		ferroCm = math.max(ferroCm, 11 * math.sin(math.pi * math.clamp((agora - ultimoTiroEm) / 0.06, 0, 1)))
+ 		local alvo = cam.CFrame
+-			* CFrame.new(0.27 + bx + atraso.X * 0.6, -0.47 + by - (if veloz and andando then 0.05 else 0) - tomba * 0.12, -0.70 + mola.z * 0.02)
+-			* CFrame.Angles(math.rad(1.5) + math.rad(mola.p) * 0.06 + atraso.Y * 0.8 - tomba * math.rad(12), math.rad(4) - atraso.X * 0.8, math.rad(mola.r) * 0.05 + tomba * math.rad(38))
+-		vm:PivotTo(alvo * maoLocal:Inverse())
++			* CFrame.new(0.27 + bx + atraso.X * 0.6, -0.47 + by - (if veloz and andando then 0.05 else 0), -0.70 + mola.z * 0.02)
++			* CFrame.Angles(math.rad(1.5) + math.rad(mola.p) * 0.06 + atraso.Y * 0.8 + tx, math.rad(4) - atraso.X * 0.8 + ty, math.rad(mola.r) * 0.05)
++			* poseArma
++		local raiz = alvo * MAO_DIR:Inverse()
++		local gF = CFrame.new(0, 0, ferroCm * CMV)
++		for i in partesVm do
++			local g = grupoVm[i]
++			if g == "pente" then
++				cfsVm[i] = raiz * gPente * repouso[i]
++			elseif g == "mao" then
++				cfsVm[i] = raiz * gMao * repouso[i]
++			elseif g == "ferrolho" then
++				cfsVm[i] = raiz * gF * repouso[i]
++			else
++				cfsVm[i] = raiz * repouso[i]
++			end
++		end
++		local moveu = pcall(function()
++			workspace:BulkMoveTo(partesVm, cfsVm, Enum.BulkMoveMode.FireCFrameChanged)
++		end)
++		if not moveu then
++			for i, p in partesVm do
++				p.CFrame = cfsVm[i]
++			end
++		end
++		if vis ~= penteVisivel then
++			penteVisivel = vis
++			for _, p in pecasPente do
++				p.Transparency = if vis then 0 else 1
++			end
++		end
++		calor = math.max(0, calor - dt * 0.4)
++		if fumacaCano then
++			fumacaCano.Rate = if not segurando and agora - ultimoTiroEm > 0.15 and calor > 4 then math.clamp(calor * 2, 3, 20) else 0
++		end
+ 		-- mira abre com o coice
+ 		local abre = 8 + abertura * 18
+ 		for _, t in tracos do
+@@ -691,6 +1104,7 @@
+ 		end
+ 	end))
+ 	table.insert(conexoes, botaoRecarga.Activated:Connect(recarregar))
++	table.insert(conexoes, botaoModo.Activated:Connect(alternarModo))
+ 	table.insert(conexoes, UserInputService.InputBegan:Connect(function(i: InputObject, processado: boolean)
+ 		if not hud.Enabled then
+ 			return
+@@ -701,6 +1115,8 @@
+ 			segurando = true
+ 		elseif (i.KeyCode == Enum.KeyCode.R and not processado) or i.KeyCode == Enum.KeyCode.ButtonX then
+ 			recarregar()
++		elseif (i.KeyCode == Enum.KeyCode.V and not processado) or i.KeyCode == Enum.KeyCode.DPadUp then
++			alternarModo()
+ 		end
+ 	end))
+ 	table.insert(conexoes, UserInputService.InputEnded:Connect(function(i: InputObject)
+@@ -731,6 +1147,11 @@
+ 			if boca and boca:IsA("Attachment") then
+ 				clarao(boca, false)
+ 				rastro(boca.WorldPosition, msg.ponto)
++				local ej = arma and arma.PrimaryPart and arma.PrimaryPart:FindFirstChild("Ejecao")
++				local camO = workspace.CurrentCamera
++				if ej and ej:IsA("Attachment") and camO and (ej.WorldPosition - camO.CFrame.Position).Magnitude < 80 then
++					ejetar(ej, Vector3.zero, false)
++				end
+ 				tocar("ak_tiro", boca.WorldPosition)
+ 			elseif typeof(msg.origem) == "Vector3" then
+ 				tocar("ak_tiro", msg.origem)
+@@ -767,7 +1188,7 @@
+ 	end)
+ 	table.insert(conexoes, jogador.CharacterAdded:Connect(function()
+ 		segurando = false
+-		recargaDesde = nil
++		recarga = nil
+ 		task.delay(0.5, atualizar)
+ 	end))
+ 	atualizar()
+diff -ruN z11/src/client/Som.luau z12/src/client/Som.luau
+--- z11/src/client/Som.luau	2026-11-18 09:24:11.588219953 +0000
++++ z12/src/client/Som.luau	2026-11-18 10:49:14.165473370 +0000
+@@ -65,6 +65,12 @@
+ 	ak_vazio = { vol = 0.6, raio = 20 },
+ 	ak_recarga = { vol = 0.85, raio = 30 },
+ 	capsula = { vol = 0.45, raio = 18 },
++	capsula_b = { vol = 0.45, raio = 18 },
++	ak_pente_sai = { vol = 0.8, raio = 25 },
++	ak_pente_entra = { vol = 0.85, raio = 25 },
++	ak_ferrolho = { vol = 0.9, raio = 28 },
++	pente_chao = { vol = 0.7, raio = 30 },
++	bala_metal = { vol = 0.8, raio = 80 },
+ 	bala_carne = { vol = 1.1, raio = 70 },
+ 	bala_concreto = { vol = 0.8, raio = 80 },
+ }
+diff -ruN z11/src/server/Arma.luau z12/src/server/Arma.luau
+--- z11/src/server/Arma.luau	2026-11-18 09:13:22.135171638 +0000
++++ z12/src/server/Arma.luau	2026-11-18 10:49:14.164130167 +0000
+@@ -12,7 +12,9 @@
+ Arma.PENTE = 30
+ Arma.RESERVA = 90
+ Arma.CADENCIA = 0.1 -- 600 tiros por minuto
+-Arma.RECARGA = 2.4
++Arma.RECARGA_TATICA = 2.1 -- ainda com bala: fica 30 + 1 na câmara
++Arma.RECARGA_VAZIA = 2.6 -- pente vazio: precisa puxar o ferrolho
++Arma.RECARGA = Arma.RECARGA_VAZIA
+ Arma.ALCANCE = 320
+ Arma.ANIM_SEGURAR = "rbxassetid://182393478" -- R6 "toolnone": braço direito estendido à frente
+ 
+@@ -208,6 +210,7 @@
+ 		if parede then
+ 			tipo, ponto, normal = "parede", parede.Position, parede.Normal
+ 		end
++		local material = if parede then parede.Material and parede.Material.Name else nil
+ 		local criatura = op.criatura
+ 		if criatura then
+ 			local raiz, altura = criatura.corpo()
+@@ -222,7 +225,7 @@
+ 				end
+ 			end
+ 		end
+-		remEfeito:FireAllClients({ atirador = j.UserId, origem = origem, ponto = ponto, normal = normal, tipo = tipo })
++		remEfeito:FireAllClients({ atirador = j.UserId, origem = origem, ponto = ponto, normal = normal, tipo = tipo, material = material })
+ 		return tipo, ponto, normal
+ 	end
+ 
+@@ -234,15 +237,18 @@
+ 		if e.recarregandoAte or e.pente >= Arma.PENTE or e.reserva <= 0 then
+ 			return "nao_precisa"
+ 		end
+-		local ate = agora() + Arma.RECARGA
++		local vazia = e.pente <= 0
++		local dur = if vazia then Arma.RECARGA_VAZIA else Arma.RECARGA_TATICA
++		local cheio = if vazia then Arma.PENTE else Arma.PENTE + 1
++		local ate = agora() + dur
+ 		e.recarregandoAte = ate
+ 		publicar(j, e)
+-		remEfeito:FireAllClients({ atirador = j.UserId, tipo = "recarga" })
+-		task.delay(Arma.RECARGA, function()
++		remEfeito:FireAllClients({ atirador = j.UserId, tipo = "recarga", vazia = vazia, duracao = dur })
++		task.delay(dur, function()
+ 			if estados[j] ~= e or e.recarregandoAte ~= ate then
+ 				return
+ 			end
+-			local n = math.min(Arma.PENTE - e.pente, e.reserva)
++			local n = math.min(cheio - e.pente, e.reserva)
+ 			e.pente += n
+ 			e.reserva -= n
+ 			e.recarregandoAte = nil

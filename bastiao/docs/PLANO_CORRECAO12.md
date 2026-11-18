@@ -1,4 +1,4 @@
-# Correção 12 (planejada, ainda NÃO aplicada no jogo)
+# Correção 12 — parte da ARMA pronta (`bastiao/dist/CORRIGIR_ETAPA3_12.py`); a vitrine ainda falta
 Pedido do dono: arma muito mais detalhada (cápsulas caindo no chão, tiro melhor, tremedeira, recuo,
 recarga animada mais bonita) e vitrine do jogo pelo instalador (ícone, banner, nome e descrição,
 profissional e sem emoji). Base: pacote depois da correção 11 (`CORRECAO11_MENU3D_CAPITULO2_ARMA.patch`).
