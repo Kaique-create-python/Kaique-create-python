@@ -130,3 +130,32 @@ aplicada). Patch em `bastiao/docs/CORRECAO11_MENU3D_CAPITULO2_ARMA.patch` (base:
   `ak_tiro`, `ak_recarga`, `bala_carne`, `passos_longe`, `tres_toques_parede`, `alarme`, `portas`.
 - Faltam no ElevenLabs: `ak_vazio`, `capsula`, `bala_concreto` e as falas `pavel_armario`, `pavel_instrucao`,
   `pavel_porta`, `pavel_recuou`, `pavel_elevador` (por enquanto só legenda).
+
+## Correção 12: AK-74 detalhado
+`bastiao/dist/CORRIGIR_ETAPA3_12.py` vai em cima da 11. Patch: `bastiao/docs/CORRECAO12_ARMA_DETALHADA.patch`.
+- Cápsulas com física própria por raio: quicam com tinido, deitam, rolam e somem em 30 s (máx. 60).
+- Recuo no padrão do AK-74 e tremor de tela; as mãos tremem com o monstro a menos de 35 studs.
+- Recarga em quadros-chave: tática em 2,1 s (fica 30+1) e vazia em 2,6 s (o pente cai no chão e a mão puxa o ferrolho).
+- Modo AUTO/SEMI e clique seco que já puxa a recarga.
+- Fumaça no cano depois da rajada; clarões laterais do freio de boca.
+- Sons novos:
+  - prontos: `capsula`, `capsula_b`, `ak_vazio`, `ak_pente_sai`, `ak_pente_entra`, `ak_ferrolho`;
+  - ainda gerados pelo `preparar-audio`: `bala_concreto`, `bala_metal`, `pente_chao`.
+
+## Correção 13: mãos, HUD da arma e uniforme SWAT
+`bastiao/dist/CORRIGIR_ETAPA3_13.py` vai em cima da 12. Patch: `bastiao/docs/CORRECAO13_MAOS_HUD_SWAT.patch`.
+- Luvas táticas com dedos ("Dir*"/"Esq*" no `ArmaModelo`).
+- Arma mais baixa, longe e girada (prévia com a mesma conta do cliente: `PREVIA_MAOS_PRIMEIRA_PESSOA.png`).
+- O HUD da arma mede os GuiButtons das outras telas e escolhe lugar livre.
+- `Pavel.vestirSwat`: veste os jogadores com itens do catálogo. O Pavel usa o mesmo kit, sem balaclava.
+  - camisa 1455700999, calça 1455701482;
+  - capacete 6602077191, fone 6602071898, óculos 5164438849;
+  - balaclava 6238724671, colete 7246494294.
+
+## Correção 14: capítulo 2, parte 2 (a subestação)
+`bastiao/dist/CORRIGIR_ETAPA3_14.py` vai em cima da 13. Patch: `bastiao/docs/CORRECAO14_SUBESTACAO.patch`.
+- `Cenario03` esconde a `UtilitiesOuterWall` (x 112) e a refaz em volta de uma porta. Nada é apagado.
+- Corredor e rampa de 24 studs para baixo até o salão. Salão: x 172..226, z -428..-372, piso em y -23.5.
+- Nós novos: `cap2_sub_ir` → zona `subestacao` → 3 fusíveis + `colocar_fusiveis` (relata `fusiveis_ok`) → `religar_disjuntor` → luz volta.
+- Depois da luz: `monstro_isca` chama `criatura.atrair(pos)` (API nova no `Criatura`) → zona `porta_blindada` → `c2_descida` → fim (checkpoint `fim_cap2`).
+- Próximo: capítulo 3, o andar sem número (o elevador desce).
