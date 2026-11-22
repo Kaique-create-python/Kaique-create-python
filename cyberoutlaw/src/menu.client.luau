@@ -6,6 +6,7 @@
 
 local ASSETS = __CYBEROUTLAW_CONFIG__
 -- __CYBEROUTLAW_CITY__
+-- __CYBEROUTLAW_SCENE__
 
 local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
@@ -28,15 +29,18 @@ local ACTION = "CyberOutlawMenuMovement"
 local FULL = UDim2.fromScale(1, 1)
 local CENTER = Vector2.new(0.5, 0.5)
 local WHITE = Color3.fromRGB(249, 246, 255)
-local INK = Color3.fromRGB(8, 6, 14)
-local SURFACE = Color3.fromRGB(19, 15, 30)
+local INK = Color3.fromRGB(8, 7, 12)
+local SURFACE = Color3.fromRGB(18, 15, 24)
 local MUTED = Color3.fromRGB(188, 179, 204)
-local MAGENTA = Color3.fromRGB(255, 53, 155)
-local LIME = Color3.fromRGB(207, 255, 82)
-local CYAN = Color3.fromRGB(96, 238, 227)
+local MAGENTA = Color3.fromRGB(255, 32, 133)
+local PINK_LIGHT = Color3.fromRGB(255, 132, 195)
+local PINK_SHADOW = Color3.fromRGB(142, 9, 73)
+local PLAY_FACE = Color3.fromRGB(215, 10, 101)
+local SMOKE_EDGE = Color3.fromRGB(80, 60, 84)
+local CYAN = Color3.fromRGB(142, 222, 228)
 local BODY = Font.fromEnum(Enum.Font.GothamMedium)
 local BOLD = Font.fromEnum(Enum.Font.GothamBold)
-local WORDMARK = Font.new(Font.fromEnum(Enum.Font.RobotoCondensed).Family, Enum.FontWeight.Bold, Enum.FontStyle.Italic)
+local WORDMARK = Font.fromEnum(Enum.Font.PermanentMarker)
 local rng = Random.new()
 
 local function asset(id)
@@ -102,6 +106,82 @@ local function button(parent, name, z)
 	})
 end
 
+local function line(parent, name, z, from, to, thickness, color)
+	local delta = to - from
+	local midpoint = (from + to) / 2
+	return frame(parent, name, z, {
+		AnchorPoint = CENTER, Position = UDim2.fromOffset(midpoint.X, midpoint.Y),
+		Size = UDim2.fromOffset(delta.Magnitude, thickness), Rotation = math.deg(math.atan2(delta.Y, delta.X)),
+		BackgroundTransparency = 0, BackgroundColor3 = color,
+	})
+end
+
+-- The two corners are clipped diamonds, so the slanted edge stays sharp at
+-- any button width without relying on uploaded textures or a solid mask color.
+local function polygon(parent, name, z, cut, color, alpha, inset)
+	local plate = frame(parent, name, z, {
+		Position = UDim2.fromOffset(inset, inset), Size = UDim2.new(1, -inset * 2, 1, -inset * 2),
+	})
+	local pieces = {}
+	local function piece(container, partName, position, size, rotated)
+		local child = frame(container, partName, z, {
+			Position = position, Size = size, BackgroundTransparency = alpha, BackgroundColor3 = color,
+		})
+		if rotated then
+			child.AnchorPoint = CENTER
+			child.Rotation = 45
+		end
+		table.insert(pieces, child)
+	end
+	piece(plate, "Center", UDim2.fromOffset(0, cut), UDim2.new(1, 0, 1, -cut * 2))
+	piece(plate, "Upper", UDim2.fromOffset(0, 0), UDim2.new(1, -cut, 0, cut))
+	piece(plate, "Lower", UDim2.new(0, cut, 1, -cut), UDim2.new(1, -cut, 0, cut))
+	for _, corner in { "UpperRight", "LowerLeft" } do
+		local upper = corner == "UpperRight"
+		local clip = frame(plate, corner, z, {
+			Position = if upper then UDim2.new(1, -cut, 0, 0) else UDim2.new(0, 0, 1, -cut),
+			Size = UDim2.fromOffset(cut, cut), ClipsDescendants = true,
+		})
+		piece(clip, "Diagonal", UDim2.fromOffset(if upper then 0 else cut, if upper then cut else 0),
+			UDim2.fromOffset(cut * math.sqrt(2), cut * math.sqrt(2)), true)
+	end
+	return pieces
+end
+
+local function paint(pieces, color)
+	for _, piece in pieces do
+		piece.BackgroundColor3 = color
+	end
+end
+
+local function iconLine(holder, z, points, color)
+	for index = 1, #points - 1 do
+		local a, b = points[index], points[index + 1]
+		line(holder, "Stroke", z, Vector2.new(a[1], a[2]), Vector2.new(b[1], b[2]), 1.6, color)
+	end
+end
+
+local function drawIcon(holder, kind, z, color)
+	if kind == "Play" then
+		iconLine(holder, z, { { 7, 4 }, { 19, 12 }, { 7, 20 }, { 7, 4 } }, color)
+	elseif kind == "Settings" then
+		for row, knob in { 8, 15, 11 } do
+			local y = row * 5 + 2
+			iconLine(holder, z, { { 4, y }, { 20, y } }, color)
+			iconLine(holder, z, { { knob, y - 2.5 }, { knob, y + 2.5 } }, color)
+		end
+	elseif kind == "ProfileSettings" then
+		iconLine(holder, z, { { 9, 4 }, { 15, 4 }, { 15, 6 }, { 19, 9 }, { 21, 9 }, { 21, 15 }, { 19, 15 },
+			{ 15, 18 }, { 15, 20 }, { 9, 20 }, { 9, 18 }, { 5, 15 }, { 3, 15 }, { 3, 9 }, { 5, 9 }, { 9, 6 }, { 9, 4 } }, color)
+		iconLine(holder, z, { { 11, 10 }, { 13, 10 }, { 14, 12 }, { 13, 14 }, { 11, 14 }, { 10, 12 }, { 11, 10 } }, color)
+	else
+		iconLine(holder, z, { { 4, 5 }, { 17, 5 }, { 20, 8 }, { 20, 18 }, { 7, 18 }, { 4, 15 }, { 4, 5 } }, color)
+		for _, y in { 10, 13, 16 } do
+			iconLine(holder, z, { { 8, y }, { 16, y } }, color)
+		end
+	end
+end
+
 local backdrop = screen("CyberOutlawBackdrop", 1200, false)
 local safeGui = screen("CyberOutlawMenu", 1201, true)
 local safe = frame(safeGui, "SafeArea", 1, { Size = FULL })
@@ -128,10 +208,11 @@ local floor = frame(backdrop, "Vignette", 4, {
 	Size = FULL, BackgroundColor3 = INK, BackgroundTransparency = 0,
 })
 gradient(floor, 90, INK, INK, NumberSequence.new({
-	NumberSequenceKeypoint.new(0, 0.61),
-	NumberSequenceKeypoint.new(0.34, 1),
-	NumberSequenceKeypoint.new(0.70, 1),
-	NumberSequenceKeypoint.new(1, 0.44),
+	NumberSequenceKeypoint.new(0, 0.72),
+	NumberSequenceKeypoint.new(0.22, 1),
+	NumberSequenceKeypoint.new(0.65, 1),
+	NumberSequenceKeypoint.new(0.87, 0.62),
+	NumberSequenceKeypoint.new(1, 0.24),
 }))
 local inputShield = button(backdrop, "InputShield", 20)
 inputShield.Size = FULL
@@ -143,16 +224,32 @@ local stack = make("ScrollingFrame", safe, "MenuStack", {
 	CanvasSize = UDim2.fromOffset(0, 0), ScrollingDirection = Enum.ScrollingDirection.Y,
 	ScrollBarThickness = 0, ElasticBehavior = Enum.ElasticBehavior.Never,
 })
-local accent = frame(stack, "Accent", 11, { BackgroundColor3 = MAGENTA, BackgroundTransparency = 0 })
-frame(accent, "End", 12, {
-	Size = UDim2.fromScale(0.22, 1), Position = UDim2.fromScale(0.78, 0),
-	BackgroundColor3 = LIME, BackgroundTransparency = 0,
-})
 local brand = frame(stack, "Title", 11, {})
-local ghostMagenta = text(brand, "Magenta", TITLE, 11, WORDMARK, 96, MAGENTA)
-local ghostCyan = text(brand, "Cyan", TITLE, 11, WORDMARK, 96, CYAN)
+local ghostMagenta = text(brand, "Magenta", TITLE, 11, WORDMARK, 96, PINK_SHADOW)
+local ghostCyan = text(brand, "Cyan", TITLE, 11, WORDMARK, 96, PINK_LIGHT)
 local title = text(brand, "Wordmark", TITLE, 12, WORDMARK, 96, WHITE)
-gradient(title, 90, WHITE, Color3.fromRGB(226, 217, 243))
+gradient(title, 82, Color3.fromRGB(255, 94, 177), Color3.fromRGB(255, 22, 116))
+local marks = {
+	{ a = Vector2.new(0.14, 0.97), b = Vector2.new(0.72, 0.69), weight = 0.025, color = MAGENTA, alpha = 0.08 },
+	{ a = Vector2.new(0.28, 0.96), b = Vector2.new(0.81, 0.72), weight = 0.012, color = PINK_LIGHT, alpha = 0.50 },
+	{ a = Vector2.new(0.04, 0.90), b = Vector2.new(0.28, 0.79), weight = 0.012, color = PINK_SHADOW, alpha = 0.15 },
+	{ a = Vector2.new(0.78, 0.21), b = Vector2.new(0.95, 0.14), weight = 0.012, color = MAGENTA, alpha = 0.28 },
+}
+for _, mark in marks do
+	mark.ink = frame(brand, "BrushStroke", 11, {
+		AnchorPoint = CENTER, BackgroundColor3 = mark.color, BackgroundTransparency = mark.alpha,
+	})
+end
+local titleUri = asset((ASSETS.art or {}).title)
+local function logoLayer(name, z, color)
+	return make("ImageLabel", brand, name, {
+		Size = FULL, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z,
+		Image = titleUri, ImageColor3 = color, ScaleType = Enum.ScaleType.Fit, Visible = false,
+	})
+end
+local logoBack = logoLayer("LogoMagenta", 11, PINK_SHADOW)
+local logoLight = logoLayer("LogoPink", 11, PINK_LIGHT)
+local logo = logoLayer("Logo", 12, Color3.fromRGB(255, 255, 255))
 local slices = {}
 for index, relativeY in { 0.37, 0.63 } do
 	local strip = frame(brand, "Slice" .. index, 13, {
@@ -165,38 +262,43 @@ for index, relativeY in { 0.37, 0.63 } do
 end
 for _, label in { title, ghostMagenta, ghostCyan, slices[1].label, slices[2].label } do
 	label.TextScaled = true
-	make("UITextSizeConstraint", label, "SizeLimit", { MinTextSize = 14, MaxTextSize = 112 })
+	make("UITextSizeConstraint", label, "SizeLimit", { MinTextSize = 14, MaxTextSize = 136 })
 end
 
-local function menuButton(name, message, glyph, primary)
+local function menuButton(name, message, primary)
 	local item = button(stack, name, 15)
-	item.BackgroundTransparency = if primary then 0 else 0.12
-	item.BackgroundColor3 = if primary then LIME else SURFACE
-	radius(item, 4)
-	local stroke = outline(item, if primary then LIME else Color3.fromRGB(86, 71, 105))
-	stroke.Transparency = if primary then 0.64 else 0.19
-	if primary then
-		gradient(item, 8, Color3.fromRGB(220, 255, 101), Color3.fromRGB(178, 242, 65))
-	end
-	local color = if primary then Color3.fromRGB(21, 23, 11) else WHITE
-	local font = if primary then BOLD else BODY
-	local messageLabel = text(item, "Label", message, 17, font, 17, color)
-	local tint = text(item, "Ghost", message, 16, font, 17, if primary then Color3.fromRGB(85, 110, 25) else MAGENTA)
+	item.Text = message
+	item.TextTransparency = 1
+	local stroke = polygon(item, "ChamferBorder", 15, if primary then 16 else 12, if primary then MAGENTA else SMOKE_EDGE, 0, 0)
+	local face = polygon(item, "ChamferFace", 16, if primary then 15 else 11, if primary then PLAY_FACE else SURFACE, if primary then 0 else 0.05, 1)
+	local messageLabel = text(item, "Label", message, 20, BOLD, 17, WHITE)
+	local tint = text(item, "Ghost", message, 19, BOLD, 17, PINK_LIGHT)
 	tint.Visible = false
-	local icon = text(item, "Icon", glyph, 17, BOLD, 20, color)
-	icon.TextXAlignment = Enum.TextXAlignment.Center
-	icon.Size = UDim2.new(0, 34, 1, 0)
-	icon.Position = UDim2.new(1, -44, 0, 0)
-	local rail = frame(item, "Edge", 16, {
-		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.5),
-		Size = UDim2.fromOffset(2, 14), BackgroundTransparency = 1, BackgroundColor3 = MAGENTA,
+	local icon = frame(item, "Icon", 18, {
+		AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(24, 24), Position = UDim2.new(0, 19, 0.5, 0),
 	})
-	return { item = item, text = messageLabel, tint = tint, icon = icon, rail = rail, stroke = stroke, primary = primary, hovered = false }
+	drawIcon(icon, name, 18, if primary then WHITE else Color3.fromRGB(209, 179, 203))
+	local shine = frame(item, "TopBevel", 18, {
+		Position = UDim2.fromOffset(3, 2), Size = UDim2.new(1, if primary then -22 else -18, 0, 1),
+		BackgroundTransparency = if primary then 0.19 else 0.65,
+		BackgroundColor3 = if primary then PINK_LIGHT else PINK_SHADOW,
+	})
+	gradient(shine, 0, WHITE, WHITE, NumberSequence.new(0, 1))
+	local detail = frame(item, "CornerDetail", 18, {
+		Position = UDim2.new(1, -15, 1, -6), Size = UDim2.fromOffset(10, 2),
+		BackgroundTransparency = 0.05, BackgroundColor3 = if primary then PINK_LIGHT else MAGENTA,
+	})
+	local rail = frame(item, "Edge", 18, {
+		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0),
+		Size = UDim2.fromOffset(2, 14), BackgroundTransparency = 1, BackgroundColor3 = PINK_LIGHT,
+	})
+	return { item = item, text = messageLabel, tint = tint, icon = icon, rail = rail, stroke = stroke, face = face,
+		detail = detail, primary = primary, hovered = false }
 end
 
-local play = menuButton("Play", "Jogar", "→", true)
-local settings = menuButton("Settings", "Configurações", "≡", false)
-local credits = menuButton("Credits", "Créditos", "↗", false)
+local play = menuButton("Play", "Jogar", true)
+local settings = menuButton("Settings", "Configurações", false)
+local credits = menuButton("Credits", "Créditos", false)
 local buttons = { play, settings, credits }
 for index, config in buttons do
 	config.item.NextSelectionUp = buttons[(index - 2) % #buttons + 1].item
@@ -216,20 +318,66 @@ local clickSprite = make("ImageLabel", petLayer, "CapriClick", {
 	ZIndex = 29, Visible = false, ScaleType = Enum.ScaleType.Stretch,
 })
 
+local profile = frame(safe, "Profile", 30, { AnchorPoint = Vector2.new(1, 0), Visible = false })
+polygon(profile, "ProfileBorder", 30, 8, SMOKE_EDGE, 0.14, 0)
+polygon(profile, "ProfileFace", 31, 7, Color3.fromRGB(13, 11, 19), 0.06, 1)
+frame(profile, "Signal", 32, {
+	Position = UDim2.fromOffset(10, 0), Size = UDim2.new(0.31, 0, 0, 1),
+	BackgroundColor3 = MAGENTA, BackgroundTransparency = 0,
+})
+local avatar = make("ImageLabel", profile, "Avatar", {
+	AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 9, 0.5, 0), Size = UDim2.fromOffset(34, 34),
+	BackgroundColor3 = Color3.fromRGB(35, 26, 44), BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = 33,
+	ScaleType = Enum.ScaleType.Crop,
+	Image = if player.UserId > 0 then "rbxthumb://type=AvatarHeadShot&id=" .. tostring(player.UserId) .. "&w=150&h=150" else "",
+})
+radius(avatar, 3)
+outline(avatar, PINK_SHADOW)
+local profileName = text(profile, "DisplayName", player.DisplayName, 33, BOLD, 14, WHITE)
+profileName.TextTruncate = Enum.TextTruncate.AtEnd
+profileName.Position = UDim2.fromOffset(53, 0)
+profileName.Size = UDim2.new(1, -105, 1, 0)
+local profileLevel = text(profile, "Level", "", 33, BODY, 11, MUTED)
+profileLevel.Position = UDim2.fromOffset(53, 27)
+profileLevel.Size = UDim2.new(1, -105, 0, 18)
+profileLevel.TextTruncate = Enum.TextTruncate.AtEnd
+profileLevel.Visible = false
+local profileSettings = button(profile, "ProfileSettings", 34)
+profileSettings.AnchorPoint = Vector2.new(1, 0.5)
+profileSettings.Position = UDim2.new(1, -3, 0.5, 0)
+profileSettings.Size = UDim2.fromOffset(44, 44)
+profileSettings.Text = "Configurações"
+profileSettings.TextTransparency = 1
+profileSettings.BackgroundColor3 = Color3.fromRGB(54, 24, 43)
+radius(profileSettings, 3)
+frame(profile, "Divider", 32, {
+	AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -49, 0.5, 0), Size = UDim2.fromOffset(1, 25),
+	BackgroundColor3 = PINK_SHADOW, BackgroundTransparency = 0.45,
+})
+local gear = frame(profileSettings, "Icon", 35, {
+	AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(24, 24),
+})
+drawIcon(gear, "ProfileSettings", 35, PINK_LIGHT)
+for _, config in buttons do
+	config.item.NextSelectionRight = profileSettings
+end
+profileSettings.NextSelectionLeft = play.item
+profileSettings.NextSelectionDown = play.item
+
 local modal = frame(safe, "Modal", 40, { Size = FULL, Visible = false })
 frame(modal, "Dimmer", 40, {
 	Size = FULL, BackgroundTransparency = 0.23, BackgroundColor3 = INK, Active = true,
 })
 local card = frame(modal, "Card", 41, {
-	AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 0, BackgroundColor3 = SURFACE,
+	AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5),
 	Active = true, Selectable = false,
 })
-radius(card, 6)
-outline(card, Color3.fromRGB(95, 66, 107))
+polygon(card, "PanelBorder", 41, 16, Color3.fromRGB(117, 54, 92), 0, 0)
+polygon(card, "PanelFace", 42, 15, SURFACE, 0, 1)
 frame(card, "Accent", 42, {
 	Size = UDim2.fromOffset(46, 2), Position = UDim2.fromOffset(19, 0), BackgroundTransparency = 0, BackgroundColor3 = MAGENTA,
 })
-local heading = text(card, "Heading", "", 43, WORDMARK, 32, WHITE)
+local heading = text(card, "Heading", "", 43, BOLD, 25, WHITE)
 heading.Position = UDim2.fromOffset(20, 5)
 heading.Size = UDim2.new(1, -77, 0, 49)
 local close = button(card, "Close", 44)
@@ -262,7 +410,7 @@ local function toggle(name, message, y)
 	local label = text(entry, "Label", message, 46, BODY, 16, WHITE)
 	label.Position = UDim2.fromOffset(12, 0)
 	label.Size = UDim2.new(0.55, -10, 1, 0)
-	local status = text(entry, "Status", "", 46, BOLD, 13, LIME)
+	local status = text(entry, "Status", "", 46, BOLD, 13, PINK_LIGHT)
 	status.TextXAlignment = Enum.TextXAlignment.Right
 	status.Position = UDim2.fromScale(0.53, 0)
 	status.Size = UDim2.new(0.47, -10, 1, 0)
@@ -298,6 +446,9 @@ local sounds = {}
 local cooldowns = {}
 local preloadAssets = {}
 local preloadImages = {}
+if titleUri ~= "" then
+	table.insert(preloadAssets, logo)
+end
 local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40 }
 for key, level in levels do
 	local uri = asset((ASSETS.sounds or {})[key])
@@ -338,7 +489,7 @@ local motionOn = animate and not GuiService.ReducedMotionEnabled
 local connections = {}
 local loader, loaderShade, loaderBar, loaderBrand, video
 local loaderAt, loaderJob
-local cityJob, cityPath
+local cityJob, cityPath, cityAnimation, stageStep, stageClose
 local preloadJob
 local elapsed, cityClock = 0, 0
 local closingAt
@@ -350,6 +501,7 @@ local shownPhase = -1
 local glitchTarget
 local safeWidth, safeHeight, margin = 0, 0, 0
 local stackX, stackY, stackW, stackH, titleH, titleY, buttonY, buttonW, rowH, firstH, gap
+local profileX, profileY, profileW, profileH = 0, 0, 0, 0
 local pet = { scale = 1, w = 142, h = 200, position = Vector2.new(), mode = "stand", spot = 1, active = false, reactAt = -math.huge }
 
 local function connect(signal, handler)
@@ -392,9 +544,9 @@ end
 
 local function changeStatus()
 	soundStatus.Text = if soundOn then "Ativado" else "Silenciado"
-	soundStatus.TextColor3 = if soundOn then LIME else MUTED
+	soundStatus.TextColor3 = if soundOn then PINK_LIGHT else MUTED
 	motionStatus.Text = if motionOn then "Ativadas" else "Reduzidas"
-	motionStatus.TextColor3 = if motionOn then LIME else MUTED
+	motionStatus.TextColor3 = if motionOn then PINK_LIGHT else MUTED
 	local systemMotionLimit = GuiService.ReducedMotionEnabled
 	motionToggle.Interactable = not systemMotionLimit
 	motionToggle.Selectable = not systemMotionLimit
@@ -403,6 +555,23 @@ local function changeStatus()
 	if systemMotionLimit and GuiService.SelectedObject == motionToggle then
 		GuiService.SelectedObject = soundToggle
 	end
+end
+
+local function refreshProfile()
+	profileName.Text = player.DisplayName
+	local level = player:GetAttribute("Level")
+	if type(level) ~= "number" then
+		local stats = player:FindFirstChild("leaderstats")
+		local stored = stats and stats:FindFirstChild("Level")
+		if stored and (stored:IsA("IntValue") or stored:IsA("NumberValue")) then
+			level = stored.Value
+		end
+	end
+	local validLevel = type(level) == "number" and level >= 0 and level <= 99999999
+	profileLevel.Visible = validLevel
+	profileLevel.Text = if validLevel then "Nível " .. math.floor(level) else ""
+	profileName.Position = UDim2.fromOffset(53, if validLevel then 6 else 0)
+	profileName.Size = UDim2.new(1, -105, validLevel and 0 or 1, if validLevel then 22 else 0)
 end
 
 local function rectOverlaps(x, y, w, h, x2, y2, w2, h2)
@@ -419,6 +588,9 @@ end
 local function petFits(position)
 	local left, top = position.X - pet.w / 2 - 4, position.Y - pet.h - 4
 	local w, h = pet.w + 8, pet.h + 8
+	if rectOverlaps(left, top, w, h, profileX, profileY, profileW, profileH) then
+		return false
+	end
 	local scrolls = stack.CanvasSize.Y.Offset > stackH
 	if scrolls then
 		return not rectOverlaps(left, top, w, h, stackX, stackY, stackW, stackH)
@@ -569,37 +741,58 @@ local function layout()
 	safeWidth, safeHeight = measured.X, measured.Y
 	local wide = safeWidth >= 520 and safeWidth / safeHeight >= 1.18
 	local low = safeHeight < 390
-	margin = math.floor(math.clamp(math.min(safeWidth, safeHeight) * 0.049, 10, 55))
-	stackX = if wide then math.floor(math.clamp(safeWidth * 0.061, 17, 128)) else margin
-	stackW = math.floor(math.min(safeWidth - stackX - margin, if wide then safeWidth * 0.56 else 530, 686))
-	titleH = math.floor(math.clamp(if wide then safeHeight * 0.17 else safeWidth * 0.23, if low then 46 else 56, 120))
-	titleY = if low then 7 else 11
-	firstH = if low then 46 else math.floor(math.clamp(safeHeight * 0.087, 48, 65))
-	rowH = if low then 44 else math.floor(math.clamp(firstH - 6, 44, 56))
-	gap = if low then 6 else 8
-	buttonY = titleY + titleH + (if low then 10 else 17)
-	buttonW = math.floor(math.min(stackW, if wide then math.clamp(safeWidth * 0.33, 202, 348) else 330))
+	margin = math.floor(math.clamp(math.min(safeWidth, safeHeight) * 0.046, 10, 52))
+	profileW = if wide and not low then math.floor(math.clamp(safeWidth * 0.17, 204, 246)) else math.floor(math.clamp(safeWidth * 0.46, 146, 190))
+	profileH = if wide and not low then 54 else 48
+	profileX = safeWidth - margin - profileW
+	profileY = margin
+	profile.Position = UDim2.fromOffset(safeWidth - margin, profileY)
+	profile.Size = UDim2.fromOffset(profileW, profileH)
+
+	stackX = if wide then math.floor(math.clamp(safeWidth * 0.0375, 16, 96)) else margin
+	stackW = math.floor(math.min(safeWidth - stackX - margin, if wide then safeWidth * 0.39 else 480, 584))
+	titleH = math.floor(math.clamp(stackW * 0.276, if low then 48 else 58, 160))
+	titleY = 0
+	firstH = if low then 46 else math.floor(math.clamp(safeHeight * 0.087, 47, 70))
+	rowH = if low then 44 else math.floor(math.clamp(firstH - 8, 44, 62))
+	gap = if low then 6 else 11
+	buttonY = titleH + (if low then 8 elseif wide then 24 else 14)
+	buttonW = math.floor(math.min(stackW, if wide then math.clamp(safeWidth * 0.258, 196, 386) else 328))
 	local fullHeight = buttonY + firstH + 2 * rowH + 2 * gap + 2
-	stackH = math.min(safeHeight - margin * 2, fullHeight)
-	local verticalCenter = if wide then (safeHeight - stackH) * 0.46 else (safeHeight - stackH) * 0.28
-	stackY = math.floor(math.clamp(verticalCenter, margin, math.max(margin, safeHeight - stackH - margin)))
+	local minTop = if wide then margin else math.min(profileY + profileH + 14, safeHeight - 60)
+	stackH = math.min(safeHeight - minTop - margin, fullHeight)
+	local preferredY = if wide then safeHeight * 0.086 else minTop
+	stackY = math.floor(math.clamp(preferredY, minTop, math.max(minTop, safeHeight - stackH - margin)))
 	stack.Position = UDim2.fromOffset(stackX, stackY)
 	stack.Size = UDim2.fromOffset(stackW + 2, stackH)
 	stack.CanvasSize = UDim2.fromOffset(0, fullHeight)
 	stack.ScrollingEnabled = stackH < fullHeight
 	stack.ScrollBarThickness = if stack.ScrollingEnabled then 3 else 0
-	accent.Size = UDim2.fromOffset(if low then 31 else 44, if low then 2 else 3)
-	accent.Position = UDim2.fromOffset(2, 0)
-	brand.Position = UDim2.fromOffset(3, titleY)
-	brand.Size = UDim2.fromOffset(stackW - 6, titleH)
+	brand.Position = UDim2.fromOffset(0, titleY)
+	brand.Size = UDim2.fromOffset(stackW, titleH)
+	title.Position = UDim2.fromScale(0.01, 0.09)
+	title.Size = UDim2.fromScale(0.97, 0.82)
+	title.Rotation = -5
+	for _, mark in marks do
+		local delta = mark.b - mark.a
+		local slope = Vector2.new(delta.X * stackW, delta.Y * titleH)
+		local midpoint = (mark.a + mark.b) / 2
+		mark.ink.Position = UDim2.fromScale(midpoint.X, midpoint.Y)
+		mark.ink.Size = UDim2.fromOffset(slope.Magnitude, math.max(1, titleH * mark.weight))
+		mark.ink.Rotation = math.deg(math.atan2(slope.Y, slope.X))
+	end
+	for _, ghost in { ghostMagenta, ghostCyan } do
+		ghost.Size = title.Size
+		ghost.Rotation = title.Rotation
+	end
 	local y = buttonY
 	for index, config in buttons do
 		local h = if index == 1 then firstH else rowH
 		config.item.Size = UDim2.fromOffset(buttonW, h)
 		config.item.Position = UDim2.fromOffset(0, y)
-		config.text.Position = UDim2.fromOffset(if low then 14 else 18, 0)
-		config.text.Size = UDim2.new(1, -57, 1, 0)
-		config.text.TextSize = if config.primary then (if low then 19 else 22) elseif low then 15 else 17
+		config.text.Position = UDim2.fromOffset(if low then 46 else 55, 0)
+		config.text.Size = UDim2.new(1, if low then -61 else -69, 1, 0)
+		config.text.TextSize = if config.primary then (if low then 18 else 22) elseif low then 15 else 17
 		config.tint.Position = config.text.Position
 		config.tint.Size = config.text.Size
 		config.tint.TextSize = config.text.TextSize
@@ -614,12 +807,12 @@ local function layout()
 
 	veil.Rotation = if wide then 0 else 90
 	veil.Transparency = if wide then NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.03), NumberSequenceKeypoint.new(0.36, 0.18),
-		NumberSequenceKeypoint.new(0.52, 0.57), NumberSequenceKeypoint.new(0.78, 0.94),
-		NumberSequenceKeypoint.new(1, 0.84),
+		NumberSequenceKeypoint.new(0, 0.04), NumberSequenceKeypoint.new(0.29, 0.15),
+		NumberSequenceKeypoint.new(0.45, 0.50), NumberSequenceKeypoint.new(0.64, 0.90),
+		NumberSequenceKeypoint.new(1, 0.98),
 	}) else NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.14), NumberSequenceKeypoint.new(0.42, 0.20),
-		NumberSequenceKeypoint.new(0.65, 0.67), NumberSequenceKeypoint.new(1, 0.95),
+		NumberSequenceKeypoint.new(0, 0.21), NumberSequenceKeypoint.new(0.38, 0.20),
+		NumberSequenceKeypoint.new(0.56, 0.58), NumberSequenceKeypoint.new(1, 0.93),
 	})
 
 	pet.h = math.min(300, safeHeight * (if wide then 0.47 else 0.37), safeWidth * 0.57)
@@ -655,13 +848,27 @@ local function applyGlitch(phase)
 	elseif phase == 3 then
 		ax, ay, bx, by, cut = 2, 0, -2, 1, -3
 	end
-	ghostMagenta.Position = UDim2.fromOffset(ax, ay)
-	ghostCyan.Position = UDim2.fromOffset(bx, by)
+	local hasArt = titleUri ~= "" and logo.IsLoaded
+	logo.Visible = hasArt
+	logoBack.Visible = hasArt and phase ~= 0
+	logoLight.Visible = hasArt and phase ~= 0
+	logoBack.Position = UDim2.fromOffset(ax, ay)
+	logoLight.Position = UDim2.fromOffset(bx, by)
+	logoBack.ImageTransparency = 0.26
+	logoLight.ImageTransparency = 0.51
+	title.Visible = not hasArt
+	ghostMagenta.Visible = not hasArt
+	ghostCyan.Visible = not hasArt
+	for _, mark in marks do
+		mark.ink.Visible = not hasArt
+	end
+	ghostMagenta.Position = title.Position + UDim2.fromOffset(ax, ay)
+	ghostCyan.Position = title.Position + UDim2.fromOffset(bx, by)
 	ghostMagenta.TextTransparency = if phase == 0 then 0.48 else 0.12
 	ghostCyan.TextTransparency = if phase == 0 then 0.62 else 0.23
 	for index, slice in slices do
 		local y = math.floor((titleH or 0) * slice.y)
-		slice.strip.Visible = cut ~= 0
+		slice.strip.Visible = cut ~= 0 and not hasArt
 		slice.strip.Position = UDim2.fromOffset(0, y)
 		slice.strip.Size = UDim2.new(1, 0, 0, if index == 1 then 4 else 3)
 		slice.label.Position = UDim2.fromOffset(cut * (if index == 1 then 1 else -1), -y)
@@ -684,9 +891,12 @@ end
 
 local function refreshButton(config)
 	local hovered = config.hovered or GuiService.SelectedObject == config.item
-	config.stroke.Color = if config.primary then (if hovered then WHITE else LIME) elseif hovered then MAGENTA else Color3.fromRGB(86, 71, 105)
+	paint(config.stroke, if hovered then PINK_LIGHT elseif config.primary then MAGENTA else SMOKE_EDGE)
+	paint(config.face, if config.primary then (if hovered then Color3.fromRGB(226, 16, 111) else PLAY_FACE)
+		elseif hovered then Color3.fromRGB(36, 21, 35) else SURFACE)
 	config.rail.BackgroundTransparency = if hovered then 0 else 1
-	config.icon.Position = UDim2.new(1, if hovered and motionOn then -41 else -44, 0, 0)
+	config.icon.Position = UDim2.new(0, if hovered and motionOn then 21 else 19, 0.5, 0)
+	config.detail.Size = UDim2.fromOffset(if hovered then 13 else 10, 2)
 end
 
 local function focusMain(preferred)
@@ -724,6 +934,7 @@ local function panel(kind, source)
 	for _, config in buttons do
 		config.item.Selectable = false
 	end
+	profileSettings.Selectable = false
 	cardBody.CanvasSize = UDim2.fromOffset(0, if kind == "settings" then 112 else 209)
 	cardBody.CanvasPosition = Vector2.new()
 	layout()
@@ -742,6 +953,7 @@ local function closePanel()
 	for _, config in buttons do
 		config.item.Selectable = true
 	end
+	profileSettings.Selectable = true
 	changeStatus()
 	positionPet(pet.position)
 	focusMain(selectedBeforeModal)
@@ -802,6 +1014,8 @@ local function finishLoader()
 	state = "main"
 	stack.Visible = true
 	petLayer.Visible = true
+	profile.Visible = true
+	refreshProfile()
 	layout()
 	pose("stand")
 	if pet.active and motionOn then
@@ -849,6 +1063,10 @@ local function cleanup(started)
 	if selected and selected:IsDescendantOf(safeGui) then
 		GuiService.SelectedObject = nil
 	end
+	if stageClose then
+		pcall(stageClose)
+		stageClose = nil
+	end
 	ContextActionService:UnbindAction(ACTION)
 	if started then
 		player:SetAttribute("CyberOutlawMenuStarted", true)
@@ -872,6 +1090,7 @@ local function activate(config)
 		for _, entry in buttons do
 			entry.item.Selectable = false
 		end
+		profileSettings.Selectable = false
 		hit.Visible = false
 		if not (motionOn or played) then
 			cleanup(true)
@@ -906,6 +1125,26 @@ for _, config in buttons do
 	end)
 	connect(config.item.SelectionLost, function()
 		refreshButton(config)
+	end)
+end
+
+connect(profileSettings.Activated, function()
+	if state == "main" then
+		sound("click", 0.08)
+		glitch(settings)
+		panel("settings", profileSettings)
+	end
+end)
+for _, event in { profileSettings.MouseEnter, profileSettings.SelectionGained } do
+	connect(event, function()
+		if state == "main" then
+			profileSettings.BackgroundTransparency = 0.30
+		end
+	end)
+end
+for _, event in { profileSettings.MouseLeave, profileSettings.SelectionLost } do
+	connect(event, function()
+		profileSettings.BackgroundTransparency = 1
 	end)
 end
 
@@ -1052,6 +1291,14 @@ end)
 
 connect(GuiService:GetPropertyChangedSignal("ReducedMotionEnabled"), changeMotion)
 connect(safe:GetPropertyChangedSignal("AbsoluteSize"), layout)
+connect(logo:GetPropertyChangedSignal("IsLoaded"), function()
+	shownPhase = -1
+end)
+connect(player:GetPropertyChangedSignal("DisplayName"), refreshProfile)
+connect(player:GetAttributeChangedSignal("Level"), refreshProfile)
+connect(view:GetAttributeChangedSignal("CyberOutlawWorkspaceStage"), function()
+	background.BackgroundTransparency = if view:GetAttribute("CyberOutlawWorkspaceStage") == true then 1 else 0
+end)
 connect(script.Destroying, function()
 	cleanup(false)
 end)
@@ -1123,14 +1370,43 @@ local function updatePet(now)
 	end
 end
 
+local function fallbackCity()
+	if type(createCyberCity) ~= "function" then
+		return
+	end
+	local ok, _, path, animateCity = pcall(createCyberCity, world, ASSETS.art)
+	if alive and ok and type(path) == "function" then
+		cityPath = path
+		cityAnimation = if type(animateCity) == "function" then animateCity else nil
+	end
+end
+
 local function updateCity(seconds)
+	if stageStep then
+		local ok = pcall(stageStep, seconds)
+		if ok then
+			return
+		end
+		stageStep = nil
+		if stageClose then
+			pcall(stageClose)
+			stageClose = nil
+		end
+		view:SetAttribute("CyberOutlawWorkspaceStage", false)
+		fallbackCity()
+	end
 	if not cityPath then
 		return
 	end
-	local ok, transform = pcall(cityPath, seconds)
+	local size = view.AbsoluteSize
+	local ratio = if size.X > 0 and size.Y > 0 then size.X / size.Y else 16 / 9
+	local ok, transform = pcall(cityPath, seconds, ratio)
 	if ok and typeof(transform) == "CFrame" then
 		camera.CFrame = transform
 		view.ImageTransparency = 0
+		if cityAnimation then
+			pcall(cityAnimation, seconds)
+		end
 	else
 		cityPath = nil
 		view.ImageTransparency = 1
@@ -1148,7 +1424,7 @@ connect(RunService.Heartbeat, function(dt)
 			cityClock %= 1 / 30
 			updateCity(elapsed)
 		end
-	elseif cityPath and elapsed ~= 0 then
+	elseif (cityPath or stageStep) and elapsed ~= 0 then
 		elapsed = 0
 		updateCity(0)
 	end
@@ -1165,6 +1441,7 @@ connect(RunService.Heartbeat, function(dt)
 			if alpha > 0.76 then
 				stack.Visible = false
 				petLayer.Visible = false
+				profile.Visible = false
 			end
 		end
 		if now >= closingAt then
@@ -1214,7 +1491,7 @@ if not player:GetAttribute("CyberOutlawLoaderSeen") then
 		end)
 	end
 	loader = frame(safe, "Loader", 60, { Size = FULL })
-	loaderBrand = text(loader, "Title", TITLE, 62, WORDMARK, 50, WHITE)
+	loaderBrand = text(loader, "Title", TITLE, 62, WORDMARK, 50, MAGENTA)
 	loaderBrand.AnchorPoint = Vector2.new(0, 1)
 	loaderBrand.Position = UDim2.new(0.065, 0, 0.90, -30)
 	loaderBrand.Size = UDim2.fromOffset(348, 60)
@@ -1233,9 +1510,9 @@ if not player:GetAttribute("CyberOutlawLoaderSeen") then
 	})
 	track.Size = UDim2.new(0.87, 0, 0, 3)
 	loaderBar = frame(track, "Progress", 63, {
-		Size = UDim2.fromScale(0, 1), BackgroundColor3 = LIME, BackgroundTransparency = 0,
+		Size = UDim2.fromScale(0, 1), BackgroundColor3 = MAGENTA, BackgroundTransparency = 0,
 	})
-	gradient(loaderBar, 0, MAGENTA, LIME)
+	gradient(loaderBar, 0, PINK_SHADOW, PINK_LIGHT)
 end
 
 changeStatus()
@@ -1256,13 +1533,27 @@ else
 	finishLoader()
 end
 
--- Build the isolated city after the loader can already render.
-if type(createCyberCity) == "function" then
+-- Start the local stage after the loader mounts, with the viewport as fallback.
+if type(openCyberOutlawScene) == "function" or type(createCyberCity) == "function" then
 	cityJob = task.defer(function()
 		cityJob = nil
-		local ok, _, path = pcall(createCyberCity, world)
-		if alive and ok and type(path) == "function" then
-			cityPath = path
+		if type(openCyberOutlawScene) == "function" then
+			local ok, step, closeScene = pcall(openCyberOutlawScene, ASSETS, view, world, camera)
+			if ok and type(step) == "function" and type(closeScene) == "function" then
+				if alive then
+					stageStep, stageClose = step, closeScene
+					updateCity(0)
+				else
+					pcall(closeScene)
+				end
+				return
+			elseif ok and type(closeScene) == "function" then
+				pcall(closeScene)
+			end
+		end
+		if alive then
+			view:SetAttribute("CyberOutlawWorkspaceStage", false)
+			fallbackCity()
 			updateCity(0)
 		end
 	end)

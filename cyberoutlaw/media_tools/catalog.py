@@ -11,6 +11,11 @@ import warnings
 from . import upload
 
 SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
+ART = {
+    "title": (1020, 258), "billboard": (1020, 1020),
+    "concrete": (1024, 1024), "concrete_normal": (768, 768),
+    "asphalt": (1024, 1024), "asphalt_normal": (768, 768), "asphalt_rough": (768, 768),
+}
 
 
 def _read(path):
@@ -77,7 +82,8 @@ def sprite_catalog(root, plan):
     definitions = capri.get("clips")
     if not isinstance(definitions, dict) or "idle" not in definitions:
         raise ValueError("A animação base da Capri está ausente.")
-    atlas_entries = {row["key"]: row for row in plan["assets"] if row["assetType"] == "Image"}
+    atlas_entries = {row["key"]: row for row in plan["assets"]
+                     if row["assetType"] == "Image" and row["key"] in capri["images"]}
     dimensions = {}
     for key, row in atlas_entries.items():
         raw = upload._read_bytes(root / "media", row)
@@ -122,7 +128,8 @@ def resolved_config(root, plan, result, video=None):
     if pending:
         raise ValueError("Mídia aguardando aprovação ou acesso: " + ", ".join(pending))
     sprites = sprite_catalog(root, plan)
-    output = {"sounds": {name: selected[name] for name in SOUNDS}, "clips": {}}
+    output = {"sounds": {name: selected[name] for name in SOUNDS}, "clips": {},
+              "art": {name: selected[name] for name in ART}}
     for name, clip in sprites["clips"].items():
         output["clips"][name] = {
             "fps": clip["fps"],
@@ -141,6 +148,12 @@ def verify_media(root):
     manifest = root / "media/ASSET_PLAN.json"
     plan = upload.validate_manifest(manifest)
     capri = sprite_catalog(root, plan)
+    by_key = {row["key"]: row for row in plan["assets"]}
+    for key, size in ART.items():
+        row = by_key.get(key, {})
+        if (row.get("assetType") != "Image" or row.get("path") != f"art/{key}.png"
+                or upload._image_dimensions(upload._read_bytes(root / "media", row), ".png") != size):
+            raise ValueError(f"Imagem do menu com resolução incompatível. {key}")
     return plan, capri
 
 
@@ -170,5 +183,5 @@ def import_media(root, state, *, video=None):
     for row in result["assets"]:
         print(row["key"], row["status"], row.get("lastErrorCode", ""))
     config = make_config(root, video=video)
-    print(f"Mídia vinculada: {len(config['clips'])} animações e {len(config['sounds'])} sons.")
+    print(f"Mídia vinculada: {len(config['clips'])} animações, {len(config['sounds'])} sons e {len(config['art'])} artes.")
     return config

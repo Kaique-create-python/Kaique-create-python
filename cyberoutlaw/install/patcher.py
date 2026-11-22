@@ -282,6 +282,20 @@ def place_format(raw):
     return "rbxl" if raw.startswith(BINARY_MAGIC) else "rbxlx"
 
 
+def same_binary_place(first, second):
+    """Allow repacking while requiring every instance and opaque chunk to agree."""
+    if not first.startswith(BINARY_MAGIC) or not second.startswith(BINARY_MAGIC):
+        return False
+    try:
+        left, right = _read_document(first), _read_document(second)
+    except Failure:
+        return False
+    return (
+        left.header == right.header and len(left.chunks) == len(right.chunks)
+        and all(a.tag == b.tag and a.data == b.data for a, b in zip(left.chunks, right.chunks))
+    )
+
+
 def _read_document(raw):
     try:
         return _document(raw)

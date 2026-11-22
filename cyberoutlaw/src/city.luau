@@ -1,41 +1,41 @@
-local function createCyberCity(parent: Instance)
+local function createCyberCity(parent: Instance, media, origin: Vector3?)
     local city = Instance.new("Model")
-    city.Name = "Maré Baixa"
-    city:SetAttribute("LoopDuration", 68)
-
+    city.Name = "Terraço do Estuário"
+    local loopSeconds = 72
+    city:SetAttribute("LoopDuration", loopSeconds)
+    city:SetAttribute("VerticalFieldOfView", 46)
+    local worldOffset = origin or Vector3.zero
     local rgb = Color3.fromRGB
-    local metal = Enum.Material.SmoothPlastic
+    local plastic = Enum.Material.SmoothPlastic
+    local steel = Enum.Material.Metal
+    local rough = Enum.Material.CorrodedMetal
+    local concrete = Enum.Material.Concrete
     local neon = Enum.Material.Neon
     local palette = {
-        water = rgb(13, 17, 33),
-        asphalt = rgb(27, 26, 42),
-        stone = rgb(36, 34, 53),
-        ledge = rgb(51, 47, 66),
-        steel = rgb(62, 59, 83),
-        iron = rgb(23, 24, 42),
-        glass = rgb(30, 34, 57),
-        copper = rgb(100, 64, 72),
-        cyan = rgb(50, 216, 234),
-        ice = rgb(176, 227, 242),
-        rose = rgb(240, 47, 142),
-        violet = rgb(160, 112, 228),
-        amber = rgb(244, 163, 104),
-        tail = rgb(255, 86, 105),
+        ink = rgb(9, 11, 18),
+        iron = rgb(23, 28, 38),
+        gray = rgb(46, 53, 64),
+        rim = rgb(64, 73, 83),
+        rust = rgb(79, 52, 46),
+        glass = rgb(21, 33, 48),
+        haze = rgb(52, 61, 84),
+        pink = rgb(255, 41, 144),
+        violet = rgb(180, 86, 250),
+        cyan = rgb(58, 231, 255),
+        ice = rgb(184, 223, 242),
+        warm = rgb(255, 166, 94),
     }
-
-    local seed = 203981
-    local function range(minimum: number, maximum: number): number
-        seed = (seed * 48271) % 2147483647
-        return minimum + (maximum - minimum) * (seed / 2147483647)
+    local seed = 361423
+    local function range(a: number, b: number): number
+        seed = seed * 48271 % 2147483647
+        return a + (b - a) * (seed / 2147483647)
     end
-
     local function group(owner: Instance, name: string): Model
         local model = Instance.new("Model")
         model.Name = name
         model.Parent = owner
         return model
     end
-
     local function solid(
         owner: Instance, name: string, size: Vector3, pose: CFrame, color: Color3,
         material: Enum.Material?, shape: Enum.PartType?
@@ -43,691 +43,715 @@ local function createCyberCity(parent: Instance)
         local part = Instance.new("Part")
         part.Name = name
         part.Size = size
-        part.CFrame = pose
+        part.CFrame = pose + worldOffset
         part.Color = color
-        part.Material = material or metal
+        part.Material = material or plastic
         part.Shape = shape or Enum.PartType.Block
         part.Anchored = true
         part.CanCollide = false
-        part.CanTouch = false
         part.CanQuery = false
+        part.CanTouch = false
         part.CastShadow = false
         part.Parent = owner
         return part
     end
-
     local function box(
-        owner: Instance, name: string, x: number, y: number, z: number,
-        width: number, height: number, depth: number, color: Color3, material: Enum.Material?
+        owner: Instance, name: string, x: number, y: number, z: number, w: number,
+        h: number, d: number, color: Color3, material: Enum.Material?
     ): Part
-        return solid(owner, name, Vector3.new(width, height, depth), CFrame.new(x, y, z), color, material)
+        return solid(owner, name, Vector3.new(w, h, d), CFrame.new(x, y, z), color, material)
     end
-
     local function body(
         owner: Instance, name: string, x: number, z: number, base: number,
-        width: number, height: number, depth: number, color: Color3
-    )
-        box(owner, name, x, base + height * 0.5, z, width, height, depth, color)
+        w: number, h: number, d: number, color: Color3, material: Enum.Material?
+    ): Part
+        return box(owner, name, x, base + h / 2, z, w, h, d, color, material)
     end
-
-    local function link(
-        owner: Instance, name: string, from: Vector3, to: Vector3, thickness: number,
-        color: Color3, material: Enum.Material?, pipe: boolean?
-    )
-        local offset = to - from
-        local up = if math.abs(offset.Unit.Y) > 0.98 then Vector3.zAxis else Vector3.yAxis
-        local pose = CFrame.lookAt(from:Lerp(to, 0.5), to, up) * CFrame.Angles(0, math.pi / 2, 0)
-        local shape = if pipe then Enum.PartType.Cylinder else Enum.PartType.Block
-        solid(owner, name, Vector3.new(offset.Magnitude, thickness, thickness), pose, color, material, shape)
+    local function beam(
+        owner: Instance, name: string, a: Vector3, b: Vector3, width: number, color: Color3,
+        material: Enum.Material?, pipe: boolean?
+    ): Part
+        local direction = (b - a).Unit
+        local up = if math.abs(direction.Y) > 0.98 then Vector3.zAxis else Vector3.yAxis
+        local pose = CFrame.lookAt(a:Lerp(b, 0.5), b, up) * CFrame.Angles(0, math.pi / 2, 0)
+        return solid(owner, name, Vector3.new((b - a).Magnitude, width, width), pose, color, material,
+            if pipe then Enum.PartType.Cylinder else Enum.PartType.Block)
     end
-
-    local function cylinder(
+    local function rod(
         owner: Instance, name: string, x: number, y: number, z: number,
         diameter: number, height: number, color: Color3, material: Enum.Material?
-    )
-        local pose = CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.pi / 2)
-        solid(owner, name, Vector3.new(height, diameter, diameter), pose, color, material, Enum.PartType.Cylinder)
+    ): Part
+        return solid(owner, name, Vector3.new(height, diameter, diameter),
+            CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.pi / 2), color, material, Enum.PartType.Cylinder)
     end
-
+    local function disk(
+        owner: Instance, name: string, x: number, y: number, z: number,
+        w: number, h: number, depth: number, color: Color3, material: Enum.Material?
+    ): Part
+        return solid(owner, name, Vector3.new(depth, h, w), CFrame.new(x, y, z) * CFrame.Angles(0, -math.pi / 2, 0),
+            color, material, Enum.PartType.Cylinder)
+    end
+    local function light(part: Part, color: Color3, brightness: number, radius: number, face: Enum.NormalId?)
+        local lamp
+        if face then
+            lamp = Instance.new("SurfaceLight")
+            lamp.Face = face
+            lamp.Angle = 104
+        else
+            lamp = Instance.new("PointLight")
+        end
+        lamp.Color = color
+        lamp.Brightness = brightness
+        lamp.Range = radius
+        lamp.Shadows = false
+        lamp.Parent = part
+        return lamp
+    end
+    local function shade(color: Color3, amount: number): Color3
+        return palette.ink:Lerp(color, amount)
+    end
     local function front(
-        owner: Instance, name: string, x: number, y: number, face: number,
-        width: number, height: number, color: Color3, material: Enum.Material?
-    )
-        box(owner, name, x, y, face + 0.11, width, height, 0.22, color, material)
+        owner: Instance, name: string, x: number, y: number, z: number,
+        w: number, h: number, color: Color3, material: Enum.Material?
+    ): Part
+        return box(owner, name, x, y, z + 0.115, w, h, 0.23, color, material)
     end
-
-    local function glow(color: Color3, strength: number): Color3
-        return palette.glass:Lerp(color, strength)
-    end
-
-    local function tube(
-        owner: Instance, name: string, from: Vector3, to: Vector3, width: number, color: Color3
-    )
-        link(owner, name, from, to, width * 3.7, glow(color, 0.24))
-        link(owner, name .. " • Luz", from + Vector3.new(0, 0, width * 1.9),
-            to + Vector3.new(0, 0, width * 1.9), width, color, neon)
-    end
-
-    local function roof(
-        owner: Instance, x: number, y: number, z: number, width: number, depth: number, color: Color3
-    )
-        box(owner, "Platibanda", x, y + 0.34, z, width + 0.35, 0.68, depth + 0.35, color)
-        box(owner, "Beiral", x, y + 0.75, z + depth * 0.5, width + 0.52, 0.24, 0.44, palette.steel)
-    end
-
-    local function rail(owner: Instance, x: number, y: number, z: number, width: number, color: Color3)
-        box(owner, "Corrimão", x, y + 1.55, z, width, 0.20, 0.20, color)
-        box(owner, "Rodapé", x, y + 0.32, z, width, 0.28, 0.29, palette.iron)
-        for step = 0, 4 do
-            local px = x + width * (step / 4 - 0.5)
-            box(owner, "Montante", px, y + 0.82, z, 0.18, 1.64, 0.20, color)
-        end
-    end
-
-    local function fan(owner: Instance, x: number, y: number, z: number, width: number)
-        body(owner, "Ar condicionado", x, z, y, width, 1.75, 2.25, palette.iron)
-        box(owner, "Tampa", x, y + 1.86, z, width + 0.24, 0.22, 2.48, palette.ledge)
-        local face = z + 1.13
-        front(owner, "Abertura técnica", x, y + 1, face, width * 0.82, 1.03, palette.glass)
-        for row = 1, 4 do
-            front(owner, "Aleta", x, y + 0.54 + row * 0.16, face + 0.22, width * 0.74, 0.048, palette.steel)
-        end
-    end
-
-    local function cable(owner: Instance, a: Vector3, b: Vector3, sag: number)
-        local previous = a
-        for segment = 1, 6 do
-            local t = segment / 6
-            local point = a:Lerp(b, t) - Vector3.new(0, 4 * sag * t * (1 - t), 0)
-            link(owner, "Cabo de serviço", previous, point, 0.14, palette.iron, nil, true)
+    local function cables(owner: Instance, from: Vector3, to: Vector3, sag: number, thickness: number, color: Color3)
+        local previous = from
+        for index = 1, 9 do
+            local t = index / 9
+            local point = from:Lerp(to, t) - Vector3.new(0, 4 * sag * t * (1 - t), 0)
+            beam(owner, "Cabo isolado", previous, point, thickness, color, rough, true)
             previous = point
         end
     end
-
-    local function mast(owner: Instance, x: number, y: number, z: number, height: number, color: Color3)
-        cylinder(owner, "Base de antena", x, y + 0.55, z, 1.55, 1.10, palette.iron)
-        cylinder(owner, "Mastro", x, y + height * 0.5, z, 0.22, height, palette.steel)
-        box(owner, "Elemento horizontal", x, y + height * 0.56, z, height * 0.62, 0.11, 0.12, palette.steel)
-        box(owner, "Elemento horizontal", x, y + height * 0.76, z, height * 0.47, 0.11, 0.14, palette.ledge)
-        cylinder(owner, "Luz de balizamento", x, y + height, z, 0.28, 0.42, color, neon)
-    end
-
-    local function ribs(
-        owner: Instance, x: number, z: number, y0: number, y1: number,
-        width: number, depth: number, color: Color3
-    )
-        for _, side in {-1, 1} do
-            local px = x + side * (width * 0.5 - 0.18)
-            box(owner, "Pilar de fachada", px, (y1 + y0) * 0.5, z + depth * 0.5 - 0.01, 0.36, y1 - y0, 0.54, color)
+    local function vent(owner: Instance, x: number, y: number, z: number, w: number, h: number)
+        box(owner, "Caixa de ventilação", x, y, z, w, h, 0.91, palette.iron, rough)
+        front(owner, "Rebaixo da grelha", x, y, z + 0.46, w * 0.91, h * 0.89, palette.ink)
+        for row = 1, 5 do
+            front(owner, "Grelha de ventilação", x, y + (row - 3) * h * 0.14, z + 0.7, w * 0.86,
+                h * 0.053, palette.gray, steel)
         end
     end
+    local function surfaceText(part: Part, name: string, copy: string, color: Color3)
+        local gui = Instance.new("SurfaceGui")
+        gui.Name = name
+        gui.Face = Enum.NormalId.Back
+        gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+        gui.CanvasSize = Vector2.new(560, 100)
+        gui.AlwaysOnTop = false
+        gui.LightInfluence = 0
+        gui.Brightness = 1.25
+        gui.MaxDistance = 260
+        gui.Parent = part
+        local label = Instance.new("TextLabel")
+        label.Name = "Texto técnico"
+        label.Size = UDim2.fromScale(1, 1)
+        label.BackgroundTransparency = 1
+        label.Text = copy
+        label.TextColor3 = color
+        label.TextScaled = true
+        label.Font = Enum.Font.Code
+        label.Parent = gui
+    end
 
-    local function windows(
-        owner: Instance, x: number, z: number, base: number, width: number, height: number,
-        rows: number, columns: number, light: Color3, density: number, strength: number
+    local foreground = group(city, "Terraço de serviço")
+    local floorY = 26.8
+    local poolRows = {
+        {-12.4, -7.1, 0, 0}, {-7.1, -5.1, -1.9, 3.1}, {-5.1, -3.25, -3.1, 5.8},
+        {-3.25, -1.3, -3.6, 6.7}, {-1.3, 1.4, -5.9, 8.8}, {1.4, 2.9, -7.1, 9.4},
+        {2.9, 4.1, -6.3, 11.5}, {4.1, 6.05, -7.7, 12.4}, {6.05, 7.6, -8.8, 12.1},
+        {7.6, 10.1, -8.1, 12.9}, {10.1, 13.1, -9.5, 12.1}, {13.1, 14.5, -9.2, 10.7},
+        {14.5, 17.4, -8.3, 9.6}, {17.4, 19.3, -7.3, 9.95}, {19.3, 21.5, -7.8, 8.2},
+        {21.5, 23.1, -7.1, 6.5}, {23.1, 25.2, -6.25, 4.67}, {25.2, 27.1, -5.5, 3.55},
+        {27.1, 29.5, -3.7, 1.4}, {29.5, 32, -2.6, 0.24}, {32, 47, 0, 0},
+    }
+    local water = group(foreground, "Poças no asfalto")
+    local function slab(a: number, b: number, z: number, depth: number, color: Color3)
+        box(foreground, "Asfalto do terraço", (a + b) / 2, floorY - 0.35, z, b - a, 0.7, depth,
+            color, Enum.Material.Asphalt)
+    end
+    local function poolEdge(a: number, b: number, frontZ: number, backZ: number, leftBank: boolean, tint: Color3)
+        local width = math.abs(b - a)
+        if width < 0.05 then
+            return
+        end
+        local tallAtFront = if leftBank then a > b else a < b
+        local across = Vector3.new(if leftBank then 1 else -1, 0, 0)
+        local along = Vector3.new(0, 0, if tallAtFront then 1 else -1)
+        local position = Vector3.new((a + b) / 2, floorY - 0.35, (frontZ + backZ) / 2)
+        local pose = CFrame.fromMatrix(position, across:Cross(along), across, along)
+        solid(foreground, "Margem irregular de asfalto", Vector3.new(0.7, width, backZ - frontZ), pose,
+            tint, Enum.Material.Asphalt, Enum.PartType.Wedge)
+        local from = Vector3.new(a, floorY + 0.021, frontZ)
+        local to = Vector3.new(b, floorY + 0.021, backZ)
+        beam(water, "Limite molhado da poça", from:Lerp(to, 0.22), to, 0.053, rgb(47, 46, 61), rough)
+    end
+    for rowIndex, row in poolRows do
+        local start, finish, left, right = table.unpack(row)
+        local depth, z = finish - start, (start + finish) / 2
+        local tint = rgb(range(21, 26), range(22, 26), range(29, 34))
+        if left == right then
+            slab(-42, 42, z, depth, tint)
+        else
+            local previous, following = poolRows[rowIndex - 1], poolRows[rowIndex + 1]
+            local center = (left + right) / 2
+            local a = if previous[3] == previous[4] then center else (left + previous[3]) / 2
+            local b = if following[3] == following[4] then center else (left + following[3]) / 2
+            local c = if previous[3] == previous[4] then center else (right + previous[4]) / 2
+            local d = if following[3] == following[4] then center else (right + following[4]) / 2
+            local low, high = math.min(a, b), math.max(c, d)
+            slab(-42, low, z, depth, tint)
+            slab(high, 42, z, depth, tint)
+            poolEdge(a, b, start, finish, true, tint)
+            poolEdge(c, d, start, finish, false, tint)
+            local film = box(water, "Superfície de água", (low + high) / 2, floorY - 0.065, z,
+                high - low, 0.12, depth, rgb(9, 17, 30))
+            film.Transparency = 0.74
+            film.Reflectance = 0.10
+            for _ = 1, 2 do
+                local dx = range(left + 0.5, right - 0.5)
+                local ripple = box(water, "Ondulação rasa", dx, floorY + 0.021, z + range(-0.22, 0.22) * depth,
+                    range(0.68, 2.6), 0.046, range(0.08, 0.36), rgb(43, 48, 74))
+                ripple.Transparency = range(0.27, 0.62)
+            end
+        end
+    end
+    for index = 1, 62 do
+        local x = if index % 2 == 0 then range(-36, -10.5) else range(14, 40)
+        local z = range(-11.0, 35)
+        local stain = box(foreground, "Desgaste do piso", x, floorY + 0.016, z,
+            range(0.42, 2.35), 0.04, range(0.10, 0.67),
+            rgb(range(22, 41), range(27, 39), range(32, 45)), rough)
+        stain.Reflectance = range(0, 0.11)
+    end
+    for _, x in {-12.3, 15.0, 33.2} do
+        box(foreground, "Canaleta do terraço", x, floorY + 0.025, 11.25, 0.44, 0.07, 43.95, palette.iron, steel)
+        for index = 0, 15 do
+            box(foreground, "Grade de drenagem", x, floorY + 0.071, -9.07 + index * 2.76,
+                0.37, 0.05, 0.13, palette.gray, steel)
+        end
+    end
+    for index = 1, 10 do
+        local z = -7.1 + index * 1.63
+        local p = CFrame.new(-12.66, floorY + 0.065, z) * CFrame.Angles(0, math.rad(27), 0)
+        solid(foreground, "Faixa de manutenção", Vector3.new(1.5, 0.051, 0.36), p, rgb(123, 79, 43), concrete)
+    end
+
+    local rail = group(foreground, "Guarda-corpo exposto")
+    box(rail, "Borda de concreto", 2, floorY + 0.12, -10.9, 83, 0.43, 1.01, palette.iron, concrete)
+    box(rail, "Corrimão molhado", 2, 30.03, -10.75, 83.65, 0.15, 0.24, palette.gray, steel).Reflectance = 0.20
+    box(rail, "Reforço do corrimão", 2, 27.95, -10.81, 83.65, 0.15, 0.24, palette.iron, steel)
+    box(rail, "Cabo de segurança", 2, 28.87, -10.80, 83.1, 0.066, 0.12, palette.iron, steel)
+    for post = 0, 13 do
+        local x = -38 + post * 6.15
+        box(rail, "Montante aparafusado", x, 28.52, -10.75, 0.31, 3.1, 0.31, palette.iron, rough)
+        box(rail, "Chapa de ancoragem", x, 27.06, -10.75, 0.9, 0.18, 0.58, palette.gray, steel)
+        local endPoint = Vector3.new(x + 1.45, 27.87, -10.81)
+        beam(rail, "Travamento diagonal", Vector3.new(x, 27.12, -10.81), endPoint, 0.13, palette.iron, rough)
+    end
+
+    local station = group(foreground, "Abrigo à esquerda")
+    local wallX = -17.4
+    local wall = box(station, "Parede de serviço", wallX, 35.45, 12.85, 2.3, 17.35, 44.6, rgb(30, 29, 35), concrete)
+    wall.CastShadow = true
+    box(station, "Pilar de esquina", -16.08, 35.35, -8.55, 1.2, 17.07, 1.1, palette.rust, rough).CastShadow = true
+    box(station, "Rodapé de proteção", -16.19, 27.41, 13, 0.48, 1.25, 43.7, palette.iron, steel)
+    for panel = 0, 13 do
+        local z = -8.1 + panel * 3.2
+        box(station, "Painel de chapa", -16.16, 34.9, z, 0.37, 12.7, 3.14,
+            rgb(range(29, 41), range(28, 36), range(33, 45)), rough)
+        box(station, "Emenda da chapa", -15.94, 34.9, z - 1.53, 0.22, 13.25, 0.09, palette.rim, steel)
+        for _, y in {28.8, 40.75} do
+            box(station, "Cabeça de rebite", -15.76, y, z, 0.13, 0.14, 0.18, palette.gray, steel)
+        end
+    end
+    for pipe = 0, 3 do
+        local z = -6.25 + pipe * 0.78
+        beam(station, "Eletroduto vertical", Vector3.new(-15.53, 27.53, z), Vector3.new(-15.53, 40.59 - pipe * 0.27, z),
+            0.26, if pipe == 0 then palette.rust else palette.gray, rough, true)
+        beam(station, "Joelho metálico", Vector3.new(-15.53, 40.65 - pipe * 0.27, z),
+            Vector3.new(-15.53, 41.13 - pipe * 0.27, z + 0.68), 0.26, palette.gray, rough, true)
+        for _, y in {29.1, 33.5, 38.4} do
+            box(station, "Abraçadeira", -15.49, y, z, 0.39, 0.15, 0.39, palette.rim, steel)
+        end
+    end
+    box(station, "Quadro elétrico", -15.58, 31.73, -2.64, 0.82, 3.28, 2.39, palette.iron, rough)
+    box(station, "Fecho do quadro", -15.10, 31.77, -2.1, 0.15, 0.47, 0.13, palette.rim, steel)
+    for slot = 0, 5 do
+        box(station, "Rasgo do quadro", -15.13, 31.48 + slot * 0.27, -2.88, 0.07, 0.083, 0.81, palette.gray, steel)
+    end
+    local lamp = box(station, "Lâmpada de sódio", -14.46, 36.25, -5.3, 1.10, 0.68, 1.58, palette.warm, neon)
+    light(lamp, palette.warm, 2.32, 23).Shadows = true
+    box(station, "Chapéu da lâmpada", -14.67, 36.68, -5.3, 1.48, 0.19, 1.96, palette.rust, rough)
+    box(station, "Base da lâmpada", -14.67, 35.83, -5.3, 1.48, 0.14, 1.96, palette.iron, steel)
+    for index = -2, 2 do
+        box(station, "Grade da luminária", -13.87, 36.25, -5.3 + index * 0.31, 0.07, 0.76, 0.071, palette.rust, steel)
+    end
+    vent(station, -14.7, 30.18, -8.46, 2.61, 2.64)
+    local canopy = group(foreground, "Marquise metálica")
+    box(canopy, "Cobertura da marquise", -16.7, 46.0, 12.8, 38.0, 0.79, 32.4, palette.iron, rough).CastShadow = true
+    box(canopy, "Testeira da marquise", -15.7, 45.52, -3.54, 38.5, 1.18, 0.86, palette.iron, rough).CastShadow = true
+    beam(canopy, "Borda sob a chapa", Vector3.new(-30.3, 44.96, -4.06), Vector3.new(3.6, 44.96, -4.06),
+        0.22, palette.rim, rough)
+    for rafter = 0, 9 do
+        local x = -27 + rafter * 3.15
+        box(canopy, "Perfil sob o teto", x, 45.3, 11.9, 0.23, 0.57, 31.1, palette.gray, rough)
+        box(canopy, "Parafuso da testeira", x, 45.81, -4.03, 0.13, 0.13, 0.10, palette.gray, steel)
+    end
+    for _, x in {-15, -7.6, 1.8} do
+        beam(canopy, "Mão francesa", Vector3.new(-16.0, 39.9, 3.4 + x / 12), Vector3.new(x, 45.23, 3.4 + x / 12),
+            0.44, palette.iron, steel)
+    end
+    cables(canopy, Vector3.new(-16.07, 41.94, -5.7), Vector3.new(42.8, 40.5, -29.5), 1.04, 0.17, palette.iron)
+    cables(canopy, Vector3.new(-16.07, 43.18, -5.2), Vector3.new(42.8, 45.7, -32.5), 2.91, 0.23, palette.ink)
+    cables(canopy, Vector3.new(-16.07, 44.03, -6.1), Vector3.new(42.8, 45.2, -32.7), 2.28, 0.11, palette.gray)
+    local edgeLamp = box(rail, "Baliza magenta de manutenção", 6.9, 27.70, -10.29, 1.7, 0.15, 0.39,
+        shade(palette.pink, 0.91), neon)
+    box(rail, "Proteção da baliza", 6.9, 27.89, -10.35, 1.82, 0.19, 0.48, palette.iron, steel)
+    light(edgeLamp, palette.pink, 1.28, 14, Enum.NormalId.Back)
+    local coolLamp = box(rail, "Arandela fria do corrimão", 18.85, 28.06, -10.60, 0.61, 0.15, 0.30,
+        shade(palette.cyan, 0.80), neon)
+    light(coolLamp, palette.cyan, 0.88, 13, Enum.NormalId.Back)
+
+    local transit = group(city, "Linha elevada do estuário")
+    local trackZ = -40
+    box(transit, "Tabuleiro do trem", 0, 21.6, trackZ, 333, 1.12, 9.35, palette.iron, concrete)
+    box(transit, "Viga principal", 0, 21.2, trackZ + 4.31, 333, 1.65, 0.35, palette.gray, rough)
+    box(transit, "Trilho externo", 0, 22.23, trackZ + 1.99, 333, 0.16, 0.17, palette.rim, steel)
+    box(transit, "Trilho interno", 0, 22.23, trackZ - 1.99, 333, 0.16, 0.17, palette.rim, steel)
+    box(transit, "Guarda-corpo do viaduto", 0, 23.15, trackZ + 4.58, 333, 0.10, 0.19, palette.gray, steel)
+    for index = -6, 6 do
+        local x = index * 23.75 + 3.2
+        body(transit, "Pilar do viaduto", x, trackZ, -22, 1.92, 42.9, 3.15, palette.iron, concrete)
+        box(transit, "Cabeça do pilar", x, 20.48, trackZ, 3.12, 0.74, 8.96, palette.gray, rough)
+        box(transit, "Sinal de via", x, 21.48, trackZ + 4.56, 0.76, 0.15, 0.15, shade(palette.cyan, 0.55), neon)
+        beam(transit, "Contraventamento", Vector3.new(x, 20.78, trackZ + 4.48),
+            Vector3.new(x + 8.95, 23.05, trackZ + 4.48), 0.12, palette.gray, steel)
+        for post = 0, 3 do
+            box(transit, "Montante do viaduto", x + post * 5.94, 22.56, trackZ + 4.56, 0.13, 1.23, 0.17,
+                palette.iron, steel)
+        end
+    end
+    local train = group(transit, "Composição em movimento")
+    for wagon = 0, 3 do
+        local x, z = (wagon - 1.5) * 10.95, trackZ
+        box(train, "Carroceria", x, 24.56, z, 10.35, 3.43, 4.51, rgb(55, 63, 76), steel)
+        box(train, "Casco superior", x, 26.42, z, 10.0, 0.35, 3.88, palette.gray, rough)
+        box(train, "Equipamento elétrico", x + 1.05, 26.85, z, 4.35, 0.57, 2.7, palette.iron, rough)
+        box(train, "Saia do trem", x, 23.04, z, 10.5, 0.56, 4.64, palette.ink, steel)
+        box(train, "Faixa da linha", x, 23.55, z + 2.3, 10.0, 0.13, 0.09, palette.pink, neon)
+        for door = -1, 1 do
+            local px = x + door * 3.2
+            front(train, "Moldura de janela", px, 24.92, z + 2.25, 2.74, 1.62, palette.ink, steel)
+            front(train, "Janela de passageiros", px, 24.98, z + 2.47, 2.36, 1.25, shade(palette.ice, 0.86), neon)
+            front(train, "Divisória de janela", px - 0.23, 24.98, z + 2.63, 0.108, 1.27, palette.iron, steel)
+        end
+    end
+    for _, side in {-1, 1} do
+        local x = side * 21.78
+        box(train, "Cabine de ponta", x, 24.61, trackZ, 1.4, 2.98, 3.86, palette.gray, steel)
+        box(train, "Farol lateral", x + side * 0.22, 24.02, trackZ + 2.02,
+            1.07, 0.34, 0.16, if side == 1 then palette.ice else palette.pink, neon)
+    end
+    train.WorldPivot = CFrame.new(worldOffset)
+    local trainOffsets = {}
+    for _, part in train:GetChildren() do
+        table.insert(trainOffsets, {part = part, pose = part.CFrame})
+    end
+
+    local architecture = group(city, "Quadras verticais")
+    local nightGlass = rgb(23, 34, 52)
+    local transomsRemaining = 125
+    local function litFloors(
+        model: Instance, x: number, fz: number, y: number, w: number, h: number,
+        levels: number, columns: number, tint: Color3, intensity: number
     )
-        local rowHeight = height / rows
-        local columnWidth = width / columns
-        for row = 1, rows do
-            local y = base + rowHeight * (row - 0.5)
-            front(owner, "Faixa de vidro", x, y, z, width, rowHeight * 0.54, palette.glass)
+        local pitch = h / levels
+        for row = 1, levels do
+            local fy = y + (row - 0.5) * pitch
+            front(model, "Leito de vidro fumê", x, fy, fz, w, pitch * 0.49, nightGlass, Enum.Material.SmoothPlastic)
             for column = 1, columns do
-                local px = x + (column - (columns + 1) / 2) * columnWidth
-                if range(0, 1) < density then
-                    local tint = glow(light, range(strength * 0.53, strength))
-                    front(owner, "Vão iluminado", px, y, z + 0.22, columnWidth * range(0.36, 0.83),
-                        rowHeight * range(0.25, 0.49), tint, neon)
+                if range(0, 1) < 0.74 then
+                    local fx = x + (column - (columns + 1) / 2) * w / columns
+                    local color = if range(0, 1) < 0.23 then palette.warm else tint
+                    local glazing = w / columns * range(0.31, 0.78)
+                    local height = pitch * range(0.17, 0.43)
+                    local radiance = range(0.18, 0.76) * intensity
+                    if levels >= 8 and columns >= 3 and (row + column) % 3 ~= 0 and transomsRemaining > 0 then
+                        local offset = glazing * 0.27
+                        front(model, "Vidro interno de sala", fx - offset, fy + height * 0.02, fz + 0.23,
+                            glazing * 0.45, height * 0.75, shade(color, radiance), neon)
+                        front(model, "Vidro ao lado do montante", fx + offset, fy - height * 0.04, fz + 0.23,
+                            glazing * 0.37, height * 0.63, shade(color, radiance * 0.58), neon)
+                        transomsRemaining -= 1
+                    else
+                        front(model, "Janela habitada", fx, fy, fz + 0.23, glazing * 0.89,
+                            height * 0.79, shade(color, radiance), neon)
+                    end
                 end
             end
         end
     end
+    local function roofFixtures(model: Instance, x: number, y: number, z: number, w: number, tint: Color3)
+        box(model, "Platibanda", x, y + 0.44, z, w + 0.9, 0.87, 0.49, palette.rim, steel)
+        for bay = -1, 1 do
+            local bx = x + bay * w * 0.27
+            if math.abs(bay) == 1 then
+                rod(model, "Exaustor", bx, y + 1.07, z - 1.9, 1.41, 2.14, palette.gray, rough)
+                rod(model, "Flange", bx, y + 2.09, z - 1.9, 1.84, 0.16, palette.iron, steel)
+            else
+                vent(model, bx, y + 1.38, z - 2.44, w * 0.27, 2.07)
+            end
+        end
+        local mastHeight = range(4.9, 10.8)
+        rod(model, "Antena técnica", x + w * 0.29, y + mastHeight / 2, z - 6.2, 0.17, mastHeight,
+            palette.rim, steel)
+        box(model, "Travessa de antena", x + w * 0.29, y + mastHeight * 0.76, z - 6.2, 3.64, 0.12, 0.16,
+            palette.rim, steel)
+        rod(model, "Baliza no topo", x + w * 0.29, y + mastHeight, z - 6.2, 0.32, 0.40, tint, neon)
+    end
+    local function highrise(
+        name: string, x: number, z: number, w: number, d: number, base: number,
+        h: number, tint: Color3, style: number, distance: number
+    ): (Model, number)
+        local model = group(architecture, name)
+        local skin = rgb(33, 40, 55):Lerp(palette.haze, distance * 0.61)
+        local fz = z + d * 0.5
+        local waist, crown = h * 0.65, h * 0.82
+        local bias = if style % 2 == 0 then 1 else -1
+        body(model, "Plinto industrial", x + bias * 0.69, z, base, w * 1.21, h * 0.19, d * 1.1,
+            skin:Lerp(palette.iron, 0.42), concrete)
+        body(model, "Estrutura principal", x, z, base, w, waist, d, skin,
+            if distance < 0.21 then rough else concrete)
+        body(model, "Miolo da torre", x + bias * w * 0.09, z - 0.53, base + waist, w * 0.84,
+            crown - waist, d * 0.87, skin:Lerp(palette.gray, 0.31), steel)
+        body(model, "Ala suspensa", x + bias * w * 0.11, z - d * 0.18, base + crown, w * (0.54 + style % 3 * 0.1),
+            h - crown, d * 0.61, skin, steel)
+        local ribs = if distance < 0.4 then 4 else 2
+        for rib = 0, ribs do
+            local px = x + (rib / ribs - 0.5) * (w - 0.5)
+            front(model, "Montante de fachada", px, base + waist * 0.51, fz - 0.09,
+                if rib % 3 == 0 then 0.65 else 0.27, waist * 0.96, skin:Lerp(palette.rim, 0.37), steel)
+        end
+        local ySteps = if distance < 0.28 then 9 elseif distance < 0.50 then 6 else 3
+        for step = 0, ySteps do
+            local t = step / ySteps
+            local y = base + h * (0.16 + 0.65 * t)
+            local tierW = if t > 0.76 then w * 0.83 else w
+            local tz = if t > 0.76 then fz - 0.52 else fz
+            front(model, "Travessa horizontal", x, y, tz, tierW, if step % 3 == 0 then 0.52 else 0.23,
+                skin:Lerp(palette.rim, 0.27), steel)
+        end
+        local levels = if distance < 0.13 then 10 elseif distance < 0.40 then 8 elseif distance < 0.52 then 5 else 3
+        litFloors(model, x, fz, base + h * 0.14, w * (if style == 2 then 0.81 else 0.72), h * 0.48,
+            levels, if distance < 0.13 then 4 elseif distance < 0.4 then 3 else 2, tint, 1 - distance * 0.56)
+        litFloors(model, x + bias * w * 0.09, fz - d * 0.065 - 0.53, base + waist + 1.05, w * 0.64,
+            h * 0.155, if distance < 0.4 then 4 else 2, 3, tint, 0.86 - distance * 0.34)
+        local sx = x - w * 0.5 - 0.09
+        for tier = 1, if distance < 0.13 then 8 elseif distance < 0.40 then 5 else 2 do
+            local y = base + h * (0.12 + tier * 0.063)
+            box(model, "Faixa lateral", sx, y, z + d * 0.08, 0.16, h * 0.014, d * 0.66, nightGlass)
+            box(model, "Vidro lateral iluminado", sx - 0.11, y, z + range(-0.15, 0.21) * d,
+                0.11, h * 0.010, d * range(0.17, 0.36), shade(tint, range(0.19, 0.48)), neon)
+        end
+        if distance < 0.4 then
+            for _, side in {-1, 1} do
+                local px = x + side * w * 0.43
+                front(model, "Trilho de serviço", px, base + waist * 0.53, fz + 0.22, 0.35, waist * 0.88,
+                    palette.iron, rough)
+                for brace = 0, 4 do
+                    front(model, "Suporte de trilho", px, base + waist * (0.2 + brace * 0.15), fz + 0.45,
+                        0.81, 0.30, palette.gray, steel)
+                end
+            end
+            local bandY = base + waist - 0.58
+            front(model, "Faixa luminosa técnica", x + bias * w * 0.17, bandY, fz + 0.41, w * 0.58, 0.20,
+                shade(tint, 0.73), neon)
+        end
+        if distance < 0.43 then
+            roofFixtures(model, x + bias * w * 0.11, base + h, z + d * 0.116, w * 0.75,
+                shade(tint, 0.76))
+        else
+            box(model, "Núcleo recuado no topo", x, base + h + 1.23, z - d * 0.14, w * 0.32, 2.46, d * 0.37,
+                skin, rough)
+        end
+        return model, fz
+    end
 
-    local function sideWindows(
-        owner: Instance, x: number, z: number, base: number, depth: number, height: number,
-        rows: number, color: Color3
+    local reflective = {}
+    local function trace(
+        owner: Instance, name: string, cx: number, cy: number, z: number, w: number, h: number,
+        path, thickness: number, color: Color3
     )
-        for row = 1, rows do
-            local y = base + (row - 0.5) * height / rows
-            box(owner, "Vidro lateral", x, y, z, 0.18, height / rows * 0.38, depth, palette.glass)
-            local litDepth = depth * range(0.17, 0.46)
-            box(owner, "Vão lateral iluminado", x - 0.13, y, z + range(-depth * 0.22, depth * 0.22),
-                0.13, height / rows * 0.28, litDepth, glow(color, range(0.33, 0.63)), neon)
+        for index = 1, #path - 1 do
+            local a, b = path[index], path[index + 1]
+            beam(owner, name, Vector3.new(cx + a[1] * w, cy + a[2] * h, z),
+                Vector3.new(cx + b[1] * w, cy + b[2] * h, z), thickness, color, neon)
+        end
+    end
+    local function billboard(
+        owner: Instance, index: number, x: number, y: number, z: number, w: number, color: Color3, copy: string
+    )
+        local model = group(owner, "Painel de rua " .. index)
+        local h = w * 3
+        local shell = box(model, "Caixilho em aço", x, y, z, w + 1.25, h + 1.48, 0.95, palette.iron, rough)
+        box(model, "Rebaixo do anúncio", x, y, z + 0.54, w + 0.39, h + 0.45, 0.22, shade(color, 0.38), steel)
+        box(model, "Visor do anúncio", x, y, z + 0.72, w, h, 0.16, shade(color, 0.21), neon)
+        local border = w / 2 + 0.28
+        for _, side in {-1, 1} do
+            box(model, "Margem de LED", x + side * border, y, z + 0.95, 0.15, h + 0.51, 0.20, color, neon)
+            box(model, "Terminal de LED", x, y + side * (h / 2 + 0.25), z + 0.95, w + 0.59, 0.15, 0.19,
+                color, neon)
+            for _, ay in {-0.38, 0.38} do
+                beam(model, "Apoio de anúncio", Vector3.new(x + side * (w * 0.5 + 0.29), y + h * ay, z - 0.44),
+                    Vector3.new(x + side * (w * 0.5 + 1.39), y + h * ay - 0.41, z - 1.52), 0.26,
+                    palette.gray, steel)
+            end
+        end
+        local artZ = z + 0.84
+        local highlight = shade(if index == 1 then rgb(255, 210, 204) else palette.ice, 0.94)
+        local visorY = y + h * 0.12
+        disk(model, "Halo gráfico", x, visorY, artZ, w * 0.86, w * 1.02, 0.15, shade(color, 0.60), neon)
+        disk(model, "Recorte gráfico", x + w * 0.09, visorY + w * 0.09, artZ + 0.09,
+            w * 0.66, w * 0.83, 0.16, shade(color, 0.30), neon)
+        local portrait = {
+            {{-0.39, -0.32}, {-0.28, -0.19}, {-0.19, -0.10}, {-0.29, 0.03}, {-0.28, 0.20}, {-0.20, 0.30},
+                {0.05, 0.32}, {0.24, 0.24}, {0.31, 0.09}, {0.24, -0.04}, {0.18, -0.14}, {0.35, -0.27}},
+            {{-0.37, -0.35}, {-0.13, -0.16}, {-0.25, -0.03}, {-0.23, 0.17}, {-0.34, 0.24}, {-0.15, 0.24},
+                {0.14, 0.32}, {0.28, 0.19}, {0.20, 0.11}, {0.31, -0.06}, {0.15, -0.17}, {0.34, -0.33}},
+            {{-0.42, -0.37}, {-0.26, -0.24}, {-0.11, -0.18}, {-0.20, 0.01}, {-0.33, 0.15}, {-0.08, 0.29},
+                {0.18, 0.31}, {0.29, 0.20}, {0.22, 0.02}, {0.13, -0.12}, {0.20, -0.21}, {0.41, -0.36}},
+        }
+        trace(model, "Contorno de retrato", x, visorY - h * 0.063, artZ + 0.23,
+            w, h * 0.67, portrait[index], 0.23, color)
+        trace(model, "Visor geométrico", x, visorY, artZ + 0.31, w, h * 0.6,
+            {{-0.25, 0.042}, {-0.10, -0.023}, {0.072, -0.036}, {0.248, -0.003}}, 0.25, highlight)
+        trace(model, "Recorte da gola", x, visorY, artZ + 0.29, w, h * 0.68,
+            {{-0.19, -0.16}, {-0.034, -0.215}, {0.14, -0.21}, {0.207, -0.15}}, 0.14, highlight)
+        for stripe = 0, 4 do
+            local px = x + (stripe - 2) * w * 0.147
+            front(model, "Impulsos no rodapé do anúncio", px, y - h * 0.377, artZ + 0.30, w * 0.118, h * 0.037,
+                shade(color, 0.82 - stripe * 0.08), neon)
+        end
+        local caption = front(model, "Legenda do anúncio", x, y - h * 0.438, artZ + 0.28, w * 0.85, h * 0.066,
+            shade(color, 0.15), neon)
+        surfaceText(caption, "Sinalização", copy, highlight)
+        shell:SetAttribute("BillboardIndex", index)
+
+        local billboardId = if type(media) == "table" then media.billboard else nil
+        if type(billboardId) == "number" and billboardId > 0 and billboardId % 1 == 0 then
+            local screen = box(model, "Face da arte do anúncio", x, y, z + 1.43, w, h, 0.05, palette.ink)
+            screen.Transparency = 1
+            screen:SetAttribute("BillboardIndex", index)
+            local gui = Instance.new("SurfaceGui")
+            gui.Name = "Anúncio ilustrado"
+            gui.Face = Enum.NormalId.Back
+            gui.AlwaysOnTop = false
+            gui.LightInfluence = 0
+            gui.Brightness = 1.72
+            gui.MaxDistance = 380
+            gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+            gui.CanvasSize = Vector2.new(340, 1020)
+            gui.Parent = screen
+            local art = Instance.new("ImageLabel")
+            art.Name = copy
+            art.BackgroundTransparency = 1
+            art.BorderSizePixel = 0
+            art.Size = UDim2.fromScale(1, 1)
+            art.Image = "rbxassetid://" .. billboardId
+            art.ImageRectOffset = Vector2.new((index - 1) * 340, 0)
+            art.ImageRectSize = Vector2.new(340, 1020)
+            art.Parent = gui
+        end
+        light(shell, color, 1.22, 28, Enum.NormalId.Back)
+        table.insert(reflective, model)
+        return model
+    end
+
+    local a, af = highrise("Torre da eclusa", 26.0, -80.5, 21.2, 24.5, -22, 107, palette.pink, 2, 0.03)
+    local b, bf = highrise("Armazém aéreo", 54.4, -109, 23.6, 25.0, -22, 124, palette.cyan, 1, 0.16)
+    local c, cf = highrise("Edifício dos sinais", 92.5, -126.8, 19.3, 18.8, -22, 129, palette.violet, 0, 0.27)
+    billboard(a, 1, 25.8, 53.5, af + 0.62, 11.8, palette.pink, "ALVOR")
+    billboard(b, 2, 52.8, 62.0, bf + 0.61, 10.15, palette.cyan, "ESTUÁRIO")
+    billboard(c, 3, 91.7, 66.8, cf + 0.61, 10.4, palette.violet, "LIMIAR")
+
+    local districts = {
+        {"Comando sul", 5.4, -98, 14, 21.7, 112, palette.ice, 2, 0.16},
+        {"Oficinas da estação", -10.4, -65, 17.5, 21.5, 67, palette.warm, 1, 0.08},
+        {"Escada norte", 41.8, -123, 13.3, 17.8, 148, palette.ice, 2, 0.18},
+        {"Terminais industriais", 44, -63.8, 13.7, 19.5, 64, palette.warm, 0, 0.12},
+        {"Cubo da linha costeira", 63.5, -78, 16.2, 22.9, 79, palette.cyan, 1, 0.12},
+        {"Junta do canal", -17.1, -114, 20.3, 18.5, 137, palette.violet, 1, 0.26},
+        {"Casa da alfândega", 10.4, -141, 15.2, 19, 132, palette.violet, 0, 0.29},
+        {"Hospital suspenso", 18.5, -175, 23.2, 21.7, 123, palette.ice, 2, 0.35},
+        {"Arquivo bombeado", 103.5, -98, 17, 19.6, 93, palette.warm, 1, 0.26},
+        {"Rampa dos barcos", 112.1, -127.4, 19.5, 18, 123, palette.pink, 2, 0.32},
+        {"Vetores da ponte", 111, -148, 20, 24, 149, palette.ice, 0, 0.45},
+        {"Quadra da névoa", 139, -193, 25, 22, 150, palette.cyan, 1, 0.56},
+        {"Estação leste", 90.5, -170, 18.5, 17, 153, palette.violet, 0, 0.47},
+        {"Câmara de pressão", 62, -182, 22, 25, 133, palette.ice, 2, 0.48},
+        {"Ramal cinza", 42, -201, 21, 20, 155, palette.ice, 0, 0.60},
+        {"Estaleiros de cima", -4, -196, 22, 26, 159, palette.ice, 1, 0.62},
+        {"Pavilhão oeste", -35, -137, 21, 16.2, 99, palette.warm, 0, 0.52},
+        {"Empilhamento oeste", -49, -175, 28, 20, 140, palette.violet, 2, 0.63},
+        {"Torre de inspeção", 125, -93, 11.8, 15.1, 101, palette.cyan, 1, 0.50},
+        {"Ala de dosagem", 146.4, -115, 16.2, 15.4, 128, palette.warm, 0, 0.54},
+        {"Silo das sirenes", 166.8, -138, 10.4, 17, 137, palette.violet, 2, 0.56},
+        {"Prensa do distrito leste", 181.8, -165, 15.6, 17.2, 147, palette.ice, 0, 0.60},
+        {"Sonda do dique", 203.5, -192, 15.9, 19.8, 167, palette.ice, 1, 0.68},
+    }
+    local nearAccent
+    for _, spec in districts do
+        local name, x, z, w, d, h, tint, style, distance = table.unpack(spec)
+        local block, face = highrise(name, x, z, w, d, -22, h, tint, style, distance)
+        if name == "Oficinas da estação" then
+            local signBack = box(block, "Anúncio de oficina", x + 1.1, 37.3, face + 0.56, 12.85, 2.36, 0.40,
+                shade(palette.pink, 0.39), neon)
+            front(block, "Arremate do anúncio", x + 1.1, 38.5, face + 0.75, 12.94, 0.12, palette.pink, neon)
+            surfaceText(signBack, "Sinal de oficina", "LINHA 07", palette.ice)
+        elseif name == "Terminais industriais" then
+            nearAccent = front(block, "Faixa ciano suspensa", x, 40.18, face + 0.52, 9.1, 0.88, palette.cyan, neon)
+            light(nearAccent, palette.cyan, 0.77, 23, Enum.NormalId.Back)
+            for level = 0, 2 do
+                local py = 27.1 + level * 4.9
+                box(block, "Varanda técnica", x - 0.66, py, face + 0.95, 12.2, 0.20, 1.94, palette.iron,
+                    Enum.Material.DiamondPlate)
+                box(block, "Corrimão da varanda", x - 0.66, py + 0.9, face + 1.87, 12.2, 0.13, 0.14, palette.gray, steel)
+                beam(block, "Escada inclinada", Vector3.new(x - 3.7, py, face + 1.94),
+                    Vector3.new(x + 3.1, py + 4.9, face + 1.94), 0.16, palette.rim, steel)
+            end
         end
     end
 
-    local digits = {
-        ["0"] = {"111", "101", "101", "101", "111"},
-        ["1"] = {"010", "110", "010", "010", "111"},
-        ["4"] = {"101", "101", "111", "001", "001"},
-        ["7"] = {"111", "001", "010", "010", "010"},
-        ["9"] = {"111", "101", "111", "001", "111"},
-    }
-
-    local function sign(owner: Instance, text: string, x: number, y: number, z: number, unit: number, color: Color3)
-        local width = unit * (#text * 4 + 1)
-        front(owner, "Painel de sinalização", x, y, z, width, unit * 7.4, glow(color, 0.24))
-        front(owner, "Leito do letreiro", x, y, z + 0.22, width - unit * 0.53, unit * 6.9, palette.iron)
-        for index = 1, #text do
-            local glyph = digits[string.sub(text, index, index)]
-            local offset = (index - (#text + 1) * 0.5) * 4 * unit
-            for row, strokes in glyph do
-                local first, last = string.find(strokes, "1+")
-                while first and last do
-                    front(owner, "Segmento do letreiro", x + offset + (first + last - 4) * unit * 0.5,
-                        y + (3 - row) * unit, z + 0.44, (last - first + 0.86) * unit, unit * 0.78, color, neon)
-                    first, last = string.find(strokes, "1+", last + 1)
+    local farCity = group(city, "Silhuetas na chuva")
+    for layer = 1, 3 do
+        local x = -149 - layer * 13
+        while x < 295 + layer * 48 do
+            local z = -204 - layer * 47 + range(-14, 14)
+            local w, d = range(10, 27), range(12, 20)
+            local height = range(59, 162) + layer * 7
+            local shell = palette.haze:Lerp(rgb(35, 40, 61), range(0.18, 0.63))
+            local top = height - 37
+            body(farCity, "Prédio em névoa", x, z, -37, w, height, d, shell, concrete)
+            body(farCity, "Recuo de torre", x + range(-0.20, 0.20) * w, z - 1.8, top,
+                w * range(0.31, 0.87), range(3.9, 19), d * range(0.56, 0.8), shell, concrete)
+            for row = 1, if layer == 1 then 3 else 2 do
+                if range(0, 1) < 0.66 then
+                    local k = if row % 2 == 0 then palette.cyan else palette.ice
+                    front(farCity, "Luz atrás da chuva", x + range(-0.25, 0.25) * w, top - row * height * 0.12,
+                        z + d * 0.5, w * range(0.18, 0.57), range(0.26, 0.52), shade(k, 0.14 + 0.06 / layer), neon)
                 end
             end
+            x += w + range(4, 7.4)
         end
     end
 
-    local function balcony(owner: Instance, x: number, y: number, facade: number, width: number, color: Color3)
-        box(owner, "Laje de varanda", x, y, facade + 0.95, width, 0.43, 2.07, palette.iron)
-        box(owner, "Borda de varanda", x, y + 0.03, facade + 2.0, width, 0.32, 0.28, palette.ledge)
-        box(owner, "Guarda-corpo", x, y + 1.11, facade + 1.99, width, 0.17, 0.17, palette.steel)
-        box(owner, "Sinalização da varanda", x + width * 0.33, y + 0.04, facade + 2.17, width * 0.24,
-            0.13, 0.13, glow(color, 0.57), neon)
+    local horizon = group(city, "Lua atrás da chuva")
+    local moonX, moonY, moonZ = 224, 194, -383
+    local moon = disk(horizon, "Lua", moonX, moonY, moonZ, 20.8, 20.8, 0.49, rgb(192, 221, 241), neon)
+    moon:SetAttribute("Moon", true)
+    for _, spec in {{1.4, 4.4, 5.9}, {-3.8, -1.3, 5.1}, {4.7, -2.8, 4.2}, {-3.9, 5.7, 2.9}, {1.3, -6.1, 3.1}} do
+        disk(horizon, "Mancha lunar", moonX + spec[1], moonY + spec[2], moonZ + 0.29, spec[3], spec[3] * 0.83,
+            0.11, rgb(163, 199, 220), neon)
+    end
+    for index = 1, 8 do
+        local cloud = box(horizon, "Bruma lunar", moonX - 31 + index * 8,
+            moonY - 7.7 + range(-2.7, 1.6), moonZ + 8 + index * 0.7,
+            range(20, 54), range(0.34, 1.66), 0.7, rgb(29, 45, 65))
+        cloud.Transparency = range(0.54, 0.84)
     end
 
-    local skyline = group(city, "Céu e prédios distantes")
-    for band = 0, 41 do
-        local height = 11
-        local y = -23 + band * height
-        local amount = math.clamp((y + 16) / 280, 0, 1)
-        local horizon = rgb(57, 32, 64)
-        local upperAir = rgb(16, 13, 33)
-        local color = horizon:Lerp(upperAir, amount ^ 0.64)
-        box(skyline, "Céu", -18, y, -465, 1340, height, 1, color, neon)
+    local reflections = group(city, "Imagem abaixo da água")
+    local function invertY(v: Vector3): Vector3
+        return Vector3.new(v.X, -v.Y, v.Z)
     end
-
-    for row = 1, 2 do
-        local along = -259
-        local haze = if row == 1 then rgb(67, 47, 77) else rgb(50, 43, 71)
-        while along < 258 do
-            local width = range(7, 19)
-            local depth = range(12, 25)
-            local height = range(24, 102) + 8 * math.sin(along / 28)
-            local z = -421 + row * 32 + range(-8, 8)
-            local color = haze:Lerp(rgb(31, 26, 52), range(0.09, 0.48))
-            body(skyline, "Torre distante", along, z, 0, width, height, depth, color)
-            body(skyline, "Recuo de cobertura", along - width * 0.16, z - 2, height, width * 0.51,
-                range(3, 11), depth * 0.55, color)
-            if range(0, 1) < 0.34 then
-                front(skyline, "Luzes na névoa", along, height * 0.65, z + depth * 0.5, width * 0.57,
-                    0.47, glow(if row == 1 then palette.violet else palette.rose, 0.28), neon)
-            end
-            along += width + range(1.4, 6.5)
-        end
+    local function mirror(source: Part, strength: number)
+        local cf = source.CFrame - worldOffset
+        local point = cf.Position
+        local pose = CFrame.fromMatrix(Vector3.new(point.X, 2 * floorY - point.Y, point.Z),
+            invertY(cf.RightVector), -invertY(cf.UpVector), invertY(-cf.LookVector))
+        local target = solid(reflections, "Reflexo • " .. source.Name, source.Size, pose, shade(source.Color, strength),
+            source.Material, source.Shape)
+        target.Transparency = source.Transparency
+        return target
     end
-
-    local ground = group(city, "Canal e vias")
-    box(ground, "Água do canal", 4, -1.13, -10, 720, 1.70, 730, palette.water)
-    body(ground, "Cais oeste", -80, -113, -3, 174, 6, 196, palette.stone)
-    body(ground, "Cais leste", 122, -119, -3, 162, 6, 193, palette.stone)
-    body(ground, "Bacia de serviço", 22, -185, -3, 32, 6, 137, palette.stone)
-    body(ground, "Base continental", 10, -310, -3, 560, 6, 201, rgb(34, 29, 51))
-    box(ground, "Muro oeste", -79, 2.4, -15.20, 172, 1.3, 1.1, palette.iron)
-    box(ground, "Muro leste", 122, 2.4, -22.65, 162, 1.3, 1.1, palette.iron)
-    box(ground, "Beira do canal", 7.42, 2.52, -65, 1.10, 1.48, 99, palette.ledge)
-    box(ground, "Beira do canal", 40.57, 2.52, -69, 1.10, 1.48, 91, palette.ledge)
-    box(ground, "Rua da margem", 114, 3.07, -27, 143, 0.14, 4.65, palette.asphalt)
-    box(ground, "Rua da margem", -77, 3.07, -21, 161, 0.14, 4.50, palette.asphalt)
-    box(ground, "Via dos estaleiros", 93.75, 3.08, -93, 7.1, 0.17, 128, palette.asphalt)
-    box(ground, "Via de serviço", -21, 3.08, -102, 6.35, 0.17, 112, palette.asphalt)
-    for stripe = 0, 17 do
-        box(ground, "Marcação da via", 93.75, 3.18, -38 - stripe * 6.4, 0.19, 0.06, 2.85,
-            rgb(95, 86, 106))
-        box(ground, "Marcação junto ao cais", -130 + stripe * 7.4, 3.17, -21, 3.0, 0.06, 0.16,
-            rgb(81, 68, 91))
-    end
-    for fixture = 0, 18 do
-        local x = 42 + fixture * 6.75
-        box(ground, "Defensa do cais", x, 1.5, -22.13, 0.50, 2.48, 0.43, palette.iron)
-        if fixture % 3 == 0 then
-            box(ground, "Luz de cais", x, 2.85, -21.88, 0.64, 0.15, 0.11, glow(palette.amber, 0.61), neon)
-        end
-    end
-
-    local reflections = group(city, "Reflexos no canal")
-    for _, sweep in {
-        {-54, -11, 27, 9, palette.violet},
-        {-14, -10, 31, 6, palette.rose},
-        {7, -12, 48, 9, palette.cyan},
-        {22, -16, 68, 5, palette.violet},
-        {37, -16, 52, 7, palette.rose},
-        {55, -19, 41, 10, palette.cyan},
-        {74, -19, 39, 8, palette.amber},
-        {99, -19, 59, 8, palette.rose},
-    } do
-        local x, z, length, width, color = sweep[1], sweep[2], sweep[3], sweep[4], sweep[5]
-        for stripe = 1, 9 do
-            local t = stripe / 10
-            local px = x + range(-1, 1) * (1 + t * width * 0.48)
-            local pz = z + length * t
-            local shine = palette.water:Lerp(color, (1 - t) * range(0.11, 0.32))
-            local reflectionWidth = width * range(0.25, 0.91) * (1 - t * 0.43)
-            box(reflections, "Reflexo", px, -0.24 + stripe * 0.002, pz, reflectionWidth,
-                0.04, range(0.35, 1.8) + t * 0.5, shine, neon)
-        end
-    end
-
-    local function crossing(name: string, z: number, y: number, wide: number, color: Color3)
-        local bridge = group(city, name)
-        local west, east = 1, 47
-        local span = east - west
-        local frontZ = z + wide * 0.5
-        box(bridge, "Tabuleiro", 24, y, z, span, 1.28, wide, palette.iron)
-        box(bridge, "Pista", 24, y + 0.71, z, span, 0.19, wide - 0.58, palette.asphalt)
-        for _, x in {west + 1.25, east - 1.25} do
-            body(bridge, "Pilar principal", x, z, 0, 2.65, y - 0.63, wide * 0.71, palette.stone)
-            box(bridge, "Cabeceira", x, y - 0.9, z, 4.2, 1.0, wide + 1.5, palette.ledge)
-        end
-        box(bridge, "Viga longitudinal", 24, y - 0.54, frontZ, span, 0.47, 0.53, palette.ledge)
-        box(bridge, "Viga superior", 24, y + 3.89, frontZ, span, 0.32, 0.35, palette.steel)
-        box(bridge, "Faixa luminosa", 24, y + 3.89, frontZ + 0.24, span - 0.9, 0.12, 0.17, glow(color, 0.69), neon)
-        for panel = 0, 7 do
-            local x = west + panel * span / 8
-            local nextX = x + span / 8
-            local low = Vector3.new(x, y - 0.39, frontZ)
-            local high = Vector3.new(nextX, y + 3.86, frontZ)
-            link(bridge, "Contraventamento", low, high, 0.25, palette.steel)
-            box(bridge, "Montante de ponte", x, y + 1.83, frontZ, 0.29, 4.35, 0.32, palette.ledge)
-        end
-        for post = 0, 4 do
-            box(bridge, "Sinal de tráfego", west + 5 + post * 9, y + 0.37, frontZ + 0.24,
-                0.84, 0.13, 0.16, glow(color, 0.83), neon)
-        end
-        return bridge
-    end
-
-    crossing("Ponte dos Estaleiros", -32, 13, 6.2, palette.rose)
-    local platform = crossing("Travessia do Monotrilho", -88, 30.5, 6.9, palette.cyan)
-    box(platform, "Viaduto oeste", -11.55, 30.5, -88, 27.1, 1.28, 6.9, palette.iron)
-    box(platform, "Viaduto oeste", -11.55, 30.81, -84.52, 27.1, 0.25, 0.34, palette.steel)
-    box(platform, "Sinalização do viaduto", -11.55, 30.95, -84.31, 27.1, 0.12, 0.12,
-        glow(palette.cyan, 0.55), neon)
-    for _, support in {-19.1, -7.4} do
-        body(platform, "Pilar do viaduto", support, -88, 3, 2.45, 26.9, 3.25, palette.stone)
-        box(platform, "Cabeça do pilar", support, 29.37, -88, 3.3, 0.9, 6.0, palette.ledge)
-    end
-    local trainZ = -86.7
-    for carriage = 0, 2 do
-        local x = 16 + carriage * 7.25
-        box(platform, "Carro do monotrilho", x, 32.5, trainZ, 6.95, 2.47, 2.98, rgb(74, 58, 84))
-        box(platform, "Truque ferroviário", x, 31.25, trainZ, 4.7, 0.40, 2.2, palette.iron)
-        box(platform, "Testeira do trem", x, 33.79, trainZ, 6.98, 0.24, 2.72, palette.ledge)
-        front(platform, "Janela panorâmica", x, 32.83, trainZ + 1.49, 6.19, 0.72, glow(palette.ice, 0.62), neon)
-        for divider = -2, 2 do
-            front(platform, "Divisória de janela", x + divider * 1.09, 32.82, trainZ + 1.71, 0.14, 0.82, palette.iron)
-        end
-    end
-
-    local homes = group(city, "Prédios baixos")
-    local blocks = {
-        {"Oficina da enseada", -7, -33, 18, 13, 13, rgb(50, 37, 53), palette.rose, true},
-        {"Estaleiro norte", -32, -38, 15, 17, 16, rgb(46, 42, 63), palette.amber, true},
-        {"Arquivo portuário", -53, -32, 21, 18, 22, rgb(38, 39, 63), palette.violet, false},
-        {"Operações do dique", -72, -47, 13, 22, 28, rgb(39, 42, 65), palette.cyan, false},
-        {"Depósito aduaneiro", -94, -37, 20, 18, 18, rgb(45, 40, 57), palette.amber, false},
-        {"Vila das comportas", -46, -61, 18, 30, 17, rgb(40, 39, 58), palette.violet, false},
-        {"Torres de mudança", -63, -77, 14, 38, 14, rgb(42, 37, 57), palette.amber, false},
-        {"Correio hidráulico", -86, -77, 15, 35, 16, rgb(35, 39, 61), palette.violet, false},
-        {"Antiga olaria", -105, -93, 20, 40, 22, rgb(44, 38, 57), palette.amber, false},
-        {"Casa das bombas", -5, -62, 13, 20, 17, rgb(35, 42, 63), palette.cyan, false},
-        {"Passarela baixa", -4, -99, 16, 22, 15, rgb(44, 37, 57), palette.amber, false},
-        {"Conserto de válvulas", 50, -52, 12, 28, 16, rgb(40, 35, 58), palette.rose, true},
-        {"Armazém do cais", 52, -34, 14, 11, 13, rgb(42, 39, 60), palette.cyan, true},
-        {"Oficina elétrica", 73, -34, 18, 13, 9, rgb(54, 40, 58), palette.rose, true},
-        {"Abrigo do ramal", 104, -36, 13, 15, 14, rgb(49, 39, 58), palette.amber, false},
-        {"Alfândega baixa", 125, -43, 18, 22, 13, rgb(45, 40, 62), palette.rose, false},
-        {"Armazém oeste", -51, 23, 32, 16, 23, rgb(26, 30, 49), palette.violet, false},
-        {"Casa de marés", -82, 37, 23, 20, 21, rgb(25, 27, 46), palette.amber, false},
-    }
-
-    for _, spec in blocks do
-        local name, x, z, width, height, depth, color, accent, marquee =
-            spec[1], spec[2], spec[3], spec[4], spec[5], spec[6], spec[7], spec[8], spec[9]
-        local model = group(homes, name)
-        local y = if z > 0 then -0.8 else 3.2
-        local facade = z + depth * 0.5
-        body(model, "Estrutura", x, z, y, width, height, depth, color)
-        local top = y + height
-        roof(model, x, top, z, width, depth, color:Lerp(palette.ledge, 0.48))
-        body(model, "Casa de máquinas", x - width * 0.27, z - depth * 0.17, top + 0.68,
-            width * 0.36, 2.46, depth * 0.32, palette.iron)
-        fan(model, x + width * 0.20, top + 0.68, z + depth * 0.16, width * 0.40)
-        ribs(model, x, z, y + 0.9, top - 0.33, width, depth, color:Lerp(palette.steel, 0.23))
-        if z > 0 then
-            rail(model, x, top + 0.7, facade - 0.43, width - 0.54, palette.ledge)
-            box(model, "Duto de exaustão", x, top + 1.28, z, width * 0.84, 0.59, 1.5, palette.steel)
-            box(model, "Duto de exaustão", x + width * 0.33, top + 1.25, z + depth * 0.18,
-                1.51, 0.63, depth * 0.36, palette.steel)
-        end
-        windows(model, x, facade, y + 3.9, width * 0.81, height - 4.82, math.floor(height / 5), 3,
-            accent, if marquee then 0.79 else 0.60, if z > 0 then 0.43 else 0.58)
-        front(model, "Porta de serviço", x - width * 0.23, y + 1.22, facade, width * 0.21, 2.14, palette.iron)
-        front(model, "Vitrine", x + width * 0.18, y + 1.63, facade, width * 0.45, 1.89, glow(accent, 0.25), neon)
-        if marquee then
-            local left = Vector3.new(x - width * 0.44, y + 2.90, facade + 0.13)
-            local right = Vector3.new(x + width * 0.44, y + 2.90, facade + 0.13)
-            tube(model, "Letreiro de oficina", left, right, 0.19, accent)
-            front(model, "Friso", x, top - 1.0, facade, width * 0.93, 0.22, glow(accent, 0.73), neon)
-        end
-    end
-
-    local promenade = group(city, "Passeio das comportas")
-    for pole = 0, 4 do
-        local x = 45 + pole * 12.6
-        cylinder(promenade, "Poste do cais", x, 6.05, -24.75, 0.27, 5.8, palette.steel)
-        box(promenade, "Braço do poste", x, 8.94, -24.03, 0.26, 0.20, 1.65, palette.iron)
-        box(promenade, "Luminária do cais", x, 8.87, -23.25, 0.70, 0.14, 0.85,
-            glow(if pole < 2 then palette.cyan else palette.amber, 0.73), neon)
-        if pole < 4 then
-            cable(promenade, Vector3.new(x, 8.11, -24.75), Vector3.new(x + 12.6, 8.11, -24.75), 0.72)
-        end
-    end
-
-    local towers = group(city, "Torres do estuário")
-
-    do
-        local model = group(towers, "Agulha das Marés")
-        local x, z, y = 54, -97, 3.2
-        local casing, crown = rgb(45, 46, 68), rgb(54, 56, 81)
-        body(model, "Embasamento", x, z, y, 26, 12, 27, palette.iron)
-        roof(model, x, y + 12, z, 26, 27, palette.ledge)
-        body(model, "Torre baixa", x, z, y + 12, 21.7, 37, 22, casing)
-        body(model, "Torre alta", x + 0.8, z - 0.8, y + 49, 17.4, 30, 18.2, crown)
-        body(model, "Coroamento suspenso", x + 1.2, z - 1, y + 79, 14.3, 13, 14.2, casing)
-        body(model, "Aleta leste", x + 7.4, z - 0.7, y + 78, 1.75, 24, 15.8, palette.steel)
-        body(model, "Aleta oeste", x - 6.2, z - 0.7, y + 78, 1.65, 20.6, 15.3, palette.iron)
-        body(model, "Câmara de sinal", x + 4, z - 3.2, y + 92, 5.4, 5.3, 6.3, palette.glass)
-        for _, hx in {x - 7.8, x + 6.4} do
-            front(model, "Vidro vertical", hx, y + 31.4, z + 11, 3.4, 34.9, palette.glass)
-            for floor = 1, 11 do
-                local lit = if floor % 4 == 0 then palette.amber else palette.cyan
-                front(model, "Janelas da agulha", hx, y + 14 + floor * 3.02, z + 11.22,
-                    range(1.75, 2.94), range(0.54, 0.99), glow(lit, range(0.49, 0.89)), neon)
+    for _, model in reflective do
+        for _, instance in model:GetDescendants() do
+            if instance:IsA("Part") and instance.Transparency < 1 then
+                mirror(instance, if instance.Material == neon then 0.56 else 0.42)
             end
         end
-        windows(model, x + 0.35, z + 8.30, y + 49.7, 11.5, 25.8, 10, 3, palette.ice, 0.70, 0.78)
-        windows(model, x, z + 13.5, y + 2.4, 22, 7, 2, 4, palette.violet, 0.82, 0.62)
-        sideWindows(model, x - 10.92, z - 0.7, y + 14, 16.1, 33, 9, palette.cyan)
-        sideWindows(model, x - 7.98, z - 1.7, y + 50, 14, 27, 7, palette.ice)
-        for _, height in {y + 12.6, y + 49.3, y + 78.8, y + 91.6} do
-            local tierWidth = if height < y + 50 then 22.1 else 15.2
-            local face = if height < y + 50 then z + 11.27 else z + 8.25
-            front(model, "Friso da agulha", x + 0.58, height, face, tierWidth, 0.46, palette.steel)
-            front(model, "Linha de sinal", x + 2.5, height, face + 0.22, tierWidth * 0.68, 0.14,
-                glow(palette.cyan, 0.84), neon)
-        end
-        tube(model, "Baliza vertical", Vector3.new(x + 7.4, y + 80.4, z + 7.31),
-            Vector3.new(x + 7.4, y + 101.6, z + 7.31), 0.21, palette.cyan)
-        for _, span in {{15, 29.4}, {33.3, 46.8}, {53.3, 75.2}} do
-            local upper = span[1] > 50
-            local spine = x - (if upper then 7.4 else 10.2)
-            local facade = z + (if upper then 8.40 else 11.27)
-            tube(model, "Guia do elevador", Vector3.new(spine, y + span[1], facade),
-                Vector3.new(spine, y + span[2], facade), 0.20, glow(palette.cyan, 0.83))
-        end
-        for _, side in {-1, 1} do
-            local fx = x + side * 7.1
-            link(model, "Viga de coroamento", Vector3.new(fx, y + 90, z + 6.6),
-                Vector3.new(x + 1.1, y + 96.1, z + 6.6), 0.49, palette.steel)
-        end
-        local arm = Vector3.new(x - 11.55, y + 101.34, z + 2.8)
-        link(model, "Braço de comunicação", Vector3.new(x - 5.4, y + 91.17, z + 2.8), arm, 0.71, palette.steel)
-        link(model, "Travessa de comunicação", Vector3.new(x - 5.1, y + 97.3, z + 2.8), arm, 0.39, palette.iron)
-        box(model, "Cabeça do comunicador", arm.X, arm.Y, arm.Z, 1.45, 2.45, 1.25, palette.ledge)
-        box(model, "Indicador do comunicador", arm.X, arm.Y + 1.16, arm.Z + 0.57, 1.43, 0.15, 0.27,
-            palette.cyan, neon)
-        mast(model, x + 4.4, y + 97.3, z - 2.3, 11.2, palette.ice)
-        mast(model, x - 4.5, y + 92, z - 3, 6.9, palette.rose)
-        sign(model, "07", x - 0.5, y + 35.5, z + 11.01, 1.02, palette.cyan)
+    end
+    mirror(lamp, 0.43)
+    mirror(edgeLamp, 0.49)
+    mirror(coolLamp, 0.52)
+    if nearAccent then
+        mirror(nearAccent, 0.55)
+    end
+    -- Dark geometry deep beneath the openings gives the reflected signs a bounded backdrop.
+    box(reflections, "Fundo profundo das poças", 0, -57.4, -13, 283, 1.5, 420, rgb(10, 15, 25))
+    for index = 1, 86 do
+        local row = poolRows[2 + (index * 7 % 18)]
+        local x = range(row[3] + 0.06, row[4] - 0.06)
+        local z = range(row[1] + 0.07, row[2] - 0.07)
+        local tint = if x < -3 then palette.warm elseif x < 4 then palette.pink else palette.cyan
+        local detail = box(water, "Risco de cor na água", x, floorY + 0.019, z,
+            math.min(range(0.22, 2.3), 1.8 * math.min(x - row[3], row[4] - x)), 0.045, range(0.034, 0.24),
+            shade(tint, range(0.11, 0.31)), neon)
+        detail.Transparency = range(0.12, 0.65)
+    end
+    for _, zone in {{0.5, 4.4, palette.pink}, {9.4, 0.5, palette.cyan}, {-12.2, 1.1, palette.warm}} do
+        local pool = box(foreground, "Luz refletida no terraço", zone[1], 27.13, zone[2], 0.15, 0.15, 0.15, zone[3])
+        pool.Transparency = 1
+        light(pool, zone[3], 0.79, 15)
     end
 
-    do
-        local model = group(towers, "Estação das Comportas")
-        local x, z, y = 76, -54, 3.2
-        local shell = rgb(54, 40, 62)
-        body(model, "Galeria pública", x, z, y, 22, 8.1, 19, palette.iron)
-        box(model, "Marquise", x, y + 8.2, z + 8.7, 22.6, 0.7, 5.12, palette.ledge)
-        body(model, "Casco da estação", x, z, y + 8.4, 20.1, 29.2, 17.5, shell)
-        body(model, "Ala de controle", x + 3, z - 2, y + 37.6, 13.3, 15.8, 12.9, rgb(61, 45, 65))
-        body(model, "Câmara de inspeção", x + 5, z - 3.4, y + 53.4, 6.3, 4.2, 8, shell)
-        roof(model, x + 3, y + 53.4, z - 2, 13.3, 12.9, palette.steel)
-        roof(model, x, y + 37.6, z, 20.1, 17.5, palette.ledge)
-        windows(model, x, z + 8.75, y + 9.4, 16.5, 26.4, 7, 4, palette.rose, 0.68, 0.7)
-        windows(model, x + 3, z + 4.46, y + 38.25, 11.4, 14.45, 4, 5, palette.amber, 0.69, 0.64)
-        sideWindows(model, x - 10.08, z, y + 10.1, 11.9, 25.8, 7, palette.rose)
-        for _, floor in {12.2, 20.5, 28.8} do
-            balcony(model, x - 1.0, y + floor, z + 8.75, 16.4, palette.rose)
-        end
-        local facade = z + 9.03
-        tube(model, "Letreiro de estação", Vector3.new(x - 9.10, y + 8.62, facade),
-            Vector3.new(x - 9.10, y + 35.91, facade), 0.31, palette.rose)
-        tube(model, "Letreiro de estação", Vector3.new(x - 8.95, y + 35.91, facade),
-            Vector3.new(x + 8.40, y + 35.91, facade), 0.26, palette.rose)
-        sign(model, "41", x + 7.55, y + 21.6, facade + 0.14, 0.63, palette.rose)
-        for bay = -2, 2 do
-            front(model, "Baia da estação", x + bay * 4.0, y + 3.7, z + 9.51, 2.7, 4.6, glow(palette.rose, 0.25), neon)
-            box(model, "Lâmpada da marquise", x + bay * 4.0, y + 7.80, z + 10.75, 3.33, 0.11, 0.42,
-                glow(palette.rose, 0.84), neon)
-        end
-        fan(model, x - 5.8, y + 38.32, z + 3.15, 4)
-        mast(model, x + 4.4, y + 57.6, z - 3.1, 7.0, palette.tail)
+    local storm = group(city, "Chuva em primeiro plano")
+    local streaks = {}
+    for index = 1, 54 do
+        local x, z = range(-25, 31), range(-42, 19.5)
+        local size = Vector3.new(range(0.047, 0.068), range(1.30, 2.79), 0.051)
+        local tone = shade(if index % 3 == 0 then palette.cyan else palette.ice, range(0.32, 0.55))
+        local streak = solid(storm, "Traço de chuva", size, CFrame.new(x, 45, z), tone, neon)
+        streak.Transparency = range(0.49, 0.76)
+        local speed = 41 * math.floor(range(18, 32)) / loopSeconds
+        table.insert(streaks, {part = streak, x = x, z = z, phase = range(0, 41), speed = speed})
     end
 
-    do
-        local model = group(towers, "Arquivo de Vidro")
-        local x, z, y = 112, -131, 3.2
-        local shell = rgb(45, 36, 66)
-        body(model, "Base do arquivo", x + 0.3, z, y, 33.2, 13, 22.3, palette.iron)
-        roof(model, x + 0.3, y + 13, z, 33.2, 22.3, palette.ledge)
-        for _, wing in {{-8.5, 84, palette.rose}, {8.7, 96, palette.violet}} do
-            local center, height, accent = x + wing[1], wing[2], wing[3]
-            local base = y + 13
-            body(model, "Lâmina habitada", center, z, base, 12.3, height, 15.7, shell)
-            body(model, "Núcleo recuado", center + 0.7, z - 1.4, base + height - 12.5, 8.2, 15.7, 14.5,
-                rgb(56, 43, 74))
-            body(model, "Painel de fachada", center + 1.55, z + 8.14, base + 4.2, 4.01, height - 7.3, 0.63,
-                rgb(65, 43, 77))
-            windows(model, center - 2.6, z + 7.85, base + 2.13, 5.85, height - 6.25, 18, 2, accent, 0.66, 0.61)
-            sideWindows(model, center - 6.18, z - 1.5, base + 3, 10.8, height - 8.5, 13, palette.violet)
-            tube(model, "Guia de recolha", Vector3.new(center + 2.95, base + 12, z + 8.47),
-                Vector3.new(center + 2.95, base + height - 2.05, z + 8.47), 0.21, accent)
-            for yOffset = 15, height - 10, 14 do
-                front(model, "Emenda dos módulos", center, base + yOffset, z + 8.49, 12.3, 0.22, palette.steel)
-            end
-            roof(model, center, base + height, z, 12.3, 15.7, palette.ledge)
-            mast(model, center + 1.1, base + height + 3.2, z - 1.5, 7.8, palette.tail)
-        end
-        box(model, "Ponte suspensa", x, y + 57.1, z - 0.15, 8.41, 4.21, 8.2, palette.iron)
-        front(model, "Galeria panorâmica", x, y + 57.35, z + 3.95, 8.38, 2.22, glow(palette.rose, 0.49), neon)
-        for vertical = -3, 3 do
-            front(model, "Esquadria em aço", x + vertical * 1.13, y + 57.35, z + 4.17, 0.19, 2.31, palette.iron)
-        end
-        box(model, "Ponte suspensa superior", x, y + 74.44, z - 1.9, 8.39, 3.36, 5.8, palette.ledge)
-        front(model, "Galeria panorâmica superior", x, y + 74.58, z + 1, 8.32, 1.45, glow(palette.violet, 0.69), neon)
-    end
-
-    do
-        local model = group(towers, "Comando do Dique")
-        local x, z, y = 14, -139, 3.2
-        local shell = rgb(48, 39, 64)
-        body(model, "Câmara de inundação", x, z, y, 24.2, 19.1, 22.1, palette.iron)
-        body(model, "Torre de comando", x, z - 1.4, y + 19.1, 21.3, 46.2, 19.3, shell)
-        body(model, "Controle superior", x + 4.2, z - 1.8, y + 65.3, 9.2, 7.5, 12.9, palette.iron)
-        roof(model, x, y + 65.3, z - 1.4, 21.3, 19.3, palette.ledge)
-        roof(model, x + 4.2, y + 72.8, z - 1.8, 9.2, 12.9, palette.steel)
-        windows(model, x, z + 8.25, y + 20.1, 17, 43.2, 10, 4, palette.violet, 0.49, 0.61)
-        sideWindows(model, x - 10.67, z - 1.2, y + 21, 14.5, 40.2, 8, palette.amber)
-        for _, offset in {-8.9, 8.9} do
-            local start = Vector3.new(x + offset, y + 4.9, z + 11.16)
-            local corner = Vector3.new(x + offset, y + 45.1, z + 11.16)
-            local endX = x + offset * 0.67
-            tube(model, "Sinal do dique", start, corner, 0.31, palette.rose)
-            tube(model, "Sinal do dique", corner, Vector3.new(endX, y + 51.7, z + 11.16), 0.31, palette.rose)
-            body(model, "Viga do dique", x + offset, z + 9.17, y + 0.5, 1.64, 46.1, 3.49, palette.ledge)
-        end
-        tube(model, "Sinal do dique", Vector3.new(x - 5.97, y + 51.7, z + 11.16),
-            Vector3.new(x + 5.97, y + 51.7, z + 11.16), 0.31, palette.rose)
-        sign(model, "19", x + 0.25, y + 27.2, z + 11.11, 0.83, palette.rose)
-        fan(model, x - 4.7, y + 65.98, z + 0.85, 4.12)
-        mast(model, x + 6.41, y + 73.53, z - 0.6, 9.5, palette.tail)
-    end
-
-    do
-        local model = group(towers, "Poço das Turbinas")
-        local x, z, y = -34, -94, 3.2
-        local shell = rgb(38, 43, 66)
-        body(model, "Subestação", x, z, y, 20, 45.8, 21.5, shell)
-        body(model, "Volume recuado", x - 2.1, z - 1.5, y + 45.8, 13.1, 23.1, 15.3, palette.iron)
-        roof(model, x, y + 45.8, z, 20, 21.5, palette.ledge)
-        roof(model, x - 2.1, y + 68.9, z - 1.5, 13.1, 15.3, palette.ledge)
-        windows(model, x + 1.0, z + 10.75, y + 2.3, 16.4, 40.8, 11, 4, palette.ice, 0.42, 0.51)
-        windows(model, x - 2.1, z + 6.15, y + 46.5, 10.6, 21.2, 6, 3, palette.cyan, 0.63, 0.49)
-        sideWindows(model, x - 10.03, z - 1.3, y + 5.1, 16, 38.2, 8, palette.violet)
-        for pipe = 1, 3 do
-            local px = x - 9.7 + (pipe - 1) * 1.21
-            local top = y + 26 + pipe * 9
-            link(model, "Duto de pressão", Vector3.new(px, y + 3.8, z + 11.08),
-                Vector3.new(px, top, z + 11.08), 0.57, palette.steel, nil, true)
-            link(model, "Cotovelo", Vector3.new(px, top, z + 11.08),
-                Vector3.new(px + 1.2, top + 0.7, z + 9.93), 0.57, palette.steel, nil, true)
-        end
-        for floor = 0, 3 do
-            local start = Vector3.new(x + 0.3, y + 5.8 + floor * 9.8, z + 11.03)
-            local finish = Vector3.new(x + 8.65, y + 14.45 + floor * 9.8, z + 11.03)
-            link(model, "Travamento externo", start, finish, 0.42, palette.steel)
-        end
-        mast(model, x - 4.1, y + 69.6, z - 0.8, 8.27, glow(palette.cyan, 0.67))
-    end
-
-    do
-        local model = group(towers, "Destilaria do Vento")
-        local x, z, y = -74, -127, 3.2
-        body(model, "Oficina industrial", x, z, y, 31, 28.1, 29.2, rgb(43, 39, 59))
-        roof(model, x, y + 28.1, z, 31, 29.2, palette.ledge)
-        windows(model, x, z + 14.6, y + 4.2, 26.9, 20.5, 5, 6, palette.amber, 0.49, 0.52)
-        for unit, height in {35, 47, 28} do
-            local cx = x + (unit - 2) * 9.4
-            local cz = z - unit * 2.7
-            local diameter = 7.45
-            cylinder(model, "Coluna de destilação", cx, y + 28.8 + height / 2, cz, diameter, height,
-                rgb(50 + unit * 3, 42 + unit, 59 + unit * 3))
-            for tier = 1, 4 do
-                cylinder(model, "Anel de reforço", cx, y + 29 + height * tier / 4, cz, diameter + 0.37, 0.52, palette.steel)
-            end
-            local capY = y + 28.8 + height
-            cylinder(model, "Chaminé", cx, capY + 2.1, cz, 2.46, 4.2, palette.iron)
-            cylinder(model, "Sinal de chaminé", cx, capY + 4.16, cz, 2.63, 0.26, glow(palette.amber, 0.66), neon)
-            link(model, "Duto de vapor", Vector3.new(cx, y + 32, cz + 4.05), Vector3.new(cx, capY - 1.25, cz + 4.05),
-                0.53, palette.copper, nil, true)
-        end
-        fan(model, x + 9.3, y + 28.85, z + 7.0, 6.1)
-    end
-
-    do
-        local model = group(towers, "Degraus da Vigia")
-        local x, z, y = 145, -105, 3.2
-        local shell = rgb(50, 41, 64)
-        body(model, "Corpo escalonado", x, z, y, 23.2, 33.1, 20.2, palette.iron)
-        body(model, "Corpo escalonado", x + 2.9, z - 1.1, y + 33.1, 19.1, 22.2, 16.9, shell)
-        body(model, "Corpo escalonado", x + 5.0, z - 3.0, y + 55.3, 13.0, 22.2, 14.1, shell)
-        roof(model, x, y + 33.1, z, 23.2, 20.2, palette.ledge)
-        roof(model, x + 2.9, y + 55.3, z - 1.1, 19.1, 16.9, palette.ledge)
-        roof(model, x + 5.0, y + 77.5, z - 3.0, 13, 14.1, palette.steel)
-        windows(model, x, z + 10.1, y + 3.5, 20.2, 28.3, 7, 5, palette.amber, 0.65, 0.73)
-        windows(model, x + 2.9, z + 7.35, y + 34.35, 16, 19.8, 5, 4, palette.rose, 0.58, 0.75)
-        windows(model, x + 5, z + 4.05, y + 56.35, 10.3, 19.8, 5, 3, palette.rose, 0.54, 0.65)
-        sideWindows(model, x - 11.63, z, y + 4, 14.35, 28.4, 7, palette.amber)
-        for _, stripe in {{33.5, 0, 23, 10.28}, {55.7, 2.9, 19, 7.57}, {77.9, 5, 13.2, 4.30}} do
-            front(model, "Linha de terraço", x + stripe[2], y + stripe[1], z + stripe[4], stripe[3], 0.21,
-                glow(palette.rose, 0.74), neon)
-        end
-        mast(model, x + 5.9, y + 78.25, z - 2.7, 10.1, palette.tail)
-    end
-
-    do
-        local model = group(towers, "Varandas do Ramal")
-        local x, z, y = 113, -68, 3.2
-        body(model, "Estrutura do hotel", x, z, y, 21.6, 44.2, 17.4, rgb(49, 40, 56))
-        roof(model, x, y + 44.2, z, 21.6, 17.4, palette.ledge)
-        body(model, "Casa de máquinas", x + 4.1, z - 2.5, y + 44.88, 7.31, 3.9, 5.42, palette.iron)
-        windows(model, x, z + 8.7, y + 4.1, 18.3, 38.7, 9, 6, palette.amber, 0.69, 0.75)
-        sideWindows(model, x - 10.84, z - 0.6, y + 4.0, 13.95, 38.5, 8, palette.amber)
-        for step = 0, 7 do
-            local shift = if step % 2 == 0 then -0.86 else 0.88
-            balcony(model, x + shift, y + 4.5 + 4.3 * step, z + 8.7, 18.3, palette.amber)
-        end
-        fan(model, x - 4.5, y + 44.88, z + 3.2, 5.7)
-        mast(model, x + 6.0, y + 48.78, z - 2.5, 5.2, palette.tail)
-    end
-
-    local background = group(city, "Bairros ao fundo")
-    local distantBlocks = {
-        {-150, -151, 20, 62, 20}, {-125, -131, 17, 51, 17}, {-101, -164, 24, 67, 20},
-        {-55, -170, 18, 79, 18}, {-25, -167, 22, 65, 18}, {-7, -184, 16, 92, 21},
-        {20, -189, 20, 112, 20}, {44, -181, 17, 72, 16}, {75, -161, 21, 88, 18},
-        {95, -192, 15, 106, 19}, {140, -171, 21, 87, 24}, {173, -160, 23, 72, 20},
-        {196, -130, 19, 50, 20}, {215, -157, 20, 64, 20},
-        {-168, -222, 22, 91, 24}, {-130, -225, 19, 75, 20}, {-104, -213, 18, 83, 17},
-        {-75, -241, 28, 109, 21}, {-46, -237, 17, 88, 17}, {-18, -243, 21, 64, 21},
-        {21, -252, 17, 78, 16}, {49, -222, 26, 101, 24}, {81, -248, 16, 118, 17},
-        {119, -235, 24, 83, 24}, {150, -240, 19, 116, 21}, {188, -231, 23, 107, 18},
-        {215, -218, 21, 74, 17}, {243, -245, 18, 103, 20},
-        {-111, -296, 24, 99, 22}, {-55, -307, 18, 114, 20}, {-2, -305, 29, 102, 25},
-        {68, -285, 24, 91, 24}, {112, -292, 22, 118, 21}, {159, -295, 21, 90, 23},
-    }
-    for index, spec in distantBlocks do
-        local x, z, width, height, depth = table.unpack(spec)
-        local model = group(background, "Quadra " .. index)
-        local distance = math.clamp((-z - 100) / 255, 0, 1)
-        local color = rgb(40, 37, 62):Lerp(rgb(69, 49, 80), distance * 0.74)
-        body(model, "Estrutura", x, z, 3, width, height, depth, color)
-        body(model, "Cobertura", x + width * 0.09, z - depth * 0.10, height + 3, width * 0.70, range(3.9, 11.7),
-            depth * 0.73, color:Lerp(palette.iron, 0.13))
-        local accent = if index % 5 == 0 then palette.amber elseif index % 3 == 0 then palette.cyan else palette.violet
-        local facade = z + depth * 0.5
-        for floor = 1, if distance < 0.54 then 8 else 5 do
-            local py = 6 + floor * height * 0.094
-            local px = x + (if floor % 3 == 0 then 0.17 else -0.13) * width
-            local pw = width * range(0.27, 0.62)
-            front(model, "Janelas distantes", px, py, facade, pw, range(0.32, 0.80),
-                glow(accent, (1 - distance * 0.37) * range(0.24, 0.47)), neon)
-        end
-        if index % 3 == 0 then
-            local px = x - width * 0.40
-            front(model, "Coluna estrutural", px, 4 + height * 0.55, facade, 0.51, height * 0.81,
-                color:Lerp(palette.steel, 0.28))
-            mast(model, x + width * 0.16, height + 10.6, z - depth * 0.08, range(5.5, 10.2), glow(accent, 0.57))
-        end
-        if index % 4 == 2 then
-            local top = height + 6.5
-            local capX = x - width * 0.24
-            local capZ = z - depth * 0.07
-            body(model, "Aleta de cobertura", capX, capZ, top, width * 0.15, height * 0.13, depth * 0.55, color)
-            front(model, "Faixa de balizamento", capX, top + height * 0.126, capZ + depth * 0.275,
-                width * 0.135, 0.37, glow(accent, 0.30), neon)
-        end
-    end
-
-    local function cameraAt(seconds: number): CFrame
-        local phase = (seconds % 68) * (2 * math.pi / 68)
-        -- A shallow closed path outside the harbor keeps the menu area available.
+    local function cameraAt(seconds: number, aspectRatio: number?): CFrame
+        local phase = (seconds % loopSeconds) * (2 * math.pi / loopSeconds)
         local eye = Vector3.new(
-            -39 + 16 * math.sin(phase),
-            57 + 3.3 * math.sin(phase + 0.43),
-            111 + 5.5 * math.cos(phase)
+            -7.8 + 3.0 * math.sin(phase),
+            33.47 + 0.63 * math.sin(phase + 0.44),
+            27.5 + 2.25 * math.cos(phase)
         )
-        local focus = Vector3.new(
-            12 + 9.4 * math.sin(phase - 0.3),
-            43 + 2.9 * math.sin(phase + 0.62),
-            -114
-        )
-        return CFrame.lookAt(eye, focus)
+        local portraitShift = math.clamp((1.28 - (aspectRatio or 16 / 9)) * 12, 0, 8.2)
+        local focus = Vector3.new(21.6 + portraitShift + 4.65 * math.sin(phase + 0.16),
+            39.2 + 1.36 * math.sin(phase - 0.30), -124)
+        return CFrame.lookAt(eye + worldOffset, focus + worldOffset)
     end
 
+    local runtime = workspace ~= nil
+    local rainTilt = CFrame.Angles(math.rad(8), 0, math.rad(-13))
+    local function updateAt(seconds: number)
+        local time = seconds % loopSeconds
+        local trainX = -186 + ((time + 10.6) % 24) * 15.5
+        if runtime then
+            train:PivotTo(CFrame.new(worldOffset + Vector3.new(trainX, 0, 0)))
+        else
+            for _, piece in trainOffsets do
+                piece.part.CFrame = piece.pose + Vector3.new(trainX, 0, 0)
+            end
+        end
+        for _, drip in streaks do
+            local progress = (drip.phase + time * drip.speed) % 41
+            local y = 55.1 - progress
+            drip.part.CFrame = CFrame.new(worldOffset + Vector3.new(drip.x + progress * 0.17, y, drip.z)) * rainTilt
+        end
+    end
+
+    updateAt(0)
     city.Parent = parent
-    return city, cameraAt
+    return city, cameraAt, updateAt
 end

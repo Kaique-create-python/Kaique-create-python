@@ -147,6 +147,69 @@
       "displayName": "CyberOutlaw hello_miss",
       "description": "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop",
       "durationSeconds": 2.32
+    },
+    {
+      "key": "title",
+      "path": "art/title.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "c3e9991a33c62440164828715689321940fc5ff473599ff7f9b986c5ca3dac0a",
+      "displayName": "CyberOutlaw title",
+      "description": "Letreiro original CyberOutlaw."
+    },
+    {
+      "key": "billboard",
+      "path": "art/billboard.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "273ce2b0b1dacc45eac98a736261450d342d8dee021f8d267a516f3c5e420efe",
+      "displayName": "CyberOutlaw billboard",
+      "description": "Arte original dos três painéis de Maré Baixa."
+    },
+    {
+      "key": "concrete",
+      "path": "art/concrete.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "530ca9c405d97101d9d0d69a5a9701243b5c5b95540ad6d73ce6a331a7b04c70",
+      "displayName": "CyberOutlaw concrete",
+      "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "concrete_normal",
+      "path": "art/concrete_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "befdca88a72513c26f3e46b62990403c124e95fb9917297aeda3903246545a0a",
+      "displayName": "CyberOutlaw concrete_normal",
+      "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "asphalt",
+      "path": "art/asphalt.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "9664a6b9744bb9611c4e816e88a5539b64b3a668f79646e9d1de0eb0fc2d97e2",
+      "displayName": "CyberOutlaw asphalt",
+      "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "asphalt_normal",
+      "path": "art/asphalt_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "167edc82bc7f97071cc682a7c3a56f9dbfc28ed25532b9e74a7ffd5de4ddf703",
+      "displayName": "CyberOutlaw asphalt_normal",
+      "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "asphalt_rough",
+      "path": "art/asphalt_rough.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "b03aa1f4aad3480a8ff4c522e71c98f1a01e3b5d4870e94dbd49761f492d6c7c",
+      "displayName": "CyberOutlaw asphalt_rough",
+      "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
     }
   ]
 }

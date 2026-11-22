@@ -30,7 +30,7 @@ local function scenario(config, options)
 	options = options or {}
 	local h = {
 		now = 0, size = options.size or roblox.Vector2.new(1280, 680), jobs = {}, sounds = {}, bindings = {},
-		failCity = options.failCity,
+		failCity = options.failCity, useStage = options.useStage,
 	}
 	local nodeMethods = {}
 	function nodeMethods:GetPropertyChangedSignal(key)
@@ -57,7 +57,14 @@ local function scenario(config, options)
 		return self.attributes[name]
 	end
 	function nodeMethods:SetAttribute(name, value)
+		local previous = self.attributes[name]
 		self.attributes[name] = value
+		if previous ~= value then
+			self:GetAttributeChangedSignal(name):Fire()
+		end
+	end
+	function nodeMethods:GetAttributeChangedSignal(name)
+		return self:GetPropertyChangedSignal("attribute:" .. name)
 	end
 	function nodeMethods:IsDescendantOf(ancestor)
 		local current = self.Parent
@@ -151,6 +158,8 @@ local function scenario(config, options)
 
 	h.gui = node("PlayerGui")
 	h.player = node("Player")
+	h.player.DisplayName = "Outlaw Teste"
+	h.player.UserId = 321
 	h.gui.Parent = h.player
 	h.script = node("LocalScript")
 	h.guiService = node("GuiService")
@@ -212,6 +221,20 @@ local function scenario(config, options)
 				return city, function(seconds)
 					Trace.cityTime = seconds
 					return CFrame.new(seconds, 0, 0)
+				end
+			end
+		]])
+		code = string.gsub(code, "%-%- __CYBEROUTLAW_SCENE__", [[
+			local function openCyberOutlawScene(_, view)
+				if not Trace.useStage then
+					return
+				end
+				view:SetAttribute("CyberOutlawWorkspaceStage", true)
+				return function(seconds)
+					Trace.stageTime = seconds
+				end, function()
+					Trace.stageClosed = true
+					view:SetAttribute("CyberOutlawWorkspaceStage", false)
 				end
 			end
 		]])
@@ -339,6 +362,30 @@ fallBack:step(6)
 assert(fallBack:find("MenuStack").Visible and fallBack:find("CyberCity").ImageTransparency == 1,
 	"a city build failure preserves the menu and dark fallback")
 
+local stage = scenario("{art={title=902}}", { useStage = true })
+assert(stage:find("Backdrop").BackgroundTransparency == 0, "the place stays hidden while the menu stage starts")
+assert(not stage:find("Profile").Visible, "the loader keeps the profile hidden")
+stage:step(6.1)
+assert(stage:find("Backdrop").BackgroundTransparency == 1 and stage.stageTime > 0, "the live 3D stage shows through the backdrop")
+assert(stage:find("Wordmark").Text == "CyberOutlaw" and stage:find("Wordmark").Visible and not stage:find("Logo").Visible,
+	"the wordmark stays legible if its image is slow or unavailable")
+stage:find("Logo").IsLoaded = true
+stage:step(0.05)
+assert(stage:find("Logo").Visible and not stage:find("Wordmark").Visible, "the supplied brush art replaces the wordmark after loading")
+assert(stage:find("Profile").Visible and stage:find("DisplayName").Text == "Outlaw Teste", "profile shows the player's real display name")
+assert(string.find(stage:find("Avatar").Image, "&id=321&", 1, true), "profile thumbnail uses the local player id")
+assert(not stage:find("Level").Visible, "only an actual level is shown")
+stage.player:SetAttribute("Level", 12)
+assert(stage:find("Level").Visible and stage:find("Level").Text == "Nível 12", "profile reflects a level supplied by the experience")
+stage:find("ProfileSettings").Activated:Fire()
+assert(stage:find("Modal").Visible and stage:find("SoundToggle").Visible, "profile gear opens the existing settings")
+stage:find("Close").Activated:Fire()
+stage.guiService.ReducedMotionEnabled = true
+stage:step(0.05)
+assert(stage.stageTime == 0, "reduced motion holds the live stage at the first camera pose")
+stage:find("Play").Activated:Fire()
+assert(stage.stageClosed and stage.player:GetAttribute("CyberOutlawMenuOpen") == false, "Jogar releases the live stage before entering the place")
+
 local function fakeClip(id, size)
 	return string.format(
 		"{fps=10,frames={{id=%d,x=1,y=1,w=%d,h=%d},{id=%d,x=%d,y=1,w=%d,h=%d}}}",
@@ -430,4 +477,4 @@ assert(capri.sounds[#capri.sounds] == "confirm" and capri:find("CyberOutlawMenu"
 capri:step(0.35)
 assert(not capri:find("CyberOutlawMenu") and capri.player:GetAttribute("CyberOutlawMenuStarted"), "confirm finishes in the normal handoff")
 
-print("CyberOutlaw menu timeline, isolated 3D view, settings, focus, media, responsive layouts and Capri interactions passed")
+print("CyberOutlaw menu timeline, live and fallback 3D, brush art, player profile, settings, focus, media, responsive layouts and Capri interactions passed")

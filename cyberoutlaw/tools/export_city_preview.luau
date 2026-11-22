@@ -1,41 +1,85 @@
--- Executa a geometria e a câmera do menu para medir e pré-visualizar fora do Studio.
+-- Export the same parts, world lights and camera poses used by the Roblox menu.
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
 local serde = require("@lune/serde")
-local source = fs.readFile("src/city.luau")
 local env = {
-    Instance = roblox.Instance,
-    CFrame = roblox.CFrame,
-    Vector3 = roblox.Vector3,
-    Color3 = roblox.Color3,
-    Enum = roblox.Enum,
-    BrickColor = roblox.BrickColor,
+    Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
+    Color3 = roblox.Color3, Enum = roblox.Enum, UDim2 = roblox.UDim2, BrickColor = roblox.BrickColor, Content = roblox.Content,
     task = require("@lune/task"),
 }
-local make = luau.load(source .. "\nreturn createCyberCity", {environment=env, injectGlobals=true})()
+local function color(c) return {c.R, c.G, c.B} end
+local function vector(v) return {v.X, v.Y, v.Z} end
+local function read(instance, property, default)
+    local ok, value = pcall(function() return instance[property] end)
+    return if ok then value else default
+end
+local source = fs.readFile("src/city.luau") .. "\n" .. fs.readFile("src/scene.luau")
+local make, dress = luau.load(source .. "\nreturn createCyberCity, addCyberOutlawMaterials", {environment=env, injectGlobals=true})()
 local world = roblox.Instance.new("WorldModel")
-local city, cameraAt = make(world)
+local media = {billboard = 1001, concrete = 1002, concrete_normal = 1003, asphalt = 1004, asphalt_normal = 1005, asphalt_rough = 1006}
+local city, cameraAt, animate = make(world, media)
 assert(city:IsA("Model") and city.Parent == world and type(cameraAt) == "function")
-local parts = {}
+dress(city, media, roblox.Vector3.zero)
+local parts, lights, signs, textures, nodes = {}, {}, {}, {}, {}
 for _, node in city:GetDescendants() do
     if not node:IsA("BasePart") then continue end
-    local r, g, b = node.Color.R, node.Color.G, node.Color.B
-    local size = node.Size
-    local shape = if node:IsA("Part") then node.Shape.Name else node.ClassName
+    local index = #parts + 1
     assert(node.Anchored and not node.CanCollide and not node.CanQuery and not node.CanTouch)
-    table.insert(parts, {
-        cf = {node.CFrame:GetComponents()}, size = {size.X, size.Y, size.Z},
-        color = {r, g, b}, material = node.Material.Name, transparency = node.Transparency,
-        shape = shape,
-    })
+    parts[index] = {
+        name = node.Name, cf = {node.CFrame:GetComponents()}, size = vector(node.Size), color = color(node.Color),
+        material = node.Material.Name, transparency = node.Transparency, reflective = read(node, "Reflectance", 0),
+        shadow = node.CastShadow, shape = if node:IsA("Part") then node.Shape.Name else node.ClassName,
+    }
+    nodes[index] = node
+    for _, inner in node:GetChildren() do
+        if inner:IsA("Texture") and inner:GetAttribute("CyberOutlawMaterial") then
+            table.insert(textures, {
+                part = index, key = inner:GetAttribute("CyberOutlawMaterial"), face = inner.Face.Name,
+                tile = {inner.StudsPerTileU, inner.StudsPerTileV}, offset = {inner.OffsetStudsU, inner.OffsetStudsV},
+                color = color(inner.Color3), opacity = 1 - inner.Transparency,
+            })
+        elseif inner:IsA("Light") and read(inner, "Enabled", true) then
+            local face = read(inner, "Face", nil)
+            table.insert(lights, {part = index, color = color(inner.Color), brightness = inner.Brightness,
+                range = inner.Range, shadow = inner.Shadows, face = face and face.Name, angle = read(inner, "Angle", nil)})
+        elseif inner:IsA("SurfaceGui") then
+            local row = {part = index, face = inner.Face.Name, brightness = read(inner, "Brightness", 1)}
+            for _, gui in inner:GetDescendants() do
+                if gui:IsA("ImageLabel") and gui.Image == "rbxassetid://1001" then
+                    row.crop = {gui.ImageRectOffset.X, gui.ImageRectOffset.Y, gui.ImageRectSize.X, gui.ImageRectSize.Y}
+                    break
+                elseif gui:IsA("TextLabel") and gui.Text ~= "" then
+                    row.text, row.color = gui.Text, color(gui.TextColor3)
+                end
+            end
+            if row.crop or row.text then table.insert(signs, row) end
+        end
+    end
 end
-assert(#parts > 100 and #parts <= 2400, "panorama exige geometria detalhada dentro do orçamento")
-local camera = {}
-for i=0,179 do
-    table.insert(camera, {cameraAt(i/15):GetComponents()})
+assert(#parts > 100 and #parts <= 3600, "orçamento de cenário")
+local camera, transforms = {}, {}
+local start = math.max(0, tonumber(process.args[2]) or 0)
+local count = math.clamp(tonumber(process.args[3]) or 110, 1, 180)
+local aspect = tonumber(process.args[4]) or 16/9
+local initial = {}
+for i, node in nodes do initial[i] = node.CFrame end
+for i=0,count-1 do
+    local time = start + i / 15
+    table.insert(camera, {cameraAt(time, aspect):GetComponents()})
+    local moved = {}
+    if animate then
+        animate(time)
+        for j, node in nodes do
+            if node.CFrame ~= initial[j] then
+                table.insert(moved, {j, {node.CFrame:GetComponents()}})
+            end
+        end
+    end
+    transforms[i + 1] = moved
 end
 local output = assert(process.args[1], "informe caminho da cena JSON")
-fs.writeFile(output, serde.encode("json", {parts=parts,frames=camera,fov=44}, false))
-print(string.format("Cena real: %d peças e %d poses da câmera.", #parts, #camera))
+fs.writeFile(output, serde.encode("json", {parts=parts,frames=camera,transforms=transforms,lights=lights,signs=signs,textures=textures,
+    fov=city:GetAttribute("VerticalFieldOfView") or 46, aspect=aspect}, false))
+print(string.format("Cena real: %d peças, %d luzes, %d superfícies texturizadas, %d inscrições e %d poses.", #parts, #lights, #textures, #signs, #camera))

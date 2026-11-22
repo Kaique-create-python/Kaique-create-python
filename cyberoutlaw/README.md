@@ -1,13 +1,13 @@
-# CyberOutlaw · menu 3D
+# CyberOutlaw · terraço de Maré Baixa
 
-Instalador para o universo `10774214423` e o Place inicial `122033314086516`. **Maré Baixa** é a cidade original do menu, com 2.270 peças, oito torres principais, canal, pontes e monotrilho. A câmera do `ViewportFrame` percorre a cena em um ciclo de 68 segundos. **Jogar** fecha o menu e devolve o controle aos sistemas do Place.
+Instalador para o universo `10774214423` e o Place inicial `122033314086516`. A câmera do menu percorre um terraço industrial da cidade 3D **Maré Baixa**, de frente para o monotrilho e os telões de neon. As poças deixam ver geometria espelhada abaixo do piso. A luz, a câmera e o palco são locais ao cliente. **Jogar** desmonta o palco e libera os controles para os sistemas do Place.
 
 ## No Termux
 
 O pacote usa Python e `libzstd`. Se precisar instalar as dependências, use `pkg install python curl zstd`.
 
 1. Rode `python CYBEROUTLAW_MENU.py verificar` para conferir os arquivos locais.
-2. Rode `python CYBEROUTLAW_MENU.py midia` para importar as oito texturas da Capri e os sete sons. A chave da Open Cloud é pedida em um campo oculto. Os envios têm preço esperado zero. Se houver mídia em revisão, rode `midia` novamente. Os recibos preservam os envios já feitos.
+2. Rode `python CYBEROUTLAW_MENU.py midia` para importar os materiais do terraço, o letreiro e o atlas de telões, além de qualquer recurso da Capri ainda pendente. A chave da Open Cloud é pedida em um campo oculto. Os envios têm preço esperado zero. Se houver mídia em revisão, rode `midia` novamente. Os recibos das versões anteriores permitem aproveitar os assets já aprovados.
 3. Rode `python CYBEROUTLAW_MENU.py instalar`. O instalador guarda o backup em `~/.cyberoutlaw-installer` e prepara o único `LocalScript` do menu. Confirme com `PUBLICAR CYBEROUTLAW`. Se a resposta da publicação for incerta, use `python CYBEROUTLAW_MENU.py resume` para consultar o resultado.
 
 Na chave, habilite `asset:read`, `asset:write` e `asset-permissions:write` para a mídia do projeto. A leitura das versões e a publicação usam `legacy-asset:manage` e `universe-places:write` no Place. [Documentação da Open Cloud](https://create.roblox.com/docs/cloud)
@@ -18,6 +18,8 @@ Na chave, habilite `asset:read`, `asset:write` e `asset-permissions:write` para 
 
 ## Autoria e testes
 
-A Capri usa 20 animações e três falas do projeto Capri Desktop. O pacote inclui os créditos e a licença de uso não comercial. Os sons de clique e confirmação vieram do ElevenLabs. Os dois efeitos de teleporte e reação são eletrônicos originais. [Créditos da Capri](media/capri/PROVENANCE.md) · [Créditos de áudio](media/audio/CREDITOS.json)
+A Capri usa 20 animações e três falas do projeto Capri Desktop. O pacote inclui os créditos e a licença de uso não comercial. Os sons de clique e confirmação vieram do ElevenLabs. As três ilustrações aparecem como texturas de painéis da cidade 3D. O concreto e o asfalto usam digitalizações Poly Haven com mapas de cor, relevo e rugosidade. [Créditos da Capri](media/capri/PROVENANCE.md) · [Créditos de áudio](media/audio/CREDITOS.json) · [Créditos de arte](media/art/CREDITOS.md)
 
-Os testes locais conferem o ciclo da câmera, o comportamento do menu e a preservação dos outros objetos do Place em formato binário e XML. A prévia do panorama foi renderizada fora do Roblox a partir da geometria e da trajetória do menu. O desempenho no cliente Roblox ainda precisa de medição.
+Os testes locais conferem a câmera, os controles do menu, a atualização sobre a primeira versão e a composição do Place em formato binário e XML. A prévia usa a geometria e a trajetória do menu, com iluminação aproximada fora do cliente Roblox. O cliente aplica a qualidade gráfica disponível no aparelho.
+
+O terraço usa texturas PBR por face e uma fonte de luz em cada região principal de brilho. Um efeito de câmera suaviza as bordas do neon. [Texturas, Decals e mapas PBR](https://create.roblox.com/docs/parts/textures-decals) · [Efeitos de iluminação](https://create.roblox.com/docs/environment/post-processing-effects)

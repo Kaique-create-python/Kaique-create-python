@@ -5,13 +5,17 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
 
 from install.cloud import API, Cloud, CREATOR_ID, PLACE_ID, PUBLISH_ROUTE, UNIVERSE_ID, Version
 from install.codec import Binary, Failure, pack32, prefs, pstring
-from install.cyber_installer import CONFIRMATION, Installer, load_config, source_from_package
-from install.patcher import BINARY_MAGIC, MENU_PATH, menu_source, patch_place, source_digest
+from install.cyber_installer import (
+    CONFIG_MARKER, CONFIRMATION, V1_ASSET_TYPES, Installer, _asset_table, _luau,
+    _prepare_update, _split_assets, load_config, source_from_package,
+)
+from install.patcher import BINARY_MAGIC, MENU_PATH, menu_source, patch_place, same_binary_place, source_digest
 
 
 XML_SHELL = """<?xml version="1.0" encoding="utf-8"?>
@@ -42,6 +46,18 @@ XML_SHELL = """<?xml version="1.0" encoding="utf-8"?>
 """
 MINIMAL_XML = b'<roblox version="4"><Item class="Workspace"/></roblox>'
 SOURCE = '-- CyberOutlaw\nlocal detail = "ação ]]> & <"\nreturn detail\n'
+V1_TEMPLATE = f"-- Release fixture v1\nlocal ASSETS = {CONFIG_MARKER}\nreturn ASSETS\n"
+V2_TEMPLATE = f"-- Release fixture v2\nlocal ASSETS = {CONFIG_MARKER}\nreturn ASSETS\n"
+LEGACY_CONFIG = {
+    "video": 318,
+    "sounds": {"click": 21, "hello": 22},
+    "clips": {"idle": {"fps": 6, "frames": [{"id": 31, "x": 0, "y": 5, "w": 64, "h": 64}]}},
+}
+V2_CONFIG = {"art": {"title": 98, "billboard": 99}, "clips": {}, "sounds": {"click": 25}, "video": 0}
+
+
+def bound(template, assets):
+    return template.replace(CONFIG_MARKER, _luau(assets))
 
 
 def xml_place(extra=""):
@@ -150,6 +166,43 @@ class PatcherTests(unittest.TestCase):
         self.assertEqual(changed_chunks[0][0].tag, b"PROP")
         self.assertEqual(menu_source(newer), "return 9")
 
+    def test_binary_repacking_retains_all_chunks(self):
+        original, _ = patch_place(make_binary(), SOURCE)
+        parsed = Binary(original)
+        repacked = parsed.header + b"".join(_chunk(block.tag, block.data) for block in parsed.chunks)
+        self.assertNotEqual(original, repacked)
+        self.assertTrue(same_binary_place(original, repacked))
+        different_map = repacked.replace(b"preserve unknown blocks", b"preserve strange blocks")
+        self.assertFalse(same_binary_place(original, different_map))
+
+    @patch("install.cyber_installer.V1_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
+    def test_upgrade_keeps_granted_assets_and_changes_only_owned_source(self):
+        old = bound(V1_TEMPLATE, LEGACY_CONFIG)
+        original, _ = patch_place(xml_place(), old)
+        ready, changed, source = _prepare_update(original, bound(V2_TEMPLATE, V2_CONFIG))
+        expected = {**LEGACY_CONFIG, "art": V2_CONFIG["art"], "sounds": {"click": 25, "hello": 22}}
+        self.assertTrue(changed)
+        self.assertEqual(source, bound(V2_TEMPLATE, expected))
+        self.assertEqual(source, menu_source(ready))
+        self.assertEqual(patch_place(original, source, {source_digest(old)}), (ready, True))
+        self.assertEqual(_prepare_update(ready, bound(V2_TEMPLATE, V2_CONFIG)), (ready, False, source))
+
+    @patch("install.cyber_installer.V1_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
+    def test_edited_v1_or_executable_asset_line_remains_untouched(self):
+        old = bound(V1_TEMPLATE, LEGACY_CONFIG)
+        edited_sources = (
+            old.replace("return ASSETS", "return {}"),
+            old.replace('["video"] = 318}', '["video"] = (function() return 318 end)()}'),
+            old.replace('["video"] = 318}', '["video"] = 318}; local other = {}'),
+            old.replace('["video"] = 318}', '["video"] = 318, ["video"] = 319}'),
+        )
+        for edited in edited_sources:
+            with self.subTest(edited=edited):
+                prior, _ = patch_place(xml_place(), edited)
+                with self.assertRaisesRegex(Failure, "código desconhecido"):
+                    _prepare_update(prior, bound(V2_TEMPLATE, V2_CONFIG))
+                self.assertEqual(menu_source(prior), edited)
+
     def test_malformed_and_dtd_are_rejected(self):
         with self.assertRaisesRegex(Failure, "declaração"):
             patch_place(b'<!DOCTYPE roblox [<!ENTITY unsafe "text">]><roblox version="4"/>', SOURCE)
@@ -164,14 +217,17 @@ class ConfigTests(unittest.TestCase):
             (root / "src").mkdir()
             (root / "config").mkdir()
             (root / "src" / "menu.client.luau").write_text(
-                "local ASSETS = __CYBEROUTLAW_CONFIG__\n-- __CYBEROUTLAW_CITY__\nreturn ASSETS"
+                "local ASSETS = __CYBEROUTLAW_CONFIG__\n-- __CYBEROUTLAW_CITY__\n-- __CYBEROUTLAW_SCENE__\nreturn ASSETS"
             )
             (root / "src" / "city.luau").write_text("local function createCyberCity(parent) end\n")
+            (root / "src" / "scene.luau").write_text("local function createCyberScene(parent) end\n")
             empty, config = source_from_package(root)
-            self.assertEqual(config, {"video": 0, "clips": {}, "sounds": {}})
+            self.assertEqual(config, {"video": 0, "clips": {}, "sounds": {}, "art": {}})
             self.assertIn("local function createCyberCity(parent)", empty)
+            self.assertLess(empty.index("local function createCyberCity"), empty.index("local function createCyberScene"))
             data = {
                 "video": 218,
+                "art": {"title": 24, "billboard": 49},
                 "sounds": {"hover": 21},
                 "clips": {"idle": {"fps": 6, "frames": [{"id": 31, "x": 0, "y": 5, "w": 64, "h": 64}]}},
             }
@@ -180,7 +236,9 @@ class ConfigTests(unittest.TestCase):
             text, normalized = source_from_package(root)
             self.assertNotIn("__CYBEROUTLAW_", text)
             self.assertIn('["id"] = 31', text)
+            self.assertIn('["billboard"] = 49', text)
             self.assertEqual(normalized["sounds"]["hover"], 21)
+            self.assertEqual(_asset_table(_split_assets(text)[1], {*V1_ASSET_TYPES, "art"}), normalized)
             ASSETS.write_text('{"video":0,"video":23}')
             with self.assertRaises(Failure):
                 load_config(ASSETS)
@@ -274,6 +332,37 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(cloud.download_calls, [7, 8, 9])
         self.assertIsNone(self.installer.pending())
         self.assertEqual(len(list(self.state.glob("receipt-*.json"))), 1)
+
+    def test_resume_accepts_only_equivalent_repacked_binary(self):
+        cloud = FakeCloud(lost_response=True)
+        cloud.versions[8] = make_binary()
+        cloud.visible = False
+        with self.assertRaisesRegex(Failure, "Execute resume"):
+            self.installer.install(cloud, SOURCE, lambda _: CONFIRMATION)
+        parsed = Binary(cloud.publish_calls[0])
+        repacked = parsed.header + b"".join(_chunk(block.tag, block.data) for block in parsed.chunks)
+        cloud.rows.insert(0, Version(9, True))
+        cloud.versions[9] = repacked.replace(b"preserve unknown blocks", b"preserve strange blocks")
+        with self.assertRaisesRegex(Failure, "Execute resume"):
+            self.installer.resume(cloud)
+        cloud.versions[9] = repacked
+        self.installer.resume(cloud)
+        receipt = json.loads(next(self.state.glob("receipt-*.json")).read_text())
+        self.assertEqual(receipt["comparison"], "binary_chunks")
+        self.assertEqual(len(cloud.publish_calls), 1)
+
+    @patch("install.cyber_installer.V1_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
+    def test_upgrade_carries_published_media_when_saved_place_has_no_menu(self):
+        cloud = FakeCloud()
+        cloud.versions[7] = patch_place(xml_place(), bound(V1_TEMPLATE, LEGACY_CONFIG))[0]
+        cloud.versions[8] = make_binary()
+        self.installer.install(cloud, bound(V2_TEMPLATE, V2_CONFIG), lambda _: CONFIRMATION)
+        published = cloud.versions[9]
+        expected = {**LEGACY_CONFIG, "art": V2_CONFIG["art"], "sounds": {"click": 25, "hello": 22}}
+        self.assertEqual(menu_source(published), bound(V2_TEMPLATE, expected))
+        original = Binary(published)
+        ref = original.locate((*MENU_PATH[:-1], "Story"))
+        self.assertEqual(original.value(ref, "Source"), b"return 123")
 
     def test_resume_keeps_pending_until_matching_download(self):
         cloud = FakeCloud(lost_response=True)

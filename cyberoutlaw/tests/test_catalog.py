@@ -2,7 +2,7 @@
 from pathlib import Path
 import unittest
 
-from media_tools.catalog import resolved_config, verify_media, SOUNDS
+from media_tools.catalog import resolved_config, verify_media, ART, SOUNDS
 from media_tools.upload import TARGET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +24,7 @@ class MediaBindingTest(unittest.TestCase):
         lookup = {r["key"]: int(r["assetId"]) for r in result["assets"]}
         out = resolved_config(ROOT, self.plan, result, video="8000")
         self.assertEqual(set(out["sounds"]), set(SOUNDS))
+        self.assertEqual(out["art"], {name: lookup[name] for name in ART})
         self.assertEqual(set(out["clips"]), set(self.capri["clips"]))
         for name, clip in out["clips"].items():
             self.assertEqual(clip["fps"], self.capri["clips"][name]["fps"])
@@ -51,7 +52,9 @@ class MediaBindingTest(unittest.TestCase):
 
     def test_default_does_not_submit_paid_video_or_static_city(self):
         self.assertTrue(all(row["assetType"] in ("Image", "Audio") for row in self.plan["assets"]))
-        self.assertTrue(all(row["path"].startswith(("capri/", "audio/")) for row in self.plan["assets"]))
+        art_paths = {row["path"] for row in self.plan["assets"] if row["path"].startswith("art/")}
+        self.assertEqual(art_paths, {f"art/{key}.png" for key in ART})
+        self.assertTrue(all(row["path"].startswith(("capri/", "audio/", "art/")) for row in self.plan["assets"]))
         self.assertNotIn("video", resolved_config(ROOT, self.plan, self.fixture()))
 
 

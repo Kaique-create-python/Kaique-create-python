@@ -84,14 +84,14 @@ if __name__ == "__main__":
 '''
 
 def build(output):
-    required = ["launcher.py", "src/menu.client.luau", "src/city.luau", "media/ASSET_PLAN.json", "media/capri/capri_clips.json", "install/cyber_installer.py"]
+    required = ["launcher.py", "src/menu.client.luau", "src/city.luau", "src/scene.luau", "media/ASSET_PLAN.json", "media/capri/capri_clips.json", "install/cyber_installer.py"]
     for item in required:
         if not (ROOT / item).is_file():
             raise ValueError("Falta parte do pacote: " + item)
     files = [ROOT / "launcher.py"]
     if (ROOT / "README.md").is_file():
         files.append(ROOT / "README.md")
-    for folder in ("install", "media_tools", "src", "media/audio", "media/capri"):
+    for folder in ("install", "media_tools", "src", "media/audio", "media/capri", "media/art"):
         files.extend(path for path in (ROOT / folder).rglob("*")
                      if path.is_file() and "__pycache__" not in path.parts and path.suffix.lower()
                      in {".py", ".luau", ".json", ".png", ".wav", ".md", ".txt"})

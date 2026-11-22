@@ -6,7 +6,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from media_tools.catalog import verify_media, SOUNDS
+from media_tools.catalog import verify_media, ART, SOUNDS
 from media_tools import upload
 
 media = ROOT / "media"
@@ -35,6 +35,15 @@ for key in SOUNDS:
     p = media / "audio" / (key + ".wav")
     note = "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop" if key.startswith("hello_") else ("ElevenLabs Sound Effects." if entry["provider"] == "ElevenLabs" else "Efeito eletrônico original.")
     rows.append({**row(key, p, "Audio", "audio/wav", note), "durationSeconds": entry["durationSeconds"]})
+
+for key in ART:
+    if key == "title":
+        description = "Letreiro original CyberOutlaw."
+    elif key == "billboard":
+        description = "Arte original dos três painéis de Maré Baixa."
+    else:
+        description = "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
+    rows.append(row(key, media / "art" / (key + ".png"), "Image", "image/png", description))
 
 manifest = media / "ASSET_PLAN.json"
 manifest.write_text(json.dumps({"schemaVersion": 1, "target": upload.TARGET, "assets": rows}, ensure_ascii=False, indent=2) + "\n")

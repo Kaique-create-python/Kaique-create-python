@@ -1,8 +1,6 @@
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
-local process = require("@lune/process")
 local roblox = require("@lune/roblox")
-local serde = require("@lune/serde")
 
 local source = fs.readFile("src/city.luau")
 local createCyberCity = luau.load(source .. "\nreturn createCyberCity", {
@@ -12,119 +10,150 @@ local createCyberCity = luau.load(source .. "\nreturn createCyberCity", {
         Color3 = roblox.Color3,
         Enum = roblox.Enum,
         Instance = roblox.Instance,
+        UDim2 = roblox.UDim2,
+        Vector2 = roblox.Vector2,
         Vector3 = roblox.Vector3,
     },
 })()
 
-local parent = roblox.Instance.new("WorldModel")
-local city, cameraAt = createCyberCity(parent)
-assert(city.Parent == parent and city:IsA("Model"))
+local function mount(media, origin)
+    local parent = roblox.Instance.new("Model")
+    local model, cameraAt, updateAt = createCyberCity(parent, media, origin)
+    assert(model.Parent == parent and model:IsA("Model"))
+    assert(type(updateAt) == "function")
+    return model, cameraAt, updateAt
+end
+
+local zero = roblox.Vector3.zero
+local origin = roblox.Vector3.new(13300, 4100, 7200)
+local city, cameraAt, updateAt = mount(nil, zero)
+local offsetCity, cameraOffset = mount({billboard = 1001}, origin)
 local duration = city:GetAttribute("LoopDuration")
-assert(duration >= 50 and duration <= 85)
+local verticalFov = city:GetAttribute("VerticalFieldOfView")
+assert(duration >= 50 and duration <= 85 and verticalFov >= 44 and verticalFov <= 48)
 
-local function vectorEntries(v)
-    return {v.X, v.Y, v.Z}
+local function near(a, b, epsilon)
+    assert((a - b).Magnitude < epsilon, ("Expected %s near %s"):format(tostring(a), tostring(b)))
 end
 
-local function cframeEntries(cf)
-    return {cf:GetComponents()}
-end
-
-local modelCount = 0
-local parts = {}
-local anchors = {}
-local materialCounts = {}
-for _, object in city:GetDescendants() do
-    if object:IsA("Part") then
-        assert(object.Anchored and not object.CanCollide and not object.CanTouch and not object.CanQuery)
-        assert(not object.CastShadow)
-        local cf, size, color = object.CFrame, object.Size, object.Color
-        assert(size.X >= 0.001 and size.Y >= 0.001 and size.Z >= 0.001)
-        table.insert(parts, {
-            name = object.Name,
-            cf = cframeEntries(cf),
-            size = vectorEntries(size),
-            color = {color.R, color.G, color.B},
-            material = object.Material.Name,
-            shape = object.Shape.Name,
-        })
-        table.insert(anchors, {cf = cf, half = size / 2})
-        materialCounts[object.Material.Name] = (materialCounts[object.Material.Name] or 0) + 1
-    else
-        assert(object:IsA("Model"), "City contains a non-geometry instance")
-        modelCount += 1
-    end
-end
-assert(#parts >= 1100 and #parts <= 2400, "City part budget exceeded")
-assert(#city["Torres do estuário"]:GetChildren() == 8, "Signature towers are missing")
-
-local frames = {}
-local lower = roblox.Vector3.new(math.huge, math.huge, math.huge)
-local upper = -lower
-local nearest = math.huge
-local previous
-local maxSpeed = 0
-local rate = 12
-for i = 0, duration * rate do
-    local seconds = i / rate
-    local pose = cameraAt(seconds)
-    local eye = pose.Position
-    assert(pose.LookVector.Z < -0.94, "Camera strayed from the city")
-    lower = roblox.Vector3.new(math.min(lower.X, eye.X), math.min(lower.Y, eye.Y), math.min(lower.Z, eye.Z))
-    upper = roblox.Vector3.new(math.max(upper.X, eye.X), math.max(upper.Y, eye.Y), math.max(upper.Z, eye.Z))
-    if previous then
-        maxSpeed = math.max(maxSpeed, (eye - previous).Magnitude * rate)
-    end
-    previous = eye
-
-    if i % 4 == 0 then
-        for _, part in anchors do
-            local point = part.cf:PointToObjectSpace(eye)
-            local delta = roblox.Vector3.new(
-                math.max(math.abs(point.X) - part.half.X, 0),
-                math.max(math.abs(point.Y) - part.half.Y, 0),
-                math.max(math.abs(point.Z) - part.half.Z, 0)
-            )
-            nearest = math.min(nearest, delta.Magnitude)
+local function verifyArt(model)
+    local count = 0
+    local found = {}
+    for _, item in model:GetDescendants() do
+        if item:IsA("ImageLabel") then
+            count += 1
+            assert(item.Image == "rbxassetid://1001")
+            assert(item.ImageRectSize == roblox.Vector2.new(340, 1020))
+            local column = item.ImageRectOffset.X / 340 + 1
+            assert(column % 1 == 0 and column >= 1 and column <= 3)
+            assert(not found[column])
+            found[column] = true
         end
     end
-    if seconds <= 16 then
-        table.insert(frames, {t = seconds, cf = cframeEntries(pose)})
+    return count
+end
+
+assert(verifyArt(city) == 0 and verifyArt(offsetCity) == 3, "Atlas and native fallback are both required")
+local sodium = city:FindFirstChild("Lâmpada de sódio", true)
+local sodiumOffset = offsetCity:FindFirstChild("Lâmpada de sódio", true)
+near(sodiumOffset.CFrame.Position - sodium.CFrame.Position, origin, 0.002)
+assert(city:FindFirstChild("Lua", true):GetAttribute("Moon"))
+
+local geometry = 0
+local lights = 0
+local shadows = 0
+local mirrors = 0
+local puddleEdges = 0
+local opaque = {}
+for _, object in city:GetDescendants() do
+    if object:IsA("Part") then
+        geometry += 1
+        assert(object.Anchored and not object.CanCollide and not object.CanTouch and not object.CanQuery)
+        local size = object.Size
+        assert(size.X > 0 and size.Y > 0 and size.Z > 0)
+        if object.Name == "Margem irregular de asfalto" then
+            puddleEdges += 1
+            assert(object.Shape == roblox.Enum.PartType.Wedge)
+        end
+        if string.find(object.Name, "Reflexo •", 1, true) then
+            mirrors += 1
+        end
+        if object.Transparency < 0.02 then
+            table.insert(opaque, {pose = object.CFrame, half = size / 2})
+        end
+    elseif object:IsA("Light") then
+        lights += 1
+        if object.Shadows then
+            shadows += 1
+            assert(object.Parent == sodium)
+        end
+        assert(object.Range <= 30)
     end
 end
+assert(geometry >= 2200 and geometry <= 3200, "Orçamento de geometria excedido")
+assert(lights >= 6 and lights <= 12 and shadows == 1, "Orçamento de iluminação excedido")
+assert(puddleEdges >= 32 and mirrors >= 60, "Espelho e contorno da poça ausentes")
 
-assert(nearest > 15, "Camera came too close to geometry")
-assert(maxSpeed < 2, "Camera movement should remain slow")
-local origin = cframeEntries(cameraAt(0))
-local seam = cframeEntries(cameraAt(duration))
-for i, value in origin do
-    assert(math.abs(value - seam[i]) <= 1e-6, "Camera loop is discontinuous")
+local function compareCameras(a, b, epsilon)
+    near(a.Position, b.Position, epsilon)
+    near(a.LookVector, b.LookVector, epsilon)
+    near(a.UpVector, b.UpVector, epsilon)
 end
 
+local cameraSeam = cameraAt(duration)
+compareCameras(cameraAt(0), cameraSeam, 0.00001)
+compareCameras(cameraAt(8) + origin, cameraOffset(8), 0.0002)
 local function velocityAt(t)
-    local delta = 1 / 30
-    return (cameraAt(t + delta).Position - cameraAt(t - delta).Position) / (2 * delta)
+    local dt = 1 / 30
+    return (cameraAt(t + dt).Position - cameraAt(t - dt).Position) / (2 * dt)
+end
+near(velocityAt(0), velocityAt(duration), 0.0001)
+
+local nearest = math.huge
+for index = 0, duration * 3 do
+    local pose = cameraAt(index / 3)
+    assert(pose.LookVector.Z < -0.94)
+    for _, part in opaque do
+        local point = part.pose:PointToObjectSpace(pose.Position)
+        local delta = roblox.Vector3.new(
+            math.max(math.abs(point.X) - part.half.X, 0),
+            math.max(math.abs(point.Y) - part.half.Y, 0),
+            math.max(math.abs(point.Z) - part.half.Z, 0)
+        )
+        nearest = math.min(nearest, delta.Magnitude)
+    end
+end
+assert(nearest > 4, "A câmera aproxima demais da arquitetura")
+
+local tanVertical = math.tan(math.rad(verticalFov / 2))
+local function project(point, t, aspect)
+    local v = cameraAt(t, aspect):PointToObjectSpace(point)
+    return 0.5 + v.X / (-2 * v.Z * tanVertical * aspect), 0.5 - v.Y / (-2 * v.Z * tanVertical)
 end
 
-assert((velocityAt(0) - velocityAt(duration)).Magnitude <= 1e-4, "Velocity jumps across loop")
-print(
-    ("City stage passed with %d parts (%d neon), %d descendant models, %ds loop, %.1f-stud clearance, %.2f studs/s")
-        :format(#parts, materialCounts.Neon, modelCount, duration, nearest, maxSpeed)
-)
-print(("Camera bounds %s to %s"):format(tostring(lower), tostring(upper)))
-
-if process.args[1] then
-    fs.writeFile(process.args[1], serde.encode("json", {
-        parts = parts,
-        frames = frames,
-        cameras = {
-            {t = 0, cf = origin},
-            {t = 17, cf = cframeEntries(cameraAt(17))},
-            {t = 34, cf = cframeEntries(cameraAt(34))},
-            {t = 51, cf = cframeEntries(cameraAt(51))},
-        },
-        fieldOfView = 44,
-        duration = duration,
-        bounds = {minimum = vectorEntries(lower), maximum = vectorEntries(upper)},
-    }))
+local heroSign = city:FindFirstChild("Torre da eclusa", true):FindFirstChild("Caixilho em aço", true)
+for _, aspect in {16/9, 9/16} do
+    for t = 0, duration, 3 do
+        local x, y = project(heroSign.CFrame.Position, t, aspect)
+        assert(x > 0.5 and x < 0.87 and y > 0.18 and y < 0.58, "O letreiro principal saiu do quadro")
+    end
 end
+local nearDetail = city:FindFirstChild("Baliza magenta de manutenção", true)
+local x0 = project(nearDetail.CFrame.Position, 0, 16/9)
+local x12 = project(nearDetail.CFrame.Position, 12, 16/9)
+local sign0 = project(heroSign.CFrame.Position, 0, 16/9)
+local sign12 = project(heroSign.CFrame.Position, 12, 16/9)
+assert(math.abs(x12 - x0) > math.abs(sign12 - sign0), "Perspectiva de movimento ausente")
+
+local wagon = city:FindFirstChild("Composição em movimento", true):FindFirstChild("Carroceria")
+local streak = city:FindFirstChild("Traço de chuva", true)
+local beforeTrain, beforeRain = wagon.CFrame.Position, streak.CFrame.Position
+updateAt(3)
+assert((wagon.CFrame.Position - beforeTrain).Magnitude > 20)
+assert((streak.CFrame.Position - beforeRain).Magnitude > 0.1)
+updateAt(duration)
+near(wagon.CFrame.Position, beforeTrain, 0.0001)
+near(streak.CFrame.Position, beforeRain, 0.0001)
+
+print(("Terraço: %d peças, %d refletores espelhados, %d cunhas, %d luzes, loop %ds, folga %.2f studs.")
+    :format(geometry, mirrors, puddleEdges, lights, duration, nearest))

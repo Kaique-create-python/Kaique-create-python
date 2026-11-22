@@ -21,16 +21,21 @@ if not __package__:
 
 from .cloud import Cloud, DEFINITE_REJECTIONS, PLACE_ID, TARGET, UNIVERSE_ID, unique_fields
 from .codec import Failure
-from .patcher import menu_source, patch_place, place_format, source_digest
+from .patcher import menu_source, patch_place, place_format, same_binary_place, source_digest
 from .paths import guard, locked_state, read_json, read_place, remove, write_json, write_offline, write_once
 
 
 CONFIG_MARKER = "__CYBEROUTLAW_CONFIG__"
 CITY_MARKER = "-- __CYBEROUTLAW_CITY__"
+SCENE_MARKER = "-- __CYBEROUTLAW_SCENE__"
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
-ASSET_TYPES = {"video", "sounds", "clips"}
+V1_ASSET_TYPES = {"video", "sounds", "clips"}
+ASSET_TYPES = V1_ASSET_TYPES | {"art"}
 ASSET_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}")
+ASSET_LINE = re.compile(r"(?m)^local ASSETS = ([^\r\n]*)$")
 SHA256 = re.compile(r"[0-9a-f]{64}")
+# Commit ba81f89, with the v1 city embedded and the ASSETS marker left unbound.
+V1_TEMPLATE_SHA256 = "e10acc19da074d939ef706812a9ac56260af271379e39f7193ad29247b7dcd0c"
 
 
 def digest(raw):
@@ -64,14 +69,19 @@ def load_config(path):
         data = {}
     except (ValueError, RecursionError):
         raise Failure("O arquivo ASSETS.json está inválido.") from None
+    return _normalize_config(data)
+
+
+def _normalize_config(data):
     if not isinstance(data, dict) or data.keys() - ASSET_TYPES:
         raise Failure("O arquivo ASSETS.json contém campos desconhecidos.")
 
     config = {"video": _integer(data.get("video", 0), "video")}
-    config["sounds"] = {
-        name: _integer(value, f"sounds.{name}")
-        for name, value in _entries(data.get("sounds", {}), "sounds")
-    }
+    for field in ("sounds", "art"):
+        config[field] = {
+            name: _integer(value, f"{field}.{name}")
+            for name, value in _entries(data.get(field, {}), field)
+        }
     clips = {}
     for name, clip in _entries(data.get("clips", {}), "clips"):
         field = f"clips.{name}"
@@ -110,14 +120,147 @@ def _luau(value):
 
 def source_from_package(root):
     menu = (root / "src" / "menu.client.luau").read_text(encoding="utf-8-sig")
-    city = (root / "src" / "city.luau").read_text(encoding="utf-8-sig")
-    if menu.count(CONFIG_MARKER) != 1 or menu.count(CITY_MARKER) != 1:
-        raise Failure("Os marcadores de configuração e cidade devem aparecer uma vez no script do menu.")
-    if not city.strip() or CONFIG_MARKER in city or CITY_MARKER in city:
-        raise Failure("O código da cidade está vazio ou contém marcadores do menu.")
+    markers = (CONFIG_MARKER, CITY_MARKER, SCENE_MARKER)
+    if any(menu.count(marker) != 1 for marker in markers):
+        raise Failure("O script do menu deve conter um marcador para configuração, cidade e cena.")
+    positions = [menu.index(marker) for marker in markers]
+    if positions != sorted(positions):
+        raise Failure("Os marcadores do menu devem seguir a ordem de configuração, cidade e cena.")
+    slot = ASSET_LINE.search(menu)
+    if slot is None or slot[1] != CONFIG_MARKER:
+        raise Failure("O marcador de mídia deve definir local ASSETS em sua própria linha.")
+    for marker, filename in ((CITY_MARKER, "city.luau"), (SCENE_MARKER, "scene.luau")):
+        fragment = (root / "src" / filename).read_text(encoding="utf-8-sig")
+        if not fragment.strip() or any(tag in fragment for tag in markers):
+            raise Failure(f"O código em {filename} está vazio ou contém marcadores do menu.")
+        menu = menu.replace(marker, fragment.rstrip("\n"))
     config = load_config(root / "config" / "ASSETS.json")
-    source = menu.replace(CONFIG_MARKER, _luau(config)).replace(CITY_MARKER, city.rstrip("\n"))
-    return source, config
+    return menu.replace(CONFIG_MARKER, _luau(config)), config
+
+
+class _AssetLiteral:
+    """Parse only the deterministic tables and numbers emitted by _luau."""
+
+    KEY = re.compile(r'\["([A-Za-z0-9_][A-Za-z0-9_.-]{0,63})"\] = ')
+    NUMBER = re.compile(r"(?:0|[1-9][0-9]{0,15})(?:\.[0-9]{1,17})?(?:e[+-][0-9]{2,3})?")
+
+    def __init__(self, text):
+        self.text = text
+        self.position = 0
+
+    def take(self, token):
+        if not self.text.startswith(token, self.position):
+            return False
+        self.position += len(token)
+        return True
+
+    def value(self, depth=0):
+        if depth >= 8:
+            raise ValueError("table nesting")
+        if not self.take("{"):
+            match = self.NUMBER.match(self.text, self.position)
+            if match is None:
+                raise ValueError("number expected")
+            self.position = match.end()
+            token = match[0]
+            return float(token) if "." in token or "e" in token else int(token)
+        if self.take("}"):
+            return {}
+        keyed = self.text.startswith("[", self.position)
+        values = {} if keyed else []
+        while True:
+            if keyed:
+                key = self.KEY.match(self.text, self.position)
+                if key is None or key[1] in values:
+                    raise ValueError("invalid key")
+                self.position = key.end()
+                values[key[1]] = self.value(depth + 1)
+            else:
+                values.append(self.value(depth + 1))
+            if self.take("}"):
+                return values
+            if not self.take(", "):
+                raise ValueError("separator expected")
+
+
+def _asset_table(literal, required):
+    if len(literal) > 2 * 1024 * 1024:
+        return None
+    parser = _AssetLiteral(literal)
+    try:
+        raw = parser.value()
+        if not isinstance(raw, dict) or (required is not None and raw.keys() != required):
+            return None
+        if parser.position != len(literal) or _luau(raw) != literal:
+            return None
+        return _normalize_config(raw)
+    except (Failure, ValueError):
+        return None
+
+
+def _split_assets(source):
+    first = ASSET_LINE.search(source)
+    if first is None or ASSET_LINE.search(source, first.end()) is not None:
+        return None
+    start, end = first.span(1)
+    return source[:start] + CONFIG_MARKER + source[end:], first[1]
+
+
+def _merge_assets(older, newer):
+    return {
+        "video": newer["video"] or older["video"],
+        "clips": dict(older["clips"], **newer["clips"]),
+        **{
+            field: {
+                **older[field],
+                **{name: value for name, value in newer[field].items() if value or name not in older[field]},
+            }
+            for field in ("sounds", "art")
+        },
+    }
+
+
+def _prepare_update(raw, source, known=frozenset(), published_raw=None):
+    target = _split_assets(source)
+    if target is None:
+        ready, changed = patch_place(raw, source, known)
+        return ready, changed, source
+    template, literal = target
+    target_config = _asset_table(literal, ASSET_TYPES)
+    if target_config is None:
+        raise Failure("O menu preparado contém uma tabela de mídia inválida.")
+    template_sha = source_digest(template)
+    allowed = set(known)
+    recovered = _normalize_config({})
+    live = None
+    if published_raw is not None and published_raw is not raw:
+        try:
+            live = menu_source(published_raw)
+        except Failure:
+            pass  # An older publication's menu is optional for recovering media.
+    for old in (live, menu_source(raw)):
+        if not old:
+            continue
+        parts = _split_assets(old)
+        if parts is None:
+            continue
+        old_template_sha = source_digest(parts[0])
+        old_sha = source_digest(old)
+        if old_template_sha == V1_TEMPLATE_SHA256:
+            required = V1_ASSET_TYPES
+        elif old_template_sha == template_sha:
+            required = ASSET_TYPES
+        elif old_sha in known:
+            required = None
+        else:
+            continue
+        old_assets = _asset_table(parts[1], required)
+        if old_assets is not None:
+            allowed.add(old_sha)
+            recovered = _merge_assets(recovered, old_assets)
+    source = template.replace(CONFIG_MARKER, _luau(_merge_assets(recovered, target_config)), 1)
+    ready, changed = patch_place(raw, source, allowed)
+    return ready, changed, source
 
 
 def _current(rows):
@@ -207,7 +350,10 @@ class Installer:
         self.report(f"Baixando a versão publicada {published} e conferindo a versão mais recente {latest}.")
         live_raw, live = self._backup(cloud, published)
         base_raw, base = (live_raw, live) if published == latest else self._backup(cloud, latest)
-        ready, changed = patch_place(base_raw, source, self._known_sources())
+        ready, changed, effective = _prepare_update(base_raw, source, self._known_sources(), live_raw)
+        if effective != source:
+            self.report("A atualização reutiliza IDs de mídia do menu já instalado.")
+        source = effective
         if patch_place(ready, source) != (ready, False):
             raise Failure("A segunda aplicação alterou o arquivo preparado.")
         if not changed and latest == published:
@@ -295,12 +441,17 @@ class Installer:
             ][:8]
             for version in candidates:
                 downloaded = cloud.download(version)
-                if len(downloaded) != len(raw) or digest(downloaded) != entry["ready_sha256"]:
-                    continue
+                downloaded_sha = digest(downloaded)
+                comparison = "bytes"
+                if downloaded_sha != entry["ready_sha256"]:
+                    if not same_binary_place(raw, downloaded):
+                        continue
+                    comparison = "binary_chunks"
                 if _current(cloud.history()) != head:
                     break
                 receipt = self._finish(
                     entry, "VERIFIED", version=version, current_published=head[1], current_latest=head[0],
+                    comparison=comparison, download_sha256=downloaded_sha,
                 )
                 if head[1] != version:
                     raise Failure(
@@ -330,9 +481,10 @@ def _hidden_key():
 def _info(source, config):
     clips = len(config["clips"])
     sounds = sum(asset > 0 for asset in config["sounds"].values())
+    art = sum(asset > 0 for asset in config["art"].values())
     video = "ID configurado" if config["video"] else "sequência de abertura local"
-    print(f"Código do menu e cidade 3D preparados. SHA-256 {source_digest(source)}")
-    print(f"Abertura com {video} · {clips} clipes e {sounds} sons com IDs no pacote.")
+    print(f"Código do menu e cena 3D preparados. SHA-256 {source_digest(source)}")
+    print(f"Abertura com {video} · {clips} clipes, {sounds} sons e {art} imagens com IDs no pacote.")
 
 
 def main(argv=None, root=None):
@@ -354,7 +506,7 @@ def main(argv=None, root=None):
             return 0
         if args.command == "preparar-offline":
             raw = read_place(args.original.expanduser())
-            ready, _ = patch_place(raw, source)
+            ready, _, source = _prepare_update(raw, source)
             if patch_place(ready, source) != (ready, False):
                 raise Failure("A segunda aplicação alterou o arquivo preparado.")
             write_offline(args.destino.expanduser(), ready)
