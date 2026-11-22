@@ -41,6 +41,8 @@ for key in ART:
         description = "Letreiro original CyberOutlaw."
     elif key == "billboard":
         description = "Arte original dos três painéis de Maré Baixa."
+    elif key == "facades":
+        description = "Quatro texturas originais para as fachadas da cidade 3D."
     else:
         description = "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
     rows.append(row(key, media / "art" / (key + ".png"), "Image", "image/png", description))

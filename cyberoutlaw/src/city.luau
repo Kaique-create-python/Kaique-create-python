@@ -217,7 +217,7 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
             end
         end
     end
-    for index = 1, 62 do
+    for index = 1, 50 do
         local x = if index % 2 == 0 then range(-36, -10.5) else range(14, 40)
         local z = range(-11.0, 35)
         local stain = box(foreground, "Desgaste do piso", x, floorY + 0.016, z,
@@ -333,6 +333,38 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
                 palette.iron, steel)
         end
     end
+    local railStation = group(transit, "Estação integrada ao edifício")
+    local platformX, platformZ = -10.4, trackZ - 5.10
+    box(railStation, "Laje do cais de embarque", platformX, 22.29, platformZ, 34.3, 0.50, 4.3,
+        palette.gray, concrete)
+    box(railStation, "Faixa segura de embarque", platformX, 22.552, trackZ - 3.11, 33.3, 0.056, 0.26,
+        rgb(139, 121, 77), concrete)
+    box(railStation, "Cobertura sobre a via", platformX, 28.48, trackZ - 2.22, 35.6, 0.54, 10.39,
+        palette.iron, rough)
+    box(railStation, "Testeira da estação", platformX, 28.55, trackZ + 3.08, 35.6, 0.88, 0.43,
+        rgb(48, 54, 63), steel)
+    box(railStation, "Fita de iluminação do cais", platformX, 28.02, trackZ + 2.75, 34.7, 0.081, 0.22,
+        shade(palette.ice, 0.63), neon)
+    box(railStation, "Parede envidraçada do cais", platformX, 25.48, trackZ - 6.89, 33.9, 5.59, 0.35,
+        rgb(24, 40, 53), Enum.Material.Glass)
+    for index = -4, 4 do
+        local x = platformX + index * 4.15
+        box(railStation, "Pilar atrás da plataforma", x, 25.34, trackZ - 6.57, 0.39, 5.64, 0.51, palette.rim, steel)
+        box(railStation, "Perfil na cobertura", x, 28.17, trackZ - 2.2, 0.25, 0.26, 10.41, palette.iron, steel)
+        if index % 2 == 0 then
+            box(railStation, "Lâmpada da plataforma", x, 27.97, trackZ - 4.79, 1.54, 0.071, 0.24,
+                shade(palette.warm, 0.51), neon)
+        end
+    end
+    box(railStation, "Passagem ao corpo da estação", platformX, 22.65, trackZ - 11.3, 10.6, 0.55, 10.30,
+        palette.iron, concrete)
+    box(railStation, "Teto da passagem", platformX, 27.95, trackZ - 11.3, 10.6, 0.42, 10.27, palette.iron, rough)
+    for side = -1, 1, 2 do
+        box(railStation, "Galeria lateral", platformX + side * 5.15, 25.27, trackZ - 11.2, 0.18, 3.91, 10.15,
+            rgb(30, 46, 57), Enum.Material.Glass)
+        box(railStation, "Caixilho da galeria", platformX + side * 5.20, 24.18, trackZ - 11.2, 0.13, 0.12, 10.4,
+            palette.rim, steel)
+    end
     local train = group(transit, "Composição em movimento")
     for wagon = 0, 3 do
         local x, z = (wagon - 1.5) * 10.95, trackZ
@@ -361,120 +393,312 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
     end
 
     local architecture = group(city, "Quadras verticais")
-    local nightGlass = rgb(23, 34, 52)
-    local transomsRemaining = 125
-    local function litFloors(
-        model: Instance, x: number, fz: number, y: number, w: number, h: number,
-        levels: number, columns: number, tint: Color3, intensity: number
+    local hasFacadeAtlas = type(media) == "table" and type(media.facades) == "number"
+        and media.facades > 0 and media.facades % 1 == 0
+    local glazing = rgb(24, 37, 51)
+    local framePaint = rgb(57, 66, 77)
+    local aluminium = rgb(77, 83, 90)
+    local facadePaint = {
+        glass = rgb(43, 57, 72),
+        residential = rgb(62, 61, 62),
+        industrial = rgb(54, 53, 57),
+        spine = rgb(41, 53, 67),
+    }
+
+    local function mass(
+        model: Instance, name: string, family: string, detailDepth: number, x: number, z: number,
+        base: number, w: number, h: number, d: number, material: Enum.Material, tint: Color3?
+    ): Part
+        local color = tint or facadePaint[family]:Lerp(palette.haze, detailDepth * 0.33)
+        local part = body(model, name, x, z, base, w, h, d, color, material)
+        part:SetAttribute("FacadeFamily", family)
+        part:SetAttribute("FacadeDepth", detailDepth)
+        part:SetAttribute("FacadeSide", true)
+        return part
+    end
+
+    local function mechanicalRoof(model: Instance, x: number, y: number, z: number, w: number, d: number, tint: Color3)
+        local penthouseWidth = w * 0.45
+        box(model, "Abrigo de máquinas", x - w * 0.12, y + 1.25, z - d * 0.21, penthouseWidth, 2.5, d * 0.34,
+            palette.iron, concrete)
+        box(model, "Telhado da casa de máquinas", x - w * 0.12, y + 2.65, z - d * 0.21, penthouseWidth + 0.42,
+            0.3, d * 0.36, framePaint, rough)
+        for _, side in {-1, 1} do
+            local bx = x + side * w * 0.32
+            rod(model, "Exaustão de cobertura", bx, y + 0.91, z + 0.15 * d, 1.24, 1.82, palette.gray, rough)
+            rod(model, "Bocal do exaustor", bx, y + 1.85, z + 0.15 * d, 1.66, 0.22, palette.iron, steel)
+        end
+        local mastX, mastZ = x + w * 0.33, z - d * 0.27
+        local height = range(4.8, 7.7)
+        rod(model, "Antena coletiva", mastX, y + height / 2, mastZ, 0.16, height, palette.rim, steel)
+        box(model, "Travessa da antena", mastX, y + height * 0.72, mastZ, 3.0, 0.12, 0.13, framePaint, steel)
+        rod(model, "Baliza aérea", mastX, y + height, mastZ, 0.23, 0.27, shade(tint, 0.72), neon)
+    end
+
+    local function ledge(
+        model: Instance, name: string, x: number, z: number, y: number, w: number, d: number, color: Color3
     )
-        local pitch = h / levels
-        for row = 1, levels do
-            local fy = y + (row - 0.5) * pitch
-            front(model, "Leito de vidro fumê", x, fy, fz, w, pitch * 0.49, nightGlass, Enum.Material.SmoothPlastic)
-            for column = 1, columns do
-                if range(0, 1) < 0.74 then
-                    local fx = x + (column - (columns + 1) / 2) * w / columns
-                    local color = if range(0, 1) < 0.23 then palette.warm else tint
-                    local glazing = w / columns * range(0.31, 0.78)
-                    local height = pitch * range(0.17, 0.43)
-                    local radiance = range(0.18, 0.76) * intensity
-                    if levels >= 8 and columns >= 3 and (row + column) % 3 ~= 0 and transomsRemaining > 0 then
-                        local offset = glazing * 0.27
-                        front(model, "Vidro interno de sala", fx - offset, fy + height * 0.02, fz + 0.23,
-                            glazing * 0.45, height * 0.75, shade(color, radiance), neon)
-                        front(model, "Vidro ao lado do montante", fx + offset, fy - height * 0.04, fz + 0.23,
-                            glazing * 0.37, height * 0.63, shade(color, radiance * 0.58), neon)
-                        transomsRemaining -= 1
-                    else
-                        front(model, "Janela habitada", fx, fy, fz + 0.23, glazing * 0.89,
-                            height * 0.79, shade(color, radiance), neon)
+        box(model, name, x, y + 0.04, z, w + 0.38, 0.36, d + 0.34, color, concrete)
+        box(model, "Cinta sob a laje", x, y - 0.41, z, w + 0.035, 0.56, d + 0.037,
+            color:Lerp(aluminium, 0.25), concrete)
+        front(model, "Rufos metálicos", x, y + 0.26, z + d / 2 + 0.14, w + 0.4, 0.13, aluminium, steel)
+        for _, side in {-1, 1} do
+            box(model, "Pilastra de apoio da laje", x + side * (w / 2 - 0.48), y - 1.0, z + d / 2 + 0.05,
+                0.36, 1.46, 0.42, framePaint, steel)
+        end
+    end
+
+    local function residentialBalcony(model: Instance, x: number, sill: number, face: number, w: number, deep: boolean)
+        local depth = if deep then 1.98 else 1.33
+        local edge = face + depth
+        box(model, "Laje da varanda", x, sill, face + depth / 2, w, 0.22, depth, rgb(66, 64, 66), concrete)
+        box(model, "Guarda-corpo", x, sill + 1.03, edge - 0.06, w + 0.04, 0.10, 0.11, framePaint, steel)
+        box(model, "Travessa do guarda-corpo", x, sill + 0.35, edge - 0.06, w, 0.09, 0.10, palette.iron, steel)
+        for _, endSign in {-1, 1} do
+            box(model, "Montante da varanda", x + endSign * (w * 0.47), sill + 0.53, edge - 0.06,
+                0.10, 1.03, 0.15, framePaint, steel)
+        end
+    end
+
+    local function condenser(model: Instance, x: number, y: number, fz: number)
+        box(model, "Ar-condicionado externo", x, y, fz + 0.26, 0.80, 0.49, 0.50, rgb(80, 84, 83), steel)
+        box(model, "Grelha de condensador", x + 0.07, y + 0.03, fz + 0.53, 0.51, 0.30, 0.06, palette.iron, rough)
+    end
+
+    local function frontFloors(
+        model: Instance, family: string, x: number, face: number, first: number, top: number,
+        width: number, pitch: number, bays: number, tint: Color3, depth: number
+    )
+        local bayWidth = width / bays
+        local residential = family == "residential"
+        local factory = family == "industrial"
+        local glassHeight = pitch * (if factory then 0.47 elseif residential then 0.63 else 0.79)
+        local rows = math.floor((top - first) / pitch)
+        if rows < 1 then
+            return
+        end
+        local height = rows * pitch
+        local mid = first + height / 2
+        local matte = if residential then rgb(57, 57, 62) else framePaint
+        for index = 0, bays do
+            local px = x - width / 2 + bayWidth * index
+            local outer = index == 0 or index == bays
+            local structural = outer or index % 3 == 0
+            box(model, if structural then "Pilar externo da fachada" else "Montante vertical do caixilho",
+                px, mid, face + (if structural then 0.18 else 0.28),
+                if structural then 0.25 else 0.087, height, if outer then 0.80 elseif structural then 0.42 else 0.21,
+                if structural then aluminium:Lerp(matte, 0.49) else matte, steel)
+        end
+        for floor = 1, rows do
+            local y = first + (floor - 0.5) * pitch
+            local sill = y - glassHeight / 2
+            local industrialBelt = factory and floor % 4 == 0
+            if not hasFacadeAtlas and not industrialBelt and (depth < 0.46 or floor % 2 == 0) then
+                box(model, "Envidraçado recuado", x, y, face + 0.055, width - 0.13,
+                    glassHeight, 0.13, glazing:Lerp(tint, if residential then 0.018 else 0.036), Enum.Material.Glass)
+            end
+            if depth < 0.42 or floor % 2 == 0 then
+                box(model, "Peitoril saliente", x, sill - 0.09, face + 0.19, width + 0.12,
+                    if industrialBelt then 0.23 else 0.095, if residential then 0.62 else 0.36, matte, steel)
+            end
+            if depth < 0.33 and floor % 2 == 1 and not industrialBelt then
+                box(model, "Travessa acima das bandeiras", x, y + glassHeight * 0.30, face + 0.28,
+                    width - 0.06, 0.062, 0.15, matte, steel)
+            end
+            if industrialBelt then
+                box(model, "Grelha do piso mecânico", x + width * 0.13, y, face + 0.02, width * 0.68, 0.8, 0.25,
+                    palette.iron, rough)
+                for strip = -1, 1 do
+                    box(model, "Aleta da tomada de ar", x + width * 0.13, y + strip * 0.20, face + 0.19,
+                        width * 0.64, 0.05, 0.16, palette.gray, steel)
+                end
+            else
+                local selected = (floor * 11 + bays) % bays + 1
+                for bay = 1, bays do
+                    local px = x - width / 2 + (bay - 0.5) * bayWidth
+                    local inhabited = bay == selected and (if depth > 0.41 then floor % 3 == 1 else floor % 2 ~= 0)
+                    if inhabited then
+                        local warm = if residential or (floor + bay) % 3 == 0 then rgb(245, 193, 133) else palette.ice
+                        local brightness = if floor % 5 == 0 then 0.62 else 0.43
+                        box(model, "Interior iluminado atrás do caixilho", px - bayWidth * 0.06, y - glassHeight * 0.08,
+                            face + 0.134, bayWidth * 0.64, glassHeight * 0.66, 0.051, shade(warm, brightness * (1 - depth * 0.48)),
+                            if floor % 5 == 0 then neon else plastic)
+                        if depth < 0.26 and floor % 3 == 0 then
+                            box(model, "Cortina parcial", px + bayWidth * 0.28, y, face + 0.169,
+                                bayWidth * 0.13, glassHeight * 0.92, 0.05, rgb(66, 65, 67), plastic)
+                        end
+                    elseif not hasFacadeAtlas and depth < 0.24 and (bay + floor * 3) % 6 == 0 then
+                        box(model, "Painel de vidro escuro", px, y, face + 0.132, bayWidth * 0.82,
+                            glassHeight * 0.87, 0.05, glazing:Lerp(tint, 0.09 + (floor % 3) * 0.027), Enum.Material.Glass)
                     end
                 end
             end
-        end
-    end
-    local function roofFixtures(model: Instance, x: number, y: number, z: number, w: number, tint: Color3)
-        box(model, "Platibanda", x, y + 0.44, z, w + 0.9, 0.87, 0.49, palette.rim, steel)
-        for bay = -1, 1 do
-            local bx = x + bay * w * 0.27
-            if math.abs(bay) == 1 then
-                rod(model, "Exaustor", bx, y + 1.07, z - 1.9, 1.41, 2.14, palette.gray, rough)
-                rod(model, "Flange", bx, y + 2.09, z - 1.9, 1.84, 0.16, palette.iron, steel)
-            else
-                vent(model, bx, y + 1.38, z - 2.44, w * 0.27, 2.07)
-            end
-        end
-        local mastHeight = range(4.9, 10.8)
-        rod(model, "Antena técnica", x + w * 0.29, y + mastHeight / 2, z - 6.2, 0.17, mastHeight,
-            palette.rim, steel)
-        box(model, "Travessa de antena", x + w * 0.29, y + mastHeight * 0.76, z - 6.2, 3.64, 0.12, 0.16,
-            palette.rim, steel)
-        rod(model, "Baliza no topo", x + w * 0.29, y + mastHeight, z - 6.2, 0.32, 0.40, tint, neon)
-    end
-    local function highrise(
-        name: string, x: number, z: number, w: number, d: number, base: number,
-        h: number, tint: Color3, style: number, distance: number
-    ): (Model, number)
-        local model = group(architecture, name)
-        local skin = rgb(33, 40, 55):Lerp(palette.haze, distance * 0.61)
-        local fz = z + d * 0.5
-        local waist, crown = h * 0.65, h * 0.82
-        local bias = if style % 2 == 0 then 1 else -1
-        body(model, "Plinto industrial", x + bias * 0.69, z, base, w * 1.21, h * 0.19, d * 1.1,
-            skin:Lerp(palette.iron, 0.42), concrete)
-        body(model, "Estrutura principal", x, z, base, w, waist, d, skin,
-            if distance < 0.21 then rough else concrete)
-        body(model, "Miolo da torre", x + bias * w * 0.09, z - 0.53, base + waist, w * 0.84,
-            crown - waist, d * 0.87, skin:Lerp(palette.gray, 0.31), steel)
-        body(model, "Ala suspensa", x + bias * w * 0.11, z - d * 0.18, base + crown, w * (0.54 + style % 3 * 0.1),
-            h - crown, d * 0.61, skin, steel)
-        local ribs = if distance < 0.4 then 4 else 2
-        for rib = 0, ribs do
-            local px = x + (rib / ribs - 0.5) * (w - 0.5)
-            front(model, "Montante de fachada", px, base + waist * 0.51, fz - 0.09,
-                if rib % 3 == 0 then 0.65 else 0.27, waist * 0.96, skin:Lerp(palette.rim, 0.37), steel)
-        end
-        local ySteps = if distance < 0.28 then 9 elseif distance < 0.50 then 6 else 3
-        for step = 0, ySteps do
-            local t = step / ySteps
-            local y = base + h * (0.16 + 0.65 * t)
-            local tierW = if t > 0.76 then w * 0.83 else w
-            local tz = if t > 0.76 then fz - 0.52 else fz
-            front(model, "Travessa horizontal", x, y, tz, tierW, if step % 3 == 0 then 0.52 else 0.23,
-                skin:Lerp(palette.rim, 0.27), steel)
-        end
-        local levels = if distance < 0.13 then 10 elseif distance < 0.40 then 8 elseif distance < 0.52 then 5 else 3
-        litFloors(model, x, fz, base + h * 0.14, w * (if style == 2 then 0.81 else 0.72), h * 0.48,
-            levels, if distance < 0.13 then 4 elseif distance < 0.4 then 3 else 2, tint, 1 - distance * 0.56)
-        litFloors(model, x + bias * w * 0.09, fz - d * 0.065 - 0.53, base + waist + 1.05, w * 0.64,
-            h * 0.155, if distance < 0.4 then 4 else 2, 3, tint, 0.86 - distance * 0.34)
-        local sx = x - w * 0.5 - 0.09
-        for tier = 1, if distance < 0.13 then 8 elseif distance < 0.40 then 5 else 2 do
-            local y = base + h * (0.12 + tier * 0.063)
-            box(model, "Faixa lateral", sx, y, z + d * 0.08, 0.16, h * 0.014, d * 0.66, nightGlass)
-            box(model, "Vidro lateral iluminado", sx - 0.11, y, z + range(-0.15, 0.21) * d,
-                0.11, h * 0.010, d * range(0.17, 0.36), shade(tint, range(0.19, 0.48)), neon)
-        end
-        if distance < 0.4 then
-            for _, side in {-1, 1} do
-                local px = x + side * w * 0.43
-                front(model, "Trilho de serviço", px, base + waist * 0.53, fz + 0.22, 0.35, waist * 0.88,
-                    palette.iron, rough)
-                for brace = 0, 4 do
-                    front(model, "Suporte de trilho", px, base + waist * (0.2 + brace * 0.15), fz + 0.45,
-                        0.81, 0.30, palette.gray, steel)
+            if residential and depth < 0.43 then
+                if floor % 2 == 1 then
+                    local bx = x + (if floor % 4 == 1 then -0.24 else 0.18) * width
+                    residentialBalcony(model, bx, sill - 0.16, face + 0.14, math.min(width * 0.33, bayWidth * 2.24),
+                        floor % 4 == 1)
+                end
+                if floor % 3 == 0 then
+                    condenser(model, x + (if floor % 2 == 0 then 0.34 else -0.35) * width, sill + 0.41, face)
                 end
             end
-            local bandY = base + waist - 0.58
-            front(model, "Faixa luminosa técnica", x + bias * w * 0.17, bandY, fz + 0.41, w * 0.58, 0.20,
-                shade(tint, 0.73), neon)
         end
-        if distance < 0.43 then
-            roofFixtures(model, x + bias * w * 0.11, base + h, z + d * 0.116, w * 0.75,
-                shade(tint, 0.76))
+    end
+
+    local function returnWall(
+        model: Instance, x: number, z: number, start: number, top: number, d: number, depth: number,
+        tint: Color3, family: string
+    )
+        if top - start < 4 then
+            return
+        end
+        local sideWidth = d * 0.67
+        local isGlass = family == "spine" or family == "glass"
+        local height = top - start
+        local y = (top + start) / 2
+        if not hasFacadeAtlas then
+            box(model, "Vão envidraçado no retorno", x - 0.076, y, z + d * 0.05, 0.16, height, sideWidth,
+                glazing:Lerp(tint, 0.025), Enum.Material.Glass)
+        end
+        for column = 0, if depth < 0.36 then 6 else 3 do
+            local steps = if depth < 0.36 then 6 else 3
+            local pz = z + d * 0.05 + (column / steps - 0.5) * sideWidth
+            box(model, "Montante do retorno", x - 0.24, y, pz, if isGlass then 0.25 else 0.37, height, 0.15,
+                framePaint, steel)
+        end
+        local pitch = if family == "residential" then 3.15 else 3.45
+        local floors = math.floor(height / pitch)
+        for floor = 1, floors do
+            local fy = start + floor * pitch
+            local close = depth < 0.26
+            if close or floor % 2 == 0 then
+                box(model, "Peitoril no retorno", x - 0.13, fy, z + d * 0.05, 0.29, 0.11, sideWidth,
+                    framePaint, steel)
+            end
+            if floor % (if close then 3 else 5) == 1 then
+                local fz = z + d * (if floor % 2 == 0 then 0.19 else -0.09)
+                box(model, "Interior lateral", x - 0.17, fy + 0.62, fz, 0.08, 1.18, sideWidth * 0.14,
+                    shade(if floor % 2 == 0 then palette.warm else palette.ice, 0.35), plastic)
+            end
+        end
+    end
+
+    local function plinth(
+        model: Instance, x: number, z: number, face: number, w: number, d: number,
+        base: number, top: number, tint: Color3, depth: number
+    )
+        mass(model, "Embasamento comercial", "industrial", depth, x - w * 0.03, z - 0.21, base, w * 1.08,
+            top - base, d + 0.44, concrete, rgb(49, 50, 54))
+        local roofZ = face + 0.55
+        box(model, "Marquise sobre o embasamento", x, top + 0.11, roofZ, w + 1.75, 0.47, 2.2, palette.iron, rough)
+        if depth < 0.31 then
+            local step = w / 5.0
+            for post = 0, 5 do
+                local px = x + (post - 2.5) * step
+                box(model, "Pilar do vestíbulo", px, top - 3.33, face + 0.52, 0.46, 6.32, 0.99,
+                    framePaint, concrete)
+                if post > 0 then
+                    box(model, "Vitrine sob a marquise", px - step / 2, top - 2.64, face + 0.08,
+                        step - 0.56, 4.49, 0.16, palette.glass:Lerp(tint, 0.07), Enum.Material.Glass)
+                end
+            end
+            box(model, "Alizar do comércio", x, top - 1.17, face + 0.32, w, 0.13, 0.26, aluminium, steel)
+            front(model, "Fita de luz sob a marquise", x - w * 0.19, top - 0.20, roofZ, w * 0.43, 0.077,
+                shade(tint, 0.47), neon)
+        end
+    end
+
+    local function highrise(
+        name: string, x: number, z: number, w: number, d: number, base: number,
+        h: number, tint: Color3, family: string, depth: number
+    ): (Model, number)
+        local model = group(architecture, name)
+        local fz, top = z + d / 2, base + h
+        local residential, industrial = family == "residential", family == "industrial"
+        local skinMaterial = if residential or industrial then concrete else steel
+        local podium = if industrial then 26.4 else 20.6
+        local shaftOffset = if family == "spine" then w * 0.19 elseif residential then -w * 0.16 else w * 0.12
+        local shaftW = w * (if family == "spine" then 0.69 elseif residential then 0.73 else 0.78)
+        local shaftD = d * (if residential then 0.78 else 0.82)
+        local shaftZ = z - d * (if industrial then 0.13 else 0.052)
+        local setback = if industrial then top - h * 0.20 elseif residential then top - h * 0.29 else top - h * 0.25
+        local capStyle = if family == "glass" then "spine" else family
+        local slabColor = facadePaint[family]:Lerp(framePaint, 0.22)
+
+        plinth(model, x, z, fz, w, d, base, podium, tint, depth)
+        mass(model, "Pele do corpo principal", family, depth, x, z, podium, w, setback - podium, d, skinMaterial)
+        ledge(model, "Terraço de recuo", x, z, setback, w, d, slabColor)
+        mass(model, "Pele do corpo recuado", capStyle, depth, x + shaftOffset, shaftZ, setback,
+            shaftW, top - setback, shaftD, skinMaterial)
+        ledge(model, "Peitoril da cobertura", x + shaftOffset, shaftZ, top, shaftW, shaftD, slabColor)
+
+        if depth < 0.44 then
+            local pitch = if residential then 3.12 elseif industrial then 3.75 else 3.28
+            local frontY = math.max(podium + 0.46, 22.8 - 11 * depth)
+            local bays = if industrial then 5 elseif residential then 6 else 8
+            frontFloors(model, family, x, fz, frontY, setback - 0.39, w * 0.89, pitch, bays, tint, depth)
+            frontFloors(model, capStyle, x + shaftOffset, shaftZ + shaftD / 2, setback + 0.49, top - 0.37,
+                shaftW * 0.87, pitch, math.max(4, bays - 2), tint, depth + 0.19)
+            returnWall(model, x - w / 2, z, frontY, setback - 0.29, d, depth, tint, family)
+            returnWall(model, x + shaftOffset - shaftW / 2, shaftZ, setback + 0.45, top - 0.40, shaftD,
+                depth + 0.27, tint, capStyle)
+            mechanicalRoof(model, x + shaftOffset, top + 0.14, shaftZ, shaftW, shaftD, tint)
         else
-            box(model, "Núcleo recuado no topo", x, base + h + 1.23, z - d * 0.14, w * 0.32, 2.46, d * 0.37,
-                skin, rough)
+            frontFloors(model, family, x, fz, podium + 1.1, setback - 0.39, w * 0.87,
+                5.8, if residential then 4 else 5, tint, depth)
+            box(model, "Gabinete no topo", x + shaftOffset, top + 1.5, shaftZ, shaftW * 0.45, 2.7,
+                shaftD * 0.46, palette.gray, concrete)
+        end
+
+        if family == "glass" or family == "spine" then
+            local width = w * 0.12
+            local px = x - w / 2 + width * 0.38
+            local y = (podium + setback) / 2
+            local height = setback - podium - 1.21
+            local spine = box(model, "Espinha de vidro de esquina", px, y, fz + 0.39, width, height, 1.21,
+                rgb(34, 52, 68), Enum.Material.Glass)
+            spine.Reflectance = 0.095
+            spine:SetAttribute("FacadeFamily", "spine")
+            spine:SetAttribute("FacadeDepth", depth)
+            if depth < 0.33 then
+                box(model, "Perfil da espinha", px - width / 2, y, fz + 0.96, 0.12, height, 0.18, aluminium, steel)
+                box(model, "Perfil da espinha", px + width / 2, y, fz + 0.96, 0.10, height, 0.17, aluminium, steel)
+                for split = 1, 3 do
+                    front(model, "Janela no núcleo de circulação", px, podium + (split * 0.18 + 0.17) * height, fz + 0.97,
+                        width * 0.62, 0.36, shade(tint, 0.43), plastic)
+                end
+            end
+        end
+
+        if family == "spine" then
+            local ribX = x - w * 0.39
+            local height = top - setback - 1.2
+            mass(model, "Lâmina estreita do núcleo superior", "spine", depth, ribX, z - d * 0.17,
+                setback - 0.35, w * 0.21, height, d * 0.39, steel)
+            for endIndex = 0, 2 do
+                local y = setback + 1 + (endIndex + 1) * height * 0.22
+                beam(model, "Escora entre volumes", Vector3.new(ribX, y, z + d * 0.015),
+                    Vector3.new(x + shaftOffset - shaftW / 2, y + 1.65, shaftZ + shaftD * 0.44),
+                    0.29, framePaint, steel)
+            end
+        elseif residential and depth < 0.38 then
+            local deckX = x + w * 0.20
+            local rearZ = z - d * 0.28
+            mass(model, "Volume menor da caixa de escada", "residential", depth, deckX, rearZ, setback + 0.20,
+                w * 0.28, (top - setback) * 0.54, d * 0.55, concrete, rgb(63, 60, 60))
+            rod(model, "Prumada de captação", x - w / 2 - 0.24, (podium + setback) / 2, z + d * 0.32,
+                0.19, setback - podium - 0.40, palette.gray, rough)
+        elseif industrial and depth < 0.38 then
+            local pipeX = x + w * 0.41
+            for index = 0, 2 do
+                local px = pipeX - index * 0.53
+                local y = podium + 6.5 + index * 3.65
+                beam(model, "Prumada industrial", Vector3.new(px, podium, fz + 0.29),
+                    Vector3.new(px, y, fz + 0.29), 0.19, palette.rust, rough, true)
+                beam(model, "Derivação da prumada", Vector3.new(px, y, fz + 0.29),
+                    Vector3.new(px - 0.59, y + 0.53, fz + 0.09), 0.19, palette.rim, rough, true)
+            end
         end
         return model, fz
     end
@@ -569,42 +793,42 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
         return model
     end
 
-    local a, af = highrise("Torre da eclusa", 26.0, -80.5, 21.2, 24.5, -22, 107, palette.pink, 2, 0.03)
-    local b, bf = highrise("Armazém aéreo", 54.4, -109, 23.6, 25.0, -22, 124, palette.cyan, 1, 0.16)
-    local c, cf = highrise("Edifício dos sinais", 92.5, -126.8, 19.3, 18.8, -22, 129, palette.violet, 0, 0.27)
+    local a, af = highrise("Torre da eclusa", 26.0, -80.5, 21.2, 24.5, -22, 107, palette.pink, "glass", 0.03)
+    local b, bf = highrise("Armazém aéreo", 54.4, -109, 23.6, 25.0, -22, 124, palette.cyan, "spine", 0.16)
+    local c, cf = highrise("Edifício dos sinais", 92.5, -126.8, 19.3, 18.8, -22, 129, palette.violet, "glass", 0.27)
     billboard(a, 1, 25.8, 53.5, af + 0.62, 11.8, palette.pink, "ALVOR")
     billboard(b, 2, 52.8, 62.0, bf + 0.61, 10.15, palette.cyan, "ESTUÁRIO")
     billboard(c, 3, 91.7, 66.8, cf + 0.61, 10.4, palette.violet, "LIMIAR")
 
     local districts = {
-        {"Comando sul", 5.4, -98, 14, 21.7, 112, palette.ice, 2, 0.16},
-        {"Oficinas da estação", -10.4, -65, 17.5, 21.5, 67, palette.warm, 1, 0.08},
-        {"Escada norte", 41.8, -123, 13.3, 17.8, 148, palette.ice, 2, 0.18},
-        {"Terminais industriais", 44, -63.8, 13.7, 19.5, 64, palette.warm, 0, 0.12},
-        {"Cubo da linha costeira", 63.5, -78, 16.2, 22.9, 79, palette.cyan, 1, 0.12},
-        {"Junta do canal", -17.1, -114, 20.3, 18.5, 137, palette.violet, 1, 0.26},
-        {"Casa da alfândega", 10.4, -141, 15.2, 19, 132, palette.violet, 0, 0.29},
-        {"Hospital suspenso", 18.5, -175, 23.2, 21.7, 123, palette.ice, 2, 0.35},
-        {"Arquivo bombeado", 103.5, -98, 17, 19.6, 93, palette.warm, 1, 0.26},
-        {"Rampa dos barcos", 112.1, -127.4, 19.5, 18, 123, palette.pink, 2, 0.32},
-        {"Vetores da ponte", 111, -148, 20, 24, 149, palette.ice, 0, 0.45},
-        {"Quadra da névoa", 139, -193, 25, 22, 150, palette.cyan, 1, 0.56},
-        {"Estação leste", 90.5, -170, 18.5, 17, 153, palette.violet, 0, 0.47},
-        {"Câmara de pressão", 62, -182, 22, 25, 133, palette.ice, 2, 0.48},
-        {"Ramal cinza", 42, -201, 21, 20, 155, palette.ice, 0, 0.60},
-        {"Estaleiros de cima", -4, -196, 22, 26, 159, palette.ice, 1, 0.62},
-        {"Pavilhão oeste", -35, -137, 21, 16.2, 99, palette.warm, 0, 0.52},
-        {"Empilhamento oeste", -49, -175, 28, 20, 140, palette.violet, 2, 0.63},
-        {"Torre de inspeção", 125, -93, 11.8, 15.1, 101, palette.cyan, 1, 0.50},
-        {"Ala de dosagem", 146.4, -115, 16.2, 15.4, 128, palette.warm, 0, 0.54},
-        {"Silo das sirenes", 166.8, -138, 10.4, 17, 137, palette.violet, 2, 0.56},
-        {"Prensa do distrito leste", 181.8, -165, 15.6, 17.2, 147, palette.ice, 0, 0.60},
-        {"Sonda do dique", 203.5, -192, 15.9, 19.8, 167, palette.ice, 1, 0.68},
+        {"Comando sul", 5.4, -98, 14, 21.7, 112, palette.ice, "residential", 0.16},
+        {"Oficinas da estação", -10.4, -65, 17.5, 21.5, 67, palette.warm, "industrial", 0.08},
+        {"Escada norte", 41.8, -123, 13.3, 17.8, 148, palette.ice, "spine", 0.18},
+        {"Terminais industriais", 44, -63.8, 13.7, 19.5, 64, palette.warm, "industrial", 0.12},
+        {"Cubo da linha costeira", 63.5, -78, 16.2, 22.9, 79, palette.cyan, "residential", 0.12},
+        {"Junta do canal", -17.1, -114, 20.3, 18.5, 137, palette.violet, "residential", 0.26},
+        {"Casa da alfândega", 10.4, -141, 15.2, 19, 132, palette.violet, "spine", 0.29},
+        {"Hospital suspenso", 18.5, -175, 23.2, 21.7, 123, palette.ice, "glass", 0.35},
+        {"Arquivo bombeado", 103.5, -98, 17, 19.6, 93, palette.warm, "residential", 0.26},
+        {"Rampa dos barcos", 112.1, -127.4, 19.5, 18, 123, palette.pink, "industrial", 0.32},
+        {"Vetores da ponte", 111, -148, 20, 24, 149, palette.ice, "spine", 0.45},
+        {"Quadra da névoa", 139, -193, 25, 22, 150, palette.cyan, "glass", 0.56},
+        {"Estação leste", 90.5, -170, 18.5, 17, 153, palette.violet, "residential", 0.47},
+        {"Câmara de pressão", 62, -182, 22, 25, 133, palette.ice, "spine", 0.48},
+        {"Ramal cinza", 42, -201, 21, 20, 155, palette.ice, "glass", 0.60},
+        {"Estaleiros de cima", -4, -196, 22, 26, 159, palette.ice, "industrial", 0.62},
+        {"Pavilhão oeste", -35, -137, 21, 16.2, 99, palette.warm, "industrial", 0.52},
+        {"Empilhamento oeste", -49, -175, 28, 20, 140, palette.violet, "residential", 0.63},
+        {"Torre de inspeção", 125, -93, 11.8, 15.1, 101, palette.cyan, "industrial", 0.50},
+        {"Ala de dosagem", 146.4, -115, 16.2, 15.4, 128, palette.warm, "residential", 0.54},
+        {"Silo das sirenes", 166.8, -138, 10.4, 17, 137, palette.violet, "spine", 0.56},
+        {"Prensa do distrito leste", 181.8, -165, 15.6, 17.2, 147, palette.ice, "industrial", 0.60},
+        {"Sonda do dique", 203.5, -192, 15.9, 19.8, 167, palette.ice, "glass", 0.68},
     }
     local nearAccent
     for _, spec in districts do
-        local name, x, z, w, d, h, tint, style, distance = table.unpack(spec)
-        local block, face = highrise(name, x, z, w, d, -22, h, tint, style, distance)
+        local name, x, z, w, d, h, tint, family, distance = table.unpack(spec)
+        local block, face = highrise(name, x, z, w, d, -22, h, tint, family, distance)
         if name == "Oficinas da estação" then
             local signBack = box(block, "Anúncio de oficina", x + 1.1, 37.3, face + 0.56, 12.85, 2.36, 0.40,
                 shade(palette.pink, 0.39), neon)
@@ -627,7 +851,7 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
     local farCity = group(city, "Silhuetas na chuva")
     for layer = 1, 3 do
         local x = -149 - layer * 13
-        while x < 295 + layer * 48 do
+        while x < 281 + layer * 44 do
             local z = -204 - layer * 47 + range(-14, 14)
             local w, d = range(10, 27), range(12, 20)
             local height = range(59, 162) + layer * 7
@@ -636,7 +860,7 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
             body(farCity, "Prédio em névoa", x, z, -37, w, height, d, shell, concrete)
             body(farCity, "Recuo de torre", x + range(-0.20, 0.20) * w, z - 1.8, top,
                 w * range(0.31, 0.87), range(3.9, 19), d * range(0.56, 0.8), shell, concrete)
-            for row = 1, if layer == 1 then 3 else 2 do
+            for row = 1, if layer == 1 then 2 else 1 do
                 if range(0, 1) < 0.66 then
                     local k = if row % 2 == 0 then palette.cyan else palette.ice
                     front(farCity, "Luz atrás da chuva", x + range(-0.25, 0.25) * w, top - row * height * 0.12,

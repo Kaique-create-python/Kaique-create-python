@@ -320,8 +320,9 @@ assert(main.player:GetAttribute("CyberOutlawMenuStarted") == true, "Jogar report
 assert(main.player:GetAttribute("CyberOutlawMenuOpen") == false and not main:find("CyberOutlawMenu") and not main:find("CyberOutlawBackdrop"), "handoff releases both screens and gameplay gate")
 assert(main.guiService.SelectedObject == nil and next(main.bindings) == nil, "handoff releases menu focus and bound input")
 
-local moving = scenario("{video=678,sounds={click=987}}")
+local moving = scenario("{video=678,sounds={click=987,rain=988}}")
 moving:step(0.02)
+assert(#moving.sounds == 0, "the opening is silent")
 local mutedVideo = assert(moving:find("LoadingVideo"))
 assert(mutedVideo.Volume == 0 and not mutedVideo.Playing, "video starts muted when it loads")
 mutedVideo.IsLoaded = true
@@ -329,6 +330,7 @@ mutedVideo.Loaded:Fire()
 assert(mutedVideo.Playing, "valid, loaded video can play within the loader")
 moving:step(6)
 assert(moving.cityTime > 1, "the panorama normally moves")
+assert(moving.sounds[1] == "rain", "the rain starts when the opening ends")
 moving:find("Settings").Activated:Fire()
 moving:find("MotionToggle").Activated:Fire()
 moving:step(0.07)
@@ -421,6 +423,7 @@ end
 capri:step(6.3)
 assert(body.Image == imageFor("idle"), "Capri settles after arriving")
 verifySafeCapri()
+assert(body.AbsoluteSize.Y >= 430, "Capri has a substantially larger desktop canvas")
 local original = body.Position
 local initial = grab.AbsolutePosition + grab.AbsoluteSize / 2
 local touch = {
@@ -446,6 +449,9 @@ touch.UserInputState = E.UserInputState.End
 capri.input.InputEnded:Fire(touch)
 assert(body.Image == imageFor("idle"), "release settles Capri")
 
+capri:resize(390, 780)
+verifySafeCapri()
+assert(body.AbsoluteSize.Y >= 300, "Capri stays larger on portrait phones")
 capri:resize(320, 510)
 verifySafeCapri()
 capri:resize(1280, 680)

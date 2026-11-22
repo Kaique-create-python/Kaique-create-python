@@ -449,11 +449,11 @@ local preloadImages = {}
 if titleUri ~= "" then
 	table.insert(preloadAssets, logo)
 end
-local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40 }
+local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40, rain = 0.22 }
 for key, level in levels do
 	local uri = asset((ASSETS.sounds or {})[key])
 	if uri ~= "" then
-		sounds[key] = make("Sound", setFolder, key, { SoundId = uri, Volume = level, Looped = false })
+		sounds[key] = make("Sound", setFolder, key, { SoundId = uri, Volume = level, Looped = key == "rain" })
 		table.insert(preloadAssets, sounds[key])
 	end
 end
@@ -815,7 +815,7 @@ local function layout()
 		NumberSequenceKeypoint.new(0.56, 0.58), NumberSequenceKeypoint.new(1, 0.93),
 	})
 
-	pet.h = math.min(300, safeHeight * (if wide then 0.47 else 0.37), safeWidth * 0.57)
+	pet.h = math.min(470, safeHeight * (if wide then 0.65 else 0.53), safeWidth * 0.82)
 	local roomBelowButtons = safeHeight - margin - stackY - stackH - 8
 	if not wide and roomBelowButtons >= 56 then
 		pet.h = math.min(pet.h, roomBelowButtons)
@@ -1012,6 +1012,7 @@ local function finishLoader()
 		loader, loaderShade, loaderBrand, loaderBar = nil, nil, nil, nil
 	end
 	state = "main"
+	sound("rain", 0)
 	stack.Visible = true
 	petLayer.Visible = true
 	profile.Visible = true
@@ -1155,6 +1156,7 @@ connect(soundToggle.Activated, function()
 	soundOn = not soundOn
 	if soundOn then
 		sound("click", 0)
+		sound("rain", 0)
 	else
 		for _, item in sounds do
 			item:Stop()

@@ -36,6 +36,7 @@ ASSET_LINE = re.compile(r"(?m)^local ASSETS = ([^\r\n]*)$")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 # Commit ba81f89, with the v1 city embedded and the ASSETS marker left unbound.
 V1_TEMPLATE_SHA256 = "e10acc19da074d939ef706812a9ac56260af271379e39f7193ad29247b7dcd0c"
+V2_TEMPLATE_SHA256 = "2a63e2015b3118d75ccc77a114b5126ee8f9d40ae4426096b55d91e95cd4e05a"
 
 
 def digest(raw):
@@ -248,7 +249,7 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None):
         old_sha = source_digest(old)
         if old_template_sha == V1_TEMPLATE_SHA256:
             required = V1_ASSET_TYPES
-        elif old_template_sha == template_sha:
+        elif old_template_sha in (V2_TEMPLATE_SHA256, template_sha):
             required = ASSET_TYPES
         elif old_sha in known:
             required = None

@@ -50,5 +50,14 @@
     "sha256": "260f50a6a3b81832fb47a1947f4b6fe4ce21b708f39977ab7a0e7db92081d415",
     "provider": "Efeito digital original",
     "source": "tools/synth_menu_fx.py"
+  },
+  "rain": {
+    "durationSeconds": 14.0,
+    "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v2",
+    "generationId": "WKKy7NeL2eh2bh23ATjJ",
+    "originalSha256": "99bd75d630dd60cb423ac1be9f4cc3f4eeb8b2eacf73a8741935259148cc2669",
+    "editing": "Sobreposição circular da chuva original para playback contínuo no menu."
   }
 }

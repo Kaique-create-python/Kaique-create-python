@@ -10,11 +10,12 @@ import warnings
 
 from . import upload
 
-SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
+SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss", "rain")
 ART = {
     "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),
     "asphalt": (1024, 1024), "asphalt_normal": (768, 768), "asphalt_rough": (768, 768),
+    "facades": (1024, 1024),
 }
 
 

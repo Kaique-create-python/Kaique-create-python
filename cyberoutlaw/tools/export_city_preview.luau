@@ -16,12 +16,14 @@ local function read(instance, property, default)
     return if ok then value else default
 end
 local source = fs.readFile("src/city.luau") .. "\n" .. fs.readFile("src/scene.luau")
-local make, dress = luau.load(source .. "\nreturn createCyberCity, addCyberOutlawMaterials", {environment=env, injectGlobals=true})()
+local make, dress, clad = luau.load(source .. "\nreturn createCyberCity, addCyberOutlawMaterials, addCyberOutlawFacades", {environment=env, injectGlobals=true})()
 local world = roblox.Instance.new("WorldModel")
-local media = {billboard = 1001, concrete = 1002, concrete_normal = 1003, asphalt = 1004, asphalt_normal = 1005, asphalt_rough = 1006}
+local media = {billboard = 1001, concrete = 1002, concrete_normal = 1003, asphalt = 1004, asphalt_normal = 1005,
+    asphalt_rough = 1006, facades = 1007}
 local city, cameraAt, animate = make(world, media)
 assert(city:IsA("Model") and city.Parent == world and type(cameraAt) == "function")
 dress(city, media, roblox.Vector3.zero)
+clad(city, media)
 local parts, lights, signs, textures, nodes = {}, {}, {}, {}, {}
 for _, node in city:GetDescendants() do
     if not node:IsA("BasePart") then continue end
@@ -46,6 +48,19 @@ for _, node in city:GetDescendants() do
                 range = inner.Range, shadow = inner.Shadows, face = face and face.Name, angle = read(inner, "Angle", nil)})
         elseif inner:IsA("SurfaceGui") then
             local row = {part = index, face = inner.Face.Name, brightness = read(inner, "Brightness", 1)}
+            if inner:GetAttribute("CyberOutlawFacade") then
+                row.facade = {}
+                row.canvas = {inner.CanvasSize.X, inner.CanvasSize.Y}
+                for _, pane in inner:GetChildren() do
+                    if not pane:IsA("ImageLabel") then continue end
+                    local p, s = pane.Position, pane.Size
+                    row.tint = color(pane.ImageColor3)
+                    table.insert(row.facade, {
+                        crop = {pane.ImageRectOffset.X, pane.ImageRectOffset.Y, pane.ImageRectSize.X, pane.ImageRectSize.Y},
+                        rect = {p.X.Scale, p.Y.Scale, s.X.Scale, s.Y.Scale},
+                    })
+                end
+            end
             for _, gui in inner:GetDescendants() do
                 if gui:IsA("ImageLabel") and gui.Image == "rbxassetid://1001" then
                     row.crop = {gui.ImageRectOffset.X, gui.ImageRectOffset.Y, gui.ImageRectSize.X, gui.ImageRectSize.Y}
@@ -54,20 +69,23 @@ for _, node in city:GetDescendants() do
                     row.text, row.color = gui.Text, color(gui.TextColor3)
                 end
             end
-            if row.crop or row.text then table.insert(signs, row) end
+            if row.crop or row.text or row.facade then table.insert(signs, row) end
         end
     end
 end
-assert(#parts > 100 and #parts <= 3600, "orçamento de cenário")
+assert(#parts > 100 and #parts <= 4800, "cena fora dos limites da prévia")
 local camera, transforms = {}, {}
 local start = math.max(0, tonumber(process.args[2]) or 0)
 local count = math.clamp(tonumber(process.args[3]) or 110, 1, 180)
 local aspect = tonumber(process.args[4]) or 16/9
+local detail = process.args[5] == "fachadas"
+local detailPose = roblox.CFrame.lookAt(roblox.Vector3.new(30, 49, -29), roblox.Vector3.new(81, 61, -132))
 local initial = {}
 for i, node in nodes do initial[i] = node.CFrame end
 for i=0,count-1 do
     local time = start + i / 15
-    table.insert(camera, {cameraAt(time, aspect):GetComponents()})
+    local cameraPose = if detail then detailPose else cameraAt(time, aspect)
+    table.insert(camera, {cameraPose:GetComponents()})
     local moved = {}
     if animate then
         animate(time)
@@ -81,5 +99,5 @@ for i=0,count-1 do
 end
 local output = assert(process.args[1], "informe caminho da cena JSON")
 fs.writeFile(output, serde.encode("json", {parts=parts,frames=camera,transforms=transforms,lights=lights,signs=signs,textures=textures,
-    fov=city:GetAttribute("VerticalFieldOfView") or 46, aspect=aspect}, false))
+    fov=if detail then 52 else city:GetAttribute("VerticalFieldOfView") or 46, aspect=aspect}, false))
 print(string.format("Cena real: %d peças, %d luzes, %d superfícies texturizadas, %d inscrições e %d poses.", #parts, #lights, #textures, #signs, #camera))

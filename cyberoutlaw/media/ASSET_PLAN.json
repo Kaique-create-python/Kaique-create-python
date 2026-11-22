@@ -149,6 +149,16 @@
       "durationSeconds": 2.32
     },
     {
+      "key": "rain",
+      "path": "audio/rain.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
+      "displayName": "CyberOutlaw rain",
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 14.0
+    },
+    {
       "key": "title",
       "path": "art/title.png",
       "assetType": "Image",
@@ -210,6 +220,15 @@
       "sha256": "b03aa1f4aad3480a8ff4c522e71c98f1a01e3b5d4870e94dbd49761f492d6c7c",
       "displayName": "CyberOutlaw asphalt_rough",
       "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "facades",
+      "path": "art/facades.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "bfd5240c3041d8b13887e6d1406bd62ebcbd68f4d0412e5593eb08eda973027f",
+      "displayName": "CyberOutlaw facades",
+      "description": "Quatro texturas originais para as fachadas da cidade 3D."
     }
   ]
 }

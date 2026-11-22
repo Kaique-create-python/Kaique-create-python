@@ -44,6 +44,66 @@ local function addCyberOutlawMaterials(city, art, origin)
     end
 end
 
+local function addCyberOutlawFacades(city, art)
+    local atlas = art.facades
+    if type(atlas) ~= "number" or atlas <= 0 then return end
+    local image = "rbxassetid://" .. tostring(atlas)
+    local profiles = {
+        glass = {x = 2, y = 2, span = 47, tint = Color3.fromRGB(224, 240, 255)},
+        residential = {x = 514, y = 2, span = 42, tint = Color3.fromRGB(224, 231, 237)},
+        industrial = {x = 2, y = 514, span = 40, tint = Color3.fromRGB(211, 226, 236)},
+        spine = {x = 514, y = 514, span = 44, tint = Color3.fromRGB(213, 232, 255)},
+    }
+
+    local function clad(part, face, profile, depth)
+        local extent = part.Size.Y
+        local width = if face == Enum.NormalId.Left then part.Size.Z else part.Size.X
+        local strips = math.clamp(math.ceil(extent / profile.span), 1, 5)
+        local gui = Instance.new("SurfaceGui")
+        gui.Name = "Pano de fachada"
+        gui:SetAttribute("CyberOutlawFacade", true)
+        gui.Face = face
+        gui.AlwaysOnTop = false
+        gui.LightInfluence = 0.23
+        gui.Brightness = 1.19 - depth * 0.15
+        gui.MaxDistance = 520
+        gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+        local resolution = if depth < 0.28 then 304 elseif depth < 0.53 then 200 else 132
+        local height = math.clamp(math.ceil(resolution * extent / width / 32) * 32, 128, resolution * 3)
+        gui.CanvasSize = Vector2.new(resolution, height)
+        for band = 1, strips do
+            local height = math.clamp(math.floor(508 * extent / strips / profile.span + 0.5), 104, 508)
+            local vertical = math.floor((508 - height) * ((band - 1) % 3) / 2)
+            local glazing = Instance.new("ImageLabel")
+            glazing.Name = "Andares " .. band
+            glazing.BackgroundTransparency = 1
+            glazing.BorderSizePixel = 0
+            glazing.Position = UDim2.fromScale(0, (band - 1) / strips)
+            glazing.Size = UDim2.fromScale(1, 1 / strips)
+            glazing.Image = image
+            glazing.ImageRectOffset = Vector2.new(profile.x, profile.y + vertical)
+            glazing.ImageRectSize = Vector2.new(508, height)
+            glazing.ImageColor3 = profile.tint:Lerp(Color3.fromRGB(172, 196, 225), depth * 0.46)
+            glazing.ImageTransparency = 0.03
+            glazing.Parent = gui
+        end
+        gui.Parent = part
+    end
+
+    for _, part in city:GetDescendants() do
+        if not part:IsA("BasePart") then continue end
+        local family = part:GetAttribute("FacadeFamily")
+        local profile = profiles[family]
+        if profile then
+            local depth = math.clamp(part:GetAttribute("FacadeDepth") or 0, 0, 1)
+            if part:GetAttribute("FacadeSideOnly") ~= true then clad(part, Enum.NormalId.Back, profile, depth) end
+            if part:GetAttribute("FacadeSideOnly") or (depth < 0.56 and part:GetAttribute("FacadeSide")) then
+                clad(part, Enum.NormalId.Left, profile, depth)
+            end
+        end
+    end
+end
+
 -- A client-owned stage lets Roblox light and shadow the city with the world renderer.
 local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCamera)
     local workspace = game:GetService("Workspace")
@@ -153,6 +213,7 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
         city, cameraPath, animate = createCyberCity(scene, art, stagePosition)
         assert(type(cameraPath) == "function", "A cena precisa de trajetória")
         addCyberOutlawMaterials(city, art, stagePosition)
+        addCyberOutlawFacades(city, art)
         write(lighting, "ClockTime", 1.1)
         write(lighting, "Brightness", 1.65)
         write(lighting, "Ambient", light(61, 52, 82))
@@ -188,6 +249,7 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
         if fallback and type(path) == "function" then
             scene, cameraPath, animate = model, path, motion
             addCyberOutlawMaterials(model, art, Vector3.zero)
+            addCyberOutlawFacades(model, art)
             viewportCamera.FieldOfView = fieldOfView
             viewportCamera.CFrame = path(0, aspectRatio())
             viewport.ImageTransparency = 0
