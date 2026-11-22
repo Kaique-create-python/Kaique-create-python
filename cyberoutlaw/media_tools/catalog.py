@@ -1,0 +1,174 @@
+"""Resolve os recursos do menu para IDs aprovados no universo correto."""
+from __future__ import annotations
+
+import getpass
+import math
+from pathlib import Path
+import urllib.request
+from urllib.parse import urlencode
+import warnings
+
+from . import upload
+
+SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
+
+
+def _read(path):
+    return upload._json(Path(path).read_bytes())
+
+
+def _asset_id(value, *, label):
+    if isinstance(value, bool) or not upload._ID.fullmatch(str(value)):
+        raise ValueError(f"ID de {label} deve ser positivo, sem URL ou texto.")
+    result = int(value)
+    if result >= 2**53:
+        raise ValueError(f"ID de {label} excede o limite inteiro exato do Roblox.")
+    return result
+
+
+def remember_video(path, value):
+    asset_id = _asset_id(value, label="vídeo")
+    upload._atomic_json(path, {"video": asset_id})
+    return asset_id
+
+
+def saved_video(path):
+    if not path.is_file():
+        return None
+    return _asset_id(_read(path).get("video"), label="vídeo")
+
+
+def verificar_destino_publico():
+    """Conferir o mesmo Place e a conta criadora antes de criar qualquer asset."""
+    opener = urllib.request.build_opener(upload._NoRedirect())
+    paths = (
+        f"https://apis.roblox.com/universes/v1/places/{upload.TARGET['placeId']}/universe",
+        "https://games.roblox.com/v1/games?" + urlencode({"universeIds": upload.TARGET["universeId"]}),
+    )
+    results = []
+    for url in paths:
+        with opener.open(url, timeout=25) as response:
+            results.append(upload._json(response.read(128 * 1024)))
+    mapping, universes = results
+    rows = universes.get("data", [])
+    universe, place, creator = (int(upload.TARGET[name]) for name in ("universeId", "placeId", "userId"))
+    if mapping.get("universeId") != universe or len(rows) != 1:
+        raise ValueError("O Roblox não confirmou o universo do Place do CyberOutlaw.")
+    metadata = rows[0]
+    if metadata.get("id") != universe or metadata.get("rootPlaceId") != place:
+        raise ValueError("O Roblox não confirmou este Place como local inicial.")
+    owner = metadata.get("creator", {})
+    if owner.get("id") != creator or owner.get("type") != "User":
+        raise ValueError("O dono do jogo mudou. Revise o destino antes de enviar mídia.")
+    return metadata.get("name", "CyberOutlaw")
+
+
+def key_prompt():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", getpass.GetPassWarning)
+        result = getpass.getpass("Chave Roblox Open Cloud (oculta): ").strip()
+    if not result:
+        raise ValueError("A chave está vazia.")
+    return result
+
+
+def sprite_catalog(root, plan):
+    capri = _read(root / "media/capri/capri_clips.json")
+    definitions = capri.get("clips")
+    if not isinstance(definitions, dict) or "idle" not in definitions:
+        raise ValueError("A animação base da Capri está ausente.")
+    atlas_entries = {row["key"]: row for row in plan["assets"] if row["assetType"] == "Image"}
+    dimensions = {}
+    for key, row in atlas_entries.items():
+        raw = upload._read_bytes(root / "media", row)
+        dimensions[key] = upload._image_dimensions(raw, Path(row["path"]).suffix.lower())
+    for name, clip in definitions.items():
+        fps, frames = clip.get("fps"), clip.get("frames")
+        if (type(fps) not in (int, float) or not math.isfinite(fps) or not 1 <= fps <= 60
+            or not isinstance(frames, list) or not 1 <= len(frames) <= 240):
+            raise ValueError(f"Animação inválida: {name}")
+        for frame in frames:
+            atlas = frame.get("assetKey")
+            rect = [frame.get(field) for field in ("x", "y", "w", "h")]
+            if atlas not in dimensions or any(type(value) is not int for value in rect):
+                raise ValueError(f"Quadro inválido: {name}")
+            x, y, w, h = rect
+            aw, ah = dimensions[atlas]
+            if min(x, y) < 0 or min(w, h) < 1 or x + w > aw or y + h > ah:
+                raise ValueError(f"Quadro fora da textura: {name}")
+    return capri
+
+
+def resolved_config(root, plan, result, video=None):
+    if result.get("target") != upload.TARGET:
+        raise ValueError("Os recibos de mídia pertencem a outro destino.")
+    rows = result.get("assets", [])
+    if not isinstance(rows, list):
+        raise ValueError("Recibos de mídia inválidos.")
+    by_key = {r["key"]: r for r in rows}
+    if len(by_key) != len(rows):
+        raise ValueError("Recibo de mídia repetido.")
+    selected = {}
+    pending = []
+    for expected in plan["assets"]:
+        key = expected["key"]
+        row = by_key.get(key, {})
+        if row and any(row.get(k) != expected[k] for k in ("sha256", "assetType", "contentType")):
+            raise ValueError(f"O recibo de {key} pertence a outra versão do arquivo.")
+        if not (row.get("status") == "ready" and row.get("moderationState") == "Approved" and row.get("permissionStatus") == "granted"):
+            pending.append(key)
+            continue
+        selected[key] = _asset_id(row["assetId"], label=key)
+    if pending:
+        raise ValueError("Mídia aguardando aprovação ou acesso: " + ", ".join(pending))
+    sprites = sprite_catalog(root, plan)
+    output = {"sounds": {name: selected[name] for name in SOUNDS}, "clips": {}}
+    for name, clip in sprites["clips"].items():
+        output["clips"][name] = {
+            "fps": clip["fps"],
+            "frames": [
+                {"id": selected[frame["assetKey"]], **{k: frame[k] for k in ("x", "y", "w", "h")}}
+                for frame in clip["frames"]
+            ],
+        }
+    if video is not None:
+        output["video"] = _asset_id(video, label="vídeo")
+    return output
+
+
+def verify_media(root):
+    root = Path(root)
+    manifest = root / "media/ASSET_PLAN.json"
+    plan = upload.validate_manifest(manifest)
+    capri = sprite_catalog(root, plan)
+    return plan, capri
+
+
+def make_config(root, *, video=None):
+    root = Path(root)
+    plan, _ = verify_media(root)
+    receipt = root / "media/UPLOADED_ASSETS.json"
+    if not receipt.is_file():
+        raise ValueError("Use o comando midia para importar e aprovar os assets antes de instalar.")
+    path = root / "config/ASSETS.json"
+    old = _read(path) if path.is_file() else {}
+    output = resolved_config(root, plan, _read(receipt), video if video is not None else old.get("video"))
+    upload._atomic_json(path, output)
+    return output
+
+
+def import_media(root, state, *, video=None):
+    root = Path(root)
+    plan, _ = verify_media(root)
+    if video is not None:
+        _asset_id(video, label="vídeo")
+    game = verificar_destino_publico()
+    print(f"CyberOutlaw · {game} · Place {upload.TARGET['placeId']}", flush=True)
+    print(f"Conferindo {len(plan['assets'])} imagens e sons. O Roblox pode demorar para aprovar.", flush=True)
+    result = upload.upload_manifest(root / "media/ASSET_PLAN.json", key_prompt(),
+                                    state_dir=state, max_polls=5, max_wait_seconds=18)
+    for row in result["assets"]:
+        print(row["key"], row["status"], row.get("lastErrorCode", ""))
+    config = make_config(root, video=video)
+    print(f"Mídia vinculada: {len(config['clips'])} animações e {len(config['sounds'])} sons.")
+    return config

@@ -1,0 +1,1 @@
+"""Mídia do menu CyberOutlaw."""

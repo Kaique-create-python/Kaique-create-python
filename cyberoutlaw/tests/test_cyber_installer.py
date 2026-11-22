@@ -1,0 +1,368 @@
+import gzip
+import io
+import json
+from pathlib import Path
+import struct
+import tempfile
+import unittest
+from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, urlsplit
+
+from install.cloud import API, Cloud, CREATOR_ID, PLACE_ID, PUBLISH_ROUTE, UNIVERSE_ID, Version
+from install.codec import Binary, Failure, pack32, prefs, pstring
+from install.cyber_installer import CONFIRMATION, Installer, load_config, source_from_package
+from install.patcher import BINARY_MAGIC, MENU_PATH, menu_source, patch_place, source_digest
+
+
+XML_SHELL = """<?xml version="1.0" encoding="utf-8"?>
+<?preserve directive?>
+<roblox version="4">
+  <!-- Keep exact visual layout -->
+  <Item class="Workspace" referent="RBX0">
+    <Properties><string name="Name">Workspace</string></Properties>
+    <Item class="Part" referent="RBX1">
+      <Properties><string name="Name">Existing map</string><string name="Opaque">A&amp;B</string></Properties>
+    </Item>
+  </Item>
+  <Item class="StarterGui" referent="RBX2">
+    <Item class="ScreenGui" referent="RBX3"><Properties><string name="Name">HUD</string></Properties></Item>
+  </Item>
+  <Item class="StarterPlayer" referent="RBX4">
+    <Properties><string name="Name">StarterPlayer</string></Properties>
+    <Item class="StarterPlayerScripts" referent="RBX5">
+      <Properties><string name="Name">StarterPlayerScripts</string></Properties>
+      <Item class="LocalScript" referent="RBX6">
+        <Properties><string name="Name">Story</string><ProtectedString name="Source"><![CDATA[return 7 < 8]]></ProtectedString></Properties>
+      </Item>
+      %s
+    </Item>
+  </Item>
+</roblox>
+<!-- Keep this trailing comment -->
+"""
+MINIMAL_XML = b'<roblox version="4"><Item class="Workspace"/></roblox>'
+SOURCE = '-- CyberOutlaw\nlocal detail = "ação ]]> & <"\nreturn detail\n'
+
+
+def xml_place(extra=""):
+    return (XML_SHELL % extra).encode()
+
+
+def _chunk(tag, body):
+    return struct.pack("<4sIII", tag, 0, len(body), 0) + body
+
+
+def make_binary():
+    groups = [
+        ("Workspace", [(0, "Workspace", None, -1)], True),
+        ("Part", [(1, "Original map", None, 0)], False),
+        ("StarterPlayer", [(2, "StarterPlayer", None, -1)], True),
+        ("StarterPlayerScripts", [(3, "StarterPlayerScripts", None, 2)], False),
+        ("LocalScript", [(4, "Story", b"return 123", 3)], False),
+    ]
+    instances, properties, children, parents = [], [], [], []
+    for index, (class_name, objects, service) in enumerate(groups):
+        group = pack32(index)
+        refs, names, sources, ancestors = zip(*objects)
+        children.extend(refs)
+        parents.extend(ancestors)
+        flags = b"\1" if service else b"\0"
+        payload = group + pstring(class_name.encode()) + flags + pack32(len(refs)) + prefs(refs)
+        instances.append(_chunk(b"INST", payload + (b"\1" if service else b"")))
+        properties.append(_chunk(b"PROP", group + pstring(b"Name") + b"\1" + b"".join(pstring(name.encode()) for name in names)))
+        if any(source is not None for source in sources):
+            properties.append(_chunk(b"PROP", group + pstring(b"Source") + b"\1" + b"".join(pstring(source or b"") for source in sources)))
+    header = BINARY_MAGIC + b"\0\0" + struct.pack("<II8x", len(instances), len(children))
+    parenting = _chunk(b"PRNT", b"\0" + pack32(len(children)) + prefs(children) + prefs(parents))
+    opaque = _chunk(b"TEST", b"preserve unknown blocks bit for bit")
+    return header + b"".join(instances + properties) + opaque + parenting + _chunk(b"END\0", b"</roblox>")
+
+
+class PatcherTests(unittest.TestCase):
+    def test_xml_keeps_original_bytes_outside_new_script(self):
+        raw = xml_place()
+        updated, changed = patch_place(raw, SOURCE)
+        self.assertTrue(changed)
+        self.assertEqual(menu_source(updated), SOURCE)
+        begin = updated.index(b'<Item class="LocalScript" referent="RBX_CYBEROUTLAW_CyberOutlawMenu">')
+        end = updated.index(b'</Item>', begin) + len(b'</Item>')
+        self.assertEqual(updated[:begin] + updated[end:], raw)
+        self.assertEqual(patch_place(updated, SOURCE), (updated, False))
+
+    def test_missing_canonical_containers_and_utf16(self):
+        for encoding in ("utf-8", "utf-16", "utf-16-be"):
+            raw = '<roblox version="4"><Item class="Workspace" referent="RBX1"/></roblox>'.encode(encoding)
+            with self.subTest(encoding=encoding):
+                updated, changed = patch_place(raw, SOURCE)
+                self.assertTrue(changed)
+                self.assertEqual(menu_source(updated), SOURCE)
+                self.assertEqual(patch_place(updated, SOURCE), (updated, False))
+        raw = b'<roblox version="4"><Item class="StarterPlayer"/></roblox>'
+        self.assertEqual(menu_source(patch_place(raw, SOURCE)[0]), SOURCE)
+
+    def test_foreign_menu_rejected_even_with_our_name_and_comments(self):
+        foreign = (
+            '<Item class="LocalScript"><Properties><string name="Name">CyberOutlawMenu</string>'
+            '<ProtectedString name="Source">-- CyberOutlaw\nreturn "foreign"</ProtectedString>'
+            '</Properties></Item>'
+        )
+        with self.assertRaisesRegex(Failure, "código desconhecido"):
+            patch_place(xml_place(foreign), SOURCE)
+
+    def test_wrong_types_and_ambiguous_ancestors_rejected(self):
+        wrong = b'<roblox version="4"><Item class="Folder"><Properties><string name="Name">StarterPlayer</string></Properties></Item></roblox>'
+        renamed = b'<roblox version="4"><Item class="StarterPlayer"><Properties><string name="Name">Custom</string></Properties></Item></roblox>'
+        duplicated = b'<roblox version="4"><Item class="StarterPlayer"/><Item class="StarterPlayer"/></roblox>'
+        for raw in (wrong, renamed, duplicated):
+            with self.subTest(raw=raw), self.assertRaises(Failure):
+                patch_place(raw, SOURCE)
+
+    def test_xml_update_only_replaces_verified_source_markup(self):
+        one, _ = patch_place(xml_place(), SOURCE)
+        two, changed = patch_place(one, "return 9", {source_digest(SOURCE)})
+        self.assertTrue(changed)
+        start = one.index(b'<ProtectedString name="Source">-- CyberOutlaw')
+        end = one.index(b'</ProtectedString>', start) + len(b'</ProtectedString>')
+        self.assertEqual(two, one[:start] + b'<ProtectedString name="Source">return 9</ProtectedString>' + one[end:])
+        self.assertEqual(menu_source(two), "return 9")
+
+    def test_binary_keeps_existing_chunks_and_story_source(self):
+        raw = make_binary()
+        updated, changed = patch_place(raw, SOURCE)
+        self.assertTrue(changed)
+        original = Binary(raw)
+        candidate = Binary(updated)
+        original_packets = [chunk.packet for chunk in original.chunks if chunk.tag != b"PRNT"]
+        retained_packets = [chunk.packet for chunk in candidate.chunks if chunk.packet in original_packets]
+        self.assertEqual(retained_packets, original_packets)
+        self.assertEqual({ref: candidate.parents[ref] for ref in original.objects}, original.parents)
+        story_path = (*MENU_PATH[:-1], "Story")
+        self.assertEqual(candidate.value(candidate.locate(story_path), "Source"), b"return 123")
+        self.assertEqual(patch_place(updated, SOURCE), (updated, False))
+        with self.assertRaisesRegex(Failure, "código desconhecido"):
+            patch_place(updated, "return 'another menu'")
+        newer, _ = patch_place(updated, "return 9", {source_digest(SOURCE)})
+        changed_chunks = [
+            (before, after) for before, after in zip(candidate.chunks, Binary(newer).chunks)
+            if before.packet != after.packet
+        ]
+        self.assertEqual(len(changed_chunks), 1)
+        self.assertEqual(changed_chunks[0][0].tag, b"PROP")
+        self.assertEqual(menu_source(newer), "return 9")
+
+    def test_malformed_and_dtd_are_rejected(self):
+        with self.assertRaisesRegex(Failure, "declaração"):
+            patch_place(b'<!DOCTYPE roblox [<!ENTITY unsafe "text">]><roblox version="4"/>', SOURCE)
+        with self.assertRaises(Failure):
+            patch_place(make_binary()[:-17], SOURCE)
+
+
+class ConfigTests(unittest.TestCase):
+    def test_template_embeds_city_and_numeric_assets(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "src").mkdir()
+            (root / "config").mkdir()
+            (root / "src" / "menu.client.luau").write_text(
+                "local ASSETS = __CYBEROUTLAW_CONFIG__\n-- __CYBEROUTLAW_CITY__\nreturn ASSETS"
+            )
+            (root / "src" / "city.luau").write_text("local function createCyberCity(parent) end\n")
+            empty, config = source_from_package(root)
+            self.assertEqual(config, {"video": 0, "clips": {}, "sounds": {}})
+            self.assertIn("local function createCyberCity(parent)", empty)
+            data = {
+                "video": 218,
+                "sounds": {"hover": 21},
+                "clips": {"idle": {"fps": 6, "frames": [{"id": 31, "x": 0, "y": 5, "w": 64, "h": 64}]}},
+            }
+            ASSETS = root / "config" / "ASSETS.json"
+            ASSETS.write_text(json.dumps(data))
+            text, normalized = source_from_package(root)
+            self.assertNotIn("__CYBEROUTLAW_", text)
+            self.assertIn('["id"] = 31', text)
+            self.assertEqual(normalized["sounds"]["hover"], 21)
+            ASSETS.write_text('{"video":0,"video":23}')
+            with self.assertRaises(Failure):
+                load_config(ASSETS)
+            ASSETS.write_text('{"background":23}')
+            with self.assertRaises(Failure):
+                load_config(ASSETS)
+
+
+class FakeCloud:
+    def __init__(self, *, lost_response=False, reject_code=None):
+        self.rows = [Version(8, False), Version(7, True)]
+        self.versions = {8: xml_place(), 7: MINIMAL_XML}
+        self.lost_response = lost_response
+        self.reject_code = reject_code
+        self.publish_calls = []
+        self.download_calls = []
+        self.visible = True
+
+    def validate_destination(self):
+        pass
+
+    def history(self):
+        return list(self.rows)
+
+    def download(self, version):
+        self.download_calls.append(version)
+        return self.versions[version]
+
+    def publish(self, raw):
+        self.publish_calls.append(raw)
+        if self.reject_code is not None:
+            raise Failure("Publicação rejeitada.", code=self.reject_code)
+        if self.visible:
+            self.rows.insert(0, Version(9, True))
+            self.versions[9] = raw
+        if self.lost_response:
+            raise Failure("A conexão encerrou durante a resposta.")
+        return 9
+
+
+class InstallTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.state = Path(folder.name)
+        self.messages = []
+        self.installer = Installer(self.state, report=self.messages.append, sleeper=lambda _: None)
+
+    def test_backup_separate_versions_before_confirmation_and_verify(self):
+        cloud = FakeCloud()
+
+        def confirm(prompt):
+            self.assertIn(CONFIRMATION, prompt)
+            self.assertEqual(cloud.download_calls, [7, 8])
+            self.assertEqual((self.state / "backup-v7.rbxlx").read_bytes(), cloud.versions[7])
+            self.assertEqual((self.state / "backup-v8.rbxlx").read_bytes(), cloud.versions[8])
+            self.assertEqual(cloud.publish_calls, [])
+            return CONFIRMATION
+
+        self.installer.install(cloud, SOURCE, confirm)
+        self.assertEqual(len(cloud.publish_calls), 1)
+        self.assertEqual(cloud.download_calls, [7, 8, 9])
+        self.assertIsNone(self.installer.pending())
+        receipt = json.loads(next(self.state.glob("receipt-*.json")).read_text())
+        self.assertEqual(receipt["status"], "VERIFIED")
+        self.assertEqual(receipt["version"], 9)
+        self.assertEqual(receipt["request"]["source_sha256"], source_digest(SOURCE))
+        self.assertEqual(menu_source(cloud.versions[9]), SOURCE)
+        self.assertEqual(self.installer._known_sources(), {source_digest(SOURCE)})
+
+    def test_confirmation_cancellation_and_version_drift_make_no_post(self):
+        cloud = FakeCloud()
+        with self.assertRaisesRegex(Failure, "cancelada"):
+            self.installer.install(cloud, SOURCE, lambda _: "voltar")
+        self.assertEqual(cloud.publish_calls, [])
+        self.assertIsNone(self.installer.pending())
+
+        def concurrent_save(_):
+            cloud.rows.insert(0, Version(9, False))
+            return CONFIRMATION
+
+        with self.assertRaisesRegex(Failure, "mudou"):
+            self.installer.install(cloud, SOURCE, concurrent_save)
+        self.assertEqual(cloud.publish_calls, [])
+        self.assertIsNone(self.installer.pending())
+
+    def test_lost_post_response_verifies_through_get_without_retry(self):
+        cloud = FakeCloud(lost_response=True)
+        self.installer.install(cloud, SOURCE, lambda _: CONFIRMATION)
+        self.assertEqual(len(cloud.publish_calls), 1)
+        self.assertEqual(cloud.download_calls, [7, 8, 9])
+        self.assertIsNone(self.installer.pending())
+        self.assertEqual(len(list(self.state.glob("receipt-*.json"))), 1)
+
+    def test_resume_keeps_pending_until_matching_download(self):
+        cloud = FakeCloud(lost_response=True)
+        cloud.visible = False
+        with self.assertRaisesRegex(Failure, "Execute resume"):
+            self.installer.install(cloud, SOURCE, lambda _: CONFIRMATION)
+        self.assertIsNotNone(self.installer.pending())
+        with self.assertRaisesRegex(Failure, "Execute resume"):
+            self.installer.install(cloud, SOURCE, lambda _: CONFIRMATION)
+        self.assertEqual(len(cloud.publish_calls), 1)
+        cloud.rows.insert(0, Version(9, True))
+        cloud.versions[9] = MINIMAL_XML
+        with self.assertRaisesRegex(Failure, "Execute resume"):
+            self.installer.resume(cloud)
+        self.assertIsNotNone(self.installer.pending())
+        cloud.versions[9] = cloud.publish_calls[0]
+        self.installer.resume(cloud)
+        self.assertIsNone(self.installer.pending())
+        self.assertEqual(len(cloud.publish_calls), 1)
+
+    def test_already_published_and_rejected_post(self):
+        cloud = FakeCloud(reject_code=403)
+        with self.assertRaises(Failure):
+            self.installer.install(cloud, SOURCE, lambda _: CONFIRMATION)
+        self.assertIsNone(self.installer.pending())
+        receipt = json.loads(next(self.state.glob("receipt-*.json")).read_text())
+        self.assertEqual(receipt["status"], "REJECTED")
+        cloud.rows = [Version(10, True), *cloud.rows]
+        cloud.versions[10] = patch_place(xml_place(), SOURCE)[0]
+        self.installer.install(cloud, SOURCE, lambda _: self.fail("already live"))
+        self.assertEqual(len(cloud.publish_calls), 1)
+
+
+class _Response(io.BytesIO):
+    def __init__(self, raw, headers=None):
+        super().__init__(raw)
+        self.headers = headers or {}
+
+
+class CloudTests(unittest.TestCase):
+    def test_pinned_identity_paginated_history_and_cdn_key_isolation(self):
+        requests = []
+        download = "https://assetdelivery.rbxcdn.com/place?signature=mock"
+
+        class Opener:
+            def open(self, request, timeout):
+                requests.append(request)
+                url = urlsplit(request.full_url)
+                if url.path.endswith("/universe"):
+                    result = {"universeId": UNIVERSE_ID}
+                elif url.path == "/v1/games":
+                    result = {"data": [{"id": UNIVERSE_ID, "rootPlaceId": PLACE_ID, "creator": {"id": CREATOR_ID, "type": "User"}}]}
+                elif url.path.endswith("/versions"):
+                    second = "pageToken" in parse_qs(url.query)
+                    row = {"path": f"assets/{PLACE_ID}/versions/{7 if second else 8}"}
+                    if second:
+                        row["published"] = True
+                    result = {"assetVersions": [row], "nextPageToken": "" if second else "opaque = token"}
+                elif request.full_url == download:
+                    return _Response(gzip.compress(MINIMAL_XML), {"Content-Encoding": "gzip"})
+                else:
+                    result = {"location": download, "assetTypeId": 9}
+                return _Response(json.dumps(result).encode())
+
+        cloud = Cloud("test-only", opener=Opener())
+        cloud.validate_destination()
+        self.assertEqual(cloud.history(), [Version(8, False), Version(7, True)])
+        self.assertEqual(cloud.download(8), MINIMAL_XML)
+        self.assertEqual([request.get_header("X-api-key") for request in requests], [None, None, "test-only", "test-only", "test-only", None])
+        self.assertEqual(parse_qs(urlsplit(requests[3].full_url).query)["pageToken"], ["opaque = token"])
+
+    def test_post_never_retried_or_followed(self):
+        for error in (URLError("connection"), HTTPError(API + PUBLISH_ROUTE, 307, "redirect", {"Location": "https://example.com"}, None)):
+            requests = []
+
+            class Opener:
+                def open(self, request, timeout):
+                    requests.append(request)
+                    raise error
+
+            with self.subTest(error=error):
+                cloud = Cloud("test-only", opener=Opener(), sleeper=lambda _: self.fail("cannot retry"))
+                with self.assertRaises(Failure):
+                    cloud.publish(MINIMAL_XML)
+                self.assertEqual(len(requests), 1)
+                self.assertEqual(requests[0].get_method(), "POST")
+                self.assertEqual(requests[0].full_url, API + PUBLISH_ROUTE)
+                self.assertEqual(requests[0].get_header("Content-type"), "application/xml")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "userId": "1357078972",
+    "universeId": "10774214423",
+    "placeId": "122033314086516"
+  },
+  "assets": [
+    {
+      "key": "capri_01",
+      "path": "capri/capri_01.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "402800ceaf88cadfe74adfc19c0c5473cbf729c3c30fe6bdebb042ae20f97e79",
+      "displayName": "CyberOutlaw capri_01",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_02",
+      "path": "capri/capri_02.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "083128836756e51a469c08b0a45a0c8d5d19f96ea7a6276c1d8ff23ba07f8a82",
+      "displayName": "CyberOutlaw capri_02",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_03",
+      "path": "capri/capri_03.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "4b1cde1c1924e7fb6f003b0cba07d172aa72f258e42103edd315c1e7f7bb6c38",
+      "displayName": "CyberOutlaw capri_03",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_04",
+      "path": "capri/capri_04.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "91c523789c5c57923db3ef50fbd3b67f7189883560ba47eda19f758333125b59",
+      "displayName": "CyberOutlaw capri_04",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_05",
+      "path": "capri/capri_05.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "3aee15f21898bf2bedec04e9acfbeb48d2cc37c854bbc335ff7aea053041f8b6",
+      "displayName": "CyberOutlaw capri_05",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_06",
+      "path": "capri/capri_06.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "989e8b55e46b6e08f00d1b60fd64564a42306eb1158577de5cb8be50f04858c5",
+      "displayName": "CyberOutlaw capri_06",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_07",
+      "path": "capri/capri_07.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "6d35eaaaf9a8aaef7ac37f7abb661e8a803522c4399468e9b25a79cbc23a3db7",
+      "displayName": "CyberOutlaw capri_07",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_08",
+      "path": "capri/capri_08.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "95f562675114e15f99a45f94574b779a781a431b4364e233d2d77591165666b4",
+      "displayName": "CyberOutlaw capri_08",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "click",
+      "path": "audio/click.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
+      "displayName": "CyberOutlaw click",
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 0.158005
+    },
+    {
+      "key": "confirm",
+      "path": "audio/confirm.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
+      "displayName": "CyberOutlaw confirm",
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 0.34
+    },
+    {
+      "key": "glitch",
+      "path": "audio/glitch.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "b279fa6eade71865729fc903914ad1c826b73bb2bbe03825a7b8caa53ab0c2f9",
+      "displayName": "CyberOutlaw glitch",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.35
+    },
+    {
+      "key": "react",
+      "path": "audio/react.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "260f50a6a3b81832fb47a1947f4b6fe4ce21b708f39977ab7a0e7db92081d415",
+      "displayName": "CyberOutlaw react",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.255011
+    },
+    {
+      "key": "hello_morning",
+      "path": "audio/hello_morning.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "12556ee08fed3bc81c1024e8693a57ccccbe6ce229ed862e884ae0c1061272e2",
+      "displayName": "CyberOutlaw hello_morning",
+      "description": "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop",
+      "durationSeconds": 2.16
+    },
+    {
+      "key": "hello_late",
+      "path": "audio/hello_late.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "6460cd945636a005b7199b5eb0a9bce2140a10cacaa4885aacd0c2374326422a",
+      "displayName": "CyberOutlaw hello_late",
+      "description": "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop",
+      "durationSeconds": 2.16
+    },
+    {
+      "key": "hello_miss",
+      "path": "audio/hello_miss.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "8afa97810cd8d112537e325c74504fef25746a7557c1a2d6d60d0a52dc4fb619",
+      "displayName": "CyberOutlaw hello_miss",
+      "description": "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop",
+      "durationSeconds": 2.32
+    }
+  ]
+}
