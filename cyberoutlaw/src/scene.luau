@@ -1,7 +1,7 @@
 -- PBR decal properties are available on Texture through its Decal base class.
 local function addCyberOutlawMaterials(city, art, origin)
     local function uri(id)
-        return if type(id) == "number" and id > 0 then "rbxassetid://" .. tostring(id) else nil
+        return if type(id) == "number" and id > 0 then string.format("rbxassetid://%.0f", id) else nil
     end
 
     local function apply(part, material, face, tileU, tileV, offsetU, offsetV)
@@ -47,7 +47,7 @@ end
 local function addCyberOutlawFacades(city, art)
     local atlas = art.facades
     if type(atlas) ~= "number" or atlas <= 0 then return end
-    local image = "rbxassetid://" .. tostring(atlas)
+    local image = string.format("rbxassetid://%.0f", atlas)
     local profiles = {
         glass = {x = 2, y = 2, span = 47, tint = Color3.fromRGB(224, 240, 255)},
         residential = {x = 514, y = 2, span = 42, tint = Color3.fromRGB(224, 231, 237)},
@@ -108,6 +108,8 @@ end
 local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCamera)
     local workspace = game:GetService("Workspace")
     local lighting = game:GetService("Lighting")
+    local runService = game:GetService("RunService")
+    local renderName = "CyberOutlawMenuCamera"
     local art = assets.art or {}
     local stagePosition = Vector3.new(13300, 4100, 7200)
     local fieldOfView = 46
@@ -117,6 +119,18 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
     local bloom, grade
     local lightingBefore = {}
     local closed = false
+    local bound = false
+    local showingWorld = false
+    local seconds = 0
+    local fallbackJob
+    viewport:SetAttribute("CyberOutlawWorkspaceStage", false)
+
+    local function showWorld(show)
+        if showingWorld ~= show then
+            showingWorld = show
+            viewport:SetAttribute("CyberOutlawWorkspaceStage", show)
+        end
+    end
 
     local function write(instance, key, value)
         pcall(function()
@@ -188,6 +202,11 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
     end
 
     local function restoreStage()
+        if bound then
+            runService:UnbindFromRenderStep(renderName)
+            bound = false
+        end
+        showWorld(false)
         releaseCamera()
         for index = #lightingBefore, 1, -1 do
             local entry = lightingBefore[index]
@@ -201,10 +220,50 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
             scene:Destroy()
             scene = nil
         end
+        cameraPath, animate = nil, nil
     end
 
-    local ok = pcall(function()
-        assert(workspace.CurrentCamera, "A câmera do jogador ainda está inicializando")
+    local function renderWorld()
+        assert(scene.Parent == workspace, "Palco local removido.")
+        local camera = workspace.CurrentCamera
+        if not camera then
+            showWorld(false)
+            return
+        end
+        if camera ~= current then acquire(camera) end
+        if camera.CameraType ~= Enum.CameraType.Scriptable then
+            -- Character spawn and PlayerModule can retake the same Camera.
+            cameraBefore.CameraType = camera.CameraType
+            if camera.CFrame ~= appliedPose then cameraBefore.CFrame = camera.CFrame end
+            if camera.Focus ~= appliedFocus then cameraBefore.Focus = camera.Focus end
+            camera.CameraType = Enum.CameraType.Scriptable
+        end
+        if camera.FieldOfView ~= fieldOfView then
+            cameraBefore.FieldOfView = camera.FieldOfView
+            camera.FieldOfView = fieldOfView
+        end
+        renderPose(camera, seconds)
+        showWorld(true)
+    end
+
+    local function mountViewport(reason)
+        restoreStage()
+        warn("CyberOutlaw | Palco local: " .. tostring(reason))
+        local ok, error = pcall(function()
+            -- WorldModel renders native geometry even when optional textures fail.
+            scene, cameraPath, animate = createCyberCity(viewportWorld, {})
+            assert(type(cameraPath) == "function", "A cena precisa de trajetória")
+            viewportCamera.FieldOfView = fieldOfView
+            viewportCamera.CFrame = cameraPath(seconds, aspectRatio())
+        end)
+        viewport.ImageTransparency = if ok then 0 else 1
+        if not ok then
+            restoreStage()
+            warn("CyberOutlaw | Cenário do menu: " .. tostring(error))
+        end
+    end
+
+    local ok, error = pcall(function()
         scene = Instance.new("Folder")
         scene.Name = "CyberOutlawMenuStage"
         scene.Archivable = false
@@ -212,8 +271,10 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
         local city
         city, cameraPath, animate = createCyberCity(scene, art, stagePosition)
         assert(type(cameraPath) == "function", "A cena precisa de trajetória")
-        addCyberOutlawMaterials(city, art, stagePosition)
-        addCyberOutlawFacades(city, art)
+        local materialsOk, materialsError = pcall(addCyberOutlawMaterials, city, art, stagePosition)
+        if not materialsOk then warn("CyberOutlaw | Materiais: " .. tostring(materialsError)) end
+        local facadesOk, facadesError = pcall(addCyberOutlawFacades, city, art)
+        if not facadesOk then warn("CyberOutlaw | Fachadas: " .. tostring(facadesError)) end
         write(lighting, "ClockTime", 1.1)
         write(lighting, "Brightness", 1.65)
         write(lighting, "Ambient", light(61, 52, 82))
@@ -236,39 +297,35 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
             write(lighting, "FogStart", 145)
             write(lighting, "FogEnd", 590)
         end
-        acquire(workspace.CurrentCamera)
-        renderPose(current, 0)
-    end)
-
-    if ok then
         viewport.ImageTransparency = 1
-        viewport:SetAttribute("CyberOutlawWorkspaceStage", true)
-    else
-        restoreStage()
-        local fallback, model, path, motion = pcall(createCyberCity, viewportWorld, art)
-        if fallback and type(path) == "function" then
-            scene, cameraPath, animate = model, path, motion
-            addCyberOutlawMaterials(model, art, Vector3.zero)
-            addCyberOutlawFacades(model, art)
-            viewportCamera.FieldOfView = fieldOfView
-            viewportCamera.CFrame = path(0, aspectRatio())
-            viewport.ImageTransparency = 0
-        else
-            cameraPath, animate = nil, nil
-            viewport.ImageTransparency = 1
-        end
-        viewport:SetAttribute("CyberOutlawWorkspaceStage", false)
-    end
+        -- Apply the final camera after the Roblox controller, even with motion reduced.
+        runService:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, function()
+            if closed or fallbackJob then return end
+            local rendered, problem = pcall(renderWorld)
+            if not rendered then
+                showWorld(false)
+                fallbackJob = task.defer(function()
+                    fallbackJob = nil
+                    if not closed then mountViewport(problem) end
+                end)
+            end
+        end)
+        bound = true
+        renderWorld()
+    end)
+    if not ok then mountViewport(error) end
 
-    local function step(seconds)
+    local function step(time)
         if closed or not cameraPath then return end
-        if animate then animate(seconds) end
-        if ok then
-            local camera = workspace.CurrentCamera
-            if not camera then return end
-            if camera ~= current then acquire(camera) end
-            renderPose(camera, seconds)
-        else
+        seconds = time
+        if animate then
+            local animated, problem = pcall(animate, seconds)
+            if not animated then
+                animate = nil
+                warn("CyberOutlaw | Animação do cenário: " .. tostring(problem))
+            end
+        end
+        if not bound then
             viewportCamera.CFrame = cameraPath(seconds, aspectRatio())
         end
     end
@@ -276,6 +333,7 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
     local function close()
         if closed then return end
         closed = true
+        if fallbackJob then task.cancel(fallbackJob) end
         restoreStage()
     end
 

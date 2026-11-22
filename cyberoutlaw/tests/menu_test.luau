@@ -164,6 +164,7 @@ local function scenario(config, options)
 	h.script = node("LocalScript")
 	h.guiService = node("GuiService")
 	h.guiService.ReducedMotionEnabled = options.reduced == true
+	h.guiService.TouchControlsEnabled = true
 	h.input = node("UserInputService")
 	h.input.PreferredInput = options.preferredInput or E.PreferredInput.KeyboardAndMouse
 	local heartbeat = signal()
@@ -173,7 +174,12 @@ local function scenario(config, options)
 		UserInputService = h.input,
 		RunService = { Heartbeat = heartbeat },
 		SoundService = node("SoundService"),
-		ContentProvider = { PreloadAsync = function() end },
+		ContentProvider = { PreloadAsync = function(_, assets, callback)
+			if callback and options.titleFetch then
+				assert(#assets == 1 and type(assets[1]) == "string")
+				callback(assets[1], E.AssetFetchStatus.Success)
+			end
+		end },
 		ContextActionService = {
 			BindActionAtPriority = function(_, name, callback)
 				h.bindings[name] = callback
@@ -294,6 +300,7 @@ end
 
 local main = scenario("{video = 123}", { reduced = true, preferredInput = E.PreferredInput.Gamepad })
 assert(main:find("CyberOutlawBackdrop") and main:find("CyberOutlawMenu"), "menu layers were not mounted")
+assert(not main.guiService.TouchControlsEnabled, "touch controls stay hidden while the menu is open")
 assert(main.player:GetAttribute("CyberOutlawMenuOpen") == true, "gameplay is gated during the loader")
 assert(main:find("Loader").Visible and not main:find("MenuStack").Visible, "loader owns the first real frame")
 main:step(5.95)
@@ -317,6 +324,7 @@ main:find("Close").Activated:Fire()
 main:find("Play").Activated:Fire()
 main:step(0.5)
 assert(main.player:GetAttribute("CyberOutlawMenuStarted") == true, "Jogar reports the local handoff")
+assert(main.guiService.TouchControlsEnabled, "Jogar restores the gameplay touch controls")
 assert(main.player:GetAttribute("CyberOutlawMenuOpen") == false and not main:find("CyberOutlawMenu") and not main:find("CyberOutlawBackdrop"), "handoff releases both screens and gameplay gate")
 assert(main.guiService.SelectedObject == nil and next(main.bindings) == nil, "handoff releases menu focus and bound input")
 
@@ -369,11 +377,15 @@ assert(stage:find("Backdrop").BackgroundTransparency == 0, "the place stays hidd
 assert(not stage:find("Profile").Visible, "the loader keeps the profile hidden")
 stage:step(6.1)
 assert(stage:find("Backdrop").BackgroundTransparency == 1 and stage.stageTime > 0, "the live 3D stage shows through the backdrop")
-assert(stage:find("Wordmark").Text == "CyberOutlaw" and stage:find("Wordmark").Visible and not stage:find("Logo").Visible,
-	"the wordmark stays legible if its image is slow or unavailable")
+assert(stage:find("Wordmark").Text == "CyberOutlaw" and stage:find("Wordmark").Visible and stage:find("Logo").Visible,
+	"the approved logo is renderable while the provisional wordmark stays legible")
 stage:find("Logo").IsLoaded = true
 stage:step(0.05)
 assert(stage:find("Logo").Visible and not stage:find("Wordmark").Visible, "the supplied brush art replaces the wordmark after loading")
+local fetched = scenario("{art={title=874357609916231}}", { titleFetch = true })
+fetched:step(6.1)
+assert(fetched:find("Logo").Image == "rbxassetid://874357609916231" and not fetched:find("Wordmark").Visible,
+	"the approved art preloads independently and keeps its exact numeric id")
 assert(stage:find("Profile").Visible and stage:find("DisplayName").Text == "Outlaw Teste", "profile shows the player's real display name")
 assert(string.find(stage:find("Avatar").Image, "&id=321&", 1, true), "profile thumbnail uses the local player id")
 assert(not stage:find("Level").Visible, "only an actual level is shown")

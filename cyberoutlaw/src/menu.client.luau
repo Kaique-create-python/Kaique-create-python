@@ -44,7 +44,7 @@ local WORDMARK = Font.fromEnum(Enum.Font.PermanentMarker)
 local rng = Random.new()
 
 local function asset(id)
-	return if type(id) == "number" and id > 0 and id < math.huge then "rbxassetid://" .. tostring(id) else ""
+	return if type(id) == "number" and id > 0 and id < math.huge then string.format("rbxassetid://%.0f", id) else ""
 end
 
 local function make(class, parent, name, properties)
@@ -250,6 +250,8 @@ end
 local logoBack = logoLayer("LogoMagenta", 11, PINK_SHADOW)
 local logoLight = logoLayer("LogoPink", 11, PINK_LIGHT)
 local logo = logoLayer("Logo", 12, Color3.fromRGB(255, 255, 255))
+logo.Visible = titleUri ~= ""
+local titleFetched = false
 local slices = {}
 for index, relativeY in { 0.37, 0.63 } do
 	local strip = frame(brand, "Slice" .. index, 13, {
@@ -446,9 +448,6 @@ local sounds = {}
 local cooldowns = {}
 local preloadAssets = {}
 local preloadImages = {}
-if titleUri ~= "" then
-	table.insert(preloadAssets, logo)
-end
 local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40, rain = 0.22 }
 for key, level in levels do
 	local uri = asset((ASSETS.sounds or {})[key])
@@ -490,7 +489,8 @@ local connections = {}
 local loader, loaderShade, loaderBar, loaderBrand, video
 local loaderAt, loaderJob
 local cityJob, cityPath, cityAnimation, stageStep, stageClose
-local preloadJob
+local preloadJob, titleJob
+local hidTouchControls = false
 local elapsed, cityClock = 0, 0
 local closingAt
 local selectedBeforeModal
@@ -848,8 +848,7 @@ local function applyGlitch(phase)
 	elseif phase == 3 then
 		ax, ay, bx, by, cut = 2, 0, -2, 1, -3
 	end
-	local hasArt = titleUri ~= "" and logo.IsLoaded
-	logo.Visible = hasArt
+	local hasArt = titleUri ~= "" and (logo.IsLoaded or titleFetched)
 	logoBack.Visible = hasArt and phase ~= 0
 	logoLight.Visible = hasArt and phase ~= 0
 	logoBack.Position = UDim2.fromOffset(ax, ay)
@@ -1056,6 +1055,9 @@ local function cleanup(started)
 	if preloadJob then
 		task.cancel(preloadJob)
 	end
+	if titleJob then
+		task.cancel(titleJob)
+	end
 	freePreloadImages()
 	if video then
 		video:Pause()
@@ -1067,6 +1069,9 @@ local function cleanup(started)
 	if stageClose then
 		pcall(stageClose)
 		stageClose = nil
+	end
+	if hidTouchControls then
+		pcall(function() GuiService.TouchControlsEnabled = true end)
 	end
 	ContextActionService:UnbindAction(ACTION)
 	if started then
@@ -1376,7 +1381,7 @@ local function fallbackCity()
 	if type(createCyberCity) ~= "function" then
 		return
 	end
-	local ok, _, path, animateCity = pcall(createCyberCity, world, ASSETS.art)
+	local ok, _, path, animateCity = pcall(createCyberCity, world, {})
 	if alive and ok and type(path) == "function" then
 		cityPath = path
 		cityAnimation = if type(animateCity) == "function" then animateCity else nil
@@ -1521,6 +1526,12 @@ changeStatus()
 backdrop.Parent = playerGui
 safeGui.Parent = playerGui
 player:SetAttribute("CyberOutlawMenuOpen", true)
+pcall(function()
+	if GuiService.TouchControlsEnabled then
+		GuiService.TouchControlsEnabled = false
+		hidTouchControls = true
+	end
+end)
 ContextActionService:BindActionAtPriority(ACTION, function()
 	return Enum.ContextActionResult.Sink
 end, false, Enum.ContextActionPriority.High.Value, table.unpack(Enum.PlayerActions:GetEnumItems()))
@@ -1558,6 +1569,19 @@ if type(openCyberOutlawScene) == "function" or type(createCyberCity) == "functio
 			fallbackCity()
 			updateCity(0)
 		end
+	end)
+end
+if titleUri ~= "" then
+	titleJob = task.defer(function()
+		pcall(function()
+			ContentProvider:PreloadAsync({ titleUri }, function(_, status)
+				if alive and status == Enum.AssetFetchStatus.Success then
+					titleFetched = true
+					shownPhase = -1
+				end
+			end)
+		end)
+		titleJob = nil
 	end)
 end
 if #preloadAssets > 0 then

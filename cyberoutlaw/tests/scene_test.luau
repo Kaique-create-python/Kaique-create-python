@@ -17,12 +17,23 @@ camera.CameraType = r.Enum.CameraType.Custom
 camera.Parent = workspace
 workspace.CurrentCamera = camera
 services.Workspace, services.Lighting = workspace, lighting
+local render, binding
+services.RunService = {
+    BindToRenderStep = function(_, name, priority, callback)
+        assert(priority > r.Enum.RenderPriority.Camera.Value)
+        binding, render = name, callback
+    end,
+    UnbindFromRenderStep = function(_, name)
+        assert(name == binding)
+        binding, render = nil, nil
+    end,
+}
 local viewport = {AbsoluteSize = r.Vector2.new(1280, 720), SetAttribute = function(self, key, value) self[key] = value end}
 local preview = r.Instance.new("Camera")
 local world = r.Instance.new("WorldModel")
 local fixture = [[
 local function createCyberCity(parent, art, origin)
-    assert(art.billboard == 554)
+    assert(if origin then art.billboard == 554 else next(art) == nil)
     local body = Instance.new("Model")
     body.Name = "TestCity"
     body.Parent = parent
@@ -51,6 +62,7 @@ local stage = luau.load(fixture .. fs.readFile("src/scene.luau") .. "\nreturn op
         game = {GetService = function(_, key) return services[key] end},
         Instance = r.Instance, Vector2 = r.Vector2, Vector3 = r.Vector3, UDim2 = r.UDim2,
         CFrame = r.CFrame, Color3 = r.Color3, Enum = r.Enum,
+        warn = function() end, task = require("@lune/task"),
     },
 })()
 local step, leave = stage({art={billboard=554, asphalt=555, asphalt_normal=556, asphalt_rough=557, facades=558}}, viewport, world, preview)
@@ -73,13 +85,32 @@ end
 assert(camera:FindFirstChildOfClass("BloomEffect") and camera:FindFirstChildOfClass("ColorCorrectionEffect"))
 assert(math.abs(lighting.ClockTime - 1.1) < 0.001)
 step(5.25)
+render()
 assert(camera.CFrame.Position.X == 13305.25)
+-- Simulate PlayerModule moving the camera on respawn without another step call.
+camera.CameraType = r.Enum.CameraType.Custom
+camera.CFrame = r.CFrame.new(1, 8, 14)
+camera.Focus = r.CFrame.new(6, 8, 12)
+camera.FieldOfView = 68
+render()
+assert(camera.CFrame.Position.X == 13305.25 and camera.CameraType == r.Enum.CameraType.Scriptable)
+local nextCamera = r.Instance.new("Camera")
+nextCamera.CFrame = r.CFrame.new(7, 11, 12)
+nextCamera.FieldOfView = 71
+nextCamera.CameraType = r.Enum.CameraType.Custom
+nextCamera.Parent = workspace
+workspace.CurrentCamera = nextCamera
+render()
+assert(nextCamera.CFrame.Position.X == 13305.25 and nextCamera.CameraType == r.Enum.CameraType.Scriptable)
+assert(camera.CFrame == r.CFrame.new(1, 8, 14) and camera.Focus == r.CFrame.new(6, 8, 12))
+assert(camera.FieldOfView == 68 and camera.CameraType == r.Enum.CameraType.Custom)
 lighting.Brightness = 2.9
 leave()
 leave()
-assert(camera.CFrame == r.CFrame.new(2, 3, 4) and camera.Focus == r.CFrame.new(21, 5, 11))
-assert(camera.FieldOfView == 63 and camera.CameraType == r.Enum.CameraType.Custom)
-assert(camera:FindFirstChildOfClass("BloomEffect") == nil and workspace:FindFirstChild("CyberOutlawMenuStage") == nil)
+assert(not render and viewport.CyberOutlawWorkspaceStage == false)
+assert(nextCamera.CFrame == r.CFrame.new(7, 11, 12))
+assert(nextCamera.FieldOfView == 71 and nextCamera.CameraType == r.Enum.CameraType.Custom)
+assert(nextCamera:FindFirstChildOfClass("BloomEffect") == nil and workspace:FindFirstChild("CyberOutlawMenuStage") == nil)
 assert(lighting.ClockTime == 18 and math.abs(lighting.Brightness - 2.9) < 0.001)
 services.Workspace = {}
 local previewStep, previewLeave = stage({art={billboard=554}}, viewport, world, preview)

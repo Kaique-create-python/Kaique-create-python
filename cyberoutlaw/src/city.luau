@@ -783,7 +783,7 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
             art.BackgroundTransparency = 1
             art.BorderSizePixel = 0
             art.Size = UDim2.fromScale(1, 1)
-            art.Image = "rbxassetid://" .. billboardId
+            art.Image = string.format("rbxassetid://%.0f", billboardId)
             art.ImageRectOffset = Vector2.new((index - 1) * 340, 0)
             art.ImageRectSize = Vector2.new(340, 1020)
             art.Parent = gui
