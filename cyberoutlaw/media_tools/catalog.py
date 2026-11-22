@@ -5,7 +5,8 @@ import getpass
 import math
 from pathlib import Path
 import urllib.request
-from urllib.parse import urlencode
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode, urlsplit
 import warnings
 
 from . import upload
@@ -53,8 +54,13 @@ def verificar_destino_publico():
     )
     results = []
     for url in paths:
-        with opener.open(url, timeout=25) as response:
-            results.append(upload._json(response.read(128 * 1024)))
+        try:
+            with opener.open(url, timeout=12) as response:
+                results.append(upload._json(response.read(128 * 1024)))
+        except (URLError, TimeoutError) as error:
+            host = urlsplit(url).hostname
+            reason = f"HTTP {error.code}" if isinstance(error, HTTPError) else "falha de conexão ou tempo esgotado"
+            raise ValueError(f"O Termux não conseguiu consultar {host} ({reason}). Confira a conexão e rode midia novamente.") from None
     mapping, universes = results
     rows = universes.get("data", [])
     universe, place, creator = (int(upload.TARGET[name]) for name in ("universeId", "placeId", "userId"))
@@ -173,16 +179,17 @@ def make_config(root, *, video=None):
 
 def import_media(root, state, *, video=None):
     root = Path(root)
+    print("Conferindo os arquivos de mídia…", flush=True)
     plan, _ = verify_media(root)
     if video is not None:
         _asset_id(video, label="vídeo")
+    print("Conferindo o Place na API pública do Roblox…", flush=True)
     game = verificar_destino_publico()
     print(f"CyberOutlaw · {game} · Place {upload.TARGET['placeId']}", flush=True)
-    print(f"Conferindo {len(plan['assets'])} imagens e sons. O Roblox pode demorar para aprovar.", flush=True)
-    result = upload.upload_manifest(root / "media/ASSET_PLAN.json", key_prompt(),
-                                    state_dir=state, max_polls=5, max_wait_seconds=18)
-    for row in result["assets"]:
-        print(row["key"], row["status"], row.get("lastErrorCode", ""))
+    print(f"{len(plan['assets'])} imagens e sons. Envio retomável pelos recibos locais.", flush=True)
+    upload.upload_manifest(root / "media/ASSET_PLAN.json", key_prompt(),
+                           state_dir=state, max_polls=5, max_wait_seconds=18,
+                           progress=lambda line: print(line, flush=True))
     config = make_config(root, video=video)
     print(f"Mídia vinculada: {len(config['clips'])} animações, {len(config['sounds'])} sons e {len(config['art'])} artes.")
     return config

@@ -469,7 +469,7 @@ class _Session:
 
     def request(self, method, url, body=None, content_type=None):
         _safe_url(url)  # Apply the origin policy to injected transports too.
-        headers = {"x-api-key": self.key, "Accept": "application/json", "User-Agent": "Bastiao-Termux-Assets/1"}
+        headers = {"x-api-key": self.key, "Accept": "application/json", "User-Agent": "CyberOutlaw-Termux-Assets/2"}
         if content_type:
             headers["Content-Type"] = content_type
         return self.transport.request(method, url, headers, body=body, timeout=30)
@@ -618,7 +618,7 @@ def _check_receipt(receipt, entry):
 
 def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_polls=12,
                     poll_interval=2.0, max_wait_seconds=60.0, sleep=time.sleep, now=time.time,
-                    grant_permissions=True) -> dict:
+                    grant_permissions=True, progress=None) -> dict:
     """Create once per SHA, resume operations, then grant Universe Use permission.
 
     Returns and atomically writes ``manifest.parent / UPLOADED_ASSETS.json``.
@@ -637,7 +637,8 @@ def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_p
     session = _Session(transport or UrllibTransport(), key, max_polls, poll_interval, max_wait_seconds, sleep, now)
     receipts = {}
     with _locked(state):
-        for entry in plan["assets"]:
+        total = len(plan["assets"])
+        for index, entry in enumerate(plan["assets"], 1):
             digest = entry["sha256"]
             if digest in receipts:
                 continue
@@ -649,6 +650,9 @@ def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_p
                 _check_receipt(receipt, entry)
                 if receipt.get("status") == "submitting":
                     receipt.update(status="uncertain_upload", lastErrorCode="interrupted_create")
+            if progress:
+                action = "Conferindo" if existing else "Enviando"
+                progress(f"[{index}/{total}] {action} {entry['key']}…")
             if receipt is None:
                 # Persist before sending: a kill or lost response must not cause a duplicate.
                 receipt = {"schemaVersion": 1, "target": dict(TARGET), "sha256": digest,
@@ -691,6 +695,10 @@ def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_p
             save()
         result = _catalog(plan, receipts)
         _atomic_json(manifest.parent / "UPLOADED_ASSETS.json", result)
+        if progress:
+            for row in result["assets"]:
+                detail = f" ({row['lastErrorCode']})" if row.get("lastErrorCode") else ""
+                progress(f"{row['key']}: {row['status']}{detail}")
     return result
 
 

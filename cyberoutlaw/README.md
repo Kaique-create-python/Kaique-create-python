@@ -6,15 +6,17 @@ Instalador para o universo `10774214423` e o Place inicial `122033314086516`. A 
 
 O pacote usa Python e `libzstd`. Se precisar instalar as dependências, use `pkg install python curl zstd`.
 
-1. Rode `python CYBEROUTLAW_MENU.py verificar` para conferir os arquivos locais.
-2. Rode `python CYBEROUTLAW_MENU.py midia` para importar as fachadas, a chuva e qualquer mídia ainda pendente. A chave da Open Cloud é pedida em um campo oculto. Os envios têm preço esperado zero. Se houver mídia em revisão, rode `midia` novamente. Os recibos das versões anteriores permitem aproveitar os assets já aprovados.
-3. Rode `python CYBEROUTLAW_MENU.py instalar`. O instalador guarda o backup em `~/.cyberoutlaw-installer` e prepara o único `LocalScript` do menu. Confirme com `PUBLICAR CYBEROUTLAW`. Se a resposta da publicação for incerta, use `python CYBEROUTLAW_MENU.py resume` para consultar o resultado.
+O arquivo `CYBEROUTLAW_TERMUX.pyz` é um pacote executável pelo Python. Ele abre em blocos e informa no terminal a etapa em andamento.
+
+1. Rode `python CYBEROUTLAW_TERMUX.pyz verificar` para conferir os arquivos locais.
+2. Rode `python CYBEROUTLAW_TERMUX.pyz midia` para importar as fachadas, a chuva e qualquer mídia ainda pendente. A chave da Open Cloud é pedida em um campo oculto. Os envios têm preço esperado zero. Se houver mídia em revisão, rode `midia` novamente. Os recibos das versões anteriores permitem aproveitar os assets já aprovados.
+3. Rode `python CYBEROUTLAW_TERMUX.pyz instalar`. O instalador guarda o backup em `~/.cyberoutlaw-installer` e prepara o único `LocalScript` do menu. Confirme com `PUBLICAR CYBEROUTLAW`. Se a resposta da publicação for incerta, use `python CYBEROUTLAW_TERMUX.pyz resume` para consultar o resultado.
 
 Na chave, habilite `asset:read`, `asset:write` e `asset-permissions:write` para a mídia do projeto. A leitura das versões e a publicação usam `legacy-asset:manage` e `universe-places:write` no Place. [Documentação da Open Cloud](https://create.roblox.com/docs/cloud)
 
 ## Abertura
 
-`CyberOutlaw-Intro-6s.mp4` tem seis segundos, 1280 × 720, 180 quadros e nenhuma faixa de áudio. O Roblox cobra 2.000 Robux por importação de vídeo. Para usar um Video ID aprovado e acessível à experiência, rode `python CYBEROUTLAW_MENU.py video SEU_ID` antes de `instalar`. A abertura usa o panorama e a barra de progresso enquanto o ID estiver ausente, se o vídeo demorar a carregar ou se o jogador tiver ativado movimento reduzido. [Documentação de vídeo](https://create.roblox.com/docs/ui/video-frames)
+`CyberOutlaw-Intro-6s.mp4` tem seis segundos, 1280 × 720, 180 quadros e nenhuma faixa de áudio. O Roblox cobra 2.000 Robux por importação de vídeo. Para usar um Video ID aprovado e acessível à experiência, rode `python CYBEROUTLAW_TERMUX.pyz video SEU_ID` antes de `instalar`. A abertura usa o panorama e a barra de progresso enquanto o ID estiver ausente, se o vídeo demorar a carregar ou se o jogador tiver ativado movimento reduzido. [Documentação de vídeo](https://create.roblox.com/docs/ui/video-frames)
 
 ## Autoria e testes
 
