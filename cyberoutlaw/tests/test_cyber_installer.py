@@ -16,6 +16,7 @@ from install.cyber_installer import (
     _prepare_update, _split_assets, load_config, source_from_package,
 )
 from install.patcher import BINARY_MAGIC, MENU_PATH, menu_source, patch_place, same_binary_place, source_digest
+from install.paths import locked_state
 
 
 XML_SHELL = """<?xml version="1.0" encoding="utf-8"?>
@@ -287,7 +288,8 @@ class InstallTests(unittest.TestCase):
         self.messages = []
         self.installer = Installer(self.state, report=self.messages.append, sleeper=lambda _: None)
 
-    def test_backup_separate_versions_before_confirmation_and_verify(self):
+    @patch("install.paths.os.link", create=True, side_effect=AttributeError("os.link indisponível"))
+    def test_backup_separate_versions_before_confirmation_and_verify(self, link):
         cloud = FakeCloud()
 
         def confirm(prompt):
@@ -298,7 +300,9 @@ class InstallTests(unittest.TestCase):
             self.assertEqual(cloud.publish_calls, [])
             return CONFIRMATION
 
-        self.installer.install(cloud, SOURCE, confirm)
+        with locked_state(self.state):
+            self.installer.install(cloud, SOURCE, confirm)
+        link.assert_not_called()
         self.assertEqual(len(cloud.publish_calls), 1)
         self.assertEqual(cloud.download_calls, [7, 8, 9])
         self.assertIsNone(self.installer.pending())

@@ -616,6 +616,24 @@ def _check_receipt(receipt, entry):
         raise ValueError("Receipt is invalid or does not match manifest context; preserve the original receipt")
 
 
+def read_saved_catalog(plan, state_dir):
+    """Read approvals across package versions without calling Roblox."""
+    state = Path(state_dir).resolve()
+    if not state.is_dir():
+        return None
+    receipts = {}
+    with _locked(state):
+        for entry in plan["assets"]:
+            digest = entry["sha256"]
+            try:
+                saved = _json((state / f"{digest}.json").read_bytes())
+            except FileNotFoundError:
+                continue
+            _check_receipt(saved, entry)
+            receipts[digest] = saved
+    return _catalog(plan, receipts)
+
+
 def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_polls=12,
                     poll_interval=2.0, max_wait_seconds=60.0, sleep=time.sleep, now=time.time,
                     grant_permissions=True, progress=None) -> dict:

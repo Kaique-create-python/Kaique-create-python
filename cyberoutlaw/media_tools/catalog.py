@@ -164,15 +164,18 @@ def verify_media(root):
     return plan, capri
 
 
-def make_config(root, *, video=None):
+def make_config(root, *, video=None, state_dir=None):
     root = Path(root)
     plan, _ = verify_media(root)
-    receipt = root / "media/UPLOADED_ASSETS.json"
-    if not receipt.is_file():
-        raise ValueError("Use o comando midia para importar e aprovar os assets antes de instalar.")
+    result = upload.read_saved_catalog(plan, state_dir) if state_dir is not None else None
+    if result is None:
+        receipt = root / "media/UPLOADED_ASSETS.json"
+        if not receipt.is_file():
+            raise ValueError("Use o comando midia para importar e aprovar os assets antes de instalar.")
+        result = _read(receipt)
     path = root / "config/ASSETS.json"
     old = _read(path) if path.is_file() else {}
-    output = resolved_config(root, plan, _read(receipt), video if video is not None else old.get("video"))
+    output = resolved_config(root, plan, result, video if video is not None else old.get("video"))
     upload._atomic_json(path, output)
     return output
 

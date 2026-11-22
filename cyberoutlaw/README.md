@@ -12,6 +12,8 @@ O arquivo `CYBEROUTLAW_TERMUX.pyz` é um pacote executável pelo Python. Ele abr
 2. Rode `python CYBEROUTLAW_TERMUX.pyz midia` para importar as fachadas, a chuva e qualquer mídia ainda pendente. A chave da Open Cloud é pedida em um campo oculto. Os envios têm preço esperado zero. Se houver mídia em revisão, rode `midia` novamente. Os recibos das versões anteriores permitem aproveitar os assets já aprovados.
 3. Rode `python CYBEROUTLAW_TERMUX.pyz instalar`. O instalador guarda o backup em `~/.cyberoutlaw-installer` e prepara o único `LocalScript` do menu. Confirme com `PUBLICAR CYBEROUTLAW`. Se a resposta da publicação for incerta, use `python CYBEROUTLAW_TERMUX.pyz resume` para consultar o resultado.
 
+Se você já tem todos os arquivos de mídia aprovados, o comando `instalar` recupera os IDs pelos recibos salvos no Termux.
+
 Na chave, habilite `asset:read`, `asset:write` e `asset-permissions:write` para a mídia do projeto. A leitura das versões e a publicação usam `legacy-asset:manage` e `universe-places:write` no Place. [Documentação da Open Cloud](https://create.roblox.com/docs/cloud)
 
 ## Abertura

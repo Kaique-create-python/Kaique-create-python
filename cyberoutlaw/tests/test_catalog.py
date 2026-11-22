@@ -1,8 +1,11 @@
 """Testa o vínculo do pacote real sem rede e sem IDs de produção."""
 from pathlib import Path
+import json
+from shutil import copytree
+from tempfile import TemporaryDirectory
 import unittest
 
-from media_tools.catalog import resolved_config, verify_media, ART, SOUNDS
+from media_tools.catalog import make_config, resolved_config, verify_media, ART, SOUNDS
 from media_tools.upload import TARGET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +52,23 @@ class MediaBindingTest(unittest.TestCase):
         result["target"]["universeId"] = "1400"
         with self.assertRaises(ValueError):
             resolved_config(ROOT, self.plan, result)
+
+    def test_new_package_reuses_shared_approved_media(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / "new-package"
+            state = Path(directory) / "recibos-midia"
+            copytree(ROOT / "media", root / "media", ignore=lambda _, names: {"UPLOADED_ASSETS.json"} & set(names))
+            state.mkdir()
+            for index, row in enumerate(self.fixture()["assets"]):
+                saved = dict(row, schemaVersion=1, target=TARGET, operationPath=f"operations/test_{index}")
+                (state / f"{row['sha256']}.json").write_text(json.dumps(saved), encoding="utf-8")
+            self.assertFalse((root / "media/UPLOADED_ASSETS.json").exists())
+            expected = resolved_config(ROOT, self.plan, self.fixture(), video="8000")
+            self.assertEqual(make_config(root, state_dir=state, video="8000"), expected)
+            missing = self.plan["assets"][0]
+            (state / f"{missing['sha256']}.json").unlink()
+            with self.assertRaisesRegex(ValueError, missing["key"]):
+                make_config(root, state_dir=state)
 
     def test_default_does_not_submit_paid_video_or_static_city(self):
         self.assertTrue(all(row["assetType"] in ("Image", "Audio") for row in self.plan["assets"]))

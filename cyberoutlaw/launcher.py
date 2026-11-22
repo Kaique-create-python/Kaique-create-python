@@ -54,7 +54,7 @@ def main(argv=None, *, root=None, storage=None):
             print("Recusa antiga arquivada. Use midia para tentar novamente com as permissões corrigidas.")
             return 0
         if args.acao == "instalar":
-            catalog.make_config(root, video=catalog.saved_video(video_file))
+            catalog.make_config(root, video=catalog.saved_video(video_file), state_dir=state)
         commands = [args.acao]
         if args.acao == "preparar-offline":
             commands.extend((args.original, args.saida))

@@ -88,19 +88,24 @@ def _stage(path, raw):
     return temp
 
 
+def _replace_file(path, raw):
+    temp = _stage(path, raw)
+    try:
+        temp.replace(path)
+        sync_directory(path.parent)
+    finally:
+        temp.unlink(missing_ok=True)
+    return path
+
+
 def write_once(path, raw):
+    # The caller holds locked_state across the existence check and the rename.
     path = guard(path)
     if path.exists():
         if read_place(path) != raw:
             raise Failure(f"Já existe um arquivo diferente para essa versão. {path.name}")
         return path
-    temp = _stage(path, raw)
-    try:
-        os.link(temp, path, follow_symlinks=False)
-        sync_directory(path.parent)
-    finally:
-        temp.unlink(missing_ok=True)
-    return path
+    return _replace_file(path, raw)
 
 
 def write_json(path, value, *, replace):
@@ -108,13 +113,7 @@ def write_json(path, value, *, replace):
     content = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode()
     if not replace:
         return write_once(path, content)
-    temp = _stage(path, content)
-    try:
-        temp.replace(path)
-        sync_directory(path.parent)
-    finally:
-        temp.unlink(missing_ok=True)
-    return path
+    return _replace_file(path, content)
 
 
 def remove(path):
