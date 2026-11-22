@@ -149,16 +149,6 @@
       "durationSeconds": 2.32
     },
     {
-      "key": "rain",
-      "path": "audio/rain.wav",
-      "assetType": "Audio",
-      "contentType": "audio/wav",
-      "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
-      "displayName": "CyberOutlaw rain",
-      "description": "ElevenLabs Sound Effects.",
-      "durationSeconds": 14.0
-    },
-    {
       "key": "title",
       "path": "art/title.png",
       "assetType": "Image",

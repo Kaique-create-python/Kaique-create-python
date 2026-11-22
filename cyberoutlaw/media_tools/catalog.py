@@ -11,7 +11,7 @@ import warnings
 
 from . import upload
 
-SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss", "rain")
+SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
 ART = {
     "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),

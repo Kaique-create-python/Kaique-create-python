@@ -1,4 +1,4 @@
-"""Insert one client script into a full Roblox place, leaving other data intact."""
+"""Update the client script and native avatar settings in a Roblox place."""
 
 from dataclasses import dataclass, field
 from hashlib import sha256
@@ -6,13 +6,19 @@ import struct
 from xml.parsers import expat
 from xml.sax.saxutils import escape
 
-from .codec import Binary, Chunk, Failure, MAX_FILE, pack32, prefs, pstring
+from .codec import Binary, Chunk, Failure, MAX_FILE, pack32, prefs, pstring, puints, refs, uints
 
 
 BINARY_MAGIC = b"<roblox!\x89\xff\r\n\x1a\n"
 MENU_NAME = "CyberOutlawMenu"
 MENU_PATH = ("StarterPlayer", "StarterPlayerScripts", MENU_NAME)
 MENU_CLASSES = ("StarterPlayer", "StarterPlayerScripts", "LocalScript")
+R6 = 0  # Enum.GameAvatarType.R6
+RIG_PROPERTIES = {
+    "StarterPlayer": ("GameSettingsAvatar", "PlaceAvatarRules"),
+    "AvatarRules": ("AvatarType",),
+    "AvatarBodyRules": ("AvatarType",),
+}
 
 
 def source_digest(source):
@@ -42,6 +48,13 @@ def _find(nodes, name, class_name, canonical):
     return named[0] if named else None
 
 
+def _single(items, description):
+    items = list(items)
+    if len(items) > 1:
+        raise Failure(f"O place tem mais de um registro de {description}.")
+    return items[0] if items else None
+
+
 @dataclass(eq=False)
 class _Item:
     tag: str
@@ -52,6 +65,9 @@ class _Item:
     children: list = field(default_factory=list)
     names: list = field(default_factory=list)
     sources: list = field(default_factory=list)
+    referent: str = ""
+    props_end: int = 0
+    avatar_props: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -121,9 +137,9 @@ class _Xml:
             if attrs.get("referent"):
                 self.refs.add(attrs["referent"])
             if parent_tag in ("roblox", "Item") and isinstance(parent, _Item) and (
-                parent is self.root or parent.class_name in MENU_CLASSES[:2]
+                parent is self.root or parent.class_name in (*MENU_CLASSES[:2], "AvatarSettings", "AvatarRules")
             ):
-                node = _Item(tag, position, attrs.get("class", ""))
+                node = _Item(tag, position, attrs.get("class", ""), referent=attrs.get("referent", ""))
                 parent.children.append(node)
         elif tag == "Properties" and parent_tag == "Item" and isinstance(parent, _Item):
             parent.props_count += 1
@@ -135,6 +151,9 @@ class _Xml:
             ):
                 node = _Prop(tag, position)
                 (parent.names if property_name == "Name" else parent.sources).append(node)
+            elif property_name in RIG_PROPERTIES.get(parent.class_name, ()):
+                node = _Prop(tag, position)
+                parent.avatar_props.setdefault(property_name, []).append(node)
         if isinstance(parent, _Prop):
             parent.nested = True
         self.stack.append((tag, node))
@@ -143,6 +162,8 @@ class _Xml:
         _, node = self.stack.pop()
         if isinstance(node, (_Item, _Prop)) and node.tag == tag:
             node.end = self.parser.CurrentByteIndex
+        elif tag == "Properties" and isinstance(node, _Item):
+            node.props_end = self.parser.CurrentByteIndex
 
     def _text(self, text):
         if self.stack and isinstance(self.stack[-1][1], _Prop):
@@ -175,15 +196,24 @@ class _Xml:
         text = escape(source).replace("\r", "&#13;")
         return self.bytes(f'<{tag} name="Source">{text}</{tag}>')
 
-    def add_child(self, parent, markup):
+    def child_edit(self, parent, markup):
         if self.raw.startswith(self.close_start(parent), parent.end):
-            return self.raw[:parent.end] + markup + self.raw[parent.end:]
+            return parent.end, parent.end, markup
         self_close = self.bytes("/>")
         start = parent.end - len(self_close)
         if self.raw[start:parent.end] != self_close:
             raise Failure("A marcação do contêiner do menu está incompleta.")
         closing = self.bytes(f"</{parent.tag}>")
-        return self.raw[:start] + self.bytes(">") + markup + closing + self.raw[parent.end:]
+        return start, parent.end, self.bytes(">") + markup + closing
+
+    def prop_end(self, prop):
+        end = prop.end
+        if self.raw.startswith(self.close_start(prop), end):
+            terminator = self.bytes(">")
+            while self.raw[end:end + len(terminator)] != terminator:
+                end += len(terminator)
+            end += len(terminator)
+        return end
 
     def patch(self, source, known):
         parent, depth, prop = self.locate()
@@ -198,20 +228,60 @@ class _Xml:
                 name_prop = self.bytes(f'<string name="Name">{name}</string>')
                 source_prop = self.source_markup("ProtectedString", source) if name == MENU_NAME else b""
                 markup = opening + name_prop + source_prop + self.bytes("</Properties>") + markup + self.bytes("</Item>")
-            return self.add_child(parent, markup), True
+            start, end, replacement = self.child_edit(parent, markup)
+            return self.raw[:start] + replacement + self.raw[end:], True
         old = prop.value({"ProtectedString", "string"}) if prop is not None else ""
         _accept_source(old, source, known)
         if old == source:
             return self.raw, False
         if prop is None:
             raise Failure("O CyberOutlawMenu existente não tem a propriedade Source.")
-        end = prop.end
-        if self.raw.startswith(self.close_start(prop), end):
-            terminator = self.bytes(">")
-            while self.raw[end:end + len(terminator)] != terminator:
-                end += len(terminator)
-            end += len(terminator)
-        return self.raw[:prop.start] + self.source_markup(prop.tag, source) + self.raw[end:], True
+        return self.raw[:prop.start] + self.source_markup(prop.tag, source) + self.raw[self.prop_end(prop):], True
+
+    def enforce_r6(self):
+        starter = _single((node for node in self.root.children if node.class_name == "StarterPlayer"), "StarterPlayer")
+        settings = _single((node for node in self.root.children if node.class_name == "AvatarSettings"), "AvatarSettings")
+        global_rules = [node for node in settings.children if node.class_name == "AvatarRules"] if settings else []
+        default = _single((node for node in global_rules if node.names and node.names[0].value({"string"}) == "DefaultAvatarRules"), "DefaultAvatarRules")
+        rules = [default] if default else []
+        link = _single(starter.avatar_props.get("PlaceAvatarRules", ()), "PlaceAvatarRules")
+        reference = link.value({"Ref"}).strip() if link else "null"
+        if reference not in ("null", ""):
+            explicit = _single(
+                (node for node in [*global_rules, *starter.children, *self.root.children]
+                 if node.class_name == "AvatarRules" and node.referent == reference), "regra de avatar vinculada"
+            )
+            if explicit is None:
+                raise Failure("O place tem uma regra de avatar vinculada em um caminho desconhecido.")
+            if explicit not in rules:
+                rules.append(explicit)
+
+        targets = [(starter, "GameSettingsAvatar")]
+        for rule in rules:
+            targets.append((rule, "AvatarType"))
+            body = _single((node for node in rule.children if node.class_name == "AvatarBodyRules"), "AvatarBodyRules")
+            if body:
+                targets.append((body, "AvatarType"))
+        edits = []
+        for node, name in targets:
+            if node.props_count > 1:
+                raise Failure("O place tem propriedades de avatar duplicadas.")
+            prop = _single(node.avatar_props.get(name, ()), name)
+            markup = self.bytes(f'<token name="{name}">{R6}</token>')
+            if prop:
+                if prop.value({"token"}).strip() != str(R6):
+                    edits.append((prop.start, self.prop_end(prop), markup))
+            elif node.props_count:
+                edits.append(self.child_edit(_Item("Properties", 0, end=node.props_end), markup))
+            elif node.children:
+                start = node.children[0].start
+                edits.append((start, start, self.bytes("<Properties>") + markup + self.bytes("</Properties>")))
+            else:
+                edits.append(self.child_edit(node, self.bytes("<Properties>") + markup + self.bytes("</Properties>")))
+        raw = self.raw
+        for start, end, replacement in sorted(edits, reverse=True):
+            raw = raw[:start] + replacement + raw[end:]
+        return raw
 
 
 def _binary_location(doc):
@@ -235,7 +305,7 @@ def _binary_location(doc):
     return parent, len(MENU_PATH)
 
 
-def _add_binary(doc, parent, depth, source):
+def _add_binary(doc, parent, depth, source, force_r6=False):
     next_ref = max(doc.objects, default=-1) + 1
     next_group = max(doc.groups, default=-1) + 1
     parents = list(doc.parents.items())
@@ -248,6 +318,8 @@ def _add_binary(doc, parent, depth, source):
         instance = group + pstring(class_name.encode()) + service_byte + pack32(1) + prefs([ref])
         instances.append(Chunk(b"INST", instance + (b"\1" if service else b"")))
         props.append(Chunk(b"PROP", group + pstring(b"Name") + b"\1" + pstring(name.encode())))
+        if service and force_r6:
+            props.append(Chunk(b"PROP", group + pstring(b"GameSettingsAvatar") + b"\x12" + puints([R6])))
         if name == MENU_NAME:
             props.append(Chunk(b"PROP", group + pstring(b"Source") + b"\1" + pstring(source.encode())))
         parents.append((ref, parent))
@@ -268,6 +340,64 @@ def _add_binary(doc, parent, depth, source):
     header = bytearray(doc.header)
     struct.pack_into("<II", header, 16, len(doc.groups) + len(instances), len(parents))
     doc.header = bytes(header)
+
+
+def _binary_r6(doc):
+    starter = _single((ref for ref, obj in doc.objects.items() if obj["class"] == "StarterPlayer" and doc.parents[ref] == -1), "StarterPlayer")
+    settings = _single((ref for ref, obj in doc.objects.items() if obj["class"] == "AvatarSettings" and doc.parents[ref] == -1), "AvatarSettings")
+    default = _single(
+        (ref for ref in doc.children.get((settings, "DefaultAvatarRules"), ())
+         if doc.objects[ref]["class"] == "AvatarRules"), "DefaultAvatarRules"
+    )
+    rules = {default} if default is not None else set()
+    targets = []
+    if starter is not None:
+        targets.append((starter, "GameSettingsAvatar"))
+        obj = doc.objects[starter]
+        gid, index = obj["group"], obj["index"]
+        link = doc.props.get((gid, "PlaceAvatarRules"))
+        if link:
+            chunk, kind, start = link
+            if kind != 0x13:
+                raise Failure("A propriedade PlaceAvatarRules não é uma referência.")
+            linked = refs(chunk.data[start:], len(doc.groups[gid]["refs"]))[index]
+            if linked != -1:
+                if doc.objects.get(linked, {}).get("class") != "AvatarRules":
+                    raise Failure("O place tem uma referência de avatar inválida.")
+                rules.add(linked)
+
+    for rule in sorted(rules):
+        targets.append((rule, "AvatarType"))
+        body = _single((ref for ref, obj in doc.objects.items()
+                        if doc.parents[ref] == rule and obj["class"] == "AvatarBodyRules"), "AvatarBodyRules")
+        if body is not None:
+            targets.append((body, "AvatarType"))
+
+    changed = False
+    for ref, name in targets:
+        obj = doc.objects[ref]
+        gid, index = obj["group"], obj["index"]
+        count = len(doc.groups[gid]["refs"])
+        prop = doc.props.get((gid, name))
+        if prop is None:
+            if count != 1:
+                raise Failure(f"Não foi possível separar {name} das outras regras de avatar.")
+            data = pack32(gid) + pstring(name.encode()) + b"\x12" + puints([R6])
+            chunk = Chunk(b"PROP", data)
+            doc.chunks.insert(doc.chunks.index(doc.parent_chunk), chunk)
+            doc.props[gid, name] = chunk, 0x12, len(data) - 4
+            changed = True
+            continue
+        chunk, kind, start = prop
+        if kind != 0x12:
+            raise Failure(f"A propriedade {name} não contém um tipo de avatar.")
+        values = uints(chunk.data[start:], count)
+        if values[index] != R6:
+            values[index] = R6
+            chunk.data = chunk.data[:start] + puints(values)
+            chunk.packet = None
+            changed = True
+    return changed
 
 
 def _document(raw):
@@ -320,27 +450,35 @@ def menu_source(raw):
         raise Failure(f"Não foi possível ler o código do menu no place. {exc}") from None
 
 
-def patch_place(raw, source, known=frozenset()):
+def patch_place(raw, source, known=frozenset(), *, force_r6=False):
     try:
         if not source:
             raise Failure("O código do menu está vazio.")
         doc = _read_document(raw)
         if isinstance(doc, Binary):
             ref, depth = _binary_location(doc)
+            changed = _binary_r6(doc) if force_r6 else False
             if depth < len(MENU_PATH):
-                _add_binary(doc, ref, depth, source)
+                _add_binary(doc, ref, depth, source, force_r6)
+                changed = True
             else:
                 obj = doc.objects[ref]
                 if (obj["group"], "Source") not in doc.props:
                     raise Failure("O CyberOutlawMenu existente não tem a propriedade Source.")
                 old = doc.value(ref, "Source").decode("utf-8")
                 _accept_source(old, source, known)
-                if old == source:
-                    return raw, False
-                doc.set_sources([dict(path=MENU_PATH, **{"class": "LocalScript"}, before=old, after=source)])
+                if old != source:
+                    doc.set_sources([dict(path=MENU_PATH, **{"class": "LocalScript"}, before=old, after=source)])
+                    changed = True
+            if not changed:
+                return raw, False
             result = doc.encode()
         else:
             result, changed = doc.patch(source, known)
+            if force_r6:
+                r6_result = (doc if not changed else _read_document(result)).enforce_r6()
+                changed = changed or r6_result != result
+                result = r6_result
             if not changed:
                 return raw, False
         if menu_source(result) != source:

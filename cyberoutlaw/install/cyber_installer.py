@@ -28,6 +28,7 @@ from .paths import guard, locked_state, read_json, read_place, remove, write_jso
 CONFIG_MARKER = "__CYBEROUTLAW_CONFIG__"
 CITY_MARKER = "-- __CYBEROUTLAW_CITY__"
 SCENE_MARKER = "-- __CYBEROUTLAW_SCENE__"
+HUD_MARKER = "-- __CYBEROUTLAW_HUD__"
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
 V1_ASSET_TYPES = {"video", "sounds", "clips"}
 ASSET_TYPES = V1_ASSET_TYPES | {"art"}
@@ -38,6 +39,7 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 V1_TEMPLATE_SHA256 = "e10acc19da074d939ef706812a9ac56260af271379e39f7193ad29247b7dcd0c"
 V2_TEMPLATE_SHA256 = "2a63e2015b3118d75ccc77a114b5126ee8f9d40ae4426096b55d91e95cd4e05a"
 V3_TEMPLATE_SHA256 = "72e38fc5fbb1b0486ed74bb41c230b95b179c2f18a3bba1583421bff52ae0ef0"
+CAMERA_TEMPLATE_SHA256 = "0aef4b6f02298843c6116cd43cac22eae2d6ad035cbce6d470ed29b4e7b67c62"
 
 
 def digest(raw):
@@ -84,6 +86,7 @@ def _normalize_config(data):
             name: _integer(value, f"{field}.{name}")
             for name, value in _entries(data.get(field, {}), field)
         }
+    config["sounds"].pop("rain", None)
     clips = {}
     for name, clip in _entries(data.get("clips", {}), "clips"):
         field = f"clips.{name}"
@@ -122,16 +125,17 @@ def _luau(value):
 
 def source_from_package(root):
     menu = (root / "src" / "menu.client.luau").read_text(encoding="utf-8-sig")
-    markers = (CONFIG_MARKER, CITY_MARKER, SCENE_MARKER)
+    fragments = ((CITY_MARKER, "city.luau"), (SCENE_MARKER, "scene.luau"), (HUD_MARKER, "hud.luau"))
+    markers = (CONFIG_MARKER, *(tag for tag, _ in fragments))
     if any(menu.count(marker) != 1 for marker in markers):
-        raise Failure("O script do menu deve conter um marcador para configuração, cidade e cena.")
+        raise Failure("O script deve conter um marcador para configuração, cidade, cena e HUD.")
     positions = [menu.index(marker) for marker in markers]
     if positions != sorted(positions):
-        raise Failure("Os marcadores do menu devem seguir a ordem de configuração, cidade e cena.")
+        raise Failure("Os marcadores devem seguir a ordem de configuração, cidade, cena e HUD.")
     slot = ASSET_LINE.search(menu)
     if slot is None or slot[1] != CONFIG_MARKER:
         raise Failure("O marcador de mídia deve definir local ASSETS em sua própria linha.")
-    for marker, filename in ((CITY_MARKER, "city.luau"), (SCENE_MARKER, "scene.luau")):
+    for marker, filename in fragments:
         fragment = (root / "src" / filename).read_text(encoding="utf-8-sig")
         if not fragment.strip() or any(tag in fragment for tag in markers):
             raise Failure(f"O código em {filename} está vazio ou contém marcadores do menu.")
@@ -222,10 +226,10 @@ def _merge_assets(older, newer):
     }
 
 
-def _prepare_update(raw, source, known=frozenset(), published_raw=None):
+def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force_r6=False):
     target = _split_assets(source)
     if target is None:
-        ready, changed = patch_place(raw, source, known)
+        ready, changed = patch_place(raw, source, known, force_r6=force_r6)
         return ready, changed, source
     template, literal = target
     target_config = _asset_table(literal, ASSET_TYPES)
@@ -250,7 +254,7 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None):
         old_sha = source_digest(old)
         if old_template_sha == V1_TEMPLATE_SHA256:
             required = V1_ASSET_TYPES
-        elif old_template_sha in (V2_TEMPLATE_SHA256, V3_TEMPLATE_SHA256, template_sha):
+        elif old_template_sha in (V2_TEMPLATE_SHA256, V3_TEMPLATE_SHA256, CAMERA_TEMPLATE_SHA256, template_sha):
             required = ASSET_TYPES
         elif old_sha in known:
             required = None
@@ -261,7 +265,7 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None):
             allowed.add(old_sha)
             recovered = _merge_assets(recovered, old_assets)
     source = template.replace(CONFIG_MARKER, _luau(_merge_assets(recovered, target_config)), 1)
-    ready, changed = patch_place(raw, source, allowed)
+    ready, changed = patch_place(raw, source, allowed, force_r6=force_r6)
     return ready, changed, source
 
 
@@ -280,11 +284,12 @@ def _first_possible_published_version(entry):
 
 
 class Installer:
-    def __init__(self, state, *, report=print, sleeper=time.sleep):
+    def __init__(self, state, *, report=print, sleeper=time.sleep, force_r6=False):
         self.state = state
         self.active = state / "active-write.json"
         self.report = report
         self.sleep = sleeper
+        self.force_r6 = force_r6
 
     def pending(self):
         return read_json(self.active)
@@ -352,11 +357,13 @@ class Installer:
         self.report(f"Baixando a versão publicada {published} e conferindo a versão mais recente {latest}.")
         live_raw, live = self._backup(cloud, published)
         base_raw, base = (live_raw, live) if published == latest else self._backup(cloud, latest)
-        ready, changed, effective = _prepare_update(base_raw, source, self._known_sources(), live_raw)
+        ready, changed, effective = _prepare_update(
+            base_raw, source, self._known_sources(), live_raw, force_r6=self.force_r6
+        )
         if effective != source:
             self.report("A atualização reutiliza IDs de mídia do menu já instalado.")
         source = effective
-        if patch_place(ready, source) != (ready, False):
+        if patch_place(ready, source, force_r6=self.force_r6) != (ready, False):
             raise Failure("A segunda aplicação alterou o arquivo preparado.")
         if not changed and latest == published:
             if _current(cloud.history()) != (latest, published):
@@ -384,6 +391,8 @@ class Installer:
             self.report(f"Backup da gravação mais recente em {self.state / base['file']}")
             self.report(f"A publicação incluirá as alterações já gravadas na versão {latest}.")
         self.report(f"Place preparado em {ready_path}")
+        if self.force_r6:
+            self.report("HUD de jogo com retrato e mira central. Configuração de avatar do Place em R6.")
         self.report(f"SHA-256 {ready_sha}")
         self.report("Pause outras gravações neste place até o fim da publicação.")
         if confirm(f"Para publicar neste place, digite {CONFIRMATION} e pressione Enter. ").strip() != CONFIRMATION:
@@ -485,7 +494,7 @@ def _info(source, config):
     sounds = sum(asset > 0 for asset in config["sounds"].values())
     art = sum(asset > 0 for asset in config["art"].values())
     video = "ID configurado" if config["video"] else "sequência de abertura local"
-    print(f"Código do menu e cena 3D preparados. SHA-256 {source_digest(source)}")
+    print(f"Código do menu, cena 3D e HUD preparados. SHA-256 {source_digest(source)}")
     print(f"Abertura com {video} · {clips} clipes, {sounds} sons e {art} imagens com IDs no pacote.")
 
 
@@ -508,14 +517,14 @@ def main(argv=None, root=None):
             return 0
         if args.command == "preparar-offline":
             raw = read_place(args.original.expanduser())
-            ready, _, source = _prepare_update(raw, source)
-            if patch_place(ready, source) != (ready, False):
+            ready, _, source = _prepare_update(raw, source, force_r6=True)
+            if patch_place(ready, source, force_r6=True) != (ready, False):
                 raise Failure("A segunda aplicação alterou o arquivo preparado.")
             write_offline(args.destino.expanduser(), ready)
             print(f"Place preparado em {args.destino}. SHA-256 {digest(ready)}")
             return 0
         with locked_state(Path.home() / ".cyberoutlaw-installer") as state:
-            installer = Installer(state)
+            installer = Installer(state, force_r6=True)
             pending = installer.pending()
             if args.command == "instalar" and pending is not None:
                 raise Failure("Há uma publicação pendente. Execute resume para consultar o resultado.")

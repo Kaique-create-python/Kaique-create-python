@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
 
 from install.cloud import API, Cloud, CREATOR_ID, PLACE_ID, PUBLISH_ROUTE, UNIVERSE_ID, Version
-from install.codec import Binary, Failure, pack32, prefs, pstring
+from install.codec import Binary, Failure, pack32, prefs, pstring, puints, uints
 from install.cyber_installer import (
     CONFIG_MARKER, CONFIRMATION, V1_ASSET_TYPES, Installer, _asset_table, _luau,
     _prepare_update, _split_assets, load_config, source_from_package,
@@ -69,7 +69,7 @@ def _chunk(tag, body):
     return struct.pack("<4sIII", tag, 0, len(body), 0) + body
 
 
-def make_binary():
+def make_binary(avatars=False):
     groups = [
         ("Workspace", [(0, "Workspace", None, -1)], True),
         ("Part", [(1, "Original map", None, 0)], False),
@@ -77,6 +77,12 @@ def make_binary():
         ("StarterPlayerScripts", [(3, "StarterPlayerScripts", None, 2)], False),
         ("LocalScript", [(4, "Story", b"return 123", 3)], False),
     ]
+    if avatars:
+        groups += [
+            ("AvatarSettings", [(5, "AvatarSettings", None, -1)], True),
+            ("AvatarRules", [(6, "DefaultAvatarRules", None, 5), (7, "NPC rules", None, 5)], False),
+            ("AvatarBodyRules", [(8, "Body", None, 6), (9, "Body", None, 7)], False),
+        ]
     instances, properties, children, parents = [], [], [], []
     for index, (class_name, objects, service) in enumerate(groups):
         group = pack32(index)
@@ -89,6 +95,9 @@ def make_binary():
         properties.append(_chunk(b"PROP", group + pstring(b"Name") + b"\1" + b"".join(pstring(name.encode()) for name in names)))
         if any(source is not None for source in sources):
             properties.append(_chunk(b"PROP", group + pstring(b"Source") + b"\1" + b"".join(pstring(source or b"") for source in sources)))
+        if avatars and class_name in ("StarterPlayer", "AvatarRules", "AvatarBodyRules"):
+            prop = b"GameSettingsAvatar" if class_name == "StarterPlayer" else b"AvatarType"
+            properties.append(_chunk(b"PROP", group + pstring(prop) + b"\x12" + puints([1] * len(refs))))
     header = BINARY_MAGIC + b"\0\0" + struct.pack("<II8x", len(instances), len(children))
     parenting = _chunk(b"PRNT", b"\0" + pack32(len(children)) + prefs(children) + prefs(parents))
     opaque = _chunk(b"TEST", b"preserve unknown blocks bit for bit")
@@ -96,6 +105,44 @@ def make_binary():
 
 
 class PatcherTests(unittest.TestCase):
+    def test_native_binary_r6_updates_only_the_player_rules(self):
+        binary, _ = patch_place(make_binary(avatars=True), SOURCE)
+        ready, changed = patch_place(binary, SOURCE, force_r6=True)
+        self.assertTrue(changed)
+        before, after = Binary(binary), Binary(ready)
+        self.assertEqual(before.parents, after.parents)
+        self.assertEqual(menu_source(ready), SOURCE)
+        for (group, name), (chunk, kind, start) in after.props.items():
+            previous = before.props[group, name][0]
+            if name == "GameSettingsAvatar":
+                self.assertEqual(uints(chunk.data[start:], 1), [0])
+            elif name == "AvatarType":
+                self.assertEqual(uints(chunk.data[start:], 2), [0, 1])
+            else:
+                self.assertEqual(chunk.packet, previous.packet)
+        self.assertEqual(patch_place(ready, SOURCE, force_r6=True), (ready, False))
+
+    def test_native_xml_r6_with_default_and_linked_avatar_rules(self):
+        raw = xml_place().replace(
+            b'<string name="Name">StarterPlayer</string>',
+            b'<string name="Name">StarterPlayer</string><Ref name="PlaceAvatarRules">custom</Ref>',
+        ).replace(b"</roblox>", b"""
+<Item class="AvatarSettings">
+  <Item class="AvatarRules" referent="default"><Properties>
+    <string name="Name">DefaultAvatarRules</string><token name="AvatarType">1</token>
+  </Properties><Item class="AvatarBodyRules"><Properties><token name="AvatarType">1</token></Properties></Item></Item>
+  <Item class="AvatarRules" referent="custom"><Properties><token name="AvatarType">2</token></Properties></Item>
+  <Item class="AvatarRules" referent="untouched"><Properties><token name="AvatarType">1</token></Properties></Item>
+</Item>
+</roblox>""")
+        ready, changed = patch_place(raw, SOURCE, force_r6=True)
+        self.assertTrue(changed)
+        self.assertEqual(ready.count(b'<token name="GameSettingsAvatar">0</token>'), 1)
+        self.assertEqual(ready.count(b'<token name="AvatarType">0</token>'), 3)
+        self.assertEqual(ready.count(b'<token name="AvatarType">1</token>'), 1)
+        self.assertIn(b'<Ref name="PlaceAvatarRules">custom</Ref>', ready)
+        self.assertEqual(patch_place(ready, SOURCE, force_r6=True), (ready, False))
+
     def test_xml_keeps_original_bytes_outside_new_script(self):
         raw = xml_place()
         updated, changed = patch_place(raw, SOURCE)
@@ -218,14 +265,16 @@ class ConfigTests(unittest.TestCase):
             (root / "src").mkdir()
             (root / "config").mkdir()
             (root / "src" / "menu.client.luau").write_text(
-                "local ASSETS = __CYBEROUTLAW_CONFIG__\n-- __CYBEROUTLAW_CITY__\n-- __CYBEROUTLAW_SCENE__\nreturn ASSETS"
+                "local ASSETS = __CYBEROUTLAW_CONFIG__\n-- __CYBEROUTLAW_CITY__\n-- __CYBEROUTLAW_SCENE__\n-- __CYBEROUTLAW_HUD__\nreturn ASSETS"
             )
             (root / "src" / "city.luau").write_text("local function createCyberCity(parent) end\n")
             (root / "src" / "scene.luau").write_text("local function createCyberScene(parent) end\n")
+            (root / "src" / "hud.luau").write_text("local function mountCyberOutlawHud() end\n")
             empty, config = source_from_package(root)
             self.assertEqual(config, {"video": 0, "clips": {}, "sounds": {}, "art": {}})
             self.assertIn("local function createCyberCity(parent)", empty)
             self.assertLess(empty.index("local function createCyberCity"), empty.index("local function createCyberScene"))
+            self.assertIn("local function mountCyberOutlawHud()", empty)
             data = {
                 "video": 218,
                 "art": {"title": 24, "billboard": 49},

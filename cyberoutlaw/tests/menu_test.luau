@@ -4,6 +4,7 @@ local roblox = require("@lune/roblox")
 
 assert(fs.isFile("src/menu.client.luau"), "the client menu is required")
 local source = fs.readFile("src/menu.client.luau")
+local hudSource = fs.readFile("src/hud.luau")
 local E = roblox.Enum
 
 local function signal()
@@ -12,6 +13,14 @@ local function signal()
 		Connect = function(_, callback)
 			local connection = { connected = true, Disconnect = function(self) self.connected = false end }
 			listeners[connection] = callback
+			return connection
+		end,
+		Once = function(self, callback)
+			local connection
+			connection = self:Connect(function(...)
+				connection:Disconnect()
+				callback(...)
+			end)
 			return connection
 		end,
 		Fire = function(_, ...)
@@ -51,6 +60,16 @@ local function scenario(config, options)
 				end
 			end
 		end
+	end
+	function nodeMethods:FindFirstChildOfClass(class)
+		for _, child in self.children do
+			if child.ClassName == class then
+				return child
+			end
+		end
+	end
+	function nodeMethods:IsA(class)
+		return self.ClassName == class
 	end
 	nodeMethods.WaitForChild = nodeMethods.FindFirstChild
 	function nodeMethods:GetAttribute(name)
@@ -113,7 +132,7 @@ local function scenario(config, options)
 		self.values.IsLoaded = false
 		for _, key in { "Destroying", "Activated", "MouseEnter", "MouseLeave", "SelectionGained",
 			"SelectionLost", "InputBegan", "InputChanged", "InputEnded", "WindowFocusReleased",
-			"Loaded", "Ended" } do
+			"Loaded", "Ended", "ChildAdded", "CharacterAdded", "CharacterRemoving", "HealthChanged" } do
 			self.values[key] = signal()
 		end
 		return setmetatable(self, {
@@ -121,7 +140,10 @@ local function scenario(config, options)
 				local values = instance.values
 				if key == "AbsoluteSize" or key == "AbsolutePosition" then
 					local parent = values.Parent
-					if not parent or class == "ScreenGui" then
+				if class == "ScreenGui" and options.insets and values.ScreenInsets == E.ScreenInsets.CoreUISafeInsets then
+					return if key == "AbsoluteSize" then h.size - roblox.Vector2.new(0, options.insets) else roblox.Vector2.new(0, options.insets)
+				end
+				if not parent or class == "ScreenGui" then
 						return if key == "AbsoluteSize" then h.size else roblox.Vector2.new(0, 0)
 					end
 					local parentSize, size = parent.AbsoluteSize, values.Size
@@ -148,6 +170,11 @@ local function scenario(config, options)
 					end
 				end
 				instance.values[key] = value
+			if key == "Parent" and value and previous ~= value then
+				value.ChildAdded:Fire(instance)
+			elseif key == "Health" and previous ~= value then
+				instance.HealthChanged:Fire(value)
+			end
 				local changed = instance.changes[key]
 				if changed and previous ~= value then
 					changed:Fire()
@@ -167,10 +194,20 @@ local function scenario(config, options)
 	h.guiService.TouchControlsEnabled = true
 	h.input = node("UserInputService")
 	h.input.PreferredInput = options.preferredInput or E.PreferredInput.KeyboardAndMouse
+	h.input.TouchEnabled = options.touch == true
+	h.coreHealth = true
+	h.make = node
 	local heartbeat = signal()
 	local services = {
 		Players = { LocalPlayer = h.player },
 		GuiService = h.guiService,
+		StarterGui = {
+			GetCoreGuiEnabled = function() return h.coreHealth end,
+			SetCoreGuiEnabled = function(_, kind, enabled)
+				assert(kind == E.CoreGuiType.Health)
+				h.coreHealth = enabled
+			end,
+		},
 		UserInputService = h.input,
 		RunService = { Heartbeat = heartbeat },
 		SoundService = node("SoundService"),
@@ -244,6 +281,9 @@ local function scenario(config, options)
 				end
 			end
 		]])
+		code = string.gsub(code, "%-%- __CYBEROUTLAW_HUD__", function()
+			return hudSource
+		end)
 		local binding = luau.load(code, {
 			debugName = "menu.client.luau",
 			injectGlobals = true,
@@ -292,7 +332,10 @@ local function scenario(config, options)
 	end
 	function h:resize(width, height)
 		self.size = roblox.Vector2.new(width, height)
-		self:find("SafeArea"):GetPropertyChangedSignal("AbsoluteSize"):Fire()
+		local safeArea = self:find("SafeArea")
+		if safeArea then
+			safeArea:GetPropertyChangedSignal("AbsoluteSize"):Fire()
+		end
 	end
 	h:run()
 	return h
@@ -300,6 +343,7 @@ end
 
 local main = scenario("{video = 123}", { reduced = true, preferredInput = E.PreferredInput.Gamepad })
 assert(main:find("CyberOutlawBackdrop") and main:find("CyberOutlawMenu"), "menu layers were not mounted")
+assert(not main:find("CyberOutlawHealth") and not main:find("CyberOutlawAim"), "the HUD waits for Jogar")
 assert(not main.guiService.TouchControlsEnabled, "touch controls stay hidden while the menu is open")
 assert(main.player:GetAttribute("CyberOutlawMenuOpen") == true, "gameplay is gated during the loader")
 assert(main:find("Loader").Visible and not main:find("MenuStack").Visible, "loader owns the first real frame")
@@ -327,6 +371,50 @@ assert(main.player:GetAttribute("CyberOutlawMenuStarted") == true, "Jogar report
 assert(main.guiService.TouchControlsEnabled, "Jogar restores the gameplay touch controls")
 assert(main.player:GetAttribute("CyberOutlawMenuOpen") == false and not main:find("CyberOutlawMenu") and not main:find("CyberOutlawBackdrop"), "handoff releases both screens and gameplay gate")
 assert(main.guiService.SelectedObject == nil and next(main.bindings) == nil, "handoff releases menu focus and bound input")
+assert(not main.coreHealth and main:find("CyberOutlawHealth"), "the game has a single health HUD")
+assert(main:find("CharacterFace").Image == "rbxthumb://type=AvatarHeadShot&id=321&w=150&h=150", "the headshot belongs to the player")
+local function checkAimCenter(h)
+	local aim = assert(h:find("Crosshair"))
+	assert(aim.Parent.ScreenInsets == E.ScreenInsets.None and not aim.Parent.ClipToDeviceSafeArea)
+	assert(aim.AbsolutePosition + aim.AbsoluteSize / 2 == h.size / 2, "the ring is centered in the full viewport")
+	local dot = assert(h:find("Dot"))
+	assert(dot.AbsoluteSize.X == 2 and dot.AbsolutePosition + dot.AbsoluteSize / 2 == h.size / 2, "the 2px dot shares its center")
+end
+checkAimCenter(main)
+local firstHero = main.make("Model")
+local firstHumanoid = main.make("Humanoid")
+firstHumanoid.MaxHealth = 100
+firstHumanoid.Health = 78
+firstHumanoid.Parent = firstHero
+main.player.CharacterAdded:Fire(firstHero)
+assert(main:find("HealthValue").Text == "78 / 100")
+assert(math.abs(main:find("HealthFill").Size.X.Scale - 0.78) < 0.000001)
+firstHumanoid.Health = 32.1
+firstHumanoid.MaxHealth = 120
+assert(main:find("HealthValue").Text == "33 / 120")
+firstHumanoid.Health = 0
+assert(main:find("HealthValue").Text == "0 / 120" and not main:find("HealthFill").Visible)
+main.player.CharacterRemoving:Fire(firstHero)
+local newHero = main.make("Model")
+main.player.CharacterAdded:Fire(newHero)
+assert(main:find("HealthValue").Text == "—")
+local newHumanoid = main.make("Humanoid")
+newHumanoid.MaxHealth = 90
+newHumanoid.Health = 90
+newHumanoid.Parent = newHero
+firstHumanoid.Health = 3
+assert(main:find("HealthValue").Text == "90 / 90" and main:find("HealthFill").Size.X.Scale == 1)
+main.script:Destroy()
+assert(main.coreHealth and not main:find("CyberOutlawHealth") and not main:find("CyberOutlawAim"))
+
+local phone = scenario("{}", { touch = true, insets = 50, size = roblox.Vector2.new(896, 414) })
+phone:step(6)
+phone:find("Play").Activated:Fire()
+phone:step(0.5)
+assert(phone:find("Vitals").AbsolutePosition.Y == 58, "the health HUD is below the safe top bar")
+checkAimCenter(phone)
+phone:resize(414, 896)
+checkAimCenter(phone)
 
 local moving = scenario("{video=678,sounds={click=987,rain=988}}")
 moving:step(0.02)
@@ -338,7 +426,7 @@ mutedVideo.Loaded:Fire()
 assert(mutedVideo.Playing, "valid, loaded video can play within the loader")
 moving:step(6)
 assert(moving.cityTime > 1, "the panorama normally moves")
-assert(moving.sounds[1] == "rain", "the rain starts when the opening ends")
+assert(#moving.sounds == 0, "an old rain ID must never start audio when the opening ends")
 moving:find("Settings").Activated:Fire()
 moving:find("MotionToggle").Activated:Fire()
 moving:step(0.07)
@@ -348,6 +436,10 @@ local played = #moving.sounds
 moving:find("Close").Activated:Fire()
 moving:find("Credits").Activated:Fire()
 assert(#moving.sounds == played, "muting prevents menu sounds")
+moving:find("Close").Activated:Fire()
+moving:find("Settings").Activated:Fire()
+moving:find("SoundToggle").Activated:Fire()
+assert(moving.sounds[#moving.sounds] == "click" and not table.find(moving.sounds, "rain"), "unmuting restores clicks without rain")
 moving.script:Destroy()
 moving:run()
 assert(not moving:find("Loader") and moving:find("MenuStack").Visible, "a reopened menu does not repeat the session loader")
@@ -495,4 +587,4 @@ assert(capri.sounds[#capri.sounds] == "confirm" and capri:find("CyberOutlawMenu"
 capri:step(0.35)
 assert(not capri:find("CyberOutlawMenu") and capri.player:GetAttribute("CyberOutlawMenuStarted"), "confirm finishes in the normal handoff")
 
-print("CyberOutlaw menu timeline, live and fallback 3D, brush art, player profile, settings, focus, media, responsive layouts and Capri interactions passed")
+print("CyberOutlaw menu, 3D, Capri, silent rain, responsive crosshair and health through damage and respawn passed")

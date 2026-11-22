@@ -18,7 +18,7 @@ local ContentProvider = game:GetService("ContentProvider")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-if player:GetAttribute("CyberOutlawMenuStarted") or playerGui:FindFirstChild("CyberOutlawMenu") then
+if playerGui:FindFirstChild("CyberOutlawMenu") then
 	return
 end
 
@@ -180,6 +180,12 @@ local function drawIcon(holder, kind, z, color)
 			iconLine(holder, z, { { 8, y }, { 16, y } }, color)
 		end
 	end
+end
+
+-- __CYBEROUTLAW_HUD__
+if player:GetAttribute("CyberOutlawMenuStarted") then
+	mountCyberOutlawHud()
+	return
 end
 
 local backdrop = screen("CyberOutlawBackdrop", 1200, false)
@@ -448,11 +454,11 @@ local sounds = {}
 local cooldowns = {}
 local preloadAssets = {}
 local preloadImages = {}
-local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40, rain = 0.22 }
+local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40 }
 for key, level in levels do
 	local uri = asset((ASSETS.sounds or {})[key])
 	if uri ~= "" then
-		sounds[key] = make("Sound", setFolder, key, { SoundId = uri, Volume = level, Looped = key == "rain" })
+		sounds[key] = make("Sound", setFolder, key, { SoundId = uri, Volume = level })
 		table.insert(preloadAssets, sounds[key])
 	end
 end
@@ -1011,7 +1017,6 @@ local function finishLoader()
 		loader, loaderShade, loaderBrand, loaderBar = nil, nil, nil, nil
 	end
 	state = "main"
-	sound("rain", 0)
 	stack.Visible = true
 	petLayer.Visible = true
 	profile.Visible = true
@@ -1081,6 +1086,9 @@ local function cleanup(started)
 	setFolder:Destroy()
 	safeGui:Destroy()
 	backdrop:Destroy()
+	if started then
+		mountCyberOutlawHud()
+	end
 end
 
 local function activate(config)
@@ -1161,7 +1169,6 @@ connect(soundToggle.Activated, function()
 	soundOn = not soundOn
 	if soundOn then
 		sound("click", 0)
-		sound("rain", 0)
 	else
 		for _, item in sounds do
 			item:Stop()
