@@ -305,4 +305,76 @@ do
 	end
 end
 assert(play.upper("maré baixa, ação") == "MARÉ BAIXA, AÇÃO")
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, layout on 6 screens, HUD, combat layer, 2D and 3D icons passed")
+
+-- Locomoção procedural: cadência, pernas opostas, passos, respiração parada, salto, aterrissagem e escalada.
+do
+	local g = play.newGait()
+	local steps, last = 0, nil
+	for _ = 1, 120 do
+		local pose = play.gaitStep(g, { velocity = V3.new(0, 0, -17), state = "run", yawRate = 0, verticalSpeed = 0 }, 1 / 60)
+		if pose.step ~= 0 then
+			steps += 1
+		end
+		last = pose
+	end
+	assert(steps >= 5 and steps <= 7, "about three steps per second while running, got " .. steps)
+	for _, dir in { last.rightLeg, last.leftLeg, last.rightArm, last.leftArm } do
+		assert(math.abs(dir.Magnitude - 1) < 1e-4)
+	end
+	-- Pernas opostas: quando uma vai à frente (-Z), a outra vai atrás.
+	local found = false
+	for _ = 1, 60 do
+		local pose = play.gaitStep(g, { velocity = V3.new(0, 0, -17), state = "run" }, 1 / 60)
+		if math.abs(pose.rightLeg.Z) > 0.3 then
+			assert(pose.rightLeg.Z * pose.leftLeg.Z < 0, "legs swing in opposite directions")
+			assert(pose.rightArm.Z * pose.rightLeg.Z < 0, "the right arm counters the right leg")
+			found = true
+		end
+	end
+	assert(found)
+	-- Correndo, o tronco inclina para a frente (rotação negativa em X).
+	local rx = select(1, last.root:ToEulerAnglesXYZ())
+	assert(rx < -0.05, "leans forward while running")
+	-- Lateral (mirando e andando de lado): as pernas balançam em X.
+	local side = play.newGait()
+	local maxX = 0
+	for _ = 1, 90 do
+		local pose = play.gaitStep(side, { velocity = V3.new(11, 0, 0), state = "run" }, 1 / 60)
+		maxX = math.max(maxX, math.abs(pose.rightLeg.X))
+	end
+	assert(maxX > 0.3, "strafing swings the legs sideways")
+	-- Parado: pernas quase retas, respiração pequena.
+	local idle = play.newGait()
+	local pose
+	for _ = 1, 120 do
+		pose = play.gaitStep(idle, { velocity = V3.zero, state = "run" }, 1 / 60)
+	end
+	assert(pose.rightLeg.Y < -0.95 and pose.step == 0 and math.abs(pose.root.Position.Y) < 0.06)
+	-- Salto e aterrissagem com mola.
+	for _ = 1, 30 do
+		pose = play.gaitStep(idle, { velocity = V3.new(0, -50, 0), state = "fall", verticalSpeed = -50 }, 1 / 60)
+	end
+	assert(pose.rightLeg.Z < -0.3 and pose.rightArm.X > 0.3, "in the air: one leg forward, arms out")
+	local lowest = 0
+	for _ = 1, 20 do
+		pose = play.gaitStep(idle, { velocity = V3.zero, state = "run" }, 1 / 60)
+		lowest = math.min(lowest, pose.root.Position.Y)
+	end
+	assert(lowest < -0.1, "landing squashes the body")
+	for _ = 1, 90 do
+		pose = play.gaitStep(idle, { velocity = V3.zero, state = "run" }, 1 / 60)
+	end
+	assert(math.abs(pose.root.Position.Y) < 0.06, "the body recovers after landing")
+	-- Escada e nado: a pose procedural sai de cena para o Animate do Roblox.
+	for _ = 1, 60 do
+		pose = play.gaitStep(idle, { velocity = V3.new(0, 8, 0), state = "climb" }, 1 / 60)
+	end
+	assert(pose.weight < 0.05)
+	-- RootJoint: o Transform leva o tronco ao deslocamento pedido no espaço do HumanoidRootPart.
+	local c0 = CF.new(0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 1, 0)
+	local offset = CF.new(0.1, -0.2, 0) * CF.Angles(-0.15, 0.05, 0.1)
+	local torso = c0 * play.rootTransform(c0, offset) * c0:Inverse()
+	local expected = offset * c0 * c0:Inverse()
+	assert((torso.Position - expected.Position).Magnitude < 1e-5 and (torso.LookVector - expected.LookVector).Magnitude < 1e-5)
+end
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, layout on 6 screens, HUD, combat layer, 2D and 3D icons passed")

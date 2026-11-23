@@ -117,6 +117,148 @@ local function swingDirection(kind: string, side: number, t: number): Vector3
 end
 M.swingDirection = swingDirection
 
+-- Locomoção procedural do R6 (sem joelhos): o peso vem do tronco. Ele balança a cada passo, inclina ao
+-- acelerar e nas curvas, gira um pouco com os braços e assenta na aterrissagem. Parado, respira e troca o
+-- peso de perna. Pura: recebe o estado e a velocidade e devolve as direções dos membros (no espaço do
+-- tronco), o deslocamento do tronco (no espaço do HumanoidRootPart) e o peso da pose.
+local function newGait()
+	return {
+		phase = 0, speed = 0, speedVel = 0, accel = 0, lastForward = 0, lean = 0, leanVel = 0, bank = 0, bankVel = 0,
+		land = 0, landVel = 0, air = 0, airFall = 0, time = 0, weight = 0, turnPhase = 0, turnAmount = 0,
+	}
+end
+M.newGait = newGait
+
+local function gaitStep(g, input, dt: number)
+	dt = math.clamp(dt, 0, 0.1)
+	g.time += dt
+	local state = input.state or "run"
+	local busy = state == "climb" or state == "swim" or state == "seated" or state == "dead"
+	g.weight += ((if busy then 0 else 1) - g.weight) * math.min(1, dt * 8)
+	-- Velocidade no espaço do personagem: frente = -Z, direita = +X.
+	local local3 = input.velocity
+	local planar = Vector3.new(local3.X, 0, local3.Z)
+	local raw = planar.Magnitude
+	g.speed, g.speedVel = spring(g.speed, g.speedVel, raw, 6, dt)
+	local s = math.max(0, g.speed)
+	local forward = -local3.Z
+	g.accel += (((forward - g.lastForward) / math.max(dt, 1e-3)) - g.accel) * math.min(1, dt * 6)
+	g.lastForward = forward
+	local move = if raw > 0.5 then planar / raw else Vector3.new(0, 0, -1)
+	local grounded = state == "run" or state == "idle"
+	-- Cadência: a passada cresce com a velocidade (corrida a 17 studs/s, sprint a 27).
+	local stride = 2.5 + 0.48 * s
+	local walking = grounded and s > 0.6
+	if walking then
+		g.phase = (g.phase + (s / stride) * dt * math.pi * 2) % (math.pi * 2)
+	end
+	-- Girar no lugar: passinhos curtos acompanham a virada.
+	local yawRate = input.yawRate or 0
+	local turning = grounded and s < 1.5 and math.abs(yawRate) > 1.2
+	g.turnAmount += ((if turning then 1 else 0) - g.turnAmount) * math.min(1, dt * 6)
+	if turning then
+		g.turnPhase = (g.turnPhase + math.abs(yawRate) * dt * 1.6) % (math.pi * 2)
+	end
+	local runBlend = math.clamp((s - 0.6) / 3, 0, 1)
+	local legAmp = math.clamp(0.25 + 0.028 * s, 0, 1) * runBlend
+	local armAmp = math.clamp(0.15 + 0.03 * s, 0, 1.05) * runBlend
+	local phase = g.phase
+	local stepped = 0
+	if walking then
+		local before = phase - (s / stride) * dt * math.pi * 2
+		for index, mark in { math.pi / 2, math.pi * 1.5 } do
+			local a, b = before, phase
+			if a < 0 then
+				a += math.pi * 2
+				b += math.pi * 2
+			end
+			if (a < mark and b >= mark) or (a < mark + math.pi * 2 and b >= mark + math.pi * 2) then
+				stepped = index
+			end
+		end
+	end
+	-- Pernas: balanço oposto, com um pouco mais de avanço na fase do ar.
+	local swing = math.sin(phase)
+	local lift = math.max(0, math.cos(phase))
+	local rightLeg = legAmp * (swing + 0.18 * lift)
+	local leftLeg = legAmp * (-swing + 0.18 * math.max(0, -math.cos(phase)))
+	if g.turnAmount > 0.01 then
+		local t = math.sin(g.turnPhase) * 0.22 * g.turnAmount
+		rightLeg += t
+		leftLeg -= t
+	end
+	local function legDirection(angle: number, side: number): Vector3
+		local d = move * math.sin(angle) + Vector3.new(0, -math.cos(angle), 0)
+		return (d + Vector3.new(side * 0.04, 0, 0)).Unit
+	end
+	-- Braços: contrabalançam as pernas; no sprint, bombeiam mais à frente.
+	local pump = math.clamp((s - 17) / 10, 0, 1)
+	local function armDirection(angle: number, side: number): Vector3
+		local forwardBias = 0.08 + 0.18 * pump
+		local d = Vector3.new(0, 0, -1) * math.sin(angle + forwardBias) + Vector3.new(0, -math.cos(angle + forwardBias), 0)
+		return (d + Vector3.new(side * (0.09 + 0.05 * runBlend), 0, 0)).Unit
+	end
+	local pose = {
+		weight = g.weight, step = stepped,
+		rightLeg = legDirection(rightLeg, 1), leftLeg = legDirection(leftLeg, -1),
+		rightArm = armDirection(-armAmp * swing, 1), leftArm = armDirection(armAmp * swing, -1),
+	}
+	-- Tronco: sobe e desce duas vezes por ciclo, balança para o lado de apoio e gira com os ombros.
+	local bobAmp = (0.06 + 0.012 * s) * runBlend
+	local bob = bobAmp * (0.5 - math.abs(swing))
+	local sway = (0.04 + 0.004 * s) * runBlend * swing
+	local twist = (0.05 + 0.003 * s) * runBlend * swing
+	-- Inclinação à frente com a velocidade e com a aceleração (para trás ao frear).
+	local targetLean = (0.03 + 0.006 * s) * runBlend + math.clamp(g.accel * 0.012, -0.2, 0.2)
+	g.lean, g.leanVel = spring(g.lean, g.leanVel, targetLean, 4, dt)
+	local targetBank = math.clamp(-yawRate * 0.045 * (s / 17), -0.22, 0.22)
+	g.bank, g.bankVel = spring(g.bank, g.bankVel, targetBank, 3, dt)
+	-- Parado: respiração e troca de peso lenta.
+	local idle = 1 - runBlend
+	local breath = math.sin(g.time * 1.9)
+	local shift = math.sin(g.time * 0.35)
+	local y = bob + idle * 0.03 * breath
+	local x = sway + idle * 0.08 * shift
+	local pitch = -g.lean - idle * 0.015 * breath
+	local roll = g.bank + idle * 0.025 * shift
+	if idle > 0.01 then
+		pose.rightArm = pose.rightArm:Lerp(Vector3.new(0.07, -1, -0.02 - 0.015 * breath).Unit, idle).Unit
+		pose.leftArm = pose.leftArm:Lerp(Vector3.new(-0.07, -1, -0.02 - 0.015 * breath).Unit, idle).Unit
+	end
+	-- No ar: uma perna à frente, braços abertos; queda longa levanta os braços.
+	if state == "jump" or state == "fall" then
+		g.air += dt
+		local falling = math.clamp(-(input.verticalSpeed or 0) / 60, 0, 1)
+		g.airFall = math.max(g.airFall, -(input.verticalSpeed or 0))
+		local airBlend = math.clamp(g.air / 0.12, 0, 1)
+		pose.rightLeg = pose.rightLeg:Lerp(Vector3.new(0.04, -1, -0.55).Unit, airBlend).Unit
+		pose.leftLeg = pose.leftLeg:Lerp(Vector3.new(-0.04, -1, 0.25).Unit, airBlend).Unit
+		pose.rightArm = pose.rightArm:Lerp(Vector3.new(0.6, -0.45 + 0.7 * falling, -0.2).Unit, airBlend).Unit
+		pose.leftArm = pose.leftArm:Lerp(Vector3.new(-0.6, -0.45 + 0.7 * falling, -0.2).Unit, airBlend).Unit
+	else
+		if g.air > 0.25 then
+			-- Aterrissagem: o corpo assenta e volta com mola, mais forte quanto maior a queda.
+			g.landVel -= math.clamp(g.airFall / 80, 0.15, 0.6) * 32
+		end
+		g.air = 0
+		g.airFall = 0
+	end
+	g.land, g.landVel = spring(g.land, g.landVel, 0, 3.5, dt)
+	y += g.land * 0.7
+	pitch += g.land * 0.15
+	pose.root = CFrame.new(x, y, 0) * CFrame.Angles(pitch, twist, roll)
+	-- A cabeça compensa o tronco para o olhar ficar estável.
+	pose.headCompensation = CFrame.Angles(-pitch * 0.8, -twist * 0.9, -roll * 0.8)
+	return pose
+end
+M.gaitStep = gaitStep
+
+-- Transform do RootJoint que leva o tronco ao deslocamento pedido no espaço do HumanoidRootPart.
+local function rootTransform(c0: CFrame, offset: CFrame): CFrame
+	return c0:Inverse() * offset * c0
+end
+M.rootTransform = rootTransform
+
 -- Atlas cell: weapons at 384 x 192 in two columns, glyphs at 128 x 128 below them.
 local ICON_ORDER = { "punhos", "lamina", "vespa", "enxame", "trovao", "agulha" }
 local GLYPHS = { "tiro", "mira", "recarga", "arsenal" }
@@ -1057,7 +1199,6 @@ local function start()
 	local sprintHeld, sprintToggle, sprinting = false, false, false
 	local pushTime = 0
 	local speed = 16
-	local lean, leanVel, forwardLean = 0, 0, 0
 	local current = "punhos"
 	local aiming, aimToggle = false, false
 	local triggerHeld = false
@@ -1071,6 +1212,7 @@ local function start()
 	local ammoTable = {}
 	local lastPitchSent, pitchSentAt = 999, 0
 	local poses = {} -- [character] = { swingStart, swingKind, swingSide, firedAt }
+	local gaits = setmetatable({}, { __mode = "k" }) -- [character] = estado da locomoção procedural
 	local dead = false
 
 	local function def(): any
@@ -1129,6 +1271,7 @@ local function start()
 	deathGrade.Parent = camera
 	local damageFlash = 0
 	local safeBlockedUntil = 0
+	local aimBlur = 0
 
 	local fireButton, aimButton, reloadButton, aimRing, fireRing, fireIcon
 	local fireShows
@@ -1793,11 +1936,16 @@ local function start()
 			end
 		end
 
-		-- Focus blur while aiming (subtle cinematic depth).
-		depth.Enabled = aimingNow and quality >= 5
+		-- Ao mirar, a câmera foca no alvo: o ombro e o que está perto nas laterais ficam desfocados.
+		aimBlur += ((if aimingNow then 1 else 0) - aimBlur) * math.min(1, dt * 9)
+		depth.Enabled = aimBlur > 0.02 and quality >= 3
 		if depth.Enabled then
 			local result = Workspace:Raycast(camera.CFrame.Position, camera.CFrame.LookVector * 400, rayParams)
-			depth.FocusDistance = if result then result.Distance else 200
+			local focus = if result then result.Distance else 200
+			depth.FocusDistance = focus
+			depth.InFocusRadius = math.clamp(focus * 0.35, 8, 60)
+			depth.NearIntensity = 0.75 * aimBlur
+			depth.FarIntensity = 0.2 * aimBlur
 		end
 		return aimingNow, raised
 	end
@@ -1847,14 +1995,6 @@ local function start()
 			align.Responsiveness = if sprinting then 11 else 16
 		end
 		align.CFrame = CFrame.Angles(0, facingYaw, 0)
-		-- Lean into turns and forward during the sprint (local only, cosmetic).
-		if joints.root and joints.rootC0 then
-			local turn = root.AssemblyAngularVelocity.Y
-			local targetLean = math.clamp(turn * 0.05 * (speed / 27), -0.24, 0.24)
-			lean, leanVel = spring(lean, leanVel, if moving then targetLean else 0, 2.4, dt)
-			forwardLean += ((if sprinting then 0.13 elseif moving then 0.04 else 0) - forwardLean) * math.min(1, dt * 5)
-			joints.root.C0 = CFrame.Angles(-forwardLean, 0, lean) * joints.rootC0
-		end
 	end
 
 	-- Arm and head pose (PreSimulation: after the animation, before the physics).
@@ -1922,8 +2062,95 @@ local function start()
 		local pitch = math.clamp(math.asin(math.clamp(look.Y, -1, 1)), math.rad(-35), math.rad(35))
 		local direction = Vector3.new(-math.sin(yaw) * math.cos(pitch), math.sin(pitch), -math.cos(yaw) * math.cos(pitch))
 		local rotation = CFrame.lookAt(Vector3.zero, direction)
-		joints.neck.Transform = jointTransform(joints.neck.C0, joints.neck.C1, rotation)
+		local gait = character and gaits[character]
+		local compensation = if gait and gait.pose then gait.pose.headCompensation else CFrame.identity
+		joints.neck.Transform = jointTransform(joints.neck.C0, joints.neck.C1, compensation * rotation)
 		local _ = dt
+	end
+
+	local STATES = {
+		[Enum.HumanoidStateType.Freefall] = "fall", [Enum.HumanoidStateType.Jumping] = "jump",
+		[Enum.HumanoidStateType.Climbing] = "climb", [Enum.HumanoidStateType.Swimming] = "swim",
+		[Enum.HumanoidStateType.Seated] = "seated", [Enum.HumanoidStateType.Dead] = "dead",
+		[Enum.HumanoidStateType.Physics] = "seated", [Enum.HumanoidStateType.PlatformStanding] = "seated",
+	}
+	local UP = Vector3.new(0, 1, 0)
+	local function blend(joint: Motor6D?, target: CFrame, weight: number)
+		if joint then
+			joint.Transform = if weight >= 0.999 then target else joint.Transform:Lerp(target, weight)
+		end
+	end
+	-- Passos: som no pé que tocou o chão (os sons de passo chegam com a mídia aprovada).
+	local stepSounds = {}
+	for k = 1, 4 do
+		if type(SOUNDS["passo_" .. k]) == "number" then
+			table.insert(stepSounds, "passo_" .. k)
+		end
+	end
+	local function footstep(model: Model, foot: number)
+		if #stepSounds == 0 then
+			return
+		end
+		local leg = model:FindFirstChild(if foot == 1 then "Right Leg" else "Left Leg")
+		if leg and leg:IsA("BasePart") then
+			sound(stepSounds[rng:NextInteger(1, #stepSounds)], leg, if model == character then 0.32 else 0.22)
+		end
+	end
+	local function gaitCharacter(model: Model, dt: number)
+		local body = model:FindFirstChild("Torso")
+		local rootPart = model:FindFirstChild("HumanoidRootPart")
+		local hum = model:FindFirstChildOfClass("Humanoid")
+		if not body or not rootPart or not hum then
+			return
+		end
+		if (rootPart.Position - camera.CFrame.Position).Magnitude > 180 then
+			return
+		end
+		local g = gaits[model]
+		if not g then
+			g = newGait()
+			gaits[model] = g
+		end
+		local velocity = rootPart.AssemblyLinearVelocity
+		local state = STATES[hum:GetState()] or (if hum.Health <= 0 then "dead" else "run")
+		local pose = gaitStep(g, {
+			velocity = rootPart.CFrame:VectorToObjectSpace(velocity), state = state,
+			yawRate = rootPart.AssemblyAngularVelocity.Y, verticalSpeed = velocity.Y,
+		}, dt)
+		g.pose = pose
+		local w = pose.weight
+		if w < 0.01 then
+			return
+		end
+		local rootJoint = rootPart:FindFirstChild("RootJoint")
+		if rootJoint then
+			blend(rootJoint, rootTransform(rootJoint.C0, pose.root), w)
+		end
+		local rightHip, leftHip = body:FindFirstChild("Right Hip"), body:FindFirstChild("Left Hip")
+		local rightShoulder, leftShoulder = body:FindFirstChild("Right Shoulder"), body:FindFirstChild("Left Shoulder")
+		if rightHip then
+			blend(rightHip, jointTransform(rightHip.C0, rightHip.C1, armRotation(pose.rightLeg, UP)), w)
+		end
+		if leftHip then
+			blend(leftHip, jointTransform(leftHip.C0, leftHip.C1, armRotation(pose.leftLeg, UP)), w)
+		end
+		if rightShoulder then
+			blend(rightShoulder, jointTransform(rightShoulder.C0, rightShoulder.C1, armRotation(pose.rightArm, UP)), w)
+		end
+		if leftShoulder then
+			blend(leftShoulder, jointTransform(leftShoulder.C0, leftShoulder.C1, armRotation(pose.leftArm, UP)), w)
+		end
+		if model ~= character then
+			local neck = body:FindFirstChild("Neck")
+			if neck then
+				local pitch = if model:GetAttribute("CyberOutlawMirando") then math.rad(model:GetAttribute("CyberOutlawPitch") or 0) else 0
+				local look = CFrame.lookAt(Vector3.zero, Vector3.new(0, math.sin(pitch), -math.cos(pitch)))
+				blend(neck, jointTransform(neck.C0, neck.C1, pose.headCompensation * look), w)
+			end
+		end
+		if pose.step ~= 0 and (rootPart.Position - camera.CFrame.Position).Magnitude < 70 then
+			footstep(model, pose.step)
+		end
 	end
 
 	local function onPreSimulation(dt: number)
@@ -1931,6 +2158,7 @@ local function start()
 		for _, other in Players:GetPlayers() do
 			local model = other.Character
 			if model then
+				pcall(gaitCharacter, model, dt)
 				local ok = pcall(poseCharacter, model, now)
 				local _ = ok
 			end
