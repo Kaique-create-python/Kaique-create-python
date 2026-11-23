@@ -1,4 +1,4 @@
-"""Abre no Termux o pacote CyberOutlaw com HUD e configuração de avatar R6."""
+"""Abre no Termux o pacote CyberOutlaw: cidade jogável de Maré Baixa, HUD v2 e avatares R6."""
 
 import hashlib
 from http.client import HTTPException
@@ -9,10 +9,10 @@ import tempfile
 from urllib.request import urlopen
 
 
-RELEASE = "141e5721f29fc280fd127e79c91391db7f4ccabd"
+RELEASE = "be68ae927376e633763609ecd4b8e37efe9ec2b0"
 PACKAGE = "CYBEROUTLAW_TERMUX.pyz"
-PACKAGE_BYTES = 13_593_836
-PACKAGE_SHA256 = "e10378646cc7d462895c2e4d771cebecd2fbd1cd8f018f6c91e7d29c321b0bf9"
+PACKAGE_BYTES = 13_670_215
+PACKAGE_SHA256 = "ba62cc59929b687db920211824d396168919ecf3a003bc4f725481bde369aabc"
 PACKAGE_URL = f"https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/{RELEASE}/cyberoutlaw/dist/{PACKAGE}"
 BLOCK_SIZE = 128 * 1024
 

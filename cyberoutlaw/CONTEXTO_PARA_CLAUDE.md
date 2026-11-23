@@ -39,7 +39,7 @@ O repositório também contém trabalhos de outros jogos. Use os IDs acima duran
 
 ## Arquivos atuais
 
-- O `.py` inicia a última versão verificada. Ele reaproveita o pacote local se estiver íntegro ou baixa a versão fixa do GitHub com verificação SHA-256. [Baixar CYBEROUTLAW_HUD.py](https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/codex/cyberoutlaw-menu-3d/cyberoutlaw/dist/CYBEROUTLAW_HUD.py)
+- O `.py` inicia a última versão verificada. Ele reaproveita o pacote local se estiver íntegro ou baixa a versão fixa do GitHub com verificação SHA-256. [Baixar CYBEROUTLAW_HUD.py](https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/ccr-b4068ef4-7ky9v8/cyberoutlaw/dist/CYBEROUTLAW_HUD.py)
 - O `.pyz` é o pacote completo da versão `141e572`. [Baixar CYBEROUTLAW_TERMUX.pyz](https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/141e5721f29fc280fd127e79c91391db7f4ccabd/cyberoutlaw/dist/CYBEROUTLAW_TERMUX.pyz)
 - O design tem duas pranchetas editáveis para importar no Figma. O limite do plano Starter impediu gravar na versão online. A imagem da cidade nas pranchetas serve de referência para o HUD. [Figma editável](https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/141e5721f29fc280fd127e79c91391db7f4ccabd/cyberoutlaw/dist/CyberOutlaw-HUD.fig) · [Prévia no celular](https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/141e5721f29fc280fd127e79c91391db7f4ccabd/cyberoutlaw/dist/CyberOutlaw-HUD-Celular.png)
 
@@ -49,7 +49,7 @@ Leia `src/menu.client.luau` para o fluxo do menu, `src/city.luau` e `src/scene.l
 
 ```bash
 curl -fL --retry 3 -o "$HOME/CYBEROUTLAW_HUD.py" \
-  'https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/codex/cyberoutlaw-menu-3d/cyberoutlaw/dist/CYBEROUTLAW_HUD.py' &&
+  'https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/ccr-b4068ef4-7ky9v8/cyberoutlaw/dist/CYBEROUTLAW_HUD.py' &&
 python -u "$HOME/CYBEROUTLAW_HUD.py" verificar
 ```
 
