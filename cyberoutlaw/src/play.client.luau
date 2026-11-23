@@ -133,25 +133,40 @@ local function iconRect(key: string): (Vector2?, Vector2?)
 end
 M.iconRect = iconRect
 
--- Interface (also built in the tests with real Instances) --------------------------------------------
-local INK = Color3.fromRGB(8, 7, 12)
-local FACE = Color3.fromRGB(16, 14, 25)
-local EDGE = Color3.fromRGB(82, 52, 76)
-local WHITE = Color3.fromRGB(249, 246, 255)
-local MUTED = Color3.fromRGB(188, 179, 204)
-local MAGENTA = Color3.fromRGB(255, 32, 133)
-local CYAN = Color3.fromRGB(142, 222, 228)
-local PINK_LABEL = Color3.fromRGB(255, 146, 191)
-local DIM = Color3.fromRGB(44, 40, 54)
+-- Interface v3: limpa, no estilo dos jogos de mundo aberto (também montada nos testes com Instances reais) -----
+-- Um só destaque de cor, tipografia Builder Sans, painéis escuros translúcidos e nada de molduras chanfradas.
+local TEXT = Color3.fromRGB(242, 243, 246)
+local SUB = Color3.fromRGB(164, 170, 184)
+local PANEL = Color3.fromRGB(8, 10, 15)
+local LINE = Color3.fromRGB(255, 255, 255)
+local HEALTH = Color3.fromRGB(98, 212, 148)
+local HURT = Color3.fromRGB(236, 72, 84)
+local BREATH = Color3.fromRGB(158, 210, 255)
+local ACCENT = Color3.fromRGB(255, 206, 114)
 local CENTER = Vector2.new(0.5, 0.5)
 local FULL = UDim2.fromScale(1, 1)
+local BUILDER = "rbxasset://fonts/families/BuilderSans.json"
 local function fonts()
 	return {
-		display = Font.fromEnum(Enum.Font.Michroma),
-		bold = Font.fromEnum(Enum.Font.GothamBold),
+		regular = Font.new(BUILDER, Enum.FontWeight.Regular),
+		medium = Font.new(BUILDER, Enum.FontWeight.Medium),
+		bold = Font.new(BUILDER, Enum.FontWeight.Bold),
+		heavy = Font.new(BUILDER, Enum.FontWeight.ExtraBold),
 		mono = Font.fromEnum(Enum.Font.RobotoMono),
 	}
 end
+
+-- string.upper não converte letras acentuadas; o HUD mostra "DOCAS DA MARÉ", não "DOCAS DA MARé".
+local ACCENTS = {
+	["á"] = "Á", ["à"] = "À", ["â"] = "Â", ["ã"] = "Ã", ["é"] = "É", ["ê"] = "Ê", ["í"] = "Í",
+	["ó"] = "Ó", ["ô"] = "Ô", ["õ"] = "Õ", ["ú"] = "Ú", ["ü"] = "Ü", ["ç"] = "Ç",
+}
+local function upper(text: string): string
+	return (string.gsub(string.upper(text), "\195[\160-\191]", function(char)
+		return ACCENTS[char] or char
+	end))
+end
+M.upper = upper
 
 local function new(class: string, parent: Instance?, props)
 	local item = Instance.new(class)
@@ -186,6 +201,12 @@ local function round(parent, radius: UDim)
 	new("UICorner", parent, { CornerRadius = radius })
 end
 
+local function stroke(parent, color: Color3, transparency: number, thickness: number?)
+	return new("UIStroke", parent, {
+		Color = color, Transparency = transparency, Thickness = thickness or 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+end
+
 local function atlasImage(parent, name: string, atlas: string, key: string, z: number, props)
 	local offset, size = iconRect(key)
 	local base = {
@@ -198,48 +219,11 @@ local function atlasImage(parent, name: string, atlas: string, key: string, z: n
 	return new("ImageLabel", parent, base)
 end
 
--- Chamfered panel (top-left and bottom-right corners), without images and without CanvasGroup.
-local function bevel(parent, name, z, cut: number, color: Color3, transparency: number, inset: number)
-	local plate = frame(parent, name, z, { Position = UDim2.fromOffset(inset, inset), Size = UDim2.new(1, -inset * 2, 1, -inset * 2) })
-	local pieces = {}
-	local function piece(container, partName, position, size, rotated)
-		local child = frame(container, partName, z, {
-			Position = position, Size = size, BackgroundTransparency = transparency, BackgroundColor3 = color,
-		})
-		if rotated then
-			child.AnchorPoint = CENTER
-			child.Rotation = 45
-		end
-		table.insert(pieces, child)
-	end
-	piece(plate, "Center", UDim2.fromOffset(0, cut), UDim2.new(1, 0, 1, -cut * 2))
-	piece(plate, "Upper", UDim2.fromOffset(cut, 0), UDim2.new(1, -cut, 0, cut))
-	piece(plate, "Lower", UDim2.new(0, 0, 1, -cut), UDim2.new(1, -cut, 0, cut))
-	for _, corner in { "UpperLeft", "LowerRight" } do
-		local upper = corner == "UpperLeft"
-		local clip = frame(plate, corner, z, {
-			Position = if upper then UDim2.fromOffset(0, 0) else UDim2.new(1, -cut, 1, -cut),
-			Size = UDim2.fromOffset(cut, cut), ClipsDescendants = true,
-		})
-		piece(clip, "Diagonal", UDim2.fromOffset(cut, cut), UDim2.fromOffset(cut * math.sqrt(2), cut * math.sqrt(2)), true)
-	end
-	return pieces
-end
-
-local function paint(pieces, color: Color3, transparency: number?)
-	for _, piece in pieces do
-		piece.BackgroundColor3 = color
-		if transparency then
-			piece.BackgroundTransparency = transparency
-		end
-	end
-end
-
 local function rgb(list)
 	return Color3.fromRGB(list[1], list[2], list[3])
 end
 
--- Model inside a ViewportFrame, framed by its bounding box.
+-- Model inside a ViewportFrame, framed by its bounding box (fallback while the 2D icons await approval).
 local function viewportModel(viewport: ViewportFrame, template: Model?)
 	if not template then
 		return nil
@@ -269,370 +253,646 @@ local function poseViewport(entry, yaw: number)
 	end
 end
 
--- 3D weapon wheel. Returns the controls the script uses each frame.
+-- Layout ---------------------------------------------------------------------------------------------------
+-- Posições em pixels da área segura (abaixo da barra do Roblox e fora dos entalhes). Pura: os testes conferem
+-- que nada se sobrepõe em celulares, tablets e PCs. No toque: mapa no alto à esquerda, arma no alto à direita
+-- (toque para trocar) e botões em arco em volta do pulo do Roblox. No PC: mapa embaixo à esquerda, arma
+-- embaixo à direita.
+local MAP_BLOCK = {
+	touch = { width = 136, map = 88, gap = 4, caption = 14, bar = 5, breath = 3 },
+	desktop = { width = 272, map = 184, gap = 6, caption = 16, bar = 7, breath = 4 },
+}
+local function blockHeight(b): number
+	return b.map + b.gap + b.caption + b.gap + b.bar + 3 + b.breath
+end
+
+local function hudLayout(screen: Vector2, touch: boolean, jump)
+	local W, H = screen.X, screen.Y
+	local l = { touch = touch, screen = screen }
+	if touch then
+		local large = math.min(W, H) > 500
+		local s = if large then 1.25 else 1
+		local b = MAP_BLOCK.touch
+		local m = math.floor(12 * s)
+		l.scale = s
+		l.minimap = { anchor = Vector2.new(0, 0), position = Vector2.new(m, math.floor(10 * s)), size = Vector2.new(b.width, blockHeight(b)) }
+		l.weapon = { anchor = Vector2.new(1, 0), position = Vector2.new(W - m, math.floor(10 * s)), size = Vector2.new(176, 50) }
+		l.toast = { anchor = Vector2.new(0.5, 0), position = Vector2.new(math.floor(W / 2), math.floor(8 * s)), size = Vector2.new(260, 50) }
+		local center, radius
+		if jump then
+			center, radius = jump.center, jump.size / 2
+		else
+			-- Medidas do pulo padrão do Roblox: 70 px (telas pequenas) ou 120 px (grandes).
+			radius = if large then 60 else 35
+			center = if large then Vector2.new(W - 50 - 60, H - 90 - 60) else Vector2.new(W - 25 - 35, H - 20 - 35)
+		end
+		local k = radius / 35
+		l.jump = { center = center, radius = radius }
+		l.buttons = {
+			fire = { center = center + Vector2.new(-76, -6) * k, radius = 32 * k },
+			aim = { center = center + Vector2.new(-46, -74) * k, radius = 26 * k },
+			reload = { center = center + Vector2.new(10, -78) * k, radius = 21 * k },
+		}
+		l.wheel = { scale = math.clamp(H / 340, 0.78, 1.4) }
+	else
+		local s = math.clamp(H / 1000, 0.85, 1.35)
+		local b = MAP_BLOCK.desktop
+		local m = math.floor(24 * s)
+		l.scale = s
+		l.minimap = { anchor = Vector2.new(0, 1), position = Vector2.new(m, H - m), size = Vector2.new(b.width, blockHeight(b)) }
+		l.weapon = { anchor = Vector2.new(1, 1), position = Vector2.new(W - m, H - m), size = Vector2.new(300, 66) }
+		l.toast = { anchor = Vector2.new(0.5, 0), position = Vector2.new(math.floor(W / 2), math.floor(22 * s)), size = Vector2.new(420, 70) }
+		l.buttons = {}
+		l.wheel = { scale = math.clamp(H / 860, 0.8, 1.4) }
+	end
+	return l
+end
+M.hudLayout = hudLayout
+
+-- Retângulo ocupado na tela (x0, y0, x1, y1) por um item do layout.
+local function layoutRect(item, scale: number)
+	local size = item.size * scale
+	local origin = item.position - Vector2.new(item.anchor.X * size.X, item.anchor.Y * size.Y)
+	return origin.X, origin.Y, origin.X + size.X, origin.Y + size.Y
+end
+M.layoutRect = layoutRect
+
+local function place(gui: GuiObject, item, scale: number, uiScale: UIScale?)
+	gui.AnchorPoint = item.anchor
+	gui.Position = UDim2.fromOffset(item.position.X, item.position.Y)
+	gui.Size = UDim2.fromOffset(item.size.X, item.size.Y)
+	if uiScale then
+		uiScale.Scale = scale
+	end
+end
+
+-- HUD: bloco do mapa (minimapa, distrito, hora, vida e fôlego), aviso de distrito e selo de zona segura -------
+local function buildHud(parent: Instance, touch: boolean)
+	local f = fonts()
+	local b = if touch then MAP_BLOCK.touch else MAP_BLOCK.desktop
+	local gui = new("ScreenGui", parent, {
+		Name = "CyberOutlawHUD", ResetOnSpawn = false, DisplayOrder = 30, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
+	})
+	local hud = { gui = gui }
+	local block = frame(gui, "Minimap", 1, { Size = UDim2.fromOffset(b.width, blockHeight(b)) })
+	local blockScale = new("UIScale", block, { Name = "Escala" })
+	local plate = frame(block, "Plate", 1, { Size = UDim2.fromOffset(b.width, b.map), BackgroundColor3 = PANEL, BackgroundTransparency = 0.22 })
+	stroke(plate, LINE, 0.84, 1)
+	-- Frame com ClipsDescendants (CanvasGroup não recorta numa ScreenGui Global).
+	local view = frame(plate, "Viewport", 2, { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), ClipsDescendants = true })
+	local pivot = frame(view, "Pivot", 2, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(0, 0) })
+	local map = frame(pivot, "Map", 2, {})
+	local arrow = label(view, "PlayerArrow", "▲", f.heavy, if touch then 13 else 17, TEXT, 8, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(18, 18),
+		TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.35, TextStrokeColor3 = PANEL,
+	})
+	local northRadius = if touch then 46 else 92
+	local north = label(pivot, "Norte", "N", f.heavy, if touch then 9 else 11, TEXT, 9, {
+		AnchorPoint = CENTER, Position = UDim2.fromOffset(0, -northRadius), Size = UDim2.fromOffset(14, 14),
+		TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, TextStrokeColor3 = PANEL,
+	})
+	local noSignal = label(view, "NoSignal", "SEM SINAL DA CIDADE", f.bold, if touch then 9 else 11, SUB, 9, {
+		TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	local captionY = b.map + b.gap
+	-- Fundo discreto atrás da legenda e das barras, para ler sobre letreiros claros.
+	local backing = frame(block, "Legenda", 1, {
+		Position = UDim2.fromOffset(-4, b.map + 2), Size = UDim2.new(1, 8, 0, blockHeight(b) - b.map + 2),
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.45,
+	})
+	round(backing, UDim.new(0, 4))
+	local districtLabel = label(block, "DistrictName", "MARÉ BAIXA", f.heavy, if touch then 10 else 13, TEXT, 3, {
+		Position = UDim2.fromOffset(1, captionY), Size = UDim2.fromOffset(b.width * 0.76, b.caption),
+		TextStrokeTransparency = 0.55, TextStrokeColor3 = PANEL, TextTruncate = Enum.TextTruncate.AtEnd,
+	})
+	local clock = label(block, "Clock", "--:--", f.bold, if touch then 10 else 13, SUB, 3, {
+		Position = UDim2.fromOffset(b.width * 0.76, captionY), Size = UDim2.fromOffset(b.width * 0.24 - 1, b.caption),
+		TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.55, TextStrokeColor3 = PANEL,
+	})
+	local barY = captionY + b.caption + b.gap
+	local track = frame(block, "HealthTrack", 3, {
+		Position = UDim2.fromOffset(0, barY), Size = UDim2.fromOffset(b.width, b.bar), BackgroundColor3 = PANEL, BackgroundTransparency = 0.3,
+	})
+	round(track, UDim.new(0, 2))
+	local trail = frame(track, "HealthTrail", 4, { Size = FULL, BackgroundColor3 = TEXT, BackgroundTransparency = 0.1 })
+	round(trail, UDim.new(0, 2))
+	local fill = frame(track, "HealthFill", 5, { Size = FULL, BackgroundColor3 = HEALTH, BackgroundTransparency = 0 })
+	round(fill, UDim.new(0, 2))
+	local breathTrack = frame(block, "StaminaTrack", 3, {
+		Position = UDim2.fromOffset(0, barY + b.bar + 3), Size = UDim2.fromOffset(b.width, b.breath),
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.4, Visible = false,
+	})
+	round(breathTrack, UDim.new(0, 2))
+	local breath = frame(breathTrack, "StaminaFill", 4, { Size = FULL, BackgroundColor3 = BREATH, BackgroundTransparency = 0 })
+	round(breath, UDim.new(0, 2))
+
+	local toast = frame(gui, "DistrictToast", 10, { Visible = false })
+	local toastScale = new("UIScale", toast, { Name = "Escala" })
+	local toastCity = label(toast, "DistrictCity", "MARÉ BAIXA", f.bold, if touch then 10 else 12, SUB, 11, {
+		Size = UDim2.fromScale(1, 0.3), TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.6, TextStrokeColor3 = PANEL,
+	})
+	local toastTitle = label(toast, "DistrictTitle", "", f.heavy, if touch then 22 else 32, TEXT, 11, {
+		Position = UDim2.fromScale(0, 0.26), Size = UDim2.fromScale(1, 0.56), TextXAlignment = Enum.TextXAlignment.Center,
+		TextStrokeTransparency = 0.5, TextStrokeColor3 = PANEL,
+	})
+	local toastRule = frame(toast, "Linha", 11, {
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.9), Size = UDim2.new(0.3, 0, 0, 2),
+		BackgroundColor3 = ACCENT, BackgroundTransparency = 0,
+	})
+
+	local safe = label(gui, "ZonaSegura", "ZONA SEGURA · ARMAS TRAVADAS", f.heavy, if touch then 9 else 11, TEXT, 12, {
+		Size = UDim2.fromOffset(if touch then 168 else 220, if touch then 18 else 22), TextXAlignment = Enum.TextXAlignment.Center,
+		BackgroundColor3 = Color3.fromRGB(26, 110, 88), BackgroundTransparency = 0.12, Visible = false,
+	})
+	round(safe, UDim.new(1, 0))
+
+	local mapScale = if touch then 0.16 else 0.22 -- pixels por stud
+	local extent = 0
+	function hud.setMap(data)
+		for _, child in map:GetChildren() do
+			child:Destroy()
+		end
+		extent = 0
+		noSignal.Visible = true
+		if type(data) ~= "table" or type(data.lines) ~= "table" then
+			return
+		end
+		local half = data.half or 1000
+		local quay = data.quay or half
+		extent = half + 400
+		local size = extent * 2 * mapScale
+		map.Size = UDim2.fromOffset(size, size)
+		local function rect(name, x0, z0, x1, z1, color, transparency, z)
+			return frame(map, name, z, {
+				Position = UDim2.fromOffset((x0 + extent) * mapScale, (z0 + extent) * mapScale),
+				Size = UDim2.fromOffset(math.max(1, (x1 - x0) * mapScale), math.max(1, (z1 - z0) * mapScale)),
+				BackgroundColor3 = color, BackgroundTransparency = transparency,
+			})
+		end
+		rect("Terra", -extent, -extent, extent, quay, Color3.fromRGB(24, 26, 34), 0, 2)
+		rect("Agua", -extent, quay, extent, extent, Color3.fromRGB(14, 32, 48), 0, 2)
+		for _, line in data.lines do
+			local p, width = line[1], line[2]
+			local tone = if width > 60 then Color3.fromRGB(104, 108, 122) else Color3.fromRGB(70, 74, 88)
+			rect("Rua", -half - 40, p - width / 2, half + 40, p + width / 2, tone, 0, 3)
+			rect("Rua", p - width / 2, -half - 40, p + width / 2, math.min(half + 40, quay), tone, 0, 3)
+		end
+		if type(data.plaza) == "table" then
+			rect("Praca", data.plaza[1] - 30, data.plaza[2] - 30, data.plaza[1] + 30, data.plaza[2] + 30, ACCENT, 0.5, 4)
+		end
+		noSignal.Visible = false
+	end
+
+	function hud.layout(l)
+		place(block, l.minimap, l.scale, blockScale)
+		block.Size = UDim2.fromOffset(b.width, blockHeight(b))
+		place(toast, l.toast, l.scale, toastScale)
+		local x0, _, x1, y1 = layoutRect(l.minimap, l.scale)
+		if touch then
+			safe.AnchorPoint = Vector2.new(0, 0)
+			safe.Position = UDim2.fromOffset(x0, y1 + 6)
+		else
+			safe.AnchorPoint = Vector2.new(0.5, 0)
+			safe.Position = UDim2.fromOffset(l.screen.X / 2, l.toast.position.Y + (l.toast.size.Y + 8) * l.scale)
+		end
+		local _ = x1
+	end
+
+	local state = { trail = 1, hold = 0, district = nil, toastAt = -100, idle = 0, fade = 0, time = 0, damage = 0 }
+	local TOAST = 3.6
+	-- update: health, maxHealth, stamina, exhausted, position (Vector3), cameraYaw, facingYaw, district {name, key},
+	-- clock ("HH:MM"), safe, sprinting.
+	function hud.update(input, dt: number)
+		state.time += dt
+		local health = math.clamp((input.health or 0) / math.max(1, input.maxHealth or 100), 0, 1)
+		fill.Visible = health > 0
+		fill.Size = UDim2.fromScale(health, 1)
+		-- Rastro de dano: espera um instante e então desce até a vida atual.
+		if health < state.trail - 0.001 then
+			state.hold += dt
+			if state.hold > 0.6 then
+				state.trail = math.max(health, state.trail - dt * 0.9)
+			end
+			state.damage = state.time
+		else
+			state.trail = health
+			state.hold = 0
+		end
+		trail.Size = UDim2.fromScale(state.trail, 1)
+		trail.Visible = state.trail > health + 0.001
+		local low = health > 0 and health < 0.3
+		fill.BackgroundColor3 = if low then HURT:Lerp(TEXT, 0.2 + 0.2 * math.sin(state.time * 6)) else HEALTH
+		local stamina = math.clamp(input.stamina or 1, 0, 1)
+		breathTrack.Visible = stamina < 0.999 or input.exhausted == true
+		breath.Size = UDim2.fromScale(stamina, 1)
+		breath.BackgroundColor3 = if input.exhausted then HURT else BREATH
+		-- HUD que descansa: com vida cheia e sem correr, as barras ficam discretas (como no GTA 6).
+		local busy = health < 0.999 or breathTrack.Visible or state.time - state.damage < 4
+		state.idle = if busy then 0 else state.idle + dt
+		local goal = if state.idle > 6 then 0.6 else 0
+		state.fade += (goal - state.fade) * math.min(1, dt * 3)
+		track.BackgroundTransparency = 0.3 + state.fade * 0.6
+		fill.BackgroundTransparency = state.fade
+		-- Minimapa: o mapa gira com a câmera; a seta mostra para onde o personagem olha.
+		if extent > 0 and input.position then
+			local position = input.position
+			map.Position = UDim2.fromOffset(-(position.X + extent) * mapScale, -(position.Z + extent) * mapScale)
+			pivot.Rotation = math.deg(input.cameraYaw or 0)
+			north.Rotation = -pivot.Rotation
+			arrow.Rotation = math.deg((input.cameraYaw or 0) - (input.facingYaw or 0))
+		end
+		if input.clock then
+			clock.Text = input.clock
+		end
+		local district = input.district
+		if district and district.name ~= state.district then
+			state.district = district.name
+			local name = upper(district.name)
+			districtLabel.Text = name
+			toastTitle.Text = name
+			state.toastAt = state.time
+		end
+		local age = state.time - state.toastAt
+		toast.Visible = age < TOAST
+		if toast.Visible then
+			local alpha = math.clamp(math.min(age / 0.35, (TOAST - age) / 0.6), 0, 1)
+			toastTitle.TextTransparency = 1 - alpha
+			toastCity.TextTransparency = 1 - alpha
+			toastTitle.TextStrokeTransparency = 1 - alpha * 0.5
+			toastRule.BackgroundTransparency = 1 - alpha
+		end
+		safe.Visible = input.safe == true
+	end
+	hud.parts = { block = block, toast = toast, safe = safe, fill = fill, trail = trail, map = map, pivot = pivot, arrow = arrow }
+	return hud
+end
+M.buildHud = buildHud
+
+-- Camada de combate: mira, marcador de acerto, bordas da mira, dano e tela de morte ---------------------------
+local function buildCombat(parent: Instance, touch: boolean)
+	local f = fonts()
+	local gui = new("ScreenGui", parent, {
+		Name = "CyberOutlawCombate", ResetOnSpawn = false, DisplayOrder = 32, IgnoreGuiInset = true,
+		ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	})
+	local combat = { gui = gui }
+	-- As bordas ficam numa camada abaixo do HUD, para não escurecer o mapa nem a munição.
+	local edgeGui = new("ScreenGui", parent, {
+		Name = "CyberOutlawBordas", ResetOnSpawn = false, DisplayOrder = 4, IgnoreGuiInset = true,
+		ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	})
+	combat.edges = edgeGui
+	local function edges(name, color)
+		local list = {}
+		for _, side in { { 0, 0, 1, 0.22, 90 }, { 0, 0.78, 1, 0.22, -90 }, { 0, 0, 0.18, 1, 0 }, { 0.82, 0, 0.18, 1, 180 } } do
+			local piece = frame(edgeGui, name, 1, {
+				Position = UDim2.fromScale(side[1], side[2]), Size = UDim2.fromScale(side[3], side[4]),
+				BackgroundTransparency = 0, BackgroundColor3 = color, Visible = false,
+			})
+			local gradient = new("UIGradient", piece, {
+				Rotation = side[5], Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }),
+			})
+			table.insert(list, { piece = piece, gradient = gradient })
+		end
+		return list
+	end
+	-- Ao mirar, as bordas escurecem (e a câmera desfoca o que está perto) para o olho ir ao centro.
+	local aimEdges = edges("VinhetaMira", Color3.fromRGB(3, 4, 9))
+	local hurtEdges = edges("VinhetaDano", Color3.fromRGB(170, 0, 30))
+	local cross = frame(gui, "Mira", 5, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(40, 40), Visible = false })
+	local dot = frame(cross, "Dot", 6, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(3, 3), BackgroundTransparency = 0, BackgroundColor3 = TEXT })
+	round(dot, UDim.new(1, 0))
+	stroke(dot, PANEL, 0.4, 1)
+	local ticks = {}
+	for _, dir in { Vector2.new(0, -1), Vector2.new(0, 1), Vector2.new(-1, 0), Vector2.new(1, 0) } do
+		local tick = frame(cross, "Traço", 6, {
+			AnchorPoint = CENTER, Size = if dir.X == 0 then UDim2.fromOffset(2, 7) else UDim2.fromOffset(7, 2),
+			BackgroundTransparency = 0.05, BackgroundColor3 = TEXT,
+		})
+		stroke(tick, PANEL, 0.55, 1)
+		table.insert(ticks, { item = tick, dir = dir })
+	end
+	local hit = frame(gui, "Acerto", 7, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(30, 30), Visible = false })
+	local hitLines = {}
+	for _, corner in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
+		table.insert(hitLines, frame(hit, "Traço", 7, {
+			AnchorPoint = CENTER, Position = UDim2.new(0.5, corner[1] * 9, 0.5, corner[2] * 9), Size = UDim2.fromOffset(10, 2),
+			Rotation = if corner[1] * corner[2] > 0 then 45 else -45, BackgroundTransparency = 0, BackgroundColor3 = TEXT,
+		}))
+	end
+	local death = frame(gui, "SinalPerdido", 20, { Size = FULL, BackgroundColor3 = Color3.fromRGB(6, 2, 4), BackgroundTransparency = 0.45, Visible = false })
+	local deathTitle = label(death, "Titulo", "SINAL PERDIDO", f.heavy, if touch then 30 else 48, TEXT, 21, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.46), Size = UDim2.fromOffset(720, 60), TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	frame(death, "Linha", 21, {
+		AnchorPoint = CENTER, Position = UDim2.new(0.5, 0, 0.46, if touch then 26 else 38), Size = UDim2.fromOffset(if touch then 120 else 180, 2),
+		BackgroundTransparency = 0, BackgroundColor3 = HURT,
+	})
+	local deathHint = label(death, "Dica", "RECONECTANDO AO CORPO…", f.bold, if touch then 11 else 13, SUB, 21, {
+		AnchorPoint = CENTER, Position = UDim2.new(0.5, 0, 0.46, if touch then 44 else 62), Size = UDim2.fromOffset(420, 18),
+		TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	local hitUntil, hitKill = 0, false
+	local now = 0
+	function combat.crosshair(visible: boolean, spread: number)
+		cross.Visible = visible
+		local gap = 5 + spread * 9
+		for _, t in ticks do
+			t.item.Position = UDim2.new(0.5, t.dir.X * (gap + 3.5), 0.5, t.dir.Y * (gap + 3.5))
+		end
+	end
+	function combat.hit(kill: boolean?)
+		hitUntil = now + (if kill then 0.35 else 0.16)
+		hitKill = kill == true
+	end
+	function combat.death(visible: boolean, title: string?, hint: string?)
+		death.Visible = visible
+		if title then
+			deathTitle.Text = title
+		end
+		if hint then
+			deathHint.Text = hint
+		end
+	end
+	local aimAlpha, hurtAlpha = 0, 0
+	function combat.step(dt: number, aimGoal: number, hurtGoal: number)
+		now += dt
+		hit.Visible = now < hitUntil
+		for _, line in hitLines do
+			line.BackgroundColor3 = if hitKill then HURT else TEXT
+		end
+		aimAlpha += (aimGoal - aimAlpha) * math.min(1, dt * 8)
+		hurtAlpha += (hurtGoal - hurtAlpha) * math.min(1, dt * 10)
+		for _, e in aimEdges do
+			e.piece.Visible = aimAlpha > 0.02
+			e.gradient.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.75 * aimAlpha), NumberSequenceKeypoint.new(1, 1) })
+		end
+		for _, e in hurtEdges do
+			e.piece.Visible = hurtAlpha > 0.02
+			e.gradient.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.8 * hurtAlpha), NumberSequenceKeypoint.new(1, 1) })
+		end
+	end
+	combat.parts = { cross = cross, dot = dot, hit = hit, death = death, aimEdges = aimEdges, hurtEdges = hurtEdges }
+	return combat
+end
+M.buildCombat = buildCombat
+
+-- Roleta de armas: fundo desfocado, seis espaços arredondados com ícones 2D e o centro com nome e atributos ---
 local function buildWheel(parent: Instance, defs, templates, touch: boolean, atlas: string?)
 	local f = fonts()
 	local count = #defs
-	local hubR = if touch then 70 else 112
-	local ring = if touch then 136 else 236
-	local cardW, cardH = if touch then 112 else 180, if touch then 72 else 116
+	local ring = if touch then 112 else 196
+	local slotW, slotH = if touch then 92 else 148, if touch then 56 else 86
+	local hubR = if touch then 58 else 96
 	local gui = new("ScreenGui", parent, {
 		Name = "CyberOutlawRoleta", ResetOnSpawn = false, DisplayOrder = 60, Enabled = false, IgnoreGuiInset = true,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, ScreenInsets = Enum.ScreenInsets.None,
+		ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	})
 	local shade = new("TextButton", gui, {
-		Name = "Fundo", Size = FULL, BackgroundColor3 = Color3.fromRGB(6, 5, 10), BackgroundTransparency = 0.38,
-		BorderSizePixel = 0, Text = "", AutoButtonColor = false, ZIndex = 1,
+		Name = "Fundo", Text = "", AutoButtonColor = false, Size = FULL, BackgroundColor3 = Color3.fromRGB(2, 3, 6),
+		BackgroundTransparency = 0.5, ZIndex = 1, Selectable = false,
 	})
-	local root = frame(gui, "Roleta", 2, {
-		AnchorPoint = CENTER, Position = UDim2.new(0.5, 0, 0.5, if touch then 13 else 24),
-		Size = UDim2.fromOffset((ring + cardW) * 2, (ring + cardH) * 2),
+	local root = frame(gui, "Roda", 2, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset((ring + slotW) * 2, (ring + slotH) * 2),
 	})
 	local scale = new("UIScale", root, { Name = "Escala" })
-	local header = label(gui, "Titulo", "ARSENAL", f.display, if touch then 10 else 14, WHITE, 3, {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, if touch then 8 else 26),
-		Size = UDim2.fromOffset(300, 20), TextXAlignment = Enum.TextXAlignment.Center,
+	local hub = frame(root, "Centro", 3, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(hubR * 2, hubR * 2),
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.18,
 	})
-	local hint = label(gui, "Dica", if touch then "TOQUE NUMA ARMA PARA EQUIPAR" else "MOUSE ESCOLHE · 1–6 ATALHO · RODA TROCA",
-		f.bold, if touch then 8 else 10, MUTED, 3, {
-			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, if touch then 24 else 52),
-			Size = UDim2.fromOffset(420, 14), TextXAlignment = Enum.TextXAlignment.Center,
-		})
-	local center = Vector2.new(ring + cardW, ring + cardH)
-	local orbit = frame(root, "Orbita", 2, {
-		AnchorPoint = CENTER, Position = UDim2.fromOffset(center.X, center.Y), Size = UDim2.fromOffset(ring * 2, ring * 2),
-	})
-	round(orbit, UDim.new(0.5, 0))
-	new("UIStroke", orbit, { Color = MAGENTA, Transparency = 0.82, Thickness = 1 })
-
-	-- Center: name, class, stats, and ammo.
-	local hub = frame(root, "Centro", 6, {
-		AnchorPoint = CENTER, Position = UDim2.fromOffset(center.X, center.Y), Size = UDim2.fromOffset(hubR * 2, hubR * 2),
-		BackgroundTransparency = 0.06, BackgroundColor3 = Color3.fromRGB(11, 9, 18),
-	})
-	round(hub, UDim.new(0.5, 0))
-	new("UIStroke", hub, { Color = WHITE, Transparency = 0.86, Thickness = 1 })
-	local ringFrame = frame(hub, "Anel", 7, {
-		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(hubR * 2 - 14, hubR * 2 - 14),
-	})
-	round(ringFrame, UDim.new(0.5, 0))
-	local ringStroke = new("UIStroke", ringFrame, { Color = MAGENTA, Thickness = 2 })
-	local ticks = frame(root, "Marcas", 6, {
-		AnchorPoint = CENTER, Position = UDim2.fromOffset(center.X, center.Y), Size = UDim2.fromOffset(0, 0),
-	})
-	for k = 0, 59 do
-		local long = k % 5 == 0
-		local a = math.rad(k * 6)
-		local r = hubR + (if long then 8 else 6)
-		frame(ticks, "Marca", 6, {
-			AnchorPoint = CENTER, Position = UDim2.fromOffset(math.cos(a) * r, math.sin(a) * r),
-			Size = UDim2.fromOffset(if long then 7 else 4, if long then 1.5 else 1), Rotation = k * 6,
-			BackgroundTransparency = if long then 0.55 else 0.82, BackgroundColor3 = WHITE,
-		})
-	end
-	local s = if touch then 0.62 else 1
-	local class = label(hub, "Classe", "", f.bold, math.floor(8 * s + 0.5), MAGENTA, 8, {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.5, -60 * s), Size = UDim2.fromOffset(hubR * 1.6, 12 * s),
+	round(hub, UDim.new(1, 0))
+	stroke(hub, LINE, 0.86, 1)
+	local hubClass = label(hub, "Classe", "", f.bold, if touch then 8 else 11, SUB, 4, {
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.17), Size = UDim2.new(0.8, 0, 0, if touch then 10 else 14),
 		TextXAlignment = Enum.TextXAlignment.Center, TextScaled = true,
 	})
-	local title = label(hub, "Nome", "", f.display, math.floor(15 * s + 0.5), WHITE, 8, {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.5, -44 * s), Size = UDim2.fromOffset(hubR * 1.7, 20 * s),
+	new("UITextSizeConstraint", hubClass, { MaxTextSize = if touch then 8 else 11, MinTextSize = 5 })
+	local hubName = label(hub, "Nome", "", f.heavy, if touch then 14 else 22, TEXT, 4, {
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.27), Size = UDim2.new(0.9, 0, 0, if touch then 17 else 26),
 		TextXAlignment = Enum.TextXAlignment.Center, TextScaled = true,
+	})
+	new("UITextSizeConstraint", hubName, { MaxTextSize = if touch then 14 else 22, MinTextSize = 8 })
+	local hubAmmo = label(hub, "Municao", "", f.bold, if touch then 11 else 15, TEXT, 4, {
+		Position = UDim2.fromScale(0, 0.45), Size = UDim2.new(1, 0, 0, if touch then 14 else 18), TextXAlignment = Enum.TextXAlignment.Center,
+		RichText = true,
 	})
 	local statNames = { "DANO", "CADÊNCIA", "ALCANCE", "CONTROLE" }
-	local segments = {}
-	for row, statName in statNames do
-		local y = -12 * s + (row - 1) * 13 * s
-		label(hub, "Rotulo" .. row, statName, f.bold, math.floor(8 * s + 0.5), MUTED, 8, {
-			Position = UDim2.new(0.5, -62 * s, 0.5, y - 5 * s), Size = UDim2.fromOffset(58 * s, 10 * s),
+	local statBars = {}
+	for row = 1, 4 do
+		local y = (if touch then 0.6 else 0.6) + (row - 1) * 0.08
+		label(hub, "Atributo" .. row, statNames[row], f.bold, if touch then 6 else 9, SUB, 4, {
+			Position = UDim2.fromScale(0.2, y), Size = UDim2.new(0.28, 0, 0, if touch then 7 else 10),
 		})
-		segments[row] = {}
-		for seg = 1, 10 do
-			segments[row][seg] = frame(hub, "Segmento", 8, {
-				Position = UDim2.new(0.5, (2 + (seg - 1) * 6.4) * s, 0.5, y - 2.5 * s), Size = UDim2.fromOffset(5 * s, 4.5 * s),
-				BackgroundTransparency = 0, BackgroundColor3 = DIM,
-			})
-		end
+		local barTrack = frame(hub, "Trilho" .. row, 4, {
+			Position = UDim2.new(0.5, 0, y, if touch then 2 else 3), Size = UDim2.new(0.3, 0, 0, if touch then 3 else 4),
+			BackgroundTransparency = 0.82, BackgroundColor3 = LINE,
+		})
+		round(barTrack, UDim.new(1, 0))
+		local bar = frame(barTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = TEXT })
+		round(bar, UDim.new(1, 0))
+		statBars[row] = bar
 	end
-	local ammo = label(hub, "Municao", "", f.mono, math.floor(22 * s + 0.5), WHITE, 8, {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.5, 42 * s), Size = UDim2.fromOffset(hubR * 1.6, 26 * s),
-		TextXAlignment = Enum.TextXAlignment.Center, RichText = true,
-	})
-	label(hub, "Instrucao", if touch then "TOQUE PARA EQUIPAR" else "SOLTE  Q  PARA EQUIPAR", f.bold, math.floor(7.5 * s + 0.5), MUTED, 8, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16 * s), Size = UDim2.fromOffset(hubR * 1.5, 10 * s),
-		TextXAlignment = Enum.TextXAlignment.Center,
-	})
-
-	-- Pointer: line from the center to the selected card and a diamond on the ring.
-	local pointer = frame(root, "Ponteiro", 5, {
-		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(center.X, center.Y), Size = UDim2.fromOffset(0, 2),
-		BackgroundTransparency = 0.3, BackgroundColor3 = MAGENTA,
-	})
-	local tip = frame(root, "Ponta", 7, {
-		AnchorPoint = CENTER, Size = UDim2.fromOffset(if touch then 8 else 11, if touch then 8 else 11), Rotation = 45,
-		BackgroundTransparency = 0, BackgroundColor3 = MAGENTA,
-	})
-
-	local cards = {}
+	local entries = {}
 	for index, def in defs do
-		local a = math.rad(slotAngle(index, count))
-		local accent = rgb(def.accent)
+		local angle = math.rad(slotAngle(index, count))
 		local card = new("TextButton", root, {
-			Name = "Carta" .. index, AnchorPoint = CENTER, Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(center.X + math.cos(a) * ring, center.Y + math.sin(a) * ring),
-			Size = UDim2.fromOffset(cardW, cardH), ZIndex = 10,
+			Name = "Arma" .. index, Text = "", AutoButtonColor = false, AnchorPoint = CENTER,
+			Position = UDim2.new(0.5, math.cos(angle) * ring, 0.5, math.sin(angle) * ring), Size = UDim2.fromOffset(slotW, slotH),
+			BackgroundColor3 = PANEL, BackgroundTransparency = 0.26, ZIndex = 5, Selectable = true,
 		})
-		local pop = new("UIScale", card, { Name = "Destaque" })
-		local glow = frame(card, "Brilho", 10, {
-			AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 14, 1, 14),
-			BackgroundColor3 = accent, BackgroundTransparency = 1,
-		})
-		round(glow, UDim.new(0, 10))
-		local edge = bevel(card, "Borda", 11, if touch then 9 else 12, WHITE, 0.86, 0)
-		bevel(card, "Face", 12, if touch then 8 else 11, FACE, 0.05, if touch then 1 else 1.5)
-		frame(card, "Faixa", 13, {
-			Position = UDim2.fromOffset(if touch then 9 else 12, 0), Size = UDim2.new(0.34, 0, 0, 2),
-			BackgroundTransparency = 0, BackgroundColor3 = accent,
-		})
-		local model, image, halo
+		round(card, UDim.new(0, if touch then 8 else 12))
+		local edge = stroke(card, LINE, 0.84, 1)
+		local pop = new("UIScale", card, { Name = "Pop" })
+		local image, viewport
 		if atlas then
-			-- 2D icon from the Figma design, with a halo in the weapon's color behind it.
-			halo = atlasImage(card, "IconeBrilho", atlas, def.id, 13, {
-				AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, cardH * 0.1),
-				Size = UDim2.new(0.86, 0, 0.6, 0), ImageColor3 = accent, ImageTransparency = 1,
-			})
-			image = atlasImage(card, "Icone", atlas, def.id, 14, {
-				AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, cardH * 0.12),
-				Size = UDim2.new(0.78, 0, 0.56, 0),
+			image = atlasImage(card, "Icone", atlas, def.id, 6, {
+				AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(0.78, 0.56), ImageColor3 = TEXT,
 			})
 		else
-			local viewport = new("ViewportFrame", card, {
-				Name = "Icone", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, cardH * 0.06),
-				Size = UDim2.new(0.86, 0, 0.66, 0), BackgroundTransparency = 1, ZIndex = 13,
-				Ambient = Color3.fromRGB(150, 140, 176), LightColor = Color3.fromRGB(255, 236, 250), LightDirection = Vector3.new(-0.6, -1, -0.4),
+			image = new("ViewportFrame", card, {
+				Name = "Modelo3D", AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(0.8, 0.62),
+				BackgroundTransparency = 1, ZIndex = 6, Ambient = Color3.fromRGB(150, 150, 170), LightColor = Color3.fromRGB(255, 240, 230),
+				LightDirection = Vector3.new(-1, -1.4, -0.6),
 			})
-			model = viewportModel(viewport, templates and templates[def.id])
+			viewport = viewportModel(image, templates and templates[def.id])
 		end
-		if not touch then
-			local key = frame(card, "Tecla", 14, {
-				Position = UDim2.fromOffset(10, 10), Size = UDim2.fromOffset(15, 15), BackgroundTransparency = 0, BackgroundColor3 = INK,
-			})
-			new("UIStroke", key, { Color = WHITE, Transparency = 0.78, Thickness = 1 })
-			label(key, "Numero", tostring(index), f.bold, 9, WHITE, 15, { TextXAlignment = Enum.TextXAlignment.Center })
-		end
-		local name = label(card, "Nome", string.upper(def.name), f.display, if touch then 7 else 10, Color3.fromRGB(217, 210, 230), 14, {
-			Position = UDim2.new(0, if touch then 8 else 12, 1, if touch then -17 else -24), Size = UDim2.new(1, if touch then -16 else -24, 0, if touch then 12 else 16),
-			TextScaled = true,
+		local key = if touch then nil else label(card, "Tecla", tostring(index), f.bold, 10, SUB, 7, {
+			Position = UDim2.fromOffset(8, 5), Size = UDim2.fromOffset(12, 12),
 		})
-		local count2 = label(card, "Municao", if def.kind == "gun" then "" else "∞", f.mono, if touch then 8 else 11, accent, 14, {
-			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, if touch then -8 else -12, 0, if touch then 6 else 9),
-			Size = UDim2.fromOffset(70, 14), TextXAlignment = Enum.TextXAlignment.Right,
+		local ammo = label(card, "Municao", "", f.bold, if touch then 9 else 11, SUB, 7, {
+			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -3 else -6), Size = UDim2.new(1, 0, 0, if touch then 11 else 14),
+			TextXAlignment = Enum.TextXAlignment.Center,
 		})
-		cards[index] = {
-			card = card, pop = pop, glow = glow, edge = edge, name = name, ammo = count2, model = model, accent = accent,
-			def = def, angle = a, image = image, halo = halo,
-		}
+		entries[index] = { card = card, pop = pop, image = image, viewport = viewport, ammo = ammo, edge = edge, key = key, def = def, target = 1 }
 	end
-
-	local controls = { gui = gui, shade = shade, root = root, scale = scale, cards = cards, selected = 1, spin = 0 }
-	function controls.select(index: number, ammoTable)
-		controls.selected = index
+	local selected = 1
+	local wheel = { gui = gui, cards = entries, scale = scale, shade = shade, root = root }
+	local function ammoText(id, ammoTable)
+		local a = ammoTable and ammoTable[id]
+		if type(a) == "table" then
+			return string.format("%d/%d", a[1] or 0, a[2] or 0)
+		end
+		return ""
+	end
+	function wheel.select(index: number, ammoTable)
+		selected = index
 		local def = defs[index]
-		local accent = rgb(def.accent)
-		for i, entry in cards do
-			local on = i == index
-			entry.pop.Scale = if on then 1.12 else 1
-			entry.glow.BackgroundTransparency = if on then 0.72 else 1
-			paint(entry.edge, if on then entry.accent else WHITE, if on then 0 else 0.86)
-			entry.name.TextColor3 = if on then WHITE else Color3.fromRGB(217, 210, 230)
-			if entry.image then
-				entry.image.ImageTransparency = if on then 0 else 0.18
-				entry.halo.ImageTransparency = if on then 0.55 else 1
-			end
-			local pair = ammoTable and ammoTable[entry.def.id]
-			if entry.def.kind == "gun" and pair then
-				entry.ammo.Text = string.format("%d/%d", pair[1], pair[2])
-			end
+		if not def then
+			return
 		end
-		class.Text = def.class or ""
-		class.TextColor3 = accent
-		title.Text = string.upper(def.name)
-		ringStroke.Color = accent
+		hubClass.Text = upper(def.class or (if def.kind == "gun" then "ARMA DE FOGO" else "CORPO A CORPO"))
+		hubName.Text = upper(def.name or def.id)
+		local a = ammoTable and ammoTable[def.id]
+		hubAmmo.Text = if type(a) == "table" then string.format('%d <font color="#A4AAB8">/ %d</font>', a[1] or 0, a[2] or 0)
+			else '<font color="#A4AAB8">SEM MUNIÇÃO</font>'
 		for row = 1, 4 do
-			local value = def.stats and def.stats[row] or 0
-			for seg = 1, 10 do
-				segments[row][seg].BackgroundColor3 = if seg <= math.floor(value * 10 + 0.5) then accent else DIM
+			local value = (def.stats or {})[row] or 0
+			statBars[row].Size = UDim2.fromScale(math.clamp(if value > 1 then value / 10 else value, 0, 1), 1)
+		end
+		for i, entry in entries do
+			local on = i == index
+			entry.target = if on then 1.1 else 1
+			entry.card.BackgroundColor3 = if on then TEXT else PANEL
+			entry.card.BackgroundTransparency = if on then 0.04 else 0.26
+			entry.edge.Color = if on then ACCENT else LINE
+			entry.edge.Transparency = if on then 0.1 else 0.84
+			entry.edge.Thickness = if on then 2 else 1
+			if entry.image:IsA("ImageLabel") then
+				entry.image.ImageColor3 = if on then PANEL else TEXT
+			end
+			entry.ammo.Text = ammoText(entry.def.id, ammoTable)
+			entry.ammo.TextColor3 = if on then Color3.fromRGB(60, 64, 76) else SUB
+			if entry.key then
+				entry.key.TextColor3 = if on then Color3.fromRGB(60, 64, 76) else SUB
 			end
 		end
-		local pair = ammoTable and ammoTable[def.id]
-		ammo.Text = if def.kind == "gun" and pair then string.format('%d <font size="%d" color="#bcb3cc"> |  %d</font>', pair[1], math.floor(13 * s + 0.5), pair[2])
-			else '<font color="#bcb3cc">CORPO A CORPO</font>'
-		local a = cards[index].angle
-		local from = hubR + 13
-		local to = ring - (if touch then cardH * 0.6 else cardH * 0.62)
-		pointer.Position = UDim2.fromOffset(center.X + math.cos(a) * from, center.Y + math.sin(a) * from)
-		pointer.Size = UDim2.fromOffset(math.max(0, to - from), 2)
-		pointer.Rotation = math.deg(a)
-		pointer.BackgroundColor3 = accent
-		tip.Position = UDim2.fromOffset(center.X + math.cos(a) * (hubR + 10), center.Y + math.sin(a) * (hubR + 10))
-		tip.BackgroundColor3 = accent
 	end
-	function controls.animate(dt: number, opening: number)
-		controls.spin += dt
-		for i, entry in cards do
-			local speed = if i == controls.selected then 1.6 else 0.35
-			poseViewport(entry.model, controls.spin * speed + i)
-			local a = entry.angle
-			local radius = ring * (0.55 + 0.45 * opening)
-			entry.card.Position = UDim2.fromOffset(center.X + math.cos(a) * radius, center.Y + math.sin(a) * radius)
+	local spin = 0
+	function wheel.animate(dt: number, eased: number)
+		spin += dt * 0.6
+		shade.BackgroundTransparency = 1 - 0.55 * eased
+		for i, entry in entries do
+			entry.pop.Scale += (entry.target - entry.pop.Scale) * math.min(1, dt * 14)
+			if entry.viewport then
+				poseViewport(entry.viewport, if i == selected then spin else 0.6)
+			end
 		end
-		ticks.Rotation = controls.spin * 6
-		shade.BackgroundTransparency = 1 - 0.62 * opening
-		header.TextTransparency = 1 - opening
-		hint.TextTransparency = 1 - opening
 	end
-	controls.center = center
-	controls.header = header
-	return controls
+	wheel.select(1, {})
+	return wheel
 end
 M.buildWheel = buildWheel
 
--- Equipped weapon card (bottom-right on PC; under the health panel on mobile).
+-- Arma atual: ícone 2D, nome e munição; no toque, o cartão abre a roleta.
 local function buildWeaponCard(parent: Instance, touch: boolean, atlas: string?)
 	local f = fonts()
-	local w, h = if touch then 194 else 268, if touch then 50 else 74
+	local w, h = if touch then 176 else 300, if touch then 50 else 66
 	local gui = new("ScreenGui", parent, {
-		Name = "CyberOutlawArmaAtual", ResetOnSpawn = false, DisplayOrder = 30, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets, ClipToDeviceSafeArea = true, SafeAreaCompatibility = Enum.SafeAreaCompatibility.None,
+		Name = "CyberOutlawArmaAtual", ResetOnSpawn = false, DisplayOrder = 31, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
 	})
 	local panel = new("TextButton", gui, {
-		Name = "Cartao", Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
-		AnchorPoint = if touch then Vector2.new(0, 0) else Vector2.new(1, 1),
-		Position = if touch then UDim2.fromOffset(14, 66) else UDim2.new(1, -24, 1, -24),
-		Size = UDim2.fromOffset(w, h), ZIndex = 1,
+		Name = "Painel", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromOffset(w, h),
+		Active = touch, Selectable = false, AnchorPoint = Vector2.new(1, if touch then 0 else 1),
+		Position = if touch then UDim2.new(1, -12, 0, 10) else UDim2.new(1, -24, 1, -24),
 	})
-	bevel(panel, "Borda", 1, if touch then 7 else 9, EDGE, 0, 0)
-	bevel(panel, "Face", 2, if touch then 6 else 8, FACE, 0.06, 1)
-	local accentBar = frame(panel, "Destaque", 3, {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(56, 1.5),
-		BackgroundTransparency = 0, BackgroundColor3 = MAGENTA,
+	local scale = new("UIScale", panel, { Name = "Escala" })
+	local back = frame(panel, "Fundo", 1, { Size = FULL, BackgroundColor3 = PANEL, BackgroundTransparency = 0 })
+	round(back, UDim.new(0, 8))
+	new("UIGradient", back, {
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.62), NumberSequenceKeypoint.new(1, 0.36) }),
 	})
-	frame(panel, "Base", 3, {
-		Position = UDim2.new(0, 0, 1, -1.5), Size = UDim2.fromOffset(30, 1.5), BackgroundTransparency = 0, BackgroundColor3 = CYAN,
+	local iconW = if touch then 70 else 116
+	local iconBox = frame(panel, "IconeArea", 2, {
+		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, if touch then 4 else 8, 0.5, 0), Size = UDim2.fromOffset(iconW, h - 10),
 	})
-	local iconW = h * 1.28
-	local viewport = if atlas then nil else new("ViewportFrame", panel, {
-		Name = "Icone", Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(iconW, h - 8), BackgroundTransparency = 1, ZIndex = 3,
-		Ambient = Color3.fromRGB(150, 140, 176), LightColor = Color3.fromRGB(255, 236, 250), LightDirection = Vector3.new(-0.6, -1, -0.4),
+	local icon, viewport
+	if atlas then
+		icon = atlasImage(iconBox, "Icone", atlas, "punhos", 3, { Size = FULL, ImageColor3 = TEXT })
+	else
+		icon = new("ViewportFrame", iconBox, {
+			Name = "Modelo3D", Size = FULL, BackgroundTransparency = 1, ZIndex = 3, Ambient = Color3.fromRGB(150, 150, 170),
+			LightColor = Color3.fromRGB(255, 240, 230), LightDirection = Vector3.new(-1, -1.4, -0.6),
+		})
+	end
+	local nameLabel = label(panel, "Nome", "PUNHOS", f.bold, if touch then 9 else 11, SUB, 3, {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, if touch then 5 else 7), Size = UDim2.fromOffset(w - iconW - 24, if touch then 11 else 14),
+		TextXAlignment = Enum.TextXAlignment.Right,
 	})
-	local icon2d = if atlas then atlasImage(panel, "Icone", atlas, "punhos", 3, {
-		Position = UDim2.fromOffset(8, 4), Size = UDim2.fromOffset(iconW, h - 8),
-	}) else nil
-	local name = label(panel, "Nome", "", f.display, if touch then 8 else 10, PINK_LABEL, 4, {
-		Position = UDim2.fromOffset(iconW + 16, if touch then 4 else 8), Size = UDim2.new(1, -(iconW + 28), 0, if touch then 12 else 14),
-		TextScaled = true,
+	local mag = label(panel, "Pente", "", f.heavy, if touch then 22 else 30, TEXT, 3, {
+		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, if touch then -46 else -64, 1, if touch then -5 else -7),
+		Size = UDim2.fromOffset(if touch then 60 else 90, if touch then 26 else 34), TextXAlignment = Enum.TextXAlignment.Right,
 	})
-	local count = label(panel, "Pente", "", f.mono, if touch then 18 else 26, WHITE, 4, {
-		Position = UDim2.fromOffset(iconW + 16, if touch then 15 else 24), Size = UDim2.new(1, -(iconW + 28), 0, if touch then 20 else 28),
-		RichText = true,
+	local reserve = label(panel, "Reserva", "", f.bold, if touch then 12 else 15, SUB, 3, {
+		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, if touch then -8 else -11), Size = UDim2.fromOffset(if touch then 34 else 50, if touch then 16 else 20),
+		TextXAlignment = Enum.TextXAlignment.Right,
 	})
-	local pipsHolder = frame(panel, "Balas", 4, {
-		Position = UDim2.new(0, iconW + 16, 1, if touch then -10 else -13), Size = UDim2.new(1, -(iconW + 30), 0, 5),
+	local reloadTrack = frame(panel, "Recarga", 4, {
+		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -3), Size = UDim2.fromOffset(if touch then 92 else 150, 2),
+		BackgroundTransparency = 0.8, BackgroundColor3 = LINE, Visible = false,
 	})
-	local reloadBar = frame(pipsHolder, "Recarga", 6, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = WHITE, Visible = false })
-	local status = label(panel, "Estado", "", f.bold, 8, WHITE, 5, {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, if touch then 4 else 8), Size = UDim2.fromOffset(110, 12),
-		TextXAlignment = Enum.TextXAlignment.Right, Visible = false,
-	})
-	local controls = { gui = gui, panel = panel, viewport = viewport, model = nil, pips = {}, current = nil }
-	function controls.show(def, template, pair, reloadProgress: number?)
-		if controls.current ~= def.id then
-			controls.current = def.id
-			if icon2d then
+	local reloadFill = frame(reloadTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = ACCENT })
+	local card = { gui = gui, panel = panel, scale = scale }
+	local shown
+	function card.show(def, template, ammo, progress: number?)
+		if shown ~= def.id then
+			shown = def.id
+			nameLabel.Text = upper(def.name or def.id)
+			if icon:IsA("ImageLabel") then
 				local offset, size = iconRect(def.id)
-				icon2d.ImageRectOffset = offset or Vector2.zero
-				icon2d.ImageRectSize = size or Vector2.zero
-			elseif viewport then
-				for _, child in viewport:GetChildren() do
+				icon.ImageRectOffset = offset or Vector2.zero
+				icon.ImageRectSize = size or Vector2.zero
+			else
+				for _, child in icon:GetChildren() do
 					child:Destroy()
 				end
-				controls.model = viewportModel(viewport, template)
-				poseViewport(controls.model, math.rad(-35))
-			end
-			for _, pip in controls.pips do
-				pip:Destroy()
-			end
-			table.clear(controls.pips)
-			if def.kind == "gun" then
-				local size = def.mag
-				for k = 1, size do
-					controls.pips[k] = frame(pipsHolder, "Bala", 5, {
-						Position = UDim2.new((k - 1) / size, 0, 0, 0), Size = UDim2.new(1 / size, -1.5, 1, 0),
-						BackgroundTransparency = 0, BackgroundColor3 = DIM,
-					})
-				end
+				viewport = viewportModel(icon, template)
+				poseViewport(viewport, 0.6)
 			end
 		end
-		local accent = rgb(def.accent)
-		accentBar.BackgroundColor3 = accent
-		name.Text = string.upper(def.name)
-		if def.kind == "gun" and pair then
-			count.Text = string.format('%d<font size="%d" color="#bcb3cc"> / %d</font>', pair[1], if touch then 9 else 12, pair[2])
-			for k, pip in controls.pips do
-				pip.BackgroundColor3 = if k <= pair[1] then accent else DIM
-			end
+		if type(ammo) == "table" then
+			mag.Text = tostring(ammo[1] or 0)
+			reserve.Text = "/" .. tostring(ammo[2] or 0)
+			local low = (ammo[1] or 0) <= math.max(1, math.floor((def.mag or 10) * 0.25))
+			mag.TextColor3 = if low then ACCENT else TEXT
 		else
-			count.Text = '<font size="12" color="#bcb3cc">CORPO A CORPO</font>'
+			mag.Text = ""
+			reserve.Text = ""
 		end
-		reloadBar.Visible = reloadProgress ~= nil
-		status.Visible = reloadProgress ~= nil
-		status.Text = "RECARREGANDO"
-		if reloadProgress then
-			reloadBar.Size = UDim2.fromScale(math.clamp(reloadProgress, 0, 1), 1)
+		reloadTrack.Visible = progress ~= nil
+		if progress then
+			reloadFill.Size = UDim2.fromScale(math.clamp(progress, 0, 1), 1)
 		end
 	end
-	return controls
+	function card.layout(l)
+		place(panel, l.weapon, l.scale, scale)
+	end
+	return card
 end
 M.buildWeaponCard = buildWeaponCard
 
--- Round touch button with a drawn icon (no image).
-local function touchButton(parent, name: string, caption: string, icon: string, center: Vector2, radius: number, color: Color3, atlas: string?)
+-- Botão de toque redondo, translúcido, com ícone 2D branco (ou o nome, enquanto os ícones aguardam aprovação).
+local function touchButton(parent, name: string, caption: string, icon: string, center: Vector2, radius: number, atlas: string?)
 	local f = fonts()
 	local button = new("TextButton", parent, {
-		Name = name, AnchorPoint = CENTER, Position = UDim2.new(1, center.X, 1, center.Y), Size = UDim2.fromOffset(radius * 2, radius * 2),
-		BackgroundColor3 = INK, BackgroundTransparency = 0.22, Text = "", AutoButtonColor = false, ZIndex = 5,
+		Name = name, Text = "", AutoButtonColor = false, AnchorPoint = CENTER, Position = UDim2.fromOffset(center.X, center.Y),
+		Size = UDim2.fromOffset(radius * 2, radius * 2), BackgroundColor3 = PANEL, BackgroundTransparency = 0.4, ZIndex = 20,
 	})
-	round(button, UDim.new(0.5, 0))
-	local ring = new("UIStroke", button, { Color = color, Thickness = if radius > 30 then 2 else 1.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-	local glyph = if icon == "R" then "recarga" else icon
-	if atlas and iconRect(glyph) then
-		atlasImage(button, "Glifo", atlas, glyph, 6, {
-			AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(radius * 1.1, radius * 1.1),
+	round(button, UDim.new(1, 0))
+	local ring = stroke(button, LINE, 0.68, 1.5)
+	local image
+	if atlas and iconRect(icon) then
+		image = atlasImage(button, "Icone", atlas, icon, 21, {
+			AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.58, 0.58), ImageColor3 = TEXT,
 		})
-	elseif icon == "tiro" then
-		local circle = frame(button, "Alvo", 6, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(radius * 0.72, radius * 0.72) })
-		round(circle, UDim.new(0.5, 0))
-		new("UIStroke", circle, { Color = WHITE, Thickness = 2 })
-		local dot = frame(button, "Ponto", 6, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(6, 6), BackgroundTransparency = 0, BackgroundColor3 = WHITE })
-		round(dot, UDim.new(0.5, 0))
-	elseif icon == "mira" then
-		local circle = frame(button, "Alvo", 6, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(radius * 0.56, radius * 0.56) })
-		round(circle, UDim.new(0.5, 0))
-		new("UIStroke", circle, { Color = WHITE, Thickness = 1.5 })
-		frame(button, "Horizontal", 6, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(radius * 0.96, 1.5), BackgroundTransparency = 0, BackgroundColor3 = WHITE })
-		frame(button, "Vertical", 6, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(1.5, radius * 0.96), BackgroundTransparency = 0, BackgroundColor3 = WHITE })
 	else
-		label(button, "Letra", icon, f.display, math.floor(radius * 0.6), WHITE, 6, { TextXAlignment = Enum.TextXAlignment.Center })
+		label(button, "Icone", caption, f.heavy, math.max(9, math.floor(radius * 0.36)), TEXT, 21, { TextXAlignment = Enum.TextXAlignment.Center })
 	end
-	if caption ~= "" then
-		label(button, "Legenda", caption, f.bold, 8, WHITE, 6, {
-			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.fromOffset(80, 10),
-			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.6,
-		})
-	end
-	return button, ring
+	return button, ring, image
 end
 M.touchButton = touchButton
+
 
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
@@ -840,6 +1100,11 @@ local function start()
 	end
 
 	-- Interface ----------------------------------------------------------------------------------
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
+	end)
+	local hud = buildHud(playerGui, touch)
+	local combat = buildCombat(playerGui, touch)
 	local wheel = if #defs > 0 then buildWheel(playerGui, defs, templates, touch, ATLAS) else nil
 	local card = if #defs > 0 then buildWeaponCard(playerGui, touch, ATLAS) else nil
 	local blur = Instance.new("BlurEffect")
@@ -856,73 +1121,92 @@ local function start()
 	depth.NearIntensity = 0
 	depth.InFocusRadius = 40
 	depth.Parent = camera
-
-	local combatGui = Instance.new("ScreenGui")
-	combatGui.Name = "CyberOutlawCombate"
-	combatGui.ResetOnSpawn = false
-	combatGui.DisplayOrder = 32
-	combatGui.IgnoreGuiInset = true
-	combatGui.ScreenInsets = Enum.ScreenInsets.None
-	combatGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	combatGui.Parent = playerGui
-	local hitmarker = frame(combatGui, "Acerto", 5, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(28, 28), Visible = false })
-	local hitLines = {}
-	for _, corner in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
-		table.insert(hitLines, frame(hitmarker, "Traço", 5, {
-			AnchorPoint = CENTER, Position = UDim2.new(0.5, corner[1] * 9, 0.5, corner[2] * 9), Size = UDim2.fromOffset(9, 2),
-			Rotation = if corner[1] * corner[2] > 0 then 45 else -45, BackgroundTransparency = 0, BackgroundColor3 = WHITE,
-		}))
-	end
-	local hitUntil = 0
-	local vignette = frame(combatGui, "Vinheta", 1, { Size = FULL })
-	local vignettePieces = {}
-	for _, side in { { 0, 0, 1, 0.16, 90 }, { 0, 0.84, 1, 0.16, -90 }, { 0, 0, 0.12, 1, 0 }, { 0.88, 0, 0.12, 1, 180 } } do
-		local piece = frame(vignette, "Borda", 1, {
-			Position = UDim2.fromScale(side[1], side[2]), Size = UDim2.fromScale(side[3], side[4]), BackgroundTransparency = 0, BackgroundColor3 = Color3.new(0, 0, 0),
-		})
-		new("UIGradient", piece, {
-			Rotation = side[5], Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 1) }),
-		})
-		table.insert(vignettePieces, piece)
-	end
-	local damageFlash = 0
-	local safeChip = label(combatGui, "ZonaSegura", "ZONA SEGURA · ARMAS TRAVADAS", Font.fromEnum(Enum.Font.GothamBold), 10, CYAN, 4, {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, if touch then 70 else 104), Size = UDim2.fromOffset(260, 14),
-		TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.5, Visible = false,
-	})
-	local deathScreen = frame(combatGui, "SinalPerdido", 20, { Size = FULL, BackgroundColor3 = Color3.fromRGB(10, 0, 6), BackgroundTransparency = 1, Visible = false })
-	local deathTitle = label(deathScreen, "Titulo", "SINAL PERDIDO", Font.fromEnum(Enum.Font.Michroma), if touch then 26 else 40, Color3.fromRGB(255, 70, 110), 21, {
-		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromOffset(700, 60), TextXAlignment = Enum.TextXAlignment.Center,
-	})
-	local deathHint = label(deathScreen, "Dica", "RECONECTANDO AO CORPO…", Font.fromEnum(Enum.Font.GothamBold), 11, MUTED, 21, {
-		AnchorPoint = CENTER, Position = UDim2.new(0.5, 0, 0.45, 40), Size = UDim2.fromOffset(400, 16), TextXAlignment = Enum.TextXAlignment.Center,
-	})
 	local deathGrade = Instance.new("ColorCorrectionEffect")
 	deathGrade.Name = "CyberOutlawSinalPerdido"
 	deathGrade.Enabled = false
 	deathGrade.Saturation = -0.85
 	deathGrade.TintColor = Color3.fromRGB(255, 200, 210)
 	deathGrade.Parent = camera
+	local damageFlash = 0
+	local safeBlockedUntil = 0
 
-	local touchGui, fireButton, aimButton, reloadButton, aimRing
+	local fireButton, aimButton, reloadButton, aimRing, fireRing, fireIcon
+	local fireShows
 	if touch then
-		touchGui = Instance.new("ScreenGui")
-		touchGui.Name = "CyberOutlawToque"
-		touchGui.ResetOnSpawn = false
-		touchGui.DisplayOrder = 33
-		touchGui.ScreenInsets = Enum.ScreenInsets.None
-		touchGui.IgnoreGuiInset = true
-		touchGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		touchGui.Parent = playerGui
-		local small = math.min(camera.ViewportSize.X, camera.ViewportSize.Y) <= 500
-		local k = if small then 1 else 1.55
-		fireButton = touchButton(touchGui, "Atirar", "ATIRAR", "tiro", Vector2.new(-165 * k, -82 * k), 36 * k, MAGENTA, ATLAS)
-		aimButton, aimRing = touchButton(touchGui, "Mirar", "MIRAR", "mira", Vector2.new(-76 * k, -166 * k), 25 * k, CYAN, ATLAS)
-		reloadButton = touchButton(touchGui, "Recarregar", "", "R", Vector2.new(-154 * k, -164 * k), 19 * k, Color3.fromRGB(170, 166, 184), ATLAS)
+		fireButton, fireRing, fireIcon = touchButton(hud.gui, "Atirar", "ATIRAR", "tiro", Vector2.zero, 32, ATLAS)
+		aimButton, aimRing = touchButton(hud.gui, "Mirar", "MIRAR", "mira", Vector2.zero, 26, ATLAS)
+		reloadButton = touchButton(hud.gui, "Recarregar", "RECARGA", "recarga", Vector2.zero, 21, ATLAS)
 	end
 
-	local function aimGui()
-		return playerGui:FindFirstChild("CyberOutlawAim")
+	-- Layout: recalculado quando a tela muda e quando os controles de toque do Roblox aparecem.
+	local function jumpButton()
+		local touchGui = playerGui:FindFirstChild("TouchGui")
+		local jump = touchGui and touchGui:FindFirstChild("JumpButton", true)
+		if jump and jump:IsA("GuiObject") and jump.Visible and jump.AbsoluteSize.X > 10 then
+			return { center = jump.AbsolutePosition + jump.AbsoluteSize / 2 - hud.gui.AbsolutePosition, size = jump.AbsoluteSize.X }
+		end
+		return nil
+	end
+	local function relayout()
+		local size = hud.gui.AbsoluteSize
+		if size.X < 10 or size.Y < 10 then
+			return
+		end
+		local l = hudLayout(size, touch, if touch then jumpButton() else nil)
+		hud.layout(l)
+		if card then
+			card.layout(l)
+		end
+		if wheel then
+			wheel.scale.Scale = l.wheel.scale
+		end
+		if touch and fireButton then
+			for button, key in { [fireButton] = "fire", [aimButton] = "aim", [reloadButton] = "reload" } do
+				local spec = l.buttons[key]
+				button.Position = UDim2.fromOffset(spec.center.X, spec.center.Y)
+				button.Size = UDim2.fromOffset(spec.radius * 2, spec.radius * 2)
+			end
+		end
+	end
+	hud.gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(relayout)
+	relayout()
+	task.spawn(function()
+		for _ = 1, 12 do
+			task.wait(1)
+			relayout()
+		end
+	end)
+
+	-- Mapa publicado pelo servidor da cidade.
+	local cityLayout
+	task.spawn(function()
+		local board = ReplicatedStorage:WaitForChild("CyberOutlawCityInfo", 60)
+		if not board then
+			return
+		end
+		local function read()
+			local ok, decoded = pcall(function()
+				return HttpService:JSONDecode(board:GetAttribute("Layout"))
+			end)
+			if ok and type(decoded) == "table" then
+				cityLayout = decoded
+				hud.setMap(decoded)
+			end
+		end
+		board:GetAttributeChangedSignal("Layout"):Connect(read)
+		read()
+	end)
+	local function districtOf(position: Vector3)
+		if type(cityLayout) ~= "table" or type(cityLayout.districts) ~= "table" then
+			return nil
+		end
+		for _, d in cityLayout.districts do
+			local r = d.rect
+			if position.X >= r[1] and position.X <= r[3] and position.Z >= r[2] and position.Z <= r[4] then
+				return d
+			end
+		end
+		return nil
 	end
 
 	-- Local effects ----------------------------------------------------------------------------------
@@ -1057,8 +1341,7 @@ local function start()
 	end
 
 	local function showHit()
-		hitUntil = os.clock() + 0.14
-		hitmarker.Visible = true
+		combat.hit(false)
 	end
 
 	-- Weapons ------------------------------------------------------------------------------------
@@ -1126,7 +1409,7 @@ local function start()
 			return
 		end
 		if root and inSafeZone(root.Position) then
-			safeChip.Visible = true
+			safeBlockedUntil = now + 2
 			return
 		end
 		local pair = ammoTable[weapon.id]
@@ -1203,7 +1486,7 @@ local function start()
 					poses[model].firedAt = os.clock()
 				end
 				local from = muzzleOf(model) or a
-				local accent = if weapon then rgb(weapon.accent) else WHITE
+				local accent = if weapon then rgb(weapon.accent) else TEXT
 				if typeof(from) == "Vector3" then
 					for _, hit in b do
 						if typeof(hit[1]) == "Vector3" then
@@ -1357,7 +1640,7 @@ local function start()
 			if wheelOpen and wheel then
 				local mouse = UserInputService:GetMouseLocation()
 				local size = camera.ViewportSize
-				local offset = mouse - size / 2 - Vector2.new(0, if touch then 13 else 24) * wheel.scale.Scale
+				local offset = mouse - size / 2
 				if offset.Magnitude > 40 then
 					local index = slotFromVector(offset.X, offset.Y, #defs)
 					if index and index ~= wheelSelection then
@@ -1671,44 +1954,59 @@ local function start()
 			card.show(weapon, templates[weapon.id], ammoTable[weapon.id], progress)
 			card.gui.Enabled = not dead
 		end
-		-- Crosshair: only with a gun, when aiming or right after a shot; on mobile, whenever armed.
-		local aimScreen = aimGui()
-		if aimScreen then
-			aimScreen.Enabled = not dead and not wheelOpen and weapon.kind == "gun" and (aimingNow or raised or touch)
-			local crosshair = aimScreen:FindFirstChild("Crosshair")
-			if crosshair then
-				local scale = crosshair:FindFirstChildOfClass("UIScale") or new("UIScale", crosshair, {})
-				scale.Scale = (if aimingNow then 0.85 else 1.15) + bloom * 0.12
-			end
-		end
+		-- HUD: vida, fôlego, minimapa, distrito e hora.
+		local position = if root then root.Position else nil
+		local clockTime = 0
+		pcall(function()
+			clockTime = game:GetService("Lighting").ClockTime
+		end)
+		local minutes = math.floor((clockTime % 24) * 60 + 0.5) % (24 * 60)
+		hud.update({
+			health = if humanoid then humanoid.Health else 0,
+			maxHealth = if humanoid then humanoid.MaxHealth else 100,
+			stamina = stamina.value,
+			exhausted = stamina.exhausted,
+			position = position,
+			cameraYaw = cam.yaw,
+			facingYaw = facingYaw,
+			district = if position then districtOf(position) else nil,
+			clock = string.format("%02d:%02d", minutes // 60, minutes % 60),
+			safe = (position ~= nil and inSafeZone(position) and weapon.kind == "gun") or os.clock() < safeBlockedUntil,
+		}, dt)
+		hud.gui.Enabled = not dead
+		-- Mira: só com arma de fogo, ao mirar ou logo depois de um tiro; no celular, sempre que armado.
+		local showCross = not dead and not wheelOpen and weapon.kind == "gun" and (aimingNow or raised or touch)
+		combat.crosshair(showCross, bloom + (if aimingNow then 0 else 0.6))
 		if touch and fireButton then
+			-- O botão de ação mostra a arma atual (punho, lâmina ou a arma de fogo).
+			if fireIcon and fireShows ~= weapon.id then
+				fireShows = weapon.id
+				local offset, size = iconRect(weapon.id)
+				if offset then
+					fireIcon.ImageRectOffset, fireIcon.ImageRectSize = offset, size
+				end
+			end
 			aimButton.Visible = weapon.kind == "gun"
 			reloadButton.Visible = weapon.kind == "gun"
-			aimRing.Color = if aimToggle then WHITE else CYAN
+			aimRing.Color = if aimToggle then ACCENT else LINE
+			aimRing.Transparency = if aimToggle then 0.1 else 0.68
 		end
-		hitmarker.Visible = os.clock() < hitUntil
-		safeChip.Visible = root ~= nil and inSafeZone(root.Position) and weapon.kind == "gun"
-		-- Red vignette on taking damage; it pulses with low health.
+		-- Bordas: escurecem ao mirar; ficam vermelhas com dano e pulsam com pouca vida.
 		local health = if humanoid then humanoid.Health / math.max(1, humanoid.MaxHealth) else 1
 		damageFlash = math.max(0, damageFlash - dt * 1.8)
 		local low = if health < 0.3 and health > 0 then 0.25 + 0.2 * math.sin(os.clock() * 5) else 0
-		local red = math.max(damageFlash, low)
-		for _, piece in vignettePieces do
-			piece.BackgroundColor3 = Color3.new(0, 0, 0):Lerp(Color3.fromRGB(160, 0, 30), red)
-		end
-		-- Wheel: opening with easing, blur, and desaturation.
+		combat.step(dt, if aimingNow and weapon.kind == "gun" and not dead then 1 else 0, math.max(damageFlash, low))
+		-- Roleta: abre com suavidade, desfoca e tira a cor do fundo.
 		wheelOpenAmount = math.clamp(wheelOpenAmount + (if wheelOpen then dt * 7 else -dt * 9), 0, 1)
 		if wheel then
 			local eased = 1 - (1 - wheelOpenAmount) ^ 3
 			wheel.gui.Enabled = wheelOpenAmount > 0.01
 			if wheel.gui.Enabled then
-				local viewport = camera.ViewportSize
-				wheel.scale.Scale = math.clamp(viewport.Y / (if touch then 390 else 720), 0.7, 1.5)
 				wheel.animate(dt, eased)
 			end
-			blur.Size = 16 * eased
-			grade.Saturation = -0.3 * eased
-			grade.Brightness = -0.04 * eased
+			blur.Size = 18 * eased
+			grade.Saturation = -0.35 * eased
+			grade.Brightness = -0.05 * eased
 		end
 	end
 
@@ -1758,7 +2056,7 @@ local function start()
 
 	local function onCharacter(model: Model)
 		dead = false
-		deathScreen.Visible = false
+		combat.death(false)
 		deathGrade.Enabled = false
 		current = "punhos"
 		aiming, aimToggle, triggerHeld = false, false, false
@@ -1784,11 +2082,8 @@ local function start()
 			humanoid.Died:Connect(function()
 				dead = true
 				wheelOpen = false
-				deathScreen.Visible = true
+				combat.death(true, "SINAL PERDIDO", "RECONECTANDO AO CORPO…")
 				deathGrade.Enabled = true
-				deathScreen.BackgroundTransparency = 0.7
-				deathTitle.Text = "SINAL PERDIDO"
-				deathHint.Text = "RECONECTANDO AO CORPO…"
 			end)
 		end
 		model:GetAttributeChangedSignal("CyberOutlawArma"):Connect(function()
