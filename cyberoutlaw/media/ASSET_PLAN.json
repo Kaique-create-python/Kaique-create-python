@@ -153,40 +153,40 @@
       "path": "audio/arma_vespa.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "ef30c8c7ad35f6778f8e045147cc92f4a29ecc77c0c00f1cf0e2b635cf88c122",
+      "sha256": "c234fcf7ca1c4b502569888c84d0f8ebae52a1fc03723f0320332c35442ad4a2",
       "displayName": "CyberOutlaw arma_vespa",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.45
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 0.62
     },
     {
       "key": "arma_enxame",
       "path": "audio/arma_enxame.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "5924192a905066063955208fc1064447a618bfb90c74c75238ebd71da57d311d",
+      "sha256": "17aedb4a9ac427b3aa3f79c245eec66c0fa6e912f16545f0dcccdedb07f28c65",
       "displayName": "CyberOutlaw arma_enxame",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.26
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 0.38
     },
     {
       "key": "arma_trovao",
       "path": "audio/arma_trovao.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "32354b1cdcfece93cc0e3b37bc45346e068b62283ab777155ab58c0af4b48956",
+      "sha256": "bf9d00a15fa256f4cf77faec4a752d10a262345f2dfa85b1fa536b8e843265ad",
       "displayName": "CyberOutlaw arma_trovao",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.85
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 0.95
     },
     {
       "key": "arma_agulha",
       "path": "audio/arma_agulha.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "126d05caa48fd0af250e24a8668abf3cc147c05f21bf1f450a6b2bd180041626",
+      "sha256": "7c4ed011c36d74e127b0b7c73946e4c455a8dc0b324cbd0fbdc671926b862b27",
       "displayName": "CyberOutlaw arma_agulha",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.55
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 0.7
     },
     {
       "key": "arma_soco",
@@ -213,30 +213,130 @@
       "path": "audio/arma_recarga.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "1f954991a87775b5ba716d64ef54e33dd8a77cdaaceb04a063c88d7a3c53e45f",
+      "sha256": "69c50a476ead59841cbd48284e6365181e9ffe79919c80029aae008d7ec4d0ee",
       "displayName": "CyberOutlaw arma_recarga",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.75
+      "description": "Gravação CC0 de zer0_sol (https://opengameart.org/content/handgun-reload-sound-effect), recortada por código.",
+      "durationSeconds": 1.491
     },
     {
       "key": "arma_vazia",
       "path": "audio/arma_vazia.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "3b0a0648aaf53afee8d9b405d378808cac4114a3ea756f77fdccede320f68484",
+      "sha256": "3a1d9c0c4014adc5c5b63ba0b1932a5cebf5e77b449de4592107e1e99b872545",
       "displayName": "CyberOutlaw arma_vazia",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.12
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.066
     },
     {
       "key": "arma_troca",
       "path": "audio/arma_troca.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "f540890785deb01676cbc1d6686f22c90356b5647f522d68a73f5dfc4e4bdb82",
+      "sha256": "c89df7a1a2b6a324cc645e0fa4c3a4428a3d48a640f4b33b344d99a87c4977d8",
       "displayName": "CyberOutlaw arma_troca",
-      "description": "Som de arma sintetizado por código, sem amostras.",
-      "durationSeconds": 0.28
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.305
+    },
+    {
+      "key": "arma_recarga_fuzil",
+      "path": "audio/arma_recarga_fuzil.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "33c6a6becc69f57c69b8670d4f9f8163bdcb1eacc65d04b8c2ca81d83b19cc31",
+      "displayName": "CyberOutlaw arma_recarga_fuzil",
+      "description": "Gravação CC0 de SpringySpringo (https://opengameart.org/content/gun-reload-sounds), recortada por código.",
+      "durationSeconds": 1.406
+    },
+    {
+      "key": "arma_recarga_escopeta",
+      "path": "audio/arma_recarga_escopeta.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "0c55a9685fb827868813eb06cb5ed08c0f94c04ebf9276b90f16984ca1a17334",
+      "displayName": "CyberOutlaw arma_recarga_escopeta",
+      "description": "Gravação CC0 de SpringySpringo (https://opengameart.org/content/gun-reload-sounds), recortada por código.",
+      "durationSeconds": 0.424
+    },
+    {
+      "key": "passo_1",
+      "path": "audio/passo_1.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "2c5684658e9db0a5c9e372a14591d11fbdf9f6bdc6116073ec6d16823331919b",
+      "displayName": "CyberOutlaw passo_1",
+      "description": "Gravação CC0 de Fantozzi (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.32
+    },
+    {
+      "key": "passo_2",
+      "path": "audio/passo_2.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "73042eca88109bf649a575116872addf951d4f4c53cd560388e2076559bd7858",
+      "displayName": "CyberOutlaw passo_2",
+      "description": "Gravação CC0 de Fantozzi (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.32
+    },
+    {
+      "key": "passo_3",
+      "path": "audio/passo_3.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "f8df91016ff832cbb049b99cac576dc322c2f8a1031f4bf3cc09a9454c1c7c9b",
+      "displayName": "CyberOutlaw passo_3",
+      "description": "Gravação CC0 de Fantozzi (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.32
+    },
+    {
+      "key": "passo_4",
+      "path": "audio/passo_4.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "34444cc59b0171ecda9bede2e52c3c7eb5c092bf05f274b3cd61ddbcb262e5f5",
+      "displayName": "CyberOutlaw passo_4",
+      "description": "Gravação CC0 de Fantozzi (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.31
+    },
+    {
+      "key": "ui_tick",
+      "path": "audio/ui_tick.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "719e4111bebd3cd96f603bd0bfd393e419131f1c7548ebb00038d699ba082935",
+      "displayName": "CyberOutlaw ui_tick",
+      "description": "Som de interface sintetizado por código.",
+      "durationSeconds": 0.05
+    },
+    {
+      "key": "ui_abrir",
+      "path": "audio/ui_abrir.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "2ee0de3e6e181c9a578407bc3121fb11d1e33417f737a14d3ccff3aad1320d02",
+      "displayName": "CyberOutlaw ui_abrir",
+      "description": "Som de interface sintetizado por código.",
+      "durationSeconds": 0.22
+    },
+    {
+      "key": "ui_fechar",
+      "path": "audio/ui_fechar.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "9e45ad54f0e90c25abdcd0027345a9981729c087c69b48562f854c8a6484875b",
+      "displayName": "CyberOutlaw ui_fechar",
+      "description": "Som de interface sintetizado por código.",
+      "durationSeconds": 0.22
+    },
+    {
+      "key": "ui_confirmar",
+      "path": "audio/ui_confirmar.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "ad7faab72bfbe5f421045e7c5864e0e5fe17dd245c60465ab2fcf1c49e508b35",
+      "displayName": "CyberOutlaw ui_confirmar",
+      "description": "Som de interface sintetizado por código.",
+      "durationSeconds": 0.32
     },
     {
       "key": "title",

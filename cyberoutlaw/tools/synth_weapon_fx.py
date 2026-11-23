@@ -128,16 +128,11 @@ def write(name, signal):
     return len(signal) / RATE
 
 
+# Tiros, recargas, cliques e passos agora são gravações CC0 (tools/prepare_weapon_audio.py);
+# o soco e a lâmina continuam sintetizados aqui.
 SOUNDS = {
-    "arma_vespa": lambda: shot(0.45, 1.0, 1300, 22, 95, 20, 1800, 101, 5200),
-    "arma_enxame": lambda: shot(0.26, 0.8, 1700, 34, 120, 32, 2400, 111, 6000),
-    "arma_trovao": lambda: shot(0.85, 1.3, 600, 9, 62, 7, 900, 121, 2600),
-    "arma_agulha": lambda: shot(0.55, 1.2, 2000, 18, 85, 16, 3000, 131, 6800),
     "arma_soco": punch,
     "arma_lamina": blade,
-    "arma_recarga": reload,
-    "arma_vazia": empty,
-    "arma_troca": equip,
 }
 
 

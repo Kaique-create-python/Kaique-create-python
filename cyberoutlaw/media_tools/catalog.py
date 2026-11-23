@@ -12,9 +12,11 @@ import warnings
 from . import upload
 
 SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
-# Weapon sounds synthesized by tools/synth_weapon_fx.py. The game runs without sound while they await approval.
+# Weapon, footstep, and interface sounds (tools/prepare_weapon_audio.py and tools/synth_weapon_fx.py).
+# The game runs without them while they await approval.
 OPTIONAL_SOUNDS = ("arma_vespa", "arma_enxame", "arma_trovao", "arma_agulha", "arma_soco", "arma_lamina",
-                   "arma_recarga", "arma_vazia", "arma_troca")
+                   "arma_recarga", "arma_vazia", "arma_troca", "arma_recarga_fuzil", "arma_recarga_escopeta",
+                   "passo_1", "passo_2", "passo_3", "passo_4", "ui_tick", "ui_abrir", "ui_fechar", "ui_confirmar")
 ART = {
     "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),

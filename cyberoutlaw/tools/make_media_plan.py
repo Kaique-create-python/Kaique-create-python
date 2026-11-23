@@ -33,7 +33,18 @@ for key, rel in sorted(capri["images"].items()):
 for key in SOUNDS + OPTIONAL_SOUNDS:
     entry = sounds[key]
     p = media / "audio" / (key + ".wav")
-    note = "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop" if key.startswith("hello_") else ("ElevenLabs Sound Effects." if entry["provider"] == "ElevenLabs" else ("Som de arma sintetizado por código, sem amostras." if key.startswith("arma_") else "Efeito eletrônico original."))
+    if key.startswith("hello_"):
+        note = "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop"
+    elif entry["provider"] == "ElevenLabs":
+        note = "ElevenLabs Sound Effects."
+    elif entry.get("license") == "CC0 1.0":
+        note = f"Gravação CC0 de {entry.get('authors', 'OpenGameArt')} ({entry.get('source', 'OpenGameArt')}), recortada por código."
+    elif key.startswith("ui_"):
+        note = "Som de interface sintetizado por código."
+    elif key.startswith("arma_"):
+        note = "Som de arma sintetizado por código, sem amostras."
+    else:
+        note = "Efeito eletrônico original."
     rows.append({**row(key, p, "Audio", "audio/wav", note), "durationSeconds": entry["durationSeconds"]})
 
 for key in ART:

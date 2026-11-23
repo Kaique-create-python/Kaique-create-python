@@ -1098,6 +1098,16 @@ local function start()
 	effects.Parent = camera
 	local rng = Random.new()
 
+	-- Primeiro som aprovado da lista (os novos têm o antigo como reserva).
+	local function pick(...: string): string
+		for _, key in { ... } do
+			if type(SOUNDS[key]) == "number" then
+				return key
+			end
+		end
+		return (...)
+	end
+	local RELOADS = { trovao = "arma_recarga_escopeta", enxame = "arma_recarga_fuzil", agulha = "arma_recarga_fuzil" }
 	local function sound(key: string, parent: Instance?, volume: number?)
 		local id = SOUNDS[key]
 		if type(id) ~= "number" or id <= 0 then
@@ -1515,7 +1525,7 @@ local function start()
 		local pair = ammoTable[weapon.id]
 		if weapon.kind == "gun" and pair and pair[1] < weapon.mag and pair[2] > 0 and action then
 			action:FireServer("recarregar")
-			sound("arma_recarga", nil, 0.5)
+			sound(pick(RELOADS[weapon.id] or "arma_recarga", "arma_recarga"), nil, 0.55)
 		end
 	end
 
@@ -1618,7 +1628,7 @@ local function start()
 					for _, hit in b do
 						if hit[3] then
 							showHit()
-							sound("click", nil, 0.35)
+							sound(pick("ui_tick", "click"), nil, 0.45)
 							break
 						end
 					end
@@ -1668,7 +1678,7 @@ local function start()
 		wheel.gui.Enabled = true
 		wheelSelection = (byId[current] and byId[current].order) or 1
 		wheel.select(wheelSelection, ammoTable)
-		sound("glitch", nil, 0.3)
+		sound(pick("ui_abrir", "glitch"), nil, 0.35)
 	end
 
 	local function closeWheel(equipSelected: boolean)
@@ -1678,7 +1688,9 @@ local function start()
 		wheelOpen = false
 		if equipSelected and defs[wheelSelection] then
 			equip(defs[wheelSelection].id)
-			sound("confirm", nil, 0.4)
+			sound(pick("ui_confirmar", "confirm"), nil, 0.4)
+		else
+			sound(pick("ui_fechar", "glitch"), nil, 0.3)
 		end
 	end
 
@@ -1688,7 +1700,7 @@ local function start()
 				if wheelOpen and wheelSelection ~= index then
 					wheelSelection = index
 					wheel.select(index, ammoTable)
-					sound("click", nil, 0.25)
+					sound(pick("ui_tick", "click"), nil, 0.3)
 				end
 			end)
 			entry.card.Activated:Connect(function()
@@ -1789,7 +1801,7 @@ local function start()
 					if index and index ~= wheelSelection then
 						wheelSelection = index
 						wheel.select(index, ammoTable)
-						sound("click", nil, 0.25)
+						sound(pick("ui_tick", "click"), nil, 0.3)
 					end
 				end
 			elseif not processed and UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter then
