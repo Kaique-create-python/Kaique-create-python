@@ -106,6 +106,24 @@ def make_binary(avatars=False):
     return header + b"".join(instances + properties) + opaque + parenting + _chunk(b"END\0", b"</roblox>")
 
 
+def make_binary_with_lighting():
+    """Place binário mínimo com o serviço Lighting e Technology = Voxel."""
+    groups = [("Lighting", [(0, "Lighting", None, -1)], True)]
+    instances, properties, children, parents = [], [], [], []
+    for index, (class_name, objects, service) in enumerate(groups):
+        group = pack32(index)
+        refs, names, _, ancestors = zip(*objects)
+        children.extend(refs)
+        parents.extend(ancestors)
+        payload = group + pstring(class_name.encode()) + b"\1" + pack32(len(refs)) + prefs(refs)
+        instances.append(_chunk(b"INST", payload + b"\1"))
+        properties.append(_chunk(b"PROP", group + pstring(b"Name") + b"\1" + b"".join(pstring(name.encode()) for name in names)))
+        properties.append(_chunk(b"PROP", group + pstring(b"Technology") + b"\x12" + puints([1])))
+    header = BINARY_MAGIC + b"\0\0" + struct.pack("<II8x", len(instances), len(children))
+    parenting = _chunk(b"PRNT", b"\0" + pack32(len(children)) + prefs(children) + prefs(parents))
+    return header + b"".join(instances + properties) + parenting + _chunk(b"END\0", b"</roblox>")
+
+
 class PatcherTests(unittest.TestCase):
     def test_native_binary_r6_updates_only_the_player_rules(self):
         binary, _ = patch_place(make_binary(avatars=True), SOURCE)
@@ -144,6 +162,39 @@ class PatcherTests(unittest.TestCase):
         self.assertEqual(ready.count(b'<token name="AvatarType">1</token>'), 1)
         self.assertIn(b'<Ref name="PlaceAvatarRules">custom</Ref>', ready)
         self.assertEqual(patch_place(ready, SOURCE, force_r6=True), (ready, False))
+
+    def test_lighting_realistic_in_xml_and_binary(self):
+        raw = xml_place().replace(b"</roblox>", b"""
+<Item class="Lighting" referent="L"><Properties><string name="Name">Lighting</string>
+  <token name="Technology">1</token><bool name="PrioritizeLightingQuality">false</bool></Properties></Item>
+</roblox>""")
+        ready, changed = patch_place(raw, SOURCE, force_r6=True)
+        self.assertTrue(changed)
+        self.assertIn(b'<token name="Technology">5</token>', ready)
+        self.assertIn(b'<token name="LightingStyle">0</token>', ready)
+        self.assertIn(b'<bool name="PrioritizeLightingQuality">true</bool>', ready)
+        self.assertEqual(patch_place(ready, SOURCE, force_r6=True), (ready, False))
+        binary = make_binary(avatars=True)
+        # Serviço Lighting num place binário: as três propriedades nascem no PROP.
+        ready, changed = patch_place(binary, SOURCE, force_r6=True)
+        doc = Binary(ready)
+        self.assertTrue(changed)
+        self.assertEqual(patch_place(ready, SOURCE, force_r6=True), (ready, False))
+
+    def test_binary_lighting_properties(self):
+        from install.patcher import _binary_lighting
+        groups_raw = make_binary_with_lighting()
+        doc = Binary(groups_raw)
+        self.assertTrue(_binary_lighting(doc))
+        again = Binary(doc.encode())
+        values = {}
+        for (group, name), (chunk, kind, start) in again.props.items():
+            if name in ("Technology", "LightingStyle"):
+                values[name] = uints(chunk.data[start:], 1)[0]
+            elif name == "PrioritizeLightingQuality":
+                values[name] = chunk.data[start]
+        self.assertEqual(values, {"Technology": 5, "LightingStyle": 0, "PrioritizeLightingQuality": 1})
+        self.assertFalse(_binary_lighting(again))
 
     def test_xml_keeps_original_bytes_outside_new_script(self):
         raw = xml_place()

@@ -377,4 +377,60 @@ do
 	local expected = offset * c0 * c0:Inverse()
 	assert((torso.Position - expected.Position).Magnitude < 1e-5 and (torso.LookVector - expected.LookVector).Magnitude < 1e-5)
 end
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, layout on 6 screens, HUD, combat layer, 2D and 3D icons passed")
+
+-- Reflexo planar: os cantos da peça espelhada são o espelho dos cantos da original (blocos e cunhas).
+do
+	local plane = 0.25
+	local function corners(cf, size)
+		local list = {}
+		for _, sx in { -1, 1 } do
+			for _, sy in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					table.insert(list, cf:PointToWorldSpace(V3.new(sx * size.X / 2, sy * size.Y / 2, sz * size.Z / 2)))
+				end
+			end
+		end
+		return list
+	end
+	local function sameSet(a, b)
+		for _, p in a do
+			local hit = false
+			for _, q in b do
+				if (p - q).Magnitude < 1e-3 then
+					hit = true
+				end
+			end
+			if not hit then
+				return false
+			end
+		end
+		return true
+	end
+	local size = V3.new(4, 30, 2)
+	for _, cf in { CF.new(10, 20, -5), CF.new(3, 40, 7) * CF.Angles(0.3, 1.1, -0.4), CF.new(-8, 12, 2) * CF.Angles(0, 0, math.pi / 2) } do
+		local mirrored = play.mirrorCFrame(cf, plane)
+		local expected = {}
+		for _, p in corners(cf, size) do
+			table.insert(expected, V3.new(p.X, 2 * plane - p.Y, p.Z))
+		end
+		assert(sameSet(corners(mirrored, size), expected), "mirrored box corners")
+		assert(math.abs(mirrored.Position.Y - (2 * plane - cf.Position.Y)) < 1e-5)
+	end
+	-- Cunha: o plano inclinado também precisa refletir (a cunha do Roblox desce de +Z para -Z).
+	local wedge = CF.new(5, 6, 1) * CF.Angles(0.2, 0.7, 0)
+	local function wedgePoints(cf, s)
+		local local3 = { V3.new(-1, -1, -1), V3.new(1, -1, -1), V3.new(1, -1, 1), V3.new(-1, -1, 1), V3.new(-1, 1, 1), V3.new(1, 1, 1) }
+		local list = {}
+		for _, v in local3 do
+			table.insert(list, cf:PointToWorldSpace(V3.new(v.X * s.X / 2, v.Y * s.Y / 2, v.Z * s.Z / 2)))
+		end
+		return list
+	end
+	local wsize = V3.new(3, 4, 6)
+	local expected = {}
+	for _, p in wedgePoints(wedge, wsize) do
+		table.insert(expected, V3.new(p.X, 2 * plane - p.Y, p.Z))
+	end
+	assert(sameSet(wedgePoints(play.mirrorCFrame(wedge, plane, true), wsize), expected), "mirrored wedge keeps its slope")
+end
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, combat layer, 2D and 3D icons passed")

@@ -27,7 +27,11 @@ RIG_PROPERTIES = {
     "StarterPlayer": ("GameSettingsAvatar", "PlaceAvatarRules"),
     "AvatarRules": ("AvatarType",),
     "AvatarBodyRules": ("AvatarType",),
+    "Lighting": ("Technology", "LightingStyle", "PrioritizeLightingQuality"),
 }
+# Iluminação "Realistic" com prioridade de qualidade: o equivalente do antigo Future no sistema unificado
+# (Technology.Unified = 5, LightingStyle.Realistic = 0). Scripts não podem mudar isso; o arquivo do place pode.
+LIGHTING = (("Technology", "token", 5), ("LightingStyle", "token", 0), ("PrioritizeLightingQuality", "bool", True))
 
 
 def source_digest(source):
@@ -296,6 +300,37 @@ class _Xml:
             raise Failure(f"O {path[-1]} existente não tem a propriedade Source.")
         return self.raw[:prop.start] + self.source_markup(prop.tag, source) + self.raw[self.prop_end(prop):], True
 
+    def enforce_lighting(self):
+        lighting = _single((node for node in self.root.children if node.class_name == "Lighting"), "Lighting")
+        if lighting is None:
+            return self.raw
+        if lighting.props_count > 1:
+            raise Failure("O place tem propriedades de iluminação duplicadas.")
+        edits = []
+        additions = []
+        for name, kind, value in LIGHTING:
+            text = ("true" if value else "false") if kind == "bool" else str(value)
+            markup = self.bytes(f'<{kind} name="{name}">{text}</{kind}>')
+            prop = _single(lighting.avatar_props.get(name, ()), name)
+            if prop:
+                if prop.value({kind}).strip().lower() != text:
+                    edits.append((prop.start, self.prop_end(prop), markup))
+            else:
+                additions.append(markup)
+        if additions:
+            joined = b"".join(additions)
+            if lighting.props_count:
+                edits.append(self.child_edit(_Item("Properties", 0, end=lighting.props_end), joined))
+            elif lighting.children:
+                start = lighting.children[0].start
+                edits.append((start, start, self.bytes("<Properties>") + joined + self.bytes("</Properties>")))
+            else:
+                edits.append(self.child_edit(lighting, self.bytes("<Properties>") + joined + self.bytes("</Properties>")))
+        raw = self.raw
+        for start, end, replacement in sorted(edits, reverse=True):
+            raw = raw[:start] + replacement + raw[end:]
+        return raw
+
     def enforce_r6(self):
         starter = _single((node for node in self.root.children if node.class_name == "StarterPlayer"), "StarterPlayer")
         settings = _single((node for node in self.root.children if node.class_name == "AvatarSettings"), "AvatarSettings")
@@ -458,6 +493,48 @@ def _binary_r6(doc):
     return changed
 
 
+def _binary_lighting(doc):
+    lighting = _single((ref for ref, obj in doc.objects.items() if obj["class"] == "Lighting" and doc.parents[ref] == -1), "Lighting")
+    if lighting is None:
+        return False
+    obj = doc.objects[lighting]
+    gid, index = obj["group"], obj["index"]
+    count = len(doc.groups[gid]["refs"])
+    changed = False
+    for name, kind, value in LIGHTING:
+        code = 0x12 if kind == "token" else 0x02
+        prop = doc.props.get((gid, name))
+        if prop is None:
+            if count != 1:
+                raise Failure("Não foi possível separar a iluminação de outros serviços.")
+            payload = puints([value]) if kind == "token" else bytes([1 if value else 0])
+            data = pack32(gid) + pstring(name.encode()) + bytes([code]) + payload
+            chunk = Chunk(b"PROP", data)
+            doc.chunks.insert(doc.chunks.index(doc.parent_chunk), chunk)
+            doc.props[gid, name] = chunk, code, len(data) - len(payload)
+            changed = True
+            continue
+        chunk, found, start = prop
+        if found != code:
+            raise Failure(f"A propriedade {name} da iluminação tem um tipo inesperado.")
+        if kind == "token":
+            values = uints(chunk.data[start:], count)
+            if values[index] != value:
+                values[index] = value
+                chunk.data = chunk.data[:start] + puints(values)
+                chunk.packet = None
+                changed = True
+        else:
+            current = chunk.data[start + index]
+            if bool(current) != value:
+                data = bytearray(chunk.data)
+                data[start + index] = 1 if value else 0
+                chunk.data = bytes(data)
+                chunk.packet = None
+                changed = True
+    return changed
+
+
 def _document(raw):
     if not 0 < len(raw) <= MAX_FILE:
         raise Failure("O arquivo do place está vazio ou acima do limite de tamanho.")
@@ -562,6 +639,15 @@ def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
                 enforced = doc.enforce_r6()
                 if enforced != result:
                     result, changed = enforced, True
+            # Na mesma passagem de configurações do place: iluminação Realistic com prioridade de qualidade.
+            doc = _read_document(result)
+            if isinstance(doc, Binary):
+                if _binary_lighting(doc):
+                    result, changed = doc.encode(), True
+            else:
+                lit = doc.enforce_lighting()
+                if lit != result:
+                    result, changed = lit, True
         if not changed:
             return raw, False
         if menu_source(result) != source:

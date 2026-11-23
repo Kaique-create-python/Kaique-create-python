@@ -1212,7 +1212,8 @@ local function buildCity(root: Instance, art, options)
 	end
 	-- Chão: faixas de células sem buraco unidas em grandes placas; linhas com poças viram trechos.
 	local function groundSlab(x0: number, x1: number, z0: number, z1: number)
-		local slab = span(streets, "Asfalto molhado", x0, x1, GROUND - 4, GROUND, z0, z1, PALETTE.asphalt, M.Asphalt, true)
+		-- Placa fina: em ângulo baixo, o olhar que entra na poça passa por baixo da borda e chega ao reflexo.
+		local slab = span(streets, "Asfalto molhado", x0, x1, GROUND - 0.5, GROUND, z0, z1, PALETTE.asphalt, M.Asphalt, true)
 		slab.Reflectance = 0.04
 		pbr(slab, "asphalt", N.Top, TILE, rgb(150, 158, 182), 0.12)
 	end

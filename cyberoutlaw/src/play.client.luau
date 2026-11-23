@@ -259,6 +259,18 @@ local function rootTransform(c0: CFrame, offset: CFrame): CFrame
 end
 M.rootTransform = rootTransform
 
+-- Reflexo planar: posição e rotação de uma peça espelhada no plano y = plane. Blocos, cilindros e esferas
+-- são simétricos em Y (rotação M R M); cunhas só em X, então ganham meia volta em Z.
+local function mirrorCFrame(cf: CFrame, plane: number, wedge: boolean?): CFrame
+	local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = cf:GetComponents()
+	local mirrored = CFrame.new(x, 2 * plane - y, z, r00, -r01, r02, -r10, r11, -r12, r20, -r21, r22)
+	if wedge then
+		mirrored *= CFrame.Angles(0, 0, math.pi)
+	end
+	return mirrored
+end
+M.mirrorCFrame = mirrorCFrame
+
 -- Atlas cell: weapons at 384 x 192 in two columns, glyphs at 128 x 128 below them.
 local ICON_ORDER = { "punhos", "lamina", "vespa", "enxame", "trovao", "agulha" }
 local GLYPHS = { "tiro", "mira", "recarga", "arsenal" }
@@ -1349,6 +1361,289 @@ local function start()
 		board:GetAttributeChangedSignal("Layout"):Connect(read)
 		read()
 	end)
+	-- Reflexos das poças -----------------------------------------------------------------------------
+	-- Por baixo de cada poça há um buraco no asfalto. O cliente monta ali uma cópia espelhada dos prédios,
+	-- néons, letreiros e personagens próximos, que aparece através da água. Não precisa de RTX e funciona
+	-- em qualquer aparelho; só as poças perto da câmera ficam ativas.
+	local mirror = Instance.new("Folder")
+	mirror.Name = "CyberOutlawReflexos"
+	mirror.Parent = camera
+	local MIRROR_SKIP = {
+		["Asfalto molhado"] = true, ["Poça"] = true, ["Calçada"] = true, ["Meio-fio"] = true, ["Pintura"] = true,
+		["Faixa de pedestres"] = true, ["Muro invisível"] = true, ["Canteiro central"] = true, ["Bueiro"] = true,
+	}
+	local CELL = 64
+	local grid, puddleList = {}, {}
+	local function cellOf(x: number, z: number): string
+		return math.floor(x / CELL) .. "," .. math.floor(z / CELL)
+	end
+	local function indexPart(item: Instance)
+		if item:IsA("BasePart") then
+			if item.Name == "Poça" and item:GetAttribute("CyberOutlawPlano") then
+				table.insert(puddleList, item)
+			elseif not MIRROR_SKIP[item.Name] then
+				local key = cellOf(item.Position.X, item.Position.Z)
+				local list = grid[key]
+				if not list then
+					list = {}
+					grid[key] = list
+				end
+				table.insert(list, item)
+			end
+		end
+	end
+	task.spawn(function()
+		local city = Workspace:WaitForChild("CyberOutlawCity", 120)
+		if not city then
+			return
+		end
+		city.DescendantAdded:Connect(indexPart)
+		for index, item in city:GetDescendants() do
+			indexPart(item)
+			if index % 1500 == 0 then
+				task.wait()
+			end
+		end
+	end)
+	local copies = {} -- [peça original] = { copy, users }
+	local zones = {} -- [poça] = { plane, parts = {original...} }
+	local queue = {}
+	local mirrorCount = 0
+	local MIRROR_LIMIT = if quality <= 4 then 160 else 320
+	local function worthReflecting(part: BasePart, plane: number): boolean
+		if part.Transparency >= 0.98 or not part.Parent then
+			return false
+		end
+		local cf, size = part.CFrame, part.Size
+		local _, _, _, _, _, _, r10, r11, r12 = cf:GetComponents()
+		local extent = math.abs(r10) * size.X / 2 + math.abs(r11) * size.Y / 2 + math.abs(r12) * size.Z / 2
+		if cf.Position.Y - extent < plane + 0.05 then
+			return false -- o que encosta no chão não aparece no reflexo
+		end
+		return math.max(size.X, size.Y, size.Z) >= 2 or part.Material == Enum.Material.Neon or part:FindFirstChildOfClass("SurfaceGui") ~= nil
+	end
+	local function makeCopy(part: BasePart, plane: number)
+		local ok, copy = pcall(function()
+			return part:Clone()
+		end)
+		if not ok or not copy then
+			return nil
+		end
+		for _, child in copy:GetDescendants() do
+			if child:IsA("Light") or child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Sound") or child:IsA("BaseScript") then
+				child:Destroy()
+			end
+		end
+		copy.Anchored, copy.CanCollide, copy.CanQuery, copy.CanTouch, copy.CastShadow = true, false, false, false, false
+		local wedge = part:IsA("WedgePart") or (part:IsA("Part") and part.Shape == Enum.PartType.Wedge)
+		copy.CFrame = mirrorCFrame(part.CFrame, plane, wedge)
+		-- No reflexo, letreiros e janelas ficam de cabeça para baixo.
+		for _, gui in copy:GetChildren() do
+			if gui:IsA("SurfaceGui") and gui.Face ~= Enum.NormalId.Top and gui.Face ~= Enum.NormalId.Bottom then
+				local turn = Instance.new("Frame")
+				turn.Name = "Reflexo"
+				turn.BackgroundTransparency = 1
+				turn.Size = UDim2.fromScale(1, 1)
+				turn.Rotation = 180
+				for _, item in gui:GetChildren() do
+					item.Parent = turn
+				end
+				turn.Parent = gui
+			end
+		end
+		copy.Parent = mirror
+		return copy
+	end
+	local function release(part: BasePart)
+		local entry = copies[part]
+		if entry then
+			entry.users -= 1
+			if entry.users <= 0 then
+				if entry.copy then
+					entry.copy:Destroy()
+					mirrorCount -= 1
+				end
+				copies[part] = nil
+			end
+		end
+	end
+	local function activate(puddle: BasePart)
+		local plane = puddle:GetAttribute("CyberOutlawPlano") or puddle.Position.Y
+		local center = puddle.Position
+		local found = {}
+		local reach = 2
+		local cx, cz = math.floor(center.X / CELL), math.floor(center.Z / CELL)
+		for dx = -reach, reach do
+			for dz = -reach, reach do
+				for _, part in grid[(cx + dx) .. "," .. (cz + dz)] or {} do
+					if worthReflecting(part, plane) then
+						table.insert(found, part)
+					end
+				end
+			end
+		end
+		-- Primeiro o que brilha e o que está perto; o resto entra se sobrar orçamento.
+		table.sort(found, function(a, b)
+			local ga = if a.Material == Enum.Material.Neon or a:FindFirstChildOfClass("SurfaceGui") then 0 else 1
+			local gb = if b.Material == Enum.Material.Neon or b:FindFirstChildOfClass("SurfaceGui") then 0 else 1
+			if ga ~= gb then
+				return ga < gb
+			end
+			return (a.Position - center).Magnitude < (b.Position - center).Magnitude
+		end)
+		local zone = { plane = plane, parts = {} }
+		for _, part in found do
+			local entry = copies[part]
+			if entry then
+				entry.users += 1
+			else
+				copies[part] = { users = 1, plane = plane }
+				table.insert(queue, part)
+			end
+			table.insert(zone.parts, part)
+		end
+		zones[puddle] = zone
+	end
+	local function deactivate(puddle: BasePart)
+		local zone = zones[puddle]
+		if zone then
+			for _, part in zone.parts do
+				release(part)
+			end
+			zones[puddle] = nil
+		end
+	end
+	local zoneClock = 0
+	local function reflectionStep(dt: number)
+		zoneClock -= dt
+		if zoneClock <= 0 then
+			zoneClock = 0.5
+			local eye = camera.CFrame.Position
+			local wanted = {}
+			local near = {}
+			for _, puddle in puddleList do
+				if puddle.Parent then
+					local distance = (puddle.Position - eye).Magnitude
+					if distance < 130 then
+						table.insert(near, { puddle, distance })
+					end
+				end
+			end
+			table.sort(near, function(a, b)
+				return a[2] < b[2]
+			end)
+			for index = 1, math.min(3, #near) do
+				wanted[near[index][1]] = true
+			end
+			for puddle in zones do
+				if not wanted[puddle] then
+					deactivate(puddle)
+				end
+			end
+			for puddle in wanted do
+				if not zones[puddle] then
+					activate(puddle)
+				end
+			end
+		end
+		-- Cria as cópias aos poucos, para não travar o quadro.
+		local budget = 30
+		while budget > 0 and #queue > 0 do
+			local part = table.remove(queue, 1)
+			local entry = copies[part]
+			if entry and not entry.copy and mirrorCount < MIRROR_LIMIT then
+				entry.copy = makeCopy(part, entry.plane)
+				if entry.copy then
+					mirrorCount += 1
+				end
+			end
+			budget -= 1
+		end
+	end
+	-- Personagens refletidos: uma cópia por jogador perto de uma poça ativa, movida a cada quadro.
+	local mirrorBodies = {}
+	local function reflectCharacters()
+		local plane, centers = nil, {}
+		for puddle, zone in zones do
+			plane = zone.plane
+			table.insert(centers, puddle.Position)
+		end
+		local alive = {}
+		if plane then
+			for _, other in Players:GetPlayers() do
+				local model = other.Character
+				local rootPart = model and model:FindFirstChild("HumanoidRootPart")
+				if rootPart then
+					local close = false
+					for _, c in centers do
+						if (rootPart.Position - c).Magnitude < 70 then
+							close = true
+							break
+						end
+					end
+					if close then
+						alive[model] = true
+						local body = mirrorBodies[model]
+						if not body then
+							local archivable = model.Archivable
+							model.Archivable = true
+							local ok, clone = pcall(function()
+								return model:Clone()
+							end)
+							model.Archivable = archivable
+							if ok and clone then
+								-- Clone mantém a ordem da hierarquia: o i-ésimo descendente da cópia corresponde ao do original.
+								local links, parts, frames = {}, {}, {}
+								local originals, cloned = model:GetDescendants(), clone:GetDescendants()
+								for index, item in cloned do
+									if item:IsA("BasePart") then
+										item.Anchored, item.CanCollide, item.CanQuery, item.CanTouch, item.CastShadow = true, false, false, false, false
+										local source = originals[index]
+										if source and source.ClassName == item.ClassName and source.Name == item.Name and source.Name ~= "HumanoidRootPart" then
+											table.insert(links, { source, item })
+											table.insert(parts, item)
+										else
+											item.Transparency = 1
+										end
+									end
+								end
+								for _, item in cloned do
+									if item:IsA("BaseScript") or item:IsA("Sound") or item:IsA("Light") or item:IsA("ParticleEmitter") then
+										item:Destroy()
+									end
+								end
+								local clonedHumanoid = clone:FindFirstChildOfClass("Humanoid")
+								if clonedHumanoid then
+									clonedHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+									clonedHumanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+									pcall(function()
+										clonedHumanoid.EvaluateStateMachine = false
+									end)
+								end
+								clone.Name = "Reflexo de " .. model.Name
+								clone.Parent = mirror
+								body = { clone = clone, links = links, parts = parts, frames = frames }
+								mirrorBodies[model] = body
+							end
+						end
+						if body then
+							for index, link in body.links do
+								body.frames[index] = mirrorCFrame(link[1].CFrame, plane)
+							end
+							Workspace:BulkMoveTo(body.parts, body.frames, Enum.BulkMoveMode.FireCFrameChanged)
+						end
+					end
+				end
+			end
+		end
+		for model, body in mirrorBodies do
+			if not alive[model] then
+				body.clone:Destroy()
+				mirrorBodies[model] = nil
+			end
+		end
+	end
+
 	local function districtOf(position: Vector3)
 		if type(cityLayout) ~= "table" or type(cityLayout.districts) ~= "table" then
 			return nil
@@ -2281,6 +2576,8 @@ local function start()
 			warn("CyberOutlaw | Movimento: " .. tostring(problem))
 		end
 		pcall(interfaceStep, dt, aimingNow, raised)
+		pcall(reflectionStep, dt)
+		pcall(reflectCharacters)
 		pcall(pitchStep)
 		-- Automatic fire while the trigger is held.
 		if triggerHeld and def().auto and not wheelOpen then
