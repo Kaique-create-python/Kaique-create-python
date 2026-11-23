@@ -310,6 +310,13 @@ class PatcherTests(unittest.TestCase):
         city = scripts["CyberOutlawCity"]
         self.assertIn('local ART = {["asphalt"] = 11, ["asphalt_normal"] = 12, ["concrete"] = 13}', city)
         self.assertNotIn("15", city.split("local ART = ", 1)[1].split("\n", 1)[0])
+        config["art"].update({"fachada_vidro": 21, "vitrines": 22, "poca_1": 23, "ceu_up": 24, "tijolo": 25})
+        city = server_from_package(Path(__file__).resolve().parents[1], config)["CyberOutlawCity"]
+        line = city.split("local ART = ", 1)[1].split("\n", 1)[0]
+        for key in ("fachada_vidro", "vitrines", "poca_1", "ceu_up", "tijolo"):
+            self.assertIn(f'["{key}"]', line, "code-drawn and CC0 city art reaches the city script")
+        self.assertNotIn('["facades"]', line)
+        self.assertNotIn('["billboard"]', line)
 
     @patch("install.cyber_installer.HUD_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
     def test_hud_v1_menu_upgrades_without_local_receipts(self):

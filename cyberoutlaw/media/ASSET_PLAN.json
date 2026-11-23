@@ -345,6 +345,195 @@
       "sha256": "959aec81dab270dc891aed5b47bf744c7afd6c3887efa933ad962ce4c70174ef",
       "displayName": "CyberOutlaw icones_interface",
       "description": "Ícones 2D das armas e dos botões, desenhados à mão em vetor, sem imagem gerada por IA."
+    },
+    {
+      "key": "fachada_painel",
+      "path": "art/fachada_painel.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "94badc0ce23c41b915da3249a58ea4b1adf5a7d8c839678ba3cb42364861d4eb",
+      "displayName": "CyberOutlaw fachada_painel",
+      "description": "Painéis modulares dos megaprédios de Maré Baixa, desenhados por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "vitrines",
+      "path": "art/vitrines.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "7fd11e94f04885bf1019ebb479cc714e3431268c18e0e7755bdcc175388e762d",
+      "displayName": "CyberOutlaw vitrines",
+      "description": "Interiores das lojas de Maré Baixa vistos pela vitrine, desenhados por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "anuncios",
+      "path": "art/anuncios.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "18cce2878e8148d01e07c972a1574a54b77706991e253c342d5de8b32c78dcf3",
+      "displayName": "CyberOutlaw anuncios",
+      "description": "Anúncios de marcas fictícias de Maré Baixa, desenhados por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "poca_1",
+      "path": "art/poca_1.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "8c71655255b2b8f49e8eaef4f5670a8ef3ad0b8879766d335da99548b85aa1e1",
+      "displayName": "CyberOutlaw poca_1",
+      "description": "Poça de rua: asfalto Poly Haven (CC0) com a água recortada por código."
+    },
+    {
+      "key": "poca_2",
+      "path": "art/poca_2.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "08e9c9922fa620665f31a050f83a337c2ea152d230c667e4089c06e8f35cd7d3",
+      "displayName": "CyberOutlaw poca_2",
+      "description": "Poça de rua: asfalto Poly Haven (CC0) com a água recortada por código."
+    },
+    {
+      "key": "poca_3",
+      "path": "art/poca_3.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "a76610ed62dcfea92c760cd53c473032dcf8cd0e1056cc2e3c163e9340ea6982",
+      "displayName": "CyberOutlaw poca_3",
+      "description": "Poça de rua: asfalto Poly Haven (CC0) com a água recortada por código."
+    },
+    {
+      "key": "poca_4",
+      "path": "art/poca_4.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "d588fa511b5c387e5033a29eb6142dabc38a880f524121a8d8d87fc5273b11be",
+      "displayName": "CyberOutlaw poca_4",
+      "description": "Poça de rua: asfalto Poly Haven (CC0) com a água recortada por código."
+    },
+    {
+      "key": "ceu_bk",
+      "path": "art/ceu_bk.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "b7d3dd41620d2d69eca64ccbdab3339e365368123441926ec0285b96e32174af",
+      "displayName": "CyberOutlaw ceu_bk",
+      "description": "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "ceu_dn",
+      "path": "art/ceu_dn.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "43b33bbec59f506323b21284fceba000d5075ddeeddf68874820d60c6b0fee7b",
+      "displayName": "CyberOutlaw ceu_dn",
+      "description": "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "ceu_ft",
+      "path": "art/ceu_ft.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "60daca248df0531abc5ca203a6217b171d4577fc333988289b2db39fa1181854",
+      "displayName": "CyberOutlaw ceu_ft",
+      "description": "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "ceu_lf",
+      "path": "art/ceu_lf.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "68f23e6949f902bf2b2617a3c253da5e026e10c5b1fa324d87e386467516c3c6",
+      "displayName": "CyberOutlaw ceu_lf",
+      "description": "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "ceu_rt",
+      "path": "art/ceu_rt.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "aae808d03cfc6314ff7374a6fc97dd57602a4df450a6bceed3cfc5dec715f422",
+      "displayName": "CyberOutlaw ceu_rt",
+      "description": "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "ceu_up",
+      "path": "art/ceu_up.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "179d8325c347b3c58d793c8ede35010483210a3d8016d867298e0387151a8799",
+      "displayName": "CyberOutlaw ceu_up",
+      "description": "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "tijolo",
+      "path": "art/tijolo.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "acb834dbbb888de249e163f81aa74db2bd697dffc9a7ce584e3961e65865c96d",
+      "displayName": "CyberOutlaw tijolo",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "tijolo_normal",
+      "path": "art/tijolo_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "bf5cf84e505d61f8b13e8d57e4df9101820344dedf86c75c499db5572a695cfb",
+      "displayName": "CyberOutlaw tijolo_normal",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "metal_ondulado",
+      "path": "art/metal_ondulado.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "a3505f6a11de188ea8c2378ac6682d773a572689a195883063475bc57474c6e7",
+      "displayName": "CyberOutlaw metal_ondulado",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "metal_ondulado_normal",
+      "path": "art/metal_ondulado_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "e245e42549bd330ab830db5c2eeb35b6f3b5ba4d41c48bb576d0d8c2a7297a01",
+      "displayName": "CyberOutlaw metal_ondulado_normal",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "piso_hexagonal",
+      "path": "art/piso_hexagonal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "77e94cc017bf356a92e8cb6e09aec1eab8dec5c0bbcf8aa9facd6d62894775e9",
+      "displayName": "CyberOutlaw piso_hexagonal",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "piso_hexagonal_normal",
+      "path": "art/piso_hexagonal_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "bf7330fc5bfb65c393e8443a2f6e5089c5b5ec478793b5de05c2235c27e2a993",
+      "displayName": "CyberOutlaw piso_hexagonal_normal",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "concreto_rachado",
+      "path": "art/concreto_rachado.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "ee5832d07d9dac796e9867ceec06a06f35d62853d2050330c3c0e3febc636fa4",
+      "displayName": "CyberOutlaw concreto_rachado",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "concreto_rachado_normal",
+      "path": "art/concreto_rachado_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "a6eff51c19ed520ae11cf0954d70e377cfb04a50065f2fbf1b957eea11174925",
+      "displayName": "CyberOutlaw concreto_rachado_normal",
+      "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
     }
   ]
 }

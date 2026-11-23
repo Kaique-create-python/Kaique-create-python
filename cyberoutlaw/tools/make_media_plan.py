@@ -45,8 +45,20 @@ for key in ART:
         description = "Quatro texturas originais para as fachadas da cidade 3D."
     elif key == "icones_interface":
         description = "Ícones 2D das armas e dos botões, desenhados à mão em vetor, sem imagem gerada por IA."
+    elif key == "fachada_painel":
+        description = "Painéis modulares dos megaprédios de Maré Baixa, desenhados por código, sem imagem gerada por IA."
     elif key.startswith("fachada_"):
         description = "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
+    elif key == "vitrines":
+        description = "Interiores das lojas de Maré Baixa vistos pela vitrine, desenhados por código, sem imagem gerada por IA."
+    elif key == "anuncios":
+        description = "Anúncios de marcas fictícias de Maré Baixa, desenhados por código, sem imagem gerada por IA."
+    elif key.startswith("poca_"):
+        description = "Poça de rua: asfalto Poly Haven (CC0) com a água recortada por código."
+    elif key.startswith("ceu_"):
+        description = "Face do céu noturno de Maré Baixa, gradiente desenhado por código, sem imagem gerada por IA."
+    elif key.split("_normal")[0] in ("tijolo", "metal_ondulado", "piso_hexagonal", "concreto_rachado"):
+        description = "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
     else:
         description = "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
     rows.append(row(key, media / "art" / (key + ".png"), "Image", "image/png", description))

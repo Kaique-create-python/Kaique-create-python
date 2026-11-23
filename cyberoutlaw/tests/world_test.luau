@@ -28,13 +28,18 @@ local function load(art)
 			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, Enum = roblox.Enum, UDim2 = roblox.UDim2,
 			Font = roblox.Font, Content = roblox.Content, NumberSequence = roblox.NumberSequence,
 			NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, NumberRange = roblox.NumberRange,
+			ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
 		},
 	})
 	return chunk()
 end
 
 local ART = '{["asphalt"] = 1001, ["asphalt_normal"] = 1002, ["asphalt_rough"] = 1003, ["concrete"] = 1004, '
-	.. '["concrete_normal"] = 1005, ["fachada_escritorio"] = 1006, ["fachada_residencial"] = 1007, ["fachada_vidro"] = 1008}'
+	.. '["concrete_normal"] = 1005, ["fachada_escritorio"] = 1006, ["fachada_residencial"] = 1007, ["fachada_vidro"] = 1008, '
+	.. '["fachada_painel"] = 1009, ["vitrines"] = 1010, ["anuncios"] = 1011, '
+	.. '["poca_1"] = 1013, ["poca_2"] = 1014, ["poca_3"] = 1015, ["poca_4"] = 1016, ["tijolo"] = 1017, ["tijolo_normal"] = 1018, '
+	.. '["metal_ondulado"] = 1019, ["metal_ondulado_normal"] = 1020, ["piso_hexagonal"] = 1021, ["piso_hexagonal_normal"] = 1022, '
+	.. '["concreto_rachado"] = 1023, ["concreto_rachado_normal"] = 1024}'
 
 local function bounds(part)
 	local cf, size = part.CFrame, part.Size
@@ -92,12 +97,13 @@ local function check(art)
 	local lanes = {}
 	for index, line in layout.lines do
 		local p, width = line[1], line[2]
-		local inner = if width == 56 then 4 else 0
+		local inner = if width == 76 then 4 else 0
+		local outer = width / 2 - 8
 		for k = 1, #layout.lines - 1 do
 			local a, b = layout.lines[k], layout.lines[k + 1]
 			local from, to = a[1] + a[2] / 2 + 1, b[1] - b[2] / 2 - 1
 			for _, side in { -1, 1 } do
-				local o0, o1 = side * (inner + 0.5), side * (width / 2 - 0.5)
+				local o0, o1 = side * (inner + 0.5), side * (outer - 0.5)
 				local lo, hi = math.min(o0, o1), math.max(o0, o1)
 				table.insert(lanes, { from, to, p + lo, p + hi }) -- via em X, eixo z = p
 				table.insert(lanes, { p + lo, p + hi, from, to }) -- via em Z, eixo x = p
@@ -176,21 +182,63 @@ local dressed = check(ART)
 for label, result in { ["sem janelas"] = plain, ["com janelas"] = dressed } do
 	print(string.format("Maré Baixa %s: %d peças (%d sólidas), %d torres, %d letreiros, %d GUIs (%d de janelas), %d luzes, %d emissores, %.2fs",
 		label, result.parts, result.solids, result.towers, result.signs, result.guis, result.windows, result.lights, result.emitters, result.seconds))
-	assert(result.parts < 26000, "peças acima do orçamento")
-	assert(result.lights < 1100, "luzes acima do orçamento")
-	assert(result.guis < 2600, "superfícies acima do orçamento")
+	assert(result.parts < 42000, "peças acima do orçamento")
+	assert(result.lights < 1300, "luzes acima do orçamento")
+	assert(result.guis < 5200, "superfícies acima do orçamento")
 	assert(result.towers >= 60, "a cidade precisa de prédios altos")
 	assert(result.city:GetAttribute("BarrisDeFogo") >= 20, "the market has fire barrels")
 	assert(result.emitters < 120, "too many particle emitters for a phone")
 end
 
--- Exporta a prévia: peças, superfícies e luzes da versão com janelas.
+-- Exporta a prévia: peças, texturas, superfícies (com todos os elementos de GUI) e luzes da versão com arte.
 local output = process.args[1]
 if output then
 	local function color(c)
 		return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) }
 	end
-	local rows, panels, lamps = {}, {}, {}
+	local faceSize = {
+		Front = function(s) return s.X, s.Y end, Back = function(s) return s.X, s.Y end,
+		Left = function(s) return s.Z, s.Y end, Right = function(s) return s.Z, s.Y end,
+		Top = function(s) return s.X, s.Z end, Bottom = function(s) return s.X, s.Z end,
+	}
+	-- Resolve cada GuiObject em pixels da tela da face e guarda o essencial para o desenho.
+	local function walk(node, x, y, w, h, out)
+		for _, child in node:GetChildren() do
+			if not child:IsA("GuiObject") then
+				continue
+			end
+			local p, z = child.Position, child.Size
+			local cw, ch = z.X.Scale * w + z.X.Offset, z.Y.Scale * h + z.Y.Offset
+			local cx, cy = x + p.X.Scale * w + p.X.Offset, y + p.Y.Scale * h + p.Y.Offset
+			local row = { k = child.ClassName, r = { cx, cy, cw, ch }, rot = child.Rotation }
+			if child.BackgroundTransparency < 1 then
+				row.c, row.a = color(child.BackgroundColor3), child.BackgroundTransparency
+			end
+			local gradient = child:FindFirstChildOfClass("UIGradient")
+			if gradient then
+				local keys = {}
+				for _, key in gradient.Color.Keypoints do
+					table.insert(keys, { key.Time, table.unpack(color(key.Value)) })
+				end
+				row.g = { keys = keys, rot = gradient.Rotation }
+			end
+			if child:IsA("TextLabel") then
+				row.x, row.tc, row.f = child.Text, color(child.TextColor3), child.FontFace.Family
+				if child.TextStrokeTransparency < 1 then
+					row.sc = color(child.TextStrokeColor3)
+				end
+			elseif child:IsA("ImageLabel") then
+				row.i, row.it = child.Image, child.ImageTransparency
+				row.o = { child.ImageRectOffset.X, child.ImageRectOffset.Y, child.ImageRectSize.X, child.ImageRectSize.Y }
+				if child.ScaleType == roblox.Enum.ScaleType.Tile then
+					row.tile = { child.TileSize.X.Offset, child.TileSize.Y.Offset }
+				end
+			end
+			table.insert(out, row)
+			walk(child, cx, cy, cw, ch, out)
+		end
+	end
+	local rows, panels, lamps, textures = {}, {}, {}, {}
 	local index = 0
 	for _, node in dressed.city:GetDescendants() do
 		if not node:IsA("BasePart") or node:IsA("SpawnLocation") then
@@ -204,30 +252,20 @@ if output then
 		})
 		for _, inner in node:GetChildren() do
 			if inner:IsA("SurfaceGui") then
-				local row = { p = index, f = inner.Face.Name, g = inner.Name }
-				local image = inner:FindFirstChildOfClass("ImageLabel")
-				if image then
-					row.i = image.Image
-					row.o = { image.Position.X.Offset / 2, image.Position.Y.Offset / 2 }
-				end
-				local text = inner:FindFirstChildWhichIsA("TextLabel", true)
-				if text then
-					row.x = text.Text
-					row.tc = color(text.TextColor3)
-				end
-				local back = inner:FindFirstChildOfClass("Frame")
-				if back then
-					local gradient = back:FindFirstChildOfClass("UIGradient")
-					if gradient then
-						row.bg = { color(gradient.Color.Keypoints[1].Value), color(gradient.Color.Keypoints[#gradient.Color.Keypoints].Value) }
-					end
-				end
-				table.insert(panels, row)
+				local fw, fh = faceSize[inner.Face.Name](node.Size)
+				local pps = inner.PixelsPerStud
+				local elements = {}
+				walk(inner, 0, 0, fw * pps, fh * pps, elements)
+				table.insert(panels, { p = index, f = inner.Face.Name, g = inner.Name, pps = pps, b = inner.Brightness,
+					li = inner.LightInfluence, e = elements })
+			elseif inner:IsA("Texture") then
+				table.insert(textures, { p = index, f = inner.Face.Name, key = inner:GetAttribute("CyberOutlawMaterial"),
+					tile = inner.StudsPerTileU, tc = color(inner.Color3), a = inner.Transparency })
 			elseif inner:IsA("Light") then
 				table.insert(lamps, { p = index, k = color(inner.Color), b = inner.Brightness, r = inner.Range, y = inner.ClassName })
 			end
 		end
 	end
-	fs.writeFile(output, serde.encode("json", { parts = rows, panels = panels, lights = lamps }))
-	print(string.format("Prévia exportada: %d peças, %d superfícies, %d luzes em %s", #rows, #panels, #lamps, output))
+	fs.writeFile(output, serde.encode("json", { parts = rows, panels = panels, lights = lamps, textures = textures }))
+	print(string.format("Prévia exportada: %d peças, %d superfícies, %d luzes, %d texturas em %s", #rows, #panels, #lamps, #textures, output))
 end

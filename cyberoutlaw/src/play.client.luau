@@ -789,10 +789,6 @@ local function start()
 				table.insert(list, other.Character)
 			end
 		end
-		local rain = camera:FindFirstChild("CyberOutlawChuva")
-		if rain then
-			table.insert(list, rain)
-		end
 		rayParams.FilterDescendantsInstances = list
 	end
 
@@ -1415,37 +1411,6 @@ local function start()
 		reloadButton.Activated:Connect(reload)
 	end
 
-	-- Visuals: rain around the camera and lightning ---------------------------------------------------
-	local rainFolder = Instance.new("Folder")
-	rainFolder.Name = "CyberOutlawChuva"
-	rainFolder.Parent = camera
-	local drops = {}
-	local dropCount = if quality <= 3 then 45 elseif quality <= 6 then 90 else 150
-	for index = 1, dropCount do
-		local drop = Instance.new("Part")
-		drop.Name = "Gota"
-		drop.Anchored = true
-		drop.CanCollide = false
-		drop.CanQuery = false
-		drop.CanTouch = false
-		drop.CastShadow = false
-		drop.Material = Enum.Material.Neon
-		drop.Color = if index % 5 == 0 then Color3.fromRGB(150, 230, 240) else Color3.fromRGB(176, 186, 220)
-		drop.Transparency = rng:NextNumber(0.55, 0.78)
-		drop.Size = Vector3.new(0.05, rng:NextNumber(1.6, 2.8), 0.05)
-		drop.Parent = rainFolder
-		drops[index] = { part = drop, x = rng:NextNumber(-34, 34), z = rng:NextNumber(-34, 34), phase = rng:NextNumber(0, 40), speed = rng:NextNumber(70, 95) }
-	end
-	local dropParts, dropFrames = {}, {}
-	for index, drop in drops do
-		dropParts[index] = drop.part
-	end
-	local storm = Instance.new("ColorCorrectionEffect")
-	storm.Name = "CyberOutlawRelampago"
-	storm.Parent = camera
-	local nextLightning = os.clock() + rng:NextNumber(18, 40)
-	local lightningAt = -10
-
 	-- Frame loop ---------------------------------------------------------------------------------
 	local playTime = 0
 	local function cameraStep(dt: number)
@@ -1747,28 +1712,6 @@ local function start()
 		end
 	end
 
-	local function rainStep(dt: number)
-		local base = camera.CFrame.Position
-		local t = os.clock()
-		for index, drop in drops do
-			local fall = (drop.phase + t * drop.speed) % 44
-			local y = base.Y + 22 - fall
-			local position = Vector3.new(base.X + drop.x + fall * 0.08, y, base.Z + drop.z)
-			dropFrames[index] = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(4))
-		end
-		Workspace:BulkMoveTo(dropParts, dropFrames, Enum.BulkMoveMode.FireCFrameChanged)
-		-- Lightning: a short double flash every 18 to 40 seconds.
-		local now = os.clock()
-		if now > nextLightning then
-			lightningAt = now
-			nextLightning = now + rng:NextNumber(18, 40)
-		end
-		local age = now - lightningAt
-		storm.Brightness = if age < 0.06 then 0.32 elseif age < 0.12 then 0.04 elseif age < 0.2 then 0.4 elseif age < 0.5 then 0.4 * (0.5 - age) / 0.3 else 0
-		storm.Contrast = storm.Brightness * 0.4
-		local _ = dt
-	end
-
 	local function pitchStep()
 		local weapon = def()
 		local now = os.clock()
@@ -1800,7 +1743,6 @@ local function start()
 			warn("CyberOutlaw | Movimento: " .. tostring(problem))
 		end
 		pcall(interfaceStep, dt, aimingNow, raised)
-		pcall(rainStep, dt)
 		pcall(pitchStep)
 		-- Automatic fire while the trigger is held.
 		if triggerHeld and def().auto and not wheelOpen then

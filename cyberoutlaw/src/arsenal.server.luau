@@ -3,7 +3,7 @@
 -- The models are built in code and published in ReplicatedStorage.CyberOutlawArsenal, so the
 -- client uses the same pieces in the weapon wheel without images.
 
-local SAFE_CENTER = Vector3.new(107, 0, 107) -- Praça da Maré
+local SAFE_CENTER = Vector3.new(108, 0, 108) -- Praça da Maré
 local SAFE_RADIUS = 95
 local rgb = Color3.fromRGB
 

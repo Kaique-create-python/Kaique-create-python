@@ -38,7 +38,13 @@ SERVER_SCRIPTS = (
     ("CyberOutlawArsenal", "arsenal.server.luau"),
 )
 # Poly Haven scans (CC0) shared with the menu. The city uses no generated images.
-CITY_ART = ("asphalt", "asphalt_normal", "asphalt_rough", "concrete", "concrete_normal")
+# Imagens que o script da cidade recebe: fotos CC0 e arte desenhada por código. As artes geradas do menu
+# (billboard, facades) ficam fora da cidade jogável.
+CITY_ART = ("asphalt", "asphalt_normal", "asphalt_rough", "concrete", "concrete_normal",
+            "fachada_residencial", "fachada_escritorio", "fachada_vidro", "fachada_painel", "vitrines", "anuncios",
+            "poca_1", "poca_2", "poca_3", "poca_4", "ceu_bk", "ceu_dn", "ceu_ft", "ceu_lf", "ceu_rt", "ceu_up",
+            "tijolo", "tijolo_normal", "metal_ondulado", "metal_ondulado_normal", "piso_hexagonal", "piso_hexagonal_normal",
+            "concreto_rachado", "concreto_rachado_normal")
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
 CLIENT_SCRIPTS = (("CyberOutlawPlay", "play.client.luau"),)
 V1_ASSET_TYPES = {"video", "sounds", "clips"}

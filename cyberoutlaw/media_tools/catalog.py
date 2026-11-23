@@ -24,9 +24,19 @@ ART = {
     "fachada_residencial": (768, 896), "fachada_escritorio": (768, 896), "fachada_vidro": (768, 896),
     # 2D icons for the wheel, the weapon card, and the touch buttons (design/icones.py, vector by hand).
     "icones_interface": (1024, 1024),
+    # Cidade v2: painéis, vitrines, anúncios e céu desenhados por código (tools/draw_city_art.py, tools/draw_sky.py);
+    # poças sobre o asfalto Poly Haven; tijolo, metal ondulado, piso hexagonal e concreto rachado Poly Haven (CC0).
+    "fachada_painel": (768, 896), "vitrines": (1024, 1024), "anuncios": (1024, 1024),
+    "poca_1": (512, 512), "poca_2": (512, 512), "poca_3": (512, 512), "poca_4": (512, 512),
+    "ceu_bk": (512, 512), "ceu_dn": (512, 512), "ceu_ft": (512, 512), "ceu_lf": (512, 512), "ceu_rt": (512, 512), "ceu_up": (512, 512),
+    "tijolo": (768, 768), "tijolo_normal": (512, 512), "metal_ondulado": (768, 768), "metal_ondulado_normal": (512, 512),
+    "piso_hexagonal": (768, 768), "piso_hexagonal_normal": (512, 512), "concreto_rachado": (768, 768), "concreto_rachado_normal": (512, 512),
 }
-# A cidade usa faixas de luz em geometria enquanto estas imagens aguardam aprovação.
-OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro", "icones_interface"})
+# A cidade usa cores e faixas de luz em geometria enquanto estas imagens aguardam aprovação.
+CITY_V2_ART = ("fachada_painel", "vitrines", "anuncios", "poca_1", "poca_2", "poca_3", "poca_4",
+               "ceu_bk", "ceu_dn", "ceu_ft", "ceu_lf", "ceu_rt", "ceu_up", "tijolo", "tijolo_normal", "metal_ondulado",
+               "metal_ondulado_normal", "piso_hexagonal", "piso_hexagonal_normal", "concreto_rachado", "concreto_rachado_normal")
+OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro", "icones_interface", *CITY_V2_ART})
 
 
 def _read(path):
