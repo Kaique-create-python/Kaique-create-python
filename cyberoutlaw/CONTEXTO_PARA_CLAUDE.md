@@ -62,3 +62,27 @@ O instalador guarda backups em `~/.cyberoutlaw-installer`. Ele reaproveita recib
 1. Confira o que a versão atual mostra no celular. Abra a entrada, veja se a câmera apresenta a cidade 3D e se o letreiro original carregou. O caso anterior de céu vazio e título provisório motivou a correção `0597ef5`, incluída no pacote atual. O erro Android de `os.link` no backup foi corrigido em `440a682`.
 2. Toque em **Jogar** e valide o avatar R6 em um servidor novo. Confira o rosto, a vida ao receber dano e renascer, a posição da mira com as margens do celular e o fim do áudio do menu. A última entrega passou por 27 testes Python e pelos testes Luau de menu, HUD e cidade. A confirmação em partida continua pendente.
 3. Depois dessa conferência, continue por uma etapa de gameplay por vez conforme eu pedir. A ideia do jogo é GTA com cyberpunk e mercenários (estilo Mercenaries 2): veículos, facções e contratos são os próximos candidatos. Preserve a direção de arte, o fluxo de **Jogar**, a Capri e os créditos. Trabalhe sobre o place existente e mantenha o fluxo para atualizar com backup pelo Termux.
+
+## Versão 2 da cidade e do jogo (novembro de 2026)
+
+- **Cidade:**
+  - Ruas mais largas, com estacionamento, e pintura rente ao asfalto.
+  - Lojas recuadas com o interior desenhado, letreiros legíveis e placas verticais com palavras curtas.
+  - Objetos de rua, carros estacionados, fios aéreos, megaprédios de painéis e tambores de anúncio.
+  - Poças com reflexo, montado como mundo espelhado no cliente.
+  - Céu desenhado por código, sem chuva.
+- **Arte e texturas:**
+  - `tools/draw_city_art.py` e `tools/draw_sky.py` desenham a arte por código, sem IA.
+  - `tools/prepare_city_textures.py` prepara as texturas Poly Haven (CC0).
+  - O instalador agora entrega as janelas e toda a arte da cidade ao script da cidade.
+- **HUD:**
+  - Fica no CyberOutlawPlay (`src/play.client.luau`), com layout único para PC e celular.
+  - Um teste confere que nada se sobrepõe em 6 tamanhos de tela.
+  - `src/hud.luau` ficou vazio.
+  - Prévia: `tools/hud_preview.luau`.
+- **Animação:** locomoção procedural R6 (`gaitStep`), com prévia em `tools/gait_preview.luau`.
+- **Sons:**
+  - Tiros, recargas, cliques e passos são gravações CC0, recortadas por `tools/prepare_weapon_audio.py`.
+  - Os sons de interface são sintetizados.
+- **Iluminação:** o instalador grava no place Technology Unified, LightingStyle Realistic e PrioritizeLightingQuality.
+- **Pendente:** animações da Capri que faltam no Capri Desktop (fala, música, glitches, entradas "peek" e "up-close", versões espelhadas) e viaduto com rampas.
