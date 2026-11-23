@@ -299,7 +299,11 @@ class PatcherTests(unittest.TestCase):
         config = load_config(Path("/nonexistent/ASSETS.json"))
         config["art"] = {"asphalt": 11, "asphalt_normal": 12, "concrete": 13, "billboard": 14, "facades": 15}
         scripts = server_from_package(Path(__file__).resolve().parents[1], config)
-        self.assertEqual(sorted(scripts), ["CyberOutlawCity", "CyberOutlawR6"])
+        self.assertEqual(sorted(scripts), ["CyberOutlawArsenal", "CyberOutlawCity", "CyberOutlawPlay", "CyberOutlawR6"])
+        play = scripts.pop("CyberOutlawPlay")
+        self.assertTrue(play.startswith("-- CyberOutlaw · script de cliente gerenciado: CyberOutlawPlay\n"))
+        self.assertIn('local MEDIA = {["icones"] = 0, ["sons"] = {', play)
+        self.assertNotIn("__CYBEROUTLAW_MEDIA__", play)
         for name, code in scripts.items():
             self.assertTrue(code.startswith(f"{SERVER_HEADER}{name}\n"))
             self.assertNotIn("__CYBEROUTLAW_ART__", code)

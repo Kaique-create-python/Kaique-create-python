@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 def build(output):
     required = ["launcher.py", "src/menu.client.luau", "src/city.luau", "src/scene.luau", "src/hud.luau",
-                "src/world.server.luau", "src/r6_guard.server.luau",
+                "src/world.server.luau", "src/r6_guard.server.luau", "src/arsenal.server.luau", "src/play.client.luau",
                 "media/ASSET_PLAN.json", "media/capri/capri_clips.json", "install/cyber_installer.py"]
     for item in required:
         if not (ROOT / item).is_file():

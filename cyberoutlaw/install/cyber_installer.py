@@ -21,7 +21,7 @@ if not __package__:
 
 from .cloud import Cloud, DEFINITE_REJECTIONS, PLACE_ID, TARGET, UNIVERSE_ID, unique_fields
 from .codec import Failure
-from .patcher import SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
+from .patcher import CLIENT_HEADER, SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
 from .paths import guard, locked_state, read_json, read_place, remove, write_json, write_offline, write_once
 
 
@@ -30,14 +30,17 @@ CITY_MARKER = "-- __CYBEROUTLAW_CITY__"
 SCENE_MARKER = "-- __CYBEROUTLAW_SCENE__"
 HUD_MARKER = "-- __CYBEROUTLAW_HUD__"
 ART_MARKER = "__CYBEROUTLAW_ART__"
+MEDIA_MARKER = "__CYBEROUTLAW_MEDIA__"
 # Server scripts installed in ServerScriptService, in this order.
 SERVER_SCRIPTS = (
     ("CyberOutlawR6", "r6_guard.server.luau"),
     ("CyberOutlawCity", "world.server.luau"),
+    ("CyberOutlawArsenal", "arsenal.server.luau"),
 )
 # Poly Haven scans (CC0) shared with the menu. The city uses no generated images.
 CITY_ART = ("asphalt", "asphalt_normal", "asphalt_rough", "concrete", "concrete_normal")
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
+CLIENT_SCRIPTS = (("CyberOutlawPlay", "play.client.luau"),)
 V1_ASSET_TYPES = {"video", "sounds", "clips"}
 ASSET_TYPES = V1_ASSET_TYPES | {"art"}
 ASSET_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}")
@@ -167,6 +170,17 @@ def server_from_package(root, config):
                 raise Failure(f"O marcador de arte em {filename} deve definir local ART em sua própria linha.")
             code = code.replace(ART_MARKER, _luau(art), 1)
         scripts[name] = f"{SERVER_HEADER}{name}\n{code}"
+    # Client scripts (StarterPlayerScripts) receive the approved icons and sounds.
+    media = {
+        "icones": config["art"].get("icones_interface") or 0,
+        "sons": {key: asset for key, asset in config["sounds"].items() if asset},
+    }
+    for name, filename in CLIENT_SCRIPTS:
+        code = (root / "src" / filename).read_text(encoding="utf-8-sig")
+        if (not code.strip() or SERVER_HEADER in code or CLIENT_HEADER in code or code.count(MEDIA_MARKER) != 1
+                or not re.search(r"(?m)^local MEDIA = " + MEDIA_MARKER + r"$", code)):
+            raise Failure(f"O código em {filename} está vazio ou sem o marcador de mídia.")
+        scripts[name] = f"{CLIENT_HEADER}{name}\n" + code.replace(MEDIA_MARKER, _luau(media), 1)
     return scripts
 
 

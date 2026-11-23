@@ -17,6 +17,7 @@ MENU_CLASSES = ("StarterPlayer", "StarterPlayerScripts", "LocalScript")
 SERVER_SERVICE = "ServerScriptService"
 # Every managed server script starts with this line plus its own name.
 SERVER_HEADER = "-- CyberOutlaw · script de servidor gerenciado: "
+CLIENT_HEADER = "-- CyberOutlaw · script de cliente gerenciado: "
 SERVER_NAME = re.compile(r"CyberOutlaw[A-Za-z0-9]{1,48}")
 CONTAINER_CLASSES = ("StarterPlayer", "StarterPlayerScripts", SERVER_SERVICE, "AvatarSettings", "AvatarRules")
 SCRIPT_CLASSES = ("LocalScript", "Script")
@@ -45,6 +46,32 @@ def server_route(name):
     if not SERVER_NAME.fullmatch(name):
         raise Failure(f"Nome inválido para script de servidor: {name}")
     return (SERVER_SERVICE, name), (SERVER_SERVICE, "Script")
+
+
+def client_route(name):
+    if not SERVER_NAME.fullmatch(name) or name == MENU_NAME:
+        raise Failure(f"Nome inválido para script de cliente: {name}")
+    return ("StarterPlayer", "StarterPlayerScripts", name), MENU_CLASSES
+
+
+def _managed_route(name, code):
+    """The header picks the route: server scripts in ServerScriptService, client ones in StarterPlayerScripts."""
+    if code.startswith(CLIENT_HEADER + name + "\n"):
+        return client_route(name), CLIENT_HEADER, "StarterPlayerScripts"
+    if code.startswith(SERVER_HEADER + name + "\n"):
+        return server_route(name), SERVER_HEADER, SERVER_SERVICE
+    server_route(name)
+    raise Failure(f"O script {name} precisa começar pelo cabeçalho do CyberOutlaw.")
+
+
+def _accept_managed(name, code, old):
+    _, header, where = _managed_route(name, code)
+    if old != code and not old.startswith(header + name + "\n"):
+        raise Failure(f"Já existe um {name} com código desconhecido em {where}. O instalador preservou o script.")
+
+
+def managed_source(raw, name, code):
+    return script_source(raw, *_managed_route(name, code)[0])
 
 
 def _server_header(name):
@@ -516,16 +543,14 @@ def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
             raise Failure("O código do menu está vazio.")
         server = dict(server or {})
         for name, code in server.items():
-            server_route(name)
-            if not code.startswith(_server_header(name)):
-                raise Failure(f"O script de servidor {name} precisa começar pelo cabeçalho do CyberOutlaw.")
+            _managed_route(name, code)
         result, changed = _patch_script(
             raw, MENU_PATH, MENU_CLASSES, source, lambda old: _accept_source(old, source, known), force_r6
         )
         for name, code in sorted(server.items()):
             result, edited = _patch_script(
-                result, *server_route(name), code,
-                lambda old, name=name, code=code: _accept_server(name, old, code),
+                result, *_managed_route(name, code)[0], code,
+                lambda old, name=name, code=code: _accept_managed(name, code, old),
             )
             changed = changed or edited
         if force_r6:
@@ -542,8 +567,8 @@ def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
         if menu_source(result) != source:
             raise Failure("O código do menu preparado divergiu na verificação.")
         for name, code in server.items():
-            if server_source(result, name) != code:
-                raise Failure(f"O script de servidor {name} divergiu na verificação.")
+            if managed_source(result, name, code) != code:
+                raise Failure(f"O script {name} divergiu na verificação.")
         return result, True
     except (ValueError, IndexError, KeyError, struct.error) as exc:
         raise Failure(f"Não foi possível preparar o place. {exc}") from None
