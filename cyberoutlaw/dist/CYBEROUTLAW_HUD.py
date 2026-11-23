@@ -9,10 +9,10 @@ import tempfile
 from urllib.request import urlopen
 
 
-RELEASE = "413eb23a0397a6bb7b1548fd3fb25fb6d611d9f3"
+RELEASE = "c51aa9203945d24e2ad76480a7bb1354cee31e83"
 PACKAGE = "CYBEROUTLAW_TERMUX.pyz"
-PACKAGE_BYTES = 27_098_456
-PACKAGE_SHA256 = "10d2aabbbb69838a474a3d66c69d6a902775122e0720229a8f2551d066d2f1fb"
+PACKAGE_BYTES = 27_098_585
+PACKAGE_SHA256 = "b59b71875c322d69806627a27233d420794fa5ca17168a82914c463808c81442"
 PACKAGE_URL = f"https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/{RELEASE}/cyberoutlaw/dist/{PACKAGE}"
 BLOCK_SIZE = 128 * 1024
 
