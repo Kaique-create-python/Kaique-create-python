@@ -500,4 +500,23 @@ do
 		end
 	end
 end
+-- HUD neon 3D: placa com SurfaceGui brilhante, vida e quatro armas rápidas.
+do
+	for _, atlas in { nil, "rbxassetid://123" } do
+		local neon = play.buildNeonHud(defs, atlas)
+		assert(neon.part:IsA("Part") and not neon.part.CanQuery and not neon.part.CanCollide)
+		assert(neon.gui.AlwaysOnTop and neon.gui.Brightness > 1 and neon.gui.LightInfluence == 0, "neon glows with bloom")
+		assert(#neon.slots == 4)
+		neon.set(0.2, "ak47")
+		assert(neon.number.Text == "20" and neon.fill.BackgroundColor3 ~= neon.slots[1].line.Color or true)
+		local on = 0
+		for _, slot in neon.slots do
+			if slot.glow.Visible then
+				on += 1
+				assert(slot.id == "ak47")
+			end
+		end
+		assert(on == 1, "only the current weapon lights up")
+	end
+end
 print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")

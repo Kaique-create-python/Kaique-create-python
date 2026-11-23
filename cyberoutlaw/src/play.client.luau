@@ -853,7 +853,7 @@ local function buildHud(parent: Instance, touch: boolean)
 		end
 		safe.Visible = input.safe == true
 	end
-	hud.parts = { block = block, toast = toast, safe = safe, fill = fill, trail = trail, map = map, pivot = pivot, arrow = arrow }
+	hud.parts = { block = block, toast = toast, safe = safe, fill = fill, trail = trail, map = map, pivot = pivot, arrow = arrow, track = track }
 	return hud
 end
 M.buildHud = buildHud
@@ -1474,6 +1474,94 @@ local function buildAdminPanel(parent: Instance, touch: boolean, points, packs, 
 	return panel
 end
 M.buildAdminPanel = buildAdminPanel
+
+-- HUD neon em 3D (como o do Chrome Clash): vida e quatro armas rápidas desenhadas numa SurfaceGui presa a
+-- uma placa na frente da câmera, inclinada e com balanço. Brilho acima de 1 faz o neon acender com o bloom.
+local NEON = Color3.fromRGB(86, 255, 222)
+local NEON_HURT = Color3.fromRGB(255, 72, 140)
+local QUICK = { "punhos", "glock", "ak47", "escopeta" }
+M.QUICK = QUICK
+local NEON_CANVAS = Vector2.new(600, 240)
+local function buildNeonHud(defs, atlas: string?)
+	local mono = Font.fromEnum(Enum.Font.Michroma)
+	local part = Instance.new("Part")
+	part.Name = "CyberOutlawHudNeon"
+	part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch, part.CastShadow = true, false, false, false, false
+	part.Transparency = 1
+	part.Size = Vector3.new(3, 1.2, 0.02)
+	local gui = new("SurfaceGui", nil, {
+		Name = "CyberOutlawHudNeon", Face = Enum.NormalId.Back, Adornee = part, AlwaysOnTop = true, LightInfluence = 0,
+		Brightness = 2.2, SizingMode = Enum.SurfaceGuiSizingMode.FixedSize, CanvasSize = NEON_CANVAS,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, ResetOnSpawn = false, ClipsDescendants = false,
+	})
+	-- Moldura neon: traço forte e um halo largo e fraco por trás.
+	local function neonBox(parent, name, position, size, z)
+		local glow = frame(parent, name .. "Halo", z, { Position = position, Size = size })
+		round(glow, UDim.new(0, 8))
+		stroke(glow, NEON, 0.8, 9)
+		local box = frame(parent, name, z + 1, { Position = position, Size = size })
+		round(box, UDim.new(0, 6))
+		local line = stroke(box, NEON, 0, 3)
+		return box, line, glow
+	end
+	-- Vida: tampa com o símbolo de vida, barra e número.
+	local cap, capLine = neonBox(gui, "Tampa", UDim2.fromScale(0.03, 0.06), UDim2.fromScale(0.08, 0.26), 2)
+	label(cap, "Simbolo", "+", mono, 30, NEON, 4, { TextXAlignment = Enum.TextXAlignment.Center })
+	local bar, barLine = neonBox(gui, "Vida", UDim2.fromScale(0.13, 0.1), UDim2.fromScale(0.66, 0.18), 2)
+	local fill = frame(bar, "Preenchimento", 4, { Position = UDim2.fromScale(0.015, 0.18), Size = UDim2.fromScale(0.97, 0.64),
+		BackgroundTransparency = 0.05, BackgroundColor3 = NEON })
+	round(fill, UDim.new(0, 3))
+	new("UIGradient", fill, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 0.35) }) })
+	local number = label(gui, "Numero", "100", mono, 34, NEON, 4, { Position = UDim2.fromScale(0.81, 0.04), Size = UDim2.fromScale(0.17, 0.3) })
+	-- Armas rápidas: caixas com o número da tecla em cima e o ícone (ou a sigla) dentro.
+	local slots = {}
+	local byKey = {}
+	for _, d in defs do
+		byKey[d.id] = d
+	end
+	for index, id in QUICK do
+		local d = byKey[id]
+		local x = 0.03 + (index - 1) * 0.24
+		local box, line, glow = neonBox(gui, "Slot" .. index, UDim2.fromScale(x, 0.5), UDim2.fromScale(0.21, 0.44), 2)
+		local key = frame(gui, "Tecla" .. index, 5, { Position = UDim2.fromScale(x + 0.005, 0.36), Size = UDim2.fromScale(0.06, 0.12) })
+		round(key, UDim.new(0, 3))
+		stroke(key, NEON, 0, 2)
+		label(key, "Numero", tostring(d and d.order or index), mono, 16, NEON, 6, { TextXAlignment = Enum.TextXAlignment.Center })
+		local icon
+		if atlas and iconRect(id) then
+			icon = atlasImage(box, "Icone", atlas, id, 5, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.52),
+				Size = UDim2.fromScale(0.86, 0.72), ImageColor3 = NEON })
+		else
+			local short = ({ punhos = "SOCO", glock = "G17", ak47 = "AK", escopeta = "12" })[id] or string.upper(id)
+			icon = label(box, "Sigla", short, mono, 22, NEON, 5, { TextXAlignment = Enum.TextXAlignment.Center })
+		end
+		slots[index] = { id = id, box = box, line = line, glow = glow, icon = icon }
+	end
+	local neon = { part = part, gui = gui, slots = slots, fill = fill, number = number }
+	local lines = { capLine, barLine }
+	function neon.set(health: number, current: string)
+		local hurt = health < 0.3
+		local color = if hurt then NEON_HURT else NEON
+		fill.Size = UDim2.fromScale(0.97 * math.clamp(health, 0, 1), 0.64)
+		fill.BackgroundColor3 = color
+		number.Text = tostring(math.max(0, math.round(health * 100)))
+		number.TextColor3 = color
+		for _, l in lines do
+			l.Color = color
+		end
+		for _, slot in slots do
+			local on = slot.id == current
+			slot.box.BackgroundTransparency = if on then 0.72 else 1
+			slot.box.BackgroundColor3 = NEON
+			slot.line.Thickness = if on then 4 else 2.5
+			slot.line.Transparency = if on then 0 else 0.3
+			slot.glow.Visible = on
+		end
+	end
+	neon.set(1, "punhos")
+	return neon
+end
+M.buildNeonHud = buildNeonHud
 
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
@@ -3267,6 +3355,49 @@ local function start()
 		end
 	end
 
+	-- HUD neon 3D: âncora 2D embaixo no centro (livre no celular e no PC), placa na frente da câmera.
+	local neonHud = buildNeonHud(defs, ATLAS)
+	neonHud.gui.Parent = playerGui
+	local neonAnchor = frame(hud.gui, "HudNeonAncora", 1, {
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -4 else -18),
+		Size = UDim2.fromOffset(if touch then 220 else 300, if touch then 88 else 120),
+	})
+	for index, slot in neonHud.slots do
+		local tap = new("TextButton", neonAnchor, {
+			Name = "Toque" .. index, Text = "", BackgroundTransparency = 1, Position = UDim2.fromScale(0.03 + (index - 1) * 0.24, 0.45),
+			Size = UDim2.fromScale(0.22, 0.52), ZIndex = 2,
+		})
+		tap.Activated:Connect(function()
+			equip(slot.id)
+		end)
+	end
+	if hud.parts.track then
+		hud.parts.track.Visible = false
+	end
+	local neonSway, neonSwayVel, neonLastYaw = 0, 0, nil
+	local function neonStep(dt: number)
+		local size, at = neonAnchor.AbsoluteSize, neonAnchor.AbsolutePosition
+		local hidden = dead or wheelOpen or not hud.gui.Enabled or size.X < 2
+		neonHud.part.Parent = if hidden then nil else camera
+		if hidden then
+			return
+		end
+		-- Balanço: a placa fica um pouco para trás quando a câmera gira e volta com mola.
+		local look = camera.CFrame.LookVector
+		local yaw = math.atan2(-look.X, -look.Z)
+		local turn = if neonLastYaw then angleDelta(neonLastYaw, yaw) else 0
+		neonLastYaw = yaw
+		neonSway, neonSwayVel = spring(neonSway, neonSwayVel, math.clamp(-turn / math.max(dt, 1e-3) * 0.02, -0.12, 0.12), 2.2, dt)
+		local depth = 4
+		local perPixel = 2 * depth * math.tan(math.rad(camera.FieldOfView) / 2) / math.max(1, camera.ViewportSize.Y)
+		local ray = camera:ScreenPointToRay(at.X + size.X / 2, at.Y + size.Y / 2, depth)
+		neonHud.part.Size = Vector3.new(size.X * perPixel, size.Y * perPixel, 0.02)
+		neonHud.part.CFrame = CFrame.new(ray.Origin) * camera.CFrame.Rotation
+			* CFrame.Angles(math.rad(-16), neonSway, math.rad(2) * math.sin(os.clock() * 0.8))
+		local health = if humanoid then humanoid.Health / math.max(1, humanoid.MaxHealth) else 1
+		neonHud.set(health, current)
+	end
+
 	local lastAimSent = false
 	RunService:BindToRenderStep("CyberOutlawCamera", Enum.RenderPriority.Camera.Value + 2, function(dt)
 		local ok, aimingNow, raised = pcall(cameraStep, dt)
@@ -3284,6 +3415,7 @@ local function start()
 			warn("CyberOutlaw | Movimento: " .. tostring(problem))
 		end
 		pcall(interfaceStep, dt, aimingNow, raised)
+		pcall(neonStep, dt)
 		pcall(reflectionStep, dt)
 		pcall(reflectCharacters)
 		pcall(pitchStep)
