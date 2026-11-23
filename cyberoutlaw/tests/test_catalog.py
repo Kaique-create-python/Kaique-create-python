@@ -5,7 +5,7 @@ from shutil import copytree
 from tempfile import TemporaryDirectory
 import unittest
 
-from media_tools.catalog import make_config, resolved_config, verify_media, ART, OPTIONAL_ART, SOUNDS
+from media_tools.catalog import make_config, resolved_config, verify_media, ART, OPTIONAL_ART, OPTIONAL_SOUNDS, SOUNDS
 from media_tools.upload import TARGET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +26,7 @@ class MediaBindingTest(unittest.TestCase):
         result = self.fixture()
         lookup = {r["key"]: int(r["assetId"]) for r in result["assets"]}
         out = resolved_config(ROOT, self.plan, result, video="8000")
-        self.assertEqual(set(out["sounds"]), set(SOUNDS))
+        self.assertEqual(set(out["sounds"]), set(SOUNDS) | set(OPTIONAL_SOUNDS))
         self.assertEqual(out["art"], {name: lookup[name] for name in ART})
         self.assertEqual(set(out["clips"]), set(self.capri["clips"]))
         for name, clip in out["clips"].items():
@@ -46,6 +46,14 @@ class MediaBindingTest(unittest.TestCase):
         self.assertFalse(OPTIONAL_ART & set(out["art"]))
         self.assertIn("asphalt", out["art"])
         self.assertTrue(OPTIONAL_ART <= set(ART))
+
+    def test_weapon_sounds_are_optional_until_approved(self):
+        result = self.fixture()
+        for row in result["assets"]:
+            if row["key"] in OPTIONAL_SOUNDS:
+                row["status"] = "pending_moderation"
+        out = resolved_config(ROOT, self.plan, result)
+        self.assertEqual(set(out["sounds"]), set(SOUNDS))
 
     def test_assets_needing_approval_do_not_bind(self):
         result = self.fixture()

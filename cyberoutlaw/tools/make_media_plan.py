@@ -6,7 +6,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from media_tools.catalog import verify_media, ART, SOUNDS
+from media_tools.catalog import verify_media, ART, OPTIONAL_SOUNDS, SOUNDS
 from media_tools import upload
 
 media = ROOT / "media"
@@ -30,10 +30,10 @@ for key, rel in sorted(capri["images"].items()):
     title = "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
     rows.append(row(key, p, "Image", "image/png", title))
 
-for key in SOUNDS:
+for key in SOUNDS + OPTIONAL_SOUNDS:
     entry = sounds[key]
     p = media / "audio" / (key + ".wav")
-    note = "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop" if key.startswith("hello_") else ("ElevenLabs Sound Effects." if entry["provider"] == "ElevenLabs" else "Efeito eletrônico original.")
+    note = "Capri Desktop © 2026 Lachy, licença não comercial. https://github.com/lachydotmcg/capri-desktop" if key.startswith("hello_") else ("ElevenLabs Sound Effects." if entry["provider"] == "ElevenLabs" else ("Som de arma sintetizado por código, sem amostras." if key.startswith("arma_") else "Efeito eletrônico original."))
     rows.append({**row(key, p, "Audio", "audio/wav", note), "durationSeconds": entry["durationSeconds"]})
 
 for key in ART:
@@ -43,6 +43,8 @@ for key in ART:
         description = "Arte original dos três painéis de Maré Baixa."
     elif key == "facades":
         description = "Quatro texturas originais para as fachadas da cidade 3D."
+    elif key == "icones_interface":
+        description = "Ícones 2D das armas e dos botões, desenhados à mão em vetor, sem imagem gerada por IA."
     elif key.startswith("fachada_"):
         description = "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
     else:

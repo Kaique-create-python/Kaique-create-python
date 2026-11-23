@@ -83,6 +83,13 @@ local function mountCyberOutlawHud()
 		Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0,
 	})
 	gradient(fill, 0, MAGENTA, Color3.fromRGB(255, 125, 168))
+	local staminaTrack = frame(panel, "StaminaTrack", 3, {
+		Position = UDim2.fromOffset(left, height - (if touch then 7 else 8)), Size = UDim2.fromOffset(right - left, 2),
+		BackgroundColor3 = Color3.fromRGB(28, 40, 48), BackgroundTransparency = 0, Visible = false,
+	})
+	local staminaFill = frame(staminaTrack, "StaminaFill", 4, {
+		Size = UDim2.fromScale(1, 1), BackgroundColor3 = CYAN, BackgroundTransparency = 0,
+	})
 	for index = 1, 9 do
 		frame(track, "Segment", 6, {
 			Position = UDim2.new(index / 10, -1, 0, 0), Size = UDim2.new(0, 2, 1, 0),
@@ -92,6 +99,7 @@ local function mountCyberOutlawHud()
 
 	-- Mira: só ela ignora os recortes, para ficar no centro exato da tela.
 	local aimGui = screen("CyberOutlawAim", 31, false)
+	aimGui.Enabled = false -- the crosshair only appears when aiming with a gun (CyberOutlawPlay)
 	local aimShadow = Color3.fromRGB(10, 10, 18)
 	local shadow = frame(aimGui, "CrosshairOutline", 1, {
 		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(14, 14),
@@ -122,12 +130,15 @@ local function mountCyberOutlawHud()
 		Position = if touch then UDim2.new(1, -14, 0, 8) else UDim2.new(0, 24, 1, -24),
 		Size = UDim2.fromOffset(mapW, mapH),
 	})
-	local view = make("CanvasGroup", mapBox, "Viewport", {
-		Size = FULL, BackgroundColor3 = INK, BackgroundTransparency = 0.08, BorderSizePixel = 0, ZIndex = 1,
-	})
-	radius(view, 12)
-	local border = outline(view, Color3.new(1, 1, 1))
+	-- A non-rotated frame with ClipsDescendants clips the rotated map (default since 2026-09-24).
+	-- CanvasGroup is not used: in a Global ZIndex ScreenGui it neither clips nor fades.
+	local plate = frame(mapBox, "Plate", 1, { Size = FULL, BackgroundColor3 = INK, BackgroundTransparency = 0.08 })
+	radius(plate, 4)
+	local border = outline(plate, Color3.new(1, 1, 1))
 	border.Transparency = 0.86
+	local view = frame(mapBox, "Viewport", 1, {
+		Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), ClipsDescendants = true,
+	})
 	local viewH = mapH - footer
 	local center = Vector2.new(mapW / 2, math.floor(viewH * 0.55))
 	local pivot = frame(view, "Pivot", 2, { Position = UDim2.fromOffset(center.X, center.Y), Size = UDim2.fromOffset(0, 0) })
@@ -177,10 +188,9 @@ local function mountCyberOutlawHud()
 
 	-- Aviso de distrito ---------------------------------------------------------------------
 	local toastW, toastH = if touch then 300 else 520, if touch then 58 else 84
-	local toast = make("CanvasGroup", mapGui, "DistrictToast", {
+	local toast = frame(mapGui, "DistrictToast", 10, {
 		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, if touch then 4 else 18),
-		Size = UDim2.fromOffset(toastW, toastH), BackgroundTransparency = 1, BorderSizePixel = 0,
-		GroupTransparency = 1, Visible = false, ZIndex = 10,
+		Size = UDim2.fromOffset(toastW, toastH), Visible = false,
 	})
 	local band = frame(toast, "DistrictBand", 10, { Size = FULL, BackgroundTransparency = 0, BackgroundColor3 = INK })
 	make("UIGradient", band, "Fade", {
@@ -211,6 +221,25 @@ local function mountCyberOutlawHud()
 		Size = UDim2.fromOffset(6, 6), BackgroundTransparency = 0, BackgroundColor3 = MAGENTA,
 	})
 	radius(toastDot, 3)
+	-- Fade by hand: records each piece's base transparency.
+	local toastPieces = {}
+	for _, item in { band, city, title, underline, toastDot } do
+		table.insert(toastPieces, {
+			item = item, text = if item:IsA("TextLabel") then item.TextTransparency else nil,
+			back = item.BackgroundTransparency,
+		})
+	end
+	local function toastAlpha(alpha)
+		for _, entry in toastPieces do
+			if entry.text then
+				entry.item.TextTransparency = 1 - (1 - entry.text) * alpha
+			end
+			if entry.back < 1 then
+				entry.item.BackgroundTransparency = 1 - (1 - entry.back) * alpha
+			end
+		end
+	end
+	toastAlpha(0)
 
 	local layout, district
 	local toastTime = math.huge
@@ -408,6 +437,12 @@ local function mountCyberOutlawHud()
 	local pulsing = false
 	local onStep = RunService.Heartbeat:Connect(function(dt)
 		elapsed += dt
+		local stamina = player:GetAttribute("CyberOutlawFolego")
+		staminaTrack.Visible = type(stamina) == "number"
+		if type(stamina) == "number" then
+			staminaFill.Size = UDim2.fromScale(math.clamp(stamina, 0, 1), 1)
+			staminaFill.BackgroundColor3 = if player:GetAttribute("CyberOutlawExausto") then DANGER else CYAN
+		end
 		if trailHold > 0 then
 			trailHold -= dt
 		elseif trail > ratio then
@@ -425,7 +460,7 @@ local function mountCyberOutlawHud()
 		if toastTime < 4 then
 			toastTime += dt
 			local alpha = if toastTime < 0.3 then toastTime / 0.3 elseif toastTime > 3.3 then math.max(0, (4 - toastTime) / 0.7) else 1
-			toast.GroupTransparency = 1 - alpha
+			toastAlpha(alpha)
 			if toastTime >= 4 then
 				toast.Visible = false
 			end

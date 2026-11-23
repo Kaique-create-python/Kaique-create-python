@@ -155,7 +155,7 @@ end
 local function buildCity(root: Instance, art, options)
 	options = options or {}
 	art = if type(art) == "table" then art else {}
-	local stats = { parts = 0, lights = 0, guis = 0, towers = 0, signs = 0 }
+	local stats = { parts = 0, lights = 0, guis = 0, towers = 0, signs = 0, emitters = 0 }
 	local pause = options.yield
 
 	local function uri(id): string?
@@ -972,6 +972,73 @@ local function buildCity(root: Instance, art, options)
 		end
 	end
 
+	-- Atmosfera: vapor dos bueiros, barris de fogo nos becos (texturas do próprio cliente Roblox) --------
+	local atmosphere = group(city, "Atmosfera")
+	local function steam(part: BasePart, rate: number, tint: Color3?)
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Name = "Vapor"
+		emitter.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		emitter.Color = ColorSequence.new(tint or rgb(206, 214, 238), rgb(150, 140, 190))
+		emitter.LightEmission = 0.06
+		emitter.LightInfluence = 0.9
+		emitter.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.15, 0.7), NumberSequenceKeypoint.new(1, 1),
+		})
+		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.6), NumberSequenceKeypoint.new(1, 9) })
+		emitter.Lifetime = NumberRange.new(3, 5.5)
+		emitter.Rate = rate
+		emitter.Speed = NumberRange.new(2.5, 5)
+		emitter.SpreadAngle = Vector2.new(14, 14)
+		emitter.Acceleration = Vector3.new(0.8, 1.4, 0)
+		emitter.Rotation = NumberRange.new(0, 360)
+		emitter.RotSpeed = NumberRange.new(-12, 12)
+		emitter.Drag = 0.6
+		emitter.Parent = part
+		stats.emitters += 1
+		return emitter
+	end
+	for _, x in lines do
+		for _, z in lines do
+			if math.abs(x) <= 600 and math.abs(z) <= 600 then
+				-- Bueiro na faixa da direita, depois da faixa de pedestres.
+				local vx = x + roadWidth(x) / 2 + 24
+				local vz = z + roadWidth(z) / 2 - 7
+				local grate = box(atmosphere, "Bueiro", vx, GROUND + 0.05, vz, 3.4, 0.08, 3.4, rgb(30, 32, 38), M.DiamondPlate)
+				steam(grate, 4)
+			end
+		end
+	end
+	local barrels = 0
+	for i = 1, #lines - 1 do
+		for j = 1, #lines - 1 do
+			local a, b, c, e = lines[i], lines[i + 1], lines[j], lines[j + 1]
+			local bx, bz = (a + b) / 2, (c + e) / 2
+			if districtAt(bx, bz).key == "mercado" then
+				-- Beco entre as duas fileiras de prédios do mercado (mesma conta da quadra).
+				local lx0 = a + roadWidth(a) / 2 + walkWidth(a)
+				local lx1 = b - roadWidth(b) / 2 - walkWidth(b)
+				local lz0 = c + roadWidth(c) / 2 + walkWidth(c)
+				local lz1 = e - roadWidth(e) / 2 - walkWidth(e)
+				local alley = lz0 + ((lz1 - lz0) - 6) / 2 + 3
+				local barrel = piece(atmosphere, "Barril de fogo", Vector3.new(3.4, 2.6, 2.6),
+					CFrame.new(lx0 + (lx1 - lx0) * 0.3, CURB + 1.7, alley) * CFrame.Angles(0, 0, math.pi / 2),
+					rgb(70, 46, 38), M.CorrodedMetal, true, Enum.PartType.Cylinder)
+				local fire = Instance.new("Fire")
+				fire.Name = "Fogo"
+				fire.Size = 3.2
+				fire.Heat = 7
+				fire.Color = rgb(255, 120, 40)
+				fire.SecondaryColor = rgb(255, 210, 90)
+				fire.Parent = barrel
+				light(barrel, "PointLight", rgb(255, 140, 60), 1.8, 18)
+				local vent = box(atmosphere, "Respiro do beco", lx0 + (lx1 - lx0) * 0.72, CURB + 0.05, alley, 2.4, 0.08, 2.4, rgb(30, 32, 38), M.DiamondPlate)
+				steam(vent, 3, rgb(230, 200, 210))
+				barrels += 1
+			end
+		end
+	end
+	city:SetAttribute("BarrisDeFogo", barrels)
+
 	-- Calçadas externas e cais ---------------------------------------------------------------
 	local edges = group(city, "Bordas")
 	local outer = HALF + roadWidth(HALF) / 2
@@ -1031,7 +1098,8 @@ local function buildCity(root: Instance, art, options)
 		span(ship, "Janelas da ponte", sx0 + 45.9, sx0 + 46.2, WATER + 18 + level * 10, WATER + 21 + level * 10, sz0 + 8, sz1 - 8,
 			shade(PALETTE.led, 0.75), M.Neon)
 	end
-	span(ship, "Chaminé", sx0 + 12, sx0 + 22, WATER + 62, WATER + 76, (sz0 + sz1) / 2 - 5, (sz0 + sz1) / 2 + 5, rgb(40, 40, 44), M.Metal)
+	local funnel = span(ship, "Chaminé", sx0 + 12, sx0 + 22, WATER + 62, WATER + 76, (sz0 + sz1) / 2 - 5, (sz0 + sz1) / 2 + 5, rgb(40, 40, 44), M.Metal)
+	steam(funnel, 3, rgb(120, 116, 130))
 	span(ship, "Faixa da chaminé", sx0 + 11.8, sx0 + 22.2, WATER + 70, WATER + 72, (sz0 + sz1) / 2 - 5.2, (sz0 + sz1) / 2 + 5.2, PALETTE.cyan, M.Neon)
 	for x = sx0 + 60, sx1 - 10, 40 do
 		local deck = box(ship, "Luz do convés", x, WATER + 18.6, sz0 + 0.8, 1.6, 1, 1, PALETTE.sodium, M.Neon)

@@ -379,6 +379,7 @@ assert(not main.coreHealth and main:find("CyberOutlawHealth"), "the game has a s
 assert(main:find("CharacterFace").Image == "rbxthumb://type=AvatarHeadShot&id=321&w=150&h=150", "the headshot belongs to the player")
 local function checkAimCenter(h)
 	local aim = assert(h:find("Crosshair"))
+	assert(aim.Parent.Enabled == false, "the crosshair only appears when aiming with a gun")
 	assert(aim.Parent.ScreenInsets == E.ScreenInsets.None and not aim.Parent.ClipToDeviceSafeArea)
 	assert(aim.AbsolutePosition + aim.AbsoluteSize / 2 == h.size / 2, "the ring is centered in the full viewport")
 	local dot = assert(h:find("Dot"))
@@ -462,6 +463,14 @@ do
 	street.player.CharacterAdded:Fire(hero)
 	street:step(0.2)
 	assert(not street:find("NoSignal").Visible, "o minimapa desenha a cidade publicada")
+	assert(street:find("Viewport").ClipsDescendants and street:find("Viewport").ClassName == "Frame", "the minimap clips without CanvasGroup")
+	for _, name in { "Viewport", "DistrictToast" } do
+		assert(street:find(name).ClassName ~= "CanvasGroup", "CanvasGroup does not clip or fade in a Global ScreenGui")
+	end
+	assert(not street:find("StaminaTrack").Visible, "stamina only appears once the movement system reports it")
+	street.player:SetAttribute("CyberOutlawFolego", 0.4)
+	street:step(0.05)
+	assert(street:find("StaminaTrack").Visible and math.abs(street:find("StaminaFill").Size.X.Scale - 0.4) < 0.001)
 	assert(street:find("DistrictName").Text == "DISTRITO PRISMA" and street:find("Clock").Text == "00:36")
 	assert(street:find("DistrictToast").Visible and street:find("DistrictTitle").Text == "DISTRITO PRISMA")
 	local mapPosition = street:find("Map").Position

@@ -1,63 +1,117 @@
 {
-  "click": {
-    "durationSeconds": 0.158005,
-    "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
-    "provider": "ElevenLabs",
-    "model": "eleven_text_to_sound_v2",
-    "generationId": "meiWWevOHLv9eh9sZLKc",
-    "originalSha256": "ac9c43672b999dae298a79eb7c75bd9065f7627e1a3a30c6f53301d5bc373f9b"
-  },
-  "confirm": {
-    "durationSeconds": 0.34,
-    "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
-    "provider": "ElevenLabs",
-    "model": "eleven_text_to_sound_v2",
-    "generationId": "4LUr7UGVDngt8dH1Xkil",
-    "originalSha256": "a614ea988c26baf29f69da199281069901ca0bded5bc146219bdf9abf71abca3"
-  },
-  "glitch": {
-    "durationSeconds": 0.35,
-    "sha256": "b279fa6eade71865729fc903914ad1c826b73bb2bbe03825a7b8caa53ab0c2f9",
-    "provider": "Efeito digital original",
-    "source": "tools/synth_menu_fx.py"
-  },
-  "hello_late": {
-    "durationSeconds": 2.16,
-    "sha256": "6460cd945636a005b7199b5eb0a9bce2140a10cacaa4885aacd0c2374326422a",
-    "provider": "Capri Desktop",
-    "source": "https://github.com/lachydotmcg/capri-desktop",
-    "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
-    "license": "PolyForm Noncommercial 1.0.0"
-  },
-  "hello_miss": {
-    "durationSeconds": 2.32,
-    "sha256": "8afa97810cd8d112537e325c74504fef25746a7557c1a2d6d60d0a52dc4fb619",
-    "provider": "Capri Desktop",
-    "source": "https://github.com/lachydotmcg/capri-desktop",
-    "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
-    "license": "PolyForm Noncommercial 1.0.0"
-  },
-  "hello_morning": {
-    "durationSeconds": 2.16,
-    "sha256": "12556ee08fed3bc81c1024e8693a57ccccbe6ce229ed862e884ae0c1061272e2",
-    "provider": "Capri Desktop",
-    "source": "https://github.com/lachydotmcg/capri-desktop",
-    "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
-    "license": "PolyForm Noncommercial 1.0.0"
-  },
-  "react": {
-    "durationSeconds": 0.255011,
-    "sha256": "260f50a6a3b81832fb47a1947f4b6fe4ce21b708f39977ab7a0e7db92081d415",
-    "provider": "Efeito digital original",
-    "source": "tools/synth_menu_fx.py"
-  },
-  "rain": {
-    "durationSeconds": 14.0,
-    "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
-    "provider": "ElevenLabs",
-    "model": "eleven_text_to_sound_v2",
-    "generationId": "WKKy7NeL2eh2bh23ATjJ",
-    "originalSha256": "99bd75d630dd60cb423ac1be9f4cc3f4eeb8b2eacf73a8741935259148cc2669",
-    "editing": "Sobreposição circular da chuva original para playback contínuo no menu."
-  }
+ "click": {
+  "durationSeconds": 0.158005,
+  "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
+  "provider": "ElevenLabs",
+  "model": "eleven_text_to_sound_v2",
+  "generationId": "meiWWevOHLv9eh9sZLKc",
+  "originalSha256": "ac9c43672b999dae298a79eb7c75bd9065f7627e1a3a30c6f53301d5bc373f9b"
+ },
+ "confirm": {
+  "durationSeconds": 0.34,
+  "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
+  "provider": "ElevenLabs",
+  "model": "eleven_text_to_sound_v2",
+  "generationId": "4LUr7UGVDngt8dH1Xkil",
+  "originalSha256": "a614ea988c26baf29f69da199281069901ca0bded5bc146219bdf9abf71abca3"
+ },
+ "glitch": {
+  "durationSeconds": 0.35,
+  "sha256": "b279fa6eade71865729fc903914ad1c826b73bb2bbe03825a7b8caa53ab0c2f9",
+  "provider": "Efeito digital original",
+  "source": "tools/synth_menu_fx.py"
+ },
+ "hello_late": {
+  "durationSeconds": 2.16,
+  "sha256": "6460cd945636a005b7199b5eb0a9bce2140a10cacaa4885aacd0c2374326422a",
+  "provider": "Capri Desktop",
+  "source": "https://github.com/lachydotmcg/capri-desktop",
+  "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
+  "license": "PolyForm Noncommercial 1.0.0"
+ },
+ "hello_miss": {
+  "durationSeconds": 2.32,
+  "sha256": "8afa97810cd8d112537e325c74504fef25746a7557c1a2d6d60d0a52dc4fb619",
+  "provider": "Capri Desktop",
+  "source": "https://github.com/lachydotmcg/capri-desktop",
+  "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
+  "license": "PolyForm Noncommercial 1.0.0"
+ },
+ "hello_morning": {
+  "durationSeconds": 2.16,
+  "sha256": "12556ee08fed3bc81c1024e8693a57ccccbe6ce229ed862e884ae0c1061272e2",
+  "provider": "Capri Desktop",
+  "source": "https://github.com/lachydotmcg/capri-desktop",
+  "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
+  "license": "PolyForm Noncommercial 1.0.0"
+ },
+ "react": {
+  "durationSeconds": 0.255011,
+  "sha256": "260f50a6a3b81832fb47a1947f4b6fe4ce21b708f39977ab7a0e7db92081d415",
+  "provider": "Efeito digital original",
+  "source": "tools/synth_menu_fx.py"
+ },
+ "rain": {
+  "durationSeconds": 14.0,
+  "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
+  "provider": "ElevenLabs",
+  "model": "eleven_text_to_sound_v2",
+  "generationId": "WKKy7NeL2eh2bh23ATjJ",
+  "originalSha256": "99bd75d630dd60cb423ac1be9f4cc3f4eeb8b2eacf73a8741935259148cc2669",
+  "editing": "Sobreposição circular da chuva original para playback contínuo no menu."
+ },
+ "arma_vespa": {
+  "durationSeconds": 0.45,
+  "sha256": "ef30c8c7ad35f6778f8e045147cc92f4a29ecc77c0c00f1cf0e2b635cf88c122",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_enxame": {
+  "durationSeconds": 0.26,
+  "sha256": "5924192a905066063955208fc1064447a618bfb90c74c75238ebd71da57d311d",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_trovao": {
+  "durationSeconds": 0.85,
+  "sha256": "32354b1cdcfece93cc0e3b37bc45346e068b62283ab777155ab58c0af4b48956",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_agulha": {
+  "durationSeconds": 0.55,
+  "sha256": "126d05caa48fd0af250e24a8668abf3cc147c05f21bf1f450a6b2bd180041626",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_soco": {
+  "durationSeconds": 0.3,
+  "sha256": "b0b74c959e55f75cd822cdbeab2a09039682bdb18b00bfedf6d57f9f2910bc1a",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_lamina": {
+  "durationSeconds": 0.45,
+  "sha256": "d8bf5e37f99ab134c2f9053b93316622c382a9852efd7e9561a12248b92b9c6b",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_recarga": {
+  "durationSeconds": 0.75,
+  "sha256": "1f954991a87775b5ba716d64ef54e33dd8a77cdaaceb04a063c88d7a3c53e45f",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_vazia": {
+  "durationSeconds": 0.12,
+  "sha256": "3b0a0648aaf53afee8d9b405d378808cac4114a3ea756f77fdccede320f68484",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ },
+ "arma_troca": {
+  "durationSeconds": 0.28,
+  "sha256": "f540890785deb01676cbc1d6686f22c90356b5647f522d68a73f5dfc4e4bdb82",
+  "provider": "Síntese própria",
+  "source": "tools/synth_weapon_fx.py"
+ }
 }

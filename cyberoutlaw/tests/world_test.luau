@@ -26,7 +26,8 @@ local function load(art)
 		environment = {
 			Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = Vector3,
 			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, Enum = roblox.Enum, UDim2 = roblox.UDim2,
-			Font = roblox.Font, Content = roblox.Content,
+			Font = roblox.Font, Content = roblox.Content, NumberSequence = roblox.NumberSequence,
+			NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, NumberRange = roblox.NumberRange,
 		},
 	})
 	return chunk()
@@ -166,19 +167,21 @@ local function check(art)
 	assert(#serde.encode("json", layout) < 4000, "o layout do minimapa deve ser compacto")
 	return {
 		parts = #parts, solids = #solids, guis = guis, windows = windows, lights = lights,
-		towers = info.stats.towers, signs = info.stats.signs, seconds = seconds, city = city,
+		towers = info.stats.towers, signs = info.stats.signs, emitters = info.stats.emitters, seconds = seconds, city = city,
 	}
 end
 
 local plain = check("{}")
 local dressed = check(ART)
 for label, result in { ["sem janelas"] = plain, ["com janelas"] = dressed } do
-	print(string.format("Maré Baixa %s: %d peças (%d sólidas), %d torres, %d letreiros, %d GUIs (%d de janelas), %d luzes, %.2fs",
-		label, result.parts, result.solids, result.towers, result.signs, result.guis, result.windows, result.lights, result.seconds))
+	print(string.format("Maré Baixa %s: %d peças (%d sólidas), %d torres, %d letreiros, %d GUIs (%d de janelas), %d luzes, %d emissores, %.2fs",
+		label, result.parts, result.solids, result.towers, result.signs, result.guis, result.windows, result.lights, result.emitters, result.seconds))
 	assert(result.parts < 26000, "peças acima do orçamento")
 	assert(result.lights < 1100, "luzes acima do orçamento")
 	assert(result.guis < 2600, "superfícies acima do orçamento")
 	assert(result.towers >= 60, "a cidade precisa de prédios altos")
+	assert(result.city:GetAttribute("BarrisDeFogo") >= 20, "the market has fire barrels")
+	assert(result.emitters < 120, "too many particle emitters for a phone")
 end
 
 -- Exporta a prévia: peças, superfícies e luzes da versão com janelas.

@@ -149,6 +149,96 @@
       "durationSeconds": 2.32
     },
     {
+      "key": "arma_vespa",
+      "path": "audio/arma_vespa.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "ef30c8c7ad35f6778f8e045147cc92f4a29ecc77c0c00f1cf0e2b635cf88c122",
+      "displayName": "CyberOutlaw arma_vespa",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.45
+    },
+    {
+      "key": "arma_enxame",
+      "path": "audio/arma_enxame.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "5924192a905066063955208fc1064447a618bfb90c74c75238ebd71da57d311d",
+      "displayName": "CyberOutlaw arma_enxame",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.26
+    },
+    {
+      "key": "arma_trovao",
+      "path": "audio/arma_trovao.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "32354b1cdcfece93cc0e3b37bc45346e068b62283ab777155ab58c0af4b48956",
+      "displayName": "CyberOutlaw arma_trovao",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.85
+    },
+    {
+      "key": "arma_agulha",
+      "path": "audio/arma_agulha.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "126d05caa48fd0af250e24a8668abf3cc147c05f21bf1f450a6b2bd180041626",
+      "displayName": "CyberOutlaw arma_agulha",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.55
+    },
+    {
+      "key": "arma_soco",
+      "path": "audio/arma_soco.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "b0b74c959e55f75cd822cdbeab2a09039682bdb18b00bfedf6d57f9f2910bc1a",
+      "displayName": "CyberOutlaw arma_soco",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.3
+    },
+    {
+      "key": "arma_lamina",
+      "path": "audio/arma_lamina.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "d8bf5e37f99ab134c2f9053b93316622c382a9852efd7e9561a12248b92b9c6b",
+      "displayName": "CyberOutlaw arma_lamina",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.45
+    },
+    {
+      "key": "arma_recarga",
+      "path": "audio/arma_recarga.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "1f954991a87775b5ba716d64ef54e33dd8a77cdaaceb04a063c88d7a3c53e45f",
+      "displayName": "CyberOutlaw arma_recarga",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.75
+    },
+    {
+      "key": "arma_vazia",
+      "path": "audio/arma_vazia.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "3b0a0648aaf53afee8d9b405d378808cac4114a3ea756f77fdccede320f68484",
+      "displayName": "CyberOutlaw arma_vazia",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.12
+    },
+    {
+      "key": "arma_troca",
+      "path": "audio/arma_troca.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "f540890785deb01676cbc1d6686f22c90356b5647f522d68a73f5dfc4e4bdb82",
+      "displayName": "CyberOutlaw arma_troca",
+      "description": "Som de arma sintetizado por código, sem amostras.",
+      "durationSeconds": 0.28
+    },
+    {
       "key": "title",
       "path": "art/title.png",
       "assetType": "Image",
@@ -246,6 +336,15 @@
       "sha256": "2d2f70c8e9cde01a9982084bd104593330d4bf7c7f43296a35794a616a3b431b",
       "displayName": "CyberOutlaw fachada_vidro",
       "description": "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "icones_interface",
+      "path": "art/icones_interface.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "959aec81dab270dc891aed5b47bf744c7afd6c3887efa933ad962ce4c70174ef",
+      "displayName": "CyberOutlaw icones_interface",
+      "description": "Ícones 2D das armas e dos botões, desenhados à mão em vetor, sem imagem gerada por IA."
     }
   ]
 }

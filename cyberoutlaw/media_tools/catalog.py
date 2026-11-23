@@ -12,6 +12,9 @@ import warnings
 from . import upload
 
 SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
+# Weapon sounds synthesized by tools/synth_weapon_fx.py. The game runs without sound while they await approval.
+OPTIONAL_SOUNDS = ("arma_vespa", "arma_enxame", "arma_trovao", "arma_agulha", "arma_soco", "arma_lamina",
+                   "arma_recarga", "arma_vazia", "arma_troca")
 ART = {
     "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),
@@ -19,9 +22,11 @@ ART = {
     "facades": (1024, 1024),
     # Janelas da cidade jogável, desenhadas por tools/draw_city_textures.py (sem IA).
     "fachada_residencial": (768, 896), "fachada_escritorio": (768, 896), "fachada_vidro": (768, 896),
+    # 2D icons for the wheel, the weapon card, and the touch buttons (design/icones.py, vector by hand).
+    "icones_interface": (1024, 1024),
 }
 # A cidade usa faixas de luz em geometria enquanto estas imagens aguardam aprovação.
-OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro"})
+OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro", "icones_interface"})
 
 
 def _read(path):
@@ -133,14 +138,16 @@ def resolved_config(root, plan, result, video=None):
         if row and any(row.get(k) != expected[k] for k in ("sha256", "assetType", "contentType")):
             raise ValueError(f"O recibo de {key} pertence a outra versão do arquivo.")
         if not (row.get("status") == "ready" and row.get("moderationState") == "Approved" and row.get("permissionStatus") == "granted"):
-            if key not in OPTIONAL_ART:
+            if key not in OPTIONAL_ART and key not in OPTIONAL_SOUNDS:
                 pending.append(key)
             continue
         selected[key] = _asset_id(row["assetId"], label=key)
     if pending:
         raise ValueError("Mídia aguardando aprovação ou acesso: " + ", ".join(pending))
     sprites = sprite_catalog(root, plan)
-    output = {"sounds": {name: selected[name] for name in SOUNDS}, "clips": {},
+    sounds = {name: selected[name] for name in SOUNDS}
+    sounds.update({name: selected[name] for name in OPTIONAL_SOUNDS if name in selected})
+    output = {"sounds": sounds, "clips": {},
               "art": {name: selected[name] for name in ART if name in selected}}
     for name, clip in sprites["clips"].items():
         output["clips"][name] = {
