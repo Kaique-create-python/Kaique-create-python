@@ -805,6 +805,7 @@ def main(argv=None):
         warnings.simplefilter("error", getpass.GetPassWarning)
         try:
             key = getpass.getpass("Roblox Open Cloud API key (oculta): ")
+            key = "".join(c for c in key if c.isascii() and c.isprintable() and not c.isspace())
         except getpass.GetPassWarning:
             parser.error("Este terminal nao oferece entrada oculta. Abra o Termux diretamente.")
     result = upload_manifest(args.manifest, key, state_dir=args.state_dir, max_polls=args.max_polls)

@@ -541,7 +541,8 @@ def _hidden_key():
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", getpass.GetPassWarning)
-            key = getpass.getpass("Chave Roblox Open Cloud (entrada oculta). ").strip()
+            key = getpass.getpass("Chave Roblox Open Cloud (entrada oculta). ")
+            key = "".join(c for c in key if c.isascii() and c.isprintable() and not c.isspace())
     except (EOFError, getpass.GetPassWarning):
         raise Failure("Use o terminal interativo do Termux para digitar a chave com entrada oculta.") from None
     if not key or not key.isascii() or not key.isprintable() or any(char.isspace() for char in key):

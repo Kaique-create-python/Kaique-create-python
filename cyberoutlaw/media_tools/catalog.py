@@ -99,7 +99,8 @@ def verificar_destino_publico():
 def key_prompt():
     with warnings.catch_warnings():
         warnings.simplefilter("error", getpass.GetPassWarning)
-        result = getpass.getpass("Chave Roblox Open Cloud (oculta): ").strip()
+        result = getpass.getpass("Chave Roblox Open Cloud (oculta): ")
+    result = "".join(c for c in result if c.isascii() and c.isprintable() and not c.isspace())
     if not result:
         raise ValueError("A chave está vazia.")
     return result
