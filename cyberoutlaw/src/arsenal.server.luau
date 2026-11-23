@@ -7,41 +7,63 @@ local SAFE_CENTER = Vector3.new(108, 0, 108) -- Praça da Maré
 local SAFE_RADIUS = 95
 local rgb = Color3.fromRGB
 
--- order defines the wheel: punhos at the top, the rest clockwise.
+-- Armas reais. A ordem define a roleta: punhos no topo, o resto no sentido horário.
+-- tipo: punhos, faca, pistola, smg, fuzil, escopeta, sniper. som: chave do tiro; recarga: chave da recarga;
+-- acao: som da ação depois do tiro (ferrolho/bomba); alcance: braço de apoio até a mão de trás (studs).
 local WEAPONS = {
 	{
-		id = "punhos", name = "Punhos", kind = "melee", order = 1, damage = 12, rate = 2.6, range = 6.5,
-		accent = { 255, 166, 94 }, class = "CORPO A CORPO", desc = "Golpes rápidos. Sempre à mão.",
-		stats = { 0.22, 0.82, 0.08, 1.0 },
+		id = "punhos", name = "Punhos", kind = "melee", tipo = "punhos", order = 1, damage = 12, rate = 2.6, range = 6.5,
+		accent = { 255, 214, 160 }, class = "CORPO A CORPO", desc = "Golpes rápidos. Sempre à mão.",
+		stats = { 0.22, 0.82, 0.08, 1.0 }, som = "arma_soco",
 	},
 	{
-		id = "lamina", name = "Lâmina Térmica", kind = "melee", order = 2, damage = 38, rate = 1.5, range = 8.5,
-		accent = { 255, 72, 92 }, class = "CORPO A CORPO · PLASMA", desc = "Fio aquecido a plasma. Lenta e letal.",
-		stats = { 0.74, 0.46, 0.14, 0.82 }, grip = "frente",
+		id = "faca", name = "Faca de Combate", kind = "melee", tipo = "faca", order = 2, damage = 34, rate = 1.8, range = 7.5,
+		accent = { 255, 214, 160 }, class = "CORPO A CORPO · LÂMINA", desc = "Lâmina de aço com fio serrilhado.",
+		stats = { 0.6, 0.62, 0.12, 0.92 }, grip = "frente", som = "arma_lamina",
 	},
 	{
-		id = "vespa", name = "Pistola Vespa", kind = "gun", order = 3, damage = 24, rate = 5, auto = false, mag = 12,
-		reserve = 96, spread = 1.1, range = 320, pellets = 1, reload = 1.3, recoil = 1.7, fov = 54,
-		accent = { 255, 41, 144 }, class = "ARMA LEVE · SEMIAUTOMÁTICA", desc = "Compacta, precisa e silenciosa no bolso.",
-		stats = { 0.42, 0.5, 0.62, 0.86 },
+		id = "glock", name = "Glock 17", kind = "gun", tipo = "pistola", order = 3, damage = 22, rate = 6, auto = false,
+		mag = 17, reserve = 102, spread = 1.0, range = 300, pellets = 1, reload = 1.3, recoil = 1.5, fov = 54,
+		accent = { 255, 196, 120 }, class = "PISTOLA · 9 MM", desc = "Leve, confiável e com pente de 17 tiros.",
+		stats = { 0.4, 0.62, 0.6, 0.9 }, som = "arma_glock", recarga = "arma_recarga", alcance = 1.85,
 	},
 	{
-		id = "enxame", name = "SMG Enxame", kind = "gun", order = 4, damage = 12, rate = 12, auto = true, mag = 32,
-		reserve = 192, spread = 2.4, range = 220, pellets = 1, reload = 1.7, recoil = 0.9, fov = 52,
-		accent = { 58, 231, 255 }, class = "SUBMETRALHADORA · AUTOMÁTICA", desc = "Rajada contínua para becos fechados.",
-		stats = { 0.3, 0.96, 0.44, 0.58 },
+		id = "deagle", name = "Desert Eagle", kind = "gun", tipo = "pistola", order = 4, damage = 48, rate = 2.4, auto = false,
+		mag = 7, reserve = 42, spread = 0.8, range = 360, pellets = 1, reload = 1.7, recoil = 3.6, fov = 50,
+		accent = { 255, 186, 104 }, class = "PISTOLA · .50 AE", desc = "Pesada e barulhenta. Um tiro resolve.",
+		stats = { 0.8, 0.28, 0.66, 0.72 }, som = "arma_deagle", recarga = "arma_recarga", alcance = 1.85,
 	},
 	{
-		id = "trovao", name = "Escopeta Trovão", kind = "gun", order = 5, damage = 11, rate = 1.25, auto = false, mag = 6,
-		reserve = 36, spread = 6.5, range = 90, pellets = 9, reload = 2.3, recoil = 4.4, fov = 56,
-		accent = { 140, 255, 150 }, class = "ESCOPETA · CARTUCHO", desc = "Nove projéteis de perto. O beco fica em silêncio.",
-		stats = { 0.95, 0.22, 0.18, 0.4 },
+		id = "uzi", name = "Uzi", kind = "gun", tipo = "smg", order = 5, damage = 13, rate = 14, auto = true,
+		mag = 32, reserve = 192, spread = 2.6, range = 200, pellets = 1, reload = 1.6, recoil = 0.9, fov = 52,
+		accent = { 255, 200, 124 }, class = "SUBMETRALHADORA · 9 MM", desc = "Rajada contínua para becos fechados.",
+		stats = { 0.3, 0.98, 0.4, 0.62 }, som = "arma_uzi", recarga = "arma_recarga_fuzil", alcance = 1.95,
 	},
 	{
-		id = "agulha", name = "Fuzil Agulha", kind = "gun", order = 6, damage = 21, rate = 8, auto = true, mag = 28,
-		reserve = 140, spread = 0.7, range = 480, pellets = 1, reload = 2.0, recoil = 1.3, fov = 44,
-		accent = { 180, 86, 250 }, class = "FUZIL · AUTOMÁTICO", desc = "Mira estável e alcance de telhado a telhado.",
-		stats = { 0.62, 0.74, 0.95, 0.7 },
+		id = "ak47", name = "AK-47", kind = "gun", tipo = "fuzil", order = 6, damage = 26, rate = 9.5, auto = true,
+		mag = 30, reserve = 150, spread = 1.1, range = 460, pellets = 1, reload = 2.2, recoil = 1.8, fov = 46,
+		accent = { 255, 178, 96 }, class = "FUZIL · 7,62 MM", desc = "Robusto, potente e com coice forte.",
+		stats = { 0.7, 0.78, 0.86, 0.6 }, som = "arma_ak47", recarga = "arma_recarga_fuzil", alcance = 2.5,
+	},
+	{
+		id = "m4", name = "M4A1", kind = "gun", tipo = "fuzil", order = 7, damage = 22, rate = 11, auto = true,
+		mag = 30, reserve = 180, spread = 0.8, range = 480, pellets = 1, reload = 2.0, recoil = 1.2, fov = 46,
+		accent = { 255, 196, 120 }, class = "FUZIL · 5,56 MM", desc = "Estável e precisa, com mira holográfica.",
+		stats = { 0.6, 0.86, 0.92, 0.7 }, som = "arma_m4", recarga = "arma_recarga_fuzil", alcance = 2.45,
+	},
+	{
+		id = "escopeta", name = "Escopeta Pump", kind = "gun", tipo = "escopeta", order = 8, damage = 11, rate = 1.1,
+		auto = false, mag = 8, reserve = 40, spread = 6.0, range = 90, pellets = 9, reload = 2.6, recoil = 4.4, fov = 56,
+		accent = { 255, 186, 104 }, class = "ESCOPETA · CALIBRE 12", desc = "Nove bagos de perto. Bombeia a cada tiro.",
+		stats = { 0.96, 0.2, 0.18, 0.46 }, som = "arma_escopeta", recarga = "arma_recarga_escopeta",
+		acao = "arma_bomba", alcance = 2.65,
+	},
+	{
+		id = "sniper", name = "Sniper .308", kind = "gun", tipo = "sniper", order = 9, damage = 95, rate = 0.8,
+		auto = false, mag = 5, reserve = 30, spread = 0.05, range = 900, pellets = 1, reload = 2.8, recoil = 5, fov = 18,
+		accent = { 255, 196, 120 }, class = "RIFLE DE PRECISÃO · FERROLHO", desc = "Luneta 8x. Um disparo por vez.",
+		stats = { 1.0, 0.1, 1.0, 0.34 }, som = "arma_sniper", recarga = "arma_recarga_fuzil", acao = "arma_ferrolho",
+		alcance = 2.75, luneta = true,
 	},
 }
 local BY_ID = {}
@@ -101,13 +123,23 @@ local function newState()
 end
 
 -- Models ----------------------------------------------------------------------------------------
--- Weapon space: origin at the grip, -Z is the barrel direction, +Y is up.
+-- Weapon space: -Z is the barrel direction, +Y is up. The grip core (PrimaryPart, no rotation) sits in
+-- the hand; every other piece is welded to it. Real weapons at about 1.5x scale, without neon.
+local STEEL = rgb(44, 45, 50)
+local STEEL_DARK = rgb(22, 22, 25)
+local STEEL_BARE = rgb(150, 152, 158)
+local CHROME = rgb(182, 184, 190)
+local POLY = rgb(31, 32, 36)
+local RUBBER = rgb(18, 18, 20)
+local WOOD = rgb(126, 70, 36)
+local WOOD_DARK = rgb(92, 50, 26)
+local OLIVE = rgb(84, 88, 64)
+local LEATHER = rgb(58, 40, 30)
+
 local function buildModel(def)
 	local model = Instance.new("Model")
 	model.Name = def.id
-	local accent = rgb(def.accent[1], def.accent[2], def.accent[3])
-	local body, dark, light = rgb(46, 50, 60), rgb(20, 22, 28), rgb(120, 126, 138)
-	local metal, neon, smooth = Enum.Material.Metal, Enum.Material.Neon, Enum.Material.SmoothPlastic
+	local Metal, Plastic, Wood = Enum.Material.Metal, Enum.Material.SmoothPlastic, Enum.Material.Wood
 	local grip
 	local function part(name: string, size: Vector3, pose: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?)
 		local p = Instance.new("Part")
@@ -116,7 +148,7 @@ local function buildModel(def)
 		p.Size = size
 		p.CFrame = pose
 		p.Color = color
-		p.Material = material or metal
+		p.Material = material or Metal
 		p.Anchored = true
 		p.CanCollide = false
 		p.CanQuery = false
@@ -134,106 +166,268 @@ local function buildModel(def)
 		end
 		return p
 	end
-	local function tube(name, diameter, length, center: Vector3, color, material)
-		return part(name, Vector3.new(length, diameter, diameter), CFrame.new(center) * CFrame.Angles(0, math.pi / 2, 0),
+	local function angles(rx: number?, ry: number?, rz: number?)
+		return CFrame.Angles(math.rad(rx or 0), math.rad(ry or 0), math.rad(rz or 0))
+	end
+	local function box(name, sx, sy, sz, x, y, z, color, material, rx, ry, rz)
+		return part(name, Vector3.new(sx, sy, sz), CFrame.new(x, y, z) * angles(rx, ry, rz), color, material)
+	end
+	-- Roblox wedge: tall at +Z, sloping down to the front (-Z) bottom edge.
+	local function wedge(name, sx, sy, sz, x, y, z, color, material, rx, ry, rz)
+		return part(name, Vector3.new(sx, sy, sz), CFrame.new(x, y, z) * angles(rx, ry, rz), color, material, Enum.PartType.Wedge)
+	end
+	local function tube(name, diameter, length, x, y, z, color, material) -- along Z
+		return part(name, Vector3.new(length, diameter, diameter), CFrame.new(x, y, z) * CFrame.Angles(0, math.pi / 2, 0),
 			color, material, Enum.PartType.Cylinder)
 	end
-	local function at(x, y, z)
-		return CFrame.new(x, y, z)
+	local function post(name, diameter, length, x, y, z, color, material) -- along Y
+		return part(name, Vector3.new(length, diameter, diameter), CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.pi / 2),
+			color, material, Enum.PartType.Cylinder)
 	end
-	local tilt = CFrame.Angles(math.rad(-14), 0, 0)
+	local function ball(name, diameter, x, y, z, color, material)
+		return part(name, Vector3.new(diameter, diameter, diameter), CFrame.new(x, y, z), color, material, Enum.PartType.Ball)
+	end
+	local function core(sx, sy, sz, color, material)
+		grip = part("Empunhadura", Vector3.new(sx, sy, sz), CFrame.identity, color, material)
+		return grip
+	end
+	-- Curved magazine: segments that bend forward (+angle) as they go down.
+	local function curvedMag(name, width, depth, y, z, segments, color, material)
+		local angle, center = segments[1][2], Vector3.new(0, y, z)
+		for index, segment in segments do
+			local length, bend = segment[1], segment[2]
+			if index > 1 then
+				local previous = segments[index - 1]
+				local a, b = math.rad(previous[2]), math.rad(bend)
+				center += Vector3.new(0, -math.cos(a), -math.sin(a)) * previous[1] / 2
+				center += Vector3.new(0, -math.cos(b), -math.sin(b)) * length / 2
+			end
+			angle = bend
+			box(name, width, length, depth, 0, center.Y, center.Z, color, material, bend)
+		end
+		local last = segments[#segments]
+		local a = math.rad(angle)
+		local tip = center + Vector3.new(0, -math.cos(a), -math.sin(a)) * (last[1] / 2 + 0.015)
+		box("Base do carregador", width + 0.02, 0.03, depth + 0.02, 0, tip.Y, tip.Z, STEEL_DARK, Metal, angle)
+	end
 	local muzzle
-	if def.id == "punhos" then
-		-- Combat glove, used only as an icon in the wheel and the HUD.
-		grip = part("Empunhadura", Vector3.new(0.6, 0.62, 0.5), at(0, 0, 0), rgb(34, 36, 46), smooth)
-		part("Dedos fechados", Vector3.new(0.62, 0.5, 0.24), at(0, 0.02, -0.34), rgb(28, 30, 38), smooth)
+	local id = def.id
+	if id == "punhos" then
+		-- Fingerless tactical glove, used only as an icon in the wheel and the HUD.
+		core(0.6, 0.62, 0.5, rgb(36, 36, 40), Enum.Material.Fabric)
+		box("Dedos fechados", 0.62, 0.5, 0.24, 0, 0.02, -0.34, rgb(30, 30, 34), Enum.Material.Fabric)
 		for index = 0, 2 do
-			part("Vão dos dedos", Vector3.new(0.64, 0.025, 0.25), at(0, -0.16 + index * 0.13, -0.34), rgb(12, 12, 18), smooth)
+			box("Vão dos dedos", 0.64, 0.025, 0.25, 0, -0.16 + index * 0.13, -0.34, rgb(12, 12, 14), Plastic)
 		end
-		part("Nós de néon", Vector3.new(0.64, 0.08, 0.26), at(0, 0.27, -0.34), accent, neon)
-		part("Polegar", Vector3.new(0.18, 0.2, 0.38), at(0.36, -0.08, -0.2) * CFrame.Angles(0, math.rad(-18), 0), rgb(28, 30, 38), smooth)
-		part("Punho da luva", Vector3.new(0.68, 0.32, 0.58), at(0, -0.46, 0.02), body)
-		part("Anel do punho", Vector3.new(0.7, 0.07, 0.6), at(0, -0.36, 0.02), accent, neon)
+		box("Protetor dos nós", 0.64, 0.12, 0.27, 0, 0.27, -0.34, STEEL_DARK, Plastic)
+		box("Polegar", 0.18, 0.2, 0.38, 0.36, -0.08, -0.2, rgb(30, 30, 34), Enum.Material.Fabric, 0, -18)
+		box("Punho da luva", 0.68, 0.32, 0.58, 0, -0.46, 0.02, rgb(48, 48, 52), Enum.Material.Fabric)
+		box("Velcro", 0.7, 0.09, 0.6, 0, -0.36, 0.02, rgb(26, 26, 30), Enum.Material.Fabric)
 		muzzle = Vector3.new(0, 0, -0.5)
-	elseif def.id == "lamina" then
-		grip = part("Empunhadura", Vector3.new(0.24, 0.24, 0.95), at(0, 0, 0.3), dark, smooth)
+	elseif id == "faca" then
+		-- Combat knife (clip point), held with the blade forward.
+		core(0.12, 0.15, 0.2, LEATHER, Enum.Material.Fabric)
+		box("Cabo", 0.12, 0.15, 0.44, 0, 0, 0.02, LEATHER, Enum.Material.Fabric)
 		for index = 0, 3 do
-			part("Fita do cabo", Vector3.new(0.26, 0.26, 0.06), at(0, 0, 0.0 + index * 0.2), body)
+			box("Anel do cabo", 0.13, 0.16, 0.02, 0, 0, -0.16 + index * 0.1, rgb(34, 24, 18), Enum.Material.Fabric)
 		end
-		part("Guarda", Vector3.new(0.7, 0.16, 0.16), at(0, 0, -0.22), body)
-		part("Núcleo da guarda", Vector3.new(0.72, 0.06, 0.18), at(0, 0, -0.22), accent, neon)
-		part("Pomo", Vector3.new(0.3, 0.3, 0.2), at(0, 0, 0.84), light)
-		part("Lâmina", Vector3.new(0.07, 0.26, 2.7), at(0, 0.02, -1.62), rgb(255, 236, 214), neon)
-		-- Chisel tip: the wedge tapers toward -Z.
-		part("Ponta", Vector3.new(0.07, 0.26, 0.46), at(0, 0.02, -3.2), rgb(255, 236, 214), neon, Enum.PartType.Wedge)
-		local glow = part("Brilho térmico", Vector3.new(0.12, 0.36, 2.9), at(0, 0.02, -1.72), accent, neon)
-		glow.Transparency = 0.66
-		part("Dorso da lâmina", Vector3.new(0.1, 0.07, 2.7), at(0, 0.18, -1.62), body)
-		muzzle = Vector3.new(0, 0, -3.4)
-	elseif def.id == "vespa" then
-		grip = part("Empunhadura", Vector3.new(0.3, 0.74, 0.4), at(0, -0.12, 0.24) * tilt, dark)
-		part("Ferrolho", Vector3.new(0.34, 0.36, 1.5), at(0, 0.38, -0.26), body)
-		part("Faixa do ferrolho", Vector3.new(0.36, 0.06, 1.22), at(0, 0.46, -0.24), accent, neon)
-		part("Armação", Vector3.new(0.3, 0.2, 1.1), at(0, 0.14, -0.2), dark)
-		tube("Cano", 0.2, 0.3, Vector3.new(0, 0.36, -1.1), light)
-		part("Guarda-mato", Vector3.new(0.06, 0.2, 0.34), at(0, -0.02, -0.06), dark)
-		part("Mira traseira", Vector3.new(0.14, 0.08, 0.08), at(0, 0.6, 0.4), accent, neon)
-		part("Mira frontal", Vector3.new(0.06, 0.08, 0.06), at(0, 0.6, -0.92), accent, neon)
-		part("Base do carregador", Vector3.new(0.34, 0.1, 0.44), at(0, -0.52, 0.32), body)
-		part("Célula de energia", Vector3.new(0.32, 0.22, 0.12), at(0, -0.1, 0.42), accent, neon)
-		muzzle = Vector3.new(0, 0.36, -1.28)
-	elseif def.id == "enxame" then
-		grip = part("Empunhadura", Vector3.new(0.3, 0.7, 0.36), at(0, -0.2, 0.36) * tilt, dark)
-		part("Corpo", Vector3.new(0.38, 0.5, 1.8), at(0, 0.3, -0.2), body)
-		part("Trilho superior", Vector3.new(0.16, 0.08, 1.4), at(0, 0.59, -0.2), dark)
-		part("Faixa lateral", Vector3.new(0.4, 0.07, 1.5), at(0, 0.44, -0.2), accent, neon)
-		part("Tela de munição", Vector3.new(0.4, 0.16, 0.32), at(0, 0.2, 0.18), accent, neon)
-		part("Guarda-mão", Vector3.new(0.32, 0.32, 0.62), at(0, 0.32, -1.36), dark)
-		tube("Cano", 0.18, 0.4, Vector3.new(0, 0.32, -1.85), light)
-		part("Empunhadura frontal", Vector3.new(0.2, 0.46, 0.22), at(0, -0.05, -1.05), dark)
-		part("Carregador", Vector3.new(0.24, 0.9, 0.3), at(0, -0.42, -0.55) * CFrame.Angles(math.rad(8), 0, 0), body)
-		part("Coronha curta", Vector3.new(0.2, 0.32, 0.62), at(0, 0.26, 0.98), dark)
-		muzzle = Vector3.new(0, 0.32, -2.05)
-	elseif def.id == "trovao" then
-		grip = part("Empunhadura", Vector3.new(0.3, 0.72, 0.38), at(0, -0.22, 0.36) * tilt, dark)
-		part("Receptor", Vector3.new(0.42, 0.56, 1.3), at(0, 0.3, 0), body)
-		part("Indicador de cartuchos", Vector3.new(0.44, 0.1, 0.62), at(0, 0.36, 0.02), accent, neon)
-		tube("Cano", 0.3, 2.0, Vector3.new(0, 0.42, -1.62), light)
-		tube("Tubo de munição", 0.24, 1.6, Vector3.new(0, 0.12, -1.42), dark)
-		part("Bomba", Vector3.new(0.42, 0.38, 0.62), at(0, 0.12, -1.22), dark)
-		part("Anel da bomba", Vector3.new(0.44, 0.06, 0.4), at(0, 0.28, -1.22), accent, neon)
-		part("Coronha", Vector3.new(0.32, 0.56, 1.1), at(0, 0.16, 1.16), dark)
-		part("Linha da coronha", Vector3.new(0.34, 0.05, 0.9), at(0, 0.3, 1.16), accent, neon)
-		tube("Freio de boca", 0.36, 0.18, Vector3.new(0, 0.42, -2.58), accent, neon)
-		muzzle = Vector3.new(0, 0.42, -2.7)
-	else -- agulha
-		grip = part("Empunhadura", Vector3.new(0.3, 0.7, 0.38), at(0, -0.2, 0.3) * tilt, dark)
-		part("Receptor", Vector3.new(0.4, 0.56, 1.8), at(0, 0.3, -0.1), body)
-		part("Faixa do receptor", Vector3.new(0.42, 0.06, 1.6), at(0, 0.44, -0.1), accent, neon)
-		part("Guarda-mão", Vector3.new(0.36, 0.42, 1.1), at(0, 0.32, -1.36), dark)
+		box("Pomo", 0.14, 0.17, 0.06, 0, 0, 0.27, STEEL_DARK, Metal)
+		box("Guarda", 0.1, 0.32, 0.04, 0, 0, -0.22, STEEL_DARK, Metal)
+		box("Lâmina", 0.035, 0.24, 0.74, 0, -0.01, -0.61, rgb(172, 176, 182), Metal)
+		box("Fio", 0.03, 0.05, 0.74, 0, -0.11, -0.61, rgb(214, 218, 224), Metal)
+		box("Dorso", 0.04, 0.03, 0.52, 0, 0.105, -0.5, rgb(96, 98, 104), Metal)
+		box("Sulco", 0.04, 0.03, 0.42, 0, 0.03, -0.52, rgb(120, 124, 130), Metal)
+		wedge("Ponta", 0.035, 0.24, 0.3, 0, -0.01, -1.13, rgb(172, 176, 182), Metal)
+		muzzle = Vector3.new(0, -0.12, -1.28)
+	elseif id == "glock" then
+		core(0.12, 0.3, 0.16, POLY, Plastic)
+		box("Cabo", 0.15, 0.5, 0.27, 0, -0.04, 0.03, POLY, Plastic, -18)
+		box("Base do carregador", 0.17, 0.04, 0.29, 0, -0.29, 0.11, STEEL_DARK, Plastic, -18)
+		box("Armação", 0.15, 0.1, 0.8, 0, 0.22, -0.2, POLY, Plastic)
 		for index = 0, 2 do
-			part("Fenda de ventilação", Vector3.new(0.38, 0.06, 0.22), at(0, 0.38, -1.0 - index * 0.32), accent, neon)
+			box("Trilho", 0.155, 0.02, 0.025, 0, 0.165, -0.4 - index * 0.07, STEEL_DARK, Plastic)
 		end
-		tube("Cano", 0.16, 1.8, Vector3.new(0, 0.36, -2.0), light)
-		tube("Luneta", 0.3, 1.0, Vector3.new(0, 0.82, -0.22), dark)
-		tube("Lente", 0.32, 0.06, Vector3.new(0, 0.82, -0.74), rgb(58, 231, 255), neon)
-		part("Base da luneta", Vector3.new(0.14, 0.2, 0.5), at(0, 0.62, -0.22), dark)
-		part("Carregador", Vector3.new(0.26, 0.82, 0.36), at(0, -0.36, -0.46) * CFrame.Angles(math.rad(12), 0, 0), body)
-		part("Coronha", Vector3.new(0.3, 0.6, 1.3), at(0, 0.2, 1.36), dark)
-		part("Apoio de ombro", Vector3.new(0.34, 0.7, 0.14), at(0, 0.18, 2.02), body)
-		muzzle = Vector3.new(0, 0.36, -2.92)
+		box("Guarda-mato", 0.06, 0.16, 0.05, 0, 0.1, -0.24, POLY, Plastic)
+		box("Guarda-mato inferior", 0.06, 0.04, 0.26, 0, 0.03, -0.12, POLY, Plastic)
+		box("Gatilho", 0.04, 0.12, 0.04, 0, 0.12, -0.09, STEEL_DARK, Metal, 10)
+		box("Ferrolho", 0.155, 0.22, 1.1, 0, 0.38, -0.27, STEEL, Metal)
+		box("Topo do ferrolho", 0.12, 0.02, 1.08, 0, 0.495, -0.27, STEEL, Metal)
+		box("Janela de ejeção", 0.07, 0.015, 0.2, 0.03, 0.5, -0.07, STEEL_BARE, Metal)
+		for index = 0, 5 do
+			box("Serrilha", 0.16, 0.15, 0.012, 0, 0.38, 0.22 - index * 0.032, STEEL_DARK, Metal)
+		end
+		tube("Boca", 0.07, 0.02, 0, 0.4, -0.825, STEEL_DARK, Metal)
+		box("Mira frontal", 0.03, 0.045, 0.04, 0, 0.51, -0.76, STEEL_DARK, Metal)
+		box("Mira traseira E", 0.04, 0.045, 0.04, -0.04, 0.51, 0.22, STEEL_DARK, Metal)
+		box("Mira traseira D", 0.04, 0.045, 0.04, 0.04, 0.51, 0.22, STEEL_DARK, Metal)
+		muzzle = Vector3.new(0, 0.4, -0.85)
+	elseif id == "deagle" then
+		core(0.12, 0.3, 0.16, RUBBER, Plastic)
+		box("Cabo", 0.17, 0.56, 0.3, 0, -0.05, 0.04, RUBBER, Plastic, -16)
+		box("Base do carregador", 0.18, 0.04, 0.31, 0, -0.33, 0.12, CHROME, Metal, -16)
+		box("Armação", 0.17, 0.12, 0.62, 0, 0.24, -0.08, CHROME, Metal)
+		box("Guarda-mato", 0.06, 0.15, 0.05, 0, 0.11, -0.27, CHROME, Metal)
+		box("Guarda-mato inferior", 0.06, 0.04, 0.28, 0, 0.035, -0.14, CHROME, Metal)
+		box("Gatilho", 0.04, 0.12, 0.04, 0, 0.13, -0.1, STEEL_DARK, Metal, 10)
+		box("Ferrolho", 0.18, 0.22, 0.62, 0, 0.41, 0.06, CHROME, Metal)
+		for index = 0, 4 do
+			box("Serrilha", 0.185, 0.16, 0.015, 0, 0.41, 0.3 - index * 0.04, rgb(104, 106, 112), Metal)
+		end
+		box("Cano", 0.2, 0.18, 1.0, 0, 0.47, -0.62, CHROME, Metal)
+		box("Cano inferior", 0.14, 0.1, 1.0, 0, 0.33, -0.62, CHROME, Metal)
+		box("Canal do topo", 0.06, 0.02, 0.95, 0, 0.565, -0.6, STEEL_DARK, Metal)
+		tube("Boca", 0.09, 0.02, 0, 0.46, -1.125, STEEL_DARK, Metal)
+		box("Mira frontal", 0.04, 0.05, 0.06, 0, 0.59, -1.05, STEEL_DARK, Metal)
+		box("Mira traseira E", 0.04, 0.05, 0.05, -0.05, 0.545, 0.33, STEEL_DARK, Metal)
+		box("Mira traseira D", 0.04, 0.05, 0.05, 0.05, 0.545, 0.33, STEEL_DARK, Metal)
+		box("Cão", 0.06, 0.1, 0.06, 0, 0.47, 0.4, STEEL_DARK, Metal, 20)
+		muzzle = Vector3.new(0, 0.46, -1.15)
+	elseif id == "uzi" then
+		core(0.12, 0.3, 0.16, POLY, Plastic)
+		box("Cabo", 0.18, 0.58, 0.26, 0, -0.08, 0, POLY, Plastic, -8)
+		box("Carregador", 0.14, 0.4, 0.2, 0, -0.52, 0.06, STEEL, Metal, -8)
+		box("Base do carregador", 0.15, 0.03, 0.21, 0, -0.735, 0.09, STEEL_DARK, Metal, -8)
+		box("Receptor", 0.3, 0.34, 1.12, 0, 0.38, -0.2, STEEL, Metal)
+		box("Nervura superior", 0.31, 0.03, 0.9, 0, 0.45, -0.25, STEEL_DARK, Metal)
+		box("Nervura inferior", 0.31, 0.03, 0.9, 0, 0.3, -0.25, STEEL_DARK, Metal)
+		box("Manopla", 0.08, 0.06, 0.1, 0, 0.58, -0.3, STEEL_DARK, Metal)
+		box("Mira traseira E", 0.05, 0.1, 0.06, -0.1, 0.6, 0.28, STEEL_DARK, Metal)
+		box("Mira traseira D", 0.05, 0.1, 0.06, 0.1, 0.6, 0.28, STEEL_DARK, Metal)
+		box("Proteção da mira E", 0.03, 0.1, 0.06, -0.08, 0.6, -0.7, STEEL_DARK, Metal)
+		box("Proteção da mira D", 0.03, 0.1, 0.06, 0.08, 0.6, -0.7, STEEL_DARK, Metal)
+		box("Mira frontal", 0.03, 0.08, 0.03, 0, 0.59, -0.7, STEEL_DARK, Metal)
+		tube("Porca do cano", 0.16, 0.06, 0, 0.36, -0.79, STEEL, Metal)
+		tube("Cano", 0.1, 0.2, 0, 0.36, -0.92, STEEL_DARK, Metal)
+		box("Guarda-mão", 0.26, 0.1, 0.42, 0, 0.16, -0.48, POLY, Plastic)
+		box("Guarda-mato", 0.06, 0.17, 0.05, 0, 0.12, -0.32, STEEL, Metal)
+		box("Guarda-mato inferior", 0.06, 0.04, 0.22, 0, 0.04, -0.21, STEEL, Metal)
+		box("Gatilho", 0.04, 0.12, 0.04, 0, 0.14, -0.16, STEEL_DARK, Metal, 10)
+		box("Dobradiça da coronha", 0.26, 0.1, 0.08, 0, 0.3, 0.4, STEEL_DARK, Metal)
+		box("Coronha dobrada E", 0.03, 0.04, 0.72, -0.165, 0.27, 0.04, STEEL_DARK, Metal)
+		box("Coronha dobrada D", 0.03, 0.04, 0.72, 0.165, 0.27, 0.04, STEEL_DARK, Metal)
+		muzzle = Vector3.new(0, 0.36, -1.03)
+	elseif id == "ak47" then
+		core(0.12, 0.3, 0.16, WOOD_DARK, Wood)
+		box("Cabo", 0.15, 0.44, 0.22, 0, -0.04, 0.05, WOOD_DARK, Wood, -20)
+		box("Receptor", 0.2, 0.26, 1.1, 0, 0.32, -0.2, STEEL, Metal)
+		tube("Tampa", 0.17, 1.0, 0, 0.43, -0.16, STEEL, Metal)
+		box("Encaixe da coronha", 0.18, 0.22, 0.1, 0, 0.34, 0.4, STEEL, Metal)
+		box("Coronha", 0.17, 0.3, 0.95, 0, 0.26, 0.92, WOOD, Wood, 7)
+		wedge("Queda da coronha", 0.17, 0.16, 0.8, 0, 0.06, 1.0, WOOD, Wood, 7, 0, 180)
+		box("Soleira", 0.18, 0.42, 0.05, 0, 0.17, 1.4, STEEL_DARK, Metal, 7)
+		box("Guarda-mão inferior", 0.2, 0.2, 0.62, 0, 0.27, -1.08, WOOD, Wood)
+		box("Guarda-mão superior", 0.15, 0.11, 0.58, 0, 0.43, -1.06, WOOD, Wood)
+		box("Anel do guarda-mão", 0.21, 0.24, 0.04, 0, 0.33, -1.41, STEEL, Metal)
+		box("Alça de mira", 0.16, 0.12, 0.16, 0, 0.43, -0.8, STEEL, Metal)
+		box("Folha da mira", 0.1, 0.03, 0.18, 0, 0.5, -0.78, STEEL_DARK, Metal)
+		box("Bloco de gases", 0.12, 0.14, 0.1, 0, 0.4, -1.45, STEEL, Metal)
+		tube("Cano", 0.085, 0.66, 0, 0.29, -1.71, STEEL_DARK, Metal)
+		box("Base da massa", 0.09, 0.18, 0.1, 0, 0.36, -1.88, STEEL, Metal)
+		box("Massa de mira", 0.025, 0.08, 0.025, 0, 0.48, -1.88, STEEL_DARK, Metal)
+		box("Orelha E", 0.015, 0.09, 0.06, -0.04, 0.47, -1.88, STEEL_DARK, Metal)
+		box("Orelha D", 0.015, 0.09, 0.06, 0.04, 0.47, -1.88, STEEL_DARK, Metal)
+		tube("Freio de boca", 0.1, 0.12, 0, 0.29, -2.09, STEEL_DARK, Metal)
+		curvedMag("Carregador", 0.13, 0.25, 0.06, -0.49, { { 0.3, 8 }, { 0.3, 22 }, { 0.26, 36 } }, rgb(40, 38, 36), Metal)
+		box("Guarda-mato", 0.05, 0.03, 0.3, 0, 0.1, -0.2, STEEL, Metal)
+		box("Gatilho", 0.04, 0.1, 0.04, 0, 0.14, -0.14, STEEL_DARK, Metal, 10)
+		box("Seletor", 0.02, 0.05, 0.36, 0.105, 0.36, -0.15, STEEL_DARK, Metal)
+		box("Manopla", 0.08, 0.05, 0.06, 0.13, 0.38, -0.62, STEEL_DARK, Metal)
+		muzzle = Vector3.new(0, 0.29, -2.16)
+	elseif id == "m4" then
+		core(0.12, 0.3, 0.16, POLY, Plastic)
+		box("Cabo", 0.15, 0.44, 0.22, 0, -0.04, 0.06, POLY, Plastic, -22)
+		box("Receptor inferior", 0.18, 0.2, 0.8, 0, 0.27, -0.1, STEEL, Metal)
+		box("Poço do carregador", 0.18, 0.14, 0.26, 0, 0.12, -0.4, STEEL, Metal)
+		curvedMag("Carregador", 0.12, 0.24, -0.12, -0.44, { { 0.34, 6 }, { 0.24, 14 } }, STEEL, Metal)
+		box("Receptor superior", 0.18, 0.2, 0.82, 0, 0.47, -0.12, STEEL, Metal)
+		box("Trilho", 0.11, 0.04, 0.8, 0, 0.59, -0.12, STEEL_DARK, Metal)
+		for index = 0, 3 do
+			box("Ranhura do trilho", 0.12, 0.02, 0.03, 0, 0.615, 0.2 - index * 0.2, STEEL, Metal)
+		end
+		box("Alavanca de manejo", 0.14, 0.05, 0.08, 0, 0.53, 0.32, STEEL_DARK, Metal)
+		part("Assistente", Vector3.new(0.12, 0.07, 0.07), CFrame.new(0.11, 0.5, 0.12) * CFrame.Angles(0, math.pi / 2, 0),
+			STEEL_DARK, Metal, Enum.PartType.Cylinder)
+		box("Tampa de ejeção", 0.01, 0.07, 0.18, 0.095, 0.47, -0.1, rgb(64, 66, 72), Metal)
+		tube("Tubo do amortecedor", 0.13, 0.55, 0, 0.46, 0.55, STEEL, Metal)
+		box("Coronha", 0.16, 0.3, 0.5, 0, 0.38, 0.98, POLY, Plastic)
+		box("Soleira", 0.17, 0.36, 0.06, 0, 0.36, 1.25, RUBBER, Plastic)
+		box("Guarda-mão", 0.2, 0.2, 0.78, 0, 0.44, -0.93, STEEL, Metal)
+		box("Trilho de cima", 0.08, 0.03, 0.78, 0, 0.555, -0.93, STEEL_DARK, Metal)
+		box("Trilho de baixo", 0.08, 0.03, 0.78, 0, 0.325, -0.93, STEEL_DARK, Metal)
+		box("Trilho E", 0.03, 0.08, 0.78, -0.115, 0.44, -0.93, STEEL_DARK, Metal)
+		box("Trilho D", 0.03, 0.08, 0.78, 0.115, 0.44, -0.93, STEEL_DARK, Metal)
+		box("Base da massa", 0.09, 0.18, 0.08, 0, 0.55, -1.38, STEEL, Metal)
+		box("Massa de mira", 0.025, 0.08, 0.025, 0, 0.68, -1.38, STEEL_DARK, Metal)
+		tube("Cano", 0.08, 0.5, 0, 0.44, -1.56, STEEL_DARK, Metal)
+		tube("Quebra-chamas", 0.1, 0.12, 0, 0.44, -1.86, STEEL_DARK, Metal)
+		box("Base da mira", 0.08, 0.08, 0.14, 0, 0.64, -0.1, STEEL_DARK, Metal)
+		tube("Mira de ponto", 0.16, 0.26, 0, 0.72, -0.1, STEEL, Metal)
+		local lens = tube("Lente", 0.13, 0.01, 0, 0.72, -0.235, rgb(70, 130, 170), Enum.Material.Glass)
+		lens.Transparency = 0.25
+		box("Guarda-mato", 0.05, 0.03, 0.26, 0, 0.12, -0.16, STEEL, Metal)
+		box("Gatilho", 0.04, 0.1, 0.04, 0, 0.16, -0.12, STEEL_DARK, Metal, 10)
+		muzzle = Vector3.new(0, 0.44, -1.93)
+	elseif id == "escopeta" then
+		core(0.12, 0.3, 0.16, POLY, Plastic)
+		box("Punho", 0.15, 0.34, 0.24, 0, 0.03, 0.1, POLY, Plastic, -30)
+		box("Coronha", 0.15, 0.24, 1.05, 0, 0.27, 0.98, POLY, Plastic, 5)
+		wedge("Queda da coronha", 0.15, 0.2, 0.9, 0, 0.06, 1.08, POLY, Plastic, 5, 0, 180)
+		box("Soleira", 0.17, 0.44, 0.06, 0, 0.17, 1.52, RUBBER, Plastic, 5)
+		box("Receptor", 0.2, 0.32, 0.92, 0, 0.38, -0.12, STEEL, Metal)
+		box("Janela de ejeção", 0.01, 0.1, 0.3, 0.1, 0.44, -0.2, STEEL_DARK, Metal)
+		box("Guarda-mato", 0.05, 0.03, 0.28, 0, 0.16, -0.1, STEEL, Metal)
+		box("Gatilho", 0.04, 0.1, 0.04, 0, 0.2, -0.06, STEEL_DARK, Metal, 10)
+		tube("Cano", 0.12, 2.0, 0, 0.47, -1.58, STEEL, Metal)
+		tube("Tubo de cartuchos", 0.11, 1.75, 0, 0.31, -1.45, STEEL, Metal)
+		box("Abraçadeira", 0.14, 0.3, 0.05, 0, 0.39, -2.3, STEEL_DARK, Metal)
+		tube("Tampa do tubo", 0.13, 0.06, 0, 0.31, -2.35, STEEL_DARK, Metal)
+		box("Telha da bomba", 0.21, 0.2, 0.62, 0, 0.3, -1.1, POLY, Plastic)
+		for index = 0, 4 do
+			box("Sulco da bomba", 0.22, 0.21, 0.025, 0, 0.3, -0.86 - index * 0.12, STEEL_DARK, Plastic)
+		end
+		ball("Massa", 0.04, 0, 0.545, -2.52, STEEL_BARE, Metal)
+		muzzle = Vector3.new(0, 0.47, -2.6)
+	else -- sniper
+		core(0.12, 0.3, 0.16, OLIVE, Plastic)
+		box("Cabo", 0.16, 0.42, 0.24, 0, -0.02, 0.06, OLIVE, Plastic, -16)
+		box("Coronha", 0.18, 0.32, 1.25, 0, 0.26, 1.02, OLIVE, Plastic)
+		wedge("Queda da coronha", 0.18, 0.18, 1.0, 0, 0.01, 1.12, OLIVE, Plastic, 0, 0, 180)
+		box("Apoio de rosto", 0.14, 0.1, 0.55, 0, 0.46, 0.98, OLIVE, Plastic)
+		box("Soleira", 0.19, 0.5, 0.06, 0, 0.2, 1.67, RUBBER, Plastic)
+		box("Telha", 0.2, 0.22, 1.3, 0, 0.28, -0.85, OLIVE, Plastic)
+		tube("Ação", 0.2, 0.95, 0, 0.47, -0.12, STEEL, Metal)
+		tube("Ferrolho", 0.07, 0.3, 0, 0.5, 0.3, STEEL_BARE, Metal)
+		box("Alavanca do ferrolho", 0.22, 0.03, 0.03, 0.13, 0.47, 0.12, STEEL_DARK, Metal, 0, 0, -25)
+		ball("Bola do ferrolho", 0.08, 0.24, 0.42, 0.12, STEEL_DARK, Metal)
+		box("Carregador", 0.13, 0.18, 0.3, 0, 0.1, -0.36, STEEL, Metal)
+		box("Guarda-mato", 0.05, 0.03, 0.22, 0, 0.12, -0.08, STEEL, Metal)
+		box("Gatilho", 0.04, 0.1, 0.04, 0, 0.18, -0.04, STEEL_DARK, Metal, 10)
+		tube("Cano", 0.12, 1.95, 0, 0.45, -1.55, STEEL, Metal)
+		tube("Freio de boca", 0.16, 0.18, 0, 0.45, -2.62, STEEL_DARK, Metal)
+		tube("Luneta", 0.15, 0.85, 0, 0.78, -0.1, STEEL_DARK, Metal)
+		tube("Ocular", 0.22, 0.22, 0, 0.78, 0.4, STEEL_DARK, Metal)
+		tube("Objetiva", 0.28, 0.3, 0, 0.78, -0.62, STEEL_DARK, Metal)
+		local lens = tube("Lente", 0.24, 0.01, 0, 0.78, -0.775, rgb(80, 140, 200), Enum.Material.Glass)
+		lens.Transparency = 0.2
+		post("Torre de elevação", 0.09, 0.1, 0, 0.89, -0.08, STEEL_DARK, Metal)
+		part("Torre lateral", Vector3.new(0.1, 0.09, 0.09), CFrame.new(0.11, 0.78, -0.08), STEEL_DARK, Metal, Enum.PartType.Cylinder)
+		box("Anel traseiro", 0.1, 0.22, 0.06, 0, 0.64, 0.14, STEEL_DARK, Metal)
+		box("Anel dianteiro", 0.1, 0.22, 0.06, 0, 0.64, -0.36, STEEL_DARK, Metal)
+		box("Bipé E", 0.03, 0.03, 0.55, -0.07, 0.15, -1.3, STEEL_DARK, Metal)
+		box("Bipé D", 0.03, 0.03, 0.55, 0.07, 0.15, -1.3, STEEL_DARK, Metal)
+		box("Base do bipé", 0.18, 0.06, 0.08, 0, 0.16, -1.48, STEEL_DARK, Metal)
+		muzzle = Vector3.new(0, 0.45, -2.72)
 	end
-	grip.Name = "Empunhadura"
 	model.PrimaryPart = grip
 	local cano = Instance.new("Attachment")
 	cano.Name = "Cano"
-	cano.Position = grip.CFrame:PointToObjectSpace(muzzle)
+	cano.Position = muzzle
 	cano.Parent = grip
 	model:SetAttribute("Arma", def.id)
 	return model
 end
 
--- Gun in the right hand. Weapon -Z follows the arm down (forward when aiming); the blade points forward.
+-- Gun in the right hand. Weapon -Z follows the arm down (forward when aiming); the knife points forward.
 local function gripOffset(def, arm: BasePart): CFrame
 	local drop = arm.Size.Y / 2 + 0.05
 	if def.grip == "frente" then

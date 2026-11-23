@@ -106,7 +106,7 @@ M.armRotation = armRotation
 -- Melee swing direction (torso space) at progress t in [0, 1].
 local function swingDirection(kind: string, side: number, t: number): Vector3
 	local strike = math.sin(math.min(t, 1) * math.pi)
-	if kind == "lamina" then
+	if kind == "faca" then
 		local a = Vector3.new(0.75 * side, 0.75, -0.35)
 		local b = Vector3.new(-0.55 * side, -0.45, -0.75)
 		return a:Lerp(b, math.clamp(t * 1.2, 0, 1)).Unit
@@ -259,6 +259,164 @@ local function rootTransform(c0: CFrame, offset: CFrame): CFrame
 end
 M.rootTransform = rootTransform
 
+-- Animações do catálogo no R6 ---------------------------------------------------------------------
+-- Os pacotes do catálogo só tocam em R15. Cada personagem ganha um esqueleto R15 invisível (só no
+-- cliente) que toca o pacote; a cada quadro a pose dele vira a pose do R6: o tronco segue a média dos
+-- dois troncos do R15, cada braço e perna aponta do ombro (quadril) até a mão (pé) e gira junto com o
+-- segmento de cima, e a cabeça copia o pescoço. Tudo relativo à pose de descanso, então o R6 parado
+-- fica reto mesmo com os braços do R15 levemente abertos.
+-- Juntas do R15 padrão (blocos): nome, peça 0, peça 1, posição do C0 e do C1 (sem rotação).
+local R15_JOINTS = {
+	{ "Root", "HumanoidRootPart", "LowerTorso", Vector3.new(0, -1, 0), Vector3.new(0, -0.2, 0) },
+	{ "Waist", "LowerTorso", "UpperTorso", Vector3.new(0, 0.2, 0), Vector3.new(0, -0.8, 0) },
+	{ "Neck", "UpperTorso", "Head", Vector3.new(0, 0.8, 0), Vector3.new(0, -0.5, 0) },
+	{ "RightShoulder", "UpperTorso", "RightUpperArm", Vector3.new(1, 0.563, 0), Vector3.new(-0.5, 0.394, 0) },
+	{ "RightElbow", "RightUpperArm", "RightLowerArm", Vector3.new(0, -0.334, 0), Vector3.new(0, 0.262, 0) },
+	{ "RightWrist", "RightLowerArm", "RightHand", Vector3.new(0, -0.501, 0), Vector3.new(0, 0.125, 0) },
+	{ "LeftShoulder", "UpperTorso", "LeftUpperArm", Vector3.new(-1, 0.563, 0), Vector3.new(0.5, 0.394, 0) },
+	{ "LeftElbow", "LeftUpperArm", "LeftLowerArm", Vector3.new(0, -0.334, 0), Vector3.new(0, 0.262, 0) },
+	{ "LeftWrist", "LeftLowerArm", "LeftHand", Vector3.new(0, -0.501, 0), Vector3.new(0, 0.125, 0) },
+	{ "RightHip", "LowerTorso", "RightUpperLeg", Vector3.new(0.5, -0.2, 0), Vector3.new(0, 0.42, 0) },
+	{ "RightKnee", "RightUpperLeg", "RightLowerLeg", Vector3.new(0, -0.42, 0), Vector3.new(0, 0.413, 0) },
+	{ "RightAnkle", "RightLowerLeg", "RightFoot", Vector3.new(0, -0.547, 0), Vector3.new(0, 0.101, 0) },
+	{ "LeftHip", "LowerTorso", "LeftUpperLeg", Vector3.new(-0.5, -0.2, 0), Vector3.new(0, 0.42, 0) },
+	{ "LeftKnee", "LeftUpperLeg", "LeftLowerLeg", Vector3.new(0, -0.42, 0), Vector3.new(0, 0.413, 0) },
+	{ "LeftAnkle", "LeftLowerLeg", "LeftFoot", Vector3.new(0, -0.547, 0), Vector3.new(0, 0.101, 0) },
+}
+M.R15_JOINTS = R15_JOINTS
+local R15_SIZES = {
+	HumanoidRootPart = Vector3.new(2, 2, 1), LowerTorso = Vector3.new(2, 0.4, 1), UpperTorso = Vector3.new(2, 1.6, 1),
+	Head = Vector3.new(1.2, 1.2, 1.2), RightUpperArm = Vector3.new(1, 1.169, 1), RightLowerArm = Vector3.new(1, 1.052, 1),
+	RightHand = Vector3.new(1, 0.3, 1), LeftUpperArm = Vector3.new(1, 1.169, 1), LeftLowerArm = Vector3.new(1, 1.052, 1),
+	LeftHand = Vector3.new(1, 0.3, 1), RightUpperLeg = Vector3.new(1, 1.217, 1), RightLowerLeg = Vector3.new(1, 1.193, 1),
+	RightFoot = Vector3.new(1, 0.3, 1), LeftUpperLeg = Vector3.new(1, 1.217, 1), LeftLowerLeg = Vector3.new(1, 1.193, 1),
+	LeftFoot = Vector3.new(1, 0.3, 1),
+}
+M.R15_SIZES = R15_SIZES
+
+-- Cinemática direta do R15 no espaço do HumanoidRootPart: CFrame de cada peça e posição de cada junta.
+local function r15Frames(transforms)
+	local frames = { HumanoidRootPart = CFrame.identity }
+	local pivots = {}
+	for _, joint in R15_JOINTS do
+		local base = frames[joint[2]] * CFrame.new(joint[4])
+		pivots[joint[1]] = base.Position
+		frames[joint[3]] = base * (transforms[joint[1]] or CFrame.identity) * CFrame.new(-joint[5])
+	end
+	return frames, pivots
+end
+M.r15Frames = r15Frames
+local REST_FRAMES, REST_PIVOTS = r15Frames({})
+local TORSO_MIX = 0.65
+local REST_TORSO = REST_FRAMES.LowerTorso.Rotation:Lerp(REST_FRAMES.UpperTorso.Rotation, TORSO_MIX)
+
+-- Gira `base` pela menor rotação que leva `from` até `to`.
+local function swing(from: Vector3, to: Vector3, base: Vector3): Vector3
+	local a, b = from.Unit, to.Unit
+	local axis = a:Cross(b)
+	local s, c = axis.Magnitude, a:Dot(b)
+	if s < 1e-6 then
+		return if c > 0 then base else -base
+	end
+	return CFrame.fromAxisAngle(axis / s, math.atan2(s, c)) * base
+end
+M.swing = swing
+
+local LIMBS = {
+	{ "rightArm", "RightShoulder", "RightHand", "RightUpperArm" },
+	{ "leftArm", "LeftShoulder", "LeftHand", "LeftUpperArm" },
+	{ "rightLeg", "RightHip", "RightFoot", "RightUpperLeg" },
+	{ "leftLeg", "LeftHip", "LeftFoot", "LeftUpperLeg" },
+}
+local DOWN, FRONT = Vector3.new(0, -1, 0), Vector3.new(0, 0, -1)
+-- transforms: Transform de cada junta do R15 (Motor6D ou AnimationConstraint). Devolve a pose do R6 no
+-- mesmo formato da locomoção procedural (direções no espaço do tronco) mais o giro de cada membro.
+local function retargetPose(transforms, strafe: number?)
+	local f, p = r15Frames(transforms)
+	local rotation = f.LowerTorso.Rotation:Lerp(f.UpperTorso.Rotation, TORSO_MIX) * REST_TORSO:Inverse()
+	local bob = f.LowerTorso.Position - REST_FRAMES.LowerTorso.Position
+	local torso = CFrame.new(bob) * rotation
+	local turn = CFrame.Angles(0, strafe or 0, 0)
+	local pose = { root = torso, weight = 1, step = 0 }
+	for _, limb in LIMBS do
+		local key, pivot, tip, upper = limb[1], limb[2], limb[3], limb[4]
+		local direction = swing(REST_FRAMES[tip].Position - REST_PIVOTS[pivot], f[tip].Position - p[pivot], DOWN)
+		local front = (f[upper].Rotation * REST_FRAMES[upper].Rotation:Inverse()) * FRONT
+		if key == "rightLeg" or key == "leftLeg" then
+			-- Andando de lado ou de costas (mirando), as pernas passam a dar o passo na direção do movimento.
+			direction = turn * direction
+			front = turn * front
+		end
+		pose[key] = torso:VectorToObjectSpace(direction)
+		pose[key .. "Up"] = torso:VectorToObjectSpace(front)
+	end
+	local head = f.UpperTorso.Rotation:Inverse() * f.Head.Rotation
+	local headRest = REST_FRAMES.UpperTorso.Rotation:Inverse() * REST_FRAMES.Head.Rotation
+	pose.headCompensation = head * headRest:Inverse()
+	pose.feet = { f.RightFoot.Position.Y, f.LeftFoot.Position.Y }
+	return pose
+end
+M.retargetPose = retargetPose
+local REST_FEET = REST_FRAMES.RightFoot.Position.Y
+M.REST_FEET = REST_FEET
+
+-- Pesos das trilhas de locomoção como no Animate do R15: caminhada até 8 studs/s, mistura até 16 e
+-- corrida acima disso (a cadência acompanha a velocidade até um limite, para o pé não patinar demais).
+local function locomotionWeights(state: string, speed: number, vertical: number)
+	local weights = { idle = 0, walk = 0, run = 0, fall = 0, climb = 0, swim = 0, swimidle = 0 }
+	local rates = { idle = 1, walk = 1, run = 1, fall = 1, climb = 1, swim = 1, swimidle = 1 }
+	if state == "fall" or state == "jump" then
+		weights.fall = 1
+	elseif state == "climb" then
+		weights.climb = 1
+		rates.climb = math.clamp(vertical / 6, -1.6, 1.6)
+	elseif state == "swim" then
+		if speed > 1 then
+			weights.swim = 1
+			rates.swim = math.clamp(speed / 10, 0.6, 1.6)
+		else
+			weights.swimidle = 1
+		end
+	elseif state == "seated" or state == "dead" then
+		return weights, rates
+	else
+		local normalized = speed / 16
+		if speed < 0.6 then
+			weights.idle = 1
+		elseif normalized <= 0.5 then
+			weights.walk = 1
+			rates.walk = math.max(normalized / 0.5, 0.35)
+		elseif normalized < 1 then
+			local t = (normalized - 0.5) / 0.5
+			weights.walk, weights.run = 1 - t, t
+		else
+			weights.run = 1
+			rates.run = math.min(normalized, 1.35)
+		end
+	end
+	return weights, rates
+end
+M.locomotionWeights = locomotionWeights
+
+-- Pacotes: IDs de animação da documentação oficial do Roblox (create.roblox.com, "Catalog animations").
+-- Os pacotes "do catálogo" (adidas, Oldschool e o pack UGC GTA 6) são resolvidos pelo servidor e chegam
+-- como atributos de ReplicatedStorage.CyberOutlawAnimacoes.
+local ANIMATION_PACKS = {
+	realista = { nome = "Realista (Rthro)", idle = { 2510197257, 2510196951 }, walk = 2510202577, run = 2510198475,
+		jump = 2510197830, fall = 2510195892, climb = 2510192778, swim = 2510199791, swimidle = 2510201162 },
+	estiloso = { nome = "Estiloso (Stylish)", idle = { 616136790, 616138447 }, walk = 616146177, run = 616140816,
+		jump = 616139451, fall = 616134815, climb = 616133594, swim = 616143378, swimidle = 616144772 },
+	ninja = { nome = "Ninja", idle = { 656117400, 656118341 }, walk = 656121766, run = 656118852,
+		jump = 656117878, fall = 656115606, climb = 656114359, swim = 656119721, swimidle = 656121397 },
+	heroi = { nome = "Super-herói", idle = { 616111295, 616113536 }, walk = 616122287, run = 616117076,
+		jump = 616115533, fall = 616108001, climb = 616104706, swim = 616119360, swimidle = 616120861 },
+	padrao = { nome = "Padrão do Roblox", idle = { 507766388, 507766666 }, walk = 913402848, run = 913376220,
+		jump = 507765000, fall = 507767968, climb = 507765644, swim = 507784897, swimidle = 507785072 },
+}
+local PACK_ORDER = { "realista", "estiloso", "esportivo", "aura", "classico", "gta6", "ninja", "heroi", "padrao" }
+M.ANIMATION_PACKS = ANIMATION_PACKS
+M.PACK_ORDER = PACK_ORDER
+
 -- Reflexo planar: posição e rotação de uma peça espelhada no plano y = plane. Blocos, cilindros e esferas
 -- são simétricos em Y (rotação M R M); cunhas só em X, então ganham meia volta em Z.
 local function mirrorCFrame(cf: CFrame, plane: number, wedge: boolean?): CFrame
@@ -271,9 +429,10 @@ local function mirrorCFrame(cf: CFrame, plane: number, wedge: boolean?): CFrame
 end
 M.mirrorCFrame = mirrorCFrame
 
--- Atlas cell: weapons at 384 x 192 in two columns, glyphs at 128 x 128 below them.
-local ICON_ORDER = { "punhos", "lamina", "vespa", "enxame", "trovao", "agulha" }
-local GLYPHS = { "tiro", "mira", "recarga", "arsenal" }
+-- Atlas cell: weapons at 384 x 192 in two columns (left 768 px), glyphs at 128 x 128 in the right strip.
+-- Same layout as design/icones.py (weapon silhouettes projected from the 3D models).
+local ICON_ORDER = { "punhos", "faca", "glock", "deagle", "uzi", "ak47", "m4", "escopeta", "sniper" }
+local GLYPHS = { "tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar" }
 local function iconRect(key: string): (Vector2?, Vector2?)
 	local weapon = table.find(ICON_ORDER, key)
 	if weapon then
@@ -281,7 +440,7 @@ local function iconRect(key: string): (Vector2?, Vector2?)
 	end
 	local glyph = table.find(GLYPHS, key)
 	if glyph then
-		return Vector2.new((glyph - 1) * 128, 576), Vector2.new(128, 128)
+		return Vector2.new(768 + ((glyph - 1) % 2) * 128, ((glyph - 1) // 2) * 128), Vector2.new(128, 128)
 	end
 	return nil, nil
 end
@@ -291,12 +450,21 @@ M.iconRect = iconRect
 -- Um só destaque de cor, tipografia Builder Sans, painéis escuros translúcidos e nada de molduras chanfradas.
 local TEXT = Color3.fromRGB(242, 243, 246)
 local SUB = Color3.fromRGB(164, 170, 184)
-local PANEL = Color3.fromRGB(8, 10, 15)
+local PANEL = Color3.fromRGB(12, 11, 26)
 local LINE = Color3.fromRGB(255, 255, 255)
 local HEALTH = Color3.fromRGB(98, 212, 148)
 local HURT = Color3.fromRGB(236, 72, 84)
 local BREATH = Color3.fromRGB(158, 210, 255)
 local ACCENT = Color3.fromRGB(255, 206, 114)
+-- Paleta "pôr do sol de Maré Baixa": rosa quente, laranja e dourado sobre vidro azul-escuro (como o
+-- clima de Vice City), usada só nos destaques: o resto do HUD continua discreto.
+local PINK = Color3.fromRGB(255, 72, 140)
+local ORANGE = Color3.fromRGB(255, 146, 72)
+local GOLD = Color3.fromRGB(255, 208, 102)
+local TEAL = Color3.fromRGB(72, 226, 210)
+local SUNSET = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, PINK), ColorSequenceKeypoint.new(0.55, ORANGE), ColorSequenceKeypoint.new(1, GOLD),
+})
 local CENTER = Vector2.new(0.5, 0.5)
 local FULL = UDim2.fromScale(1, 1)
 local BUILDER = "rbxasset://fonts/families/BuilderSans.json"
@@ -359,6 +527,10 @@ local function stroke(parent, color: Color3, transparency: number, thickness: nu
 	return new("UIStroke", parent, {
 		Color = color, Transparency = transparency, Thickness = thickness or 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	})
+end
+
+local function sunset(parent: Instance, rotation: number?): UIGradient
+	return new("UIGradient", parent, { Color = SUNSET, Rotation = rotation or 0 })
 end
 
 local function atlasImage(parent, name: string, atlas: string, key: string, z: number, props)
@@ -492,7 +664,9 @@ local function buildHud(parent: Instance, touch: boolean)
 	local block = frame(gui, "Minimap", 1, { Size = UDim2.fromOffset(b.width, blockHeight(b)) })
 	local blockScale = new("UIScale", block, { Name = "Escala" })
 	local plate = frame(block, "Plate", 1, { Size = UDim2.fromOffset(b.width, b.map), BackgroundColor3 = PANEL, BackgroundTransparency = 0.22 })
-	stroke(plate, LINE, 0.84, 1)
+	round(plate, UDim.new(0, 6))
+	local plateEdge = stroke(plate, LINE, 0.3, 1.5)
+	sunset(plateEdge, 35)
 	-- Frame com ClipsDescendants (CanvasGroup não recorta numa ScreenGui Global).
 	local view = frame(plate, "Viewport", 2, { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), ClipsDescendants = true })
 	local pivot = frame(view, "Pivot", 2, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(0, 0) })
@@ -531,8 +705,9 @@ local function buildHud(parent: Instance, touch: boolean)
 	round(track, UDim.new(0, 2))
 	local trail = frame(track, "HealthTrail", 4, { Size = FULL, BackgroundColor3 = TEXT, BackgroundTransparency = 0.1 })
 	round(trail, UDim.new(0, 2))
-	local fill = frame(track, "HealthFill", 5, { Size = FULL, BackgroundColor3 = HEALTH, BackgroundTransparency = 0 })
+	local fill = frame(track, "HealthFill", 5, { Size = FULL, BackgroundColor3 = LINE, BackgroundTransparency = 0 })
 	round(fill, UDim.new(0, 2))
+	new("UIGradient", fill, { Color = ColorSequence.new(HEALTH, TEAL) })
 	local breathTrack = frame(block, "StaminaTrack", 3, {
 		Position = UDim2.fromOffset(0, barY + b.bar + 3), Size = UDim2.fromOffset(b.width, b.breath),
 		BackgroundColor3 = PANEL, BackgroundTransparency = 0.4, Visible = false,
@@ -747,10 +922,58 @@ local function buildCombat(parent: Instance, touch: boolean)
 		AnchorPoint = CENTER, Position = UDim2.new(0.5, 0, 0.46, if touch then 44 else 62), Size = UDim2.fromOffset(420, 18),
 		TextXAlignment = Enum.TextXAlignment.Center,
 	})
+	-- Luneta da sniper: um círculo recortado por um contorno preto grosso, retículo fino com postes
+	-- grossos nas pontas e uma leve vinheta. Sem imagens, para funcionar antes da mídia ser aprovada.
+	local scope = frame(gui, "Luneta", 3, { Size = FULL, Visible = false })
+	local lens = frame(scope, "Lente", 3, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.94, 0.94),
+	})
+	new("UIAspectRatioConstraint", lens, { AspectRatio = 1, DominantAxis = Enum.DominantAxis.Height })
+	round(lens, UDim.new(0.5, 0))
+	local ring = new("UIStroke", lens, {
+		Color = Color3.new(0, 0, 0), Thickness = 2400, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+	local inner = frame(lens, "Vinheta", 3, { Size = FULL, BackgroundTransparency = 0, BackgroundColor3 = Color3.new(0, 0, 0) })
+	round(inner, UDim.new(0.5, 0))
+	new("UIGradient", inner, {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.72, 1), NumberSequenceKeypoint.new(1, 0.35),
+		}),
+	})
+	local RETICLE = Color3.fromRGB(8, 8, 10)
+	frame(lens, "Horizontal", 4, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 0, 0, 1),
+		BackgroundTransparency = 0, BackgroundColor3 = RETICLE })
+	frame(lens, "Vertical", 4, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 1, 1, 0),
+		BackgroundTransparency = 0, BackgroundColor3 = RETICLE })
+	for _, post in { { 0, 0.5, 0.34, 0, 0, 5 }, { 1, 0.5, 0.34, 0, 0, 5 }, { 0.5, 1, 0, 0.34, 5, 0 } } do
+		frame(lens, "Poste", 4, {
+			AnchorPoint = Vector2.new(post[1], post[2]), Position = UDim2.fromScale(post[1], post[2]),
+			Size = UDim2.new(post[3], post[5], post[4], post[6]), BackgroundTransparency = 0, BackgroundColor3 = RETICLE,
+		})
+	end
+	for k = -3, 3 do
+		if k ~= 0 then
+			frame(lens, "Marca", 4, { AnchorPoint = CENTER, Position = UDim2.new(0.5 + k * 0.035, 0, 0.5, 0),
+				Size = UDim2.fromOffset(1, 7), BackgroundTransparency = 0, BackgroundColor3 = RETICLE })
+		end
+	end
+	local scoped = false
+	function combat.scope(visible: boolean)
+		if visible == scoped then
+			return
+		end
+		scoped = visible
+		scope.Visible = visible
+		if visible then
+			ring.Thickness = math.max(gui.AbsoluteSize.X, gui.AbsoluteSize.Y)
+			cross.Visible = false
+		end
+	end
+
 	local hitUntil, hitKill = 0, false
 	local now = 0
 	function combat.crosshair(visible: boolean, spread: number)
-		cross.Visible = visible
+		cross.Visible = visible and not scoped
 		local gap = 5 + spread * 9
 		for _, t in ticks do
 			t.item.Position = UDim2.new(0.5, t.dir.X * (gap + 3.5), 0.5, t.dir.Y * (gap + 3.5))
@@ -787,7 +1010,7 @@ local function buildCombat(parent: Instance, touch: boolean)
 			e.gradient.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1 - 0.8 * hurtAlpha), NumberSequenceKeypoint.new(1, 1) })
 		end
 	end
-	combat.parts = { cross = cross, dot = dot, hit = hit, death = death, aimEdges = aimEdges, hurtEdges = hurtEdges }
+	combat.parts = { cross = cross, dot = dot, hit = hit, death = death, aimEdges = aimEdges, hurtEdges = hurtEdges, scope = scope }
 	return combat
 end
 M.buildCombat = buildCombat
@@ -796,8 +1019,10 @@ M.buildCombat = buildCombat
 local function buildWheel(parent: Instance, defs, templates, touch: boolean, atlas: string?)
 	local f = fonts()
 	local count = #defs
-	local ring = if touch then 112 else 196
-	local slotW, slotH = if touch then 92 else 148, if touch then 56 else 86
+	-- Mais armas: anel maior e cartões menores, para nenhum cartão encostar no vizinho.
+	local crowd = math.max(0, count - 6)
+	local ring = if touch then 112 + crowd * 6 else 196 + crowd * 8
+	local slotW, slotH = if touch then 92 - crowd * 5 else 148 - crowd * 6, if touch then 56 - crowd * 3 else 86 - crowd * 3
 	local hubR = if touch then 58 else 96
 	local gui = new("ScreenGui", parent, {
 		Name = "CyberOutlawRoleta", ResetOnSpawn = false, DisplayOrder = 60, Enabled = false, IgnoreGuiInset = true,
@@ -811,13 +1036,27 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset((ring + slotW) * 2, (ring + slotH) * 2),
 	})
 	local scale = new("UIScale", root, { Name = "Escala" })
+	-- Disco de vidro atrás dos cartões, com borda em degradê e um anel fino por dentro.
+	local discRadius = ring + math.max(slotW, slotH) * 0.5 + (if touch then 8 else 16)
+	local disc = frame(root, "Disco", 2, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(discRadius * 2, discRadius * 2),
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.36,
+	})
+	round(disc, UDim.new(1, 0))
+	sunset(stroke(disc, LINE, 0.2, if touch then 1.5 else 2), 45)
+	local innerRadius = ring - slotH * 0.5 - (if touch then 6 else 10)
+	local innerRing = frame(root, "Anel", 2, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(innerRadius * 2, innerRadius * 2),
+	})
+	round(innerRing, UDim.new(1, 0))
+	stroke(innerRing, LINE, 0.86, 1)
 	local hub = frame(root, "Centro", 3, {
 		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(hubR * 2, hubR * 2),
 		BackgroundColor3 = PANEL, BackgroundTransparency = 0.18,
 	})
 	round(hub, UDim.new(1, 0))
-	stroke(hub, LINE, 0.86, 1)
-	local hubClass = label(hub, "Classe", "", f.bold, if touch then 8 else 11, SUB, 4, {
+	sunset(stroke(hub, LINE, 0.25, 1.5), 90)
+	local hubClass = label(hub, "Classe", "", f.bold, if touch then 8 else 11, PINK, 4, {
 		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.17), Size = UDim2.new(0.8, 0, 0, if touch then 10 else 14),
 		TextXAlignment = Enum.TextXAlignment.Center, TextScaled = true,
 	})
@@ -843,8 +1082,9 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 			BackgroundTransparency = 0.82, BackgroundColor3 = LINE,
 		})
 		round(barTrack, UDim.new(1, 0))
-		local bar = frame(barTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = TEXT })
+		local bar = frame(barTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = LINE })
 		round(bar, UDim.new(1, 0))
+		sunset(bar)
 		statBars[row] = bar
 	end
 	local entries = {}
@@ -857,6 +1097,8 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 		})
 		round(card, UDim.new(0, if touch then 8 else 12))
 		local edge = stroke(card, LINE, 0.84, 1)
+		local glow = sunset(card, 30)
+		glow.Enabled = false
 		local pop = new("UIScale", card, { Name = "Pop" })
 		local image, viewport
 		if atlas then
@@ -878,7 +1120,9 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -3 else -6), Size = UDim2.new(1, 0, 0, if touch then 11 else 14),
 			TextXAlignment = Enum.TextXAlignment.Center,
 		})
-		entries[index] = { card = card, pop = pop, image = image, viewport = viewport, ammo = ammo, edge = edge, key = key, def = def, target = 1 }
+		entries[index] = {
+			card = card, pop = pop, image = image, viewport = viewport, ammo = ammo, edge = edge, key = key, def = def, target = 1, glow = glow,
+		}
 	end
 	local selected = 1
 	local wheel = { gui = gui, cards = entries, scale = scale, shade = shade, root = root }
@@ -907,18 +1151,20 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 		for i, entry in entries do
 			local on = i == index
 			entry.target = if on then 1.1 else 1
-			entry.card.BackgroundColor3 = if on then TEXT else PANEL
+			-- Selecionado: cartão em degradê pôr do sol, ícone e textos brancos.
+			entry.glow.Enabled = on
+			entry.card.BackgroundColor3 = if on then LINE else PANEL
 			entry.card.BackgroundTransparency = if on then 0.04 else 0.26
-			entry.edge.Color = if on then ACCENT else LINE
-			entry.edge.Transparency = if on then 0.1 else 0.84
+			entry.edge.Color = LINE
+			entry.edge.Transparency = if on then 0.15 else 0.84
 			entry.edge.Thickness = if on then 2 else 1
 			if entry.image:IsA("ImageLabel") then
-				entry.image.ImageColor3 = if on then PANEL else TEXT
+				entry.image.ImageColor3 = TEXT
 			end
 			entry.ammo.Text = ammoText(entry.def.id, ammoTable)
-			entry.ammo.TextColor3 = if on then Color3.fromRGB(60, 64, 76) else SUB
+			entry.ammo.TextColor3 = if on then LINE else SUB
 			if entry.key then
-				entry.key.TextColor3 = if on then Color3.fromRGB(60, 64, 76) else SUB
+				entry.key.TextColor3 = if on then LINE else SUB
 			end
 		end
 	end
@@ -970,7 +1216,13 @@ local function buildWeaponCard(parent: Instance, touch: boolean, atlas: string?)
 			LightColor = Color3.fromRGB(255, 240, 230), LightDirection = Vector3.new(-1, -1.4, -0.6),
 		})
 	end
-	local nameLabel = label(panel, "Nome", "PUNHOS", f.bold, if touch then 9 else 11, SUB, 3, {
+	local accentBar = frame(panel, "Destaque", 3, {
+		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.fromScale(1, 0.5), Size = UDim2.new(0, 3, 1, -12),
+		BackgroundTransparency = 0, BackgroundColor3 = LINE,
+	})
+	round(accentBar, UDim.new(1, 0))
+	sunset(accentBar, 90)
+	local nameLabel = label(panel, "Nome", "PUNHOS", f.bold, if touch then 9 else 11, ORANGE, 3, {
 		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, if touch then 5 else 7), Size = UDim2.fromOffset(w - iconW - 24, if touch then 11 else 14),
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
@@ -986,7 +1238,8 @@ local function buildWeaponCard(parent: Instance, touch: boolean, atlas: string?)
 		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -3), Size = UDim2.fromOffset(if touch then 92 else 150, 2),
 		BackgroundTransparency = 0.8, BackgroundColor3 = LINE, Visible = false,
 	})
-	local reloadFill = frame(reloadTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = ACCENT })
+	local reloadFill = frame(reloadTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = LINE })
+	sunset(reloadFill)
 	local card = { gui = gui, panel = panel, scale = scale }
 	local shown
 	function card.show(def, template, ammo, progress: number?)
@@ -1027,6 +1280,72 @@ end
 M.buildWeaponCard = buildWeaponCard
 
 -- Botão de toque redondo, translúcido, com ícone 2D branco (ou o nome, enquanto os ícones aguardam aprovação).
+-- Glifos feitos de Frames, para os botões terem símbolo mesmo antes do atlas ser aprovado.
+local function frameGlyph(parent: Instance, key: string, z: number, color: Color3): Frame
+	local old = parent:FindFirstChild("Glifo")
+	if old then
+		old:Destroy()
+	end
+	local box = frame(parent, "Glifo", z, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.6, 0.6) })
+	box:SetAttribute("Chave", key)
+	local function bar(x: number, y: number, w: number, h: number, rotation: number?, radius: number?)
+		local item = frame(box, "Traço", z, {
+			AnchorPoint = CENTER, Position = UDim2.fromScale(x, y), Size = UDim2.fromScale(w, h), Rotation = rotation or 0,
+			BackgroundTransparency = 0, BackgroundColor3 = color,
+		})
+		if radius then
+			round(item, UDim.new(radius, 0))
+		end
+		return item
+	end
+	local function ring(x: number, y: number, size: number, thickness: number)
+		local item = frame(box, "Anel", z, { AnchorPoint = CENTER, Position = UDim2.fromScale(x, y), Size = UDim2.fromScale(size, size) })
+		new("UIAspectRatioConstraint", item, { AspectRatio = 1 })
+		round(item, UDim.new(1, 0))
+		return item, stroke(item, color, 0, thickness)
+	end
+	if key == "tiro" then
+		-- Pistola de lado, cano para a direita: ferrolho, armação, cabo inclinado e guarda-mato.
+		bar(0.56, 0.33, 0.8, 0.2, 0, 0.12)
+		bar(0.5, 0.47, 0.6, 0.1)
+		bar(0.3, 0.68, 0.2, 0.44, 16, 0.18)
+		local guard = frame(box, "Guarda", z, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromScale(0.17, 0.17) })
+		round(guard, UDim.new(0.3, 0))
+		stroke(guard, color, 0, 2)
+		bar(0.2, 0.22, 0.06, 0.06)
+		bar(0.92, 0.22, 0.04, 0.06)
+	elseif key == "golpe" then
+		bar(0.5, 0.58, 0.76, 0.44, 0, 0.28)
+		for index = 0, 3 do
+			bar(0.23 + index * 0.18, 0.32, 0.16, 0.26, 0, 0.45)
+		end
+		bar(0.38, 0.6, 0.42, 0.12, 0, 1).BackgroundColor3 = PANEL
+		bar(0.5, 0.88, 0.56, 0.12, 0, 0.2)
+	elseif key == "mira" then
+		ring(0.5, 0.5, 0.46, 2)
+		bar(0.5, 0.1, 0.07, 0.24, 0, 0.5)
+		bar(0.5, 0.9, 0.07, 0.24, 0, 0.5)
+		bar(0.1, 0.5, 0.24, 0.07, 0, 0.5)
+		bar(0.9, 0.5, 0.24, 0.07, 0, 0.5)
+		bar(0.5, 0.5, 0.09, 0.09, 0, 1)
+	elseif key == "recarga" then
+		local _, line = ring(0.5, 0.5, 0.82, 2.5)
+		new("UIGradient", line, {
+			Rotation = 35,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.42, 0), NumberSequenceKeypoint.new(0.5, 1),
+				NumberSequenceKeypoint.new(0.58, 0), NumberSequenceKeypoint.new(1, 0),
+			}),
+		})
+		bar(0.82, 0.24, 0.18, 0.18, 45, 0.1)
+		bar(0.5, 0.52, 0.24, 0.44, 8, 0.25)
+	else
+		bar(0.5, 0.5, 0.5, 0.5, 45, 0.2)
+	end
+	return box
+end
+M.frameGlyph = frameGlyph
+
 local function touchButton(parent, name: string, caption: string, icon: string, center: Vector2, radius: number, atlas: string?)
 	local f = fonts()
 	local button = new("TextButton", parent, {
@@ -1041,12 +1360,120 @@ local function touchButton(parent, name: string, caption: string, icon: string, 
 			AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.58, 0.58), ImageColor3 = TEXT,
 		})
 	else
-		label(button, "Icone", caption, f.heavy, math.max(9, math.floor(radius * 0.36)), TEXT, 21, { TextXAlignment = Enum.TextXAlignment.Center })
+		frameGlyph(button, icon, 21, TEXT)
+		button:SetAttribute("Legenda", caption)
 	end
+	local _ = f
 	return button, ring, image
 end
 M.touchButton = touchButton
 
+
+-- Painel do dono (só aparece para quem o servidor marcou com CyberOutlawAdmin): teleporte para os
+-- pontos novos da cidade e troca do pacote de animação. O botão "TP" fica na faixa do topo, à direita.
+local function buildAdminPanel(parent: Instance, touch: boolean, points, packs, onPick)
+	local f = fonts()
+	-- Nos testes (Lune) as Instances não têm eventos; no Roblox a conexão sempre existe.
+	local function onActivated(button: Instance, callback: () -> ())
+		pcall(function()
+			(button :: any).Activated:Connect(callback)
+		end)
+	end
+	local top = new("ScreenGui", parent, {
+		Name = "CyberOutlawAdminBotao", ResetOnSpawn = false, DisplayOrder = 40, ScreenInsets = Enum.ScreenInsets.TopbarSafeInsets,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	})
+	local open = new("TextButton", top, {
+		Name = "AbrirPainel", Text = "", AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(44, 36), BackgroundColor3 = PANEL, BackgroundTransparency = 0.25,
+	})
+	round(open, UDim.new(1, 0))
+	sunset(stroke(open, LINE, 0.15, 1.5), 45)
+	label(open, "Texto", "TP", f.heavy, 14, TEXT, 2, { TextXAlignment = Enum.TextXAlignment.Center })
+	local gui = new("ScreenGui", parent, {
+		Name = "CyberOutlawAdmin", ResetOnSpawn = false, DisplayOrder = 70, Enabled = false, IgnoreGuiInset = true,
+		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	})
+	local shade = new("TextButton", gui, {
+		Name = "Fundo", Text = "", AutoButtonColor = false, Size = FULL, BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.45, ZIndex = 1,
+	})
+	local card = frame(gui, "Painel", 2, {
+		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(if touch then 0.62 else 0.42, 0.8),
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.08,
+	})
+	new("UISizeConstraint", card, { MaxSize = Vector2.new(560, 640), MinSize = Vector2.new(260, 220) })
+	round(card, UDim.new(0, 12))
+	sunset(stroke(card, LINE, 0.1, 2), 35)
+	label(card, "Titulo", "PAINEL DO DONO", f.heavy, if touch then 14 else 18, TEXT, 3, {
+		Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -70, 0, 24),
+	})
+	local close = new("TextButton", card, {
+		Name = "Fechar", Text = "", AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 4),
+		Size = UDim2.fromOffset(44, 44), BackgroundTransparency = 1, ZIndex = 4,
+	})
+	frameGlyph(close, "fechar", 4, TEXT)
+	local list = new("ScrollingFrame", card, {
+		Name = "Lista", Position = UDim2.fromOffset(12, 50), Size = UDim2.new(1, -24, 1, -60), BackgroundTransparency = 1,
+		BorderSizePixel = 0, ScrollBarThickness = 4, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ElasticBehavior = Enum.ElasticBehavior.Never, ZIndex = 3,
+	})
+	new("UIListLayout", list, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+	local order = 0
+	local buttons = {}
+	local function section(text: string)
+		order += 1
+		label(list, "Secao", text, f.bold, if touch then 10 else 12, PINK, 3, { Size = UDim2.new(1, 0, 0, 18), LayoutOrder = order })
+	end
+	local function item(kind: string, key: string, text: string)
+		order += 1
+		local button = new("TextButton", list, {
+			Name = kind .. "_" .. key, Text = "", AutoButtonColor = true, Size = UDim2.new(1, -6, 0, if touch then 36 else 40),
+			BackgroundColor3 = Color3.fromRGB(28, 26, 48), BackgroundTransparency = 0.1, LayoutOrder = order, ZIndex = 3,
+		})
+		round(button, UDim.new(0, 8))
+		local edge = stroke(button, LINE, 0.85, 1)
+		label(button, "Texto", text, f.bold, if touch then 12 else 14, TEXT, 4, { Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -24, 1, 0) })
+		onActivated(button, function()
+			onPick(kind, key)
+		end)
+		buttons[kind .. "_" .. key] = { button = button, edge = edge }
+		return button
+	end
+	section("TELEPORTE")
+	for _, point in points do
+		item("tp", point.k, point.n)
+	end
+	section("ANIMAÇÃO DO PERSONAGEM (CATÁLOGO)")
+	for _, pack in packs do
+		item("pacote", pack.k, pack.n)
+	end
+	local panel = { gui = gui, button = open, top = top, card = card, list = list, buttons = buttons }
+	function panel.toggle(show: boolean?)
+		gui.Enabled = if show == nil then not gui.Enabled else show
+	end
+	function panel.mark(kind: string, key: string)
+		for name, entry in buttons do
+			if string.sub(name, 1, #kind + 1) == kind .. "_" then
+				local on = name == kind .. "_" .. key
+				entry.edge.Color = if on then GOLD else LINE
+				entry.edge.Transparency = if on then 0.1 else 0.85
+				entry.edge.Thickness = if on then 2 else 1
+			end
+		end
+	end
+	onActivated(open, function()
+		panel.toggle()
+	end)
+	onActivated(close, function()
+		panel.toggle(false)
+	end)
+	onActivated(shade, function()
+		panel.toggle(false)
+	end)
+	return panel
+end
+M.buildAdminPanel = buildAdminPanel
 
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
@@ -1119,7 +1546,6 @@ local function start()
 		end
 		return (...)
 	end
-	local RELOADS = { trovao = "arma_recarga_escopeta", enxame = "arma_recarga_fuzil", agulha = "arma_recarga_fuzil" }
 	local function sound(key: string, parent: Instance?, volume: number?)
 		local id = SOUNDS[key]
 		if type(id) ~= "number" or id <= 0 then
@@ -1269,6 +1695,56 @@ local function start()
 	end)
 	local hud = buildHud(playerGui, touch)
 	local combat = buildCombat(playerGui, touch)
+	-- Painel do dono: só monta quando o servidor confirma CyberOutlawAdmin; o servidor confere de novo.
+	local adminPanel
+	local function mountAdmin()
+		if adminPanel or player:GetAttribute("CyberOutlawAdmin") ~= true then
+			return
+		end
+		local remote = ReplicatedStorage:WaitForChild("CyberOutlawAdmin", 10)
+		local pointsFolder = ReplicatedStorage:WaitForChild("CyberOutlawPontos", 20)
+		if not remote or adminPanel then
+			return
+		end
+		local points = {}
+		local raw = pointsFolder and pointsFolder:GetAttribute("Lista")
+		if type(raw) == "string" then
+			local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+			if ok and type(decoded) == "table" then
+				points = decoded
+			end
+		end
+		local animations = ReplicatedStorage:FindFirstChild("CyberOutlawAnimacoes")
+		local packs = {}
+		for _, key in PACK_ORDER do
+			local builtIn = ANIMATION_PACKS[key]
+			local extra = animations and animations:GetAttribute(key)
+			local name = if builtIn then builtIn.nome else nil
+			if not name and type(extra) == "string" then
+				local ok, decoded = pcall(HttpService.JSONDecode, HttpService, extra)
+				name = if ok and type(decoded) == "table" then decoded.nome else nil
+			end
+			if name then
+				table.insert(packs, { k = key, n = name })
+			end
+		end
+		adminPanel = buildAdminPanel(playerGui, touch, points, packs, function(kind, key)
+			remote:FireServer(kind, key)
+			if kind == "tp" then
+				adminPanel.toggle(false)
+			else
+				adminPanel.mark("pacote", key)
+			end
+		end)
+		local current = animations and animations:GetAttribute("Pacote")
+		if type(current) == "string" then
+			adminPanel.mark("pacote", current)
+		end
+	end
+	player:GetAttributeChangedSignal("CyberOutlawAdmin"):Connect(function()
+		task.spawn(mountAdmin)
+	end)
+	task.spawn(mountAdmin)
 	local wheel = if #defs > 0 then buildWheel(playerGui, defs, templates, touch, ATLAS) else nil
 	local card = if #defs > 0 then buildWeaponCard(playerGui, touch, ATLAS) else nil
 	local blur = Instance.new("BlurEffect")
@@ -1299,6 +1775,9 @@ local function start()
 	local fireShows
 	if touch then
 		fireButton, fireRing, fireIcon = touchButton(hud.gui, "Atirar", "ATIRAR", "tiro", Vector2.zero, 32, ATLAS)
+		-- O botão principal ganha a borda pôr do sol; os outros ficam brancos e discretos.
+		fireRing.Transparency, fireRing.Thickness = 0.1, 2
+		sunset(fireRing, 45)
 		aimButton, aimRing = touchButton(hud.gui, "Mirar", "MIRAR", "mira", Vector2.zero, 26, ATLAS)
 		reloadButton = touchButton(hud.gui, "Recarregar", "RECARGA", "recarga", Vector2.zero, 21, ATLAS)
 	end
@@ -1820,7 +2299,7 @@ local function start()
 		local pair = ammoTable[weapon.id]
 		if weapon.kind == "gun" and pair and pair[1] < weapon.mag and pair[2] > 0 and action then
 			action:FireServer("recarregar")
-			sound(pick(RELOADS[weapon.id] or "arma_recarga", "arma_recarga"), nil, 0.55)
+			sound(pick(weapon.recarga or "arma_recarga", "arma_recarga"), nil, 0.55)
 		end
 	end
 
@@ -1836,7 +2315,7 @@ local function start()
 		poses[character].swingStart = now
 		poses[character].swingKind = weapon.id
 		poses[character].swingSide = meleeSide
-		sound(if weapon.id == "lamina" then "arma_lamina" else "arma_soco", nil, 0.55)
+		sound(weapon.som or "arma_soco", nil, 0.55)
 		cam.trauma = math.min(1, cam.trauma + 0.08)
 		if action then
 			action:FireServer("golpe", meleeSide)
@@ -1895,7 +2374,11 @@ local function start()
 			end
 		end
 		muzzleFlash(from, accent, look)
-		sound("arma_" .. weapon.id, nil, 0.7)
+		sound(weapon.som or ("arma_" .. weapon.id), nil, 0.7)
+		if weapon.acao then
+			-- Bomba da escopeta e ferrolho da sniper logo depois do disparo.
+			task.delay(0.34, sound, weapon.acao, nil, 0.5)
+		end
 		pair[1] -= 1
 		-- Recoil: part of the kick stays (the climb), part returns on its own.
 		local kick = math.rad(weapon.recoil or 1)
@@ -1945,7 +2428,11 @@ local function start()
 					local look = if b[1] and typeof(b[1][1]) == "Vector3" then (b[1][1] - from).Unit else Vector3.zAxis
 					muzzleFlash(from, accent, look)
 					local weaponModel = model and model:FindFirstChild("CyberOutlawArma")
-					sound("arma_" .. tostring(id), weaponModel and weaponModel.PrimaryPart, 0.8)
+					local emitter = weaponModel and weaponModel.PrimaryPart
+					sound(if weapon and weapon.som then weapon.som else "arma_" .. tostring(id), emitter, 0.8)
+					if weapon and weapon.acao and emitter then
+						task.delay(0.34, sound, weapon.acao, emitter, 0.55)
+					end
 				end
 			elseif kind == "golpe" and model and who ~= player then
 				poses[model] = poses[model] or {}
@@ -2181,7 +2668,12 @@ local function start()
 		end
 		cam.pitch = math.clamp(cam.pitch, math.rad(-72), math.rad(62))
 
-		local targetDistance = if not alive then 16 elseif aimingNow then (if weapon.id == "agulha" then 4.6 else 5.6) elseif sprinting then 13 else 11.5
+		local scoped = aimingNow and weapon.luneta == true
+		local targetDistance = if not alive then 16
+			elseif scoped then 0.5
+			elseif aimingNow then (if weapon.tipo == "fuzil" then 4.6 else 5.6)
+			elseif sprinting then 13
+			else 11.5
 		local targetShoulder = (if aimingNow or raised then 2.1 else 1.35) * cam.side
 		local targetFov = if aimingNow then (weapon.fov or 54) elseif sprinting then 77 else 70
 		if wheelOpen then
@@ -2235,8 +2727,9 @@ local function start()
 		camera.CFrame = CFrame.new(pivot - rotation.LookVector * cam.distance) * rotation
 		camera.Focus = CFrame.new(focus)
 
-		-- Body almost transparent when the camera gets inside it.
-		local fade = if cam.distance < 2.2 then 0.7 else 0
+		-- Body almost transparent when the camera gets inside it (and hidden behind the scope).
+		local fade = if scoped and cam.distance < 1.2 then 1 elseif cam.distance < 2.2 then 0.7 else 0
+		combat.scope(scoped and cam.distance < 1.6)
 		for _, item in character:GetDescendants() do
 			if item:IsA("BasePart") or item:IsA("Decal") then
 				item.LocalTransparencyModifier = fade
@@ -2305,8 +2798,7 @@ local function start()
 	end
 
 	-- Arm and head pose (PreSimulation: after the animation, before the physics).
-	local SWING = { punhos = 0.26, lamina = 0.42 }
-	local TWO_HANDS = { enxame = true, trovao = true, agulha = true, vespa = true }
+	local SWING = { punhos = 0.26, faca = 0.38 }
 	local function poseCharacter(model: Model, now: number)
 		local body = model:FindFirstChild("Torso")
 		if not body then
@@ -2337,7 +2829,7 @@ local function start()
 			state.swingStart = nil
 		end
 		if not weapon or weapon.kind ~= "gun" then
-			if weapon and weapon.id == "lamina" then
+			if weapon and weapon.id == "faca" then
 				right.Transform = jointTransform(right.C0, right.C1, armRotation(Vector3.new(0.12, -0.72, -0.68), Vector3.new(0, 1, 0)))
 			end
 			return
@@ -2350,10 +2842,10 @@ local function start()
 			direction = Vector3.new(0.05, -0.55, -0.83).Unit
 		end
 		right.Transform = jointTransform(right.C0, right.C1, armRotation(direction, up))
-		if TWO_HANDS[weapon.id] then
+		if weapon.kind == "gun" then
 			local shoulderRight = right.C0.Position
 			local shoulderLeft = left.C0.Position
-			local reach = if weapon.id == "vespa" then 1.85 else 2.45
+			local reach = weapon.alcance or 2.45
 			local hand = shoulderRight + Vector3.new(0.5, 0, 0) + direction * reach
 			local support = hand + Vector3.new(-0.35, -0.12, 0)
 			left.Transform = jointTransform(left.C0, left.C1, armRotation((support - shoulderLeft).Unit, up))
@@ -2403,6 +2895,209 @@ local function start()
 			sound(stepSounds[rng:NextInteger(1, #stepSounds)], leg, if model == character then 0.32 else 0.22)
 		end
 	end
+	-- Esqueletos R15 invisíveis (só neste cliente) tocando o pacote do catálogo. Um por personagem perto
+	-- da câmera; o resto usa a locomoção procedural. Se o pacote não carregar, volta para a procedural.
+	local proxyFolder = Instance.new("Folder")
+	proxyFolder.Name = "CyberOutlawEsqueletos"
+	proxyFolder.Parent = camera
+	local proxies: { [Model]: any } = {}
+	local PROXY_RANGE = 120
+	local function animationFolder()
+		return ReplicatedStorage:FindFirstChild("CyberOutlawAnimacoes")
+	end
+	local function packIds(name: string)
+		local builtIn = ANIMATION_PACKS[name]
+		if builtIn then
+			return builtIn
+		end
+		local folder = animationFolder()
+		local raw = folder and folder:GetAttribute(name)
+		if type(raw) == "string" then
+			local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+			if ok and type(decoded) == "table" and decoded.walk and decoded.run then
+				return decoded
+			end
+		end
+		return nil
+	end
+	local function currentPack(): string
+		local folder = animationFolder()
+		local name = folder and folder:GetAttribute("Pacote")
+		if type(name) == "string" and packIds(name) then
+			return name
+		end
+		return "realista"
+	end
+	local function buildProxy()
+		local model = Instance.new("Model")
+		model.Name = "EsqueletoR15"
+		local parts = {}
+		for name, size in R15_SIZES do
+			local part = Instance.new("Part")
+			part.Name = name
+			part.Size = size
+			part.Transparency = 1
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.CastShadow = false
+			part.CFrame = CFrame.new(0, -60, 0)
+			part.Parent = model
+			parts[name] = part
+		end
+		local joints = {}
+		for _, joint in R15_JOINTS do
+			local motor = Instance.new("Motor6D")
+			motor.Name = joint[1]
+			motor.Part0 = parts[joint[2]]
+			motor.Part1 = parts[joint[3]]
+			motor.C0 = CFrame.new(joint[4])
+			motor.C1 = CFrame.new(joint[5])
+			motor.Parent = parts[joint[3]]
+			joints[joint[1]] = motor
+		end
+		model.PrimaryPart = parts.HumanoidRootPart
+		local controller = Instance.new("AnimationController")
+		controller.Parent = model
+		local animator = Instance.new("Animator")
+		animator.Parent = controller
+		model.Parent = proxyFolder
+		return {
+			model = model, animator = animator, joints = joints, tracks = {}, pack = nil, born = os.clock(),
+			lastState = "run", jumpAt = 0, strafe = 0, feetDown = { true, true }, alive = 0,
+		}
+	end
+	local function loadTracks(proxy, name: string)
+		for _, track in proxy.tracks do
+			track:Stop(0)
+			track:Destroy()
+		end
+		proxy.tracks = {}
+		proxy.pack = name
+		proxy.born = os.clock()
+		proxy.alive = 0
+		local ids = packIds(name)
+		if not ids then
+			return
+		end
+		local function load(key: string, id, looped: boolean)
+			if type(id) == "table" then
+				id = id[1]
+			end
+			if type(id) ~= "number" and type(id) ~= "string" then
+				return
+			end
+			local animation = Instance.new("Animation")
+			animation.AnimationId = if type(id) == "number" then string.format("rbxassetid://%.0f", id) else id
+			local ok, track = pcall(proxy.animator.LoadAnimation, proxy.animator, animation)
+			if ok and track then
+				track.Looped = looped
+				track.Priority = Enum.AnimationPriority.Core
+				proxy.tracks[key] = track
+				if looped then
+					track:Play(0, 0.0001, 1)
+				end
+			end
+		end
+		load("idle", ids.idle, true)
+		for _, key in { "walk", "run", "fall", "climb", "swim", "swimidle" } do
+			load(key, ids[key], true)
+		end
+		load("jump", ids.jump, false)
+	end
+	local function dropProxy(model: Model)
+		local proxy = proxies[model]
+		if proxy then
+			proxy.model:Destroy()
+			proxies[model] = nil
+		end
+	end
+	local IDENTITY = CFrame.identity
+	-- Toca o pacote no esqueleto do personagem e devolve a pose convertida para o R6 (ou nil).
+	local function catalogPose(model: Model, rootPart: BasePart, state: string, dt: number)
+		local proxy = proxies[model]
+		if proxy and proxy.failed then
+			return nil
+		end
+		if not proxy then
+			proxy = buildProxy()
+			proxies[model] = proxy
+		end
+		local pack = currentPack()
+		if proxy.pack ~= pack then
+			loadTracks(proxy, pack)
+		end
+		local velocity = rootPart.AssemblyLinearVelocity
+		local flat = Vector3.new(velocity.X, 0, velocity.Z)
+		local speed = flat.Magnitude
+		local jump = proxy.tracks.jump
+		if state == "jump" and proxy.lastState ~= "jump" and jump then
+			jump:Play(0.08, 1, 1)
+			proxy.jumpAt = os.clock()
+		end
+		proxy.lastState = state
+		local weights, rates = locomotionWeights(state, speed, velocity.Y)
+		if jump and os.clock() - proxy.jumpAt < 0.32 then
+			weights.fall = 0
+		end
+		for key, track in proxy.tracks do
+			if key ~= "jump" then
+				track:AdjustWeight(math.max(weights[key] or 0, 0.0001), 0.18)
+				track:AdjustSpeed(rates[key] or 1)
+			end
+		end
+		local transforms, moved = {}, false
+		for name, motor in proxy.joints do
+			local t = motor.Transform
+			transforms[name] = t
+			if not moved and (t.Position.Magnitude > 1e-4 or t.LookVector:Dot(IDENTITY.LookVector) < 0.9999
+				or t.UpVector:Dot(IDENTITY.UpVector) < 0.9999) then
+				moved = true
+			end
+		end
+		if moved then
+			proxy.alive = os.clock()
+		elseif os.clock() - proxy.born > 6 and proxy.alive == 0 then
+			-- O pacote não tocou (ID recusado ou sem permissão): usa a locomoção procedural.
+			proxy.failed = true
+			return nil
+		end
+		if not moved then
+			return nil
+		end
+		-- Mirando e andando de lado ou de costas: o passo segue a direção do movimento.
+		local target = 0
+		if speed > 1.5 then
+			local localVelocity = rootPart.CFrame:VectorToObjectSpace(flat)
+			target = math.atan2(-localVelocity.X, -localVelocity.Z)
+		end
+		proxy.strafe += angleDelta(proxy.strafe, target) * math.min(1, dt * 10)
+		local pose = retargetPose(transforms, proxy.strafe)
+		if state == "seated" or state == "dead" then
+			pose.weight = 0
+		end
+		-- Passos: o pé desce até o chão do esqueleto e volta a subir.
+		pose.step = 0
+		if speed > 2 and state == "run" then
+			for index = 1, 2 do
+				local height = pose.feet[index] - REST_FEET
+				if not proxy.feetDown[index] and height < 0.1 then
+					proxy.feetDown[index] = true
+					pose.step = index
+				elseif proxy.feetDown[index] and height > 0.28 then
+					proxy.feetDown[index] = false
+				end
+			end
+		end
+		return pose
+	end
+	Players.PlayerRemoving:Connect(function(other)
+		if other.Character then
+			dropProxy(other.Character)
+		end
+	end)
+
 	local function gaitCharacter(model: Model, dt: number)
 		local body = model:FindFirstChild("Torso")
 		local rootPart = model:FindFirstChild("HumanoidRootPart")
@@ -2410,7 +3105,9 @@ local function start()
 		if not body or not rootPart or not hum then
 			return
 		end
-		if (rootPart.Position - camera.CFrame.Position).Magnitude > 180 then
+		local distance = (rootPart.Position - camera.CFrame.Position).Magnitude
+		if distance > 180 then
+			dropProxy(model)
 			return
 		end
 		local g = gaits[model]
@@ -2420,10 +3117,19 @@ local function start()
 		end
 		local velocity = rootPart.AssemblyLinearVelocity
 		local state = STATES[hum:GetState()] or (if hum.Health <= 0 then "dead" else "run")
-		local pose = gaitStep(g, {
-			velocity = rootPart.CFrame:VectorToObjectSpace(velocity), state = state,
-			yawRate = rootPart.AssemblyAngularVelocity.Y, verticalSpeed = velocity.Y,
-		}, dt)
+		local pose
+		if distance <= PROXY_RANGE then
+			local ok, result = pcall(catalogPose, model, rootPart, state, dt)
+			pose = if ok then result else nil
+		else
+			dropProxy(model)
+		end
+		if not pose then
+			pose = gaitStep(g, {
+				velocity = rootPart.CFrame:VectorToObjectSpace(velocity), state = state,
+				yawRate = rootPart.AssemblyAngularVelocity.Y, verticalSpeed = velocity.Y,
+			}, dt)
+		end
 		g.pose = pose
 		local w = pose.weight
 		if w < 0.01 then
@@ -2436,16 +3142,16 @@ local function start()
 		local rightHip, leftHip = body:FindFirstChild("Right Hip"), body:FindFirstChild("Left Hip")
 		local rightShoulder, leftShoulder = body:FindFirstChild("Right Shoulder"), body:FindFirstChild("Left Shoulder")
 		if rightHip then
-			blend(rightHip, jointTransform(rightHip.C0, rightHip.C1, armRotation(pose.rightLeg, UP)), w)
+			blend(rightHip, jointTransform(rightHip.C0, rightHip.C1, armRotation(pose.rightLeg, pose.rightLegUp or UP)), w)
 		end
 		if leftHip then
-			blend(leftHip, jointTransform(leftHip.C0, leftHip.C1, armRotation(pose.leftLeg, UP)), w)
+			blend(leftHip, jointTransform(leftHip.C0, leftHip.C1, armRotation(pose.leftLeg, pose.leftLegUp or UP)), w)
 		end
 		if rightShoulder then
-			blend(rightShoulder, jointTransform(rightShoulder.C0, rightShoulder.C1, armRotation(pose.rightArm, UP)), w)
+			blend(rightShoulder, jointTransform(rightShoulder.C0, rightShoulder.C1, armRotation(pose.rightArm, pose.rightArmUp or UP)), w)
 		end
 		if leftShoulder then
-			blend(leftShoulder, jointTransform(leftShoulder.C0, leftShoulder.C1, armRotation(pose.leftArm, UP)), w)
+			blend(leftShoulder, jointTransform(leftShoulder.C0, leftShoulder.C1, armRotation(pose.leftArm, pose.leftArmUp or UP)), w)
 		end
 		if model ~= character then
 			local neck = body:FindFirstChild("Neck")
@@ -2514,11 +3220,13 @@ local function start()
 		combat.crosshair(showCross, bloom + (if aimingNow then 0 else 0.6))
 		if touch and fireButton then
 			-- O botão de ação mostra a arma atual (punho, lâmina ou a arma de fogo).
-			if fireIcon and fireShows ~= weapon.id then
+			if fireShows ~= weapon.id then
 				fireShows = weapon.id
 				local offset, size = iconRect(weapon.id)
-				if offset then
+				if fireIcon and offset then
 					fireIcon.ImageRectOffset, fireIcon.ImageRectSize = offset, size
+				elseif not fireIcon then
+					frameGlyph(fireButton, if weapon.kind == "gun" then "tiro" else "golpe", 21, TEXT)
 				end
 			end
 			aimButton.Visible = weapon.kind == "gun"

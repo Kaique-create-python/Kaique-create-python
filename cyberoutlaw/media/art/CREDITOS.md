@@ -16,10 +16,12 @@ As janelas dos prédios da cidade jogável (`fachada_residencial.png`, `fachada_
 
 - **Desenhado por código, sem IA:**
   - Painéis dos megaprédios: `fachada_painel.png`.
-  - Interiores das lojas vistos pela vitrine: `vitrines.png`.
   - Anúncios das marcas fictícias Alvor, Limiar, Kairos, Estuário Net e Nova Chuva: `anuncios.png`.
-  - Os três estão em `tools/draw_city_art.py`. O céu noturno (`ceu_*.png`) está em `tools/draw_sky.py`.
+  - Os dois estão em `tools/draw_city_art.py`. O céu noturno (`ceu_*.png`) está em `tools/draw_sky.py`.
   - As fontes dos anúncios são Inter e Michroma, ambas com licença SIL Open Font License.
+- **Gerado com IA, com autorização do dono do projeto:** os interiores das lojas vistos pela vitrine (`vitrines.png`).
+  São oito imagens (mercadinho, bar, farmácia, eletrônicos, lanchonete, roupas, fliperama e saguão), geradas no
+  Figma (gpt-image-2.5-flare). Os originais ficam no arquivo do Figma do projeto.
 - **Poças:** `poca_1.png` a `poca_4.png` usam o asfalto Poly Haven já creditado acima. A água é recortada por ruído determinístico, também em `tools/draw_city_art.py`.
 - **Fotos Poly Haven (CC0), com cor e relevo:**
   - [Dark Brick Wall](https://polyhaven.com/a/dark_brick_wall): `tijolo`.

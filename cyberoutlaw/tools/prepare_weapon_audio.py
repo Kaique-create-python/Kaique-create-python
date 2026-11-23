@@ -23,12 +23,16 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "media" / "audio"
 RATE = 48000
 
-# chave: (arquivo dentro do pacote, segundos depois do ataque, decaimento final em segundos)
+# chave: (arquivo dentro do pacote, segundos depois do ataque, decaimento final, tom)
+# Tomadas com um disparo isolado (o seguinte vem segundos depois). Tom < 1 deixa o tiro mais grave.
 SHOTS = {
-    "arma_vespa": ("Prepared SFX Library/Walther PPQ/X_39P.wav", 0.62, 0.35),
-    "arma_enxame": ("Prepared SFX Library/Carl Gustav M45/G_31P.wav", 0.38, 0.22),
-    "arma_trovao": ("Prepared SFX Library/Nova/O_21P.wav", 0.95, 0.5),
-    "arma_agulha": ("Prepared SFX Library/AR-15/D_32P.wav", 0.7, 0.4),
+    "arma_glock": ("Prepared SFX Library/Walther PPQ/X_39P.wav", 0.62, 0.35, 1.0),
+    "arma_deagle": ("Prepared SFX Library/1911/A_42P.wav", 0.85, 0.45, 0.86),
+    "arma_uzi": ("Prepared SFX Library/Carl Gustav M45/G_31P.wav", 0.38, 0.22, 1.04),
+    "arma_ak47": ("Prepared SFX Library/AK-47/C_31P.wav", 0.8, 0.45, 1.0),
+    "arma_m4": ("Prepared SFX Library/AR-15/D_32P.wav", 0.7, 0.4, 1.0),
+    "arma_escopeta": ("Prepared SFX Library/Mossberg/N_30P.wav", 1.0, 0.5, 1.0),
+    "arma_sniper": ("Prepared SFX Library/Tikka/W_29P.wav", 1.5, 0.85, 0.94),
 }
 
 
@@ -160,10 +164,13 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         with py7zr.SevenZipFile(library) as archive:
             archive.extract(path=tmp, targets=[item[0] for item in SHOTS.values()])
-        for key, (inner, length, fade) in SHOTS.items():
+        for key, (inner, length, fade, pitch) in SHOTS.items():
             raw_path = Path(tmp) / inner
             raw = raw_path.read_bytes()
             signal = highpass(read_wav(raw_path), 35)
+            if pitch != 1.0:
+                # Mais amostras tocadas na mesma taxa: o som fica mais grave e um pouco mais longo.
+                signal = resample(signal, RATE, int(RATE / pitch))
             start = onset(signal)
             shot = cut(signal, start, length, fade)
             # Compressão suave: o estalo perde um pouco do pico e o corpo do tiro aparece no celular.
@@ -186,6 +193,28 @@ def main():
         results[key] = (cut(signal, start, len(signal) / RATE, 0.08), {
             "provider": "OpenGameArt", "license": "CC0 1.0", "authors": author, "source": url, "file": name,
             "sourceSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        })
+    # Ações depois do tiro: bomba da escopeta (só o puxa-empurra) e ferrolho da sniper (abre e fecha).
+    cock_path = source / "shotguncock_0.wav"
+    cock = read_wav(cock_path)
+    start = onset(cock, 0.05)
+    results["arma_bomba"] = (cut(cock, start, 0.3, 0.05), {
+        "provider": "OpenGameArt", "license": "CC0 1.0", "authors": "SpringySpringo",
+        "source": "https://opengameart.org/content/gun-reload-sounds", "file": "shotguncock_0.wav",
+        "sourceSha256": hashlib.sha256(cock_path.read_bytes()).hexdigest(),
+    })
+    bolt_path = source / "gunreload1.wav"
+    bolt = read_wav(bolt_path)
+    events = segments(bolt, threshold=0.06)
+    if len(events) >= 2:
+        first, last = events[0], events[-1]
+        opening = cut(bolt, max(0, first[0] - 240), 0.3, 0.06)
+        closing = cut(bolt, max(0, last[0] - 240), 0.32, 0.08)
+        gap = np.zeros(int(0.14 * RATE))
+        results["arma_ferrolho"] = (np.concatenate([opening, gap, closing]), {
+            "provider": "OpenGameArt", "license": "CC0 1.0", "authors": "SpringySpringo",
+            "source": "https://opengameart.org/content/gun-reload-sounds", "file": "gunreload1.wav",
+            "sourceSha256": hashlib.sha256(bolt_path.read_bytes()).hexdigest(),
         })
     clicks_path = source / "equipmentclicks.wav"
     clicks = read_wav(clicks_path)

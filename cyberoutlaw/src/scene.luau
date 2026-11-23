@@ -185,7 +185,7 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
 
         grade = Instance.new("ColorCorrectionEffect")
         grade.Name = "CyberOutlawNightGrade"
-        grade.Brightness = 0.015
+        grade.Brightness = 0.045
         grade.Contrast = 0.11
         grade.Saturation = 0.02
         grade.TintColor = light(214, 227, 255)
@@ -276,22 +276,23 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
         local facadesOk, facadesError = pcall(addCyberOutlawFacades, city, art)
         if not facadesOk then warn("CyberOutlaw | Fachadas: " .. tostring(facadesError)) end
         write(lighting, "ClockTime", 1.1)
-        write(lighting, "Brightness", 1.65)
-        write(lighting, "Ambient", light(61, 52, 82))
-        write(lighting, "OutdoorAmbient", light(67, 78, 108))
-        write(lighting, "EnvironmentDiffuseScale", 0.34)
+        -- Lobby mais claro (como as noites do GTA): dá para ver o terraço e o reflexo das poças.
+        write(lighting, "Brightness", 2.4)
+        write(lighting, "Ambient", light(88, 78, 116))
+        write(lighting, "OutdoorAmbient", light(106, 114, 152))
+        write(lighting, "EnvironmentDiffuseScale", 0.5)
         write(lighting, "EnvironmentSpecularScale", 0.91)
         write(lighting, "GlobalShadows", true)
         write(lighting, "ShadowSoftness", 0.4)
-        write(lighting, "ExposureCompensation", 0.06)
+        write(lighting, "ExposureCompensation", 0.32)
         local haze = lighting:FindFirstChildOfClass("Atmosphere")
         if haze then
-            write(haze, "Density", 0.21)
+            write(haze, "Density", 0.16)
             write(haze, "Offset", 0.13)
             write(haze, "Color", light(98, 138, 194))
             write(haze, "Decay", light(41, 27, 69))
             write(haze, "Glare", 0)
-            write(haze, "Haze", 0.42)
+            write(haze, "Haze", 0.3)
         else
             write(lighting, "FogColor", light(30, 43, 72))
             write(lighting, "FogStart", 145)

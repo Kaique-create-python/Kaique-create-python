@@ -86,3 +86,44 @@ O instalador guarda backups em `~/.cyberoutlaw-installer`. Ele reaproveita recib
   - Os sons de interface são sintetizados.
 - **Iluminação:** o instalador grava no place Technology Unified, LightingStyle Realistic e PrioritizeLightingQuality.
 - **Pendente:** animações da Capri que faltam no Capri Desktop (fala, música, glitches, entradas "peek" e "up-close", versões espelhadas) e viaduto com rampas.
+
+## Versão 3 (armas reais, animação do catálogo, HUD v4, Capri completa)
+
+- **Chave Open Cloud:**
+  - O envio para no primeiro 401/403 e mostra a mensagem do Roblox, sem a chave.
+  - Recusas antigas por chave voltam a ser tentadas sozinhas.
+  - `python CYBEROUTLAW_HUD.py chave` testa a chave lendo um asset aprovado, sem enviar nada.
+- **Armas reais** (`src/arsenal.server.luau`):
+  - Punhos, faca, Glock 17, Desert Eagle, Uzi, AK-47, M4A1, escopeta pump e sniper .308, todas feitas de peças, sem neon.
+  - Sons de gravações CC0 da Free Firearm Sound Library: PPQ, 1911, M45, AK-47, AR-15, Mossberg e Tikka.
+  - Bomba e ferrolho tocam depois do tiro.
+  - A sniper tem luneta (FOV 18 e anel preto feito de `UIStroke`).
+- **Ícones:**
+  - `design/icones.py` projeta as peças dos modelos 3D em SVG (`tools/export_weapons.luau`).
+  - O atlas tem 9 armas e 8 glifos.
+  - Sem o atlas aprovado, os botões usam glifos feitos de Frames (`frameGlyph`).
+- **Animação:**
+  - Pacotes do catálogo tocam num esqueleto R15 invisível no cliente e são convertidos para R6 (`retargetPose`).
+  - Os IDs dos pacotes Rthro, Stylish, Ninja e Superhero vêm da documentação oficial.
+  - adidas, Oldschool e o pack UGC "GTA 6" são resolvidos no servidor (`r6_guard.server.luau`).
+  - Se o pacote não tocar, volta para a locomoção procedural.
+- **Painel do dono:** botão TP na faixa do topo, só para o criador.
+  - Teleporte para praça, poças, bairros, estação e viaduto.
+  - Troca do pacote de animação.
+  - O servidor valida cada pedido.
+- **HUD v4:**
+  - Paleta "pôr do sol" (rosa, laranja e dourado) nos destaques.
+  - Disco de vidro na roleta e cartão selecionado em degradê.
+  - Arte no Figma (arquivo do projeto, seção "CyberOutlaw v3").
+- **Cidade e lobby:**
+  - Noite mais clara e feixes de luz (`Beam`) nos postes.
+  - Via Expressa da Maré (elevado com rampas, z = 800).
+  - Vitrines com interiores gerados com IA no Figma, com autorização do dono.
+  - Lobby sem chuva, mais claro e com reflexo forte nas poças.
+- **Capri:**
+  - 32 animações. As novas são fala sentada e deitada, música sentada, glitches por pose, saída deitada e piscadas com glitch.
+  - Música do menu: `python CYBEROUTLAW_HUD.py musica <vídeo ou áudio>`. O `ffmpeg` do Termux tira a trilha e envia como Audio.
+  - O menu toca a música em loop com o botão ♪, e a Capri dança ou ouve.
+- **Pendente:**
+  - As intros em tela cheia da Capri ("peek" e "up-close", 1920×1080) não entraram.
+  - Conferir no Roblox real o esqueleto R15 e a luneta.

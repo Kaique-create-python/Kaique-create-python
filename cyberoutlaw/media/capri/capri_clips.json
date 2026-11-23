@@ -2711,6 +2711,1294 @@
           19
         ]
       }
+    },
+    "perch_music": {
+      "fps": 13.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_09",
+          "x": 2,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 148,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 294,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 440,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 586,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 732,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 878,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 2,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 148,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 294,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 440,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 586,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 732,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 878,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 2,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 148,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 294,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 440,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 586,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 732,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 878,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 2,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 148,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 294,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 440,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 586,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/perch_music.png",
+        "sha256": "358a49b783ada47453f3a64113310121a2e6379749492109f31a5c943fe0cf15",
+        "count": 60,
+        "fps": 30,
+        "cell": {
+          "w": 196,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          2,
+          4,
+          6,
+          9,
+          11,
+          13,
+          16,
+          18,
+          20,
+          23,
+          25,
+          27,
+          30,
+          32,
+          34,
+          36,
+          39,
+          41,
+          43,
+          46,
+          48,
+          50,
+          53,
+          55,
+          57
+        ]
+      }
+    },
+    "perch_blink_glitch": {
+      "fps": 30.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_09",
+          "x": 732,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 878,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 2,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 148,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 294,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 440,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 586,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_09",
+          "x": 732,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/perch_blink_glitch.png",
+        "sha256": "57d521c58fd3e6fe55e44d602a3cb34479d23fc39435093fe8193a1cb7ae8348",
+        "count": 8,
+        "fps": 30,
+        "cell": {
+          "w": 196,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    "perch_talk": {
+      "fps": 10.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_10",
+          "x": 2,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 148,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 294,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 440,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 586,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 732,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 878,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 2,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 148,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 294,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 440,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 586,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 732,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 878,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 2,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 148,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 294,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 440,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 586,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 732,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/perch_talk.png",
+        "sha256": "0f2cdeb193b805dd379d05cb8fc6a8ea1dcba1b197ad3c0731204d91862069d7",
+        "count": 60,
+        "fps": 30,
+        "cell": {
+          "w": 196,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          3,
+          6,
+          9,
+          12,
+          15,
+          18,
+          21,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48,
+          51,
+          54,
+          57
+        ]
+      }
+    },
+    "perch_glitch": {
+      "fps": 15.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_10",
+          "x": 878,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 2,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 148,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 294,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 440,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 586,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 732,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 878,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 2,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 148,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/perch_glitch.png",
+        "sha256": "195c2e1b0c87a8ac0f37438f899e8fee9248fa488f3437f7e001b1a88e2ccb1f",
+        "count": 10,
+        "fps": 15,
+        "cell": {
+          "w": 288,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      }
+    },
+    "idle_mouth": {
+      "fps": 12.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_10",
+          "x": 294,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 440,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 586,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 732,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_10",
+          "x": 878,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/idle_mouth.png",
+        "sha256": "e8c3e5fbdeb1647406da3149e4f24ff129d723e905d4b42585fca89efdcba75f",
+        "count": 5,
+        "fps": 12,
+        "cell": {
+          "w": 116,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    },
+    "laydown_talk": {
+      "fps": 9.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_11",
+          "x": 2,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 148,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 294,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 440,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 586,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 732,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 878,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 2,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 148,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 294,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 440,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 586,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 732,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 878,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 2,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 148,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 294,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 440,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/laydown_talk.png",
+        "sha256": "f0c36e913cea82b0595383befdf3e0f7a583c405d587091d8822bfa5b0886634",
+        "count": 60,
+        "fps": 30,
+        "cell": {
+          "w": 372,
+          "h": 250
+        },
+        "sampleIndices": [
+          0,
+          3,
+          6,
+          10,
+          13,
+          16,
+          20,
+          23,
+          26,
+          30,
+          33,
+          36,
+          40,
+          43,
+          46,
+          50,
+          53,
+          56
+        ]
+      }
+    },
+    "laydown_leave": {
+      "fps": 15.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_11",
+          "x": 586,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 732,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 878,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 2,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 148,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 294,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 440,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 586,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 732,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 878,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 2,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 148,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/laydown_leave.png",
+        "sha256": "59bbad7255ac06957cdd8ddead9fd1393e5a0e4719c42c74c41a0c4be017cfcb",
+        "count": 12,
+        "fps": 15,
+        "cell": {
+          "w": 440,
+          "h": 250
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ]
+      }
+    },
+    "blink_glitch": {
+      "fps": 8.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_11",
+          "x": 294,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 440,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 586,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_11",
+          "x": 732,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/blink_glitch.png",
+        "sha256": "177ca393b6721ff6d1ce94ce8dc444c33a1394f88cba0352075b4ea200688822",
+        "count": 4,
+        "fps": 8,
+        "cell": {
+          "w": 240,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    "laydown_glitch": {
+      "fps": 15.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_12",
+          "x": 2,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 148,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 294,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 440,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 586,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 732,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 878,
+          "y": 2,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 2,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 148,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 294,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/laydown_glitch.png",
+        "sha256": "6f8b2461d3560d23b2516de41affb96e4368d7d34b807a5655d46ea8a7dc417a",
+        "count": 10,
+        "fps": 15,
+        "cell": {
+          "w": 440,
+          "h": 250
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      }
+    },
+    "laydown_blink_glitch": {
+      "fps": 30.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_12",
+          "x": 440,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 586,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 732,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 878,
+          "y": 206,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 2,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 148,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 294,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 440,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/laydown_blink_glitch.png",
+        "sha256": "563690951d5b22cadcb6ff4b2473ac6f8ccddb77bc8477189b1a4df1abd5b2b9",
+        "count": 8,
+        "fps": 30,
+        "cell": {
+          "w": 372,
+          "h": 250
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    "idle_blink_glitch": {
+      "fps": 24.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_12",
+          "x": 586,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 732,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 878,
+          "y": 410,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 2,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 148,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 294,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 440,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 586,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/idle_blink_glitch.png",
+        "sha256": "34b25c40e7d1d39b8bc236855221f7f46ef49f9cccbf14eba5d27db7088cd4b6",
+        "count": 8,
+        "fps": 24,
+        "cell": {
+          "w": 116,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    "mouth": {
+      "fps": 12.0,
+      "kind": "body",
+      "frames": [
+        {
+          "assetKey": "capri_12",
+          "x": 732,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 878,
+          "y": 614,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 2,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 148,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        },
+        {
+          "assetKey": "capri_12",
+          "x": 294,
+          "y": 818,
+          "w": 142,
+          "h": 200
+        }
+      ],
+      "source": {
+        "path": "assets/sprites/mouth.png",
+        "sha256": "50ceb781213aeb439197499968637f6aec0e9e9504c5261316aebc8292e71c0d",
+        "count": 5,
+        "fps": 12,
+        "cell": {
+          "w": 240,
+          "h": 384
+        },
+        "sampleIndices": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      }
     }
   },
   "images": {
@@ -2721,7 +4009,11 @@
     "capri_05": "media/capri/capri_05.png",
     "capri_06": "media/capri/capri_06.png",
     "capri_07": "media/capri/capri_07.png",
-    "capri_08": "media/capri/capri_08.png"
+    "capri_08": "media/capri/capri_08.png",
+    "capri_09": "media/capri/capri_09.png",
+    "capri_10": "media/capri/capri_10.png",
+    "capri_11": "media/capri/capri_11.png",
+    "capri_12": "media/capri/capri_12.png"
   },
   "provenance": {
     "source": "https://github.com/lachydotmcg/capri-desktop",

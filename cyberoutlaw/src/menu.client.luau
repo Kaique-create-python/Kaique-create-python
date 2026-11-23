@@ -463,6 +463,14 @@ for key, level in levels do
 	end
 end
 
+-- Música do menu (enviada pelo dono com o comando musica): toca em loop; o botão ♪ liga e desliga.
+local musicUri = asset((ASSETS.sounds or {}).musica_menu)
+local music = if musicUri ~= "" then make("Sound", setFolder, "musica_menu", { SoundId = musicUri, Volume = 0.32, Looped = true }) else nil
+if music then
+	table.insert(preloadAssets, music)
+end
+local musicOn = true
+
 local clips = {}
 for name, inputClip in ASSETS.clips or {} do
 	local images = {}
@@ -543,9 +551,11 @@ local function greet()
 		if sounds[key] then
 			lastVoice = os.clock()
 			sound(key, 27)
-			return
+			local length = sounds[key].TimeLength
+			return key, if type(length) == "number" and length > 0.3 then length else 2.6
 		end
 	end
+	return nil
 end
 
 local function changeStatus()
@@ -692,7 +702,8 @@ local function goToSpot(index, nextPose)
 		pose(nextPose)
 		return
 	end
-	local leaving = if pet.mode == "seated" and clips.perch_leave then "perch_leave" else "leave"
+	local leaving = if pet.mode == "seated" and clips.perch_leave then "perch_leave"
+		elseif pet.mode == "resting" and clips.laydown_leave then "laydown_leave" else "leave"
 	local arriving = if nextPose == "seated" and clips.perch_arrive then "perch_arrive" else "arrive"
 	pet.mode = "travel"
 	positionPet(pet.position)
@@ -719,14 +730,27 @@ local function react(tapped)
 	pet.reactAt = now
 	local previous = pet.resume or pet.mode
 	pet.resume = previous
-	if previous == "asleep" or previous == "resting" then
+	if previous == "resting" and tapped and clips.laydown_glitch and rng:NextNumber(0, 1) < 0.5 then
+		sound("glitch", 1.7)
+		body("laydown_glitch", false, function()
+			pet.resume = nil
+			pose(previous)
+		end)
+	elseif previous == "asleep" or previous == "resting" then
 		body("wake", false, function()
 			pet.resume = nil
 			pose("stand")
 		end)
 	else
 		local name
-		if tapped then
+		pet.taps = (pet.taps or 0) + (if tapped then 1 else 0)
+		if tapped and previous == "seated" and clips.perch_glitch then
+			name = "perch_glitch"
+			sound("glitch", 1.7)
+		elseif tapped and pet.taps % 3 == 0 and clips.glitch then
+			name = "glitch"
+			sound("glitch", 1.7)
+		elseif tapped then
 			pet.danceNext = not pet.danceNext
 			name = if pet.danceNext and clips.grin then "grin" else "dance"
 		else
@@ -1017,6 +1041,9 @@ local function finishLoader()
 		loader, loaderShade, loaderBrand, loaderBar = nil, nil, nil, nil
 	end
 	state = "main"
+	if music and musicOn and soundOn and not music.IsPlaying then
+		music:Play()
+	end
 	stack.Visible = true
 	petLayer.Visible = true
 	profile.Visible = true
@@ -1169,13 +1196,61 @@ connect(soundToggle.Activated, function()
 	soundOn = not soundOn
 	if soundOn then
 		sound("click", 0)
+		if music and musicOn and state ~= "loading" then
+			music:Play()
+		end
 	else
 		for _, item in sounds do
 			item:Stop()
 		end
+		if music then
+			music:Stop()
+		end
 	end
 	changeStatus()
 end)
+
+-- Botão ♪ (só aparece com a música aprovada): liga e desliga a música; ao ligar, a Capri reage.
+if music then
+	local musicButton = make("TextButton", safe, "MusicaDoMenu", {
+		AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -16), Size = UDim2.fromOffset(46, 46),
+		BackgroundColor3 = INK, BackgroundTransparency = 0.18, BorderSizePixel = 0, AutoButtonColor = true,
+		Text = "♪", FontFace = BOLD, TextSize = 24, TextColor3 = PINK_LIGHT, ZIndex = 30,
+	})
+	make("UICorner", musicButton, "Canto", { CornerRadius = UDim.new(1, 0) })
+	local musicEdge = make("UIStroke", musicButton, "Borda", { Color = PINK_LIGHT, Thickness = 1.5, Transparency = 0.2 })
+	local function showMusic()
+		musicButton.TextTransparency = if musicOn then 0 else 0.55
+		musicEdge.Transparency = if musicOn then 0.2 else 0.7
+	end
+	connect(musicButton.Activated, function()
+		musicOn = not musicOn
+		sound("click", 0)
+		if musicOn and soundOn and state ~= "loading" then
+			music:Play()
+			-- Ela curte a música: sentada fica ouvindo, em pé dança um pouco.
+			if pet.active and motionOn and not pet.resume and pet.mode ~= "travel" and pet.mode ~= "drag" then
+				local returnPose = pet.mode
+				local name = if returnPose == "seated" and clips.perch_music then "perch_music"
+					elseif returnPose == "stand" and clips.dance then "dance" else nil
+				if name then
+					pet.resume = returnPose
+					body(name, true)
+					task.delay(if name == "dance" then 5 else 9, function()
+						if pet.resume == returnPose and pet.body and pet.body.clip == clips[name] then
+							pet.resume = nil
+							pose(returnPose)
+						end
+					end)
+				end
+			end
+		else
+			music:Stop()
+		end
+		showMusic()
+	end)
+	showMusic()
+end
 
 connect(motionToggle.Activated, function()
 	if state == "settings" and not GuiService.ReducedMotionEnabled then
@@ -1357,12 +1432,40 @@ local function updatePet(now)
 	end
 	if now >= voiceAt then
 		voiceAt = math.huge
-		greet()
+		local voice, length = greet()
+		-- Enquanto a voz toca, ela fala na pose em que está (boca mexendo sentada, deitada ou em pé).
+		local talk = ({ seated = "perch_talk", resting = "laydown_talk", stand = "idle_mouth" })[pet.mode]
+		if voice and talk and clips[talk] and motionOn then
+			local returnPose, actionTime = pet.mode, pet.actAt
+			pet.resume = returnPose
+			body(talk, true)
+			task.delay(length, function()
+				if pet.resume == returnPose and pet.body and pet.body.clip == clips[talk] then
+					pet.resume = nil
+					pose(returnPose)
+					pet.actAt = actionTime
+				end
+			end)
+			return
+		end
 	end
 	if now >= (pet.actAt or math.huge) then
 		if pet.mode == "stand" then
 			goToSpot(if pet.spot == 2 then 3 else 2, "seated")
+		elseif pet.mode == "seated" and clips.perch_music and not pet.listened
+			and rng:NextNumber(0, 1) < (if music and music.IsPlaying then 0.9 else 0.45) then
+			-- Sentada, às vezes ela coloca uma música e fica curtindo antes de deitar.
+			pet.listened = true
+			pet.resume = "seated"
+			body("perch_music", true)
+			task.delay(rng:NextNumber(6, 9), function()
+				if pet.resume == "seated" and pet.body and pet.body.clip == clips.perch_music then
+					pet.resume = nil
+					pose("seated")
+				end
+			end)
 		elseif pet.mode == "seated" then
+			pet.listened = false
 			goToSpot(1, "resting")
 		elseif pet.mode == "resting" then
 			pose("asleep")
@@ -1373,6 +1476,14 @@ local function updatePet(now)
 		pet.blinkAt = now + rng:NextNumber(3, 5.6)
 		local name = if pet.mode == "seated" then "perch_blink"
 			elseif pet.mode == "resting" then "laydown_blink" elseif pet.mode == "stand" then (if clips.idle_blink then "idle_blink" else "blink") else nil
+		-- De vez em quando a piscada sai com glitch (as versões glitch de cada pose).
+		if name and rng:NextNumber(0, 1) < 0.22 then
+			local glitchy = ({ perch_blink = "perch_blink_glitch", laydown_blink = "laydown_blink_glitch",
+				idle_blink = "idle_blink_glitch", blink = "blink_glitch" })[name]
+			if glitchy and clips[glitchy] then
+				name = glitchy
+			end
+		end
 		if name and clips[name] then
 			local returnPose = pet.mode
 			local actionTime = pet.actAt

@@ -79,6 +79,42 @@
       "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
     },
     {
+      "key": "capri_09",
+      "path": "capri/capri_09.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "2f69967783de3b45167e079c0985eca4bffb1d2423f47cba0bf806de4724868a",
+      "displayName": "CyberOutlaw capri_09",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_10",
+      "path": "capri/capri_10.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "2f87067113761b86c1a784b3e0457b851b04c58d7f812b6de4969e84689c7bbd",
+      "displayName": "CyberOutlaw capri_10",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_11",
+      "path": "capri/capri_11.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "aa9cb8ff98e9d118bc56b185dfe145f5e9f7a51d49673d05bcb78a6e776d422d",
+      "displayName": "CyberOutlaw capri_11",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "key": "capri_12",
+      "path": "capri/capri_12.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "bba921532d6fee57c802284f336da260d5aa1dcc350b773b9e2fc2b632b4e6eb",
+      "displayName": "CyberOutlaw capri_12",
+      "description": "Capri Desktop © 2026 Lachy. Arte e animação: artista anônima. https://github.com/lachydotmcg/capri-desktop — PolyForm Noncommercial 1.0.0."
+    },
+    {
       "key": "click",
       "path": "audio/click.wav",
       "assetType": "Audio",
@@ -149,44 +185,94 @@
       "durationSeconds": 2.32
     },
     {
-      "key": "arma_vespa",
-      "path": "audio/arma_vespa.wav",
+      "key": "arma_glock",
+      "path": "audio/arma_glock.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
       "sha256": "c234fcf7ca1c4b502569888c84d0f8ebae52a1fc03723f0320332c35442ad4a2",
-      "displayName": "CyberOutlaw arma_vespa",
+      "displayName": "CyberOutlaw arma_glock",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.62
     },
     {
-      "key": "arma_enxame",
-      "path": "audio/arma_enxame.wav",
+      "key": "arma_deagle",
+      "path": "audio/arma_deagle.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "17aedb4a9ac427b3aa3f79c245eec66c0fa6e912f16545f0dcccdedb07f28c65",
-      "displayName": "CyberOutlaw arma_enxame",
+      "sha256": "5d1272e9e092565b24918acba599b86b61b4e8860b18e3fe6445a514f4a73edc",
+      "displayName": "CyberOutlaw arma_deagle",
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 0.85
+    },
+    {
+      "key": "arma_uzi",
+      "path": "audio/arma_uzi.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "7b09ecd52cd0a32914d2953f72d4774d6e97c215fc6080a41332f607ae02aa2c",
+      "displayName": "CyberOutlaw arma_uzi",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.38
     },
     {
-      "key": "arma_trovao",
-      "path": "audio/arma_trovao.wav",
+      "key": "arma_ak47",
+      "path": "audio/arma_ak47.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "bf9d00a15fa256f4cf77faec4a752d10a262345f2dfa85b1fa536b8e843265ad",
-      "displayName": "CyberOutlaw arma_trovao",
+      "sha256": "03a7efa0165ac400870b92c89b9a386d3c2c76f2b3691484c179b9f151504f41",
+      "displayName": "CyberOutlaw arma_ak47",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
-      "durationSeconds": 0.95
+      "durationSeconds": 0.8
     },
     {
-      "key": "arma_agulha",
-      "path": "audio/arma_agulha.wav",
+      "key": "arma_m4",
+      "path": "audio/arma_m4.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
       "sha256": "7c4ed011c36d74e127b0b7c73946e4c455a8dc0b324cbd0fbdc671926b862b27",
-      "displayName": "CyberOutlaw arma_agulha",
+      "displayName": "CyberOutlaw arma_m4",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.7
+    },
+    {
+      "key": "arma_escopeta",
+      "path": "audio/arma_escopeta.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "75832d5119a7986ed751fec199a2748f1e116c3984bd0efb4d8ff5ba39cea0fd",
+      "displayName": "CyberOutlaw arma_escopeta",
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 1.0
+    },
+    {
+      "key": "arma_sniper",
+      "path": "audio/arma_sniper.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "0f53a75fb0d25863e77570c899796e3ca3859cfbfaa105ad441778b660432d93",
+      "displayName": "CyberOutlaw arma_sniper",
+      "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
+      "durationSeconds": 1.5
+    },
+    {
+      "key": "arma_bomba",
+      "path": "audio/arma_bomba.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "29d0b01c9e3556b0366ae05ac0b34f553ff0a6f4137c9f87bc4598ac83f81b12",
+      "displayName": "CyberOutlaw arma_bomba",
+      "description": "Gravação CC0 de SpringySpringo (https://opengameart.org/content/gun-reload-sounds), recortada por código.",
+      "durationSeconds": 0.3
+    },
+    {
+      "key": "arma_ferrolho",
+      "path": "audio/arma_ferrolho.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "ff891ae04a902a9f9f4db741e6921597d6d54801b521f6827f61eb2133279663",
+      "displayName": "CyberOutlaw arma_ferrolho",
+      "description": "Gravação CC0 de SpringySpringo (https://opengameart.org/content/gun-reload-sounds), recortada por código.",
+      "durationSeconds": 0.747
     },
     {
       "key": "arma_soco",
@@ -442,7 +528,7 @@
       "path": "art/icones_interface.png",
       "assetType": "Image",
       "contentType": "image/png",
-      "sha256": "959aec81dab270dc891aed5b47bf744c7afd6c3887efa933ad962ce4c70174ef",
+      "sha256": "973ee477d8f8f2f3cb4ed7ed5bcabdc62647c33861b6ab1d7da5ededc0af5a22",
       "displayName": "CyberOutlaw icones_interface",
       "description": "Ícones 2D das armas e dos botões, desenhados à mão em vetor, sem imagem gerada por IA."
     },
@@ -460,9 +546,9 @@
       "path": "art/vitrines.png",
       "assetType": "Image",
       "contentType": "image/png",
-      "sha256": "7fd11e94f04885bf1019ebb479cc714e3431268c18e0e7755bdcc175388e762d",
+      "sha256": "bd2bcb4189f8b1dda97110c42c5ca04fbe5beefc4040d5db643a32d139f292e3",
       "displayName": "CyberOutlaw vitrines",
-      "description": "Interiores das lojas de Maré Baixa vistos pela vitrine, desenhados por código, sem imagem gerada por IA."
+      "description": "Interiores das lojas de Maré Baixa vistos pela vitrine. Imagens geradas com IA no Figma, com autorização do dono do projeto."
     },
     {
       "key": "anuncios",

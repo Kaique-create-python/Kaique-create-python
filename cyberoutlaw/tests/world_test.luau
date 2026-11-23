@@ -116,6 +116,11 @@ local function check(art)
 		if ground[part.Name] then
 			continue
 		end
+		-- A Via Expressa é pista também: as rampas descem até o asfalto da avenida, como num elevado de verdade.
+		local express = part:FindFirstAncestor("Via Expressa da Maré")
+		if express then
+			continue
+		end
 		local x0, x1, y0, y1, z0, z1 = bounds(part)
 		if y0 > 14 or y1 < 0.3 then
 			continue

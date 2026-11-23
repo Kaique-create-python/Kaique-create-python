@@ -9,7 +9,7 @@ local arsenal = luau.load(fs.readFile("src/arsenal.server.luau"), {
 })()
 local V3 = roblox.Vector3
 
--- Definitions: six weapons in wheel order, with complete rules.
+-- Definitions: nine weapons in wheel order, with complete rules.
 local ids, byId = {}, {}
 for index, def in arsenal.WEAPONS do
 	assert(def.order == index, "the order follows the list")
@@ -25,7 +25,14 @@ for index, def in arsenal.WEAPONS do
 		assert(def.kind == "melee" and def.rate > 0 and def.range > 0 and def.damage > 0)
 	end
 end
-assert(table.concat(ids, ",") == "punhos,lamina,vespa,enxame,trovao,agulha")
+assert(table.concat(ids, ",") == "punhos,faca,glock,deagle,uzi,ak47,m4,escopeta,sniper")
+-- Real weapons: every gun names its own shot sound, reload and class; no neon anywhere.
+for _, def in arsenal.WEAPONS do
+	assert(type(def.tipo) == "string" and type(def.som) == "string", def.id .. " without type or sound")
+	if def.kind == "gun" then
+		assert(type(def.recarga) == "string" and type(def.alcance) == "number", def.id .. " without reload or reach")
+	end
+end
 
 -- Models: grip as PrimaryPart, muzzle in the right place, parts welded and with no collision.
 for _, def in arsenal.WEAPONS do
@@ -44,10 +51,15 @@ for _, def in arsenal.WEAPONS do
 		end
 	end
 	assert(welds == parts - 1, def.id .. ": every piece welded to the grip")
-	assert(parts <= 20, def.id .. " too heavy for the wheel and the hand")
+	assert(parts <= 40, def.id .. " too heavy for the wheel and the hand")
+	for _, item in model:GetDescendants() do
+		if item:IsA("BasePart") then
+			assert(item.Material ~= roblox.Enum.Material.Neon, def.id .. ": real weapons have no neon")
+		end
+	end
 	if def.kind == "gun" then
 		local muzzle = grip.CFrame:PointToWorldSpace(grip:FindFirstChild("Cano").Position)
-		assert(muzzle.Z < -1, def.id .. ": the barrel points at -Z")
+		assert(muzzle.Z < -0.7, def.id .. ": the barrel points at -Z")
 	end
 end
 
@@ -55,11 +67,11 @@ end
 do
 	local arm = roblox.Instance.new("Part")
 	arm.Size = V3.new(1, 2, 1)
-	local gun = arsenal.gripOffset(byId.vespa, arm)
+	local gun = arsenal.gripOffset(byId.glock, arm)
 	assert((gun:VectorToWorldSpace(V3.new(0, 0, -1)) - V3.new(0, -1, 0)).Magnitude < 1e-5)
 	assert((gun:VectorToWorldSpace(V3.new(0, 1, 0)) - V3.new(0, 0, -1)).Magnitude < 1e-5)
 	assert(math.abs(gun.Position.Y + 1.05) < 1e-5, "the grip sits in the hand")
-	local blade = arsenal.gripOffset(byId.lamina, arm)
+	local blade = arsenal.gripOffset(byId.faca, arm)
 	assert((blade:VectorToWorldSpace(V3.new(0, 0, -1)) - V3.new(0, 0, -1)).Magnitude < 1e-5)
 end
 
@@ -68,10 +80,10 @@ assert(arsenal.inSafeZone(V3.new(107, 3, 139)))
 assert(not arsenal.inSafeZone(V3.new(107 + 100, 3, 107)))
 
 -- Damage: full up to 60% of range, half at the end, headshot x1.5.
-local vespa = byId.vespa
-assert(arsenal.damageFor(vespa, 10, false) == vespa.damage)
-assert(math.abs(arsenal.damageFor(vespa, vespa.range, false) - vespa.damage * 0.5) < 1e-6)
-assert(math.abs(arsenal.damageFor(vespa, 10, true) - vespa.damage * 1.5) < 1e-6)
+local glock = byId.glock
+assert(arsenal.damageFor(glock, 10, false) == glock.damage)
+assert(math.abs(arsenal.damageFor(glock, glock.range, false) - glock.damage * 0.5) < 1e-6)
+assert(math.abs(arsenal.damageFor(glock, 10, true) - glock.damage * 1.5) < 1e-6)
 
 -- Shot validation.
 local head = V3.new(0, 5, 0)
@@ -79,24 +91,24 @@ local forward = { V3.new(0, 0, -1) }
 local function fresh()
 	return arsenal.newState()
 end
-assert(fresh().ammo.vespa.mag == vespa.mag and fresh().ammo.punhos == nil)
-assert(arsenal.checkShot(fresh(), vespa, 10, head + V3.new(2, 1, 10), forward, head) == true)
+assert(fresh().ammo.glock.mag == glock.mag and fresh().ammo.punhos == nil)
+assert(arsenal.checkShot(fresh(), glock, 10, head + V3.new(2, 1, 10), forward, head) == true)
 local state = fresh()
 state.reloadUntil = 20
-assert(select(2, arsenal.checkShot(state, vespa, 10, head, forward, head)) == "recarregando")
+assert(select(2, arsenal.checkShot(state, glock, 10, head, forward, head)) == "recarregando")
 state = fresh()
-state.ammo.vespa.mag = 0
-assert(select(2, arsenal.checkShot(state, vespa, 10, head, forward, head)) == "pente vazio")
+state.ammo.glock.mag = 0
+assert(select(2, arsenal.checkShot(state, glock, 10, head, forward, head)) == "pente vazio")
 state = fresh()
 state.nextShot = 11
-assert(select(2, arsenal.checkShot(state, vespa, 10, head, forward, head)) == "cadência")
-assert(select(2, arsenal.checkShot(fresh(), vespa, 10, head + V3.new(0, 0, 60), forward, head)) == "origem")
-assert(select(2, arsenal.checkShot(fresh(), vespa, 10, head, { forward[1], forward[1] }, head)) == "projéteis")
-assert(select(2, arsenal.checkShot(fresh(), vespa, 10, head, { V3.new(0, 0, -3) }, head)) == "direção")
+assert(select(2, arsenal.checkShot(state, glock, 10, head, forward, head)) == "cadência")
+assert(select(2, arsenal.checkShot(fresh(), glock, 10, head + V3.new(0, 0, 60), forward, head)) == "origem")
+assert(select(2, arsenal.checkShot(fresh(), glock, 10, head, { forward[1], forward[1] }, head)) == "projéteis")
+assert(select(2, arsenal.checkShot(fresh(), glock, 10, head, { V3.new(0, 0, -3) }, head)) == "direção")
 assert(select(2, arsenal.checkShot(fresh(), byId.punhos, 10, head, forward, head)) == "sem arma de fogo")
 local pellets = {}
-for index = 1, byId.trovao.pellets do
+for index = 1, byId.escopeta.pellets do
 	pellets[index] = V3.new(0, 0, -1)
 end
-assert(arsenal.checkShot(fresh(), byId.trovao, 10, head, pellets, head) == true, "the shotgun sends nine pellets")
-print("CyberOutlawArsenal: 6 weapons, welded models, grip, safe zone, damage, and validation passed")
+assert(arsenal.checkShot(fresh(), byId.escopeta, 10, head, pellets, head) == true, "the shotgun sends nine pellets")
+print("CyberOutlawArsenal: 9 real weapons, welded models without neon, grip, safe zone, damage, and validation passed")

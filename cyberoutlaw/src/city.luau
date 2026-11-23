@@ -207,8 +207,9 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
             poolEdge(c, d, start, finish, false, tint)
             local film = box(water, "Superfície de água", (low + high) / 2, floorY - 0.065, z,
                 high - low, 0.12, depth, rgb(9, 17, 30))
-            film.Transparency = 0.74
-            film.Reflectance = 0.10
+            -- Película fina e clara: o reflexo (mundo espelhado logo abaixo) aparece nítido.
+            film.Transparency = 0.86
+            film.Reflectance = 0.16
             for _ = 1, 2 do
                 local dx = range(left + 0.5, right - 0.5)
                 local ripple = box(water, "Ondulação rasa", dx, floorY + 0.021, z + range(-0.22, 0.22) * depth,
@@ -903,15 +904,15 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
     for _, model in reflective do
         for _, instance in model:GetDescendants() do
             if instance:IsA("Part") and instance.Transparency < 1 then
-                mirror(instance, if instance.Material == neon then 0.56 else 0.42)
+                mirror(instance, if instance.Material == neon then 0.82 else 0.66)
             end
         end
     end
-    mirror(lamp, 0.43)
-    mirror(edgeLamp, 0.49)
-    mirror(coolLamp, 0.52)
+    mirror(lamp, 0.7)
+    mirror(edgeLamp, 0.74)
+    mirror(coolLamp, 0.76)
     if nearAccent then
-        mirror(nearAccent, 0.55)
+        mirror(nearAccent, 0.8)
     end
     -- Dark geometry deep beneath the openings gives the reflected signs a bounded backdrop.
     box(reflections, "Fundo profundo das poças", 0, -57.4, -13, 283, 1.5, 420, rgb(10, 15, 25))
@@ -931,17 +932,8 @@ local function createCyberCity(parent: Instance, media, origin: Vector3?)
         light(pool, zone[3], 0.79, 15)
     end
 
-    local storm = group(city, "Chuva em primeiro plano")
+    -- Sem chuva: o jogo não tem mais chuva (o chão continua molhado, com as poças refletindo).
     local streaks = {}
-    for index = 1, 54 do
-        local x, z = range(-25, 31), range(-42, 19.5)
-        local size = Vector3.new(range(0.047, 0.068), range(1.30, 2.79), 0.051)
-        local tone = shade(if index % 3 == 0 then palette.cyan else palette.ice, range(0.32, 0.55))
-        local streak = solid(storm, "Traço de chuva", size, CFrame.new(x, 45, z), tone, neon)
-        streak.Transparency = range(0.49, 0.76)
-        local speed = 41 * math.floor(range(18, 32)) / loopSeconds
-        table.insert(streaks, {part = streak, x = x, z = z, phase = range(0, 41), speed = speed})
-    end
 
     local function cameraAt(seconds: number, aspectRatio: number?): CFrame
         local phase = (seconds % loopSeconds) * (2 * math.pi / loopSeconds)

@@ -1,233 +1,283 @@
 {
- "click": {
-  "durationSeconds": 0.158005,
-  "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
-  "provider": "ElevenLabs",
-  "model": "eleven_text_to_sound_v2",
-  "generationId": "meiWWevOHLv9eh9sZLKc",
-  "originalSha256": "ac9c43672b999dae298a79eb7c75bd9065f7627e1a3a30c6f53301d5bc373f9b"
- },
- "confirm": {
-  "durationSeconds": 0.34,
-  "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
-  "provider": "ElevenLabs",
-  "model": "eleven_text_to_sound_v2",
-  "generationId": "4LUr7UGVDngt8dH1Xkil",
-  "originalSha256": "a614ea988c26baf29f69da199281069901ca0bded5bc146219bdf9abf71abca3"
- },
- "glitch": {
-  "durationSeconds": 0.35,
-  "sha256": "b279fa6eade71865729fc903914ad1c826b73bb2bbe03825a7b8caa53ab0c2f9",
-  "provider": "Efeito digital original",
-  "source": "tools/synth_menu_fx.py"
- },
- "hello_late": {
-  "durationSeconds": 2.16,
-  "sha256": "6460cd945636a005b7199b5eb0a9bce2140a10cacaa4885aacd0c2374326422a",
-  "provider": "Capri Desktop",
-  "source": "https://github.com/lachydotmcg/capri-desktop",
-  "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
-  "license": "PolyForm Noncommercial 1.0.0"
- },
- "hello_miss": {
-  "durationSeconds": 2.32,
-  "sha256": "8afa97810cd8d112537e325c74504fef25746a7557c1a2d6d60d0a52dc4fb619",
-  "provider": "Capri Desktop",
-  "source": "https://github.com/lachydotmcg/capri-desktop",
-  "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
-  "license": "PolyForm Noncommercial 1.0.0"
- },
- "hello_morning": {
-  "durationSeconds": 2.16,
-  "sha256": "12556ee08fed3bc81c1024e8693a57ccccbe6ce229ed862e884ae0c1061272e2",
-  "provider": "Capri Desktop",
-  "source": "https://github.com/lachydotmcg/capri-desktop",
-  "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
-  "license": "PolyForm Noncommercial 1.0.0"
- },
- "react": {
-  "durationSeconds": 0.255011,
-  "sha256": "260f50a6a3b81832fb47a1947f4b6fe4ce21b708f39977ab7a0e7db92081d415",
-  "provider": "Efeito digital original",
-  "source": "tools/synth_menu_fx.py"
- },
- "rain": {
-  "durationSeconds": 14.0,
-  "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
-  "provider": "ElevenLabs",
-  "model": "eleven_text_to_sound_v2",
-  "generationId": "WKKy7NeL2eh2bh23ATjJ",
-  "originalSha256": "99bd75d630dd60cb423ac1be9f4cc3f4eeb8b2eacf73a8741935259148cc2669",
-  "editing": "Sobreposição circular da chuva original para playback contínuo no menu."
- },
- "arma_vespa": {
-  "provider": "The Free Firearm Sound Library (OpenGameArt)",
-  "license": "CC0 1.0",
-  "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
-  "source": "https://opengameart.org/content/the-free-firearm-sound-library",
-  "file": "Prepared SFX Library/Walther PPQ/X_39P.wav",
-  "sourceSha256": "d679a3cd87eae2898d984159f83544392932e6b77526045b672e3aaa9c2dda9f",
-  "durationSeconds": 0.62,
-  "sha256": "c234fcf7ca1c4b502569888c84d0f8ebae52a1fc03723f0320332c35442ad4a2"
- },
- "arma_enxame": {
-  "provider": "The Free Firearm Sound Library (OpenGameArt)",
-  "license": "CC0 1.0",
-  "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
-  "source": "https://opengameart.org/content/the-free-firearm-sound-library",
-  "file": "Prepared SFX Library/Carl Gustav M45/G_31P.wav",
-  "sourceSha256": "5982c6c2fa44545b750ba6217ed57797a6a15c02f5c9943ac0e99e5f3ab2b158",
-  "durationSeconds": 0.38,
-  "sha256": "17aedb4a9ac427b3aa3f79c245eec66c0fa6e912f16545f0dcccdedb07f28c65"
- },
- "arma_trovao": {
-  "provider": "The Free Firearm Sound Library (OpenGameArt)",
-  "license": "CC0 1.0",
-  "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
-  "source": "https://opengameart.org/content/the-free-firearm-sound-library",
-  "file": "Prepared SFX Library/Nova/O_21P.wav",
-  "sourceSha256": "5661d0625e4634f19e6e316c13693b80c8e28cd9f716cf9c75c465153ae40815",
-  "durationSeconds": 0.95,
-  "sha256": "bf9d00a15fa256f4cf77faec4a752d10a262345f2dfa85b1fa536b8e843265ad"
- },
- "arma_agulha": {
-  "provider": "The Free Firearm Sound Library (OpenGameArt)",
-  "license": "CC0 1.0",
-  "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
-  "source": "https://opengameart.org/content/the-free-firearm-sound-library",
-  "file": "Prepared SFX Library/AR-15/D_32P.wav",
-  "sourceSha256": "acee9d2106b68fe5956225a19d7aedf943d97793817f9bda9d486a2b74b0a812",
-  "durationSeconds": 0.7,
-  "sha256": "7c4ed011c36d74e127b0b7c73946e4c455a8dc0b324cbd0fbdc671926b862b27"
- },
- "arma_soco": {
-  "durationSeconds": 0.3,
-  "sha256": "b0b74c959e55f75cd822cdbeab2a09039682bdb18b00bfedf6d57f9f2910bc1a",
-  "provider": "Síntese própria",
-  "source": "tools/synth_weapon_fx.py"
- },
- "arma_lamina": {
-  "durationSeconds": 0.45,
-  "sha256": "d8bf5e37f99ab134c2f9053b93316622c382a9852efd7e9561a12248b92b9c6b",
-  "provider": "Síntese própria",
-  "source": "tools/synth_weapon_fx.py"
- },
- "arma_recarga": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "zer0_sol",
-  "source": "https://opengameart.org/content/handgun-reload-sound-effect",
-  "file": "reload.wav",
-  "sourceSha256": "091399145b174ac3b2e0df245b4712a13ce85df072e37256b0fc32658718be53",
-  "durationSeconds": 1.491,
-  "sha256": "69c50a476ead59841cbd48284e6365181e9ffe79919c80029aae008d7ec4d0ee"
- },
- "arma_vazia": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "LFA",
-  "source": "https://opengameart.org/content/equipment-clicks-ii",
-  "file": "equipmentclicks.wav",
-  "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
-  "durationSeconds": 0.066,
-  "sha256": "3a1d9c0c4014adc5c5b63ba0b1932a5cebf5e77b449de4592107e1e99b872545"
- },
- "arma_troca": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "LFA",
-  "source": "https://opengameart.org/content/equipment-clicks-ii",
-  "file": "equipmentclicks.wav",
-  "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
-  "durationSeconds": 0.305,
-  "sha256": "c89df7a1a2b6a324cc645e0fa4c3a4428a3d48a640f4b33b344d99a87c4977d8"
- },
- "arma_recarga_fuzil": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "SpringySpringo",
-  "source": "https://opengameart.org/content/gun-reload-sounds",
-  "file": "assaultriflereload1_0.wav",
-  "sourceSha256": "efb2d724d634eabe6ba8d3065686abca848bb7497d4d43a5e4aed5e5ea23016f",
-  "durationSeconds": 1.406,
-  "sha256": "33c6a6becc69f57c69b8670d4f9f8163bdcb1eacc65d04b8c2ca81d83b19cc31"
- },
- "arma_recarga_escopeta": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "SpringySpringo",
-  "source": "https://opengameart.org/content/gun-reload-sounds",
-  "file": "shotguncock_0.wav",
-  "sourceSha256": "33e007321ba83301c861aef573f2c40b70bc62f8f24c0164877e6dd123e24371",
-  "durationSeconds": 0.424,
-  "sha256": "0c55a9685fb827868813eb06cb5ed08c0f94c04ebf9276b90f16984ca1a17334"
- },
- "passo_1": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "Fantozzi (OpenGameArt)",
-  "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
-  "file": "Fantozzi-footsteps/flac/Fantozzi-StoneL1.flac",
-  "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
-  "durationSeconds": 0.32,
-  "sha256": "2c5684658e9db0a5c9e372a14591d11fbdf9f6bdc6116073ec6d16823331919b"
- },
- "passo_2": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "Fantozzi (OpenGameArt)",
-  "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
-  "file": "Fantozzi-footsteps/flac/Fantozzi-StoneR1.flac",
-  "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
-  "durationSeconds": 0.32,
-  "sha256": "73042eca88109bf649a575116872addf951d4f4c53cd560388e2076559bd7858"
- },
- "passo_3": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "Fantozzi (OpenGameArt)",
-  "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
-  "file": "Fantozzi-footsteps/flac/Fantozzi-StoneL2.flac",
-  "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
-  "durationSeconds": 0.32,
-  "sha256": "f8df91016ff832cbb049b99cac576dc322c2f8a1031f4bf3cc09a9454c1c7c9b"
- },
- "passo_4": {
-  "provider": "OpenGameArt",
-  "license": "CC0 1.0",
-  "authors": "Fantozzi (OpenGameArt)",
-  "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
-  "file": "Fantozzi-footsteps/flac/Fantozzi-StoneR2.flac",
-  "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
-  "durationSeconds": 0.31,
-  "sha256": "34444cc59b0171ecda9bede2e52c3c7eb5c092bf05f274b3cd61ddbcb262e5f5"
- },
- "ui_tick": {
-  "provider": "Síntese própria",
-  "license": "Original do projeto",
-  "source": "tools/prepare_weapon_audio.py",
-  "durationSeconds": 0.05,
-  "sha256": "719e4111bebd3cd96f603bd0bfd393e419131f1c7548ebb00038d699ba082935"
- },
- "ui_abrir": {
-  "provider": "Síntese própria",
-  "license": "Original do projeto",
-  "source": "tools/prepare_weapon_audio.py",
-  "durationSeconds": 0.22,
-  "sha256": "2ee0de3e6e181c9a578407bc3121fb11d1e33417f737a14d3ccff3aad1320d02"
- },
- "ui_fechar": {
-  "provider": "Síntese própria",
-  "license": "Original do projeto",
-  "source": "tools/prepare_weapon_audio.py",
-  "durationSeconds": 0.22,
-  "sha256": "9e45ad54f0e90c25abdcd0027345a9981729c087c69b48562f854c8a6484875b"
- },
- "ui_confirmar": {
-  "provider": "Síntese própria",
-  "license": "Original do projeto",
-  "source": "tools/prepare_weapon_audio.py",
-  "durationSeconds": 0.32,
-  "sha256": "ad7faab72bfbe5f421045e7c5864e0e5fe17dd245c60465ab2fcf1c49e508b35"
- }
+  "click": {
+    "durationSeconds": 0.158005,
+    "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v2",
+    "generationId": "meiWWevOHLv9eh9sZLKc",
+    "originalSha256": "ac9c43672b999dae298a79eb7c75bd9065f7627e1a3a30c6f53301d5bc373f9b"
+  },
+  "confirm": {
+    "durationSeconds": 0.34,
+    "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v2",
+    "generationId": "4LUr7UGVDngt8dH1Xkil",
+    "originalSha256": "a614ea988c26baf29f69da199281069901ca0bded5bc146219bdf9abf71abca3"
+  },
+  "glitch": {
+    "durationSeconds": 0.35,
+    "sha256": "b279fa6eade71865729fc903914ad1c826b73bb2bbe03825a7b8caa53ab0c2f9",
+    "provider": "Efeito digital original",
+    "source": "tools/synth_menu_fx.py"
+  },
+  "hello_late": {
+    "durationSeconds": 2.16,
+    "sha256": "6460cd945636a005b7199b5eb0a9bce2140a10cacaa4885aacd0c2374326422a",
+    "provider": "Capri Desktop",
+    "source": "https://github.com/lachydotmcg/capri-desktop",
+    "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
+    "license": "PolyForm Noncommercial 1.0.0"
+  },
+  "hello_miss": {
+    "durationSeconds": 2.32,
+    "sha256": "8afa97810cd8d112537e325c74504fef25746a7557c1a2d6d60d0a52dc4fb619",
+    "provider": "Capri Desktop",
+    "source": "https://github.com/lachydotmcg/capri-desktop",
+    "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
+    "license": "PolyForm Noncommercial 1.0.0"
+  },
+  "hello_morning": {
+    "durationSeconds": 2.16,
+    "sha256": "12556ee08fed3bc81c1024e8693a57ccccbe6ce229ed862e884ae0c1061272e2",
+    "provider": "Capri Desktop",
+    "source": "https://github.com/lachydotmcg/capri-desktop",
+    "commit": "60df4a9fea49348faa5b839541a563cffbbeb582",
+    "license": "PolyForm Noncommercial 1.0.0"
+  },
+  "react": {
+    "durationSeconds": 0.255011,
+    "sha256": "260f50a6a3b81832fb47a1947f4b6fe4ce21b708f39977ab7a0e7db92081d415",
+    "provider": "Efeito digital original",
+    "source": "tools/synth_menu_fx.py"
+  },
+  "rain": {
+    "durationSeconds": 14.0,
+    "sha256": "ac6eaa650d93f54979f3afadbffac2bf9e50f1630272f1baeb748103db67feda",
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v2",
+    "generationId": "WKKy7NeL2eh2bh23ATjJ",
+    "originalSha256": "99bd75d630dd60cb423ac1be9f4cc3f4eeb8b2eacf73a8741935259148cc2669",
+    "editing": "Sobreposição circular da chuva original para playback contínuo no menu."
+  },
+  "arma_soco": {
+    "durationSeconds": 0.3,
+    "sha256": "b0b74c959e55f75cd822cdbeab2a09039682bdb18b00bfedf6d57f9f2910bc1a",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "arma_lamina": {
+    "durationSeconds": 0.45,
+    "sha256": "d8bf5e37f99ab134c2f9053b93316622c382a9852efd7e9561a12248b92b9c6b",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "arma_recarga": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "zer0_sol",
+    "source": "https://opengameart.org/content/handgun-reload-sound-effect",
+    "file": "reload.wav",
+    "sourceSha256": "091399145b174ac3b2e0df245b4712a13ce85df072e37256b0fc32658718be53",
+    "durationSeconds": 1.491,
+    "sha256": "69c50a476ead59841cbd48284e6365181e9ffe79919c80029aae008d7ec4d0ee"
+  },
+  "arma_vazia": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "durationSeconds": 0.066,
+    "sha256": "3a1d9c0c4014adc5c5b63ba0b1932a5cebf5e77b449de4592107e1e99b872545"
+  },
+  "arma_troca": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "durationSeconds": 0.305,
+    "sha256": "c89df7a1a2b6a324cc645e0fa4c3a4428a3d48a640f4b33b344d99a87c4977d8"
+  },
+  "arma_recarga_fuzil": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "SpringySpringo",
+    "source": "https://opengameart.org/content/gun-reload-sounds",
+    "file": "assaultriflereload1_0.wav",
+    "sourceSha256": "efb2d724d634eabe6ba8d3065686abca848bb7497d4d43a5e4aed5e5ea23016f",
+    "durationSeconds": 1.406,
+    "sha256": "33c6a6becc69f57c69b8670d4f9f8163bdcb1eacc65d04b8c2ca81d83b19cc31"
+  },
+  "arma_recarga_escopeta": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "SpringySpringo",
+    "source": "https://opengameart.org/content/gun-reload-sounds",
+    "file": "shotguncock_0.wav",
+    "sourceSha256": "33e007321ba83301c861aef573f2c40b70bc62f8f24c0164877e6dd123e24371",
+    "durationSeconds": 0.424,
+    "sha256": "0c55a9685fb827868813eb06cb5ed08c0f94c04ebf9276b90f16984ca1a17334"
+  },
+  "passo_1": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps/flac/Fantozzi-StoneL1.flac",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "durationSeconds": 0.32,
+    "sha256": "2c5684658e9db0a5c9e372a14591d11fbdf9f6bdc6116073ec6d16823331919b"
+  },
+  "passo_2": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps/flac/Fantozzi-StoneR1.flac",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "durationSeconds": 0.32,
+    "sha256": "73042eca88109bf649a575116872addf951d4f4c53cd560388e2076559bd7858"
+  },
+  "passo_3": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps/flac/Fantozzi-StoneL2.flac",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "durationSeconds": 0.32,
+    "sha256": "f8df91016ff832cbb049b99cac576dc322c2f8a1031f4bf3cc09a9454c1c7c9b"
+  },
+  "passo_4": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps/flac/Fantozzi-StoneR2.flac",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "durationSeconds": 0.31,
+    "sha256": "34444cc59b0171ecda9bede2e52c3c7eb5c092bf05f274b3cd61ddbcb262e5f5"
+  },
+  "ui_tick": {
+    "provider": "Síntese própria",
+    "license": "Original do projeto",
+    "source": "tools/prepare_weapon_audio.py",
+    "durationSeconds": 0.05,
+    "sha256": "719e4111bebd3cd96f603bd0bfd393e419131f1c7548ebb00038d699ba082935"
+  },
+  "ui_abrir": {
+    "provider": "Síntese própria",
+    "license": "Original do projeto",
+    "source": "tools/prepare_weapon_audio.py",
+    "durationSeconds": 0.22,
+    "sha256": "2ee0de3e6e181c9a578407bc3121fb11d1e33417f737a14d3ccff3aad1320d02"
+  },
+  "ui_fechar": {
+    "provider": "Síntese própria",
+    "license": "Original do projeto",
+    "source": "tools/prepare_weapon_audio.py",
+    "durationSeconds": 0.22,
+    "sha256": "9e45ad54f0e90c25abdcd0027345a9981729c087c69b48562f854c8a6484875b"
+  },
+  "ui_confirmar": {
+    "provider": "Síntese própria",
+    "license": "Original do projeto",
+    "source": "tools/prepare_weapon_audio.py",
+    "durationSeconds": 0.32,
+    "sha256": "ad7faab72bfbe5f421045e7c5864e0e5fe17dd245c60465ab2fcf1c49e508b35"
+  },
+  "arma_glock": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Walther PPQ/X_39P.wav",
+    "sourceSha256": "d679a3cd87eae2898d984159f83544392932e6b77526045b672e3aaa9c2dda9f",
+    "durationSeconds": 0.62,
+    "sha256": "c234fcf7ca1c4b502569888c84d0f8ebae52a1fc03723f0320332c35442ad4a2"
+  },
+  "arma_deagle": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/1911/A_42P.wav",
+    "sourceSha256": "8e84438e771c157155a6a1ff47a6a7a7d81b6f39b185d41e426c57337a82254a",
+    "durationSeconds": 0.85,
+    "sha256": "5d1272e9e092565b24918acba599b86b61b4e8860b18e3fe6445a514f4a73edc"
+  },
+  "arma_uzi": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Carl Gustav M45/G_31P.wav",
+    "sourceSha256": "5982c6c2fa44545b750ba6217ed57797a6a15c02f5c9943ac0e99e5f3ab2b158",
+    "durationSeconds": 0.38,
+    "sha256": "7b09ecd52cd0a32914d2953f72d4774d6e97c215fc6080a41332f607ae02aa2c"
+  },
+  "arma_ak47": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/AK-47/C_31P.wav",
+    "sourceSha256": "5c3261c3bdd7657fd07c141f1f683bef06c2e03da475f43f3943f755360a4994",
+    "durationSeconds": 0.8,
+    "sha256": "03a7efa0165ac400870b92c89b9a386d3c2c76f2b3691484c179b9f151504f41"
+  },
+  "arma_m4": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/AR-15/D_32P.wav",
+    "sourceSha256": "acee9d2106b68fe5956225a19d7aedf943d97793817f9bda9d486a2b74b0a812",
+    "durationSeconds": 0.7,
+    "sha256": "7c4ed011c36d74e127b0b7c73946e4c455a8dc0b324cbd0fbdc671926b862b27"
+  },
+  "arma_escopeta": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Mossberg/N_30P.wav",
+    "sourceSha256": "b5a28243e16f8cb10adfc5225d96e90f108d24393fcfffcaa6dcf203af03634a",
+    "durationSeconds": 1.0,
+    "sha256": "75832d5119a7986ed751fec199a2748f1e116c3984bd0efb4d8ff5ba39cea0fd"
+  },
+  "arma_sniper": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Tikka/W_29P.wav",
+    "sourceSha256": "b1ffe3c104391bf8ceb8337aa4d5a2ca47938fb88ccbd051cdd2b2e205d9e72b",
+    "durationSeconds": 1.5,
+    "sha256": "0f53a75fb0d25863e77570c899796e3ca3859cfbfaa105ad441778b660432d93"
+  },
+  "arma_bomba": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "SpringySpringo",
+    "source": "https://opengameart.org/content/gun-reload-sounds",
+    "file": "shotguncock_0.wav",
+    "sourceSha256": "33e007321ba83301c861aef573f2c40b70bc62f8f24c0164877e6dd123e24371",
+    "durationSeconds": 0.3,
+    "sha256": "29d0b01c9e3556b0366ae05ac0b34f553ff0a6f4137c9f87bc4598ac83f81b12"
+  },
+  "arma_ferrolho": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "SpringySpringo",
+    "source": "https://opengameart.org/content/gun-reload-sounds",
+    "file": "gunreload1.wav",
+    "sourceSha256": "685cac6a184e3cc3ec09a25b6ddb1d6feffd86d469778f339aa423d384035c50",
+    "durationSeconds": 0.747,
+    "sha256": "ff891ae04a902a9f9f4db741e6921597d6d54801b521f6827f61eb2133279663"
+  }
 }

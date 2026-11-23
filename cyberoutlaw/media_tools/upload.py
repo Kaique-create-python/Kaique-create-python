@@ -50,6 +50,39 @@ _FORMATS = {
 }
 
 
+class AuthRejected(ValueError):
+    """Roblox refused the key itself (HTTP 401/403). Nothing was created, so a new key can retry."""
+
+    def __init__(self, status, detail=""):
+        self.status, self.detail = status, detail
+        super().__init__(f"O Roblox recusou a chave (HTTP {status}). {detail}".strip())
+
+
+def error_detail(body: bytes) -> str:
+    """Roblox's own error code and message, printable ASCII only (never the key or headers)."""
+    try:
+        data = _json(body)
+    except (ValueError, UnicodeError):
+        return ""
+    parts = []
+
+    def pick(obj):
+        if not isinstance(obj, dict):
+            return
+        for name in ("code", "message", "error", "errorMessage"):
+            value = obj.get(name)
+            if isinstance(value, (str, int)) and not isinstance(value, bool):
+                text = "".join(c for c in str(value) if c.isascii() and c.isprintable()).strip()
+                if text and text not in parts:
+                    parts.append(text)
+        errors = obj.get("errors")
+        if isinstance(errors, list) and errors:
+            pick(errors[0])
+
+    pick(data)
+    return " - ".join(parts)[:200]
+
+
 @dataclass(frozen=True)
 class HttpResponse:
     status: int
@@ -527,6 +560,9 @@ def _poll_or_refresh(receipt, entry, save, session, *, metadata=False):
                 return
         else:
             receipt["lastErrorCode"] = "http_" + str(response.status)
+            if response.status in (401, 403):
+                save()
+                raise AuthRejected(response.status, error_detail(response.body))
             if response.status not in _TRANSIENT:
                 save()
                 return
@@ -666,6 +702,12 @@ def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_p
             if existing:
                 receipt = _json(path.read_bytes())
                 _check_receipt(receipt, entry)
+                if (receipt.get("status") == "failed" and receipt.get("lastErrorCode") in _AUTH_FAILURES
+                        and not receipt.get("assetId") and not receipt.get("operationPath")):
+                    # An old refusal of the key itself: no asset exists, so a corrected key may try again.
+                    _archive_receipt(state, digest, path, receipt)
+                    receipt, existing = None, False
+            if receipt is not None:
                 if receipt.get("status") == "submitting":
                     receipt.update(status="uncertain_upload", lastErrorCode="interrupted_create")
             if progress:
@@ -690,6 +732,10 @@ def upload_manifest(manifest_path, key, transport=None, *, state_dir=None, max_p
                         except (ValueError, UnicodeError, TypeError, AttributeError):
                             receipt.update(status="uploading" if receipt.get("operationPath") else "uncertain_upload",
                                            lastErrorCode="invalid_create_response")
+                    elif response.status in (401, 403):
+                        receipt.update(status="failed", lastErrorCode="create_http_" + str(response.status))
+                        _archive_receipt(state, digest, path, receipt)
+                        raise AuthRejected(response.status, error_detail(response.body))
                     elif 400 <= response.status < 500 and response.status != 408:
                         receipt.update(status="failed", lastErrorCode="create_http_" + str(response.status))
                     else:
@@ -762,14 +808,21 @@ def reset_rejected(manifest_path, sha256, *, state_dir=None, now=time.time):
             raise ValueError("Only a definitive HTTP 4xx Create rejection can be reset")
         if receipt.get("nextPollAt", 0) > now():
             raise ValueError("Retry-After has not elapsed")
-        archive = state / "rejected" / (sha256 + "-" + secrets.token_hex(8) + ".json")
-        _atomic_json(archive, receipt)
-        path.unlink()
-        directory = os.open(state, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        _archive_receipt(state, sha256, path, receipt)
+
+
+_AUTH_FAILURES = ("create_http_401", "create_http_403")
+
+
+def _archive_receipt(state, sha256, path, receipt):
+    archive = state / "rejected" / (sha256 + "-" + secrets.token_hex(8) + ".json")
+    _atomic_json(archive, receipt)
+    path.unlink()
+    directory = os.open(state, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
 
 
 def main(argv=None):

@@ -12,7 +12,7 @@ local play = luau.load(source, {
 	debugName = "play.client.luau",
 	environment = {
 		Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
-		Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, NumberSequence = roblox.NumberSequence,
+		Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, NumberSequence = roblox.NumberSequence,
 		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
 		Font = roblox.Font, utf8 = utf8,
 	},
@@ -39,7 +39,8 @@ local function rig(hrp: CFrame, pose)
 	end
 	local torso = solve(joints.root, play.rootTransform(joints.root[1], pose.root), hrp)
 	local limb = function(key, direction)
-		return solve(joints[key], play.jointTransform(joints[key][1], joints[key][2], play.armRotation(direction, UP)), torso)
+		local up = pose[key .. "Up"] or UP
+		return solve(joints[key], play.jointTransform(joints[key][1], joints[key][2], play.armRotation(direction, up)), torso)
 	end
 	return {
 		{ "Torso", torso, { 2, 2, 1 }, { 52, 92, 150 } },
@@ -52,15 +53,55 @@ local function rig(hrp: CFrame, pose)
 end
 
 local rows = {}
+-- Vista: "lado" (perfil), "frente" ou "tres_quartos". O ciclo R15 sintético imita uma caminhada e uma
+-- corrida de pacote do catálogo para conferir a conversão R15 -> R6 de vários ângulos.
+local VIEW = process.args[2] or "lado"
+local YAW = ({ lado = -math.pi / 2, frente = math.pi, tres_quartos = math.pi * 0.75 })[VIEW] or -math.pi / 2
+local function r15Cycle(phase, run)
+	local s = math.sin(2 * math.pi * phase)
+	local hip, knee, arm, elbow = if run then 46 else 26, if run then 95 else 45, if run then 42 else 22, if run then 85 else 18
+	local rad = math.rad
+	local function bend(offset)
+		return math.max(0, math.sin(2 * math.pi * phase + offset))
+	end
+	return {
+		Root = CF.new(0, (if run then 0.14 else 0.07) * math.cos(4 * math.pi * phase), 0) * CF.Angles(rad(if run then -12 else -3), 0, 0),
+		Waist = CF.Angles(0, rad(if run then 9 else 6) * s, 0),
+		Neck = CF.Angles(0, -rad(4) * s, 0),
+		RightHip = CF.Angles(rad(hip) * s, 0, 0),
+		LeftHip = CF.Angles(-rad(hip) * s, 0, 0),
+		RightKnee = CF.Angles(-rad(knee) * bend(-0.6), 0, 0),
+		LeftKnee = CF.Angles(-rad(knee) * bend(math.pi - 0.6), 0, 0),
+		RightShoulder = CF.Angles(-rad(arm) * s, 0, rad(if run then 0 else 4)),
+		LeftShoulder = CF.Angles(rad(arm) * s, 0, -rad(if run then 0 else 4)),
+		RightElbow = CF.Angles(rad(elbow + 15 * bend(math.pi)), 0, 0),
+		LeftElbow = CF.Angles(rad(elbow + 15 * bend(0)), 0, 0),
+	}
+end
 local sequences = {
 	{ name = "Parado", velocity = V3.zero, state = "run", frames = 2, gap = 0.9 },
 	{ name = "Corrida", velocity = V3.new(0, 0, -17), state = "run", frames = 6, gap = 0.105 },
 	{ name = "Sprint", velocity = V3.new(0, 0, -27), state = "run", frames = 6, gap = 0.095 },
 	{ name = "Lateral mirando", velocity = V3.new(11, 0, 0), state = "run", frames = 4, gap = 0.18 },
 	{ name = "Salto", velocity = V3.new(0, -45, -10), state = "fall", frames = 2, gap = 0.25 },
+	{ name = "Caminhada (pacote)", catalog = false, frames = 6 },
+	{ name = "Corrida (pacote)", catalog = true, frames = 6 },
 }
 local column = 0
 for line, seq in sequences do
+	if seq.catalog ~= nil then
+		for frame = 1, seq.frames do
+			local pose = play.retargetPose(r15Cycle((frame - 1) / seq.frames, seq.catalog))
+			local x = column * 3.6
+			column += 1
+			local hrp = CF.new(x, 3, 0) * CF.Angles(0, YAW, 0)
+			for _, part in rig(hrp, pose) do
+				table.insert(rows, { n = part[1], c = { part[2]:GetComponents() }, s = part[3], k = part[4], line = line, label = seq.name })
+			end
+		end
+		column += 1
+		continue
+	end
 	local g = play.newGait()
 	for _ = 1, 90 do
 		play.gaitStep(g, { velocity = seq.velocity, state = seq.state, verticalSpeed = seq.velocity.Y }, 1 / 60)
@@ -73,7 +114,7 @@ for line, seq in sequences do
 		end
 		local x = column * 3.6
 		column += 1
-		local hrp = CF.new(x, 3, 0) * CF.Angles(0, -math.pi / 2, 0) -- de perfil para a câmera
+		local hrp = CF.new(x, 3, 0) * CF.Angles(0, YAW, 0)
 		for _, part in rig(hrp, pose) do
 			table.insert(rows, { n = part[1], c = { part[2]:GetComponents() }, s = part[3], k = part[4], line = line, label = seq.name })
 		end

@@ -61,7 +61,7 @@ for key in ART:
     elif key.startswith("fachada_"):
         description = "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
     elif key == "vitrines":
-        description = "Interiores das lojas de Maré Baixa vistos pela vitrine, desenhados por código, sem imagem gerada por IA."
+        description = "Interiores das lojas de Maré Baixa vistos pela vitrine. Imagens geradas com IA no Figma, com autorização do dono do projeto."
     elif key == "anuncios":
         description = "Anúncios de marcas fictícias de Maré Baixa, desenhados por código, sem imagem gerada por IA."
     elif key.startswith("poca_"):

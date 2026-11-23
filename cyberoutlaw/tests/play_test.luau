@@ -11,7 +11,7 @@ local function load(media: string)
 		debugName = "play.client.luau",
 		environment = {
 			Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
-			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, NumberSequence = roblox.NumberSequence,
+			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, NumberSequence = roblox.NumberSequence,
 			NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
 			Font = roblox.Font, utf8 = utf8,
 		},
@@ -126,15 +126,16 @@ for _, def in arsenal.WEAPONS do
 	table.insert(defs, def)
 end
 local root = roblox.Instance.new("Folder")
-local ammo = { vespa = { 9, 96 }, enxame = { 32, 192 }, trovao = { 6, 36 }, agulha = { 28, 140 } }
+local ammo = { glock = { 9, 102 }, deagle = { 7, 42 }, uzi = { 32, 192 }, ak47 = { 30, 150 }, m4 = { 30, 180 },
+	escopeta = { 6, 40 }, sniper = { 5, 30 } }
 for _, atlas in { nil, "rbxassetid://123" } do
 	for _, touch in { false, true } do
 		local wheel = play.buildWheel(root, defs, nil, touch, atlas)
-		assert(wheel.gui:IsA("ScreenGui") and #wheel.cards == 6)
+		assert(wheel.gui:IsA("ScreenGui") and #wheel.cards == 9)
 		wheel.select(3, ammo)
 		wheel.animate(0.1, 1)
 		assert(wheel.cards[3].pop.Scale > 1 and wheel.cards[1].pop.Scale == 1, "the selected card stands out")
-		assert(wheel.cards[3].ammo.Text == "9/96")
+		assert(wheel.cards[3].ammo.Text == "9/102")
 		if atlas then
 			for index, entry in wheel.cards do
 				local offset, size = play.iconRect(defs[index].id)
@@ -143,10 +144,10 @@ for _, atlas in { nil, "rbxassetid://123" } do
 		end
 		assert(wheel.cards[3].card.BackgroundTransparency < wheel.cards[1].card.BackgroundTransparency, "the selected slot is the solid one")
 		local card = play.buildWeaponCard(root, touch, atlas)
-		card.show(defs[3], nil, ammo.vespa, nil)
+		card.show(defs[3], nil, ammo.glock, nil)
 		assert(card.panel:FindFirstChild("Pente").Text:find("^9"), "the card shows the magazine")
-		assert(card.panel:FindFirstChild("Reserva").Text == "/96")
-		card.show(defs[4], nil, ammo.enxame, 0.5)
+		assert(card.panel:FindFirstChild("Reserva").Text == "/102")
+		card.show(defs[5], nil, ammo.uzi, 0.5)
 		assert(card.panel:FindFirstChild("Recarga").Visible, "the reload progress shows while reloading")
 		card.show(defs[1], nil, nil, nil)
 		assert(card.panel:FindFirstChild("Pente").Text == "", "fists have no ammo")
@@ -158,7 +159,8 @@ for _, atlas in { nil, "rbxassetid://123" } do
 end
 -- Atlas: cells inside the 1024 image and without overlap.
 local seen = {}
-for _, key in { "punhos", "lamina", "vespa", "enxame", "trovao", "agulha", "tiro", "mira", "recarga", "arsenal" } do
+for _, key in { "punhos", "faca", "glock", "deagle", "uzi", "ak47", "m4", "escopeta", "sniper",
+	"tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar" } do
 	local offset, size = play.iconRect(key)
 	assert(offset and offset.X + size.X <= 1024 and offset.Y + size.Y <= 1024, key)
 	for _, other in seen do
@@ -232,7 +234,7 @@ do
 		environment = {
 			Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Color3 = roblox.Color3,
 			Vector3 = setmetatable({ FromNormalId = function(face) return normals[face.Name] end }, { __index = roblox.Vector3 }),
-			ColorSequence = roblox.ColorSequence, Enum = roblox.Enum, UDim2 = roblox.UDim2, Font = roblox.Font, Content = roblox.Content,
+			ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, Enum = roblox.Enum, UDim2 = roblox.UDim2, Font = roblox.Font, Content = roblox.Content,
 		},
 	})()
 	local city = layoutData()
@@ -433,4 +435,69 @@ do
 	end
 	assert(sameSet(wedgePoints(play.mirrorCFrame(wedge, plane, true), wsize), expected), "mirrored wedge keeps its slope")
 end
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, combat layer, 2D and 3D icons passed")
+-- Animações do catálogo no R6: a pose do esqueleto R15 vira a pose do R6.
+do
+	local CF, V3 = roblox.CFrame, roblox.Vector3
+	local function near(a, b, tolerance)
+		return (a - b).Magnitude < (tolerance or 0.02)
+	end
+	local rest = play.retargetPose({})
+	for _, key in { "rightArm", "leftArm", "rightLeg", "leftLeg" } do
+		assert(near(rest[key], V3.new(0, -1, 0)), key .. " hangs straight at rest")
+		assert(near(rest[key .. "Up"], V3.new(0, 0, -1)), key .. " faces forward at rest")
+	end
+	assert(near(rest.root.Position, V3.zero) and near(rest.root.LookVector, V3.new(0, 0, -1)), "torso at rest")
+	-- Braço do R15 levantado para a frente: o braço do R6 aponta para a frente.
+	local raised = play.retargetPose({ RightShoulder = CF.Angles(math.rad(90), 0, 0) })
+	assert(raised.rightArm.Z < -0.95 and math.abs(raised.rightArm.Y) < 0.2, "arm forward: " .. tostring(raised.rightArm))
+	assert(near(raised.leftArm, V3.new(0, -1, 0)), "the other arm stays down")
+	-- Cotovelo dobrado 90° com o braço para baixo: o R6 aponta na diagonal, para a frente e para baixo.
+	local bent = play.retargetPose({ RightElbow = CF.Angles(math.rad(90), 0, 0) })
+	assert(bent.rightArm.Z < -0.3 and bent.rightArm.Y < -0.6, "bent elbow: " .. tostring(bent.rightArm))
+	-- Perna 30° para a frente.
+	local step = play.retargetPose({ LeftHip = CF.Angles(math.rad(30), 0, 0) })
+	assert(math.abs(math.deg(math.atan2(-step.leftLeg.Z, -step.leftLeg.Y)) - 30) < 3, "leg forward 30°")
+	-- Tronco: giro da cintura passa pela metade (mistura dos dois troncos).
+	local twist = play.retargetPose({ Waist = CF.Angles(0, math.rad(20), 0) })
+	local yaw = math.deg(math.atan2(-twist.root.LookVector.X, -twist.root.LookVector.Z))
+	assert(yaw > 8 and yaw < 18, "torso twist " .. yaw)
+	-- Pernas giram com o movimento lateral (mirando e andando de lado).
+	local side = play.retargetPose({ LeftHip = CF.Angles(math.rad(30), 0, 0) }, math.rad(-90))
+	assert(side.leftLeg.X > 0.4 and math.abs(side.leftLeg.Z) < 0.15, "strafe turns the step: " .. tostring(side.leftLeg))
+	-- Pesos de locomoção como no Animate do R15.
+	local w = play.locomotionWeights("run", 0, 0)
+	assert(w.idle == 1 and w.walk == 0)
+	w = play.locomotionWeights("run", 12, 0)
+	assert(w.walk > 0 and w.run > 0 and math.abs(w.walk + w.run - 1) < 1e-6)
+	local w2, r2 = play.locomotionWeights("run", 27, 0)
+	assert(w2.run == 1 and r2.run <= 1.35)
+	assert(play.locomotionWeights("fall", 10, -30).fall == 1)
+	for _, id in play.PACK_ORDER do
+		assert(type(id) == "string")
+	end
+	assert(play.ANIMATION_PACKS.realista.walk == 2510202577, "Rthro walk from the official docs")
+end
+-- Painel do dono: lista os pontos de teleporte e os pacotes, abre e fecha, e marca o pacote atual.
+do
+	local folder = roblox.Instance.new("Folder")
+	local picks = {}
+	local points = { { k = "praca", n = "Praça (início)" }, { k = "poca_1", n = "Poça com reflexo 1" } }
+	local packs = { { k = "realista", n = "Realista (Rthro)" }, { k = "estiloso", n = "Estiloso (Stylish)" } }
+	for _, touch in { false, true } do
+		local panel = play.buildAdminPanel(folder, touch, points, packs, function(kind, key)
+			table.insert(picks, kind .. ":" .. key)
+		end)
+		assert(panel.gui.Enabled == false and panel.top.ScreenInsets == roblox.Enum.ScreenInsets.TopbarSafeInsets)
+		assert(panel.buttons.tp_praca and panel.buttons.tp_poca_1 and panel.buttons.pacote_estiloso, "every point and pack has a button")
+		panel.toggle()
+		assert(panel.gui.Enabled)
+		panel.mark("pacote", "estiloso")
+		assert(panel.buttons.pacote_estiloso.edge.Thickness == 2 and panel.buttons.pacote_realista.edge.Thickness == 1)
+		panel.toggle(false)
+		assert(not panel.gui.Enabled)
+		for _, entry in panel.buttons do
+			assert(entry.button.Size.Y.Offset >= 36, "touch-friendly rows")
+		end
+	end
+end
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")

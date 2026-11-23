@@ -21,6 +21,7 @@ local MEDIAN = 8 -- canteiro central das avenidas
 local QUAY = 1070 -- borda do cais, ao sul
 local WATER = -3
 local DECK = 66 -- topo do viaduto do monotrilho
+local EXPRESS_Z, EXPRESS_TOP = 800, 26 -- Via Expressa da Maré: eixo (z) e topo da pista elevada
 local LIMIT = 1036 -- muros invisíveis do mapa
 local TILE = 32 -- ladrilho do asfalto; as poças ocupam células desta grade
 local PLAZA = Vector3.new(108, 0, 108) -- centro da quadra entre os eixos 0 e 200
@@ -466,6 +467,35 @@ local function buildCity(root: Instance, art, options)
 		return plate
 	end
 
+	-- Feixe de luz do poste: um Beam virado para a câmera, estreito na luminária e largo na calçada, que
+	-- some aos poucos (aditivo, sem textura). Parece um cone de luz na névoa visto de qualquer lado.
+	local function lightShaft(head: BasePart, color: Color3, drop: number)
+		local top = Instance.new("Attachment")
+		top.Name = "Topo do feixe"
+		top.Position = Vector3.new(0, -0.3, 0)
+		top.Parent = head
+		local bottom = Instance.new("Attachment")
+		bottom.Name = "Base do feixe"
+		bottom.Position = Vector3.new(0, -math.max(4, drop - 0.4), 0.4)
+		bottom.Parent = head
+		local shaft = Instance.new("Beam")
+		shaft.Name = "Feixe de luz"
+		shaft.Attachment0 = top
+		shaft.Attachment1 = bottom
+		shaft.Color = ColorSequence.new(color)
+		shaft.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.62), NumberSequenceKeypoint.new(0.55, 0.84), NumberSequenceKeypoint.new(1, 1),
+		})
+		shaft.Width0 = 1.4
+		shaft.Width1 = 10
+		shaft.FaceCamera = true
+		shaft.LightEmission = 1
+		shaft.LightInfluence = 0
+		shaft.Segments = 1
+		shaft.Parent = head
+		return shaft
+	end
+
 	local function lamp(parent: Instance, x: number, z: number, out: Vector3, color: Color3, lit: boolean, double: boolean?)
 		rod(parent, "Poste", x, CURB, CURB + 24, z, 0.7, PALETTE.iron, M.Metal, true)
 		box(parent, "Base do poste", x, CURB + 0.6, z, 1.3, 1.2, 1.3, PALETTE.iron, M.Metal)
@@ -478,6 +508,7 @@ local function buildCity(root: Instance, art, options)
 			piece(parent, "Lente da luminária", Vector3.new(0.9, 0.06, 2.2), head.CFrame * CFrame.new(0, -0.24, 0), shade(color, 0.9), M.Neon)
 			if lit then
 				light(head, "SpotLight", color, 1.7, 46, N.Bottom, 118)
+				lightShaft(head, color, CURB + 23.3 - GROUND)
 			end
 		end
 	end
@@ -2004,6 +2035,85 @@ local function buildCity(root: Instance, art, options)
 		sea.Reflectance = 0.55
 	end
 
+	-- Via Expressa da Maré: elevado de concreto sobre a avenida das Docas (z = 800), com pilares no canteiro
+	-- (fora dos cruzamentos), pistas pintadas, mureta, postes com feixe de luz, placa e rampas nas pontas.
+	do
+		local highway = group(city, "Via Expressa da Maré")
+		local Z, TOP, WIDTH, THICK = EXPRESS_Z, EXPRESS_TOP, 34, 1.8
+		local RAMP_START, RAMP_END = 620, 960
+		local deckColor, wall = rgb(92, 90, 96), rgb(128, 126, 130)
+		-- Altura do topo da pista em x (plano no meio, descendo em linha reta nas rampas).
+		local function topAt(x: number): number
+			local d = math.abs(x)
+			if d <= RAMP_START then
+				return TOP
+			end
+			return GROUND + (TOP - GROUND) * math.max(0, (RAMP_END - d) / (RAMP_END - RAMP_START))
+		end
+		-- Tabuleiro em trechos: retos no meio e inclinados nas rampas (cada trecho é uma peça girada).
+		local x = -RAMP_END
+		while x < RAMP_END do
+			local step = if math.abs(x) >= RAMP_START or math.abs(x + 40) > RAMP_START then 20 else 80
+			local x1 = math.min(RAMP_END, x + step)
+			local a, b = Vector3.new(x, topAt(x), Z), Vector3.new(x1, topAt(x1), Z)
+			local mid = a:Lerp(b, 0.5)
+			local pose = CFrame.lookAt(mid, b, Vector3.yAxis) * CFrame.Angles(0, math.pi / 2, 0)
+			local length = (b - a).Magnitude + 0.15
+			piece(highway, "Pista elevada", Vector3.new(length, THICK, WIDTH), pose * CFrame.new(0, -THICK / 2, 0), rgb(40, 41, 46), M.Asphalt, true)
+			for _, side in { -1, 1 } do
+				piece(highway, "Mureta", Vector3.new(length, 1.7, 0.9), pose * CFrame.new(0, 0.85, side * (WIDTH / 2 - 0.45)), wall, M.Concrete, true)
+				piece(highway, "Corrimão da mureta", Vector3.new(length, 0.18, 0.3), pose * CFrame.new(0, 2.05, side * (WIDTH / 2 - 0.45)), PALETTE.steel, M.Metal)
+				-- Faixas: borda contínua e tracejado entre as pistas.
+				piece(highway, "Faixa de borda", Vector3.new(length, 0.04, 0.35), pose * CFrame.new(0, 0.02, side * (WIDTH / 2 - 2.2)), PALETTE.paint, M.SmoothPlastic)
+				for k = 0, math.floor(length / 12) - 1 do
+					local u = -length / 2 + 6 + k * 12
+					piece(highway, "Tracejado", Vector3.new(5, 0.04, 0.3), pose * CFrame.new(u, 0.02, side * 7.4), PALETTE.paint, M.SmoothPlastic)
+				end
+			end
+			piece(highway, "Faixa dupla amarela", Vector3.new(length, 0.04, 0.7), pose * CFrame.new(0, 0.021, 0), PALETTE.yellow, M.SmoothPlastic)
+			x = x1
+		end
+		-- Pilares no meio das quadras (os cruzamentos ficam livres), com travessa embaixo do tabuleiro.
+		for block = -HALF, HALF - STEP, STEP do
+			for _, offset in { 60, 140 } do
+				local px = block + offset
+				local top = topAt(px) - THICK
+				if top > GROUND + 6 then
+					box(highway, "Pilar do elevado", px, (GROUND + top) / 2, Z, 5, top - GROUND, 5, deckColor, M.Concrete, true)
+					box(highway, "Travessa do pilar", px, top - 1.1, Z, 6, 2.2, WIDTH - 2, deckColor, M.Concrete, true)
+					local under = box(highway, "Luz sob o elevado", px, top - 2.3, Z, 1.2, 0.3, 1.2, shade(PALETTE.sodium, 0.9), M.Neon)
+					light(under, "PointLight", PALETTE.sodium, 1.2, 28)
+				end
+			end
+		end
+		-- Postes no canteiro da pista, com feixe de luz até o asfalto do elevado.
+		for px = -RAMP_START + 40, RAMP_START - 40, 120 do
+			local base = topAt(px)
+			rod(highway, "Poste da via expressa", px, base, base + 13, Z, 0.5, PALETTE.iron, M.Metal, true)
+			for _, side in { -1, 1 } do
+				local tip = Vector3.new(px, base + 13, Z + side * 5)
+				beam(highway, "Braço do poste", Vector3.new(px, base + 12.6, Z), tip, 0.26, 0.26, PALETTE.iron, M.Metal)
+				local head = piece(highway, "Luminária", Vector3.new(1.2, 0.4, 2.6), CFrame.lookAt(tip, tip + Vector3.new(0, 0, side)) * CFrame.new(0, -0.1, -0.9), PALETTE.iron, M.Metal)
+				piece(highway, "Lente da luminária", Vector3.new(0.8, 0.06, 1.8), head.CFrame * CFrame.new(0, -0.22, 0), shade(PALETTE.led, 0.95), M.Neon)
+				light(head, "SpotLight", PALETTE.led, 1.5, 32, N.Bottom, 110)
+				lightShaft(head, PALETTE.led, 12.6)
+			end
+		end
+		-- Placa verde suspensa sobre a pista, na entrada de cada rampa.
+		for _, sx in { -1, 1 } do
+			local px = sx * (RAMP_START - 30)
+			local base = topAt(px)
+			for _, side in { -1, 1 } do
+				box(highway, "Coluna da placa", px, base + 5, Z + side * (WIDTH / 2 - 1.4), 0.5, 10, 0.5, PALETTE.steel, M.Metal, true)
+			end
+			box(highway, "Viga da placa", px, base + 10.2, Z, 0.6, 0.6, WIDTH - 2, PALETTE.steel, M.Metal)
+			local board = box(highway, "Placa da via expressa", px + sx * 0.4, base + 8, Z, 0.3, 3.6, 16, rgb(16, 92, 56), M.SmoothPlastic)
+			local gui = surface(board, if sx > 0 then N.Right else N.Left, "Placa", 24, 1, 360)
+			label(gui, "VIA EXPRESSA DA MARÉ  →  " .. (if sx > 0 then "ALTO VÉRTICE" else "MERCADO FOSSO"), FONTS.clean, PALETTE.white, nil,
+				UDim2.fromScale(0.04, 0.2), UDim2.fromScale(0.92, 0.6))
+		end
+	end
+
 	-- Monotrilho Linha Anel: viaduto de concreto amarelado, como os elevados da Maré ---------------
 	local rail = group(city, "Monotrilho Linha Anel")
 	local path = layoutData().monorail
@@ -2131,15 +2241,16 @@ local function applyLighting(lighting: Instance, art)
 		return created
 	end
 	local settings = {
+		-- Noite clara como a do GTA: dá para ver a rua inteira, e o neon continua se destacando.
 		ClockTime = 0.6,
-		Brightness = 1.2,
-		Ambient = rgb(40, 36, 58),
-		OutdoorAmbient = rgb(74, 70, 104),
-		EnvironmentDiffuseScale = 0.4,
+		Brightness = 2.3,
+		Ambient = rgb(70, 66, 96),
+		OutdoorAmbient = rgb(112, 108, 148),
+		EnvironmentDiffuseScale = 0.6,
 		EnvironmentSpecularScale = 1,
 		GlobalShadows = true,
-		ShadowSoftness = 0.35,
-		ExposureCompensation = 0.1,
+		ShadowSoftness = 0.3,
+		ExposureCompensation = 0.4,
 	}
 	for key, value in settings do
 		pcall(function()
@@ -2147,12 +2258,12 @@ local function applyLighting(lighting: Instance, art)
 		end)
 	end
 	local haze = child("Atmosphere", "Névoa de Maré Baixa")
-	haze.Density = 0.36
-	haze.Offset = 0.22
-	haze.Color = rgb(118, 104, 156)
-	haze.Decay = rgb(150, 92, 120)
-	haze.Glare = 0
-	haze.Haze = 2.2
+	haze.Density = 0.27
+	haze.Offset = 0.2
+	haze.Color = rgb(140, 128, 178)
+	haze.Decay = rgb(160, 104, 132)
+	haze.Glare = 0.15
+	haze.Haze = 1.3
 	local sky = child("Sky", "Céu de Maré Baixa")
 	local faces = { SkyboxBk = "ceu_bk", SkyboxDn = "ceu_dn", SkyboxFt = "ceu_ft", SkyboxLf = "ceu_lf", SkyboxRt = "ceu_rt", SkyboxUp = "ceu_up" }
 	local complete = true
@@ -2182,10 +2293,50 @@ local function applyLighting(lighting: Instance, art)
 	bloom.Parent = lighting
 	local grade = lighting:FindFirstChild("CyberOutlawCityGrade") or Instance.new("ColorCorrectionEffect")
 	grade.Name = "CyberOutlawCityGrade"
-	grade.Contrast = 0.1
-	grade.Saturation = -0.06
+	grade.Brightness = 0.03
+	grade.Contrast = 0.12
+	grade.Saturation = 0.04
 	grade.TintColor = rgb(240, 236, 255)
 	grade.Parent = lighting
+end
+
+-- Pontos do painel de teleporte do dono: atributos Vector3 (chão do destino) e a lista com os nomes.
+-- Os bairros usam o cruzamento de ruas mais perto do centro, para ninguém aparecer dentro de um prédio.
+local function publishPoints(city: Instance, ReplicatedStorage: Instance, HttpService)
+	local folder = ReplicatedStorage:FindFirstChild("CyberOutlawPontos") or Instance.new("Folder")
+	folder.Name = "CyberOutlawPontos"
+	local list = {}
+	local function add(key: string, name: string, position: Vector3)
+		folder:SetAttribute(key, position)
+		table.insert(list, { k = key, n = name })
+	end
+	add("praca", "Praça (início)", SPAWN)
+	local pools = {}
+	local found = city:FindFirstChild("Poças", true)
+	if found then
+		for _, pool in found:GetChildren() do
+			if pool:IsA("BasePart") then
+				table.insert(pools, pool)
+			end
+		end
+	end
+	table.sort(pools, function(a, b)
+		return (a.Position - SPAWN).Magnitude < (b.Position - SPAWN).Magnitude
+	end)
+	for index = 1, math.min(3, #pools) do
+		local center = pools[index].Position
+		add("poca_" .. index, "Poça com reflexo " .. index, Vector3.new(center.X, GROUND, center.Z - TILE / 2 - 4))
+	end
+	for _, district in layoutData().districts do
+		local r = district.rect
+		local x = math.clamp(math.round((r[1] + r[3]) / 2 / STEP) * STEP, -HALF + STEP, HALF - STEP)
+		local z = math.clamp(math.round((r[2] + r[4]) / 2 / STEP) * STEP, -HALF + STEP, HALF - STEP)
+		add("bairro_" .. district.key, district.name, Vector3.new(x, GROUND, z))
+	end
+	add("estacao", "Estação do monotrilho", Vector3.new(409, DECK, 0))
+	add("viaduto", "Via Expressa (viaduto)", Vector3.new(0, EXPRESS_TOP, EXPRESS_Z - 6))
+	folder:SetAttribute("Lista", HttpService:JSONEncode(list))
+	folder.Parent = ReplicatedStorage
 end
 
 local function main()
@@ -2217,6 +2368,7 @@ local function main()
 		end,
 	})
 	local spawn = info.spawn
+	publishPoints(city, ReplicatedStorage, HttpService)
 	local function arrive(player: Player, character: Model)
 		task.defer(function()
 			if player:GetAttribute("CyberOutlawArrived") or player.Character ~= character then

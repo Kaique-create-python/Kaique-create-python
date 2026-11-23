@@ -23,6 +23,9 @@ def main(argv=None, *, root=None, storage=None):
     offline = sub.add_parser("preparar-offline", help="Prepara uma cópia local para conferência")
     offline.add_argument("original")
     offline.add_argument("saida")
+    sub.add_parser("chave", help="Testa a chave Open Cloud lendo um asset já aprovado, sem enviar nada")
+    music = sub.add_parser("musica", help="Tira a música de um vídeo (ou usa um áudio) do celular e envia como música do menu")
+    music.add_argument("arquivo")
     recheck = sub.add_parser("rever-midia", help="Libera uma nova tentativa após uma recusa definitiva")
     recheck.add_argument("nome")
     args = parser.parse_args(argv)
@@ -41,6 +44,11 @@ def main(argv=None, *, root=None, storage=None):
                 video_id = catalog.saved_video(video_file)
             catalog.import_media(root, state, video=video_id)
             return 0
+        if args.acao == "chave":
+            return catalog.test_key(state)
+        if args.acao == "musica":
+            catalog.import_music(root, storage, args.arquivo)
+            return 0
         if args.acao == "video":
             catalog.remember_video(video_file, args.id)
             print("ID do vídeo guardado para a próxima instalação do menu.")
@@ -54,7 +62,8 @@ def main(argv=None, *, root=None, storage=None):
             print("Recusa antiga arquivada. Use midia para tentar novamente com as permissões corrigidas.")
             return 0
         if args.acao == "instalar":
-            catalog.make_config(root, video=catalog.saved_video(video_file), state_dir=state)
+            catalog.make_config(root, video=catalog.saved_video(video_file), state_dir=state,
+                                music=catalog.saved_music(storage))
         commands = [args.acao]
         if args.acao == "preparar-offline":
             commands.extend((args.original, args.saida))

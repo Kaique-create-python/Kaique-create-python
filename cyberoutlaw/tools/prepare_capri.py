@@ -59,6 +59,8 @@ class Clip:
     source_fps: int
     pose: Pose = STANDING
     sample_count: int | None = None
+    # Quadros mais largos que a tela do corpo (saída e glitch deitada): recorta a sobra em vez de falhar.
+    crop_overflow: bool = False
 
 
 # Keep each clip on one page, with the modern idle/perch and their blinks together.
@@ -101,6 +103,28 @@ ATLAS_CLIPS = (
         Clip("blink", (240, 384), 4, 8),
         Clip("click", (144, 144), 20, 60, POINTER),
     ),
+    # Reações novas (v3): ouvindo música e falando sentada, falando deitada, os glitches de cada pose,
+    # a saída deitada, as piscadas com glitch e a boca falando em pé. Contagens e taxas de app/Capri.cs.
+    (
+        Clip("perch_music", (196, 384), 60, 30, PERCH, 26),
+        Clip("perch_blink_glitch", (196, 384), 8, 30, PERCH),
+    ),
+    (
+        Clip("perch_talk", (196, 384), 60, 30, PERCH, 20),
+        Clip("perch_glitch", (288, 384), 10, 15, PERCH),
+        Clip("idle_mouth", (116, 384), 5, 12, IDLE),
+    ),
+    (
+        Clip("laydown_talk", (372, 250), 60, 30, LAYDOWN, 18),
+        Clip("laydown_leave", (440, 250), 12, 15, LAYDOWN, crop_overflow=True),
+        Clip("blink_glitch", (240, 384), 4, 8),
+    ),
+    (
+        Clip("laydown_glitch", (440, 250), 10, 15, LAYDOWN, crop_overflow=True),
+        Clip("laydown_blink_glitch", (372, 250), 8, 30, LAYDOWN),
+        Clip("idle_blink_glitch", (116, 384), 8, 24, IDLE),
+        Clip("mouth", (240, 384), 5, 12),
+    ),
 )
 
 
@@ -128,7 +152,7 @@ def clip_frames(clip: Clip, raw: bytes, indices: list[int]):
         sprite = strip.crop((index * width, 0, (index + 1) * width, height))
         sprite = sprite.resize(size, Image.Resampling.LANCZOS)
         bounds = sprite.getchannel("A").getbbox()
-        if bounds and (
+        if bounds and not clip.crop_overflow and (
             left + bounds[0] < 0
             or top + bounds[1] < 0
             or left + bounds[2] > canvas_size[0]

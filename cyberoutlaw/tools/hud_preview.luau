@@ -17,7 +17,7 @@ local function load(media: string)
 		debugName = "play.client.luau",
 		environment = {
 			Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
-			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, NumberSequence = roblox.NumberSequence,
+			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, NumberSequence = roblox.NumberSequence,
 			NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
 			Font = roblox.Font, utf8 = utf8,
 		},
@@ -34,7 +34,7 @@ local _, _, layoutData = luau.load(fs.readFile("src/world.server.luau"):gsub("__
 	environment = {
 		Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Color3 = roblox.Color3,
 		Vector3 = setmetatable({ FromNormalId = function(face) return normals[face.Name] end }, { __index = roblox.Vector3 }),
-		ColorSequence = roblox.ColorSequence, Enum = roblox.Enum, UDim2 = roblox.UDim2, Font = roblox.Font, Content = roblox.Content,
+		ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, Enum = roblox.Enum, UDim2 = roblox.UDim2, Font = roblox.Font, Content = roblox.Content,
 	},
 })()
 local city = layoutData()
@@ -78,9 +78,17 @@ local function export(node, parentX, parentY, parentW, parentH, inherited)
 	local stroke = node:FindFirstChildOfClass("UIStroke")
 	if stroke and prop(stroke, "Enabled", true) then
 		row.stroke = { color(prop(stroke, "Color", roblox.Color3.new())), prop(stroke, "Transparency", 0), prop(stroke, "Thickness", 1) * scale }
+		local strokeGradient = stroke:FindFirstChildOfClass("UIGradient")
+		if strokeGradient and prop(strokeGradient, "Enabled", true) then
+			local colors = {}
+			for _, key in prop(strokeGradient, "Color", roblox.ColorSequence.new(roblox.Color3.new(1, 1, 1))).Keypoints do
+				table.insert(colors, { key.Time, table.unpack(color(key.Value)) })
+			end
+			row.strokeGrad = { c = colors, rot = prop(strokeGradient, "Rotation", 0) }
+		end
 	end
 	local gradient = node:FindFirstChildOfClass("UIGradient")
-	if gradient then
+	if gradient and prop(gradient, "Enabled", true) then
 		local colors, alphas = {}, {}
 		local colorSeq = prop(gradient, "Color", roblox.ColorSequence.new(roblox.Color3.new(1, 1, 1)))
 		local alphaSeq = prop(gradient, "Transparency", roblox.NumberSequence.new(0))
@@ -186,7 +194,7 @@ for _, device in devices do
 			local wheel = play.buildWheel(folder, defs, nil, device.touch, "rbxassetid://123")
 			wheel.gui.Enabled = true
 			wheel.scale.Scale = l.wheel.scale
-			wheel.select(3, { vespa = { 9, 96 }, enxame = { 32, 192 }, trovao = { 6, 36 }, agulha = { 28, 140 } })
+			wheel.select(6, { glock = { 9, 102 }, deagle = { 7, 42 }, uzi = { 32, 192 }, ak47 = { 30, 150 }, m4 = { 30, 180 }, escopeta = { 6, 40 }, sniper = { 5, 30 } })
 			wheel.animate(1, 1)
 			table.insert(guis, wheel.gui)
 		end

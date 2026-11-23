@@ -1,4 +1,4 @@
-"""Abre no Termux o pacote CyberOutlaw: cidade jogável de Maré Baixa, HUD v2 e avatares R6."""
+"""Abre no Termux o pacote CyberOutlaw v3: armas reais, animação do catálogo em R6, HUD v4, Capri completa e música do menu."""
 
 import hashlib
 from http.client import HTTPException
