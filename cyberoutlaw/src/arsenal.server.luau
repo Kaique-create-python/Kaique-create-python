@@ -429,11 +429,14 @@ end
 
 -- Gun in the right hand. Weapon -Z follows the arm down (forward when aiming); the knife points forward.
 local function gripOffset(def, arm: BasePart): CFrame
-	local drop = arm.Size.Y / 2 + 0.05
+	-- O cabo fica dentro da "mão" (ponta do braço) e o corpo da arma sai pela frente do braço: o receptor e o
+	-- cano ficam inteiros para fora do bloco do R6 (antes ficavam escondidos dentro do braço ao mirar).
 	if def.grip == "frente" then
-		return CFrame.new(0, -drop, -0.1)
+		return CFrame.new(0, -(arm.Size.Y / 2 + 0.05), -0.1)
 	end
-	return CFrame.fromMatrix(Vector3.new(0, -drop, -0.05), Vector3.xAxis, Vector3.new(0, 0, -1), Vector3.yAxis)
+	local drop = arm.Size.Y / 2 - 0.3
+	local forward = arm.Size.Z / 2 + 0.1 - 0.22
+	return CFrame.fromMatrix(Vector3.new(0, -drop, -forward), Vector3.xAxis, Vector3.new(0, 0, -1), Vector3.yAxis)
 end
 
 local function main()

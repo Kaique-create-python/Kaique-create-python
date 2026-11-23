@@ -70,7 +70,10 @@ do
 	local gun = arsenal.gripOffset(byId.glock, arm)
 	assert((gun:VectorToWorldSpace(V3.new(0, 0, -1)) - V3.new(0, -1, 0)).Magnitude < 1e-5)
 	assert((gun:VectorToWorldSpace(V3.new(0, 1, 0)) - V3.new(0, 0, -1)).Magnitude < 1e-5)
-	assert(math.abs(gun.Position.Y + 1.05) < 1e-5, "the grip sits in the hand")
+	assert(gun.Position.Y < -0.5 and gun.Position.Y > -1.05, "the grip sits in the hand (end of the arm)")
+	-- The gun body (receiver above the grip) stays outside the R6 arm block, so it is visible when aiming.
+	local receiver = gun:PointToWorldSpace(V3.new(0, 0.38, -0.2))
+	assert(math.abs(receiver.Z) > arm.Size.Z / 2, "receiver outside the arm: " .. tostring(receiver))
 	local blade = arsenal.gripOffset(byId.faca, arm)
 	assert((blade:VectorToWorldSpace(V3.new(0, 0, -1)) - V3.new(0, 0, -1)).Magnitude < 1e-5)
 end
