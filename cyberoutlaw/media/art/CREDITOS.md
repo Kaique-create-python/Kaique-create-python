@@ -7,3 +7,7 @@ O atlas reúne três ilustrações geradas para os telões 3D da cidade Maré Ba
 O concreto e o asfalto usam cor e mapas de relevo de digitalizações Poly Haven. As cores foram dessaturadas para receber a luz de néon. O mapa de rugosidade do asfalto foi adaptado para incluir regiões úmidas. [Concrete Wall 006](https://polyhaven.com/a/concrete_wall_006) · [Asphalt 07](https://polyhaven.com/a/asphalt_07) · [Licença CC0](https://polyhaven.com/license)
 
 A arte das fachadas contém quatro materiais gerados para a revisão local do cenário. O atlas de origem tem SHA-256 `0fe50b69238a48caa8d30e9887e04cb3f8fc9c95e26dede4fbf7dc56d270c204`. Os quatro panos são recortados em superfícies tridimensionais e acompanhados por montantes e varandas em geometria.
+
+## Cidade jogável
+
+As janelas dos prédios da cidade jogável (`fachada_residencial.png`, `fachada_escritorio.png` e `fachada_vidro.png`) foram desenhadas por código em `tools/draw_city_textures.py`. Cada janela é um retângulo calculado por regras fixas, sem imagem gerada por IA. A cidade jogável usa só essas janelas, o asfalto e o concreto Poly Haven. Os telões e as fachadas geradas do menu continuam apenas no cenário do menu.

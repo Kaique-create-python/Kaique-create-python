@@ -1,8 +1,9 @@
-"""Update the client script and native avatar settings in a Roblox place."""
+"""Update the client script, managed server scripts and native avatar settings in a Roblox place."""
 
 from dataclasses import dataclass, field
 from hashlib import sha256
 import struct
+import re
 from xml.parsers import expat
 from xml.sax.saxutils import escape
 
@@ -13,6 +14,13 @@ BINARY_MAGIC = b"<roblox!\x89\xff\r\n\x1a\n"
 MENU_NAME = "CyberOutlawMenu"
 MENU_PATH = ("StarterPlayer", "StarterPlayerScripts", MENU_NAME)
 MENU_CLASSES = ("StarterPlayer", "StarterPlayerScripts", "LocalScript")
+SERVER_SERVICE = "ServerScriptService"
+# Every managed server script starts with this line plus its own name.
+SERVER_HEADER = "-- CyberOutlaw · script de servidor gerenciado: "
+SERVER_NAME = re.compile(r"CyberOutlaw[A-Za-z0-9]{1,48}")
+CONTAINER_CLASSES = ("StarterPlayer", "StarterPlayerScripts", SERVER_SERVICE, "AvatarSettings", "AvatarRules")
+SCRIPT_CLASSES = ("LocalScript", "Script")
+SERVICE_CLASSES = ("StarterPlayer", SERVER_SERVICE)
 R6 = 0  # Enum.GameAvatarType.R6
 RIG_PROPERTIES = {
     "StarterPlayer": ("GameSettingsAvatar", "PlaceAvatarRules"),
@@ -29,6 +37,26 @@ def _accept_source(old, new, known):
     if old != new and source_digest(old) not in known:
         raise Failure(
             "Já existe um CyberOutlawMenu com código desconhecido. "
+            "O instalador preservou o script."
+        )
+
+
+def server_route(name):
+    if not SERVER_NAME.fullmatch(name):
+        raise Failure(f"Nome inválido para script de servidor: {name}")
+    return (SERVER_SERVICE, name), (SERVER_SERVICE, "Script")
+
+
+def _server_header(name):
+    return SERVER_HEADER + name + "\n"
+
+
+def _accept_server(name, old, new):
+    if not new.startswith(_server_header(name)):
+        raise Failure(f"O script de servidor {name} precisa começar pelo cabeçalho do CyberOutlaw.")
+    if old != new and not old.startswith(_server_header(name)):
+        raise Failure(
+            f"Já existe um {name} com código desconhecido em ServerScriptService. "
             "O instalador preservou o script."
         )
 
@@ -137,7 +165,7 @@ class _Xml:
             if attrs.get("referent"):
                 self.refs.add(attrs["referent"])
             if parent_tag in ("roblox", "Item") and isinstance(parent, _Item) and (
-                parent is self.root or parent.class_name in (*MENU_CLASSES[:2], "AvatarSettings", "AvatarRules")
+                parent is self.root or parent.class_name in CONTAINER_CLASSES
             ):
                 node = _Item(tag, position, attrs.get("class", ""), referent=attrs.get("referent", ""))
                 parent.children.append(node)
@@ -147,7 +175,7 @@ class _Xml:
         elif parent_tag == "Properties" and isinstance(parent, _Item):
             property_name = attrs.get("name")
             if property_name == "Name" or (
-                property_name == "Source" and parent.class_name == "LocalScript"
+                property_name == "Source" and parent.class_name in SCRIPT_CLASSES
             ):
                 node = _Prop(tag, position)
                 (parent.names if property_name == "Name" else parent.sources).append(node)
@@ -169,22 +197,22 @@ class _Xml:
         if self.stack and isinstance(self.stack[-1][1], _Prop):
             self.stack[-1][1].text.append(text)
 
-    def locate(self):
+    def locate(self, path=MENU_PATH, classes=MENU_CLASSES):
         parent = self.root
-        for depth, (name, class_name) in enumerate(zip(MENU_PATH, MENU_CLASSES)):
+        for depth, (name, class_name) in enumerate(zip(path, classes)):
             nodes = []
             for child in parent.children:
                 if child.props_count > 1 or len(child.names) > 1:
                     raise Failure("Há propriedades duplicadas no caminho do menu.")
                 child_name = child.names[0].value({"string"}) if child.names else child.class_name
                 nodes.append((child, child_name, child.class_name))
-            found = _find(nodes, name, class_name, depth < 2)
+            found = _find(nodes, name, class_name, depth < len(path) - 1)
             if found is None:
                 return parent, depth, None
             parent = found
         if len(parent.sources) > 1:
-            raise Failure("O CyberOutlawMenu tem mais de uma propriedade Source.")
-        return parent, len(MENU_PATH), parent.sources[0] if parent.sources else None
+            raise Failure(f"O {path[-1]} tem mais de uma propriedade Source.")
+        return parent, len(path), parent.sources[0] if parent.sources else None
 
     def bytes(self, value):
         return value.encode(self.encoding, errors="xmlcharrefreplace")
@@ -216,26 +244,29 @@ class _Xml:
         return end
 
     def patch(self, source, known):
-        parent, depth, prop = self.locate()
-        if depth < len(MENU_PATH):
+        return self.patch_script(MENU_PATH, MENU_CLASSES, source, lambda old: _accept_source(old, source, known))
+
+    def patch_script(self, path, classes, source, accept):
+        parent, depth, prop = self.locate(path, classes)
+        if depth < len(path):
             markup = b""
-            for name, class_name in reversed(list(zip(MENU_PATH[depth:], MENU_CLASSES[depth:]))):
+            for name, class_name in reversed(list(zip(path[depth:], classes[depth:]))):
                 reference = "RBX_CYBEROUTLAW_" + name
                 while reference in self.refs:
                     reference += "_"
                 self.refs.add(reference)
                 opening = self.bytes(f'<Item class="{class_name}" referent="{reference}"><Properties>')
                 name_prop = self.bytes(f'<string name="Name">{name}</string>')
-                source_prop = self.source_markup("ProtectedString", source) if name == MENU_NAME else b""
+                source_prop = self.source_markup("ProtectedString", source) if name == path[-1] else b""
                 markup = opening + name_prop + source_prop + self.bytes("</Properties>") + markup + self.bytes("</Item>")
             start, end, replacement = self.child_edit(parent, markup)
             return self.raw[:start] + replacement + self.raw[end:], True
         old = prop.value({"ProtectedString", "string"}) if prop is not None else ""
-        _accept_source(old, source, known)
+        accept(old)
         if old == source:
             return self.raw, False
         if prop is None:
-            raise Failure("O CyberOutlawMenu existente não tem a propriedade Source.")
+            raise Failure(f"O {path[-1]} existente não tem a propriedade Source.")
         return self.raw[:prop.start] + self.source_markup(prop.tag, source) + self.raw[self.prop_end(prop):], True
 
     def enforce_r6(self):
@@ -284,43 +315,43 @@ class _Xml:
         return raw
 
 
-def _binary_location(doc):
+def _binary_location(doc, path=MENU_PATH, classes=MENU_CLASSES):
     parent = -1
-    for depth, (name, class_name) in enumerate(zip(MENU_PATH, MENU_CLASSES)):
+    for depth, (name, class_name) in enumerate(zip(path, classes)):
         nodes = [
             (ref, doc.objects[ref]["name"], doc.objects[ref]["class"])
             for ref in doc.children.get((parent, name), [])
         ]
         # Services are unique by class even if their Name was customized.
-        if depth < 2:
+        if depth < len(path) - 1:
             nodes.extend(
                 (ref, obj["name"], class_name)
                 for ref, obj in doc.objects.items()
                 if doc.parents[ref] == parent and obj["class"] == class_name and obj["name"] != name
             )
-        found = _find(nodes, name, class_name, depth < 2)
+        found = _find(nodes, name, class_name, depth < len(path) - 1)
         if found is None:
             return parent, depth
         parent = found
-    return parent, len(MENU_PATH)
+    return parent, len(path)
 
 
-def _add_binary(doc, parent, depth, source, force_r6=False):
+def _add_binary(doc, parent, depth, source, force_r6=False, path=MENU_PATH, classes=MENU_CLASSES):
     next_ref = max(doc.objects, default=-1) + 1
     next_group = max(doc.groups, default=-1) + 1
     parents = list(doc.parents.items())
     instances, props = [], []
-    for offset, (name, class_name) in enumerate(zip(MENU_PATH[depth:], MENU_CLASSES[depth:])):
+    for offset, (name, class_name) in enumerate(zip(path[depth:], classes[depth:])):
         ref = next_ref + offset
         group = pack32(next_group + offset)
-        service = class_name == "StarterPlayer"
+        service = class_name in SERVICE_CLASSES
         service_byte = b"\1" if service else b"\0"
         instance = group + pstring(class_name.encode()) + service_byte + pack32(1) + prefs([ref])
         instances.append(Chunk(b"INST", instance + (b"\1" if service else b"")))
         props.append(Chunk(b"PROP", group + pstring(b"Name") + b"\1" + pstring(name.encode())))
-        if service and force_r6:
+        if class_name == "StarterPlayer" and force_r6:
             props.append(Chunk(b"PROP", group + pstring(b"GameSettingsAvatar") + b"\x12" + puints([R6])))
-        if name == MENU_NAME:
+        if offset == len(path) - depth - 1:
             props.append(Chunk(b"PROP", group + pstring(b"Source") + b"\1" + pstring(source.encode())))
         parents.append((ref, parent))
         parent = ref
@@ -433,56 +464,86 @@ def _read_document(raw):
         raise Failure(f"Não foi possível ler o place Roblox. {exc}") from None
 
 
-def menu_source(raw):
+def script_source(raw, path=MENU_PATH, classes=MENU_CLASSES):
     try:
         doc = _read_document(raw)
         if isinstance(doc, Binary):
-            ref, depth = _binary_location(doc)
-            if depth == len(MENU_PATH):
+            ref, depth = _binary_location(doc, path, classes)
+            if depth == len(path):
                 obj = doc.objects[ref]
                 return doc.value(ref, "Source").decode("utf-8") if (obj["group"], "Source") in doc.props else ""
         else:
-            _, depth, prop = doc.locate()
-            if depth == len(MENU_PATH):
+            _, depth, prop = doc.locate(path, classes)
+            if depth == len(path):
                 return prop.value({"ProtectedString", "string"}) if prop is not None else ""
         return None
     except (ValueError, IndexError, KeyError, struct.error) as exc:
-        raise Failure(f"Não foi possível ler o código do menu no place. {exc}") from None
+        raise Failure(f"Não foi possível ler o código de {path[-1]} no place. {exc}") from None
 
 
-def patch_place(raw, source, known=frozenset(), *, force_r6=False):
+def menu_source(raw):
+    return script_source(raw)
+
+
+def server_source(raw, name):
+    return script_source(raw, *server_route(name))
+
+
+def _patch_script(raw, path, classes, source, accept, force_r6=False):
+    """Edit one script per pass, so every binary edit starts from fresh indexes."""
+    doc = _read_document(raw)
+    if not isinstance(doc, Binary):
+        return doc.patch_script(path, classes, source, accept)
+    ref, depth = _binary_location(doc, path, classes)
+    if depth < len(path):
+        _add_binary(doc, ref, depth, source, force_r6, path, classes)
+        return doc.encode(), True
+    obj = doc.objects[ref]
+    if (obj["group"], "Source") not in doc.props:
+        raise Failure(f"O {path[-1]} existente não tem a propriedade Source.")
+    old = doc.value(ref, "Source").decode("utf-8")
+    accept(old)
+    if old == source:
+        return raw, False
+    doc.set_sources([dict(path=path, **{"class": classes[-1]}, before=old, after=source)])
+    return doc.encode(), True
+
+
+def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
+    """Install the menu, then each managed server script, then the R6 avatar rules."""
     try:
         if not source:
             raise Failure("O código do menu está vazio.")
-        doc = _read_document(raw)
-        if isinstance(doc, Binary):
-            ref, depth = _binary_location(doc)
-            changed = _binary_r6(doc) if force_r6 else False
-            if depth < len(MENU_PATH):
-                _add_binary(doc, ref, depth, source, force_r6)
-                changed = True
+        server = dict(server or {})
+        for name, code in server.items():
+            server_route(name)
+            if not code.startswith(_server_header(name)):
+                raise Failure(f"O script de servidor {name} precisa começar pelo cabeçalho do CyberOutlaw.")
+        result, changed = _patch_script(
+            raw, MENU_PATH, MENU_CLASSES, source, lambda old: _accept_source(old, source, known), force_r6
+        )
+        for name, code in sorted(server.items()):
+            result, edited = _patch_script(
+                result, *server_route(name), code,
+                lambda old, name=name, code=code: _accept_server(name, old, code),
+            )
+            changed = changed or edited
+        if force_r6:
+            doc = _read_document(result)
+            if isinstance(doc, Binary):
+                if _binary_r6(doc):
+                    result, changed = doc.encode(), True
             else:
-                obj = doc.objects[ref]
-                if (obj["group"], "Source") not in doc.props:
-                    raise Failure("O CyberOutlawMenu existente não tem a propriedade Source.")
-                old = doc.value(ref, "Source").decode("utf-8")
-                _accept_source(old, source, known)
-                if old != source:
-                    doc.set_sources([dict(path=MENU_PATH, **{"class": "LocalScript"}, before=old, after=source)])
-                    changed = True
-            if not changed:
-                return raw, False
-            result = doc.encode()
-        else:
-            result, changed = doc.patch(source, known)
-            if force_r6:
-                r6_result = (doc if not changed else _read_document(result)).enforce_r6()
-                changed = changed or r6_result != result
-                result = r6_result
-            if not changed:
-                return raw, False
+                enforced = doc.enforce_r6()
+                if enforced != result:
+                    result, changed = enforced, True
+        if not changed:
+            return raw, False
         if menu_source(result) != source:
             raise Failure("O código do menu preparado divergiu na verificação.")
+        for name, code in server.items():
+            if server_source(result, name) != code:
+                raise Failure(f"O script de servidor {name} divergiu na verificação.")
         return result, True
     except (ValueError, IndexError, KeyError, struct.error) as exc:
         raise Failure(f"Não foi possível preparar o place. {exc}") from None

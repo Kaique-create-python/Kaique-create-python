@@ -13,9 +13,11 @@ from install.cloud import API, Cloud, CREATOR_ID, PLACE_ID, PUBLISH_ROUTE, UNIVE
 from install.codec import Binary, Failure, pack32, prefs, pstring, puints, uints
 from install.cyber_installer import (
     CONFIG_MARKER, CONFIRMATION, V1_ASSET_TYPES, Installer, _asset_table, _luau,
-    _prepare_update, _split_assets, load_config, source_from_package,
+    _prepare_update, _split_assets, load_config, server_from_package, source_from_package,
 )
-from install.patcher import BINARY_MAGIC, MENU_PATH, menu_source, patch_place, same_binary_place, source_digest
+from install.patcher import (
+    BINARY_MAGIC, MENU_PATH, SERVER_HEADER, menu_source, patch_place, same_binary_place, server_source, source_digest,
+)
 from install.paths import locked_state
 
 
@@ -250,6 +252,69 @@ class PatcherTests(unittest.TestCase):
                 with self.assertRaisesRegex(Failure, "código desconhecido"):
                     _prepare_update(prior, bound(V2_TEMPLATE, V2_CONFIG))
                 self.assertEqual(menu_source(prior), edited)
+
+    def test_server_scripts_are_added_updated_and_guarded(self):
+        guard = f"{SERVER_HEADER}CyberOutlawR6\nprint('r6')\n"
+        city = f"{SERVER_HEADER}CyberOutlawCity\nprint('city v1')\n"
+        newer_city = f"{SERVER_HEADER}CyberOutlawCity\nprint('city v2')\n"
+        for name, raw in (("xml", xml_place()), ("binary", make_binary(avatars=True))):
+            with self.subTest(format=name):
+                ready, changed = patch_place(raw, SOURCE, force_r6=True, server={"CyberOutlawR6": guard, "CyberOutlawCity": city})
+                self.assertTrue(changed)
+                self.assertEqual(menu_source(ready), SOURCE)
+                self.assertEqual(server_source(ready, "CyberOutlawR6"), guard)
+                self.assertEqual(server_source(ready, "CyberOutlawCity"), city)
+                servers = {"CyberOutlawR6": guard, "CyberOutlawCity": city}
+                self.assertEqual(patch_place(ready, SOURCE, force_r6=True, server=servers), (ready, False))
+                updated, changed = patch_place(ready, SOURCE, force_r6=True, server={**servers, "CyberOutlawCity": newer_city})
+                self.assertTrue(changed)
+                self.assertEqual(server_source(updated, "CyberOutlawCity"), newer_city)
+                self.assertEqual(server_source(updated, "CyberOutlawR6"), guard)
+                self.assertEqual(menu_source(updated), SOURCE)
+                if name == "binary":
+                    doc = Binary(updated)
+                    services = [ref for ref, obj in doc.objects.items() if obj["class"] == "ServerScriptService"]
+                    self.assertEqual(len(services), 1)
+                    self.assertEqual(doc.groups[doc.objects[services[0]]["group"]]["service"], 1)
+                    self.assertEqual(doc.value(doc.locate(("Workspace", "Original map")), "Name"), b"Original map")
+                else:
+                    self.assertEqual(updated.count(b'<Item class="ServerScriptService"'), 1)
+                    self.assertIn(b"Existing map", updated)
+
+    def test_foreign_server_script_and_missing_header_are_rejected(self):
+        foreign = (
+            '</Item></Item><Item class="ServerScriptService"><Item class="Script"><Properties>'
+            '<string name="Name">CyberOutlawCity</string><ProtectedString name="Source">print("mine")</ProtectedString>'
+            '</Properties></Item></Item><Item class="Folder"><Item class="Folder">'
+        )
+        city = f"{SERVER_HEADER}CyberOutlawCity\nprint('city')\n"
+        with self.assertRaisesRegex(Failure, "código desconhecido"):
+            patch_place(xml_place(foreign), SOURCE, server={"CyberOutlawCity": city})
+        with self.assertRaisesRegex(Failure, "cabeçalho"):
+            patch_place(xml_place(), SOURCE, server={"CyberOutlawCity": "print('no header')"})
+        with self.assertRaisesRegex(Failure, "Nome inválido"):
+            patch_place(xml_place(), SOURCE, server={"Other": f"{SERVER_HEADER}Other\n"})
+
+    def test_package_server_scripts_bind_only_photo_textures(self):
+        config = load_config(Path("/nonexistent/ASSETS.json"))
+        config["art"] = {"asphalt": 11, "asphalt_normal": 12, "concrete": 13, "billboard": 14, "facades": 15}
+        scripts = server_from_package(Path(__file__).resolve().parents[1], config)
+        self.assertEqual(sorted(scripts), ["CyberOutlawCity", "CyberOutlawR6"])
+        for name, code in scripts.items():
+            self.assertTrue(code.startswith(f"{SERVER_HEADER}{name}\n"))
+            self.assertNotIn("__CYBEROUTLAW_ART__", code)
+        city = scripts["CyberOutlawCity"]
+        self.assertIn('local ART = {["asphalt"] = 11, ["asphalt_normal"] = 12, ["concrete"] = 13}', city)
+        self.assertNotIn("15", city.split("local ART = ", 1)[1].split("\n", 1)[0])
+
+    @patch("install.cyber_installer.HUD_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
+    def test_hud_v1_menu_upgrades_without_local_receipts(self):
+        old = bound(V1_TEMPLATE, {**LEGACY_CONFIG, "art": {"asphalt": 41}})
+        original, _ = patch_place(xml_place(), old)
+        ready, changed, source = _prepare_update(original, bound(V2_TEMPLATE, V2_CONFIG), force_r6=True)
+        self.assertTrue(changed)
+        self.assertEqual(menu_source(ready), source)
+        self.assertIn('["asphalt"] = 41', source)
 
     def test_malformed_and_dtd_are_rejected(self):
         with self.assertRaisesRegex(Failure, "declaração"):

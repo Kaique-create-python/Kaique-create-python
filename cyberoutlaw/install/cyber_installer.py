@@ -21,7 +21,7 @@ if not __package__:
 
 from .cloud import Cloud, DEFINITE_REJECTIONS, PLACE_ID, TARGET, UNIVERSE_ID, unique_fields
 from .codec import Failure
-from .patcher import menu_source, patch_place, place_format, same_binary_place, source_digest
+from .patcher import SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
 from .paths import guard, locked_state, read_json, read_place, remove, write_json, write_offline, write_once
 
 
@@ -29,6 +29,14 @@ CONFIG_MARKER = "__CYBEROUTLAW_CONFIG__"
 CITY_MARKER = "-- __CYBEROUTLAW_CITY__"
 SCENE_MARKER = "-- __CYBEROUTLAW_SCENE__"
 HUD_MARKER = "-- __CYBEROUTLAW_HUD__"
+ART_MARKER = "__CYBEROUTLAW_ART__"
+# Server scripts installed in ServerScriptService, in this order.
+SERVER_SCRIPTS = (
+    ("CyberOutlawR6", "r6_guard.server.luau"),
+    ("CyberOutlawCity", "world.server.luau"),
+)
+# Poly Haven scans (CC0) shared with the menu. The city uses no generated images.
+CITY_ART = ("asphalt", "asphalt_normal", "asphalt_rough", "concrete", "concrete_normal")
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
 V1_ASSET_TYPES = {"video", "sounds", "clips"}
 ASSET_TYPES = V1_ASSET_TYPES | {"art"}
@@ -40,6 +48,8 @@ V1_TEMPLATE_SHA256 = "e10acc19da074d939ef706812a9ac56260af271379e39f7193ad29247b
 V2_TEMPLATE_SHA256 = "2a63e2015b3118d75ccc77a114b5126ee8f9d40ae4426096b55d91e95cd4e05a"
 V3_TEMPLATE_SHA256 = "72e38fc5fbb1b0486ed74bb41c230b95b179c2f18a3bba1583421bff52ae0ef0"
 CAMERA_TEMPLATE_SHA256 = "0aef4b6f02298843c6116cd43cac22eae2d6ad035cbce6d470ed29b4e7b67c62"
+# Commit 141e572: menu with HUD v1 and R6 avatar settings.
+HUD_TEMPLATE_SHA256 = "07c374ea84796a775353015704c2b3c90a72effa6e36a3bba8e8ff83e4d661c6"
 
 
 def digest(raw):
@@ -144,6 +154,30 @@ def source_from_package(root):
     return menu.replace(CONFIG_MARKER, _luau(config)), config
 
 
+def server_from_package(root, config):
+    """Build each managed server script, binding the city to the approved texture IDs."""
+    art = {name: config["art"][name] for name in CITY_ART if config["art"].get(name)}
+    scripts = {}
+    for name, filename in SERVER_SCRIPTS:
+        code = (root / "src" / filename).read_text(encoding="utf-8-sig")
+        if not code.strip() or SERVER_HEADER in code or code.count(ART_MARKER) > 1:
+            raise Failure(f"O código em {filename} está vazio ou tem marcadores repetidos.")
+        if ART_MARKER in code:
+            if not re.search(r"(?m)^local ART = " + ART_MARKER + r"$", code):
+                raise Failure(f"O marcador de arte em {filename} deve definir local ART em sua própria linha.")
+            code = code.replace(ART_MARKER, _luau(art), 1)
+        scripts[name] = f"{SERVER_HEADER}{name}\n{code}"
+    return scripts
+
+
+def _server_sources(builder, source):
+    if builder is None:
+        return None
+    parts = _split_assets(source)
+    config = _asset_table(parts[1], None) if parts else None
+    return builder(config if config is not None else _normalize_config({}))
+
+
 class _AssetLiteral:
     """Parse only the deterministic tables and numbers emitted by _luau."""
 
@@ -226,10 +260,10 @@ def _merge_assets(older, newer):
     }
 
 
-def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force_r6=False):
+def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force_r6=False, server=None):
     target = _split_assets(source)
     if target is None:
-        ready, changed = patch_place(raw, source, known, force_r6=force_r6)
+        ready, changed = patch_place(raw, source, known, force_r6=force_r6, server=_server_sources(server, source))
         return ready, changed, source
     template, literal = target
     target_config = _asset_table(literal, ASSET_TYPES)
@@ -254,7 +288,8 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force
         old_sha = source_digest(old)
         if old_template_sha == V1_TEMPLATE_SHA256:
             required = V1_ASSET_TYPES
-        elif old_template_sha in (V2_TEMPLATE_SHA256, V3_TEMPLATE_SHA256, CAMERA_TEMPLATE_SHA256, template_sha):
+        elif old_template_sha in (V2_TEMPLATE_SHA256, V3_TEMPLATE_SHA256, CAMERA_TEMPLATE_SHA256, HUD_TEMPLATE_SHA256,
+                                  template_sha):
             required = ASSET_TYPES
         elif old_sha in known:
             required = None
@@ -265,7 +300,7 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force
             allowed.add(old_sha)
             recovered = _merge_assets(recovered, old_assets)
     source = template.replace(CONFIG_MARKER, _luau(_merge_assets(recovered, target_config)), 1)
-    ready, changed = patch_place(raw, source, allowed, force_r6=force_r6)
+    ready, changed = patch_place(raw, source, allowed, force_r6=force_r6, server=_server_sources(server, source))
     return ready, changed, source
 
 
@@ -284,12 +319,13 @@ def _first_possible_published_version(entry):
 
 
 class Installer:
-    def __init__(self, state, *, report=print, sleeper=time.sleep, force_r6=False):
+    def __init__(self, state, *, report=print, sleeper=time.sleep, force_r6=False, server=None):
         self.state = state
         self.active = state / "active-write.json"
         self.report = report
         self.sleep = sleeper
         self.force_r6 = force_r6
+        self.server = server
 
     def pending(self):
         return read_json(self.active)
@@ -358,12 +394,13 @@ class Installer:
         live_raw, live = self._backup(cloud, published)
         base_raw, base = (live_raw, live) if published == latest else self._backup(cloud, latest)
         ready, changed, effective = _prepare_update(
-            base_raw, source, self._known_sources(), live_raw, force_r6=self.force_r6
+            base_raw, source, self._known_sources(), live_raw, force_r6=self.force_r6, server=self.server
         )
         if effective != source:
             self.report("A atualização reutiliza IDs de mídia do menu já instalado.")
         source = effective
-        if patch_place(ready, source, force_r6=self.force_r6) != (ready, False):
+        server = _server_sources(self.server, source)
+        if patch_place(ready, source, force_r6=self.force_r6, server=server) != (ready, False):
             raise Failure("A segunda aplicação alterou o arquivo preparado.")
         if not changed and latest == published:
             if _current(cloud.history()) != (latest, published):
@@ -382,6 +419,7 @@ class Installer:
             "base_sha256": base["sha256"],
             "format": format_name,
             "source_sha256": source_digest(source),
+            "server_sha256": {name: source_digest(code) for name, code in sorted((server or {}).items())},
             "ready_sha256": ready_sha,
             "bytes": len(ready),
             "backups": [live] if published == latest else [live, base],
@@ -393,6 +431,8 @@ class Installer:
         self.report(f"Place preparado em {ready_path}")
         if self.force_r6:
             self.report("HUD de jogo com retrato e mira central. Configuração de avatar do Place em R6.")
+        for name in sorted(server or {}):
+            self.report(f"Script de servidor {name} em ServerScriptService.")
         self.report(f"SHA-256 {ready_sha}")
         self.report("Pause outras gravações neste place até o fim da publicação.")
         if confirm(f"Para publicar neste place, digite {CONFIRMATION} e pressione Enter. ").strip() != CONFIRMATION:
@@ -489,13 +529,15 @@ def _hidden_key():
     return key
 
 
-def _info(source, config):
+def _info(source, config, server=None):
     clips = len(config["clips"])
     sounds = sum(asset > 0 for asset in config["sounds"].values())
     art = sum(asset > 0 for asset in config["art"].values())
     video = "ID configurado" if config["video"] else "sequência de abertura local"
     print(f"Código do menu, cena 3D e HUD preparados. SHA-256 {source_digest(source)}")
     print(f"Abertura com {video} · {clips} clipes, {sounds} sons e {art} imagens com IDs no pacote.")
+    for name, code in sorted((server or {}).items()):
+        print(f"Servidor · {name} preparado. SHA-256 {source_digest(code)}")
 
 
 def main(argv=None, root=None):
@@ -510,21 +552,24 @@ def main(argv=None, root=None):
     args = parser.parse_args(argv)
     root = Path(root) if root is not None else Path(__file__).resolve().parents[1]
     try:
+        def server(config):
+            return server_from_package(root, config)
+
         if args.command != "resume":
             source, config = source_from_package(root)
-            _info(source, config)
+            _info(source, config, server(config))
         if args.command == "verificar":
             return 0
         if args.command == "preparar-offline":
             raw = read_place(args.original.expanduser())
-            ready, _, source = _prepare_update(raw, source, force_r6=True)
-            if patch_place(ready, source, force_r6=True) != (ready, False):
+            ready, _, source = _prepare_update(raw, source, force_r6=True, server=server)
+            if patch_place(ready, source, force_r6=True, server=_server_sources(server, source)) != (ready, False):
                 raise Failure("A segunda aplicação alterou o arquivo preparado.")
             write_offline(args.destino.expanduser(), ready)
             print(f"Place preparado em {args.destino}. SHA-256 {digest(ready)}")
             return 0
         with locked_state(Path.home() / ".cyberoutlaw-installer") as state:
-            installer = Installer(state, force_r6=True)
+            installer = Installer(state, force_r6=True, server=server)
             pending = installer.pending()
             if args.command == "instalar" and pending is not None:
                 raise Failure("Há uma publicação pendente. Execute resume para consultar o resultado.")

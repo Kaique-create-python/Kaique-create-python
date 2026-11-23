@@ -12,7 +12,7 @@ Claude, você está assumindo **CyberOutlaw**, meu projeto Roblox de mundo abert
 | ID do mapa e Place inicial | `122033314086516` |
 | ID do criador Roblox | `1357078972` |
 | Repositório | `Kaique-create-python/Kaique-create-python` |
-| Branch | `codex/cyberoutlaw-menu-3d` |
+| Branch atual | `ccr-b4068ef4-7ky9v8` (partiu de `codex/cyberoutlaw-menu-3d`) |
 | Pasta de trabalho | `cyberoutlaw/` |
 
 O repositório também contém trabalhos de outros jogos. Use os IDs acima durante toda a instalação do CyberOutlaw. [Abrir o Place](https://www.roblox.com/games/122033314086516) · [Abrir o código na branch](https://github.com/Kaique-create-python/Kaique-create-python/tree/codex/cyberoutlaw-menu-3d/cyberoutlaw)
@@ -26,6 +26,16 @@ O repositório também contém trabalhos de outros jogos. Use os IDs acima duran
 - **HUD.** Entra depois de **Jogar**. A barra rosa mostra o rosto do avatar e a vida atual/máxima do `Humanoid`. Atualiza com dano, cura e renascimento. Fica abaixo da barra do Roblox no celular e no canto inferior esquerdo no PC.
 - **Mira.** Círculo pequeno de 14 px com ponto de 2 px. A camada da mira usa `ScreenInsets.None` e âncora e posição `0.5, 0.5`, para que a barra do Roblox e os recortes de tela não desloquem o centro.
 - **R6 obrigatório.** O instalador grava R6 nas propriedades nativas de avatar do Place. A alteração passou em arquivos `.rbxl` e `.rbxlx` de teste. Na consulta pública de 23 de novembro de 2026, o universo ainda respondeu `MorphToR15`. Veja qual versão está publicada e valide `Humanoid.RigType` em um servidor novo antes de dar o R6 como confirmado em jogo. [Metadados públicos do universo](https://games.roblox.com/v1/games?universeIds=10774214423)
+
+## Etapa de 23 de novembro de 2026: cidade jogável, R6 forçado e HUD v2
+
+- **Cidade jogável.** `src/world.server.luau` vira o Script `CyberOutlawCity` em `ServerScriptService`. Ele monta Maré Baixa ao iniciar o servidor: 2.000 × 2.000 studs, eixos de rua a cada 200 studs (avenidas de 56 studs nos múltiplos de 400, ruas de 28), cinco distritos (Distrito Prisma, Alto Vértice, Colmeia, Mercado Fosso, Docas da Maré), torres de 170 a 1.148 studs, monotrilho com a Estação Prisma, docas com guindastes e cargueiro, baía de terreno, horizonte e muros invisíveis. O spawn fica na Praça da Maré, em (107, 0.85, 139). A cidade publica o traçado do minimapa em `ReplicatedStorage.CyberOutlawCityInfo` (atributo `Layout`). As pistas ficam livres para veículos futuros, e o teste confere isso.
+- **Arte da cidade sem IA.** Asfalto e concreto Poly Haven (CC0) e três texturas de janelas desenhadas por código (`tools/draw_city_textures.py`). As janelas são mídia opcional: sem aprovação, os prédios usam faixas de luz em geometria. A cidade é idêntica nos dois casos.
+- **R6 forçado.** O usuário viu R15 em jogo. `src/r6_guard.server.luau` vira o Script `CyberOutlawR6`, que refaz qualquer R15 como R6 com `CreateHumanoidModelFromDescriptionAsync` no mesmo lugar. O atributo `CyberOutlawRig` do jogador mostra o resultado. A configuração de avatar do Place continua em R6.
+- **Instalador.** O patcher grava o menu e os scripts de servidor, e só substitui scripts que começam com `-- CyberOutlaw · script de servidor gerenciado: <nome>`. Backup, confirmação e `resume` seguem iguais.
+- **HUD v2.** Vida com rastro de dano e pulso abaixo de 30%, minimapa que gira com a câmera, aviso de distrito, relógio e a mira central de antes. PC: minimapa no canto inferior esquerdo, vida acima. Celular: vida no topo à esquerda e minimapa no topo à direita. O desenho vetorial está em `design/hud_v2.py`. O Figma do usuário atingiu o limite mensal de chamadas do plano Starter (arquivo vazio "CyberOutlaw HUD v2" criado). O Canva só cria designs pelo gerador de IA dele, então não foi usado.
+- **Testes.** Python: 31 testes. Luau (Lune): menu e HUD, cena, terraço do menu, R6 e cidade (`tests/world_test.luau` também exporta a prévia).
+- **Pendente em jogo.** Confirmar R6 e animações num servidor novo, o desempenho da cidade no celular, as janelas depois de `midia` e o minimapa. O título do menu pode continuar sendo arte gerada por IA, a pedido do usuário.
 
 ## Arquivos atuais
 
@@ -51,4 +61,4 @@ O instalador guarda backups em `~/.cyberoutlaw-installer`. Ele reaproveita recib
 
 1. Confira o que a versão atual mostra no celular. Abra a entrada, veja se a câmera apresenta a cidade 3D e se o letreiro original carregou. O caso anterior de céu vazio e título provisório motivou a correção `0597ef5`, incluída no pacote atual. O erro Android de `os.link` no backup foi corrigido em `440a682`.
 2. Toque em **Jogar** e valide o avatar R6 em um servidor novo. Confira o rosto, a vida ao receber dano e renascer, a posição da mira com as margens do celular e o fim do áudio do menu. A última entrega passou por 27 testes Python e pelos testes Luau de menu, HUD e cidade. A confirmação em partida continua pendente.
-3. Depois dessa conferência, continue por uma etapa de gameplay por vez conforme eu pedir. Preserve a direção de arte, o fluxo de **Jogar**, a Capri e os créditos. Trabalhe sobre o place existente e mantenha o fluxo para atualizar com backup pelo Termux.
+3. Depois dessa conferência, continue por uma etapa de gameplay por vez conforme eu pedir. A ideia do jogo é GTA com cyberpunk e mercenários (estilo Mercenaries 2): veículos, facções e contratos são os próximos candidatos. Preserve a direção de arte, o fluxo de **Jogar**, a Capri e os créditos. Trabalhe sobre o place existente e mantenha o fluxo para atualizar com backup pelo Termux.

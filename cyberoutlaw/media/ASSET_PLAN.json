@@ -219,6 +219,33 @@
       "sha256": "bfd5240c3041d8b13887e6d1406bd62ebcbd68f4d0412e5593eb08eda973027f",
       "displayName": "CyberOutlaw facades",
       "description": "Quatro texturas originais para as fachadas da cidade 3D."
+    },
+    {
+      "key": "fachada_residencial",
+      "path": "art/fachada_residencial.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "83e969b01755a648249bd16ded176b658b258e5ea644cc66ae1cdb4406704ab9",
+      "displayName": "CyberOutlaw fachada_residencial",
+      "description": "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "fachada_escritorio",
+      "path": "art/fachada_escritorio.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "d2a9e07deb13cc07ed14b3c29829767b1cde1b8a7e8b65d8d2f5963789ee0573",
+      "displayName": "CyberOutlaw fachada_escritorio",
+      "description": "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
+    },
+    {
+      "key": "fachada_vidro",
+      "path": "art/fachada_vidro.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "2d2f70c8e9cde01a9982084bd104593330d4bf7c7f43296a35794a616a3b431b",
+      "displayName": "CyberOutlaw fachada_vidro",
+      "description": "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
     }
   ]
 }

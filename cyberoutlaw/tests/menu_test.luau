@@ -210,6 +210,10 @@ local function scenario(config, options)
 		},
 		UserInputService = h.input,
 		RunService = { Heartbeat = heartbeat },
+		Lighting = options.city and options.city.lighting,
+		Workspace = options.city and options.city.workspace,
+		ReplicatedStorage = options.city and options.city.replicated,
+		HttpService = options.city and options.city.http,
 		SoundService = node("SoundService"),
 		ContentProvider = { PreloadAsync = function(_, assets, callback)
 			if callback and options.titleFetch then
@@ -415,6 +419,74 @@ assert(phone:find("Vitals").AbsolutePosition.Y == 58, "the health HUD is below t
 checkAimCenter(phone)
 phone:resize(414, 896)
 checkAimCenter(phone)
+
+-- Minimapa, distrito e relógio com o traçado real publicado pela cidade.
+do
+	local serde = require("@lune/serde")
+	local worldSource = string.gsub(fs.readFile("src/world.server.luau"), "__CYBEROUTLAW_ART__", "{}")
+	local normals = { Front = roblox.Vector3.new(0, 0, -1) }
+	local _, _, layoutData = luau.load(worldSource, {
+		debugName = "world.server.luau",
+		environment = {
+			Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Color3 = roblox.Color3,
+			Vector3 = setmetatable({ FromNormalId = function(face) return normals[face.Name] end }, { __index = roblox.Vector3 }),
+			ColorSequence = roblox.ColorSequence, Enum = E, UDim2 = roblox.UDim2, Font = roblox.Font, Content = roblox.Content,
+		},
+	})()
+	local camera = { CFrame = roblox.CFrame.lookAt(roblox.Vector3.new(0, 10, 0), roblox.Vector3.new(10, 10, 0)) }
+	local layout = serde.encode("json", layoutData())
+	local city = {
+		lighting = { ClockTime = 0.6 },
+		workspace = { CurrentCamera = camera },
+		replicated = { FindFirstChild = function(_, name)
+			return if name == "CyberOutlawCityInfo" then { GetAttribute = function(_, key)
+				return if key == "Layout" then layout else nil
+			end } else nil
+		end },
+		http = { JSONDecode = function(_, raw) return serde.decode("json", raw) end },
+	}
+	local street = scenario("{}", { city = city })
+	street:step(6)
+	street:find("Play").Activated:Fire()
+	street:step(0.5)
+	local hero = street.make("Model")
+	local root = street.make("Part", "HumanoidRootPart")
+	root.Position = roblox.Vector3.new(107, 3, 139)
+	root.CFrame = roblox.CFrame.lookAt(root.Position, root.Position + roblox.Vector3.new(0, 0, -1))
+	root.Parent = hero
+	local humanoid = street.make("Humanoid")
+	humanoid.MaxHealth = 100
+	humanoid.Health = 100
+	humanoid.Parent = hero
+	street.player.Character = hero
+	street.player.CharacterAdded:Fire(hero)
+	street:step(0.2)
+	assert(not street:find("NoSignal").Visible, "o minimapa desenha a cidade publicada")
+	assert(street:find("DistrictName").Text == "DISTRITO PRISMA" and street:find("Clock").Text == "00:36")
+	assert(street:find("DistrictToast").Visible and street:find("DistrictTitle").Text == "DISTRITO PRISMA")
+	local mapPosition = street:find("Map").Position
+	-- UDim.Offset é inteiro no Roblox: o mapa anda em passos de 1 pixel.
+	assert(math.abs(mapPosition.X.Offset + (107 + 1600) * 0.3) <= 1 and math.abs(mapPosition.Y.Offset + (139 + 1600) * 0.3) <= 1)
+	assert(math.abs(street:find("Pivot").Rotation + 90) < 0.001, "a câmera olhando para leste gira o mapa")
+	assert(math.abs(street:find("PlayerArrow").Rotation + 90) < 0.001, "o jogador olha para o norte")
+	root.Position = roblox.Vector3.new(0, 3, 900)
+	street:step(0.2)
+	assert(street:find("DistrictName").Text == "DOCAS DA MARÉ" and street:find("DistrictTitle").Text == "DOCAS DA MARÉ")
+	street:step(4.5)
+	assert(not street:find("DistrictToast").Visible, "o aviso some depois de alguns segundos")
+	humanoid.Health = 50
+	assert(street:find("HealthTrail").Size.X.Scale == 1 and street:find("HealthFill").Size.X.Scale == 0.5)
+	street:step(0.3)
+	assert(street:find("HealthTrail").Size.X.Scale == 1, "o rastro de dano espera antes de descer")
+	street:step(1)
+	assert(math.abs(street:find("HealthTrail").Size.X.Scale - 0.5) < 0.001, "o rastro alcança a vida atual")
+	humanoid.Health = 20
+	street:step(0.3)
+	local edge = street:find("BeveledEdge"):FindFirstChild("Center")
+	assert(edge.BackgroundColor3 ~= roblox.Color3.fromRGB(82, 52, 76), "vida baixa pulsa a borda")
+	street.script:Destroy()
+	assert(not street:find("CyberOutlawMap"), "o minimapa sai junto com o HUD")
+end
 
 local moving = scenario("{video=678,sounds={click=987,rain=988}}")
 moving:step(0.02)

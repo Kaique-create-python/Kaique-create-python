@@ -20,9 +20,19 @@ Na chave, habilite `asset:read`, `asset:write` e `asset-permissions:write` para 
 
 `CyberOutlaw-Intro-6s.mp4` tem seis segundos, 1280 × 720, 180 quadros e nenhuma faixa de áudio. O Roblox cobra 2.000 Robux por importação de vídeo. Para usar um Video ID aprovado e acessível à experiência, rode `python CYBEROUTLAW_TERMUX.pyz video SEU_ID` antes de `instalar`. A abertura usa o panorama e a barra de progresso enquanto o ID estiver ausente, se o vídeo demorar a carregar ou se o jogador tiver ativado movimento reduzido. [Documentação de vídeo](https://create.roblox.com/docs/ui/video-frames)
 
+## Cidade jogável e R6
+
+Depois de **Jogar**, o jogador chega à Praça da Maré, no centro de uma cidade aberta de 2.000 × 2.000 studs. O script de servidor `CyberOutlawCity` monta a cidade ao iniciar o servidor, sempre igual, com cinco distritos: Distrito Prisma (torres de até 1.148 studs), Alto Vértice (torres corporativas), Colmeia (residencial), Mercado Fosso (becos com letreiros) e Docas da Maré (galpões, contêineres, guindastes e cargueiro). Avenidas de quatro faixas com canteiro, ruas de duas faixas, faixas de pedestre, semáforos, postes, poças, monotrilho elevado com a Estação Prisma, baía e horizonte. As pistas ficam livres de obstáculos para os veículos de uma etapa futura.
+
+As janelas acesas usam três texturas desenhadas por código. Rode `midia` para enviá-las; enquanto aguardam aprovação, a instalação continua e os prédios usam faixas de luz em geometria. A cidade fica idêntica nos dois casos.
+
+O script `CyberOutlawR6` refaz em R6 qualquer personagem que nasça em R15, porque o universo ainda responde `MorphToR15` na API pública. O resultado fica no atributo `CyberOutlawRig` do jogador.
+
+O instalador grava os dois scripts em `ServerScriptService` e só substitui scripts que começam com o cabeçalho do CyberOutlaw.
+
 ## HUD
 
-Ao clicar em **Jogar**, a vida mostra o retrato do avatar e os valores do `Humanoid`. O painel fica abaixo da barra do Roblox em telas touch e no canto inferior esquerdo em PC. A mira usa as dimensões do visor inteiro. As prévias usam 78 de vida e uma imagem de referência da cidade.
+Ao clicar em **Jogar**, a vida mostra o retrato do avatar e os valores do `Humanoid`, com rastro do dano recente e borda pulsando abaixo de 30%. O minimapa gira com a câmera, mostra os distritos, o monotrilho e a praça, e traz o nome do distrito e o relógio da cidade. Ao entrar em outro distrito, o nome aparece no topo da tela. No PC o minimapa fica no canto inferior esquerdo, abaixo da vida; no celular fica no canto superior direito, longe do joystick e do botão de pulo. O desenho está em `design/hud_v2.py`, em vetores feitos à mão. O painel fica abaixo da barra do Roblox em telas touch e no canto inferior esquerdo em PC. A mira usa as dimensões do visor inteiro. As prévias usam 78 de vida e uma imagem de referência da cidade.
 
 ## Autoria e testes
 

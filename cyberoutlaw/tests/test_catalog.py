@@ -5,7 +5,7 @@ from shutil import copytree
 from tempfile import TemporaryDirectory
 import unittest
 
-from media_tools.catalog import make_config, resolved_config, verify_media, ART, SOUNDS
+from media_tools.catalog import make_config, resolved_config, verify_media, ART, OPTIONAL_ART, SOUNDS
 from media_tools.upload import TARGET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +36,16 @@ class MediaBindingTest(unittest.TestCase):
                 self.assertEqual([tile[k] for k in "xywh"], [source[k] for k in "xywh"])
         self.assertEqual(out["video"], 8000)
         self.assertNotIn("background", out)
+
+    def test_city_windows_are_optional_until_approved(self):
+        result = self.fixture()
+        for row in result["assets"]:
+            if row["key"] in OPTIONAL_ART:
+                row["moderationState"] = "Reviewing"
+        out = resolved_config(ROOT, self.plan, result)
+        self.assertFalse(OPTIONAL_ART & set(out["art"]))
+        self.assertIn("asphalt", out["art"])
+        self.assertTrue(OPTIONAL_ART <= set(ART))
 
     def test_assets_needing_approval_do_not_bind(self):
         result = self.fixture()

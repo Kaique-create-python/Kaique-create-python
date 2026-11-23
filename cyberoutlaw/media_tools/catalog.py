@@ -17,7 +17,11 @@ ART = {
     "concrete": (1024, 1024), "concrete_normal": (768, 768),
     "asphalt": (1024, 1024), "asphalt_normal": (768, 768), "asphalt_rough": (768, 768),
     "facades": (1024, 1024),
+    # Janelas da cidade jogável, desenhadas por tools/draw_city_textures.py (sem IA).
+    "fachada_residencial": (768, 896), "fachada_escritorio": (768, 896), "fachada_vidro": (768, 896),
 }
+# A cidade usa faixas de luz em geometria enquanto estas imagens aguardam aprovação.
+OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro"})
 
 
 def _read(path):
@@ -129,14 +133,15 @@ def resolved_config(root, plan, result, video=None):
         if row and any(row.get(k) != expected[k] for k in ("sha256", "assetType", "contentType")):
             raise ValueError(f"O recibo de {key} pertence a outra versão do arquivo.")
         if not (row.get("status") == "ready" and row.get("moderationState") == "Approved" and row.get("permissionStatus") == "granted"):
-            pending.append(key)
+            if key not in OPTIONAL_ART:
+                pending.append(key)
             continue
         selected[key] = _asset_id(row["assetId"], label=key)
     if pending:
         raise ValueError("Mídia aguardando aprovação ou acesso: " + ", ".join(pending))
     sprites = sprite_catalog(root, plan)
     output = {"sounds": {name: selected[name] for name in SOUNDS}, "clips": {},
-              "art": {name: selected[name] for name in ART}}
+              "art": {name: selected[name] for name in ART if name in selected}}
     for name, clip in sprites["clips"].items():
         output["clips"][name] = {
             "fps": clip["fps"],
