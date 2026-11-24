@@ -758,6 +758,11 @@ local PINK = Color3.fromRGB(255, 72, 140)
 local ORANGE = Color3.fromRGB(255, 146, 72)
 local GOLD = Color3.fromRGB(255, 208, 102)
 local TEAL = Color3.fromRGB(72, 226, 210)
+local NEON_SEQUENCE = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(86, 255, 222)),
+	ColorSequenceKeypoint.new(0.55, Color3.fromRGB(64, 214, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 140, 255)),
+})
 local SUNSET = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, PINK), ColorSequenceKeypoint.new(0.55, ORANGE), ColorSequenceKeypoint.new(1, GOLD),
 })
@@ -1345,6 +1350,11 @@ M.buildCombat = buildCombat
 
 -- Roleta de armas: fundo desfocado, seis espaços arredondados com ícones 2D e o centro com nome e atributos ---
 local function buildWheel(parent: Instance, defs, templates, touch: boolean, atlas: string?)
+	-- Mesma paleta do HUD neon: degradê ciano (no lugar do pôr do sol) e textos escuros no cartão aceso.
+	local sunset = function(parent: Instance, rotation: number?): UIGradient
+		return new("UIGradient", parent, { Color = NEON_SEQUENCE, Rotation = rotation or 0 })
+	end
+	local PINK = NEON
 	local f = fonts()
 	local count = #defs
 	-- Mais armas: anel maior e cartões menores, para nenhum cartão encostar no vizinho.
@@ -1479,20 +1489,20 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 		for i, entry in entries do
 			local on = i == index
 			entry.target = if on then 1.1 else 1
-			-- Selecionado: cartão em degradê pôr do sol, ícone e textos brancos.
+			-- Selecionado: cartão aceso em degradê neon, ícone e textos escuros (contraste no ciano claro).
 			entry.glow.Enabled = on
 			entry.card.BackgroundColor3 = if on then LINE else PANEL
 			entry.card.BackgroundTransparency = if on then 0.04 else 0.26
-			entry.edge.Color = LINE
-			entry.edge.Transparency = if on then 0.15 else 0.84
+			entry.edge.Color = NEON
+			entry.edge.Transparency = if on then 0.05 else 0.7
 			entry.edge.Thickness = if on then 2 else 1
 			if entry.image:IsA("ImageLabel") then
-				entry.image.ImageColor3 = TEXT
+				entry.image.ImageColor3 = if on then PANEL else NEON
 			end
 			entry.ammo.Text = ammoText(entry.def.id, ammoTable)
-			entry.ammo.TextColor3 = if on then LINE else SUB
+			entry.ammo.TextColor3 = if on then PANEL else SUB
 			if entry.key then
-				entry.key.TextColor3 = if on then LINE else SUB
+				entry.key.TextColor3 = if on then PANEL else SUB
 			end
 		end
 	end
@@ -3965,6 +3975,7 @@ local function start()
 			elseif scoped then 0.5
 			elseif aimingNow then (if weapon.tipo == "fuzil" then 4.6 else 5.6)
 			elseif sprinting then 13
+			elseif gun then 9 -- com arma na mão a câmera chega mais perto: dá para ver a arma
 			else 11.5
 		local targetShoulder = (if aimingNow or raised then 2.1 else 1.35) * cam.side
 		local targetFov = (if aimingNow then (weapon.fov or 54) elseif sprinting then 77 else 70) + abilityFov

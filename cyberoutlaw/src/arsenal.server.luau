@@ -238,12 +238,13 @@ end
 -- Models ----------------------------------------------------------------------------------------
 -- Weapon space: -Z is the barrel direction, +Y is up. The grip core (PrimaryPart, no rotation) sits in
 -- the hand; every other piece is welded to it. Real weapons at about 1.5x scale, without neon.
-local STEEL = rgb(44, 45, 50)
-local STEEL_DARK = rgb(22, 22, 25)
-local STEEL_BARE = rgb(150, 152, 158)
-local CHROME = rgb(182, 184, 190)
-local POLY = rgb(31, 32, 36)
-local RUBBER = rgb(18, 18, 20)
+-- Metal mais claro que o preto de antes: na noite da cidade a arma quase sumia na mão.
+local STEEL = rgb(74, 76, 84)
+local STEEL_DARK = rgb(44, 45, 51)
+local STEEL_BARE = rgb(160, 162, 168)
+local CHROME = rgb(190, 192, 198)
+local POLY = rgb(56, 57, 63)
+local RUBBER = rgb(36, 36, 40)
 local WOOD = rgb(126, 70, 36)
 local WOOD_DARK = rgb(92, 50, 26)
 local OLIVE = rgb(84, 88, 64)
