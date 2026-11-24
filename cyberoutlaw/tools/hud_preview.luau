@@ -61,8 +61,12 @@ local function export(node, parentX, parentY, parentW, parentH, inherited)
 	local own = node:FindFirstChildOfClass("UIScale")
 	local s = if own then own.Scale else 1
 	local size, pos, anchor = prop(node, "Size", roblox.UDim2.new()), prop(node, "Position", roblox.UDim2.new()), prop(node, "AnchorPoint", V2.zero)
-	local w = (parentW * size.X.Scale + size.X.Offset * inherited) * s
-	local h = (parentH * size.Y.Scale + size.Y.Offset * inherited) * s
+	-- SizeConstraint: RelativeYY mede as duas escalas pela altura do pai; RelativeXX, pela largura.
+	local constraint = prop(node, "SizeConstraint", roblox.Enum.SizeConstraint.RelativeXY)
+	local baseW = if constraint == roblox.Enum.SizeConstraint.RelativeYY then parentH else parentW
+	local baseH = if constraint == roblox.Enum.SizeConstraint.RelativeXX then parentW else parentH
+	local w = (baseW * size.X.Scale + size.X.Offset * inherited) * s
+	local h = (baseH * size.Y.Scale + size.Y.Offset * inherited) * s
 	local x = parentX + parentW * pos.X.Scale + pos.X.Offset * inherited - anchor.X * w
 	local y = parentY + parentH * pos.Y.Scale + pos.Y.Offset * inherited - anchor.Y * h
 	local scale = inherited * s
@@ -113,6 +117,12 @@ local function export(node, parentX, parentY, parentW, parentH, inherited)
 			row.ay = prop(node, "TextYAlignment", roblox.Enum.TextYAlignment.Center).Name
 			row.rich = prop(node, "RichText", false)
 			row.scaled = prop(node, "TextScaled", false)
+			row.wrap = prop(node, "TextWrapped", false)
+			local limit = node:FindFirstChildOfClass("UITextSizeConstraint")
+			if limit then
+				row.maxts = prop(limit, "MaxTextSize", 100) * scale
+				row.mints = prop(limit, "MinTextSize", 1) * scale
+			end
 			local tst = prop(node, "TextStrokeTransparency", 1)
 			if tst < 1 then
 				row.tsc, row.tst = color(prop(node, "TextStrokeColor3", roblox.Color3.new())), tst
@@ -175,7 +185,38 @@ local devices = {
 if not fs.isDir(output) then
 	fs.writeDir(output)
 end
+-- Implantes publicados pelo servidor, com os números do Sandevistan (como o jogo lê).
+local implants = {}
+for _, def in arsenal.IMPLANTS do
+	local copy = table.clone(def)
+	if def.id == "sandevistan" then
+		copy.stats = { duracao = 4, recarga = 1.5, custo = 25, velocidade = 2.2, lento = 0.3, cadencia = 2 }
+	end
+	table.insert(implants, copy)
+end
+local implantModels = roblox.Instance.new("Folder")
+arsenal.buildImplant(implants[1]).Parent = implantModels
+
 for _, device in devices do
+	-- Terminal de implantes aberto (o HUD some; só a placa holográfica sobre o fundo desfocado).
+	do
+		local safe = V2.new(device.screen.X - device.insets.left - device.insets.right, device.screen.Y - device.insets.top - device.insets.bottom)
+		local l = play.hudLayout(safe, device.touch, nil)
+		local w = math.min(safe.X * 0.96, if device.touch then math.huge else 1180 * l.scale)
+		local h = math.min(safe.Y * 0.94, w / 1.85)
+		w = math.floor(math.min(w, h * 2.15))
+		h = math.floor(h)
+		local panel = play.buildImplantPanel(implants, "rbxassetid://123", implantModels)
+		panel.resize(V2.new(w, h) * 2) -- como no jogo: 2 px da placa por px da tela
+		panel.select("sandevistan")
+		panel.setState({ sandevistan = true }, 75, false)
+		panel.rotate(math.rad(205))
+		local rect = { device.insets.left + (safe.X - w) / 2, device.insets.top + (safe.Y - h) / 2, w, h }
+		local scene = holo("Terminal", panel.gui:GetChildren(), rect, 0.5, device.screen)
+		local path = string.format("%s/%s_implantes.json", output, device.name)
+		fs.writeFile(path, serde.encode("json", { screen = { device.screen.X, device.screen.Y }, insets = device.insets, guis = { scene }, blur = true }))
+		print("ok", path)
+	end
 	for _, scene in { "rua", "mirando", "roleta" } do
 		local folder = roblox.Instance.new("Folder")
 		local safe = V2.new(device.screen.X - device.insets.left - device.insets.right, device.screen.Y - device.insets.top - device.insets.bottom)
@@ -187,7 +228,7 @@ for _, device in devices do
 		-- Barra de armas: na rua com os punhos (página 1), mirando com a AK (página 2, setas dos dois lados).
 		local weapon = if scene == "rua" then defs[1] else defs[6]
 		local bar = play.buildWeaponBar(defs, "rbxassetid://123")
-		bar.resize(l.neon.size * l.scale)
+		bar.resize(l.neon.size * 2) -- como no jogo
 		bar.setPage(bar.pageOf(weapon.id))
 		bar.set(weapon, if weapon.kind == "gun" then { 24, 150 } else nil, if scene == "roleta" then 0.45 else nil)
 		local state = {
@@ -250,7 +291,7 @@ for _, device in devices do
 		end
 		if scene ~= "roleta" then
 			table.insert(exported, holo("MapaNeon", { block }, screenRect(l.minimap), l.scale, device.screen))
-			table.insert(exported, holo("BarraNeon", bar.gui:GetChildren(), screenRect(l.neon), 1, device.screen))
+			table.insert(exported, holo("BarraNeon", bar.gui:GetChildren(), screenRect(l.neon), 0.5 * l.scale, device.screen))
 		end
 		local path = string.format("%s/%s_%s.json", output, device.name, scene)
 		fs.writeFile(path, serde.encode("json", { screen = { device.screen.X, device.screen.Y }, insets = device.insets, guis = exported }))

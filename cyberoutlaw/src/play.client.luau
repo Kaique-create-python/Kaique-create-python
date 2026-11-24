@@ -1595,7 +1595,7 @@ local function buildWeaponBar(defs, atlas: string?)
 	function bar.resize(canvas: Vector2)
 		gui.CanvasSize = canvas
 		for _, entry in texts do
-			entry[1].TextSize = math.max(9, math.floor(canvas.Y * entry[2] + 0.5))
+			entry[1].TextSize = math.max(18, math.floor(canvas.Y * entry[2] + 0.5)) -- 9 px de tela, no mínimo
 		end
 	end
 	function bar.setPage(page: number)
@@ -1658,6 +1658,433 @@ local function buildWeaponBar(defs, atlas: string?)
 	return bar
 end
 M.buildWeaponBar = buildWeaponBar
+
+-- Implantes -------------------------------------------------------------------------------------------------
+-- Lugares no corpo R6, no espaço do Torso (frente em -Z, costas em +Z), com a direção para onde a marca
+-- olha: o terminal desenha a marca sobre o boneco e a apaga quando o lugar fica de costas para a câmera.
+local IMPLANT_SPOTS = {
+	coluna = { label = "COLUNA", point = Vector3.new(0, 0.35, 0.64), normal = Vector3.new(0, 0, 1) },
+	olhos = { label = "OLHOS", point = Vector3.new(0.26, 1.62, -0.6), normal = Vector3.new(0, 0, -1) },
+	bracos = { label = "BRAÇOS", point = Vector3.new(1.68, -0.55, -0.52), normal = Vector3.new(0.25, 0, -1) },
+	pernas = { label = "PERNAS", point = Vector3.new(-0.5, -2.1, -0.52), normal = Vector3.new(0, 0, -1) },
+	pele = { label = "PELE", point = Vector3.new(-0.5, 0.3, -0.54), normal = Vector3.new(0, 0, -1) },
+}
+M.IMPLANT_SPOTS = IMPLANT_SPOTS
+-- Cores dos rastros do Sandevistan, como no anime (verde, ciano, azul, violeta, rosa, amarelo); no surto, vermelhos.
+local GHOST_COLORS = {
+	Color3.fromRGB(70, 255, 140), Color3.fromRGB(50, 235, 255), Color3.fromRGB(80, 130, 255),
+	Color3.fromRGB(170, 90, 255), Color3.fromRGB(255, 80, 200), Color3.fromRGB(255, 226, 80),
+}
+local FRENZY_COLORS = { Color3.fromRGB(255, 40, 70), Color3.fromRGB(255, 110, 60), Color3.fromRGB(200, 20, 60) }
+M.GHOST_COLORS = GHOST_COLORS
+
+-- Projeta um ponto 3D na imagem de uma câmera (a do boneco no ViewportFrame): x e y de 0 a 1 (do canto de cima
+-- à esquerda) e a profundidade (zero ou menos: atrás da câmera). fov é o vertical, em graus; aspect = largura/altura.
+local function projectPoint(cameraCFrame: CFrame, fov: number, aspect: number, point: Vector3): (number, number, number)
+	local p = cameraCFrame:PointToObjectSpace(point)
+	local depth = -p.Z
+	if depth <= 1e-3 then
+		return 0.5, 0.5, depth
+	end
+	local t = math.tan(math.rad(fov) / 2)
+	return 0.5 + (p.X / depth) / (t * aspect) / 2, 0.5 - (p.Y / depth) / t / 2, depth
+end
+M.projectPoint = projectPoint
+
+-- Velocidade do próprio corpo: o Sandevistan acelera, perto de quem ativou fica lento e no surto cambaleia.
+local function abilitySpeed(active: boolean, slowed: boolean, frenzy: boolean, stats): number
+	if frenzy then
+		return 0.35
+	elseif active then
+		return (stats and stats.velocidade) or 2.2
+	elseif slowed then
+		return (stats and stats.lento) or 0.3
+	end
+	return 1
+end
+M.abilitySpeed = abilitySpeed
+
+-- Boneco R6 do terminal, em pose A (braços um pouco abertos para mostrar os implantes dos braços), em cor de
+-- holograma. Devolve o modelo e o Torso (o centro do giro).
+local HOLO_BODY = Color3.fromRGB(70, 214, 220)
+local function buildMannequin(): (Model, BasePart)
+	local model = Instance.new("Model")
+	model.Name = "Boneco"
+	local function limb(name: string, size: Vector3, pose: CFrame)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = pose
+		p.Anchored = true
+		p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = false, false, false, false
+		p.Material = Enum.Material.SmoothPlastic
+		p.Color = HOLO_BODY
+		p.Transparency = 0.42
+		p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		p.Parent = model
+		return p
+	end
+	local torso = limb("Torso", Vector3.new(2, 2, 1), CFrame.new())
+	local head = limb("Head", Vector3.new(2, 1, 1), CFrame.new(0, 1.5, 0))
+	new("SpecialMesh", head, { MeshType = Enum.MeshType.Head, Scale = Vector3.new(1.25, 1.25, 1.25) })
+	-- Visor na frente da cabeça: mostra para onde o boneco olha enquanto gira.
+	limb("Visor", Vector3.new(0.9, 0.16, 0.06), CFrame.new(0, 1.55, -0.62)).Transparency = 0.1
+	for _, side in { 1, -1 } do
+		local shoulder = CFrame.new(side * 1.5, 1, 0) * CFrame.Angles(0, 0, math.rad(side * 10))
+		limb(if side == 1 then "Right Arm" else "Left Arm", Vector3.new(1, 2, 1), shoulder * CFrame.new(side * 0.08, -1, 0))
+		limb(if side == 1 then "Right Leg" else "Left Leg", Vector3.new(1, 2, 1), CFrame.new(side * 0.5, -2, 0))
+	end
+	model.PrimaryPart = torso
+	return model, torso
+end
+M.buildMannequin = buildMannequin
+
+-- Terminal de implantes: uma placa translúcida na frente da câmera, como a tela de um ripperdoc. Lista dos
+-- implantes à esquerda, boneco 3D que gira no meio (marcas onde cada implante encaixa) e, à direita, os
+-- detalhes com o botão ENCAIXAR. As áreas de toque saem em panel.hits (escala da placa) para a camada 2D.
+local TERMINAL = {
+	rows = { x = 0.03, y = 0.17, w = 0.325, h = 0.118, gap = 0.012 },
+	doll = { x = 0.37, y = 0.16, w = 0.27, h = 0.72 },
+	details = { x = 0.655, y = 0.16, w = 0.315, h = 0.64 },
+	action = { x = 0.655, y = 0.83, w = 0.315, h = 0.12 },
+	close = { x = 0.925, y = 0.03, w = 0.05, h = 0.09 },
+}
+M.TERMINAL = TERMINAL
+-- Encaixe do implante nas costas do Torso (o mesmo do servidor, em arsenal.server.luau).
+local IMPLANT_SEAT_CLIENT = CFrame.new(0, 0.05, 0.53)
+local function buildImplantPanel(implants, atlas: string?, models: Instance?)
+	local f = fonts()
+	local mono = Font.fromEnum(Enum.Font.Michroma)
+	local part, gui = holoSurface("CyberOutlawTerminal", Vector2.new(1100, 560))
+	gui.Brightness = 1.7
+	-- Textos: { rótulo, fração da altura da placa, mínimo em px de tela, limite (texto que encolhe para caber) }.
+	local texts = {}
+	local function text(parent, name, value, share, minimum, color, z, props, font, scaled)
+		local item = label(parent, name, value, font or mono, 18, color or NEON, z, props)
+		local limit
+		if scaled then
+			item.TextScaled, item.TextWrapped = true, true
+			limit = new("UITextSizeConstraint", item, { MaxTextSize = 18, MinTextSize = 9 })
+		end
+		table.insert(texts, { item, share, minimum, limit })
+		return item
+	end
+	local function at(r)
+		return UDim2.fromScale(r.x, r.y), UDim2.fromScale(r.w, r.h)
+	end
+	local root = frame(gui, "Terminal", 1, { Size = FULL, BackgroundColor3 = Color3.fromRGB(4, 12, 18), BackgroundTransparency = 0.18 })
+	round(root, UDim.new(0.02, 0))
+	stroke(root, NEON, 0.15, 3)
+	new("UIGradient", root, {
+		Rotation = 90,
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(1, 0.3) }),
+	})
+	-- Grade de fundo e cantoneiras: a cara de tela de computador.
+	for index = 1, 23 do
+		frame(root, "Grade", 1, { Position = UDim2.fromScale(index / 24, 0), Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = NEON, BackgroundTransparency = 0.94 })
+	end
+	for index = 1, 11 do
+		frame(root, "Grade", 1, { Position = UDim2.fromScale(0, index / 12), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = NEON, BackgroundTransparency = 0.94 })
+	end
+	for _, corner in { Vector2.new(0, 0), Vector2.new(1, 0), Vector2.new(0, 1), Vector2.new(1, 1) } do
+		local position = UDim2.new(corner.X, if corner.X == 0 then 5 else -5, corner.Y, if corner.Y == 0 then 5 else -5)
+		frame(root, "Canto", 6, { AnchorPoint = corner, Position = position, Size = UDim2.new(0.06, 0, 0, 5), BackgroundColor3 = NEON, BackgroundTransparency = 0 })
+		frame(root, "Canto", 6, { AnchorPoint = corner, Position = position, Size = UDim2.new(0, 5, 0.1, 0), BackgroundColor3 = NEON, BackgroundTransparency = 0 })
+	end
+	local scan = frame(root, "Varredura", 2, { Size = UDim2.fromScale(1, 0.14), BackgroundColor3 = NEON, BackgroundTransparency = 0 })
+	new("UIGradient", scan, {
+		Rotation = 90,
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.85, 0.9), NumberSequenceKeypoint.new(1, 1) }),
+	})
+	-- Cabeçalho.
+	text(root, "Titulo", "TERMINAL DE IMPLANTES", 0.05, 12, NEON, 4, { Position = UDim2.fromScale(0.03, 0.025), Size = UDim2.fromScale(0.75, 0.07) })
+	text(root, "Subtitulo", "RIPPERDOC · MARÉ BAIXA · CONEXÃO NEURAL ESTÁVEL", 0.024, 8, SUB, 4, {
+		Position = UDim2.fromScale(0.03, 0.095), Size = UDim2.fromScale(0.75, 0.04),
+	}, f.bold)
+	local rule = frame(root, "Linha", 3, { Position = UDim2.fromScale(0.03, 0.145), Size = UDim2.new(0.94, 0, 0, 2), BackgroundColor3 = NEON, BackgroundTransparency = 0 })
+	new("UIGradient", rule, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.7, 0.4), NumberSequenceKeypoint.new(1, 1) }) })
+	local closePosition, closeSize = at(TERMINAL.close)
+	local close = frame(root, "Fechar", 4, { Position = closePosition, Size = closeSize, BackgroundColor3 = NEON, BackgroundTransparency = 0.85 })
+	round(close, UDim.new(0.2, 0))
+	stroke(close, NEON, 0, 2)
+	text(close, "X", "X", 0.045, 11, NEON, 5, { TextXAlignment = Enum.TextXAlignment.Center })
+
+	local panel = { part = part, gui = gui, root = root, rows = {}, markers = {}, hits = {}, selected = nil, yaw = math.rad(200),
+		aspect = 0.8, equipped = {}, psy = 100, busy = false, spin = 0, scanAt = 0 }
+	table.insert(panel.hits, { key = "fechar", position = closePosition, size = closeSize })
+
+	-- Lista dos implantes.
+	local byId = {}
+	for index, def in implants do
+		byId[def.id] = def
+		local r = TERMINAL.rows
+		local position = UDim2.fromScale(r.x, r.y + (index - 1) * (r.h + r.gap))
+		local size = UDim2.fromScale(r.w, r.h)
+		local row = frame(root, "Linha_" .. def.id, 3, { Position = position, Size = size, BackgroundColor3 = NEON, BackgroundTransparency = 0.94 })
+		round(row, UDim.new(0.14, 0))
+		local line = stroke(row, NEON, 0.55, 2)
+		local iconBox = frame(row, "Icone", 4, {
+			AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0.025, 0.5), Size = UDim2.fromScale(0.78, 0.78),
+			SizeConstraint = Enum.SizeConstraint.RelativeYY, BackgroundColor3 = PANEL, BackgroundTransparency = 0.3,
+		})
+		round(iconBox, UDim.new(0.2, 0))
+		stroke(iconBox, NEON, 0.35, 1.5)
+		if atlas and iconRect(def.id) then
+			atlasImage(iconBox, "Simbolo", atlas, def.id, 5, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.8, 0.8), ImageColor3 = NEON })
+		else
+			frameGlyph(iconBox, def.id, 5, NEON)
+		end
+		local name = text(row, "Nome", upper(def.name), 0.03, 9, TEXT, 5, {
+			Position = UDim2.fromScale(0.27, 0.08), Size = UDim2.fromScale(0.71, 0.48), TextTruncate = Enum.TextTruncate.AtEnd,
+		}, f.heavy)
+		local status = text(row, "Estado", "", 0.022, 8, NEON, 5, { Position = UDim2.fromScale(0.27, 0.55), Size = UDim2.fromScale(0.71, 0.36) })
+		panel.rows[def.id] = { row = row, line = line, name = name, status = status }
+		table.insert(panel.hits, { key = "linha:" .. def.id, position = position, size = size })
+	end
+
+	-- Boneco 3D que gira, com plataforma e as marcas dos lugares.
+	local dollPosition, dollSize = at(TERMINAL.doll)
+	local dollFrame = frame(root, "Boneco", 3, { Position = dollPosition, Size = dollSize })
+	local floor = frame(dollFrame, "Plataforma", 3, {
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.93), Size = UDim2.fromScale(0.8, 0.09),
+		BackgroundColor3 = NEON, BackgroundTransparency = 0.82,
+	})
+	round(floor, UDim.new(1, 0))
+	stroke(floor, NEON, 0.2, 2)
+	local viewport = new("ViewportFrame", dollFrame, {
+		Name = "Vista", Size = FULL, BackgroundTransparency = 1, ZIndex = 4, Ambient = Color3.fromRGB(110, 190, 200),
+		LightColor = Color3.fromRGB(190, 255, 250), LightDirection = Vector3.new(-0.5, -1, 0.6),
+	})
+	local dollCamera = new("Camera", viewport, { Name = "Camera", FieldOfView = 30 })
+	viewport.CurrentCamera = dollCamera
+	dollCamera.CFrame = CFrame.lookAt(Vector3.new(0, -0.35, -13.5), Vector3.new(0, -0.35, 0))
+	local doll = buildMannequin()
+	doll.Parent = viewport
+	panel.doll, panel.camera, panel.viewport = doll, dollCamera, viewport
+	-- Cada peça guarda a pose em relação ao Torso; girar é recolocar todas (sem depender de PivotTo).
+	local dollParts = {}
+	for _, item in doll:GetChildren() do
+		if item:IsA("BasePart") then
+			table.insert(dollParts, { item, item.CFrame })
+		end
+	end
+	panel.dollParts = dollParts
+	text(root, "Girar", "<  ARRASTE PARA GIRAR  >", 0.022, 8, SUB, 4, {
+		Position = UDim2.fromScale(TERMINAL.doll.x, TERMINAL.doll.y + TERMINAL.doll.h + 0.015), Size = UDim2.fromScale(TERMINAL.doll.w, 0.05),
+		TextXAlignment = Enum.TextXAlignment.Center,
+	}, f.bold)
+	table.insert(panel.hits, { key = "boneco", position = dollPosition, size = dollSize })
+	for slot, spot in IMPLANT_SPOTS do
+		local mark = frame(dollFrame, "Marca_" .. slot, 7, {
+			AnchorPoint = CENTER, Size = UDim2.fromScale(0.07, 0.07), SizeConstraint = Enum.SizeConstraint.RelativeYY,
+			BackgroundColor3 = PANEL, BackgroundTransparency = 0.4,
+		})
+		round(mark, UDim.new(1, 0))
+		local ring = stroke(mark, NEON, 0, 2.5)
+		local dot = frame(mark, "Ponto", 8, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.42, 0.42), BackgroundColor3 = NEON, BackgroundTransparency = 0 })
+		round(dot, UDim.new(1, 0))
+		local tag = text(mark, "Rotulo", spot.label, 0.02, 7, NEON, 8, {
+			AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(1.25, 0.5), Size = UDim2.fromScale(3.4, 0.9),
+		}, f.heavy)
+		tag.TextStrokeTransparency, tag.TextStrokeColor3 = 0.3, PANEL
+		panel.markers[slot] = { mark = mark, ring = ring, dot = dot, tag = tag, spot = spot }
+	end
+
+	-- Detalhes do implante escolhido.
+	local detailsPosition, detailsSize = at(TERMINAL.details)
+	local details = frame(root, "Detalhes", 3, { Position = detailsPosition, Size = detailsSize })
+	local system = text(details, "Sistema", "", 0.024, 8, NEON, 4, { Size = UDim2.fromScale(1, 0.08) })
+	local title = text(details, "Nome", "", 0.05, 11, TEXT, 4, { Position = UDim2.fromScale(0, 0.08), Size = UDim2.fromScale(1, 0.13) }, mono, true)
+	local chip = text(details, "Situacao", "", 0.022, 8, PANEL, 5, {
+		Position = UDim2.fromScale(0, 0.23), Size = UDim2.fromScale(0.5, 0.075), TextXAlignment = Enum.TextXAlignment.Center,
+		BackgroundTransparency = 0, BackgroundColor3 = NEON,
+	}, f.heavy)
+	round(chip, UDim.new(0.3, 0))
+	local desc = text(details, "Descricao", "", 0.026, 9, TEXT, 4, {
+		Position = UDim2.fromScale(0, 0.33), Size = UDim2.fromScale(1, 0.34), TextYAlignment = Enum.TextYAlignment.Top,
+	}, f.medium, true)
+	local stats = {}
+	for index, key in { "duracao", "custo", "recarga" } do
+		local y = 0.68 + (index - 1) * 0.075
+		local name = ({ duracao = "DURAÇÃO", custo = "CUSTO POR USO", recarga = "RECARGA" })[key]
+		text(details, "Rotulo_" .. key, name, 0.022, 8, SUB, 4, { Position = UDim2.fromScale(0, y), Size = UDim2.fromScale(0.6, 0.07) }, f.bold)
+		stats[key] = text(details, "Valor_" .. key, "—", 0.022, 8, NEON, 4, {
+			Position = UDim2.fromScale(0.6, y), Size = UDim2.fromScale(0.4, 0.07), TextXAlignment = Enum.TextXAlignment.Right,
+		}, f.heavy)
+	end
+	local psyLabel = text(details, "Estabilidade", "ESTABILIDADE 100%", 0.022, 8, NEON_HURT, 4, {
+		Position = UDim2.fromScale(0, 0.915), Size = UDim2.fromScale(1, 0.06),
+	}, f.heavy)
+	local psyTrack = frame(details, "EstabilidadeBarra", 4, {
+		Position = UDim2.fromScale(0, 0.975), Size = UDim2.fromScale(1, 0.025), BackgroundColor3 = PANEL, BackgroundTransparency = 0.2,
+	})
+	stroke(psyTrack, NEON_HURT, 0.5, 1)
+	local psyFill = frame(psyTrack, "Valor", 5, { Size = FULL, BackgroundColor3 = NEON_HURT, BackgroundTransparency = 0 })
+	local actionPosition, actionSize = at(TERMINAL.action)
+	local actionBox = frame(root, "Acao", 4, { Position = actionPosition, Size = actionSize, BackgroundColor3 = NEON, BackgroundTransparency = 0.8 })
+	round(actionBox, UDim.new(0.18, 0))
+	local actionLine = stroke(actionBox, NEON, 0, 3)
+	local actionText = text(actionBox, "Texto", "", 0.04, 11, NEON, 5, { TextXAlignment = Enum.TextXAlignment.Center })
+	table.insert(panel.hits, { key = "acao", position = actionPosition, size = actionSize })
+	panel.title, panel.desc, panel.action, panel.actionText, panel.chip = title, desc, actionBox, actionText, chip
+
+	-- O que o botão de ação faz agora com o implante escolhido: "encaixar", "tirar", nil (em breve ou em uso).
+	function panel.actionFor(id: string?): string?
+		local def = id and byId[id]
+		if not def or panel.busy then
+			return nil
+		end
+		if panel.equipped[id] then
+			return "tirar"
+		end
+		return if def.pronto then "encaixar" else nil
+	end
+	local function refresh()
+		for id, entry in panel.rows do
+			local def = byId[id]
+			local on = panel.equipped[id] == true
+			local chosen = panel.selected == id
+			entry.row.BackgroundTransparency = if chosen then 0.8 else 0.94
+			entry.line.Thickness = if chosen then 3 else 2
+			entry.line.Transparency = if chosen then 0 else 0.55
+			entry.line.Color = if on then NEON_HURT else NEON
+			entry.status.Text = if on then "ENCAIXADO" elseif def.pronto then "DISPONÍVEL" else "EM BREVE"
+			entry.status.TextColor3 = if on then NEON_HURT elseif def.pronto then NEON else SUB
+			entry.name.TextTransparency = if def.pronto or on then 0 else 0.35
+		end
+		local def = panel.selected and byId[panel.selected]
+		if def then
+			system.Text = def.sistema or ""
+			title.Text = upper(def.name)
+			desc.Text = def.desc or ""
+			local on = panel.equipped[def.id] == true
+			chip.Text = if on then "ENCAIXADO" elseif def.pronto then "DISPONÍVEL" else "EM BREVE"
+			chip.BackgroundColor3 = if on then NEON_HURT elseif def.pronto then NEON else SUB
+			local s = def.stats
+			stats.duracao.Text = if s then string.format("%d s", s.duracao) else "—"
+			stats.custo.Text = if s then string.format("%d%% ESTABILIDADE", s.custo) else "—"
+			stats.recarga.Text = if s then (string.gsub(string.format("%.1f s", s.recarga), "%.", ",")) else "—"
+		end
+		local verb = panel.actionFor(panel.selected)
+		actionText.Text = if verb == "encaixar" then "ENCAIXAR" elseif verb == "tirar" then "DESENCAIXAR"
+			elseif panel.busy and def and panel.equipped[def.id] then "EM USO" else "EM BREVE"
+		local tone = if verb == "tirar" then NEON_HURT elseif verb then NEON else SUB
+		actionText.TextColor3, actionLine.Color, actionBox.BackgroundColor3 = tone, tone, tone
+		actionBox.BackgroundTransparency = if verb then 0.78 else 0.94
+		actionLine.Transparency = if verb then 0 else 0.6
+		for slot, marker in panel.markers do
+			local filled = false
+			for id in panel.equipped do
+				if byId[id] and byId[id].slot == slot then
+					filled = true
+				end
+			end
+			local tone2 = if filled then NEON_HURT else NEON
+			marker.ring.Color, marker.dot.BackgroundColor3, marker.tag.TextColor3 = tone2, tone2, tone2
+			marker.dot.Visible = filled or (def ~= nil and def.slot == slot)
+		end
+		local value = math.clamp(panel.psy / 100, 0, 1)
+		psyLabel.Text = string.format("ESTABILIDADE %d%%", math.floor(panel.psy + 0.5))
+		psyFill.Size = UDim2.fromScale(value, 1)
+	end
+	function panel.select(id: string)
+		if byId[id] then
+			panel.selected = id
+			refresh()
+		end
+	end
+	-- equipped: conjunto de ids encaixados; psy: estabilidade de 0 a 100; busy: Sandevistan ou surto em curso.
+	function panel.setState(equipped, psy: number, busy: boolean)
+		panel.equipped = equipped or {}
+		panel.psy = psy or 100
+		panel.busy = busy == true
+		-- A coluna do Sandevistan aparece nas costas do boneco quando encaixada.
+		local changed = false
+		for id in byId do
+			local existing = doll:FindFirstChild("Implante_" .. id)
+			if panel.equipped[id] and not existing and models then
+				local template = models:FindFirstChild(id)
+				if template and template:IsA("Model") then
+					local copy = template:Clone()
+					copy.Name = "Implante_" .. id
+					for _, item in copy:GetDescendants() do
+						if item:IsA("BasePart") then
+							item.Anchored = true
+							table.insert(dollParts, { item, IMPLANT_SEAT_CLIENT * item.CFrame })
+						end
+					end
+					copy.Parent = doll
+					changed = true
+				end
+			elseif not panel.equipped[id] and existing then
+				for index = #dollParts, 1, -1 do
+					if dollParts[index][1]:IsDescendantOf(existing) then
+						table.remove(dollParts, index)
+					end
+				end
+				existing:Destroy()
+				changed = true
+			end
+		end
+		if changed then
+			panel.rotate(panel.yaw)
+		end
+		refresh()
+	end
+	function panel.resize(canvas: Vector2)
+		gui.CanvasSize = canvas
+		for _, entry in texts do
+			local size = math.max(2 * entry[3], math.floor(canvas.Y * entry[2] + 0.5))
+			if entry[4] then
+				entry[4].MaxTextSize = size
+				entry[4].MinTextSize = math.min(size, 2 * 7)
+			else
+				entry[1].TextSize = size
+			end
+		end
+		panel.aspect = (TERMINAL.doll.w * canvas.X) / math.max(1, TERMINAL.doll.h * canvas.Y)
+	end
+	-- Gira o boneco e põe cada marca sobre o lugar dela (apagada quando o lugar fica de costas).
+	function panel.rotate(yaw: number)
+		panel.yaw = yaw
+		local pose = CFrame.Angles(0, yaw, 0)
+		for _, entry in dollParts do
+			entry[1].CFrame = pose * entry[2]
+		end
+		local eye = dollCamera.CFrame.Position
+		for _, marker in panel.markers do
+			local point = pose * marker.spot.point
+			local x, y, depth = projectPoint(dollCamera.CFrame, dollCamera.FieldOfView, panel.aspect, point)
+			local facing = pose:VectorToWorldSpace(marker.spot.normal.Unit):Dot((eye - point).Unit)
+			marker.mark.Position = UDim2.fromScale(x, y)
+			marker.mark.Visible = depth > 0
+			local back = facing < -0.05
+			marker.mark.BackgroundTransparency = if back then 0.85 else 0.4
+			marker.ring.Transparency = if back then 0.7 else 0
+			marker.tag.Visible = not back
+		end
+	end
+	-- Animação: varredura descendo, giro lento quando ninguém arrasta e marca escolhida pulsando.
+	function panel.step(dt: number, dragging: boolean)
+		panel.scanAt = (panel.scanAt + dt / 3.2) % 1
+		scan.Position = UDim2.fromScale(0, panel.scanAt * 1.14 - 0.14)
+		if not dragging then
+			panel.rotate(panel.yaw + dt * 0.45)
+		end
+		local def = panel.selected and byId[panel.selected]
+		local pulse = 1 + 0.18 * math.sin(os.clock() * 6)
+		for slot, marker in panel.markers do
+			local size = if def and def.slot == slot then 0.07 * pulse else 0.06
+			marker.mark.Size = UDim2.fromScale(size, size)
+		end
+	end
+	panel.resize(gui.CanvasSize)
+	panel.select(implants[1] and implants[1].id or "")
+	panel.setState({}, 100, false)
+	panel.rotate(panel.yaw)
+	return panel
+end
+M.buildImplantPanel = buildImplantPanel
 
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
@@ -1846,6 +2273,26 @@ local function start()
 	local poses = {} -- [character] = { swingStart, swingKind, swingSide, firedAt }
 	local gaits = setmetatable({}, { __mode = "k" }) -- [character] = estado da locomoção procedural
 	local dead = false
+	-- Sandevistan e surto: o servidor marca o personagem com a hora (GetServerTimeNow) em que cada um acaba.
+	local function serverNow(): number
+		return Workspace:GetServerTimeNow()
+	end
+	local function timeAttr(model: Instance?, name: string): number
+		local value = model and model:GetAttribute(name)
+		return if type(value) == "number" then value else 0
+	end
+	local function boosted(model: Instance?): boolean
+		return timeAttr(model, "CyberOutlawSandevistanAte") > serverNow()
+	end
+	local function raving(model: Instance?): boolean
+		return timeAttr(model, "CyberOutlawSurtoAte") > serverNow()
+	end
+	local function slowedDown(model: Instance?): boolean
+		return timeAttr(model, "CyberOutlawLentoAte") > serverNow()
+	end
+	local sandevistanStats = { duracao = 4, recarga = 1.5, custo = 25, surto = 2, lento = 0.3, cadencia = 2, velocidade = 2.2 }
+	local abilityFov = 0
+	local abilityFx = { flashAt = -10, rageAt = -10 }
 
 	local function def(): any
 		return byId[current] or byId.punhos or { id = "punhos", kind = "melee", name = "Punhos", accent = { 255, 166, 94 }, rate = 2.6 }
@@ -1958,6 +2405,7 @@ local function start()
 	abilityButton.button.Visible = false
 	local implantsOpen = false
 	local toggleImplants: ((boolean?) -> ())?, useAbility: (() -> ())? -- definidas na seção dos implantes
+	local terminalLayout: ((Vector2, any) -> ())? -- idem: tamanho do terminal quando a tela muda
 	local blur = Instance.new("BlurEffect")
 	blur.Name = "CyberOutlawRoletaBlur"
 	blur.Size = 0
@@ -2029,6 +2477,9 @@ local function start()
 		end
 		if wheel then
 			wheel.scale.Scale = l.wheel.scale
+		end
+		if terminalLayout then
+			terminalLayout(size, l)
 		end
 		if touch and fireButton then
 			for button, key in { [fireButton] = "fire", [aimButton] = "aim", [reloadButton] = "reload" } do
@@ -2535,7 +2986,8 @@ local function start()
 		if now < nextMelee or not character then
 			return
 		end
-		nextMelee = now + 1 / weapon.rate
+		local boost = if boosted(character) then sandevistanStats.cadencia else 1
+		nextMelee = now + 1 / (weapon.rate * boost)
 		meleeSide = -meleeSide
 		poses[character] = poses[character] or {}
 		poses[character].swingStart = now
@@ -2554,7 +3006,7 @@ local function start()
 			melee()
 			return
 		end
-		if not character or not head or dead then
+		if not character or not head or dead or raving(character) then
 			return
 		end
 		local now = os.clock()
@@ -2576,7 +3028,7 @@ local function start()
 			reload()
 			return
 		end
-		nextShot = now + 1 / weapon.rate
+		nextShot = now + 1 / (weapon.rate * (if boosted(character) then sandevistanStats.cadencia else 1))
 		hipFireUntil = now + 0.7
 		local view = camera.CFrame
 		local look = view.LookVector
@@ -2627,6 +3079,28 @@ local function start()
 			end
 			local model = who.Character
 			local weapon = byId[id]
+			if kind == "sandevistan" then
+				-- Ativou: som com cauda longa no corpo de quem ativou; na própria tela, clarão e o surto se vier.
+				local rootPart = model and model:FindFirstChild("HumanoidRootPart")
+				if who == player then
+					abilityFx.flashAt = os.clock()
+					sound(pick("habilidade_lenta", "glitch"), nil, 0.8)
+					if b == true then
+						abilityFx.rageAt = os.clock()
+						task.delay(0.15, sound, pick("surto", "glitch"), nil, 0.9)
+					end
+				elseif rootPart then
+					sound(pick("habilidade_lenta", "glitch"), rootPart, 0.7)
+				end
+				return
+			end
+			if kind == "surto" then
+				kind = "tiro"
+				if who == player and type(b) == "table" then
+					-- Os tiros do surto não saíram deste cliente: desenha como os de outro jogador.
+					who = nil :: any
+				end
+			end
 			if kind == "tiro" and type(b) == "table" then
 				if who == player then
 					for _, hit in b do
@@ -2764,7 +3238,7 @@ local function start()
 	end
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if input.UserInputType == Enum.UserInputType.Touch then
-			if not processed and not wheelOpen and input.Position.X > camera.ViewportSize.X * 0.35 then
+			if not processed and not wheelOpen and not implantsOpen and input.Position.X > camera.ViewportSize.X * 0.35 then
 				touchCamera[input] = input.Position
 			end
 			return
@@ -2773,6 +3247,25 @@ local function start()
 			return
 		end
 		local key = input.KeyCode
+		-- Implantes (I) e habilidade (X); com o terminal aberto, o resto do jogo espera.
+		if key == Enum.KeyCode.I or key == Enum.KeyCode.DPadDown then
+			if toggleImplants then
+				toggleImplants()
+			end
+			return
+		elseif implantsOpen then
+			if key == Enum.KeyCode.ButtonB then
+				if toggleImplants then
+					toggleImplants(false)
+				end
+			end
+			return
+		elseif key == Enum.KeyCode.X or key == Enum.KeyCode.DPadUp then
+			if useAbility then
+				useAbility()
+			end
+			return
+		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			if not wheelOpen then
 				triggerHeld = true
@@ -2929,7 +3422,7 @@ local function start()
 			elseif sprinting then 13
 			else 11.5
 		local targetShoulder = (if aimingNow or raised then 2.1 else 1.35) * cam.side
-		local targetFov = if aimingNow then (weapon.fov or 54) elseif sprinting then 77 else 70
+		local targetFov = (if aimingNow then (weapon.fov or 54) elseif sprinting then 77 else 70) + abilityFov
 		if wheelOpen then
 			targetFov -= 6
 		end
@@ -3037,8 +3530,10 @@ local function start()
 		staminaStep(stamina, sprinting, dt)
 		player:SetAttribute("CyberOutlawFolego", stamina.value)
 		player:SetAttribute("CyberOutlawExausto", stamina.exhausted)
-		local target = if raised then 11 elseif sprinting then 27 else 17
-		speed += (target - speed) * math.min(1, dt * 6)
+		local active, frenzy = boosted(character), raving(character)
+		local factor = abilitySpeed(active, slowedDown(character), frenzy, sandevistanStats)
+		local target = (if raised then 11 elseif sprinting then 27 else 17) * factor
+		speed += (target - speed) * math.min(1, dt * (if active then 12 else 6))
 		humanoid.WalkSpeed = speed
 		-- Facing: when aiming, the body follows the camera; otherwise it turns smoothly toward the movement.
 		if raised then
@@ -3047,6 +3542,19 @@ local function start()
 		elseif moving then
 			facingYaw = math.atan2(-moveDirection.X, -moveDirection.Z)
 			align.Responsiveness = if sprinting then 11 else 16
+		end
+		-- Surto: o corpo vira sozinho para o alvo que o servidor escolheu (ou gira procurando alguém).
+		if frenzy then
+			local name = character:GetAttribute("CyberOutlawSurtoAlvo")
+			local target2 = if type(name) == "string" and name ~= "" then Players:FindFirstChild(name) else nil
+			local targetRoot = target2 and (target2 :: Player).Character and (target2 :: Player).Character:FindFirstChild("HumanoidRootPart")
+			if targetRoot and targetRoot:IsA("BasePart") then
+				local offset = targetRoot.Position - root.Position
+				facingYaw = math.atan2(-offset.X, -offset.Z)
+			else
+				facingYaw += dt * 4
+			end
+			align.Responsiveness = 60
 		end
 		align.CFrame = CFrame.Angles(0, facingYaw, 0)
 	end
@@ -3068,7 +3576,7 @@ local function start()
 		local state = poses[model]
 		local isLocal = model == character
 		local pitch = if isLocal then cam.pitch else math.rad(model:GetAttribute("CyberOutlawPitch") or 0)
-		local aimed = if isLocal then (aiming or aimToggle) else model:GetAttribute("CyberOutlawMirando") == true
+		local aimed = if isLocal then (aiming or aimToggle or raving(model)) else model:GetAttribute("CyberOutlawMirando") == true
 		local firedRecently = state and state.firedAt and now - state.firedAt < 0.7
 		if state and state.swingStart then
 			local duration = SWING[state.swingKind] or 0.3
@@ -3470,11 +3978,12 @@ local function start()
 			facingYaw = facingYaw,
 			district = if position then districtOf(position) else nil,
 			clock = string.format("%02d:%02d", minutes // 60, minutes % 60),
+			psychosis = if abilityFx.sandevistan then (abilityFx.stability or 100) / 100 else nil,
 			safe = (position ~= nil and inSafeZone(position) and weapon.kind == "gun") or os.clock() < safeBlockedUntil,
 		}, dt)
-		hud.gui.Enabled = not dead
+		hud.gui.Enabled = not dead and not implantsOpen
 		-- Mira: só com arma de fogo, ao mirar ou logo depois de um tiro; no celular, sempre que armado.
-		local showCross = not dead and not wheelOpen and weapon.kind == "gun" and (aimingNow or raised or touch)
+		local showCross = not dead and not wheelOpen and not implantsOpen and weapon.kind == "gun" and (aimingNow or raised or touch)
 		combat.crosshair(showCross, bloom + (if aimingNow then 0 else 0.6))
 		if touch and fireButton then
 			-- O botão de ação mostra a arma atual (punho, lâmina ou a arma de fogo).
@@ -3537,13 +4046,16 @@ local function start()
 	-- curvo de cabine (as dos lados giram para o centro) e com o balanço da mola. O giro é em volta da borda de
 	-- fora (HOLO_PIVOT): ela fica parada na área segura e a borda de dentro recua, então a placa nunca cresce
 	-- para fora do retângulo do layout.
-	local function holoPlace(part: BasePart, anchor: GuiObject, depth: number)
+	local function holoPlace(part: BasePart, anchor: GuiObject, depth: number, opts: any?)
 		local size, at = anchor.AbsoluteSize, anchor.AbsolutePosition
 		local view = camera.ViewportSize
 		local cx, cy = at.X + size.X / 2, at.Y + size.Y / 2
 		local nx = math.clamp((cx - view.X / 2) / math.max(1, view.X / 2), -1, 1)
 		local ny = math.clamp((cy - view.Y / 2) / math.max(1, view.Y / 2), -1, 1)
 		local fx, fy, pitch, yaw = holoTilt(nx, ny)
+		local still = opts ~= nil and opts.still == true
+		pitch += (opts and opts.pitch) or 0
+		size *= (opts and opts.scale) or 1
 		local ray = camera:ScreenPointToRay(cx + fx * size.X / 2, cy + fy * size.Y / 2, 1)
 		local along = math.max(0.2, ray.Direction:Dot(camera.CFrame.LookVector))
 		local pivot = camera.CFrame.Position + ray.Direction * (depth / along)
@@ -3551,8 +4063,9 @@ local function start()
 		local w, h = math.max(0.05, size.X * perPixel), math.max(0.05, size.Y * perPixel)
 		part.Size = Vector3.new(w, h, 0.02)
 		-- Na placa, x cresce para a direita e y para cima (na tela, y cresce para baixo).
-		part.CFrame = CFrame.new(pivot) * camera.CFrame.Rotation
-			* CFrame.Angles(pitch, yaw + holo.sway, math.rad(1.2) * math.sin(os.clock() * 0.8 + nx))
+		local sway = if still then 0 else holo.sway
+		local roll = if still then 0 else math.rad(1.2) * math.sin(os.clock() * 0.8 + nx)
+		part.CFrame = CFrame.new(pivot) * camera.CFrame.Rotation * CFrame.Angles(pitch, yaw + sway, roll)
 			* CFrame.new(-fx * w / 2, fy * h / 2, 0)
 	end
 	local function holoStep(dt: number)
@@ -3577,6 +4090,467 @@ local function start()
 		end
 	end
 
+	-- Implantes: terminal holográfico, botão da habilidade e efeitos do Sandevistan ------------------------
+	-- (Numa função à parte: o start() já está no limite de 200 variáveis locais do Luau.)
+	local implantSteps = (function()
+		local implantDefs = {}
+		pcall(function()
+			local decoded = HttpService:JSONDecode(arsenal:GetAttribute("Implantes"))
+			if type(decoded) == "table" then
+				implantDefs = decoded
+			end
+		end)
+		for _, entry in implantDefs do
+			if type(entry) == "table" and entry.id == "sandevistan" and type(entry.stats) == "table" then
+				for key, value in entry.stats do
+					sandevistanStats[key] = value
+				end
+			end
+		end
+		local implantModels = arsenal and arsenal:FindFirstChild("Implantes")
+		local equippedImplants: { [string]: boolean } = {}
+		local stability = 100
+		local terminal = if #implantDefs > 0 then buildImplantPanel(implantDefs, ATLAS, implantModels) else nil
+		local terminalGui = new("ScreenGui", playerGui, {
+			Name = "CyberOutlawTerminalToque", ResetOnSpawn = false, DisplayOrder = 45, Enabled = false,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling, ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
+		})
+		local terminalAnchor = frame(terminalGui, "Ancora", 1, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5) })
+		local terminalBlur = Instance.new("BlurEffect")
+		terminalBlur.Name = "CyberOutlawTerminalFoco"
+		terminalBlur.Size = 0
+		terminalBlur.Parent = camera
+		local terminalOpen = 0
+		local dragInput: InputObject?, dragLast: Vector3?, dragAt = nil, nil, -10
+		local terminalHits: { [string]: TextButton } = {}
+		if terminal then
+			terminal.gui.Parent = playerGui
+		end
+
+		local function busyNow(): boolean
+			return character ~= nil and (boosted(character) or raving(character))
+		end
+		local function readMind()
+			local list = {}
+			local raw = player:GetAttribute("CyberOutlawImplantes")
+			if type(raw) == "string" then
+				local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+				if ok and type(decoded) == "table" then
+					list = decoded
+				end
+			end
+			table.clear(equippedImplants)
+			for _, id in list do
+				if type(id) == "string" then
+					equippedImplants[id] = true
+				end
+			end
+			local value = player:GetAttribute("CyberOutlawPsicose")
+			stability = if type(value) == "number" then value else 100
+			abilityFx.stability = stability
+			abilityFx.sandevistan = equippedImplants.sandevistan == true
+			if terminal then
+				terminal.setState(equippedImplants, stability, busyNow())
+			end
+		end
+		player:GetAttributeChangedSignal("CyberOutlawImplantes"):Connect(readMind)
+		player:GetAttributeChangedSignal("CyberOutlawPsicose"):Connect(readMind)
+		readMind()
+
+		toggleImplants = function(force: boolean?)
+			if not terminal then
+				return
+			end
+			local open = if force == nil then not implantsOpen else force
+			if open and (dead or wheelOpen) then
+				return
+			end
+			if open == implantsOpen then
+				return
+			end
+			implantsOpen = open
+			terminalGui.Enabled = open
+			dragInput = nil
+			pcall(function()
+				GuiService.TouchControlsEnabled = not open
+			end)
+			if open then
+				triggerHeld, aiming, aimToggle = false, false, false
+				readMind()
+				sound(pick("ui_abrir", "glitch"), nil, 0.35)
+			else
+				sound(pick("ui_fechar", "glitch"), nil, 0.3)
+			end
+			implantsButton.light(open)
+		end
+
+		useAbility = function()
+			if dead or not character or equippedImplants.sandevistan ~= true or not action then
+				return
+			end
+			local t = serverNow()
+			if boosted(character) or raving(character) or timeAttr(character, "CyberOutlawHabilidadePronta") > t then
+				sound(pick("ui_negado", "click"), nil, 0.3)
+				return
+			end
+			action:FireServer("habilidade")
+		end
+
+		-- Camada de toque do terminal: as mesmas áreas da placa 3D (panel.hits), por cima dela.
+		if terminal then
+			for _, hit in terminal.hits do
+				local button = new("TextButton", terminalAnchor, {
+					Name = hit.key, Text = "", BackgroundTransparency = 1, Position = hit.position, Size = hit.size, ZIndex = 2,
+					Selectable = false, AutoButtonColor = false,
+				})
+				terminalHits[hit.key] = button
+				local key = hit.key
+				if key == "boneco" then
+					button.InputBegan:Connect(function(input)
+						local kind = input.UserInputType
+						if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch then
+							dragInput, dragLast, dragAt = input, input.Position, os.clock()
+						end
+					end)
+				else
+					button.Activated:Connect(function()
+						if key == "fechar" then
+							toggleImplants(false)
+						elseif key == "acao" then
+							local id = terminal.selected
+							local verb = terminal.actionFor(id)
+							if verb and id and action then
+								action:FireServer("implante", id, verb == "encaixar")
+								sound(pick("implante_encaixe", "ui_confirmar", "confirm"), nil, 0.55)
+							else
+								sound(pick("ui_negado", "click"), nil, 0.3)
+							end
+						elseif string.sub(key, 1, 6) == "linha:" then
+							terminal.select(string.sub(key, 7))
+							sound(pick("ui_tick", "click"), nil, 0.3)
+						end
+					end)
+				end
+			end
+			UserInputService.InputChanged:Connect(function(input)
+				if not implantsOpen or not dragInput or not dragLast then
+					return
+				end
+				local mouse = dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement
+				if input == dragInput or mouse then
+					local delta = input.Position.X - dragLast.X
+					dragLast = input.Position
+					dragAt = os.clock()
+					terminal.rotate(terminal.yaw + delta * 0.013)
+				end
+			end)
+			UserInputService.InputEnded:Connect(function(input)
+				if dragInput and (input == dragInput or input.UserInputType == Enum.UserInputType.MouseButton1) then
+					dragInput = nil
+				end
+			end)
+		end
+		-- Tamanho do terminal: quase a tela toda no celular; no PC, até 1180 px de largura.
+		terminalLayout = function(size: Vector2, l)
+			if not terminal then
+				return
+			end
+			local w = math.min(size.X * 0.96, if touch then math.huge else 1180 * l.scale)
+			local h = math.min(size.Y * 0.94, w / 1.85)
+			w = math.min(w, h * 2.15)
+			w, h = math.floor(w), math.floor(h)
+			terminalAnchor.Size = UDim2.fromOffset(w, h)
+			terminal.resize(Vector2.new(w, h) * 2)
+			local close = terminalHits.fechar
+			if close then
+				-- O X da placa é pequeno; o toque dele cresce até 44 px.
+				local gx, gy = math.max(0, 44 - TERMINAL.close.w * w), math.max(0, 44 - TERMINAL.close.h * h)
+				close.Position = UDim2.new(TERMINAL.close.x, -gx / 2, TERMINAL.close.y, -gy / 2)
+				close.Size = UDim2.new(TERMINAL.close.w, gx, TERMINAL.close.h, gy)
+			end
+		end
+		relayout()
+
+		local function terminalStep(dt: number)
+			if not terminal then
+				return
+			end
+			if implantsOpen and dead then
+				toggleImplants(false)
+			end
+			terminalOpen = math.clamp(terminalOpen + (if implantsOpen then dt * 5 else -dt * 7), 0, 1)
+			local eased = 1 - (1 - terminalOpen) ^ 3
+			terminalBlur.Size = 16 * eased
+			local visible = terminalOpen > 0.01 and terminalAnchor.AbsoluteSize.X > 2
+			terminal.part.Parent = if visible then camera else nil
+			if visible then
+				-- Abre como um holograma ligando: vem deitado e menor e se endireita.
+				holoPlace(terminal.part, terminalAnchor, 3.2, { still = true, pitch = (1 - eased) * 0.55, scale = 0.86 + 0.14 * eased })
+				terminal.step(dt, dragInput ~= nil or os.clock() - dragAt < 1.6)
+				local busy = busyNow()
+				if busy ~= terminal.busy then
+					terminal.setState(equippedImplants, stability, busy)
+				end
+			end
+		end
+
+		-- Botão da habilidade: aceso nas cores dos rastros enquanto ativo, rosa no surto e a recarga descendo.
+		local cooldownMask = frame(abilityButton.button, "Recarga", 23, {
+			Size = FULL, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.25, Visible = false,
+		})
+		round(cooldownMask, if touch then UDim.new(1, 0) else UDim.new(0, 9))
+		local cooldownGradient = new("UIGradient", cooldownMask, { Rotation = 90 })
+
+		-- Tela: o Sandevistan deixa o mundo verde-pálido e mais largo; quem está lento vê azulado; o surto é
+		-- vermelho, treme e mostra CIBERPSICOSE.
+		local slowGrade = Instance.new("ColorCorrectionEffect")
+		slowGrade.Name = "CyberOutlawSandevistan"
+		slowGrade.Enabled = false
+		slowGrade.Parent = camera
+		local rageGrade = Instance.new("ColorCorrectionEffect")
+		rageGrade.Name = "CyberOutlawSurto"
+		rageGrade.Enabled = false
+		rageGrade.Parent = camera
+		local rageGui = new("ScreenGui", playerGui, {
+			Name = "CyberOutlawSurto", ResetOnSpawn = false, DisplayOrder = 35, Enabled = false,
+			ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		})
+		for _, side in { { 0, 0, 1, 0.22, 90 }, { 0, 0.78, 1, 0.22, -90 }, { 0, 0, 0.18, 1, 0 }, { 0.82, 0, 0.18, 1, 180 } } do
+			local edge = frame(rageGui, "Borda", 1, {
+				Position = UDim2.fromScale(side[1], side[2]), Size = UDim2.fromScale(side[3], side[4]),
+				BackgroundColor3 = Color3.fromRGB(255, 20, 60), BackgroundTransparency = 0,
+			})
+			new("UIGradient", edge, { Rotation = side[5], Transparency = NumberSequence.new(0.25, 1) })
+		end
+		local rageTitle = label(rageGui, "Titulo", "CIBERPSICOSE", Font.fromEnum(Enum.Font.Michroma), if touch then 26 else 44, Color3.fromRGB(255, 70, 100), 3, {
+			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.16), Size = UDim2.fromOffset(600, 60),
+			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, TextStrokeColor3 = Color3.fromRGB(40, 0, 10),
+		})
+		local rageSub = label(rageGui, "Sub", "O IMPLANTE ASSUMIU O CONTROLE", Font.new(BUILDER, Enum.FontWeight.Heavy), if touch then 12 else 16, TEXT, 3, {
+			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.16, if touch then 58 else 82), Size = UDim2.fromOffset(600, 24),
+			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.3,
+		})
+		local fx = { slow = 0, slowed = 0, rage = 0 }
+		local frozen: { [ParticleEmitter]: number }?
+		local emitters: { ParticleEmitter }?
+		-- Partículas (fumaça, faíscas, vapor) quase param junto com o tempo.
+		local function freezeParticles(on: boolean)
+			if on and not frozen then
+				if not emitters then
+					local list = {}
+					for _, item in Workspace:GetDescendants() do
+						if item:IsA("ParticleEmitter") then
+							table.insert(list, item)
+						end
+					end
+					emitters = list
+				end
+				local saved = {}
+				for _, emitter in emitters :: { ParticleEmitter } do
+					if emitter.Parent then
+						saved[emitter] = emitter.TimeScale
+						emitter.TimeScale = 0.12
+					end
+				end
+				frozen = saved
+			elseif not on and frozen then
+				for emitter, scale in frozen do
+					emitter.TimeScale = scale
+				end
+				frozen = nil
+			end
+		end
+		local function approach(value: number, goal: number, rate: number): number
+			return value + (goal - value) * math.min(1, rate)
+		end
+		local function abilityStep(dt: number)
+			local active = character ~= nil and boosted(character)
+			local frenzy = character ~= nil and raving(character)
+			local slowed = character ~= nil and slowedDown(character) and not active
+			fx.slow = approach(fx.slow, if active then 1 else 0, dt * (if active then 9 else 3))
+			fx.slowed = approach(fx.slowed, if slowed then 1 else 0, dt * 5)
+			fx.rage = approach(fx.rage, if frenzy then 1 else 0, dt * (if frenzy then 12 else 3))
+			local flash = math.clamp(1 - (os.clock() - abilityFx.flashAt) / 0.4, 0, 1)
+			slowGrade.Enabled = fx.slow > 0.01 or fx.slowed > 0.01 or flash > 0
+			slowGrade.TintColor = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(200, 255, 228), fx.slow):Lerp(Color3.fromRGB(186, 212, 255), fx.slowed * 0.8)
+			slowGrade.Saturation = -0.35 * fx.slow - 0.25 * fx.slowed
+			slowGrade.Contrast = 0.22 * fx.slow
+			slowGrade.Brightness = 0.3 * flash
+			abilityFov = 10 * fx.slow + 6 * flash
+			freezeParticles(active)
+			rageGrade.Enabled = fx.rage > 0.01
+			rageGrade.TintColor = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(255, 120, 132), fx.rage)
+			rageGrade.Saturation = 0.5 * fx.rage
+			rageGrade.Contrast = 0.35 * fx.rage
+			rageGui.Enabled = fx.rage > 0.02
+			if rageGui.Enabled then
+				-- Letreiro com falha: treme e pisca como sinal ruim.
+				local jitter = if frenzy then Vector2.new(rng:NextNumber(-6, 6), rng:NextNumber(-3, 3)) else Vector2.zero
+				rageTitle.Position = UDim2.new(0.5, jitter.X, 0.16, jitter.Y)
+				rageTitle.TextTransparency = 1 - fx.rage * (if rng:NextNumber() < 0.12 then 0.4 else 1)
+				rageSub.TextTransparency = 1 - fx.rage
+				for _, child in rageGui:GetChildren() do
+					if child.Name == "Borda" and child:IsA("Frame") then
+						child.BackgroundTransparency = 1 - fx.rage * (0.75 + 0.25 * math.sin(os.clock() * 14))
+					end
+				end
+			end
+			if frenzy then
+				cam.trauma = math.max(cam.trauma, 0.55)
+			end
+			-- Botão.
+			local equipped = equippedImplants.sandevistan == true
+			abilityButton.button.Visible = equipped and not dead and not implantsOpen
+			if abilityButton.button.Visible then
+				if frenzy then
+					abilityButton.light(true, NEON_HURT)
+				elseif active then
+					abilityButton.light(true, GHOST_COLORS[math.floor(os.clock() * 8) % #GHOST_COLORS + 1])
+				else
+					abilityButton.light(false)
+				end
+				local ready = timeAttr(character, "CyberOutlawHabilidadePronta")
+				local t = serverNow()
+				local remaining = if not active and not frenzy and ready > t then math.clamp((ready - t) / math.max(0.1, sandevistanStats.recarga), 0, 1) else 0
+				cooldownMask.Visible = remaining > 0.002
+				if cooldownMask.Visible then
+					local cut = math.clamp(remaining, 0.003, 0.997)
+					cooldownGradient.Transparency = NumberSequence.new({
+						NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(cut - 0.002, 0),
+						NumberSequenceKeypoint.new(cut, 1), NumberSequenceKeypoint.new(1, 1),
+					})
+				end
+			end
+		end
+
+		-- Rastros: enquanto o Sandevistan de alguém roda, o corpo dele deixa cópias de neon translúcidas que somem
+		-- em meio segundo, cada uma numa cor do ciclo; no surto, vermelhas. As peças são reaproveitadas.
+		local ghosts = {}
+		local ghostPool: { Part } = {}
+		local ghostClock = setmetatable({}, { __mode = "k" }) :: any
+		local highlights = setmetatable({}, { __mode = "k" }) :: any
+		local GHOST_LIFE = 0.55
+		local function ghostPart(): Part
+			local item = table.remove(ghostPool)
+			if not item then
+				item = Instance.new("Part")
+				item.Name = "Rastro"
+				item.Anchored = true
+				item.CanCollide, item.CanQuery, item.CanTouch, item.CastShadow = false, false, false, false
+				item.Material = Enum.Material.Neon
+				item.TopSurface, item.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+			end
+			return item :: Part
+		end
+		local function spawnGhost(model: Model, color: Color3)
+			local entry = { parts = {}, born = os.clock() }
+			local function copy(source: BasePart, ball: boolean)
+				local item = ghostPart()
+				item.Shape = if ball then Enum.PartType.Ball else Enum.PartType.Block
+				item.Size = if ball then Vector3.new(1.2, 1.2, 1.2) else source.Size
+				item.CFrame = source.CFrame
+				item.Color = color
+				item.Transparency = 0.3
+				item.Parent = effects
+				table.insert(entry.parts, item)
+			end
+			for _, child in model:GetChildren() do
+				if child:IsA("BasePart") and child.Name ~= "HumanoidRootPart" and child.Transparency < 0.9 then
+					copy(child, child.Name == "Head")
+				end
+			end
+			local weapon = model:FindFirstChild("CyberOutlawArma")
+			if weapon then
+				local count = 0
+				for _, item in weapon:GetDescendants() do
+					if item:IsA("BasePart") and count < 8 then
+						count += 1
+						copy(item, false)
+					end
+				end
+			end
+			table.insert(ghosts, entry)
+		end
+		local function ghostStep(_dt: number)
+			local clock = os.clock()
+			local t = serverNow()
+			for _, other in Players:GetPlayers() do
+				local model = other.Character
+				local rootPart = model and model:FindFirstChild("HumanoidRootPart")
+				if model and rootPart and rootPart:IsA("BasePart") then
+					local active = timeAttr(model, "CyberOutlawSandevistanAte") > t
+					local frenzy = timeAttr(model, "CyberOutlawSurtoAte") > t
+					if active or frenzy then
+						local state = ghostClock[model]
+						if not state then
+							state = { last = 0, index = 0, position = nil }
+							ghostClock[model] = state
+						end
+						local moved = if state.position then (rootPart.Position - state.position).Magnitude else 99
+						if clock - state.last > 0.07 and (moved > 0.3 or clock - state.last > 0.22) then
+							state.last, state.position = clock, rootPart.Position
+							state.index += 1
+							local palette = if frenzy then FRENZY_COLORS else GHOST_COLORS
+							spawnGhost(model, palette[(state.index - 1) % #palette + 1])
+						end
+					end
+					-- Luzes da coluna: ciclo de cores ativo, vermelho piscando no surto, ciano fraco parado.
+					for _, child in model:GetChildren() do
+						if child.Name == "CyberOutlawImplante" and child:GetAttribute("Id") == "sandevistan" then
+							for _, item in child:GetDescendants() do
+								if item:IsA("BasePart") and item.Name == "Luz" then
+									if frenzy then
+										item.Color = if math.floor(clock * 12) % 2 == 0 then Color3.fromRGB(255, 30, 60) else Color3.fromRGB(120, 0, 20)
+										item.Transparency = 0
+									elseif active then
+										item.Color = GHOST_COLORS[math.floor(clock * 10 + item.Position.Y * 3) % #GHOST_COLORS + 1]
+										item.Transparency = 0
+									else
+										item.Color = Color3.fromRGB(90, 255, 220)
+										item.Transparency = 0.35
+									end
+								end
+							end
+						end
+					end
+					-- Contorno vermelho em quem está em surto: aviso para todo mundo correr.
+					local glow = highlights[model]
+					if frenzy and not glow then
+						glow = Instance.new("Highlight")
+						glow.Name = "CyberOutlawSurto"
+						glow.FillColor = Color3.fromRGB(255, 30, 60)
+						glow.OutlineColor = Color3.fromRGB(255, 80, 110)
+						glow.FillTransparency = 0.75
+						glow.Adornee = model
+						glow.Parent = effects
+						highlights[model] = glow
+					elseif not frenzy and glow then
+						glow:Destroy()
+						highlights[model] = nil
+					end
+				end
+			end
+			for index = #ghosts, 1, -1 do
+				local entry = ghosts[index]
+				local age = (clock - entry.born) / GHOST_LIFE
+				if age >= 1 then
+					for _, item in entry.parts do
+						item.Parent = nil
+						table.insert(ghostPool, item)
+					end
+					ghosts[index] = ghosts[#ghosts]
+					ghosts[#ghosts] = nil
+				else
+					local fade = 0.3 + 0.7 * age
+					for _, item in entry.parts do
+						item.Transparency = fade
+					end
+				end
+			end
+		end
+		return { ability = abilityStep, ghost = ghostStep, terminal = terminalStep }
+	end)()
+
 	local lastAimSent = false
 	RunService:BindToRenderStep("CyberOutlawCamera", Enum.RenderPriority.Camera.Value + 2, function(dt)
 		local ok, aimingNow, raised = pcall(cameraStep, dt)
@@ -3595,16 +4569,19 @@ local function start()
 		end
 		pcall(interfaceStep, dt, aimingNow, raised)
 		pcall(holoStep, dt)
+		pcall(implantSteps.ability, dt)
+		pcall(implantSteps.ghost, dt)
+		pcall(implantSteps.terminal, dt)
 		pcall(reflectionStep, dt)
 		pcall(reflectCharacters)
 		pcall(pitchStep)
 		-- Automatic fire while the trigger is held.
-		if triggerHeld and def().auto and not wheelOpen then
+		if triggerHeld and def().auto and not wheelOpen and not implantsOpen then
 			shoot()
 		end
 		-- Mouse locked while playing (like third-person shooters), free in the wheel and menus.
 		if not touch then
-			local free = wheelOpen or GuiService.MenuIsOpen or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
+			local free = wheelOpen or implantsOpen or GuiService.MenuIsOpen or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
 			UserInputService.MouseBehavior = if free then Enum.MouseBehavior.Default else Enum.MouseBehavior.LockCenter
 			UserInputService.MouseIconEnabled = free
 		end

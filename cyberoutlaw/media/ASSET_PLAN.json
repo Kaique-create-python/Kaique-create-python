@@ -425,6 +425,36 @@
       "durationSeconds": 0.32
     },
     {
+      "key": "habilidade_lenta",
+      "path": "audio/habilidade_lenta.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "e88b855658b130eaceb313ffa297eed13c567f54b5381efc3bafc7737b70376b",
+      "displayName": "CyberOutlaw habilidade_lenta",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 3.2
+    },
+    {
+      "key": "surto",
+      "path": "audio/surto.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "c6322cbe3061788b95968faa172f2399c1c1186e4172941f0fe1775f7d87a632",
+      "displayName": "CyberOutlaw surto",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 1.6
+    },
+    {
+      "key": "implante_encaixe",
+      "path": "audio/implante_encaixe.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "cb97e99ea93d90fb686d0b06415df8ae32f32604d58a89c14084a627b4214953",
+      "displayName": "CyberOutlaw implante_encaixe",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.55
+    },
+    {
       "key": "title",
       "path": "art/title.png",
       "assetType": "Image",

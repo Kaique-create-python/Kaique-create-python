@@ -114,4 +114,83 @@ for index = 1, byId.escopeta.pellets do
 	pellets[index] = V3.new(0, 0, -1)
 end
 assert(arsenal.checkShot(fresh(), byId.escopeta, 10, head, pellets, head) == true, "the shotgun sends nine pellets")
-print("CyberOutlawArsenal: 9 real weapons, welded models without neon, grip, safe zone, damage, and validation passed")
+
+-- Implantes: nomes do Cyberpunk, um lugar do corpo cada, só o Sandevistan pronto por enquanto.
+local implantIds, slots = {}, { coluna = true, olhos = true, bracos = true, pernas = true, pele = true }
+for _, def in arsenal.IMPLANTS do
+	assert(not implantIds[def.id], "repeated implant " .. def.id)
+	implantIds[def.id] = def
+	assert(type(def.name) == "string" and type(def.sistema) == "string" and type(def.desc) == "string" and #def.desc > 20)
+	assert(slots[def.slot], def.id .. " has a body slot")
+end
+assert(implantIds.sandevistan.pronto and implantIds.sandevistan.slot == "coluna", "the Sandevistan sits on the spine")
+for id, def in implantIds do
+	assert(def.pronto == (id == "sandevistan"), "only the Sandevistan works for now")
+end
+-- Modelo da coluna: base como PrimaryPart, tudo soldado nela, luzes de neon (as que mudam de cor), leve.
+do
+	local model = arsenal.buildImplant(implantIds.sandevistan)
+	local base = model.PrimaryPart
+	assert(base and base.Name == "Base")
+	local parts, welds, lights = 0, 0, 0
+	for _, item in model:GetDescendants() do
+		if item:IsA("BasePart") then
+			parts += 1
+			assert(not item.CanCollide and not item.CanQuery and not item.CanTouch and item.Massless)
+			if item.Name == "Luz" then
+				lights += 1
+				assert(item.Material == roblox.Enum.Material.Neon)
+			end
+			-- Fica nas costas: nada atravessa o Torso (frente em z = -1 no espaço do Torso).
+			local torsoSpace = arsenal.IMPLANT_SEAT * item.CFrame
+			assert(torsoSpace.Position.Z > 0.45, item.Name .. " stays on the back")
+			assert(math.abs(torsoSpace.Position.Y) < 1.1, item.Name .. " stays along the spine")
+		elseif item:IsA("WeldConstraint") then
+			welds += 1
+			assert(item.Part0 == base)
+		end
+	end
+	assert(welds == parts - 1 and lights >= 5 and parts <= 24)
+end
+-- Regras do Sandevistan: usa quantas vezes quiser, cada uso gasta estabilidade; a zero, surto de 2 s.
+do
+	local rules = arsenal.SANDEVISTAN
+	local mind = arsenal.newMind()
+	assert(select(2, arsenal.useSandevistan(mind, 0)) == "sem implante")
+	assert(select(2, arsenal.setImplant(mind, "kiroshi", true, 0)) == "em breve", "unfinished implants stay locked")
+	assert(arsenal.setImplant(mind, "sandevistan", true, 0) == true and mind.implants.sandevistan)
+	local t = 10
+	assert(arsenal.useSandevistan(mind, t) == true and mind.psy == 100 - rules.custo)
+	assert(mind.activeUntil == t + rules.duracao)
+	assert(select(2, arsenal.useSandevistan(mind, t + 1)) == "ativo")
+	assert(select(2, arsenal.setImplant(mind, "sandevistan", false, t + 1)) == "em uso", "no swapping mid-effect")
+	assert(select(2, arsenal.useSandevistan(mind, t + rules.duracao + 0.5)) == "recarga")
+	local uses = 1
+	while mind.frenzyUntil == 0 do
+		t = mind.abilityReady
+		assert(arsenal.useSandevistan(mind, t) == true)
+		uses += 1
+	end
+	assert(uses == math.ceil(100 / rules.custo) and mind.psy == 0, "the bar empties after a few uses")
+	assert(mind.frenzyUntil == t + rules.surto, "zero stability starts a 2 s cyberpsychosis")
+	assert(select(2, arsenal.useSandevistan(mind, t + 1)) == "surto")
+	assert(not arsenal.regenMind(mind, t + 1, 0.5), "no recovery during the episode")
+	assert(arsenal.regenMind(mind, t + rules.surto, 0.5) and mind.frenzyUntil == 0 and mind.psy == rules.aposSurto)
+	-- Sem usar por um tempo, a estabilidade volta devagar até 100.
+	local now = t + rules.surto
+	assert(not arsenal.regenMind(mind, now + 1, 0.5), "waits before regenerating")
+	now += rules.espera + 1
+	for _ = 1, 200 do
+		arsenal.regenMind(mind, now, 0.5)
+		now += 0.5
+	end
+	assert(mind.psy == 100)
+	-- Um implante por lugar do corpo: o novo tira o antigo.
+	local arms = arsenal.newMind()
+	arms.implants.louva = true
+	implantIds.gorila.pronto = true
+	assert(arsenal.setImplant(arms, "gorila", true, 0) and arms.implants.gorila and not arms.implants.louva)
+	implantIds.gorila.pronto = false
+	assert(arsenal.setImplant(arms, "gorila", false, 0) and not arms.implants.gorila)
+end
+print("CyberOutlawArsenal: 9 real weapons, welded models without neon, grip, safe zone, damage, validation, implants and the Sandevistan rules passed")

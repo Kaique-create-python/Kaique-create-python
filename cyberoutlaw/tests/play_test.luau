@@ -593,4 +593,81 @@ do
 		assert(part.Transparency == 1 and gui.Adornee == part)
 	end
 end
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
+-- Implantes: projeção das marcas, boneco holograma e o terminal (lista, boneco que gira, encaixar).
+do
+	local CF = roblox.CFrame
+	local x, y, depth = play.projectPoint(CF.lookAt(V3.new(0, 0, -10), V3.zero), 30, 1, V3.zero)
+	assert(math.abs(x - 0.5) < 1e-6 and math.abs(y - 0.5) < 1e-6 and math.abs(depth - 10) < 1e-6, "the target sits in the middle")
+	local top = 10 * math.tan(math.rad(15))
+	x, y = play.projectPoint(CF.lookAt(V3.new(0, 0, -10), V3.zero), 30, 1, V3.new(0, top, 0))
+	assert(math.abs(y) < 1e-6, "the top edge of the view is y = 0")
+	x = play.projectPoint(CF.lookAt(V3.new(0, 0, -10), V3.zero), 30, 2, V3.new(-top * 2, 0, 0))
+	assert(math.abs(x - 1) < 1e-6, "looking at +Z from -Z, world -X is screen right")
+	local _, _, behind = play.projectPoint(CF.lookAt(V3.new(0, 0, -10), V3.zero), 30, 1, V3.new(0, 0, -20))
+	assert(behind < 0, "points behind the camera are flagged")
+	assert(play.abilitySpeed(true, true, false, { velocidade = 2.2, lento = 0.3 }) == 2.2, "two Sandevistans see each other at full speed")
+	assert(play.abilitySpeed(false, true, false, { velocidade = 2.2, lento = 0.3 }) == 0.3)
+	assert(play.abilitySpeed(true, false, true, nil) < 1, "the episode staggers")
+	local mannequin, torso = play.buildMannequin()
+	assert(mannequin.PrimaryPart == torso and mannequin:FindFirstChild("Head") and mannequin:FindFirstChild("Left Leg"))
+	-- Terminal com os implantes publicados pelo servidor (com os números do Sandevistan).
+	local implants = {}
+	for _, def in arsenal.IMPLANTS do
+		local copy = table.clone(def)
+		if def.id == "sandevistan" then
+			copy.stats = { duracao = 4, recarga = 1.5, custo = 25, velocidade = 2.2, lento = 0.3, cadencia = 2 }
+		end
+		table.insert(implants, copy)
+	end
+	local models = roblox.Instance.new("Folder")
+	arsenal.buildImplant(implants[1]).Parent = models
+	for _, atlas in { nil, "rbxassetid://123" } do
+		local panel = play.buildImplantPanel(implants, atlas, models)
+		assert(panel.part:IsA("Part") and panel.gui.AlwaysOnTop and panel.gui.LightInfluence == 0)
+		-- Áreas de toque: dentro da placa e sem encostar umas nas outras.
+		local seen, keys = {}, {}
+		for _, hit in panel.hits do
+			local box = { hit.position.X.Scale, hit.position.Y.Scale, hit.position.X.Scale + hit.size.X.Scale, hit.position.Y.Scale + hit.size.Y.Scale }
+			assert(box[1] >= 0 and box[2] >= 0 and box[3] <= 1 and box[4] <= 1, "terminal hit inside the plate: " .. hit.key)
+			for other, q in seen do
+				assert(not overlap(box, q), "terminal hits overlap: " .. hit.key .. " " .. other)
+			end
+			seen[hit.key] = box
+			keys[hit.key] = true
+		end
+		assert(keys.fechar and keys.acao and keys.boneco and keys["linha:sandevistan"] and keys["linha:subdermal"])
+		-- Escolher e encaixar: só o Sandevistan encaixa; os outros ficam "em breve".
+		panel.select("sandevistan")
+		assert(panel.actionFor("sandevistan") == "encaixar" and panel.actionText.Text == "ENCAIXAR")
+		assert(panel.title.Text == "SANDEVISTAN MILITAR" and panel.desc.Text:find("coluna"))
+		panel.select("kiroshi")
+		assert(panel.actionFor("kiroshi") == nil and panel.actionText.Text == "EM BREVE")
+		panel.select("sandevistan")
+		panel.setState({ sandevistan = true }, 75, false)
+		assert(panel.actionFor("sandevistan") == "tirar" and panel.actionText.Text == "DESENCAIXAR")
+		assert(panel.doll:FindFirstChild("Implante_sandevistan"), "the spine shows on the doll")
+		assert(panel.rows.sandevistan.status.Text == "ENCAIXADO")
+		panel.setState({ sandevistan = true }, 75, true)
+		assert(panel.actionFor("sandevistan") == nil and panel.actionText.Text == "EM USO", "no swapping mid-effect")
+		panel.setState({}, 100, false)
+		assert(not panel.doll:FindFirstChild("Implante_sandevistan"), "the spine leaves the doll")
+		-- Girar: de frente a coluna (costas) some; de costas ela aparece.
+		panel.setState({ sandevistan = true }, 100, false)
+		panel.rotate(0)
+		assert(not panel.markers.coluna.tag.Visible and panel.markers.olhos.tag.Visible, "front view hides the spine marker")
+		panel.rotate(math.pi)
+		assert(panel.markers.coluna.tag.Visible and not panel.markers.olhos.tag.Visible, "back view shows the spine marker")
+		local spine = panel.doll:FindFirstChild("Implante_sandevistan").PrimaryPart
+		assert(spine.CFrame.Position.Z < 0, "the spine turns with the doll")
+		local before = panel.markers.coluna.mark.Position
+		panel.step(0.5, false)
+		assert(panel.markers.coluna.mark.Position ~= before, "the doll keeps turning slowly")
+		-- Texto acompanha o tamanho da placa e nunca fica abaixo do mínimo.
+		panel.resize(roblox.Vector2.new(1130, 526))
+		local small = panel.actionText.TextSize
+		assert(small >= 22, "action text at least 11 px on a phone")
+		panel.resize(roblox.Vector2.new(2360, 1276))
+		assert(panel.actionText.TextSize > small)
+	end
+end
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, implant terminal, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")

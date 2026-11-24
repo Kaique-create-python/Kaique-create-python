@@ -122,6 +122,119 @@ local function newState()
 	return state
 end
 
+-- Implants ---------------------------------------------------------------------------------------
+-- Nomes dos implantes do Cyberpunk. slot: onde encaixa no corpo (o boneco do painel marca o lugar);
+-- pronto: já funciona no jogo; os outros aparecem no terminal como "em breve". O Sandevistan é o implante
+-- militar da coluna do anime: o tempo quase para em volta enquanto o dono deixa rastros coloridos.
+local IMPLANTS = {
+	{
+		id = "sandevistan", name = "Sandevistan Militar", sistema = "SISTEMA OPERACIONAL", slot = "coluna", pronto = true,
+		desc = "Implante militar na coluna. Ativado, o tempo quase para: você corre e atira 2x mais rápido e deixa rastros coloridos. Cada uso gasta estabilidade. A zero: ciberpsicose.",
+	},
+	{
+		id = "kiroshi", name = "Ópticos Kiroshi", sistema = "SISTEMA VISUAL", slot = "olhos", pronto = false,
+		desc = "Olhos com zoom óptico e marcação de alvos através da fumaça.",
+	},
+	{
+		id = "louva", name = "Lâminas Louva-a-Deus", sistema = "SISTEMA DE BRAÇOS", slot = "bracos", pronto = false,
+		desc = "Lâminas que saem dos antebraços para golpes rápidos e saltos de ataque.",
+	},
+	{
+		id = "gorila", name = "Braços de Gorila", sistema = "SISTEMA DE BRAÇOS", slot = "bracos", pronto = false,
+		desc = "Punhos reforçados que arrombam portas e derrubam no soco.",
+	},
+	{
+		id = "tendoes", name = "Tendões Reforçados", sistema = "SISTEMA ESQUELÉTICO", slot = "pernas", pronto = false,
+		desc = "Pernas sintéticas que deixam dar um segundo pulo no ar.",
+	},
+	{
+		id = "subdermal", name = "Armadura Subdérmica", sistema = "SISTEMA TEGUMENTAR", slot = "pele", pronto = false,
+		desc = "Placas sob a pele que seguram parte do dano das balas.",
+	},
+}
+local IMPLANT_BY_ID = {}
+for _, def in IMPLANTS do
+	IMPLANT_BY_ID[def.id] = def
+end
+
+-- Regras do Sandevistan (o servidor decide; o cliente só mostra). duracao e recarga em segundos; custo em
+-- pontos de estabilidade (0 a 100); surto: duração da ciberpsicose; depois dela a estabilidade volta a
+-- aposSurto; regenera regen pontos/s depois de espera s sem usar. raio: quem estiver perto fica lento.
+local SANDEVISTAN = {
+	duracao = 4, recarga = 1.5, custo = 25, surto = 2, aposSurto = 40, espera = 8, regen = 2.5,
+	raio = 90, lento = 0.3, cadencia = 2, velocidade = 2.2, danoSurto = 14, alcanceSurto = 120,
+}
+
+local function newMind()
+	return { implants = {}, psy = 100, lastUse = -1000, activeUntil = 0, abilityReady = 0, frenzyUntil = 0, useToken = 0, frenzyToken = 0 }
+end
+
+-- Ativa o Sandevistan. Devolve true ou o motivo. Cada uso gasta estabilidade; a zero começa o surto.
+local function useSandevistan(mind, now: number)
+	if not mind.implants.sandevistan then
+		return false, "sem implante"
+	end
+	if now < mind.frenzyUntil then
+		return false, "surto"
+	end
+	if now < mind.activeUntil then
+		return false, "ativo"
+	end
+	if now < mind.abilityReady then
+		return false, "recarga"
+	end
+	mind.activeUntil = now + SANDEVISTAN.duracao
+	mind.abilityReady = mind.activeUntil + SANDEVISTAN.recarga
+	mind.psy = math.max(0, mind.psy - SANDEVISTAN.custo)
+	mind.lastUse = now
+	if mind.psy <= 0 then
+		mind.frenzyUntil = now + SANDEVISTAN.surto
+	end
+	return true
+end
+
+-- A estabilidade volta devagar depois de um tempo sem usar; quando o surto acaba, volta a aposSurto.
+-- Devolve true quando algo mudou.
+local function regenMind(mind, now: number, dt: number): boolean
+	if mind.frenzyUntil > 0 and now >= mind.frenzyUntil then
+		mind.frenzyUntil = 0
+		mind.psy = math.max(mind.psy, SANDEVISTAN.aposSurto)
+		mind.lastUse = now
+		return true
+	end
+	if now < mind.activeUntil or mind.frenzyUntil > 0 or now - mind.lastUse < SANDEVISTAN.espera or mind.psy >= 100 then
+		return false
+	end
+	mind.psy = math.min(100, mind.psy + SANDEVISTAN.regen * dt)
+	return true
+end
+
+-- Encaixa (on = true) ou tira um implante. Só os prontos encaixam; um por lugar do corpo; não troca no meio
+-- do efeito nem do surto. Devolve true ou o motivo.
+local function setImplant(mind, id: string, on: boolean, now: number)
+	local def = IMPLANT_BY_ID[id]
+	if not def then
+		return false, "implante"
+	end
+	if now < mind.activeUntil or now < mind.frenzyUntil then
+		return false, "em uso"
+	end
+	if not on then
+		mind.implants[id] = nil
+		return true
+	end
+	if not def.pronto then
+		return false, "em breve"
+	end
+	for other in mind.implants do
+		if other ~= id and IMPLANT_BY_ID[other] and IMPLANT_BY_ID[other].slot == def.slot then
+			mind.implants[other] = nil
+		end
+	end
+	mind.implants[id] = true
+	return true
+end
+
 -- Models ----------------------------------------------------------------------------------------
 -- Weapon space: -Z is the barrel direction, +Y is up. The grip core (PrimaryPart, no rotation) sits in
 -- the hand; every other piece is welded to it. Real weapons at about 1.5x scale, without neon.
@@ -439,6 +552,52 @@ local function gripOffset(def, arm: BasePart): CFrame
 	return CFrame.fromMatrix(Vector3.new(0, -drop, -forward), Vector3.xAxis, Vector3.new(0, 0, -1), Vector3.yAxis)
 end
 
+-- Sandevistan na coluna: placa base (PrimaryPart) nas costas do Torso, seis vértebras de metal que estreitam
+-- para baixo, elos de luz entre elas (as "Luz" mudam de cor no cliente quando ativa), aletas de calor e o
+-- núcleo na nuca. Espaço do modelo: origem nas costas, +Y para cima, +Z para fora das costas.
+local IMPLANT_SEAT = CFrame.new(0, 0.05, 0.53)
+local function buildImplant(def)
+	local model = Instance.new("Model")
+	model.Name = def.id
+	local base
+	local function part(name: string, size: Vector3, pose: CFrame, color: Color3, material: Enum.Material, shape: Enum.PartType?)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Shape = shape or Enum.PartType.Block
+		p.Size = size
+		p.CFrame = pose
+		p.Color = color
+		p.Material = material
+		p.Anchored = true
+		p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = false, false, false, true, false
+		p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		p.Parent = model
+		if base then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = base
+			weld.Part1 = p
+			weld.Parent = p
+		end
+		return p
+	end
+	local steel, chrome, glow = rgb(30, 32, 38), rgb(176, 182, 194), rgb(90, 255, 220)
+	base = part("Base", Vector3.new(0.34, 1.9, 0.06), CFrame.new(), steel, Enum.Material.Metal)
+	model.PrimaryPart = base
+	for index = 0, 5 do
+		local y = 0.78 - index * 0.3
+		part("Vertebra", Vector3.new(0.62 - index * 0.05, 0.16, 0.16), CFrame.new(0, y, 0.08), chrome, Enum.Material.Metal)
+		if index < 5 then
+			part("Luz", Vector3.new(0.1, 0.12, 0.1), CFrame.new(0, y - 0.15, 0.1), glow, Enum.Material.Neon)
+		end
+	end
+	for _, side in { -1, 1 } do
+		part("Aleta", Vector3.new(0.06, 0.52, 0.2), CFrame.new(side * 0.33, 0.55, 0.05) * CFrame.Angles(0, 0, math.rad(side * 18)), steel, Enum.Material.Metal)
+		part("Aleta", Vector3.new(0.06, 0.38, 0.16), CFrame.new(side * 0.27, 0.12, 0.05) * CFrame.Angles(0, 0, math.rad(side * 12)), steel, Enum.Material.Metal)
+	end
+	part("Luz", Vector3.new(0.14, 0.24, 0.24), CFrame.new(0, 0.97, 0.06) * CFrame.Angles(0, 0, math.rad(90)), glow, Enum.Material.Neon, Enum.PartType.Cylinder)
+	return model
+end
+
 local function main()
 	local Players = game:GetService("Players")
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -463,6 +622,25 @@ local function main()
 		table.insert(public, copy)
 	end
 	folder:SetAttribute("Armas", HttpService:JSONEncode(public))
+	local implantModels = Instance.new("Folder")
+	implantModels.Name = "Implantes"
+	implantModels.Parent = folder
+	local implantTemplates = {}
+	local publicImplants = {}
+	for _, def in IMPLANTS do
+		local copy = table.clone(def)
+		if def.id == "sandevistan" then
+			copy.stats = { duracao = SANDEVISTAN.duracao, recarga = SANDEVISTAN.recarga, custo = SANDEVISTAN.custo,
+				surto = SANDEVISTAN.surto, lento = SANDEVISTAN.lento, cadencia = SANDEVISTAN.cadencia, velocidade = SANDEVISTAN.velocidade }
+		end
+		table.insert(publicImplants, copy)
+		if def.pronto then
+			local model = buildImplant(def)
+			model.Parent = implantModels
+			implantTemplates[def.id] = model
+		end
+	end
+	folder:SetAttribute("Implantes", HttpService:JSONEncode(publicImplants))
 	folder:SetAttribute("ZonaSegura", HttpService:JSONEncode({ SAFE_CENTER.X, SAFE_CENTER.Z, SAFE_RADIUS }))
 	local action = Instance.new("RemoteEvent")
 	action.Name = "Acao"
@@ -479,6 +657,7 @@ local function main()
 	folder.Parent = ReplicatedStorage
 
 	local states: { [Player]: any } = {}
+	local minds: { [Player]: any } = {} -- implantes e estabilidade: duram a sessão toda, não só uma vida
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.IgnoreWater = true
@@ -557,13 +736,18 @@ local function main()
 			return
 		end
 		local time = now()
+		local mind = minds[player]
+		if mind and time < mind.frenzyUntil then
+			return -- no surto quem atira é o implante, não o jogador
+		end
 		local ok = checkShot(state, def, time, origin, directions, head.Position)
 		if not ok or inSafeZone(head.Position) then
 			return
 		end
 		local ammo = state.ammo[def.id]
 		ammo.mag -= 1
-		state.nextShot = time + 1 / def.rate
+		local boost = if mind and time < mind.activeUntil then SANDEVISTAN.cadencia else 1
+		state.nextShot = time + 1 / (def.rate * boost)
 		params.FilterDescendantsInstances = { character }
 		local muzzle = character:FindFirstChild("CyberOutlawArma")
 		local attachment = muzzle and muzzle.PrimaryPart and muzzle.PrimaryPart:FindFirstChild("Cano")
@@ -613,7 +797,9 @@ local function main()
 		if time < state.nextMelee - 0.15 / def.rate then
 			return
 		end
-		state.nextMelee = time + 1 / def.rate
+		local mind = minds[player]
+		local boost = if mind and time < mind.activeUntil then SANDEVISTAN.cadencia else 1
+		state.nextMelee = time + 1 / (def.rate * boost)
 		local hitAt
 		if not inSafeZone(root.Position) then
 			local best, bestDistance
@@ -664,12 +850,223 @@ local function main()
 		end)
 	end
 
+	-- Implantes e Sandevistan --------------------------------------------------------------------------
+	local function publishMind(player: Player, mind)
+		player:SetAttribute("CyberOutlawPsicose", math.floor(mind.psy + 0.5))
+		local list = {}
+		for id in mind.implants do
+			table.insert(list, id)
+		end
+		table.sort(list)
+		player:SetAttribute("CyberOutlawImplantes", HttpService:JSONEncode(list))
+		local character = player.Character
+		if character then
+			character:SetAttribute("CyberOutlawSandevistanAte", mind.activeUntil)
+			character:SetAttribute("CyberOutlawSurtoAte", mind.frenzyUntil)
+			character:SetAttribute("CyberOutlawHabilidadePronta", mind.abilityReady)
+		end
+	end
+
+	-- Põe no corpo os modelos dos implantes encaixados (e tira os que saíram).
+	local function dressImplants(player: Player, mind)
+		local character = player.Character
+		local torso = character and (character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso"))
+		if not character or not torso or not torso:IsA("BasePart") then
+			return
+		end
+		for _, item in character:GetChildren() do
+			if item.Name == "CyberOutlawImplante" and not mind.implants[item:GetAttribute("Id")] then
+				item:Destroy()
+			end
+		end
+		for id in mind.implants do
+			local template = implantTemplates[id]
+			local has = false
+			for _, item in character:GetChildren() do
+				if item.Name == "CyberOutlawImplante" and item:GetAttribute("Id") == id then
+					has = true
+				end
+			end
+			if template and not has then
+				local model = template:Clone()
+				model.Name = "CyberOutlawImplante"
+				model:SetAttribute("Id", id)
+				for _, item in model:GetDescendants() do
+					if item:IsA("BasePart") then
+						item.Anchored = false
+					end
+				end
+				local weld = Instance.new("Weld")
+				weld.Name = "Encaixe"
+				weld.Part0 = torso
+				weld.Part1 = model.PrimaryPart
+				weld.C0 = IMPLANT_SEAT
+				weld.Parent = model.PrimaryPart
+				model.Parent = character
+			end
+		end
+	end
+
+	-- Quem estiver perto do dono do Sandevistan anda devagar até o efeito acabar (o cliente de cada um lê).
+	local function slowAround(player: Player, untilTime: number)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if not root then
+			return
+		end
+		for _, other in Players:GetPlayers() do
+			local target = other.Character
+			local otherRoot = target and target:FindFirstChild("HumanoidRootPart")
+			if other ~= player and otherRoot and (otherRoot.Position - root.Position).Magnitude <= SANDEVISTAN.raio then
+				local old = target:GetAttribute("CyberOutlawLentoAte")
+				if type(old) ~= "number" or old < untilTime then
+					target:SetAttribute("CyberOutlawLentoAte", untilTime)
+				end
+			end
+		end
+	end
+
+	-- Um disparo do surto: mira no jogador vivo mais perto que dá para ver (fora da zona segura) ou atira a esmo.
+	local frenzyRandom = Random.new()
+	local function psychoShot(player: Player)
+		local state = states[player]
+		local character = player.Character
+		local head = character and character:FindFirstChild("Head")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not state or not head or not humanoid or humanoid.Health <= 0 then
+			return
+		end
+		local def = BY_ID[state.slot]
+		if not def or def.kind ~= "gun" then
+			def = BY_ID.ak47
+		end
+		local weapon = character:FindFirstChild("CyberOutlawArma")
+		local attachment = weapon and weapon.PrimaryPart and weapon.PrimaryPart:FindFirstChild("Cano")
+		local from = if attachment then attachment.WorldPosition else head.Position
+		params.FilterDescendantsInstances = { character }
+		local best, bestDistance, bestHead
+		for _, other in Players:GetPlayers() do
+			local target = other.Character
+			local otherHead = target and target:FindFirstChild("Head")
+			local otherRoot = target and target:FindFirstChild("HumanoidRootPart")
+			local victim = target and target:FindFirstChildOfClass("Humanoid")
+			if other ~= player and otherHead and otherRoot and victim and victim.Health > 0 and not inSafeZone(otherRoot.Position) then
+				local distance = (otherHead.Position - from).Magnitude
+				if distance < SANDEVISTAN.alcanceSurto and (not bestDistance or distance < bestDistance) then
+					local sight = workspace:Raycast(from, otherHead.Position - from, params)
+					if sight and sight.Instance:IsDescendantOf(target) then
+						best, bestDistance, bestHead = victim, distance, otherHead
+					end
+				end
+			end
+		end
+		local direction
+		if best and bestHead then
+			local jitter = Vector3.new(frenzyRandom:NextNumber(-0.5, 0.5), frenzyRandom:NextNumber(-0.6, 0.4), frenzyRandom:NextNumber(-0.5, 0.5))
+			direction = (bestHead.Position + jitter - from).Unit
+			character:SetAttribute("CyberOutlawSurtoAlvo", best.Parent and best.Parent.Name or "")
+		else
+			local angle = frenzyRandom:NextNumber(0, math.pi * 2)
+			direction = Vector3.new(math.cos(angle), frenzyRandom:NextNumber(-0.25, 0.15), math.sin(angle)).Unit
+			character:SetAttribute("CyberOutlawSurtoAlvo", "")
+		end
+		local result = workspace:Raycast(from, direction * def.range, params)
+		local point = if result then result.Position else from + direction * def.range
+		local hit = false
+		if result and not inSafeZone(head.Position) then
+			local model, victim = characterOf(result.Instance)
+			local victimRoot = model and model:FindFirstChild("HumanoidRootPart")
+			if victim and model ~= character and victim.Health > 0 and not (victimRoot and inSafeZone(victimRoot.Position)) then
+				victim:SetAttribute("CyberOutlawUltimoAtacante", player.UserId)
+				victim:TakeDamage(SANDEVISTAN.danoSurto)
+				hit = true
+			end
+		end
+		effect:FireAllClients("surto", player, def.id, from, { { point, if result then result.Normal else -direction, hit } })
+	end
+
+	local function startFrenzy(player: Player, mind)
+		local state = states[player]
+		if state and BY_ID[state.slot] and BY_ID[state.slot].kind ~= "gun" then
+			equip(player, state, "ak47")
+		end
+		if player.Character then
+			player.Character:SetAttribute("CyberOutlawMirando", true)
+		end
+		mind.frenzyToken += 1
+		local token = mind.frenzyToken
+		task.spawn(function()
+			while minds[player] == mind and mind.frenzyToken == token and now() < mind.frenzyUntil do
+				psychoShot(player)
+				task.wait(0.09)
+			end
+			if player.Character then
+				player.Character:SetAttribute("CyberOutlawMirando", false)
+				player.Character:SetAttribute("CyberOutlawSurtoAlvo", "")
+			end
+		end)
+	end
+
+	local function activate(player: Player)
+		local mind = minds[player]
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not mind or not humanoid or humanoid.Health <= 0 then
+			return
+		end
+		local time = now()
+		if not useSandevistan(mind, time) then
+			return
+		end
+		publishMind(player, mind)
+		effect:FireAllClients("sandevistan", player, "sandevistan", mind.activeUntil, mind.frenzyUntil > time)
+		mind.useToken += 1
+		local token = mind.useToken
+		task.spawn(function()
+			while minds[player] == mind and mind.useToken == token and now() < mind.activeUntil do
+				slowAround(player, mind.activeUntil)
+				task.wait(0.25)
+			end
+		end)
+		if mind.frenzyUntil > time then
+			startFrenzy(player, mind)
+		end
+	end
+
+	-- Estabilidade: volta devagar sem usar; o fim do surto devolve aposSurto.
+	task.spawn(function()
+		while true do
+			local dt = task.wait(0.5)
+			local time = now()
+			for player, mind in minds do
+				local before = math.floor(mind.psy + 0.5)
+				local wasFrenzy = mind.frenzyUntil > 0
+				if regenMind(mind, time, dt) and (math.floor(mind.psy + 0.5) ~= before or wasFrenzy ~= (mind.frenzyUntil > 0)) then
+					publishMind(player, mind)
+				end
+			end
+		end
+	end)
+
 	action.OnServerEvent:Connect(function(player: Player, kind, a, b)
 		local state = states[player]
 		if not state or type(kind) ~= "string" then
 			return
 		end
+		local mind = minds[player]
+		if kind == "implante" and mind and type(a) == "string" then
+			if setImplant(mind, a, b == true, now()) then
+				dressImplants(player, mind)
+				publishMind(player, mind)
+			end
+			return
+		elseif kind == "habilidade" then
+			activate(player)
+			return
+		end
 		if kind == "equipar" and type(a) == "string" and BY_ID[a] then
+			if mind and now() < mind.frenzyUntil then
+				return
+			end
 			equip(player, state, a)
 		elseif kind == "atirar" then
 			shoot(player, state, a, b)
@@ -702,6 +1099,7 @@ local function main()
 	end)
 
 	local function join(player: Player)
+		minds[player] = minds[player] or newMind()
 		local function spawned(character)
 			local state = newState()
 			states[player] = state
@@ -709,6 +1107,16 @@ local function main()
 			character:SetAttribute("CyberOutlawMirando", false)
 			character:SetAttribute("CyberOutlawPitch", 0)
 			publishAmmo(player, state)
+			-- Nova vida: o efeito e o surto acabam; implantes e estabilidade continuam.
+			local mind = minds[player]
+			if mind then
+				mind.activeUntil, mind.frenzyUntil, mind.abilityReady = 0, 0, 0
+				mind.useToken += 1
+				mind.frenzyToken += 1
+				character:WaitForChild("Torso", 5)
+				dressImplants(player, mind)
+				publishMind(player, mind)
+			end
 		end
 		player.CharacterAdded:Connect(spawned)
 		if player.Character then
@@ -718,6 +1126,7 @@ local function main()
 	Players.PlayerAdded:Connect(join)
 	Players.PlayerRemoving:Connect(function(player)
 		states[player] = nil
+		minds[player] = nil
 	end)
 	for _, player in Players:GetPlayers() do
 		task.spawn(join, player)
@@ -730,6 +1139,14 @@ end
 
 return {
 	WEAPONS = WEAPONS,
+	IMPLANTS = IMPLANTS,
+	SANDEVISTAN = SANDEVISTAN,
+	IMPLANT_SEAT = IMPLANT_SEAT,
+	buildImplant = buildImplant,
+	newMind = newMind,
+	useSandevistan = useSandevistan,
+	regenMind = regenMind,
+	setImplant = setImplant,
 	buildModel = buildModel,
 	gripOffset = gripOffset,
 	inSafeZone = inSafeZone,

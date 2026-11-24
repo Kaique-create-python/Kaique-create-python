@@ -20,7 +20,9 @@ SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", 
 OPTIONAL_SOUNDS = ("arma_glock", "arma_deagle", "arma_uzi", "arma_ak47", "arma_m4", "arma_escopeta", "arma_sniper",
                    "arma_bomba", "arma_ferrolho", "arma_soco", "arma_lamina",
                    "arma_recarga", "arma_vazia", "arma_troca", "arma_recarga_fuzil", "arma_recarga_escopeta",
-                   "passo_1", "passo_2", "passo_3", "passo_4", "ui_tick", "ui_abrir", "ui_fechar", "ui_confirmar")
+                   "passo_1", "passo_2", "passo_3", "passo_4", "ui_tick", "ui_abrir", "ui_fechar", "ui_confirmar",
+                   # Implantes: ativação do Sandevistan, ciberpsicose e encaixe (tools/synth_weapon_fx.py).
+                   "habilidade_lenta", "surto", "implante_encaixe")
 ART = {
     "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),

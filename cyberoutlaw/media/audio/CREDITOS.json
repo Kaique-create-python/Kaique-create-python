@@ -279,5 +279,23 @@
     "sourceSha256": "685cac6a184e3cc3ec09a25b6ddb1d6feffd86d469778f339aa423d384035c50",
     "durationSeconds": 0.747,
     "sha256": "ff891ae04a902a9f9f4db741e6921597d6d54801b521f6827f61eb2133279663"
+  },
+  "habilidade_lenta": {
+    "durationSeconds": 3.2,
+    "sha256": "e88b855658b130eaceb313ffa297eed13c567f54b5381efc3bafc7737b70376b",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "surto": {
+    "durationSeconds": 1.6,
+    "sha256": "c6322cbe3061788b95968faa172f2399c1c1186e4172941f0fe1775f7d87a632",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "implante_encaixe": {
+    "durationSeconds": 0.55,
+    "sha256": "cb97e99ea93d90fb686d0b06415df8ae32f32604d58a89c14084a627b4214953",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
   }
 }
