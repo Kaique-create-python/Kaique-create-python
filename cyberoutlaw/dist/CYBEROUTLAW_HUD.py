@@ -1,4 +1,4 @@
-"""Abre no Termux o pacote CyberOutlaw v3: armas reais, animação do catálogo em R6, HUD v4, Capri completa e música do menu."""
+"""Abre no Termux o pacote CyberOutlaw v4: HUD neon com páginas, implantes com Sandevistan, trem andando e dia e noite."""
 
 import hashlib
 from http.client import HTTPException
@@ -9,10 +9,10 @@ import tempfile
 from urllib.request import urlopen
 
 
-RELEASE = "c51aa9203945d24e2ad76480a7bb1354cee31e83"
+RELEASE = "0d4d8d2981650e8a9162535b18a2ab43457524f3"
 PACKAGE = "CYBEROUTLAW_TERMUX.pyz"
-PACKAGE_BYTES = 27_098_585
-PACKAGE_SHA256 = "b59b71875c322d69806627a27233d420794fa5ca17168a82914c463808c81442"
+PACKAGE_BYTES = 27_580_874
+PACKAGE_SHA256 = "2a59fb99ec65f124cf46f1998a3ac274f25c096d892befebf8da36c9b5d49988"
 PACKAGE_URL = f"https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/{RELEASE}/cyberoutlaw/dist/{PACKAGE}"
 BLOCK_SIZE = 128 * 1024
 
