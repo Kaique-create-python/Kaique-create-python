@@ -2086,6 +2086,261 @@ local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 end
 M.buildImplantPanel = buildImplantPanel
 
+-- Monotrilho Linha Anel ---------------------------------------------------------------------------------------
+-- O trem anda no viaduto em volta da cidade e é igual em todos os clientes: a posição sai da hora do servidor
+-- (GetServerTimeNow), sem rede. Para na Estação Prisma com as portas abertas, acelera, corre, freia e volta à
+-- estação depois de uma volta; quem estiver dentro é levado junto (cada cliente move o próprio corpo).
+local TRAIN = { speed = 45, accel = 5, dwell = 14, cars = 3, length = 34, pitch = 36, floor = 1.5, bogie = 13 }
+M.TRAIN = TRAIN
+
+-- Caminho fechado a partir dos pontos (x, z) do viaduto, na altura do trilho (deck).
+local function trainTrack(points, deck: number)
+	local track = { segments = {}, total = 0, deck = deck }
+	for index, point in points do
+		local nextPoint = points[index % #points + 1]
+		local a = Vector3.new(point[1], deck, point[2])
+		local b = Vector3.new(nextPoint[1], deck, nextPoint[2])
+		local length = (b - a).Magnitude
+		if length > 1e-3 then
+			table.insert(track.segments, { a = a, dir = (b - a).Unit, start = track.total, length = length })
+			track.total += length
+		end
+	end
+	return track
+end
+M.trainTrack = trainTrack
+
+-- Ponto e direção a s studs do começo do caminho (dá a volta nos dois sentidos).
+local function trackPoint(track, s: number): (Vector3, Vector3)
+	s %= track.total
+	for _, segment in track.segments do
+		if s <= segment.start + segment.length then
+			return segment.a + segment.dir * (s - segment.start), segment.dir
+		end
+	end
+	local last = track.segments[#track.segments]
+	return last.a + last.dir * last.length, last.dir
+end
+M.trackPoint = trackPoint
+
+-- Quantos studs do começo do caminho fica o ponto do trilho mais perto de (x, z).
+local function trackDistance(track, x: number, z: number): number
+	local best, bestS = math.huge, 0
+	local p = Vector3.new(x, track.deck, z)
+	for _, segment in track.segments do
+		local t = math.clamp((p - segment.a):Dot(segment.dir), 0, segment.length)
+		local d = (segment.a + segment.dir * t - p).Magnitude
+		if d < best then
+			best, bestS = d, segment.start + t
+		end
+	end
+	return bestS
+end
+M.trackDistance = trackDistance
+
+-- Horário: parado (dwell s), acelera, corre, freia e chega de novo depois de uma volta (total studs).
+-- Devolve quanto já andou desde a estação, a velocidade e quanto as portas estão abertas (0 a 1).
+local function trainSchedule(t: number, total: number): (number, number, number)
+	local v, a, dwell = TRAIN.speed, TRAIN.accel, TRAIN.dwell
+	local ramp = v / a
+	local rampDistance = v * v / (2 * a)
+	local cruise = math.max(0, (total - 2 * rampDistance) / v)
+	local u = t % (dwell + 2 * ramp + cruise)
+	if u < dwell then
+		return 0, 0, math.clamp(math.min(u - 0.6, dwell - 2 - u), 0, 1)
+	end
+	u -= dwell
+	if u < ramp then
+		return 0.5 * a * u * u, a * u, 0
+	end
+	u -= ramp
+	if u < cruise then
+		return rampDistance + v * u, v, 0
+	end
+	local left = math.max(0, ramp - (u - cruise))
+	return total - 0.5 * a * left * left, a * left, 0
+end
+M.trainSchedule = trainSchedule
+
+-- Pose de um carro cujo centro está a s studs: apoiado em dois truques (frente e trás) no trilho, então
+-- faz a curva aos poucos. A origem é o chão do carro; a frente é -Z.
+local function carCFrame(track, s: number): CFrame
+	local front = trackPoint(track, s + TRAIN.bogie)
+	local back = trackPoint(track, s - TRAIN.bogie)
+	local lift = Vector3.new(0, TRAIN.floor, 0)
+	return CFrame.lookAt((front + back) / 2 + lift, front + lift)
+end
+M.carCFrame = carCFrame
+
+-- Um carro: casca de metal com janelas de vidro, duas portas de correr por lado, bancos, barras, faixa de
+-- luz no teto e neon rosa por fora. Devolve o modelo e as peças com a pose no espaço do carro (e, nas portas,
+-- para onde correm ao abrir). head/tail: faróis na frente do primeiro carro e lanternas atrás do último.
+local TRAIN_BODY, TRAIN_DARK = Color3.fromRGB(58, 64, 80), Color3.fromRGB(26, 28, 36)
+local function buildTrainCar(index: number, head: boolean, tail: boolean)
+	local model = Instance.new("Model")
+	model.Name = "Carro " .. index
+	local parts = {}
+	local L = TRAIN.length
+	local function piece(name: string, size: Vector3, offset: CFrame, color: Color3, material: Enum.Material, solid: boolean, slide: Vector3?)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Anchored = true
+		p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = solid, solid, false, solid
+		p.Color = color
+		p.Material = material
+		p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		p.CFrame = offset
+		p.Parent = model
+		table.insert(parts, { part = p, offset = offset, slide = slide })
+		return p
+	end
+	local glass = Color3.fromRGB(120, 170, 200)
+	piece("Piso", Vector3.new(7.6, 0.5, L + 1.6), CFrame.new(0, 0.25, 0), Color3.fromRGB(44, 46, 54), Enum.Material.DiamondPlate, true)
+	piece("Teto", Vector3.new(8, 0.6, L), CFrame.new(0, 8.3, 0), TRAIN_BODY, Enum.Material.Metal, true)
+	local strip = piece("Luz do teto", Vector3.new(1.2, 0.1, L - 4), CFrame.new(0, 7.95, 0), Color3.fromRGB(220, 240, 255), Enum.Material.Neon, false)
+	new("SurfaceLight", strip, { Face = Enum.NormalId.Bottom, Range = 12, Brightness = 1.6, Angle = 120, Color = Color3.fromRGB(210, 235, 255) })
+	piece("Saia", Vector3.new(7, 1.5, L - 4), CFrame.new(0, -0.75, 0), TRAIN_DARK, Enum.Material.Metal, false)
+	-- Paredes: painel de baixo, vidro e painel de cima, com dois vãos de porta (z = -8 e 8) de cada lado.
+	local DOOR, DOOR_W = 8, 4.2
+	local spans = { { -L / 2, -DOOR - DOOR_W / 2 }, { -DOOR + DOOR_W / 2, DOOR - DOOR_W / 2 }, { DOOR + DOOR_W / 2, L / 2 } }
+	for _, side in { -1, 1 } do
+		local x = side * 3.85
+		for _, span in spans do
+			local length, middle = span[2] - span[1], (span[1] + span[2]) / 2
+			piece("Parede", Vector3.new(0.3, 3.1, length), CFrame.new(x, 2.05, middle), TRAIN_BODY, Enum.Material.Metal, true)
+			piece("Janela", Vector3.new(0.2, 3, length - 0.6), CFrame.new(x, 5.1, middle), glass, Enum.Material.Glass, true).Transparency = 0.45
+			piece("Coluna", Vector3.new(0.32, 3, 0.3), CFrame.new(x, 5.1, span[1] + 0.15), TRAIN_BODY, Enum.Material.Metal, true)
+			piece("Coluna", Vector3.new(0.32, 3, 0.3), CFrame.new(x, 5.1, span[2] - 0.15), TRAIN_BODY, Enum.Material.Metal, true)
+		end
+		piece("Parede de cima", Vector3.new(0.3, 1.4, L), CFrame.new(x, 7.3, 0), TRAIN_BODY, Enum.Material.Metal, true)
+		piece("Faixa", Vector3.new(0.12, 0.35, L - 1), CFrame.new(side * 4.06, 2.3, 0), Color3.fromRGB(255, 72, 140), Enum.Material.Neon, false)
+		for _, center in { -DOOR, DOOR } do
+			for _, half in { -1, 1 } do
+				-- Folha da porta por fora da parede: abre correndo por cima dela.
+				local offset = CFrame.new(side * 4.05, 3.55, center + half * DOOR_W / 4)
+				local leaf = piece("Porta", Vector3.new(0.16, 6.1, DOOR_W / 2), offset, Color3.fromRGB(70, 76, 92), Enum.Material.Metal, true,
+					Vector3.new(0, 0, half * (DOOR_W / 2 + 0.1)))
+				leaf.CastShadow = false
+				piece("Vidro da porta", Vector3.new(0.18, 2.6, DOOR_W / 2 - 0.6), offset * CFrame.new(0, 1.2, 0), glass, Enum.Material.Glass, false,
+					Vector3.new(0, 0, half * (DOOR_W / 2 + 0.1))).Transparency = 0.4
+			end
+		end
+	end
+	-- Pontas: passagem para o próximo carro; na frente do primeiro e atrás do último, parede inteira.
+	for _, endSide in { -1, 1 } do
+		local z = endSide * (L / 2 - 0.15)
+		local closed = (endSide == -1 and head) or (endSide == 1 and tail)
+		if closed then
+			piece("Frente", Vector3.new(7.7, 3.1, 0.3), CFrame.new(0, 2.05, z), TRAIN_BODY, Enum.Material.Metal, true)
+			piece("Para-brisa", Vector3.new(7.3, 3, 0.2), CFrame.new(0, 5.1, z), glass, Enum.Material.Glass, true).Transparency = 0.35
+			piece("Testa", Vector3.new(7.7, 1.4, 0.3), CFrame.new(0, 7.3, z), TRAIN_BODY, Enum.Material.Metal, true)
+			for _, x in { -2.6, 2.6 } do
+				local lamp = piece(if head and endSide == -1 then "Farol" else "Lanterna", Vector3.new(1.1, 0.5, 0.15),
+					CFrame.new(x, 1.6, z + endSide * 0.2), if head and endSide == -1 then Color3.fromRGB(255, 250, 230) else Color3.fromRGB(255, 40, 60),
+					Enum.Material.Neon, false)
+				if head and endSide == -1 then
+					new("SpotLight", lamp, { Face = Enum.NormalId.Front, Range = 40, Brightness = 2.2, Angle = 50, Color = Color3.fromRGB(255, 246, 225) })
+				end
+			end
+			if head and endSide == -1 then
+				local sign = piece("Letreiro", Vector3.new(4.6, 0.7, 0.12), CFrame.new(0, 7.3, z - 0.22), Color3.fromRGB(255, 72, 140), Enum.Material.Neon, false)
+				sign.Transparency = 0.1
+			end
+		else
+			for _, x in { -2.6, 2.6 } do
+				piece("Ponta", Vector3.new(2.5, 7.5, 0.3), CFrame.new(x, 4.25, z), TRAIN_BODY, Enum.Material.Metal, true)
+			end
+			piece("Sanfona", Vector3.new(3, 7, 1.4), CFrame.new(0, 4, endSide * (L / 2 + 0.7)), TRAIN_DARK, Enum.Material.Fabric, false)
+		end
+	end
+	-- Bancos encostados nas paredes e barras para segurar.
+	for _, side in { -1, 1 } do
+		for _, span in { { -16, -10.6 }, { -5.6, 5.6 }, { 10.6, 16 } } do
+			local length = span[2] - span[1]
+			piece("Banco", Vector3.new(1.4, 1.1, length), CFrame.new(side * 3, 1.05, (span[1] + span[2]) / 2), Color3.fromRGB(96, 40, 120), Enum.Material.Fabric, true)
+			piece("Encosto", Vector3.new(0.3, 1.6, length), CFrame.new(side * 3.55, 2.4, (span[1] + span[2]) / 2), Color3.fromRGB(96, 40, 120), Enum.Material.Fabric, false)
+		end
+	end
+	for _, z in { -DOOR, DOOR } do
+		piece("Barra", Vector3.new(0.22, 7.5, 0.22), CFrame.new(0, 4.25, z), Color3.fromRGB(200, 204, 212), Enum.Material.Metal, true)
+	end
+	return model, parts
+end
+M.buildTrainCar = buildTrainCar
+
+-- Dia e noite ---------------------------------------------------------------------------------------------------
+-- Um dia de jogo dura 24 minutos (1 minuto por hora), igual para todos pela hora do servidor. Cada hora-chave
+-- tem a luz da cidade; entre elas a luz mistura aos poucos. A noite é a de antes (clara, com neon forte).
+local DAY_MINUTES = 24
+local function dayClock(t: number): number
+	return (t / (DAY_MINUTES * 60) * 24 + 20.5) % 24
+end
+M.dayClock = dayClock
+local function c3(r: number, g: number, b: number): Color3
+	return Color3.fromRGB(r, g, b)
+end
+local DAY_KEYS = {
+	{ hour = 0, brightness = 2.3, ambient = c3(70, 66, 96), outdoor = c3(112, 108, 148), exposure = 0.4, density = 0.27,
+		haze = c3(140, 128, 178), decay = c3(160, 104, 132), glare = 0.15, hazeAmount = 1.3, bloom = 0.5, threshold = 1.2,
+		tint = c3(240, 236, 255), rays = 0, clouds = c3(52, 48, 74), cover = 0.32, lamps = 1 },
+	{ hour = 5, brightness = 2.2, ambient = c3(66, 68, 100), outdoor = c3(104, 112, 156), exposure = 0.38, density = 0.28,
+		haze = c3(120, 132, 190), decay = c3(140, 110, 160), glare = 0.1, hazeAmount = 1.4, bloom = 0.5, threshold = 1.2,
+		tint = c3(236, 238, 255), rays = 0, clouds = c3(60, 60, 90), cover = 0.34, lamps = 1 },
+	{ hour = 6.4, brightness = 2.6, ambient = c3(112, 92, 108), outdoor = c3(176, 132, 140), exposure = 0.25, density = 0.33,
+		haze = c3(255, 172, 150), decay = c3(255, 120, 112), glare = 0.6, hazeAmount = 2.2, bloom = 0.45, threshold = 1.35,
+		tint = c3(255, 236, 226), rays = 0.14, clouds = c3(255, 186, 166), cover = 0.5, lamps = 0.6 },
+	{ hour = 8.5, brightness = 3, ambient = c3(120, 120, 130), outdoor = c3(150, 152, 166), exposure = 0.1, density = 0.3,
+		haze = c3(199, 215, 235), decay = c3(120, 140, 180), glare = 0.3, hazeAmount = 1.2, bloom = 0.35, threshold = 1.6,
+		tint = c3(250, 250, 255), rays = 0.06, clouds = c3(255, 255, 255), cover = 0.55, lamps = 0.3 },
+	{ hour = 12.5, brightness = 3.2, ambient = c3(126, 126, 136), outdoor = c3(156, 158, 172), exposure = 0, density = 0.28,
+		haze = c3(199, 215, 235), decay = c3(106, 128, 170), glare = 0.2, hazeAmount = 1, bloom = 0.32, threshold = 1.7,
+		tint = c3(255, 255, 255), rays = 0.05, clouds = c3(255, 255, 255), cover = 0.5, lamps = 0.3 },
+	{ hour = 16.5, brightness = 3, ambient = c3(130, 118, 118), outdoor = c3(166, 150, 146), exposure = 0.08, density = 0.3,
+		haze = c3(232, 202, 182), decay = c3(180, 122, 112), glare = 0.35, hazeAmount = 1.4, bloom = 0.36, threshold = 1.55,
+		tint = c3(255, 246, 236), rays = 0.08, clouds = c3(255, 236, 220), cover = 0.55, lamps = 0.35 },
+	{ hour = 18.3, brightness = 2.5, ambient = c3(120, 90, 110), outdoor = c3(190, 120, 132), exposure = 0.25, density = 0.35,
+		haze = c3(255, 140, 120), decay = c3(255, 90, 120), glare = 0.8, hazeAmount = 2.5, bloom = 0.45, threshold = 1.3,
+		tint = c3(255, 232, 226), rays = 0.16, clouds = c3(255, 150, 140), cover = 0.5, lamps = 0.75 },
+	{ hour = 19.6, brightness = 2.3, ambient = c3(80, 70, 110), outdoor = c3(120, 100, 160), exposure = 0.35, density = 0.3,
+		haze = c3(150, 120, 190), decay = c3(190, 100, 150), glare = 0.3, hazeAmount = 1.6, bloom = 0.5, threshold = 1.2,
+		tint = c3(244, 236, 255), rays = 0, clouds = c3(90, 70, 120), cover = 0.4, lamps = 1 },
+}
+M.DAY_KEYS = DAY_KEYS
+-- Luz da cidade numa hora qualquer: mistura as duas horas-chave em volta (dá a volta da meia-noite).
+local function dayLight(hour: number)
+	hour %= 24
+	local count = #DAY_KEYS
+	local a, b = DAY_KEYS[count], DAY_KEYS[1]
+	for index = 1, count do
+		local key = DAY_KEYS[index]
+		if key.hour <= hour then
+			a, b = key, DAY_KEYS[index % count + 1]
+		end
+	end
+	local span = (b.hour - a.hour) % 24
+	local t = if span > 0 then ((hour - a.hour) % 24) / span else 0
+	t = t * t * (3 - 2 * t)
+	local out = {}
+	for key, value in a do
+		local other = b[key]
+		if typeof(value) == "Color3" then
+			out[key] = value:Lerp(other, t)
+		elseif type(value) == "number" then
+			out[key] = value + (other - value) * t
+		end
+	end
+	out.hour = hour
+	return out
+end
+M.dayLight = dayLight
+-- O céu de dia é o padrão do Roblox; o céu desenhado de Maré Baixa só aparece à noite.
+local function nightSky(hour: number): boolean
+	hour %= 24
+	return hour >= 19 or hour < 5.6
+end
+M.nightSky = nightSky
+
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
 	local Players = game:GetService("Players")
@@ -3928,6 +4183,211 @@ local function start()
 		end
 	end
 
+	-- Monotrilho: os carros andam no mesmo horário em todos os clientes; quem está em pé num carro vai junto.
+	-- (Numa função à parte: o start() já está no limite de variáveis locais do Luau.)
+	local trainStep = (function()
+		local folder = Instance.new("Folder")
+		folder.Name = "CyberOutlawTrem"
+		folder.Parent = Workspace
+		local rideParams = RaycastParams.new()
+		rideParams.FilterType = Enum.RaycastFilterType.Include
+		rideParams.FilterDescendantsInstances = { folder }
+		local cars, track, station
+		local partList, frameList = {}, {}
+		local function ensure(): boolean
+			if cars then
+				return true
+			end
+			local layout = cityLayout
+			if type(layout) ~= "table" or type(layout.monorail) ~= "table" or #layout.monorail < 3 then
+				return false
+			end
+			track = trainTrack(layout.monorail, tonumber(layout.deck) or 66)
+			local spot = layout.station
+			station = if type(spot) == "table" then trackDistance(track, spot[1], spot[2]) else 0
+			cars = {}
+			for index = 1, TRAIN.cars do
+				local model, parts = buildTrainCar(index, index == 1, index == TRAIN.cars)
+				model.Parent = folder
+				cars[index] = { model = model, parts = parts }
+			end
+			return true
+		end
+		return function(_dt: number)
+			if not ensure() then
+				return
+			end
+			local traveled, _, open = trainSchedule(serverNow(), track.total)
+			table.clear(partList)
+			table.clear(frameList)
+			local middle = math.ceil(TRAIN.cars / 2)
+			for index, car in cars do
+				-- O carro do meio para no centro da plataforma; o primeiro vai na frente.
+				local pose = carCFrame(track, station + traveled + (middle - index) * TRAIN.pitch)
+				car.previous, car.pose = car.pose, pose
+				for _, entry in car.parts do
+					table.insert(partList, entry.part)
+					table.insert(frameList, if entry.slide then pose * CFrame.new(entry.slide * open) * entry.offset else pose * entry.offset)
+				end
+			end
+			Workspace:BulkMoveTo(partList, frameList, Enum.BulkMoveMode.FireCFrameChanged)
+			-- Carona: em pé num carro, o corpo, o rumo e a câmera andam e viram junto com ele.
+			if not root or not humanoid or humanoid.Health <= 0 then
+				return
+			end
+			local hit = Workspace:Raycast(root.Position, Vector3.new(0, -4.6, 0), rideParams)
+			if not hit then
+				return
+			end
+			for _, car in cars do
+				if car.previous and hit.Instance:IsDescendantOf(car.model) then
+					local delta = car.pose * car.previous:Inverse()
+					local before = root.Position
+					root.CFrame = delta * root.CFrame
+					local _, turn = delta:ToEulerAnglesYXZ()
+					facingYaw += turn
+					cam.yaw += turn
+					local moved = root.Position - before
+					if cam.focus then
+						cam.focus += Vector3.new(moved.X, 0, moved.Z)
+						cam.height += moved.Y
+					end
+					break
+				end
+			end
+		end
+	end)()
+
+	-- Dia e noite: 24 minutos por dia, a mesma hora para todos. Luz, névoa, nuvens, raios de sol e o brilho
+	-- dos postes mudam aos poucos; o céu desenhado de Maré Baixa fica para a noite e o de dia é o do Roblox.
+	local dayStep = (function()
+		local Lighting = game:GetService("Lighting")
+		local sky = Lighting:FindFirstChildOfClass("Sky")
+		local FACES = { "SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp" }
+		local DAY_FACES = {
+			SkyboxBk = "rbxassetid://6444884337", SkyboxDn = "rbxassetid://6444884785", SkyboxFt = "rbxassetid://6444884337",
+			SkyboxLf = "rbxassetid://6444884337", SkyboxRt = "rbxassetid://6444884337", SkyboxUp = "rbxassetid://6412503613",
+		}
+		local nightFaces = {}
+		local nightBodies, nightStars = true, 400
+		local custom = false
+		if sky then
+			for _, key in FACES do
+				nightFaces[key] = (sky :: any)[key]
+			end
+			nightBodies, nightStars = sky.CelestialBodiesShown, sky.StarCount
+			custom = nightFaces.SkyboxUp ~= DAY_FACES.SkyboxUp and string.find(tostring(nightFaces.SkyboxUp), "rbxassetid") ~= nil
+		end
+		local dayFaces = DAY_FACES
+		if custom then
+			-- Se o céu padrão não carregar, usa o céu clássico que vem dentro do Roblox.
+			task.spawn(function()
+				local probe = Instance.new("Sky")
+				for key, value in DAY_FACES do
+					(probe :: any)[key] = value
+				end
+				local failed = false
+				pcall(function()
+					game:GetService("ContentProvider"):PreloadAsync({ probe }, function(_, status)
+						if status == Enum.AssetFetchStatus.Failure then
+							failed = true
+						end
+					end)
+				end)
+				probe:Destroy()
+				if failed then
+					local classic = {}
+					for key in DAY_FACES do
+						classic[key] = "rbxasset://textures/sky/sky512_" .. string.lower(string.sub(key, 7)) .. ".tex"
+					end
+					dayFaces = classic
+				end
+			end)
+		end
+		local haze = Lighting:FindFirstChildOfClass("Atmosphere")
+		local bloom = Lighting:FindFirstChild("CyberOutlawCityBloom")
+		local grade = Lighting:FindFirstChild("CyberOutlawCityGrade")
+		local rays = Instance.new("SunRaysEffect")
+		rays.Name = "CyberOutlawSol"
+		rays.Intensity = 0
+		rays.Spread = 0.55
+		rays.Parent = Lighting
+		local clouds = Workspace.Terrain:FindFirstChildOfClass("Clouds")
+		if not clouds then
+			local made = Instance.new("Clouds")
+			made.Name = "CyberOutlawNuvens"
+			made.Density = 0.55
+			made.Parent = Workspace.Terrain
+			clouds = made
+		end
+		-- Postes, letreiros e janelas acesas: de dia ficam mais fracos (as do trem e dos efeitos não mudam).
+		local lamps = {}
+		local level = 1
+		local function track(item: Instance)
+			if item:IsA("Light") and not item:IsDescendantOf(camera) and not item:IsDescendantOf(Workspace:FindFirstChild("CyberOutlawTrem") or camera) then
+				table.insert(lamps, { item, item.Brightness })
+				item.Brightness *= level
+			end
+		end
+		task.defer(function()
+			for _, item in Workspace:GetDescendants() do
+				track(item)
+			end
+			Workspace.DescendantAdded:Connect(track)
+		end)
+		local nightNow
+		local wait = 0
+		return function(dt: number)
+			wait -= dt
+			if wait > 0 then
+				return
+			end
+			wait = 0.1
+			local hour = dayClock(serverNow())
+			local light = dayLight(hour)
+			Lighting.ClockTime = hour
+			Lighting.Brightness = light.brightness
+			Lighting.Ambient = light.ambient
+			Lighting.OutdoorAmbient = light.outdoor
+			Lighting.ExposureCompensation = light.exposure
+			if haze then
+				haze.Density, haze.Color, haze.Decay = light.density, light.haze, light.decay
+				haze.Glare, haze.Haze = light.glare, light.hazeAmount
+			end
+			if bloom and bloom:IsA("BloomEffect") then
+				bloom.Intensity, bloom.Threshold = light.bloom, light.threshold
+			end
+			if grade and grade:IsA("ColorCorrectionEffect") then
+				grade.TintColor = light.tint
+			end
+			rays.Intensity = light.rays
+			clouds.Color, clouds.Cover = light.clouds, light.cover
+			if sky and custom then
+				local night = nightSky(hour)
+				if night ~= nightNow then
+					nightNow = night
+					for key, value in (if night then nightFaces else dayFaces) do
+						(sky :: any)[key] = value
+					end
+					sky.CelestialBodiesShown = if night then nightBodies else true
+					sky.StarCount = if night then nightStars else 0
+				end
+			end
+			if math.abs(light.lamps - level) > 0.02 then
+				level = light.lamps
+				for index = #lamps, 1, -1 do
+					local entry = lamps[index]
+					if entry[1].Parent then
+						entry[1].Brightness = entry[2] * level
+					else
+						lamps[index] = lamps[#lamps]
+						lamps[#lamps] = nil
+					end
+				end
+			end
+		end
+	end)()
+
 	local function onPreSimulation(dt: number)
 		local now = os.clock()
 		for _, other in Players:GetPlayers() do
@@ -3939,6 +4399,7 @@ local function start()
 			end
 		end
 		pcall(headStep, dt)
+		pcall(trainStep, dt)
 	end
 	local preSimulation = if (RunService :: any).PreSimulation then (RunService :: any).PreSimulation else RunService.Stepped
 	preSimulation:Connect(function(a, b)
@@ -4572,6 +5033,7 @@ local function start()
 		pcall(implantSteps.ability, dt)
 		pcall(implantSteps.ghost, dt)
 		pcall(implantSteps.terminal, dt)
+		pcall(dayStep, dt)
 		pcall(reflectionStep, dt)
 		pcall(reflectCharacters)
 		pcall(pitchStep)

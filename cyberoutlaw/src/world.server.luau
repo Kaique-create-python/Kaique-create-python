@@ -197,6 +197,7 @@ local function layoutData()
 		monorail = { { 400, -340 }, { 400, 340 }, { 340, 400 }, { -340, 400 }, { -400, 340 },
 			{ -400, -340 }, { -340, -400 }, { 340, -400 } },
 		station = { 400, 0 },
+		deck = DECK,
 	}
 end
 
@@ -2162,13 +2163,40 @@ local function buildCity(root: Instance, art, options)
 	for _, face in { N.Left, N.Right } do
 		label(surface(plate, face, "Nome da estação", 10, 1.6, 600), "ESTAÇÃO PRISMA · LINHA ANEL", FONTS.corporate, PALETTE.white, PALETTE.pink)
 	end
-	local train = group(station, "Trem parado")
-	for car = -1, 1 do
-		local z = car * 36
-		box(train, "Carro do trem", 400, DECK + 5.5, z, 8, 8, 34, rgb(60, 66, 80), M.Metal, true)
-		box(train, "Janelas do trem", 400, DECK + 6.5, z, 8.15, 2.6, 30, shade(PALETTE.led, 0.8), M.Neon)
-		box(train, "Faixa do trem", 400, DECK + 3.2, z, 8.2, 0.5, 33, shade(PALETTE.pink, 0.85), M.Neon)
+	-- O trem agora anda: cada cliente monta e move os carros (play.client.luau), todos no mesmo horário.
+	-- Elevadores: uma cabine de vidro na calçada leva à plataforma e a da ponta da plataforma desce.
+	local function elevator(name: string, base: Vector3, destination: Vector3, facing: number, caption: string, width: number)
+		local cabin = group(station, name)
+		local frameColor = PALETTE.steel
+		local half = width / 2 - 0.1
+		box(cabin, "Piso do elevador", base.X, base.Y + 0.1, base.Z, width, 0.2, width, PALETTE.iron, M.Metal, true)
+		local pad = box(cabin, "Plataforma do elevador", base.X, base.Y + 0.26, base.Z, width - 2, 0.12, width - 2, shade(PALETTE.led, 0.9), M.Neon)
+		pad.CanTouch = true
+		pad:SetAttribute("Destino", destination)
+		box(cabin, "Teto do elevador", base.X, base.Y + 7.6, base.Z, width + 0.2, 0.4, width + 0.2, frameColor, M.Metal, true)
+		box(cabin, "Luz do elevador", base.X, base.Y + 7.35, base.Z, width - 2.8, 0.1, width - 2.8, shade(PALETTE.led, 0.85), M.Neon)
+		-- Vidro em três lados; a frente (para onde a pessoa sai) fica aberta.
+		local front = Vector3.new(math.sin(facing), 0, math.cos(facing))
+		for _, side in { -1, 1, 0 } do
+			local normal = if side == 0 then -front else Vector3.new(front.Z, 0, -front.X) * side
+			local center = base + normal * half + Vector3.new(0, 3.75, 0)
+			local wide = math.abs(normal.X) > 0.5
+			local sx, sz = if wide then 0.2 else width, if wide then width else 0.2
+			local wall = box(cabin, "Vidro do elevador", center.X, center.Y, center.Z, sx, 7.1, sz, PALETTE.glass, M.Glass, true)
+			wall.Transparency = 0.55
+		end
+		for _, corner in { { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } } do
+			box(cabin, "Coluna do elevador", base.X + corner[1] * half, base.Y + 3.8, base.Z + corner[2] * half, 0.35, 7.4, 0.35, frameColor, M.Metal, true)
+		end
+		local sign = box(cabin, "Placa do elevador", base.X + front.X * (half + 0.2), base.Y + 8.5, base.Z + front.Z * (half + 0.2),
+			if math.abs(front.X) > 0.5 then 0.3 else width - 0.4, 1.4, if math.abs(front.X) > 0.5 then width - 0.4 else 0.3, PALETTE.ink)
+		local faceName = if front.X > 0.5 then N.Right elseif front.X < -0.5 then N.Left elseif front.Z > 0.5 then N.Back else N.Front
+		label(surface(sign, faceName, "Elevador", 40, 1.6, 300), caption, FONTS.corporate, PALETTE.white, PALETTE.pink)
 	end
+	-- A cabine da rua fica na esquina da calçada (as duas avenidas se cruzam embaixo da estação).
+	elevator("Elevador da rua", Vector3.new(446, CURB, -47), Vector3.new(409, DECK + 3, -53), -math.pi / 2, "ELEVADOR · ESTAÇÃO", 6.4)
+	-- Na plataforma, mais estreita: cabe entre a borda e a coluna da cobertura (x 411,5).
+	elevator("Elevador da plataforma", Vector3.new(408.4, DECK, -61.1), Vector3.new(441, CURB + 3, -47), 0, "ELEVADOR · RUA", 5.4)
 
 	-- Horizonte: torres além dos muros e na outra margem da baía ------------------------------
 	local skyline = group(city, "Horizonte")
@@ -2391,6 +2419,28 @@ local function main()
 	})
 	local spawn = info.spawn
 	publishPoints(city, ReplicatedStorage, HttpService)
+	-- Elevadores da estação: pisar na luz da cabine leva ao outro andar (com uma pausa para não voltar na hora).
+	local lastRide = setmetatable({}, { __mode = "k" })
+	for _, pad in city:GetDescendants() do
+		if pad:IsA("BasePart") and pad.Name == "Plataforma do elevador" and typeof(pad:GetAttribute("Destino")) == "Vector3" then
+			local destination = pad:GetAttribute("Destino")
+			pad.Touched:Connect(function(hit)
+				local character = hit.Parent
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if not character or not humanoid or humanoid.Health <= 0 or not character:IsA("Model") then
+					return
+				end
+				local now = os.clock()
+				if lastRide[character] and now - lastRide[character] < 2 then
+					return
+				end
+				lastRide[character] = now
+				local rootPart = character:FindFirstChild("HumanoidRootPart")
+				local look = if rootPart then rootPart.CFrame.LookVector else Vector3.zAxis
+				character:PivotTo(CFrame.lookAt(destination, destination + Vector3.new(look.X, 0, look.Z)))
+			end)
+		end
+	end
 	local function arrive(player: Player, character: Model)
 		task.defer(function()
 			if player:GetAttribute("CyberOutlawArrived") or player.Character ~= character then

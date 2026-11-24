@@ -670,4 +670,82 @@ do
 		assert(panel.actionText.TextSize > small)
 	end
 end
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, implant terminal, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
+-- Monotrilho: caminho do viaduto publicado pela cidade, horário com parada e carros nas curvas.
+do
+	local monorail = { { 400, -340 }, { 400, 340 }, { 340, 400 }, { -340, 400 }, { -400, 340 },
+		{ -400, -340 }, { -340, -400 }, { 340, -400 } }
+	local track = play.trainTrack(monorail, 66)
+	assert(math.abs(track.total - (4 * 680 + 4 * math.sqrt(2) * 60)) < 0.01, "ring length")
+	local station = play.trackDistance(track, 400, 0)
+	assert(math.abs(station - 340) < 1e-6, "the station sits 340 studs along the first side")
+	local at, dir = play.trackPoint(track, station)
+	assert((at - V3.new(400, 66, 0)).Magnitude < 1e-6 and (dir - V3.new(0, 0, 1)).Magnitude < 1e-6)
+	local wrapped = play.trackPoint(track, station + track.total)
+	assert((wrapped - at).Magnitude < 1e-6, "the ring wraps")
+	-- Horário: parado com as portas abertas, sai, faz a volta e para de novo no mesmo lugar.
+	local TRAIN = play.TRAIN
+	local s0, v0, doors0 = play.trainSchedule(0.1, track.total)
+	assert(s0 == 0 and v0 == 0 and doors0 == 0, "doors start closed")
+	local _, _, doors = play.trainSchedule(4, track.total)
+	assert(doors == 1, "doors open at the platform")
+	local _, _, closing = play.trainSchedule(TRAIN.dwell - 0.5, track.total)
+	assert(closing == 0, "doors close before leaving")
+	local s1, v1 = play.trainSchedule(TRAIN.dwell + 2, track.total)
+	assert(s1 > 0 and v1 > 0 and v1 < TRAIN.speed, "it accelerates out of the station")
+	local ramp = TRAIN.speed / TRAIN.accel
+	local cruise = (track.total - TRAIN.speed * ramp) / TRAIN.speed
+	local cycle = TRAIN.dwell + 2 * ramp + cruise
+	local last, lastV = play.trainSchedule(cycle - 1e-3, track.total)
+	assert(math.abs(last - track.total) < 0.01 and lastV < 0.05, "one full lap, braking to a stop")
+	local previous = 0
+	for step = 0, 399 do -- a volta seguinte recomeça do zero
+		local s = play.trainSchedule(step * cycle / 400, track.total)
+		assert(s >= previous - 1e-6 or step * cycle / 400 < TRAIN.dwell + 1e-6, "the train never goes backwards")
+		previous = s
+	end
+	-- Carro: anda olhando para a frente no reto e vira aos poucos na curva.
+	local straight = play.carCFrame(track, station)
+	assert((straight.LookVector - V3.new(0, 0, 1)).Magnitude < 1e-6 and math.abs(straight.Position.Y - (66 + TRAIN.floor)) < 1e-6)
+	local corner = play.carCFrame(track, 680 + 5) -- na curva de 45 graus
+	assert(corner.LookVector.X < -0.05 and corner.LookVector.Z > 0.5, "the car turns gradually in the corner")
+	local model, parts = play.buildTrainCar(1, true, false)
+	assert(#parts >= 40 and #parts <= 120)
+	local doorsFound, floor, headlight = 0, nil, nil
+	for _, entry in parts do
+		assert(entry.part.Anchored)
+		if entry.part.Name == "Porta" then
+			doorsFound += 1
+			assert(entry.slide and entry.slide.Magnitude > 1, "door leaves slide open")
+		elseif entry.part.Name == "Piso" then
+			floor = entry.part
+		elseif entry.part.Name == "Farol" then
+			headlight = entry.part
+		end
+	end
+	assert(doorsFound == 8 and floor and floor.CanCollide and headlight and headlight:FindFirstChildOfClass("SpotLight"))
+	assert(model:FindFirstChild("Sanfona") and not model:FindFirstChild("Lanterna"), "the head car joins the next one at the back")
+	local _, tailParts = play.buildTrainCar(3, false, true)
+	local lamps = 0
+	for _, entry in tailParts do
+		if entry.part.Name == "Lanterna" then
+			lamps += 1
+		end
+	end
+	assert(lamps == 2, "red lamps at the back of the last car")
+end
+-- Dia e noite: 24 minutos por dia, a noite de antes à meia-noite, sol forte ao meio-dia, sem salto.
+do
+	assert(math.abs(play.dayClock(0) - 20.5) < 1e-9 and math.abs(play.dayClock(60) - 21.5) < 1e-9, "one game hour per real minute")
+	local midnight, noon = play.dayLight(0), play.dayLight(12.5)
+	assert(midnight.brightness == 2.3 and midnight.lamps == 1 and noon.brightness > 3 and noon.lamps < 0.5)
+	local late = play.dayLight(23.999)
+	assert(math.abs(late.brightness - midnight.brightness) < 0.01, "no jump at midnight")
+	local before = play.dayLight(0)
+	for step = 1, 480 do
+		local now = play.dayLight(step * 0.05)
+		assert(math.abs(now.brightness - before.brightness) < 0.08, "light changes slowly")
+		before = now
+	end
+	assert(play.nightSky(2) and play.nightSky(21) and not play.nightSky(12) and not play.nightSky(7))
+end
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, implant terminal, monorail train, day and night, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
