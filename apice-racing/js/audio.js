@@ -34,7 +34,7 @@
       return !!this.samples[name];
     }
 
-    playSample(name, gain, rate) {
+    playSample(name, gain, rate, bus) {
       const buf = this.samples[name];
       if (!this.ctx || !buf) return false;
       const t = this.ctx.currentTime;
@@ -43,12 +43,12 @@
       s.playbackRate.value = rate || 1;
       const g = this.ctx.createGain();
       g.gain.value = gain == null ? 0.8 : gain;
-      s.connect(g).connect(this.sfx);
+      s.connect(g).connect(bus || this.sfx);
       s.start(t);
       return true;
     }
 
-    loopSample(name) {
+    loopSample(name, bus) {
       const buf = this.samples[name];
       if (!buf) return null;
       const s = this.ctx.createBufferSource();
@@ -56,7 +56,7 @@
       s.loop = true;
       const g = this.ctx.createGain();
       g.gain.value = 0;
-      s.connect(g).connect(this.sfx);
+      s.connect(g).connect(bus || this.sfx);
       s.start(this.ctx.currentTime, Math.random() * buf.duration * 0.8);
       return { s, g };
     }
@@ -78,6 +78,16 @@
       this.sfx = ctx.createGain();
       this.sfx.gain.value = this.sfxOn ? 1 : 0;
       this.sfx.connect(this.master);
+      // barramento do motor: mais grave e mais alto
+      const shelf = ctx.createBiquadFilter();
+      shelf.type = 'lowshelf'; shelf.frequency.value = 180; shelf.gain.value = 10;
+      const body = ctx.createBiquadFilter();
+      body.type = 'peaking'; body.frequency.value = 85; body.Q.value = 0.9; body.gain.value = 6;
+      const tame = ctx.createBiquadFilter();
+      tame.type = 'highshelf'; tame.frequency.value = 4500; tame.gain.value = -4;
+      this.engineBus = ctx.createGain();
+      this.engineBus.gain.value = 1.7;
+      this.engineBus.connect(shelf).connect(body).connect(tame).connect(this.sfx);
       this.mus = ctx.createGain();
       this.mus.gain.value = this.musicOn ? 0.5 : 0;
       this.mus.connect(this.master);
@@ -141,7 +151,7 @@
       o2.connect(g2).connect(lp);
       o3.connect(g3).connect(out);
       lp.connect(out);
-      out.connect(this.sfx);
+      out.connect(this.engineBus || this.sfx);
       // pneus: ruído em banda
       const sq = this.noiseSrc(true);
       const bp = ctx.createBiquadFilter();
@@ -163,19 +173,19 @@
       if (!e) return;
       const t = this.ctx.currentTime;
       // amostras gravadas entram assim que terminam de carregar
-      if (!e.low && this.samples.motor_lento) { e.low = this.loopSample('motor_lento'); e.nodes.push(e.low.s); }
-      if (!e.high && this.samples.motor_alto) { e.high = this.loopSample('motor_alto'); e.nodes.push(e.high.s); }
+      if (!e.low && this.samples.motor_lento) { e.low = this.loopSample('motor_lento', this.engineBus); e.nodes.push(e.low.s); }
+      if (!e.high && this.samples.motor_alto) { e.high = this.loopSample('motor_alto', this.engineBus); e.nodes.push(e.high.s); }
       if (!e.skid && this.samples.pneu) { e.skid = this.loopSample('pneu'); e.nodes.push(e.skid.s); }
       const recorded = !!e.low;
       if (recorded) {
-        let gl = 0.5 + load * 0.4;
+        let gl = 0.6 + load * 0.55;
         if (e.high) {
           const x = clamp((rpm - 0.35) / 0.5, 0, 1);
           gl *= Math.cos((x * Math.PI) / 2);
-          e.high.s.playbackRate.setTargetAtTime(0.72 + rpm * 0.55, t, 0.04);
-          e.high.g.gain.setTargetAtTime((0.5 + load * 0.4) * Math.sin((x * Math.PI) / 2), t, 0.06);
+          e.high.s.playbackRate.setTargetAtTime(0.6 + rpm * 0.42, t, 0.04);
+          e.high.g.gain.setTargetAtTime((0.65 + load * 0.55) * Math.sin((x * Math.PI) / 2), t, 0.06);
         }
-        e.low.s.playbackRate.setTargetAtTime(0.78 + rpm * (e.high ? 0.9 : 1.35), t, 0.04);
+        e.low.s.playbackRate.setTargetAtTime(0.66 + rpm * (e.high ? 0.72 : 1.1), t, 0.04);
         e.low.g.gain.setTargetAtTime(gl, t, 0.06);
       }
       if (e.skid) e.skid.g.gain.setTargetAtTime(clamp(slip, 0, 1) * (offroad ? 0.15 : 0.55), t, 0.05);

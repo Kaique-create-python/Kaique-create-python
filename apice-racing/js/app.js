@@ -657,7 +657,7 @@
         case 'light': audio.beep(440, 0.22, 0.14); break;
         case 'go':
           audio.beep(880, 0.5, 0.16);
-          audio.playSample('aceleracao', 0.75, 1);
+          audio.playSample('aceleracao', 1.5, 0.84, audio.engineBus);
           toast('VAI!', 'go', 900);
           break;
         case 'crash': {
