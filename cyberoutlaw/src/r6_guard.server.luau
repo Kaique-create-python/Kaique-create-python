@@ -142,8 +142,10 @@ local function catalogAndAdmin()
 		idle = "IdleAnimation", walk = "WalkAnimation", run = "RunAnimation", jump = "JumpAnimation",
 		fall = "FallAnimation", climb = "ClimbAnimation", swim = "SwimAnimation",
 	}
-	local DEFAULT_PACK = "realista"
-	local KNOWN_PACKS = { realista = true, estiloso = true, ninja = true, heroi = true, padrao = true }
+	-- Padrão: "r6", as 10 animações R6 originais do dono (o cliente toca as poses dos arquivos). Os pacotes do
+	-- catálogo continuam no painel do dono para comparar.
+	local DEFAULT_PACK = "r6"
+	local KNOWN_PACKS = { r6 = true, realista = true, estiloso = true, ninja = true, heroi = true, padrao = true }
 
 	local animations = ReplicatedStorage:FindFirstChild("CyberOutlawAnimacoes") or Instance.new("Folder")
 	animations.Name = "CyberOutlawAnimacoes"

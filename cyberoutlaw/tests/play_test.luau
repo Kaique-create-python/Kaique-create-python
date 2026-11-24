@@ -42,10 +42,14 @@ end
 assert(play.slotFromVector(0, -1, 6) == 1 and play.slotFromVector(0, 1, 6) == 4)
 assert(play.slotFromVector(0, 0, 6) == nil)
 
--- Stamina: empties in ~7.7 s of sprinting and only lets you sprint again with 30%.
+-- Stamina: empties in ~13 s of sprinting and only lets you sprint again with 30%.
 do
 	local state = { value = 1, rest = 0, exhausted = false }
-	for _ = 1, 480 do
+	for _ = 1, 600 do
+		play.staminaStep(state, true, 1 / 60)
+	end
+	assert(not state.exhausted, "10 s of sprint still left")
+	for _ = 1, 220 do
 		play.staminaStep(state, true, 1 / 60)
 	end
 	assert(state.exhausted and state.value == 0)
@@ -748,4 +752,112 @@ do
 	end
 	assert(play.nightSky(2) and play.nightSky(21) and not play.nightSky(12) and not play.nightSky(7))
 end
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, implant terminal, monorail train, day and night, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
+-- Animações R6 originais: os dados do jogo batem com cada keyframe dos .rbxmx do usuário.
+do
+	assert(roblox.deserializeModel, "Lune com leitura de rbxmx")
+	local decoded = play.decodeBase64("TWFu")
+	assert(buffer.len(decoded) == 3 and buffer.tostring(decoded) == "Man", "base64")
+	local clips = play.r6Clips()
+	local files = {
+		idle = "Idle_Okarun_R6", frente = "Walk_Forward_R6", frente_direita = "Walk_ForwardRight_R6", direita = "Walk_Right_R6",
+		tras_direita = "Walk_BackwardRight_R6", tras = "Walk_Backward_R6", tras_esquerda = "Walk_BackwardLeft_R6",
+		esquerda = "Walk_Left_R6", frente_esquerda = "Walk_ForwardLeft_R6", corrida = "Sprint_Forward_Okarun_R6",
+	}
+	local count, worst = 0, 0
+	for key, file in files do
+		local clip = clips[key]
+		assert(clip, "clip " .. key)
+		-- O leitor do Lune espera o documento começando em <roblox; o Studio aceita a declaração XML.
+		local xml = string.gsub(fs.readFile("animacoes_r6/" .. file .. ".rbxmx"), "^<%?xml[^>]*%?>%s*", "")
+		local sequence = roblox.deserializeModel(xml)[1]
+		assert(sequence.ClassName == "KeyframeSequence")
+		local keyframes = sequence:GetChildren()
+		table.sort(keyframes, function(a, b)
+			return a.Time < b.Time
+		end)
+		assert(#keyframes == clip.count, key .. " keyframes")
+		for index, keyframe in keyframes do
+			local poses = {}
+			for _, pose in keyframe:GetDescendants() do
+				poses[pose.Name] = pose.CFrame
+			end
+			for joint, info in play.R6_JOINTS do
+				local original, ours = poses[info.pose], clip.frames[index][joint]
+				local tip = (original * V3.new(0, -2, 0) - ours * V3.new(0, -2, 0)).Magnitude
+				worst = math.max(worst, tip)
+				count += 1
+			end
+		end
+		-- Laço: a primeira pose é a última.
+		for joint = 1, 6 do
+			assert((clip.frames[1][joint].Position - clip.frames[clip.count][joint].Position).Magnitude < 1e-3)
+		end
+	end
+	assert(count == (151 + 8 * 73 + 31) * 6 and worst < 1e-3, "every keyframe of every joint matches the originals")
+	-- Interpolação linear entre keyframes vizinhos (o que o Animator faz com easing Linear).
+	local walk = clips.frente
+	local out = {}
+	play.clipPose(walk, 0, out)
+	assert(out[5] == walk.frames[1][5], "phase 0 is the first keyframe")
+	play.clipPose(walk, 0.5 / (walk.count - 1), out)
+	local expected = walk.frames[1][5]:Lerp(walk.frames[2][5], 0.5)
+	assert((out[5].Position - expected.Position).Magnitude < 1e-6)
+	-- Setores de 45 graus (X+ direita, Z- frente) com histerese de 10 graus.
+	assert(play.moveSector(0, -1) == 1 and play.moveSector(1, -1) == 2 and play.moveSector(1, 0) == 3 and play.moveSector(0, 1) == 5)
+	assert(play.moveSector(-1, 0) == 7 and play.moveSector(-1, -1) == 8)
+	local function dir(deg)
+		return math.sin(math.rad(deg)), -math.cos(math.rad(deg))
+	end
+	local x, z = dir(28)
+	assert(play.moveSector(x, z, 1) == 1 and play.moveSector(x, z, nil) == 2, "28 degrees stays forward until the hysteresis passes")
+	x, z = dir(34)
+	assert(play.moveSector(x, z, 1) == 2)
+	-- Locomoção: parado -> andando para a frente -> correndo -> de lado mirando.
+	local m = play.newMotion()
+	local MOTION = play.MOTION
+	local pose, step
+	for _ = 1, 30 do
+		pose = play.motionStep(m, { move = V3.zero, speed = 0, sprint = false }, 1 / 60)
+	end
+	assert(m.weights.idle > 0.99 and not m.moving, "idle when stopped")
+	local steps = { 0, 0 }
+	local phase0 = m.phase
+	for frame = 1, 120 do
+		pose, step = play.motionStep(m, { move = V3.new(0, 0, -1), speed = MOTION.walk, sprint = false }, 1 / 60)
+		if step > 0 then
+			steps[step] += 1
+		end
+		local _ = frame
+	end
+	assert(m.sector == 1 and m.weights.frente > 0.99 and m.weights.idle < 0.01, "walking forward after the crossfade")
+	local rate = MOTION.walk / clips.frente.reference
+	assert(rate <= MOTION.maxWalkRate and rate >= 2, "walk plays near its reference cadence")
+	-- Já andando: em 0,25 s a fase avança velocidade / referência / duração do ciclo.
+	local start = m.phase
+	for _ = 1, 15 do
+		play.motionStep(m, { move = V3.new(0, 0, -1), speed = MOTION.walk, sprint = false }, 1 / 60)
+	end
+	local expectedAdvance = 0.25 * rate / clips.frente.duration
+	assert(math.abs(((m.phase - start) % 1) - expectedAdvance) < 0.01, "phase follows speed / reference")
+	local _ = phase0
+	assert(steps[1] >= 3 and steps[2] >= 3 and math.abs(steps[1] - steps[2]) <= 1, "both feet step every cycle")
+	-- Sem escorregar: o pé de apoio anda para trás na velocidade do personagem (referência x taxa).
+	assert(math.abs(clips.frente.reference * rate - MOTION.walk) < 1e-6)
+	for _ = 1, 90 do
+		pose = play.motionStep(m, { move = V3.new(0, 0, -1), speed = MOTION.sprint, sprint = true }, 1 / 60)
+	end
+	assert(m.sprinting and m.weights.corrida > 0.99, "forward sprint uses the anime run")
+	assert(MOTION.sprint / clips.corrida.reference <= MOTION.maxSprintRate, "sprint near the 2x cadence")
+	-- De lado (mirando): troca de setor sem pular a fase e sem corrida lateral.
+	local before = m.phase
+	pose = play.motionStep(m, { move = V3.new(1, 0, 0), speed = play.strafeSpeed(1, 0), sprint = true }, 1 / 60)
+	assert(((m.phase - before) % 1) < 0.1, "the phase never jumps on a direction change")
+	for _ = 1, 90 do
+		pose = play.motionStep(m, { move = V3.new(1, 0, 0), speed = play.strafeSpeed(1, 0), sprint = true }, 1 / 60)
+	end
+	assert(m.sector == 3 and m.weights.direita > 0.99 and m.weights.corrida < 0.01, "no side sprint: walks right")
+	assert(play.strafeSpeed(1, 0) / clips.direita.reference <= MOTION.maxWalkRate + 1e-6, "side walk not forced")
+	assert(play.strafeSpeed(0, -1) > play.strafeSpeed(1, 0), "slower sideways than forward")
+	assert(#pose == 6)
+end
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, implant terminal, monorail train, day and night, original R6 animations, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
