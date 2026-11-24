@@ -10,6 +10,55 @@
       this.musicOn = store.get('music', true);
       this.engine = null;
       this.music = null;
+      this.samples = {};
+      this.samplesRequested = false;
+    }
+
+    /* ---------- Amostras gravadas (ElevenLabs) ---------- */
+    // Lê assets/audio/manifest.json e decodifica o que existir. Sem arquivo, segue no som sintetizado.
+    loadSamples(base) {
+      if (!this.ctx || this.samplesRequested || typeof fetch === 'undefined') return;
+      this.samplesRequested = true;
+      fetch(base + 'manifest.json')
+        .then((r) => (r.ok ? r.json() : { arquivos: [] }))
+        .then((m) => Promise.all((m.arquivos || []).map((name) =>
+          fetch(base + name + '.mp3')
+            .then((r) => (r.ok ? r.arrayBuffer() : null))
+            .then((ab) => (ab ? this.ctx.decodeAudioData(ab) : null))
+            .then((buf) => { if (buf) this.samples[name] = buf; })
+            .catch(() => {}))))
+        .catch(() => {});
+    }
+
+    hasSample(name) {
+      return !!this.samples[name];
+    }
+
+    playSample(name, gain, rate) {
+      const buf = this.samples[name];
+      if (!this.ctx || !buf) return false;
+      const t = this.ctx.currentTime;
+      const s = this.ctx.createBufferSource();
+      s.buffer = buf;
+      s.playbackRate.value = rate || 1;
+      const g = this.ctx.createGain();
+      g.gain.value = gain == null ? 0.8 : gain;
+      s.connect(g).connect(this.sfx);
+      s.start(t);
+      return true;
+    }
+
+    loopSample(name) {
+      const buf = this.samples[name];
+      if (!buf) return null;
+      const s = this.ctx.createBufferSource();
+      s.buffer = buf;
+      s.loop = true;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      s.connect(g).connect(this.sfx);
+      s.start(this.ctx.currentTime, Math.random() * buf.duration * 0.8);
+      return { s, g };
     }
 
     init() {
@@ -113,13 +162,30 @@
       const e = this.engine;
       if (!e) return;
       const t = this.ctx.currentTime;
+      // amostras gravadas entram assim que terminam de carregar
+      if (!e.low && this.samples.motor_lento) { e.low = this.loopSample('motor_lento'); e.nodes.push(e.low.s); }
+      if (!e.high && this.samples.motor_alto) { e.high = this.loopSample('motor_alto'); e.nodes.push(e.high.s); }
+      if (!e.skid && this.samples.pneu) { e.skid = this.loopSample('pneu'); e.nodes.push(e.skid.s); }
+      const recorded = !!e.low;
+      if (recorded) {
+        let gl = 0.5 + load * 0.4;
+        if (e.high) {
+          const x = clamp((rpm - 0.35) / 0.5, 0, 1);
+          gl *= Math.cos((x * Math.PI) / 2);
+          e.high.s.playbackRate.setTargetAtTime(0.72 + rpm * 0.55, t, 0.04);
+          e.high.g.gain.setTargetAtTime((0.5 + load * 0.4) * Math.sin((x * Math.PI) / 2), t, 0.06);
+        }
+        e.low.s.playbackRate.setTargetAtTime(0.78 + rpm * (e.high ? 0.9 : 1.35), t, 0.04);
+        e.low.g.gain.setTargetAtTime(gl, t, 0.06);
+      }
+      if (e.skid) e.skid.g.gain.setTargetAtTime(clamp(slip, 0, 1) * (offroad ? 0.15 : 0.55), t, 0.05);
       const f = 38 + rpm * 150;
       e.o1.frequency.setTargetAtTime(f, t, 0.03);
       e.o2.frequency.setTargetAtTime(f * 1.5 + 1.5, t, 0.03);
       e.o3.frequency.setTargetAtTime(f * 0.5, t, 0.03);
       e.lp.frequency.setTargetAtTime(420 + rpm * 1900 + load * 900, t, 0.05);
-      e.out.gain.setTargetAtTime(0.13 + load * 0.12 + rpm * 0.05, t, 0.06);
-      e.sg.gain.setTargetAtTime(clamp(slip, 0, 1) * 0.16, t, 0.05);
+      e.out.gain.setTargetAtTime((0.13 + load * 0.12 + rpm * 0.05) * (recorded ? 0.3 : 1), t, 0.06);
+      e.sg.gain.setTargetAtTime(e.skid ? 0 : clamp(slip, 0, 1) * 0.16, t, 0.05);
       e.bp.frequency.setTargetAtTime(offroad ? 420 : 1300 + speed01 * 500, t, 0.1);
       e.wg.gain.setTargetAtTime(speed01 * 0.09 + (offroad ? speed01 * 0.14 : 0), t, 0.1);
       e.wl.frequency.setTargetAtTime(offroad ? 900 : 400 + speed01 * 600, t, 0.1);
@@ -132,6 +198,7 @@
       e.out.gain.setTargetAtTime(0, t, 0.08);
       e.sg.gain.setTargetAtTime(0, t, 0.05);
       e.wg.gain.setTargetAtTime(0, t, 0.05);
+      for (const k of ['low', 'high', 'skid']) if (e[k]) e[k].g.gain.setTargetAtTime(0, t, 0.05);
       for (const n of e.nodes) { try { n.stop(t + 0.5); } catch (err) { /* já parado */ } }
       this.engine = null;
     }
@@ -158,6 +225,7 @@
       if (!this.ctx) return;
       const ctx = this.ctx, t = ctx.currentTime;
       const p = clamp(power, 0.1, 1);
+      if (this.playSample('batida', 0.25 + p * 0.75, 0.9 + Math.random() * 0.2)) return;
       const n = this.noiseSrc(false);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
@@ -183,6 +251,7 @@
 
     whoosh(strength) {
       if (!this.ctx) return;
+      if (this.playSample('nitro', 0.7 * (strength || 1), 1)) return;
       const ctx = this.ctx, t = ctx.currentTime;
       const n = this.noiseSrc(false);
       const bp = ctx.createBiquadFilter();

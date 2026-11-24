@@ -13,7 +13,7 @@
   const paintName = (hex) => (APX.PAINTS.find((p) => p.hex.toLowerCase() === hex.toLowerCase()) || { name: 'Personalizada' }).name;
 
   const state = {
-    carId: store.get('car', 'faisca'),
+    carId: store.get('car2', 'relampago'),
     paint: store.get('paint', null),
     trackId: store.get('track', 'distrito'),
     laps: store.get('laps', 3),
@@ -25,14 +25,14 @@
   if (!['chase', 'high', 'top'].includes(state.camera)) state.camera = 'chase';
   const use3D = !!(APX.Renderer3D && APX.webgl3D);
   const CAM_LABEL = { chase: 'Câmera atrás do carro', high: 'Câmera alta', top: 'Vista de cima' };
-  if (!APX.CARS.some((c) => c.id === state.carId)) state.carId = 'faisca';
+  if (!APX.CARS.some((c) => c.id === state.carId)) state.carId = 'relampago';
   if (!state.paint) state.paint = carById(state.carId).paint;
 
   const input = new APX.Input();
   const audio = new APX.AudioFX();
 
   function save() {
-    store.set('car', state.carId);
+    store.set('car2', state.carId);
     store.set('paint', state.paint);
     store.set('track', state.trackId);
     store.set('laps', state.laps);
@@ -61,7 +61,7 @@
       el.dataset.car = c.id;
       el.innerHTML = `
         <div class="car-stage">
-          <span class="car-num">#${c.number}</span>
+          <span class="car-num">${c.model ? '3D' : '#' + c.number}</span>
           <span class="car-chosen">No grid</span>
           <canvas aria-hidden="true"></canvas>
         </div>
@@ -97,11 +97,34 @@
       el.setAttribute('aria-checked', String(on));
       el.tabIndex = on ? 0 : -1;
       const c = carById(el.dataset.car);
-      APX.drawCarPreview($('canvas', el), c, on ? state.paint : c.paint);
+      if (c.model) drawModelCard($('canvas', el), c);
+      else APX.drawCarPreview($('canvas', el), c, on ? state.paint : c.paint);
     }
+    const sel = carById(state.carId);
+    for (const sw of $$('.swatch')) sw.disabled = !!sel.model;
+    $('.paint').classList.toggle('locked', !!sel.model);
     for (const s of $$('.swatch')) s.setAttribute('aria-checked', String(s.dataset.hex.toLowerCase() === state.paint.toLowerCase()));
-    $('#paint-name').textContent = paintName(state.paint);
+    $('#paint-name').textContent = carById(state.carId).model ? 'Original do modelo 3D' : paintName(state.paint);
     syncSetup();
+  }
+
+  // card do carro 3D: desenha o contorno 2D e troca pela foto do modelo quando carregar
+  function drawModelCard(canvas, c) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = canvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+    if (canvas.dataset.model === w + 'x' + h) return;
+    APX.drawCarPreview(canvas, c, c.paint);
+    if (!APX.carModelPreview || !use3D) return;
+    APX.carModelPreview(c.model, w, h).then((img) => {
+      if (!img) return;
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0);
+      canvas.dataset.model = w + 'x' + h;
+    });
   }
 
   function selectCar(id) {
@@ -124,6 +147,7 @@
       b.dataset.hex = p.hex;
       b.style.setProperty('--c', p.hex);
       b.addEventListener('click', () => {
+        if (carById(state.carId).model) return;
         state.paint = p.hex;
         save();
         syncGarage();
@@ -297,7 +321,7 @@
   function newHeroRace() {
     const track = tracks[hero.trackIdx % tracks.length];
     hero.trackIdx++;
-    hero.race = new APX.Race({ track, laps: 3, attract: true, opponents: 6, difficulty: 'dificil' });
+    hero.race = new APX.Race({ track, laps: 3, attract: true, opponents: 6, difficulty: 'dificil', featured: use3D ? APX.CARS.find((c) => c.model) : null });
     // pula a largada parada para a vitrine já abrir em movimento
     for (let i = 0; i < 120 * 6; i++) hero.race.step(APX.RACE_DT, null);
     hero.race.events.length = 0;
@@ -430,6 +454,7 @@
 
   function startRace() {
     audio.init();
+    audio.loadSamples('assets/audio/');
     const track = trackById(state.trackId);
     const spec = carById(state.carId);
     const race = new APX.Race({
@@ -632,6 +657,7 @@
         case 'light': audio.beep(440, 0.22, 0.14); break;
         case 'go':
           audio.beep(880, 0.5, 0.16);
+          audio.playSample('aceleracao', 0.75, 1);
           toast('VAI!', 'go', 900);
           break;
         case 'crash': {
@@ -664,7 +690,7 @@
           if (e.car === p) {
             game.flags = saveRecords(r);
             toast(`${e.place}º lugar<small>bandeira quadriculada</small>`, e.place === 1 ? 'pb' : 'signal', 2200);
-            audio.chime(true);
+            if (!audio.playSample('torcida', 0.8, 1)) audio.chime(true);
             game.finishAt = performance.now() + 2200;
           }
           break;
@@ -730,8 +756,8 @@
   function wire() {
     $('#hero-race').addEventListener('click', startRace);
     $('#top-race').addEventListener('click', startRace);
-    $('#toggle-music').addEventListener('click', () => { audio.init(); toggleMusic(); });
-    $('#toggle-sfx').addEventListener('click', () => { audio.init(); toggleSfx(); });
+    $('#toggle-music').addEventListener('click', () => { audio.init(); audio.loadSamples('assets/audio/'); toggleMusic(); });
+    $('#toggle-sfx').addEventListener('click', () => { audio.init(); audio.loadSamples('assets/audio/'); toggleSfx(); });
     $('#pause-music').addEventListener('click', toggleMusic);
     $('#pause-sfx').addEventListener('click', toggleSfx);
     $('#hud-pause').addEventListener('click', () => setPaused(true));
@@ -784,6 +810,10 @@
     syncSoundButtons();
     wire();
     startHero();
+    if (use3D && APX.loadCarModel) {
+      const mc = APX.CARS.find((c) => c.model);
+      if (mc) APX.loadCarModel(mc.model).then(() => syncGarage());
+    }
     const total = tracks.reduce((a, t) => a + t.lengthM, 0);
     $('#footer-meta').textContent = `Física a 120 Hz · ${tracks.length} circuitos · ${total.toLocaleString('pt-BR')} m de asfalto`;
   }

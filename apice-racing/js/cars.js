@@ -6,6 +6,13 @@
   // velocidade em px/s (1 px = 0,1 m → 700 px/s ≈ 252 km/h)
   const CARS = [
     {
+      id: 'relampago', name: 'Relâmpago XR', tag: 'Seu carro', number: 1,
+      blurb: 'O seu supercarro em 3D. Rápido de reta, firme na curva e com nitro forte.',
+      maxSpeed: 760, accel: 600, grip: 8.2, turn: 3.05, nitro: 1.1, mass: 1.1,
+      shape: 'gt', paint: '#7BD12E', trim: '#2A1C5E',
+      model: 'assets/models/carro-jogador.glb',
+    },
+    {
       id: 'faisca', name: 'Faísca GT', tag: 'Equilibrado', number: 7,
       blurb: 'Bom em tudo. O carro para aprender onde fica o ponto de frenagem.',
       maxSpeed: 705, accel: 540, grip: 7.6, turn: 2.95, nitro: 1.0, mass: 1.0,

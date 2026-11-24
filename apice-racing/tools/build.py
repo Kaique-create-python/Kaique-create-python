@@ -6,6 +6,7 @@
 """
 import pathlib
 import re
+import shutil
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -42,6 +43,8 @@ def main():
         out = ROOT / "dist" / "apice-racing.html"
         out.parent.mkdir(exist_ok=True)
         out.write_text(doc, encoding="utf-8")
+        # modelo 3D e sons ficam ao lado do arquivo único
+        shutil.copytree(ROOT / "assets", ROOT / "dist" / "assets", dirs_exist_ok=True)
     print(f"{out} ({out.stat().st_size / 1024:.0f} KB)")
 
 

@@ -331,6 +331,104 @@
     return car;
   }
 
+  /* ---------- Modelo GLB (carro do jogador) ---------- */
+  const modelCache = new Map();
+  function loadModel(url) {
+    if (!url || !THREE.GLTFLoader) return Promise.resolve(null);
+    if (modelCache.has(url)) return modelCache.get(url).promise;
+    const entry = { obj: null };
+    entry.promise = new Promise((resolve) => {
+      new THREE.GLTFLoader().load(url, (gltf) => {
+        const model = gltf.scene;
+        // no arquivo a frente aponta para -X; no jogo a frente é +X
+        model.rotation.y = Math.PI;
+        model.updateMatrixWorld(true);
+        const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+        model.scale.setScalar(4.6 / Math.max(size.x, size.z));
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const c = box.getCenter(new THREE.Vector3());
+        model.position.set(-c.x, -box.min.y + 0.02, -c.z);
+        model.traverse((o) => {
+          if (!o.isMesh) return;
+          o.castShadow = true;
+          const m = o.material;
+          if (m && m.isMeshStandardMaterial) { m.roughness = 0.42; m.metalness = 0.22; m.envMapIntensity = 0.9; }
+        });
+        const wrap = new THREE.Group();
+        wrap.add(model);
+        entry.obj = wrap;
+        resolve(wrap);
+      }, undefined, (err) => {
+        console.warn('Modelo 3D não carregou:', err && err.message ? err.message : err);
+        resolve(null);
+      });
+    });
+    modelCache.set(url, entry);
+    return entry.promise;
+  }
+
+  function buildModelCar(obj, night) {
+    const sh = sharedGeo();
+    const car = new THREE.Group();
+    const blob = new THREE.Mesh(sh.blobGeo, sh.blobMat);
+    blob.position.y = 0.03;
+    car.add(blob);
+    car.add(obj.clone());
+    const tailMat = new THREE.MeshBasicMaterial({ color: 0xff2238, transparent: true, opacity: 0, toneMapped: false, depthWrite: false });
+    for (const z of [-0.62, 0.62]) {
+      const tl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.42), tailMat);
+      tl.position.set(-2.3, 0.66, z);
+      car.add(tl);
+    }
+    let beam = null;
+    if (night) {
+      beam = new THREE.Mesh(sh.beamGeo, new THREE.MeshBasicMaterial({ map: sh.beamTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6 }));
+      car.add(beam);
+    }
+    car.rotation.order = 'YXZ';
+    car.userData = { wheels: [], tailMat, beam, roll: 0, model: true };
+    return car;
+  }
+
+  // Foto do modelo para o card da garagem (renderiza fora da tela e devolve um canvas 2D)
+  const previewCache = new Map();
+  function modelPreview(url, w, h) {
+    const key = url + '@' + w + 'x' + h;
+    if (previewCache.has(key)) return previewCache.get(key);
+    const p = loadModel(url).then((obj) => {
+      if (!obj) return null;
+      const off = document.createElement('canvas');
+      off.width = w; off.height = h;
+      let gl;
+      try { gl = new THREE.WebGLRenderer({ canvas: off, antialias: true, alpha: true, preserveDrawingBuffer: true }); } catch (e) { return null; }
+      gl.outputEncoding = THREE.sRGBEncoding;
+      gl.toneMapping = THREE.ACESFilmicToneMapping;
+      gl.setSize(w, h, false);
+      const sc = new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xdfe6ff, 0x1a1d2b, 1.15));
+      const d = new THREE.DirectionalLight(0xffffff, 1.7);
+      d.position.set(4, 7, 5);
+      sc.add(d);
+      const rim = new THREE.DirectionalLight(0x45e0ff, 0.9);
+      rim.position.set(-6, 3, -4);
+      sc.add(rim);
+      sc.add(obj.clone());
+      const cam = new THREE.PerspectiveCamera(26, w / h, 0.1, 100);
+      cam.position.set(6.4, 3.4, 6.8);
+      cam.lookAt(0, 0.55, 0);
+      gl.render(sc, cam);
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      out.getContext('2d').drawImage(off, 0, 0);
+      gl.dispose();
+      if (gl.forceContextLoss) gl.forceContextLoss();
+      return out;
+    });
+    previewCache.set(key, p);
+    return p;
+  }
+
   /* ---------- Partículas (pontos com sprite) ---------- */
   function particleSystem(max, additive, tex) {
     const g = new THREE.BufferGeometry();
@@ -1042,10 +1140,22 @@
       this.carGroup = new THREE.Group();
       this.scene.add(this.carGroup);
       this.carMeshes = new Map();
+      const envI = this.night ? 1.3 : this.track.themeId === 'desert' ? 0.8 : 0.5;
       for (const c of race.cars) {
-        const m = buildCar(c.spec, c.paint, this.night, this.night ? 1.3 : this.track.themeId === 'desert' ? 0.8 : 0.5);
+        const cached = c.spec.model && modelCache.get(c.spec.model);
+        const m = cached && cached.obj ? buildModelCar(cached.obj, this.night) : buildCar(c.spec, c.paint, this.night, envI);
         this.carGroup.add(m);
         this.carMeshes.set(c, m);
+        if (c.spec.model && !(cached && cached.obj)) {
+          loadModel(c.spec.model).then((obj) => {
+            if (!obj || this.race !== race) return;
+            const old = this.carMeshes.get(c);
+            const nm = buildModelCar(obj, this.night);
+            this.carGroup.remove(old);
+            this.carGroup.add(nm);
+            this.carMeshes.set(c, nm);
+          });
+        }
       }
       this.skids.count = 0;
       this.skidSeen = 0;
@@ -1083,7 +1193,8 @@
           w.rim.rotation.z = w.spin.rotation.z;
         }
         const braking = c.brake > 0.1 && c.vf > 10;
-        ud.tailMat.emissiveIntensity = braking ? 3.2 : this.night ? 1.2 : 0.6;
+        if (ud.model) ud.tailMat.opacity = braking ? 0.95 : this.night ? 0.35 : 0;
+        else ud.tailMat.emissiveIntensity = braking ? 3.2 : this.night ? 1.2 : 0.6;
       }
 
       this.updateCamera(race, focus, dt, opts);
@@ -1238,5 +1349,7 @@
   }
 
   APX.Renderer3D = Renderer3D;
+  APX.loadCarModel = loadModel;
+  APX.carModelPreview = modelPreview;
   APX.webgl3D = webglOK();
 })(APX);

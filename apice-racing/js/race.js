@@ -54,13 +54,15 @@
           car = this.makeCar(opts.player.spec, opts.player.paint, opts.player.name || 'Você', true);
           this.player = car;
         } else {
-          const spec = APX.CARS[Math.floor(this.rng() * APX.CARS.length)];
+          const pool = APX.CARS.filter((c) => !c.model);
+          const spec = this.attract && opts.featured && s === 0 ? opts.featured : pool[Math.floor(this.rng() * pool.length)];
           const name = names.splice(Math.floor(this.rng() * names.length), 1)[0];
           const paint = paints[(s + Math.floor(this.rng() * 3)) % paints.length];
           car = this.makeCar(spec, paint, name, false);
         }
         this.placeOnGrid(car, s);
         this.cars.push(car);
+        if (this.attract && opts.featured && s === 0) this.featuredCar = car;
       }
       // câmera começa no foco
       const f = this.focusCar();
@@ -110,6 +112,7 @@
 
     focusCar() {
       if (this.player && !this.attract) return this.player;
+      if (this.featuredCar) return this.featuredCar;
       const st = this.standings();
       return st[0];
     }
