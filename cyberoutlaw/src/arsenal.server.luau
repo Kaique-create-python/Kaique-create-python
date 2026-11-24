@@ -123,33 +123,38 @@ local function newState()
 end
 
 -- Implants ---------------------------------------------------------------------------------------
--- Nomes dos implantes do Cyberpunk. slot: onde encaixa no corpo (o boneco do painel marca o lugar);
--- pronto: já funciona no jogo; os outros aparecem no terminal como "em breve". O Sandevistan é o implante
--- militar da coluna do anime: o tempo quase para em volta enquanto o dono deixa rastros coloridos.
+-- Nomes dos implantes do Cyberpunk. slot: onde encaixa no corpo (o boneco do terminal marca o lugar);
+-- stats: números que o terminal mostra e que as regras usam. O Sandevistan é o implante militar da coluna do
+-- anime: o tempo quase para em volta enquanto o dono deixa rastros coloridos.
 local IMPLANTS = {
 	{
 		id = "sandevistan", name = "Sandevistan Militar", sistema = "SISTEMA OPERACIONAL", slot = "coluna", pronto = true,
-		desc = "Implante militar na coluna. Ativado, o tempo quase para: você corre e atira 2x mais rápido e deixa rastros coloridos. Cada uso gasta estabilidade. A zero: ciberpsicose.",
+		desc = "Implante militar na coluna. Ativado, o tempo quase para e o mundo perde a cor: você corre e atira 2x mais rápido e deixa rastros coloridos. Cada uso gasta estabilidade. A zero: ciberpsicose por 30 s.",
 	},
 	{
-		id = "kiroshi", name = "Ópticos Kiroshi", sistema = "SISTEMA VISUAL", slot = "olhos", pronto = false,
-		desc = "Olhos com zoom óptico e marcação de alvos através da fumaça.",
+		id = "kiroshi", name = "Ópticos Kiroshi", sistema = "SISTEMA VISUAL", slot = "olhos", pronto = true,
+		desc = "Olhos de lente dupla: marcam inimigos a até 120 studs, mesmo atrás de paredes, e dão zoom forte ao mirar.",
+		stats = { alcance = 120 },
 	},
 	{
-		id = "louva", name = "Lâminas Louva-a-Deus", sistema = "SISTEMA DE BRAÇOS", slot = "bracos", pronto = false,
-		desc = "Lâminas que saem dos antebraços para golpes rápidos e saltos de ataque.",
+		id = "louva", name = "Lâminas Louva-a-Deus", sistema = "SISTEMA DE BRAÇOS", slot = "bracos", pronto = true,
+		desc = "Lâminas nos antebraços: o soco vira um corte de 40 de dano com mais alcance, e correndo você dá um salto de ataque.",
+		stats = { dano = 40, alcance = 9 },
 	},
 	{
-		id = "gorila", name = "Braços de Gorila", sistema = "SISTEMA DE BRAÇOS", slot = "bracos", pronto = false,
-		desc = "Punhos reforçados que arrombam portas e derrubam no soco.",
+		id = "gorila", name = "Braços de Gorila", sistema = "SISTEMA DE BRAÇOS", slot = "bracos", pronto = true,
+		desc = "Punhos hidráulicos: soco de 36 de dano que arremessa o alvo longe.",
+		stats = { dano = 36, empurrao = 70 },
 	},
 	{
-		id = "tendoes", name = "Tendões Reforçados", sistema = "SISTEMA ESQUELÉTICO", slot = "pernas", pronto = false,
-		desc = "Pernas sintéticas que deixam dar um segundo pulo no ar.",
+		id = "tendoes", name = "Tendões Reforçados", sistema = "SISTEMA ESQUELÉTICO", slot = "pernas", pronto = true,
+		desc = "Pernas sintéticas: pulo 40% mais alto e um segundo pulo no ar.",
+		stats = { pulo = 1.4 },
 	},
 	{
-		id = "subdermal", name = "Armadura Subdérmica", sistema = "SISTEMA TEGUMENTAR", slot = "pele", pronto = false,
-		desc = "Placas sob a pele que seguram parte do dano das balas.",
+		id = "subdermal", name = "Armadura Subdérmica", sistema = "SISTEMA TEGUMENTAR", slot = "pele", pronto = true,
+		desc = "Placas sob a pele: você recebe 30% menos dano de balas e golpes.",
+		stats = { reducao = 0.3 },
 	},
 }
 local IMPLANT_BY_ID = {}
@@ -161,7 +166,7 @@ end
 -- pontos de estabilidade (0 a 100); surto: duração da ciberpsicose; depois dela a estabilidade volta a
 -- aposSurto; regenera regen pontos/s depois de espera s sem usar. raio: quem estiver perto fica lento.
 local SANDEVISTAN = {
-	duracao = 4, recarga = 1.5, custo = 25, surto = 2, aposSurto = 40, espera = 8, regen = 2.5,
+	duracao = 4, recarga = 1.5, custo = 25, surto = 30, aposSurto = 40, espera = 8, regen = 2.5,
 	raio = 90, lento = 0.3, cadencia = 2, velocidade = 2.2, danoSurto = 14, alcanceSurto = 120,
 }
 
@@ -553,49 +558,120 @@ local function gripOffset(def, arm: BasePart): CFrame
 	return CFrame.fromMatrix(Vector3.new(0, -drop, -forward), Vector3.xAxis, Vector3.new(0, 0, -1), Vector3.yAxis)
 end
 
--- Sandevistan na coluna: placa base (PrimaryPart) nas costas do Torso, seis vértebras de metal que estreitam
--- para baixo, elos de luz entre elas (as "Luz" mudam de cor no cliente quando ativa), aletas de calor e o
--- núcleo na nuca. Espaço do modelo: origem nas costas, +Y para cima, +Z para fora das costas.
-local IMPLANT_SEAT = CFrame.new(0, 0.05, 0.53)
+-- Modelos dos implantes: cada implante é um Model com uma peça (Model) por parte do corpo, com o nome da
+-- parte ("Torso", "Head", "Right Arm"...). Cada peça tem a PrimaryPart "Base" e as outras soldadas nela; as
+-- posições estão no espaço da parte do corpo do R6 (Torso 2x2x1, frente em -Z; braços e pernas 1x2x1).
+-- As peças "Luz" são néon (no Sandevistan elas mudam de cor quando ativo).
+local IMPLANT_PARTS = {
+	sandevistan = { "Torso" }, kiroshi = { "Head" }, louva = { "Right Arm", "Left Arm" },
+	gorila = { "Right Arm", "Left Arm" }, tendoes = { "Right Leg", "Left Leg" }, subdermal = { "Torso" },
+}
+local IMPLANT_GLOW = {
+	sandevistan = rgb(90, 255, 220), kiroshi = rgb(255, 64, 96), louva = rgb(255, 72, 140),
+	gorila = rgb(255, 176, 60), tendoes = rgb(86, 220, 255), subdermal = rgb(120, 200, 255),
+}
 local function buildImplant(def)
 	local model = Instance.new("Model")
 	model.Name = def.id
-	local base
-	local function part(name: string, size: Vector3, pose: CFrame, color: Color3, material: Enum.Material, shape: Enum.PartType?)
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Shape = shape or Enum.PartType.Block
-		p.Size = size
-		p.CFrame = pose
-		p.Color = color
-		p.Material = material
-		p.Anchored = true
-		p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = false, false, false, true, false
-		p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-		p.Parent = model
-		if base then
-			local weld = Instance.new("WeldConstraint")
-			weld.Part0 = base
-			weld.Part1 = p
-			weld.Parent = p
+	local steel, chrome, dark, glow = rgb(46, 48, 56), rgb(188, 192, 202), rgb(24, 25, 30), IMPLANT_GLOW[def.id] or rgb(90, 255, 220)
+	for _, partName in IMPLANT_PARTS[def.id] or {} do
+		local piece = Instance.new("Model")
+		piece.Name = partName
+		piece.Parent = model
+		local base
+		local side = if partName == "Left Arm" or partName == "Left Leg" then -1 else 1
+		local function part(name: string, size: Vector3, pose: CFrame, color: Color3, material: Enum.Material, shape: Enum.PartType?)
+			local p = Instance.new("Part")
+			p.Name = name
+			p.Shape = shape or Enum.PartType.Block
+			p.Size = size
+			p.CFrame = pose
+			p.Color = color
+			p.Material = material
+			p.Anchored = true
+			p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = false, false, false, true, false
+			p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+			p.Parent = piece
+			if base then
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = base
+				weld.Part1 = p
+				weld.Parent = p
+			end
+			return p
 		end
-		return p
-	end
-	local steel, chrome, glow = rgb(30, 32, 38), rgb(176, 182, 194), rgb(90, 255, 220)
-	base = part("Base", Vector3.new(0.34, 1.9, 0.06), CFrame.new(), steel, Enum.Material.Metal)
-	model.PrimaryPart = base
-	for index = 0, 5 do
-		local y = 0.78 - index * 0.3
-		part("Vertebra", Vector3.new(0.62 - index * 0.05, 0.16, 0.16), CFrame.new(0, y, 0.08), chrome, Enum.Material.Metal)
-		if index < 5 then
-			part("Luz", Vector3.new(0.1, 0.12, 0.1), CFrame.new(0, y - 0.15, 0.1), glow, Enum.Material.Neon)
+		local function angles(x: number?, y: number?, z: number?)
+			return CFrame.Angles(math.rad(x or 0), math.rad(y or 0), math.rad(z or 0))
 		end
+		local M = Enum.Material
+		if def.id == "sandevistan" then
+			-- Coluna nas costas: placa, sete vértebras com aletas, elos de luz, dois cabos, núcleo na nuca e bateria.
+			base = part("Base", Vector3.new(0.42, 1.92, 0.07), CFrame.new(0, 0.02, 0.535), steel, M.Metal)
+			for index = 0, 6 do
+				local y = 0.84 - index * 0.27
+				local width = 0.72 - index * 0.05
+				part("Vertebra", Vector3.new(width, 0.13, 0.18), CFrame.new(0, y, 0.63), chrome, M.Metal)
+				for _, s in { -1, 1 } do
+					part("Aleta", Vector3.new(0.05, 0.11, 0.2), CFrame.new(s * (width / 2 + 0.03), y, 0.6) * angles(0, 0, s * 25), dark, M.Metal)
+				end
+				if index < 6 then
+					part("Luz", Vector3.new(0.12, 0.1, 0.1), CFrame.new(0, y - 0.135, 0.665), glow, M.Neon)
+				end
+			end
+			for _, s in { -1, 1 } do
+				part("Cabo", Vector3.new(1.7, 0.09, 0.09), CFrame.new(s * 0.17, 0.02, 0.6) * angles(0, 0, 90), dark, M.SmoothPlastic, Enum.PartType.Cylinder)
+			end
+			part("Luz", Vector3.new(0.16, 0.3, 0.3), CFrame.new(0, 0.99, 0.6) * angles(0, 90, 0), glow, M.Neon, Enum.PartType.Cylinder)
+			part("Anel", Vector3.new(0.1, 0.4, 0.4), CFrame.new(0, 0.99, 0.6) * angles(0, 90, 0), chrome, M.Metal, Enum.PartType.Cylinder)
+			part("Bateria", Vector3.new(0.52, 0.3, 0.17), CFrame.new(0, -0.86, 0.62), steel, M.Metal)
+			part("Luz", Vector3.new(0.4, 0.05, 0.03), CFrame.new(0, -0.86, 0.71), glow, M.Neon)
+		elseif def.id == "kiroshi" then
+			-- Lentes duplas no rosto e o módulo na têmpora.
+			base = part("Base", Vector3.new(0.14, 0.3, 0.36), CFrame.new(0.62, 0.06, -0.12), steel, M.Metal)
+			part("Luz", Vector3.new(0.02, 0.2, 0.04), CFrame.new(0.695, 0.06, -0.2), glow, M.Neon)
+			for _, x in { -0.22, 0.22 } do
+				part("Lente", Vector3.new(0.06, 0.3, 0.3), CFrame.new(x, 0.12, -0.6) * angles(0, 90, 0), chrome, M.Metal, Enum.PartType.Cylinder)
+				part("Luz", Vector3.new(0.04, 0.18, 0.18), CFrame.new(x, 0.12, -0.625) * angles(0, 90, 0), glow, M.Neon, Enum.PartType.Cylinder)
+			end
+			part("Ponte", Vector3.new(0.2, 0.05, 0.05), CFrame.new(0, 0.12, -0.6), dark, M.Metal)
+		elseif def.id == "louva" then
+			-- Carcaça no antebraço e a lâmina saindo pela mão, com fio de néon.
+			base = part("Base", Vector3.new(0.14, 0.95, 0.72), CFrame.new(side * 0.56, -0.45, 0), steel, M.Metal)
+			part("Dobradiça", Vector3.new(0.2, 0.26, 0.26), CFrame.new(side * 0.6, -0.06, -0.12) * angles(0, 0, 90), chrome, M.Metal, Enum.PartType.Cylinder)
+			local blade = CFrame.new(side * 0.6, -1.25, -0.3) * angles(-14, 0, side * -6)
+			part("Lâmina", Vector3.new(0.05, 2.1, 0.34), blade, chrome, M.Metal)
+			part("Luz", Vector3.new(0.03, 2.0, 0.05), blade * CFrame.new(0, 0, -0.19), glow, M.Neon)
+			part("Ponta", Vector3.new(0.05, 0.3, 0.22), blade * CFrame.new(0, -1.12, -0.05) * angles(25, 0, 0), chrome, M.Metal)
+		elseif def.id == "gorila" then
+			-- Mão blindada com placas nos nós dos dedos, pistões no antebraço e luz âmbar.
+			base = part("Base", Vector3.new(1.16, 0.62, 1.16), CFrame.new(0, -0.74, 0), steel, M.Metal)
+			for index = 0, 3 do
+				part("Placa", Vector3.new(0.24, 0.2, 0.18), CFrame.new(-0.36 + index * 0.24, -0.86, -0.6), chrome, M.Metal)
+			end
+			for _, z in { -0.28, 0.28 } do
+				part("Pistão", Vector3.new(0.9, 0.14, 0.14), CFrame.new(side * 0.6, -0.05, z) * angles(0, 0, 90), chrome, M.Metal, Enum.PartType.Cylinder)
+			end
+			part("Luz", Vector3.new(0.04, 0.4, 0.6), CFrame.new(side * 0.585, -0.74, 0), glow, M.Neon)
+			part("Punho", Vector3.new(1.12, 0.14, 1.12), CFrame.new(0, -0.38, 0), dark, M.Metal)
+		elseif def.id == "tendoes" then
+			-- Panturrilha com placa, dois pistões e luz; joelheira na frente.
+			base = part("Base", Vector3.new(0.8, 0.9, 0.12), CFrame.new(0, -0.45, 0.55), steel, M.Metal)
+			for _, x in { -0.22, 0.22 } do
+				part("Pistão", Vector3.new(0.85, 0.1, 0.1), CFrame.new(x, -0.42, 0.64) * angles(0, 0, 90), chrome, M.Metal, Enum.PartType.Cylinder)
+			end
+			part("Luz", Vector3.new(0.06, 0.7, 0.03), CFrame.new(0, -0.45, 0.62), glow, M.Neon)
+			part("Joelheira", Vector3.new(0.84, 0.32, 0.1), CFrame.new(0, -0.08, -0.55), steel, M.Metal)
+		elseif def.id == "subdermal" then
+			-- Placas em losango sob a pele do peito, com brilho fraco.
+			base = part("Base", Vector3.new(1.2, 1.1, 0.03), CFrame.new(0, 0.3, -0.515), dark, M.SmoothPlastic)
+			base.Transparency = 0.6
+			for _, spot in { { -0.32, 0.55 }, { 0.32, 0.55 }, { 0, 0.3 }, { -0.32, 0.05 }, { 0.32, 0.05 }, { 0, -0.2 } } do
+				local plate = part("Luz", Vector3.new(0.3, 0.3, 0.04), CFrame.new(spot[1], spot[2], -0.535) * angles(0, 0, 45), glow, M.Neon)
+				plate.Transparency = 0.45
+			end
+		end
+		piece.PrimaryPart = base
 	end
-	for _, side in { -1, 1 } do
-		part("Aleta", Vector3.new(0.06, 0.52, 0.2), CFrame.new(side * 0.33, 0.55, 0.05) * CFrame.Angles(0, 0, math.rad(side * 18)), steel, Enum.Material.Metal)
-		part("Aleta", Vector3.new(0.06, 0.38, 0.16), CFrame.new(side * 0.27, 0.12, 0.05) * CFrame.Angles(0, 0, math.rad(side * 12)), steel, Enum.Material.Metal)
-	end
-	part("Luz", Vector3.new(0.14, 0.24, 0.24), CFrame.new(0, 0.97, 0.06) * CFrame.Angles(0, 0, math.rad(90)), glow, Enum.Material.Neon, Enum.PartType.Cylinder)
 	return model
 end
 
@@ -692,6 +768,68 @@ local function main()
 		return nil, nil
 	end
 
+	-- Todo dano passa por aqui: a Armadura Subdérmica segura parte, e quem bateu fica marcado (os NPCs usam
+	-- isso para revidar).
+	local function hurt(victim: Humanoid, amount: number, attacker: Player?)
+		local model = victim.Parent
+		local owner = model and Players:GetPlayerFromCharacter(model)
+		local mind = owner and minds[owner]
+		if mind and mind.implants.subdermal then
+			amount *= 1 - (IMPLANT_BY_ID.subdermal.stats.reducao or 0.3)
+		end
+		if attacker then
+			victim:SetAttribute("CyberOutlawUltimoAtacante", attacker.UserId)
+			if model and not owner then
+				model:SetAttribute("CyberOutlawAgressor", attacker.UserId)
+			end
+		end
+		victim:TakeDamage(amount)
+	end
+
+	-- Alvos vivos: personagens dos jogadores e os NPCs da cidade (pasta CyberOutlawNPCs no Workspace).
+	local function eachTarget(callback: (Model, Humanoid, BasePart, Player?) -> ())
+		for _, other in Players:GetPlayers() do
+			local model = other.Character
+			local victim = model and model:FindFirstChildOfClass("Humanoid")
+			local rootPart = model and model:FindFirstChild("HumanoidRootPart")
+			if model and victim and rootPart and rootPart:IsA("BasePart") and victim.Health > 0 then
+				callback(model, victim, rootPart, other)
+			end
+		end
+		local npcs = workspace:FindFirstChild("CyberOutlawNPCs")
+		if npcs then
+			for _, model in npcs:GetChildren() do
+				local victim = model:FindFirstChildOfClass("Humanoid")
+				local rootPart = model:FindFirstChild("HumanoidRootPart")
+				if model:IsA("Model") and victim and rootPart and rootPart:IsA("BasePart") and victim.Health > 0 then
+					callback(model, victim, rootPart, nil)
+				end
+			end
+		end
+	end
+
+	-- Braços de Gorila: o alvo voa para trás (uma força curta que o dono do corpo simula).
+	local function knockback(victim: Humanoid, direction: Vector3, force: number)
+		local rootPart = victim.Parent and victim.Parent:FindFirstChild("HumanoidRootPart")
+		if not rootPart or not rootPart:IsA("BasePart") then
+			return
+		end
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "CyberOutlawEmpurrao"
+		attachment.Parent = rootPart
+		local push = Instance.new("LinearVelocity")
+		push.Name = "CyberOutlawEmpurrao"
+		push.Attachment0 = attachment
+		push.MaxForce = 1e6
+		push.RelativeTo = Enum.ActuatorRelativeTo.World
+		push.VectorVelocity = Vector3.new(direction.X, 0, direction.Z).Unit * force + Vector3.new(0, force * 0.4, 0)
+		push.Parent = rootPart
+		task.delay(0.16, function()
+			push:Destroy()
+			attachment:Destroy()
+		end)
+	end
+
 	local function equip(player: Player, state, id: string)
 		local def = BY_ID[id]
 		local character = player.Character
@@ -779,8 +917,7 @@ local function main()
 			table.insert(hits, { point, if result then result.Normal else -direction, target })
 		end
 		for victim, amount in damaged do
-			victim:SetAttribute("CyberOutlawUltimoAtacante", player.UserId)
-			victim:TakeDamage(amount)
+			hurt(victim, amount, player)
 		end
 		publishAmmo(player, state)
 		effect:FireAllClients("tiro", player, def.id, from, hits)
@@ -801,31 +938,39 @@ local function main()
 		local mind = minds[player]
 		local boost = if mind and time < mind.activeUntil then SANDEVISTAN.cadencia else 1
 		state.nextMelee = time + 1 / (def.rate * boost)
+		-- Implantes de braço trocam o soco: lâminas cortam mais longe; gorila bate forte e empurra.
+		local damage, range, kind = def.damage, def.range, def.id
+		if def.id == "punhos" and mind then
+			if mind.implants.louva then
+				damage, range, kind = IMPLANT_BY_ID.louva.stats.dano, IMPLANT_BY_ID.louva.stats.alcance, "louva"
+			elseif mind.implants.gorila then
+				damage, kind = IMPLANT_BY_ID.gorila.stats.dano, "gorila"
+			end
+		end
 		local hitAt
 		if not inSafeZone(root.Position) then
 			local best, bestDistance
-			for _, other in Players:GetPlayers() do
-				local target = other.Character
-				local otherRoot = target and target:FindFirstChild("HumanoidRootPart")
-				local victim = target and target:FindFirstChildOfClass("Humanoid")
-				if other ~= player and otherRoot and victim and victim.Health > 0 and not inSafeZone(otherRoot.Position) then
+			eachTarget(function(target, victim, otherRoot)
+				if target ~= character and not inSafeZone(otherRoot.Position) then
 					local offset = otherRoot.Position - root.Position
 					local distance = offset.Magnitude
-					if distance <= def.range and distance > 0 and root.CFrame.LookVector:Dot(offset.Unit) > 0.35 then
+					if distance <= range and distance > 0 and root.CFrame.LookVector:Dot(offset.Unit) > 0.35 then
 						if not bestDistance or distance < bestDistance then
 							best, bestDistance = victim, distance
 						end
 					end
 				end
-			end
+			end)
 			if best then
-				best:SetAttribute("CyberOutlawUltimoAtacante", player.UserId)
-				best:TakeDamage(def.damage)
+				hurt(best, damage, player)
+				if kind == "gorila" then
+					knockback(best, root.CFrame.LookVector, IMPLANT_BY_ID.gorila.stats.empurrao)
+				end
 				local targetRoot = best.Parent and best.Parent:FindFirstChild("HumanoidRootPart")
 				hitAt = if targetRoot then targetRoot.Position else nil
 			end
 		end
-		effect:FireAllClients("golpe", player, def.id, if side == -1 then -1 else 1, hitAt)
+		effect:FireAllClients("golpe", player, kind, if side == -1 then -1 else 1, hitAt)
 	end
 
 	local function reload(player: Player, state)
@@ -897,12 +1042,21 @@ local function main()
 						item.Anchored = false
 					end
 				end
-				local weld = Instance.new("Weld")
-				weld.Name = "Encaixe"
-				weld.Part0 = torso
-				weld.Part1 = model.PrimaryPart
-				weld.C0 = IMPLANT_SEAT
-				weld.Parent = model.PrimaryPart
+				-- Cada peça vai soldada na sua parte do corpo, na posição que tem no espaço dessa parte.
+				for _, piece in model:GetChildren() do
+					local bodyPart = character:FindFirstChild(piece.Name)
+					local pieceBase = piece:IsA("Model") and piece.PrimaryPart
+					if bodyPart and bodyPart:IsA("BasePart") and pieceBase then
+						local weld = Instance.new("Weld")
+						weld.Name = "Encaixe"
+						weld.Part0 = bodyPart
+						weld.Part1 = pieceBase
+						weld.C0 = pieceBase.CFrame
+						weld.Parent = pieceBase
+					else
+						piece:Destroy()
+					end
+				end
 				model.Parent = character
 			end
 		end
@@ -945,12 +1099,9 @@ local function main()
 		local from = if attachment then attachment.WorldPosition else head.Position
 		params.FilterDescendantsInstances = { character }
 		local best, bestDistance, bestHead
-		for _, other in Players:GetPlayers() do
-			local target = other.Character
-			local otherHead = target and target:FindFirstChild("Head")
-			local otherRoot = target and target:FindFirstChild("HumanoidRootPart")
-			local victim = target and target:FindFirstChildOfClass("Humanoid")
-			if other ~= player and otherHead and otherRoot and victim and victim.Health > 0 and not inSafeZone(otherRoot.Position) then
+		eachTarget(function(target, victim, otherRoot)
+			local otherHead = target:FindFirstChild("Head")
+			if target ~= character and otherHead and otherHead:IsA("BasePart") and not inSafeZone(otherRoot.Position) then
 				local distance = (otherHead.Position - from).Magnitude
 				if distance < SANDEVISTAN.alcanceSurto and (not bestDistance or distance < bestDistance) then
 					local sight = workspace:Raycast(from, otherHead.Position - from, params)
@@ -959,7 +1110,7 @@ local function main()
 					end
 				end
 			end
-		end
+		end)
 		local direction
 		if best and bestHead then
 			local jitter = Vector3.new(frenzyRandom:NextNumber(-0.5, 0.5), frenzyRandom:NextNumber(-0.6, 0.4), frenzyRandom:NextNumber(-0.5, 0.5))
@@ -977,8 +1128,7 @@ local function main()
 			local model, victim = characterOf(result.Instance)
 			local victimRoot = model and model:FindFirstChild("HumanoidRootPart")
 			if victim and model ~= character and victim.Health > 0 and not (victimRoot and inSafeZone(victimRoot.Position)) then
-				victim:SetAttribute("CyberOutlawUltimoAtacante", player.UserId)
-				victim:TakeDamage(SANDEVISTAN.danoSurto)
+				hurt(victim, SANDEVISTAN.danoSurto, player)
 				hit = true
 			end
 		end
@@ -1142,7 +1292,7 @@ return {
 	WEAPONS = WEAPONS,
 	IMPLANTS = IMPLANTS,
 	SANDEVISTAN = SANDEVISTAN,
-	IMPLANT_SEAT = IMPLANT_SEAT,
+	IMPLANT_PARTS = IMPLANT_PARTS,
 	buildImplant = buildImplant,
 	newMind = newMind,
 	useSandevistan = useSandevistan,

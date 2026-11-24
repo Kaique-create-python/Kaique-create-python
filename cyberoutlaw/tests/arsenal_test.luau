@@ -125,39 +125,66 @@ for _, def in arsenal.IMPLANTS do
 end
 assert(implantIds.sandevistan.pronto and implantIds.sandevistan.slot == "coluna", "the Sandevistan sits on the spine")
 for id, def in implantIds do
-	assert(def.pronto == (id == "sandevistan"), "only the Sandevistan works for now")
+	assert(def.pronto, id .. " works")
 end
--- Modelo da coluna: base como PrimaryPart, tudo soldado nela, luzes de neon (as que mudam de cor), leve.
-do
-	local model = arsenal.buildImplant(implantIds.sandevistan)
-	local base = model.PrimaryPart
-	assert(base and base.Name == "Base")
-	local parts, welds, lights = 0, 0, 0
-	for _, item in model:GetDescendants() do
-		if item:IsA("BasePart") then
-			parts += 1
-			assert(not item.CanCollide and not item.CanQuery and not item.CanTouch and item.Massless)
-			if item.Name == "Luz" then
-				lights += 1
-				assert(item.Material == roblox.Enum.Material.Neon)
+assert(implantIds.subdermal.stats.reducao > 0 and implantIds.louva.stats.dano > 30 and implantIds.gorila.stats.empurrao > 0)
+-- Modelos: uma peça por parte do corpo, base como PrimaryPart, tudo soldado nela, dentro do lugar certo.
+local BODY = { Torso = V3.new(1, 1, 0.5), Head = V3.new(1, 0.6, 0.6), ["Right Arm"] = V3.new(0.5, 1, 0.5),
+	["Left Arm"] = V3.new(0.5, 1, 0.5), ["Right Leg"] = V3.new(0.5, 1, 0.5), ["Left Leg"] = V3.new(0.5, 1, 0.5) }
+for id, def in implantIds do
+	local model = arsenal.buildImplant(def)
+	local pieces = model:GetChildren()
+	assert(#pieces == #arsenal.IMPLANT_PARTS[id], id .. " has one piece per body part")
+	local lights = 0
+	for _, piece in pieces do
+		assert(BODY[piece.Name], id .. ": piece on a real R6 part")
+		local base = piece.PrimaryPart
+		assert(base and base.Name == "Base", id .. " without base")
+		local parts, welds = 0, 0
+		for _, item in piece:GetDescendants() do
+			if item:IsA("BasePart") then
+				parts += 1
+				assert(not item.CanCollide and not item.CanQuery and not item.CanTouch and item.Massless)
+				if item.Name == "Luz" then
+					lights += 1
+					assert(item.Material == roblox.Enum.Material.Neon)
+				end
+				-- Encostado na parte do corpo: o centro de cada peça fica até 1,5 stud da superfície dela.
+				local p = item.CFrame.Position
+				local half = BODY[piece.Name]
+				local outside = V3.new(math.max(0, math.abs(p.X) - half.X), math.max(0, math.abs(p.Y) - half.Y), math.max(0, math.abs(p.Z) - half.Z))
+				assert(outside.Magnitude < 1.5, id .. ": " .. item.Name .. " too far from " .. piece.Name)
+			elseif item:IsA("WeldConstraint") then
+				welds += 1
+				assert(item.Part0 == base)
 			end
-			-- Fica nas costas: nada atravessa o Torso (frente em z = -1 no espaço do Torso).
-			local torsoSpace = arsenal.IMPLANT_SEAT * item.CFrame
-			assert(torsoSpace.Position.Z > 0.45, item.Name .. " stays on the back")
-			assert(math.abs(torsoSpace.Position.Y) < 1.1, item.Name .. " stays along the spine")
-		elseif item:IsA("WeldConstraint") then
-			welds += 1
-			assert(item.Part0 == base)
+		end
+		assert(welds == parts - 1 and parts <= 40, id .. ": every piece welded to its base")
+	end
+	assert(lights >= 1, id .. " has a light")
+end
+do
+	-- A coluna fica nas costas; as lentes na frente do rosto.
+	for _, item in arsenal.buildImplant(implantIds.sandevistan).Torso:GetDescendants() do
+		if item:IsA("BasePart") then
+			assert(item.CFrame.Position.Z > 0.45, item.Name .. " stays on the back")
 		end
 	end
-	assert(welds == parts - 1 and lights >= 5 and parts <= 24)
+	local lens = 0
+	for _, item in arsenal.buildImplant(implantIds.kiroshi).Head:GetDescendants() do
+		if item.Name == "Lente" then
+			lens += 1
+			assert(item.CFrame.Position.Z < -0.5, "lenses in front of the face")
+		end
+	end
+	assert(lens == 2)
 end
 -- Regras do Sandevistan: usa quantas vezes quiser, cada uso gasta estabilidade; a zero, surto de 2 s.
 do
 	local rules = arsenal.SANDEVISTAN
 	local mind = arsenal.newMind()
 	assert(select(2, arsenal.useSandevistan(mind, 0)) == "sem implante")
-	assert(select(2, arsenal.setImplant(mind, "kiroshi", true, 0)) == "em breve", "unfinished implants stay locked")
+	assert(select(2, arsenal.setImplant(mind, "nao-existe", true, 0)) == "implante", "unknown implants are refused")
 	assert(arsenal.setImplant(mind, "sandevistan", true, 0) == true and mind.implants.sandevistan)
 	local t = 10
 	assert(arsenal.useSandevistan(mind, t) == true and mind.psy == 100 - rules.custo)
@@ -172,7 +199,7 @@ do
 		uses += 1
 	end
 	assert(uses == math.ceil(100 / rules.custo) and mind.psy == 0, "the bar empties after a few uses")
-	assert(mind.frenzyUntil == t + rules.surto, "zero stability starts a 2 s cyberpsychosis")
+	assert(rules.surto == 30 and mind.frenzyUntil == t + rules.surto, "zero stability starts a 30 s cyberpsychosis")
 	assert(select(2, arsenal.useSandevistan(mind, t + 1)) == "surto")
 	assert(not arsenal.regenMind(mind, t + 1, 0.5), "no recovery during the episode")
 	assert(arsenal.regenMind(mind, t + rules.surto, 0.5) and mind.frenzyUntil == 0 and mind.psy == rules.aposSurto)
@@ -187,10 +214,9 @@ do
 	assert(mind.psy == 100)
 	-- Um implante por lugar do corpo: o novo tira o antigo.
 	local arms = arsenal.newMind()
-	arms.implants.louva = true
-	implantIds.gorila.pronto = true
-	assert(arsenal.setImplant(arms, "gorila", true, 0) and arms.implants.gorila and not arms.implants.louva)
-	implantIds.gorila.pronto = false
+	assert(arsenal.setImplant(arms, "louva", true, 0) and arms.implants.louva)
+	assert(arsenal.setImplant(arms, "gorila", true, 0) and arms.implants.gorila and not arms.implants.louva, "one arm implant at a time")
+	assert(arsenal.setImplant(arms, "tendoes", true, 0) and arms.implants.tendoes and arms.implants.gorila, "other body parts stay")
 	assert(arsenal.setImplant(arms, "gorila", false, 0) and not arms.implants.gorila)
 end
 print("CyberOutlawArsenal: 9 real weapons, welded models without neon, grip, safe zone, damage, validation, implants and the Sandevistan rules passed")

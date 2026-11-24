@@ -117,52 +117,124 @@ def equip():
     return click(n, 0.0, 1900, 51) + chirp
 
 
+def reverb(signal, seed, seconds=2.2, decay=2.6, amount=0.45, cutoff=5000):
+    """Reverb longo: convolução com ruído filtrado que decai (sala grande/metálica)."""
+    length = int(RATE * seconds)
+    t = np.arange(length) / RATE
+    impulse = biquad(noise(length, seed), "low", cutoff) * np.exp(-t * decay)
+    wet = np.convolve(signal, impulse)[: len(signal)]
+    wet /= max(1e-9, np.abs(wet).max())
+    return signal + wet * amount * np.abs(signal).max()
+
+
+def glide(f0, f1, seconds, t):
+    """Frequência que desliza de f0 a f1 (exponencial) em `seconds`, e a fase acumulada."""
+    k = np.clip(t / seconds, 0, 1)
+    freq = f0 * (f1 / f0) ** k
+    return 2 * np.pi * np.cumsum(freq) / RATE
+
+
 def sandevistan():
-    """Ativação do Sandevistan: sopro que sobe, estrondo grave que cai, zumbido de tempo esticado,
-    coração batendo devagar e um brilho de vidro (os rastros coloridos)."""
-    n = int(RATE * 3.2)
+    """Ativação do Sandevistan, sem onda quadrada: sopro ao contrário que suga o ar, estrondo subgrave que
+    mergulha de 95 Hz a 26 Hz (com harmônicos para o celular tocar), anel metálico de tempo congelado,
+    zumbido grave que desacelera, coração lento e reverb longo."""
+    n = int(RATE * 3.8)
     t = np.arange(n) / RATE
-    rise = np.clip(t / 0.35, 0, 1)
-    sweep = np.zeros(n)
-    hiss = noise(n, 61)
-    for lo, hi, start in ((300, 900, 0.0), (900, 2600, 0.12), (2600, 5200, 0.24)):
-        band = biquad(hiss, "band", (lo + hi) / 2, 1.4)
-        sweep += band * np.exp(-((t - start - 0.08) ** 2) / 0.006)
-    sweep *= rise * 0.55
-    boom_t = np.clip(t - 0.33, 0, None)
-    pitch = 40 + 80 * np.exp(-boom_t * 5)
-    boom = np.sin(2 * np.pi * np.cumsum(pitch) / RATE) * (t >= 0.33) * env(boom_t, 0.004, 2.6) * 0.9
-    drone_t = np.clip(t - 0.3, 0, None)
-    saw = ((82 * drone_t) % 1 - 0.5) + ((83.1 * drone_t) % 1 - 0.5)
-    drone = biquad(saw, "low", 520) * (t >= 0.3) * np.minimum(1, drone_t / 0.4) * np.exp(-drone_t * 0.7) * 0.5
+    hit = 0.32
+    pre = np.clip(t / hit, 0, 1) ** 3 * (t < hit + 0.02)
+    swell = np.zeros(n)
+    hiss = noise(n, 91)
+    for cutoff, weight in ((500, 0.5), (1600, 0.35), (4800, 0.25)):
+        swell += biquad(hiss, "low", cutoff) * weight
+    swell *= pre * 0.7
+    suck = np.sin(glide(140, 900, hit, t)) * pre * 0.25
+    after = np.clip(t - hit, 0, None)
+    on = t >= hit
+    boom = np.sin(glide(95, 26, 1.4, after)) * on * env(after, 0.005, 1.15)
+    boom = np.tanh(boom * 2.2) * 0.9
+    thud = biquad(noise(n, 92), "low", 220) * on * env(after, 0.002, 9) * 1.4
+    ring = np.zeros(n)
+    for freq, gain, dec in ((523.0, 0.16, 1.1), (1307.0, 0.09, 1.5), (2131.0, 0.05, 1.9)):
+        bend = 1 - 0.3 * np.clip(after / 3.0, 0, 1)
+        ring += np.sin(2 * np.pi * np.cumsum(freq * bend) / RATE) * on * env(after, 0.004, dec) * gain
+    drone = np.zeros(n)
+    slow = 1 - 0.2 * np.clip(after / 3.2, 0, 1)
+    for freq, gain in ((55.0, 0.5), (82.4, 0.32), (110.2, 0.24), (164.8, 0.12)):
+        drone += np.sin(2 * np.pi * np.cumsum(freq * slow) / RATE) * gain
+    drone = biquad(drone, "low", 420) * on * np.minimum(1, after / 0.5) * np.exp(-after * 0.55)
+    drone *= 0.75 + 0.25 * np.sin(2 * np.pi * 0.7 * after)
     heart = np.zeros(n)
-    for beat in (0.95, 1.85, 2.75):
-        for offset, gain in ((0.0, 1.0), (0.17, 0.7)):
+    for beat in (1.15, 2.05, 2.95):
+        for offset, gain in ((0.0, 1.0), (0.16, 0.7)):
             bt = np.clip(t - beat - offset, 0, None)
-            heart += np.sin(2 * np.pi * 48 * bt) * (t >= beat + offset) * env(bt, 0.005, 16) * gain
-    glass_t = np.clip(t - 0.36, 0, None)
-    vibrato = 1 + 0.004 * np.sin(2 * np.pi * 5 * glass_t)
-    glass = (np.sin(2 * np.pi * 1760 * vibrato * glass_t) + 0.6 * np.sin(2 * np.pi * 2637 * vibrato * glass_t))
-    glass *= (t >= 0.36) * env(glass_t, 0.02, 1.4) * 0.07
-    return tail(sweep + boom + drone + heart * 0.8 + glass, 62, decay=4.0, amount=0.35)
+            heart += np.tanh(np.sin(2 * np.pi * 48 * bt) * 1.6) * (t >= beat + offset) * env(bt, 0.004, 15) * gain
+    shimmer = np.zeros(n)
+    for detune in (0.997, 1.0, 1.004):
+        vib = 1 + 0.003 * np.sin(2 * np.pi * 5.2 * after)
+        shimmer += np.sin(2 * np.pi * np.cumsum(1760 * detune * vib * slow) / RATE)
+    shimmer *= on * env(after, 0.08, 1.0) * 0.025
+    mix = swell + suck + boom + thud + ring + drone * 0.9 + heart * 0.7 + shimmer
+    return reverb(mix, 93, seconds=2.4, decay=2.2, amount=0.5)
 
 
 def frenzy():
-    """Ciberpsicose: falha digital rasgada, grito sintético distorcido e um baque grave."""
-    n = int(RATE * 1.6)
+    """Ciberpsicose: coração disparando com distorção, grito sintético (harmônicos com formantes, saturado),
+    estalos elétricos e um mergulho subgrave. Tudo com ondas suaves, sem som de 8 bits."""
+    n = int(RATE * 3.0)
     t = np.arange(n) / RATE
-    rng = np.random.default_rng(71)
-    steps = np.repeat(rng.uniform(140, 900, int(np.ceil(n / 1100))), 1100)[:n]
-    square = np.sign(np.sin(2 * np.pi * np.cumsum(steps) / RATE)) * 0.35
-    gate = np.repeat(rng.uniform(0, 1, int(np.ceil(n / 900))) > 0.35, 900)[:n]
-    crushed = np.round(square * gate * 6) / 6
-    sweep = 220 + 440 * np.clip(t / 0.9, 0, 1)
-    saw = ((np.cumsum(sweep) / RATE) % 1 - 0.5) * 2
-    formant = biquad(saw, "band", 1100, 2.5) * 2.2 + biquad(saw, "band", 2400, 3.0) * 1.4
-    scream = np.tanh(formant * 3) * env(t, 0.05, 1.4) * 0.45
-    hit = np.sin(2 * np.pi * (36 + 60 * np.exp(-t * 7)) * t) * env(t, 0.003, 3.5) * 0.8
-    bursts = biquad(noise(n, 72), "high", 2500) * gate * env(t, 0.001, 2.2) * 0.25
-    return tail(crushed * env(t, 0.002, 1.1) + scream + hit + bursts, 73, decay=6.0, amount=0.3)
+    rng = np.random.default_rng(101)
+    heart = np.zeros(n)
+    beat = 0.05
+    gap = 0.62
+    while beat < 2.6:
+        for offset, gain in ((0.0, 1.0), (0.13, 0.75)):
+            bt = np.clip(t - beat - offset, 0, None)
+            heart += np.tanh(np.sin(2 * np.pi * 52 * bt) * 2.5) * (t >= beat + offset) * env(bt, 0.003, 14) * gain
+        beat += gap
+        gap = max(0.28, gap * 0.8)
+    f0 = 180 + 260 * np.clip(t / 1.6, 0, 1)
+    phase = 2 * np.pi * np.cumsum(f0) / RATE
+    voice = sum(np.sin(phase * k) / k for k in range(1, 14))
+    formant = biquad(voice, "band", 900, 3.0) * 2.5 + biquad(voice, "band", 2600, 4.0) * 1.6
+    scream = np.tanh(formant * 2.8) * env(t, 0.12, 0.9) * 0.4
+    crackle = np.zeros(n)
+    for start in rng.uniform(0.0, 2.6, 26):
+        bt = np.clip(t - start, 0, None)
+        crackle += (t >= start) * env(bt, 0.0005, 70) * rng.uniform(0.3, 1.0)
+    crackle = biquad(noise(n, 102) * crackle, "high", 2200) * 0.5
+    drop = np.tanh(np.sin(glide(70, 28, 1.8, t)) * 2) * env(t, 0.01, 1.2) * 0.8
+    return reverb(heart * 0.9 + scream + crackle + drop, 103, seconds=1.6, decay=3.5, amount=0.35)
+
+
+def double_jump():
+    """Segundo pulo dos Tendões: sopro que sobe, servo e um baque leve."""
+    n = int(RATE * 0.5)
+    t = np.arange(n) / RATE
+    whoosh = biquad(noise(n, 111), "band", 1400, 0.9) * np.sin(np.pi * np.clip(t / 0.35, 0, 1)) * 0.5
+    servo = np.sin(glide(320, 980, 0.18, t)) * env(t, 0.005, 9) * 0.25
+    thump = np.tanh(np.sin(2 * np.pi * 70 * t) * 2) * env(t, 0.002, 18) * 0.7
+    return whoosh + servo + thump
+
+
+def gorilla_punch():
+    """Soco dos Braços de Gorila: impacto grave, estalo e o tinido metálico dos punhos."""
+    n = int(RATE * 0.6)
+    t = np.arange(n) / RATE
+    boom = np.tanh(np.sin(glide(110, 40, 0.3, t)) * 2.4) * env(t, 0.002, 7) * 0.9
+    crack = biquad(noise(n, 121), "high", 1800) * env(t, 0.0005, 45) * 0.6
+    clank = sum(np.sin(2 * np.pi * f * t) * g for f, g in ((610, 0.12), (1590, 0.07), (2770, 0.04))) * env(t, 0.001, 12)
+    return reverb(boom + crack + clank, 122, seconds=0.6, decay=8, amount=0.25)
+
+
+def kiroshi_scan():
+    """Varredura dos Ópticos Kiroshi: dois bipes suaves e uma subida de vidro."""
+    n = int(RATE * 0.6)
+    t = np.arange(n) / RATE
+    beeps = sum(np.sin(2 * np.pi * 1320 * np.clip(t - s, 0, None)) * (t >= s) * env(np.clip(t - s, 0, None), 0.003, 30)
+                for s in (0.0, 0.09)) * 0.25
+    sweep = sum(np.sin(glide(1100 * d, 2600 * d, 0.45, np.clip(t - 0.15, 0, None))) for d in (0.996, 1.0, 1.005))
+    sweep *= (t >= 0.15) * env(np.clip(t - 0.15, 0, None), 0.02, 5) * 0.06
+    return reverb(beeps + sweep, 131, seconds=0.5, decay=9, amount=0.3)
 
 
 def implant_lock():
@@ -196,6 +268,9 @@ SOUNDS = {
     "habilidade_lenta": sandevistan,
     "surto": frenzy,
     "implante_encaixe": implant_lock,
+    "pulo_duplo": double_jump,
+    "soco_gorila": gorilla_punch,
+    "kiroshi_scan": kiroshi_scan,
 }
 
 

@@ -611,7 +611,7 @@ do
 	assert(behind < 0, "points behind the camera are flagged")
 	assert(play.abilitySpeed(true, true, false, { velocidade = 2.2, lento = 0.3 }) == 2.2, "two Sandevistans see each other at full speed")
 	assert(play.abilitySpeed(false, true, false, { velocidade = 2.2, lento = 0.3 }) == 0.3)
-	assert(play.abilitySpeed(true, false, true, nil) < 1, "the episode staggers")
+	assert(play.abilitySpeed(true, false, true, nil) > 1, "in the episode the body runs on its own")
 	local mannequin, torso = play.buildMannequin()
 	assert(mannequin.PrimaryPart == torso and mannequin:FindFirstChild("Head") and mannequin:FindFirstChild("Left Leg"))
 	-- Terminal com os implantes publicados pelo servidor (com os números do Sandevistan).
@@ -624,7 +624,9 @@ do
 		table.insert(implants, copy)
 	end
 	local models = roblox.Instance.new("Folder")
-	arsenal.buildImplant(implants[1]).Parent = models
+	for _, def in implants do
+		arsenal.buildImplant(def).Parent = models
+	end
 	for _, atlas in { nil, "rbxassetid://123" } do
 		local panel = play.buildImplantPanel(implants, atlas, models)
 		assert(panel.part:IsA("Part") and panel.gui.AlwaysOnTop and panel.gui.LightInfluence == 0)
@@ -640,12 +642,24 @@ do
 			keys[hit.key] = true
 		end
 		assert(keys.fechar and keys.acao and keys.boneco and keys["linha:sandevistan"] and keys["linha:subdermal"])
-		-- Escolher e encaixar: só o Sandevistan encaixa; os outros ficam "em breve".
+		-- Escolher e encaixar: todos os implantes funcionam; cada um mostra a sua ficha.
 		panel.select("sandevistan")
 		assert(panel.actionFor("sandevistan") == "encaixar" and panel.actionText.Text == "ENCAIXAR")
 		assert(panel.title.Text == "SANDEVISTAN MILITAR" and panel.desc.Text:find("coluna"))
+		for _, def in implants do
+			local facts = play.implantFacts(def)
+			assert(#facts == 3, def.id .. " has a 3-line sheet")
+			for _, fact in facts do
+				assert(type(fact[1]) == "string" and fact[1] ~= "" and type(fact[2]) == "string" and fact[2] ~= "")
+			end
+		end
 		panel.select("kiroshi")
-		assert(panel.actionFor("kiroshi") == nil and panel.actionText.Text == "EM BREVE")
+		assert(panel.actionFor("kiroshi") == "encaixar" and panel.actionText.Text == "ENCAIXAR")
+		-- Braços de Gorila: uma peça em cada braço do boneco.
+		panel.setState({ gorila = true }, 100, false)
+		local gorilla = panel.doll:FindFirstChild("Implante_gorila")
+		assert(gorilla and gorilla:FindFirstChild("Right Arm") and gorilla:FindFirstChild("Left Arm"), "gorilla arms on both arms")
+		panel.setState({}, 100, false)
 		panel.select("sandevistan")
 		panel.setState({ sandevistan = true }, 75, false)
 		assert(panel.actionFor("sandevistan") == "tirar" and panel.actionText.Text == "DESENCAIXAR")
@@ -661,7 +675,7 @@ do
 		assert(not panel.markers.coluna.tag.Visible and panel.markers.olhos.tag.Visible, "front view hides the spine marker")
 		panel.rotate(math.pi)
 		assert(panel.markers.coluna.tag.Visible and not panel.markers.olhos.tag.Visible, "back view shows the spine marker")
-		local spine = panel.doll:FindFirstChild("Implante_sandevistan").PrimaryPart
+		local spine = panel.doll:FindFirstChild("Implante_sandevistan").Torso.PrimaryPart
 		assert(spine.CFrame.Position.Z < 0, "the spine turns with the doll")
 		local before = panel.markers.coluna.mark.Position
 		panel.step(0.5, false)

@@ -281,20 +281,38 @@
     "sha256": "ff891ae04a902a9f9f4db741e6921597d6d54801b521f6827f61eb2133279663"
   },
   "habilidade_lenta": {
-    "durationSeconds": 3.2,
-    "sha256": "e88b855658b130eaceb313ffa297eed13c567f54b5381efc3bafc7737b70376b",
+    "durationSeconds": 3.8,
+    "sha256": "8a3b13e681a02077d2a62cb71d0a07f4216498282b0b98c24fdf9ee9cc588fc0",
     "provider": "Síntese própria",
     "source": "tools/synth_weapon_fx.py"
   },
   "surto": {
-    "durationSeconds": 1.6,
-    "sha256": "c6322cbe3061788b95968faa172f2399c1c1186e4172941f0fe1775f7d87a632",
+    "durationSeconds": 3.0,
+    "sha256": "b9e50c8c5355ef362b2e8d75dca95e270dcc433f605a9bd4f6cf303e60875c1d",
     "provider": "Síntese própria",
     "source": "tools/synth_weapon_fx.py"
   },
   "implante_encaixe": {
     "durationSeconds": 0.55,
     "sha256": "cb97e99ea93d90fb686d0b06415df8ae32f32604d58a89c14084a627b4214953",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "pulo_duplo": {
+    "durationSeconds": 0.5,
+    "sha256": "84a755941301d61313813c413f5e0e83820ff2767cc7612f766e48f9456f7dab",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "soco_gorila": {
+    "durationSeconds": 0.6,
+    "sha256": "54bb8a395d993c4dd5966c95da773002003ab97ff6780c980c05cd8e3db3dfaa",
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py"
+  },
+  "kiroshi_scan": {
+    "durationSeconds": 0.6,
+    "sha256": "321a1ec9a34f8f83fb73ad7e461bb32802fff0884d24f29bad469bda08887296",
     "provider": "Síntese própria",
     "source": "tools/synth_weapon_fx.py"
   }

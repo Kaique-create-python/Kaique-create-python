@@ -107,6 +107,15 @@ M.armRotation = armRotation
 -- Melee swing direction (torso space) at progress t in [0, 1].
 local function swingDirection(kind: string, side: number, t: number): Vector3
 	local strike = math.sin(math.min(t, 1) * math.pi)
+	if kind == "louva" then
+		local a = Vector3.new(0.95 * side, 0.85, -0.2)
+		local b = Vector3.new(-0.75 * side, -0.55, -0.7)
+		return a:Lerp(b, math.clamp(t * 1.3, 0, 1)).Unit
+	elseif kind == "gorila" then
+		local rest = Vector3.new(0.25 * side, -0.4, 0.75)
+		local hit = Vector3.new(-0.1 * side, 0.05, -1)
+		return rest:Lerp(hit, math.clamp((t - 0.25) / 0.45, 0, 1)).Unit
+	end
 	if kind == "faca" then
 		local a = Vector3.new(0.75 * side, 0.75, -0.35)
 		local b = Vector3.new(-0.55 * side, -0.45, -0.75)
@@ -1994,7 +2003,7 @@ M.projectPoint = projectPoint
 -- Velocidade do próprio corpo: o Sandevistan acelera, perto de quem ativou fica lento e no surto cambaleia.
 local function abilitySpeed(active: boolean, slowed: boolean, frenzy: boolean, stats): number
 	if frenzy then
-		return 0.35
+		return 1.6 -- surto: o corpo corre sozinho atrás de alguém
 	elseif active then
 		return (stats and stats.velocidade) or 2.2
 	elseif slowed then
@@ -2050,8 +2059,33 @@ local TERMINAL = {
 	close = { x = 0.925, y = 0.03, w = 0.05, h = 0.09 },
 }
 M.TERMINAL = TERMINAL
--- Encaixe do implante nas costas do Torso (o mesmo do servidor, em arsenal.server.luau).
-local IMPLANT_SEAT_CLIENT = CFrame.new(0, 0.05, 0.53)
+-- Ficha do implante no terminal: até três linhas (rótulo, valor) com os números que o servidor publica.
+local function decimal(value: number): string
+	return (string.gsub(string.format("%.1f", value), "%.0$", ""):gsub("%.", ","))
+end
+local function implantFacts(def)
+	local s = def.stats or {}
+	if def.id == "sandevistan" then
+		return {
+			{ "DURAÇÃO", string.format("%s s", decimal(s.duracao or 4)) },
+			{ "CUSTO POR USO", string.format("%d%% ESTABILIDADE", s.custo or 25) },
+			{ "CIBERPSICOSE", string.format("%d s SEM CONTROLE", s.surto or 30) },
+		}
+	elseif def.id == "kiroshi" then
+		return { { "ALCANCE", string.format("%d studs", s.alcance or 120) }, { "MARCAÇÃO", "ATRAVÉS DE PAREDES" }, { "MIRA", "ZOOM FORTE" } }
+	elseif def.id == "louva" then
+		return { { "DANO DO CORTE", tostring(s.dano or 40) }, { "ALCANCE", string.format("%d studs", s.alcance or 9) }, { "CORRENDO", "SALTO DE ATAQUE" } }
+	elseif def.id == "gorila" then
+		return { { "DANO DO SOCO", tostring(s.dano or 36) }, { "EMPURRÃO", "ARREMESSA O ALVO" }, { "ESPAÇO", "BRAÇOS" } }
+	elseif def.id == "tendoes" then
+		return { { "PULO", string.format("+%d%%", math.floor(((s.pulo or 1.4) - 1) * 100 + 0.5)) }, { "NO AR", "SEGUNDO PULO" }, { "ESPAÇO", "PERNAS" } }
+	elseif def.id == "subdermal" then
+		return { { "DANO RECEBIDO", string.format("-%d%%", math.floor((s.reducao or 0.3) * 100 + 0.5)) }, { "PROTEGE DE", "BALAS E GOLPES" }, { "ESPAÇO", "PELE" } }
+	end
+	return {}
+end
+M.implantFacts = implantFacts
+
 local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 	local f = fonts()
 	local mono = Font.fromEnum(Enum.Font.Michroma)
@@ -2163,9 +2197,11 @@ local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 	panel.doll, panel.camera, panel.viewport = doll, dollCamera, viewport
 	-- Cada peça guarda a pose em relação ao Torso; girar é recolocar todas (sem depender de PivotTo).
 	local dollParts = {}
+	local dollRest = {}
 	for _, item in doll:GetChildren() do
 		if item:IsA("BasePart") then
 			table.insert(dollParts, { item, item.CFrame })
+			dollRest[item.Name] = item.CFrame
 		end
 	end
 	panel.dollParts = dollParts
@@ -2204,13 +2240,15 @@ local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 		Position = UDim2.fromScale(0, 0.33), Size = UDim2.fromScale(1, 0.34), TextYAlignment = Enum.TextYAlignment.Top,
 	}, f.medium, true)
 	local stats = {}
-	for index, key in { "duracao", "custo", "recarga" } do
+	-- Três linhas de ficha (rótulo e valor) que mudam com o implante escolhido.
+	for index = 1, 3 do
 		local y = 0.68 + (index - 1) * 0.075
-		local name = ({ duracao = "DURAÇÃO", custo = "CUSTO POR USO", recarga = "RECARGA" })[key]
-		text(details, "Rotulo_" .. key, name, 0.022, 8, SUB, 4, { Position = UDim2.fromScale(0, y), Size = UDim2.fromScale(0.6, 0.07) }, f.bold)
-		stats[key] = text(details, "Valor_" .. key, "—", 0.022, 8, NEON, 4, {
-			Position = UDim2.fromScale(0.6, y), Size = UDim2.fromScale(0.4, 0.07), TextXAlignment = Enum.TextXAlignment.Right,
-		}, f.heavy)
+		stats[index] = {
+			label = text(details, "Rotulo_" .. index, "", 0.022, 8, SUB, 4, { Position = UDim2.fromScale(0, y), Size = UDim2.fromScale(0.55, 0.07) }, f.bold),
+			value = text(details, "Valor_" .. index, "—", 0.022, 8, NEON, 4, {
+				Position = UDim2.fromScale(0.55, y), Size = UDim2.fromScale(0.45, 0.07), TextXAlignment = Enum.TextXAlignment.Right,
+			}, f.heavy),
+		}
 	end
 	local psyLabel = text(details, "Estabilidade", "ESTABILIDADE 100%", 0.022, 8, NEON_HURT, 4, {
 		Position = UDim2.fromScale(0, 0.915), Size = UDim2.fromScale(1, 0.06),
@@ -2261,9 +2299,11 @@ local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 			chip.Text = if on then "ENCAIXADO" elseif def.pronto then "DISPONÍVEL" else "EM BREVE"
 			chip.BackgroundColor3 = if on then NEON_HURT elseif def.pronto then NEON else SUB
 			local s = def.stats
-			stats.duracao.Text = if s then string.format("%d s", s.duracao) else "—"
-			stats.custo.Text = if s then string.format("%d%% ESTABILIDADE", s.custo) else "—"
-			stats.recarga.Text = if s then (string.gsub(string.format("%.1f s", s.recarga), "%.", ",")) else "—"
+			for index, row in stats do
+				local fact = implantFacts(def)[index]
+				row.label.Text = if fact then fact[1] else ""
+				row.value.Text = if fact then fact[2] else ""
+			end
 		end
 		local verb = panel.actionFor(panel.selected)
 		actionText.Text = if verb == "encaixar" then "ENCAIXAR" elseif verb == "tirar" then "DESENCAIXAR"
@@ -2307,10 +2347,14 @@ local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 				if template and template:IsA("Model") then
 					local copy = template:Clone()
 					copy.Name = "Implante_" .. id
-					for _, item in copy:GetDescendants() do
-						if item:IsA("BasePart") then
-							item.Anchored = true
-							table.insert(dollParts, { item, IMPLANT_SEAT_CLIENT * item.CFrame })
+					-- Cada peça vai na parte do boneco com o mesmo nome (tronco, cabeça, braços, pernas).
+					for _, piece in copy:GetChildren() do
+						local rest = dollRest[piece.Name]
+						for _, item in piece:GetDescendants() do
+							if item:IsA("BasePart") then
+								item.Anchored = true
+								table.insert(dollParts, { item, (rest or CFrame.identity) * item.CFrame })
+							end
 						end
 					end
 					copy.Parent = doll
@@ -3544,11 +3588,28 @@ local function start()
 		local boost = if boosted(character) then sandevistanStats.cadencia else 1
 		nextMelee = now + 1 / (weapon.rate * boost)
 		meleeSide = -meleeSide
+		-- Implantes de braço trocam o soco (o servidor confere e aplica o dano).
+		local arms = abilityFx.implants
+		local kind = weapon.id
+		if weapon.id == "punhos" and arms then
+			kind = if arms.louva then "louva" elseif arms.gorila then "gorila" else kind
+		end
 		poses[character] = poses[character] or {}
 		poses[character].swingStart = now
-		poses[character].swingKind = weapon.id
+		poses[character].swingKind = kind
 		poses[character].swingSide = meleeSide
-		sound(weapon.som or "arma_soco", nil, 0.55)
+		if kind == "louva" then
+			sound(pick("arma_lamina", "arma_soco"), nil, 0.6)
+			-- Correndo, as lâminas dão um salto de ataque para a frente.
+			if root and root.AssemblyLinearVelocity.Magnitude > 12 then
+				root.AssemblyLinearVelocity += root.CFrame.LookVector * 42 + Vector3.new(0, 14, 0)
+			end
+		elseif kind == "gorila" then
+			sound(pick("soco_gorila", "arma_soco"), nil, 0.7)
+			cam.trauma = math.min(1, cam.trauma + 0.12)
+		else
+			sound(weapon.som or "arma_soco", nil, 0.55)
+		end
 		cam.trauma = math.min(1, cam.trauma + 0.08)
 		if action then
 			action:FireServer("golpe", meleeSide)
@@ -3802,6 +3863,9 @@ local function start()
 			return
 		end
 		local key = input.KeyCode
+		if raving(character) then
+			return -- ciberpsicose: o implante assumiu o controle
+		end
 		-- Implantes (I) e habilidade (X); com o terminal aberto, o resto do jogo espera.
 		if key == Enum.KeyCode.I or key == Enum.KeyCode.DPadDown then
 			if toggleImplants then
@@ -3888,7 +3952,7 @@ local function start()
 						sound(pick("ui_tick", "click"), nil, 0.3)
 					end
 				end
-			elseif not processed and UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter then
+			elseif not processed and UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter and not raving(character) then
 				local factor = 0.0042 * sensitivity * (if aiming then 0.62 else 1)
 				cam.yaw -= input.Delta.X * factor
 				cam.pitch -= input.Delta.Y * factor
@@ -3896,7 +3960,7 @@ local function start()
 			end
 		elseif input.UserInputType == Enum.UserInputType.MouseWheel and not processed and not wheelOpen then
 			cycle(if input.Position.Z > 0 then -1 else 1)
-		elseif input.UserInputType == Enum.UserInputType.Touch and touchCamera[input] then
+		elseif input.UserInputType == Enum.UserInputType.Touch and touchCamera[input] and not raving(character) then
 			local previous = touchCamera[input]
 			local delta = input.Position - previous
 			touchCamera[input] = input.Position
@@ -3968,6 +4032,10 @@ local function start()
 			cam.yaw += dt * 0.22
 			cam.pitch += (math.rad(-28) - cam.pitch) * math.min(1, dt * 2)
 		end
+		if raving(character) then
+			cam.yaw += angleDelta(cam.yaw, facingYaw) * math.min(1, dt * 2.5)
+			cam.pitch += (math.rad(-12) - cam.pitch) * math.min(1, dt * 2)
+		end
 		cam.pitch = math.clamp(cam.pitch, math.rad(-72), math.rad(62))
 
 		local scoped = aimingNow and weapon.luneta == true
@@ -3979,6 +4047,9 @@ local function start()
 			else 11.5
 		local targetShoulder = (if aimingNow or raised then 2.1 else 1.35) * cam.side
 		local targetFov = (if aimingNow then (weapon.fov or 54) elseif sprinting then 77 else 70) + abilityFov
+		if aimingNow and not (weapon.luneta == true) and abilityFx.implants and abilityFx.implants.kiroshi then
+			targetFov -= 14 -- Ópticos Kiroshi: zoom forte na mira
+		end
 		if wheelOpen then
 			targetFov -= 6
 		end
@@ -4103,24 +4174,45 @@ local function start()
 			facingYaw = math.atan2(-moveDirection.X, -moveDirection.Z)
 			align.Responsiveness = if sprinting then 11 else 16
 		end
-		-- Surto: o corpo vira sozinho para o alvo que o servidor escolheu (ou gira procurando alguém).
+		-- Surto (30 s): o implante assume. O corpo corre atrás do alvo que o servidor escolheu (jogador ou NPC)
+		-- ou vaga procurando alguém; o controle e a câmera não respondem (o servidor atira sozinho).
 		if frenzy then
 			local name = character:GetAttribute("CyberOutlawSurtoAlvo")
-			local target2 = if type(name) == "string" and name ~= "" then Players:FindFirstChild(name) else nil
-			local targetRoot = target2 and (target2 :: Player).Character and (target2 :: Player).Character:FindFirstChild("HumanoidRootPart")
-			if targetRoot and targetRoot:IsA("BasePart") then
+			local targetRoot
+			if type(name) == "string" and name ~= "" then
+				local owner = Players:FindFirstChild(name)
+				local model = if owner and owner:IsA("Player") then owner.Character else nil
+				if not model then
+					local npcs = Workspace:FindFirstChild("CyberOutlawNPCs")
+					model = npcs and npcs:FindFirstChild(name)
+				end
+				local part = model and model:FindFirstChild("HumanoidRootPart")
+				targetRoot = if part and part:IsA("BasePart") then part else nil
+			end
+			local heading = Vector3.zero
+			if targetRoot then
 				local offset = targetRoot.Position - root.Position
 				facingYaw = math.atan2(-offset.X, -offset.Z)
+				if offset.Magnitude > 10 then
+					heading = Vector3.new(offset.X, 0, offset.Z).Unit
+				end
 			else
-				facingYaw += dt * 4
+				local clock = os.clock()
+				if not abilityFx.wanderAt or clock > abilityFx.wanderAt then
+					abilityFx.wanderAt = clock + rng:NextNumber(0.8, 1.8)
+					abilityFx.wanderYaw = facingYaw + rng:NextNumber(-2.2, 2.2)
+				end
+				facingYaw += angleDelta(facingYaw, abilityFx.wanderYaw) * math.min(1, dt * 4)
+				heading = Vector3.new(-math.sin(facingYaw), 0, -math.cos(facingYaw))
 			end
+			humanoid:Move(heading, false)
 			align.Responsiveness = 60
 		end
 		align.CFrame = CFrame.Angles(0, facingYaw, 0)
 	end
 
 	-- Arm and head pose (PreSimulation: after the animation, before the physics).
-	local SWING = { punhos = 0.26, faca = 0.38 }
+	local SWING = { punhos = 0.26, faca = 0.38, louva = 0.34, gorila = 0.4 }
 	local function poseCharacter(model: Model, now: number)
 		local body = model:FindFirstChild("Torso")
 		if not body then
@@ -4998,6 +5090,7 @@ local function start()
 			stability = if type(value) == "number" then value else 100
 			abilityFx.stability = stability
 			abilityFx.sandevistan = equippedImplants.sandevistan == true
+			abilityFx.implants = equippedImplants
 			if terminal then
 				terminal.setState(equippedImplants, stability, busyNow())
 			end
@@ -5179,7 +5272,19 @@ local function start()
 			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.16, if touch then 58 else 82), Size = UDim2.fromOffset(600, 24),
 			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.3,
 		})
-		local fx = { slow = 0, slowed = 0, rage = 0 }
+		-- Rastros por cima do mundo em preto e branco: o filtro de cor pega tudo o que está no mundo, então os
+		-- rastros de quem ativou vão para uma ViewportFrame que cobre a tela com a mesma câmera e ficam coloridos.
+		local trailGui = new("ScreenGui", playerGui, {
+			Name = "CyberOutlawRastros", ResetOnSpawn = false, DisplayOrder = 1, Enabled = false,
+			ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		})
+		local trailView = new("ViewportFrame", trailGui, {
+			Name = "Rastros", Size = FULL, BackgroundTransparency = 1, Ambient = Color3.fromRGB(235, 235, 235),
+			LightColor = Color3.new(1, 1, 1), LightDirection = Vector3.new(-0.3, -1, -0.4),
+		})
+		local trailCamera = new("Camera", trailView, { Name = "Camera" })
+		trailView.CurrentCamera = trailCamera
+		local fx = { slow = 0, slowed = 0, rage = 0, wasFrenzy = false }
 		local frozen: { [ParticleEmitter]: number }?
 		local emitters: { ParticleEmitter }?
 		-- Partículas (fumaça, faíscas, vapor) quase param junto com o tempo.
@@ -5220,12 +5325,38 @@ local function start()
 			fx.slowed = approach(fx.slowed, if slowed then 1 else 0, dt * 5)
 			fx.rage = approach(fx.rage, if frenzy then 1 else 0, dt * (if frenzy then 12 else 3))
 			local flash = math.clamp(1 - (os.clock() - abilityFx.flashAt) / 0.4, 0, 1)
+			-- Sandevistan: o mundo fica em preto e branco (só os rastros, por cima, têm cor); quem está lento vê azulado.
 			slowGrade.Enabled = fx.slow > 0.01 or fx.slowed > 0.01 or flash > 0
-			slowGrade.TintColor = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(200, 255, 228), fx.slow):Lerp(Color3.fromRGB(186, 212, 255), fx.slowed * 0.8)
-			slowGrade.Saturation = -0.35 * fx.slow - 0.25 * fx.slowed
-			slowGrade.Contrast = 0.22 * fx.slow
-			slowGrade.Brightness = 0.3 * flash
+			slowGrade.TintColor = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(186, 212, 255), fx.slowed * 0.8)
+			slowGrade.Saturation = -1 * fx.slow - 0.25 * fx.slowed
+			slowGrade.Contrast = 0.3 * fx.slow
+			slowGrade.Brightness = 0.35 * flash - 0.04 * fx.slow
 			abilityFov = 10 * fx.slow + 6 * flash
+			trailGui.Enabled = fx.slow > 0.01
+			if trailGui.Enabled then
+				trailCamera.CFrame = camera.CFrame
+				trailCamera.FieldOfView = camera.FieldOfView
+			end
+			-- Começo e fim do surto: o controle sai da mão do jogador e volta no fim.
+			if frenzy ~= fx.wasFrenzy then
+				fx.wasFrenzy = frenzy
+				if controls then
+					pcall(function()
+						if frenzy then
+							controls:Disable()
+						else
+							controls:Enable()
+						end
+					end)
+				end
+				if frenzy then
+					if toggleImplants then
+						toggleImplants(false)
+					end
+					closeWheel(false)
+					triggerHeld, aiming, aimToggle = false, false, false
+				end
+			end
 			freezeParticles(active)
 			rageGrade.Enabled = fx.rage > 0.01
 			rageGrade.TintColor = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(255, 120, 132), fx.rage)
@@ -5238,6 +5369,8 @@ local function start()
 				rageTitle.Position = UDim2.new(0.5, jitter.X, 0.16, jitter.Y)
 				rageTitle.TextTransparency = 1 - fx.rage * (if rng:NextNumber() < 0.12 then 0.4 else 1)
 				rageSub.TextTransparency = 1 - fx.rage
+				local left = math.max(0, math.ceil(timeAttr(character, "CyberOutlawSurtoAte") - serverNow()))
+				rageSub.Text = if frenzy then string.format("O IMPLANTE ASSUMIU O CONTROLE · %d s", left) else "CONTROLE DE VOLTA"
 				for _, child in rageGui:GetChildren() do
 					if child.Name == "Borda" and child:IsA("Frame") then
 						child.BackgroundTransparency = 1 - fx.rage * (0.75 + 0.25 * math.sin(os.clock() * 14))
@@ -5278,6 +5411,7 @@ local function start()
 		local ghostPool: { Part } = {}
 		local ghostClock = setmetatable({}, { __mode = "k" }) :: any
 		local highlights = setmetatable({}, { __mode = "k" }) :: any
+		local rageTags = setmetatable({}, { __mode = "k" }) :: any
 		local GHOST_LIFE = 0.55
 		local function ghostPart(): Part
 			local item = table.remove(ghostPool)
@@ -5300,7 +5434,7 @@ local function start()
 				item.CFrame = source.CFrame
 				item.Color = color
 				item.Transparency = 0.3
-				item.Parent = effects
+				item.Parent = if fx.slow > 0.05 then trailView else effects
 				table.insert(entry.parts, item)
 			end
 			for _, child in model:GetChildren() do
@@ -5362,6 +5496,24 @@ local function start()
 							end
 						end
 					end
+					-- Letreiro sobre quem está em surto (para os outros saberem correr).
+					local tag = rageTags[model]
+					if frenzy and model ~= character and not tag then
+						local head = model:FindFirstChild("Head")
+						if head then
+							tag = new("BillboardGui", effects, {
+								Name = "CyberOutlawSurto", Adornee = head, Size = UDim2.fromOffset(180, 34), StudsOffset = Vector3.new(0, 2.6, 0),
+								AlwaysOnTop = true, MaxDistance = 220, LightInfluence = 0,
+							})
+							label(tag, "Texto", "CIBERPSICOSE", Font.fromEnum(Enum.Font.Michroma), 18, Color3.fromRGB(255, 70, 100), 2, {
+								TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, TextStrokeColor3 = Color3.fromRGB(40, 0, 10),
+							})
+							rageTags[model] = tag
+						end
+					elseif not frenzy and tag then
+						tag:Destroy()
+						rageTags[model] = nil
+					end
 					-- Contorno vermelho em quem está em surto: aviso para todo mundo correr.
 					local glow = highlights[model]
 					if frenzy and not glow then
@@ -5397,7 +5549,100 @@ local function start()
 				end
 			end
 		end
-		return { ability = abilityStep, ghost = ghostStep, terminal = terminalStep }
+		-- Ópticos Kiroshi: os 8 alvos mais perto (até o alcance) ganham contorno visível através das paredes.
+		local scans = {}
+		local scanWait = 0
+		local kiroshiRange = 120
+		for _, entry in implantDefs do
+			if type(entry) == "table" and entry.id == "kiroshi" and type(entry.stats) == "table" then
+				kiroshiRange = entry.stats.alcance or kiroshiRange
+			end
+		end
+		local function scanStep(dt: number)
+			scanWait -= dt
+			if scanWait > 0 then
+				return
+			end
+			scanWait = 0.25
+			local wanted = {}
+			if equippedImplants.kiroshi and root and not dead then
+				local found = {}
+				local function consider(model: Instance?)
+					local part = model and model:FindFirstChild("HumanoidRootPart")
+					local hum = model and model:FindFirstChildOfClass("Humanoid")
+					if model and model ~= character and part and part:IsA("BasePart") and hum and hum.Health > 0 then
+						local distance = (part.Position - root.Position).Magnitude
+						if distance <= kiroshiRange then
+							table.insert(found, { model, distance })
+						end
+					end
+				end
+				for _, other in Players:GetPlayers() do
+					consider(other.Character)
+				end
+				local npcs = Workspace:FindFirstChild("CyberOutlawNPCs")
+				if npcs then
+					for _, model in npcs:GetChildren() do
+						consider(model)
+					end
+				end
+				table.sort(found, function(a, b)
+					return a[2] < b[2]
+				end)
+				for index = 1, math.min(8, #found) do
+					wanted[found[index][1]] = true
+				end
+			end
+			for model, mark in scans do
+				if not wanted[model] or not model.Parent then
+					mark:Destroy()
+					scans[model] = nil
+				end
+			end
+			for model in wanted do
+				if not scans[model] then
+					local armed = model:GetAttribute("CyberOutlawArmado") == true or model:FindFirstChild("CyberOutlawArma") ~= nil
+					local tone = if armed then Color3.fromRGB(255, 64, 96) else Color3.fromRGB(86, 255, 222)
+					scans[model] = new("Highlight", effects, {
+						Name = "CyberOutlawKiroshi", Adornee = model, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+						FillTransparency = 0.88, OutlineTransparency = 0.1, FillColor = tone, OutlineColor = tone,
+					})
+				end
+			end
+		end
+		-- Tendões Reforçados: pulo mais alto e um segundo pulo no ar.
+		local doubleUsed = false
+		UserInputService.JumpRequest:Connect(function()
+			if not equippedImplants.tendoes or not humanoid or not root or dead or raving(character) then
+				return
+			end
+			local state = humanoid:GetState()
+			if (state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping) and not doubleUsed then
+				doubleUsed = true
+				local v = root.AssemblyLinearVelocity
+				root.AssemblyLinearVelocity = Vector3.new(v.X, 58, v.Z)
+				sound(pick("pulo_duplo", "glitch"), nil, 0.6)
+				spark(root.Position - Vector3.new(0, 3, 0), Color3.fromRGB(86, 220, 255), 6, Vector3.yAxis)
+			end
+		end)
+		local function legsStep(_dt: number)
+			if not humanoid then
+				return
+			end
+			local state = humanoid:GetState()
+			if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed then
+				doubleUsed = false
+			end
+			local boost = if equippedImplants.tendoes then 1.4 else 1
+			local power, height = 50 * boost, 7.2 * boost
+			if math.abs(humanoid.JumpPower - power) > 0.01 then
+				humanoid.JumpPower = power
+			end
+			if math.abs(humanoid.JumpHeight - height) > 0.01 then
+				humanoid.JumpHeight = height
+			end
+		end
+		return { ability = abilityStep, ghost = ghostStep, terminal = terminalStep, scan = scanStep, legs = legsStep }
 	end)()
 
 	local lastAimSent = false
@@ -5421,6 +5666,8 @@ local function start()
 		pcall(implantSteps.ability, dt)
 		pcall(implantSteps.ghost, dt)
 		pcall(implantSteps.terminal, dt)
+		pcall(implantSteps.scan, dt)
+		pcall(implantSteps.legs, dt)
 		pcall(dayStep, dt)
 		pcall(reflectionStep, dt)
 		pcall(reflectCharacters)
