@@ -17,7 +17,9 @@ import sys
 CELL_W, CELL_H = 384, 192
 GLYPH = 128
 WEAPONS = ["punhos", "faca", "glock", "deagle", "uzi", "ak47", "m4", "escopeta", "sniper"]
-GLYPHS = ["tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar"]
+GLYPHS = ["tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar",
+          # Implantes (nomes do Cyberpunk): botão do terminal, Sandevistan, ciberpsicose e os próximos.
+          "implantes", "sandevistan", "psicose", "kiroshi", "louva", "gorila", "tendoes", "subdermal"]
 # Atlas 1024 x 1024: armas em duas colunas de 384 x 192 (até 10); glifos de 128 x 128 na faixa da direita.
 ATLAS = {wid: (index % 2 * CELL_W, index // 2 * CELL_H, CELL_W, CELL_H) for index, wid in enumerate(WEAPONS)}
 ATLAS.update({name: (768 + index % 2 * GLYPH, index // 2 * GLYPH, GLYPH, GLYPH) for index, name in enumerate(GLYPHS)})
@@ -196,6 +198,87 @@ def glyph_svg(name, pistol_svg_inner):
   <path d="M32 58 C24 46 15 38 15 26 A17 17 0 0 1 49 26 C49 38 40 46 32 58 Z" fill="{w}"/>
   <circle cx="32" cy="26" r="7" fill="{INK}"/>
   <ellipse cx="32" cy="58" rx="14" ry="3.5" stroke="{w}" stroke-width="2.5" opacity="0.7"/>"""
+    elif name == "implantes":
+        # Chip neural: corpo vazado, núcleo, pinos dos quatro lados e uma trilha saindo do núcleo.
+        pins = "".join(
+            f'<rect x="{x}" y="{y}" width="{pw}" height="{ph}" rx="1.2" fill="{w}"/>'
+            for t in (21, 29.5, 38)
+            for (x, y, pw, ph) in ((4, t, 8, 3.4), (52, t, 8, 3.4), (t, 4, 3.4, 8), (t, 52, 3.4, 8))
+        )
+        shapes = f"""
+  <rect x="13" y="13" width="38" height="38" rx="7" stroke="{w}" stroke-width="3.6"/>
+  <rect x="23" y="23" width="18" height="18" rx="3.5" fill="{w}"/>
+  <path d="M32 23 V17 M41 32 H46" stroke="{INK}" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="3.2" fill="{INK}"/>{pins}"""
+    elif name == "sandevistan":
+        # Coluna do Sandevistan com dois rastros atrás (o corpo que deixa cópias no tempo).
+        def spine(dx, opacity, full):
+            parts = []
+            if full:
+                parts.append(f'<rect x="{30.4 + dx}" y="9" width="3.2" height="48" rx="1.6" fill="{w}"/>')
+            for k in range(5):
+                width = 19 - k * 2.4
+                parts.append(f'<rect x="{32 + dx - width / 2:.1f}" y="{10 + k * 10:.1f}" width="{width:.1f}" height="5.6" rx="2.8" '
+                             f'fill="{w}" opacity="{opacity:.2f}"/>')
+            return "".join(parts)
+        shapes = spine(-20, 0.22, False) + spine(-10, 0.5, False) + spine(6, 1.0, True) + f"""
+  <circle cx="38" cy="5.4" r="3.4" fill="{w}"/>
+  <path d="M6 33 H14 M4 43 H12" stroke="{w}" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>"""
+    elif name == "psicose":
+        # Olho rachado: a mente do implante tomando o controle.
+        shapes = f"""
+  <path d="M5 32 Q32 8 59 32 Q32 56 5 32 Z" stroke="{w}" stroke-width="3.6" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="9.5" fill="{w}"/>
+  <circle cx="32" cy="32" r="4" fill="{INK}"/>
+  <path d="M36 4 L29 21 L37 26 L26 44 L33 47 L27 60" stroke="{INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M36 4 L29 21 L37 26 L26 44 L33 47 L27 60" stroke="{w}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>"""
+    elif name == "kiroshi":
+        # Óptico Kiroshi: olho com íris em anéis e marcas de mira.
+        ticks = "".join(
+            f'<rect x="{32 + 24 * math.cos(math.radians(a)) - 1.5:.2f}" y="{32 + 24 * math.sin(math.radians(a)) - 4:.2f}" '
+            f'width="3" height="8" rx="1" fill="{w}" transform="rotate({a + 90} {32 + 24 * math.cos(math.radians(a)):.2f} {32 + 24 * math.sin(math.radians(a)):.2f})"/>'
+            for a in (0, 90, 180, 270))
+        shapes = f"""
+  <circle cx="32" cy="32" r="19" stroke="{w}" stroke-width="3.4"/>
+  <circle cx="32" cy="32" r="12" stroke="{w}" stroke-width="2.2" stroke-dasharray="5 3"/>
+  <circle cx="32" cy="32" r="6" fill="{w}"/>
+  <circle cx="34" cy="30" r="1.8" fill="{INK}"/>{ticks}"""
+    elif name == "louva":
+        # Lâmina Louva-a-Deus: antebraço com a lâmina curva saindo para cima.
+        shapes = f"""
+  <path d="M10 52 L30 40 L36 48 L16 60 Z" fill="{w}"/>
+  <path d="M28 41 Q30 18 52 6 Q46 24 37 45 Z" fill="{w}"/>
+  <path d="M33 39 Q36 24 48 13" stroke="{INK}" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <rect x="25" y="40" width="13" height="5" rx="2" transform="rotate(-32 31 42)" fill="{INK}" opacity="0.55"/>"""
+    elif name == "gorila":
+        # Braço de Gorila: punho blindado com placas nos nós dos dedos e o impacto.
+        # Punho de frente: quatro placas nos dedos, polegar, pulso hidráulico e as linhas do impacto.
+        knuckles = "".join(f'<rect x="{11 + k * 9.5}" y="{14 - (2 if k in (1, 2) else 0)}" width="8.6" height="15" rx="3.6" fill="{w}"/>'
+                           for k in range(4))
+        shapes = f"""{knuckles}
+  <path d="M10 26 H49 V40 Q49 47 42 47 H17 Q10 47 10 40 Z" fill="{w}"/>
+  <path d="M10 33 Q3 33 4 27 Q6 22 13 24" fill="{w}"/>
+  <path d="M13 30 H46" stroke="{INK}" stroke-width="2" opacity="0.6"/>
+  <rect x="17" y="47" width="25" height="10" rx="2" fill="{w}"/>
+  <path d="M21 51 H38" stroke="{INK}" stroke-width="2" opacity="0.6"/>
+  <path d="M54 12 L60 7 M56 30 H63 M54 47 L60 52" stroke="{w}" stroke-width="3.4" stroke-linecap="round"/>"""
+    elif name == "tendoes":
+        # Tendões Reforçados: perna com mola na panturrilha e a seta do segundo pulo.
+        shapes = f"""
+  <path d="M24 6 L30 26 L22 46" stroke="{w}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 46 L18 56 H34" stroke="{w}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M33 30 L41 33 L33 37 L41 40 L33 44 L41 47" stroke="{w}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M50 30 V10 M43 17 L50 9 L57 17" stroke="{w}" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>"""
+    elif name == "subdermal":
+        # Armadura Subdérmica: escudo feito de placas hexagonais sob a pele.
+        hexes = []
+        for cx, cy in ((24, 24), (40, 24), (32, 37.5), (16, 37.5), (48, 37.5), (32, 51)):
+            pts = " ".join(f"{cx + 6.6 * math.cos(math.radians(60 * k + 30)):.2f},{cy + 6.6 * math.sin(math.radians(60 * k + 30)):.2f}" for k in range(6))
+            hexes.append(f'<polygon points="{pts}" fill="{w}" opacity="0.85"/>')
+        shapes = f"""
+  <path d="M32 3 L56 12 V30 Q56 50 32 61 Q8 50 8 30 V12 Z" stroke="{w}" stroke-width="3.4" stroke-linejoin="round"/>
+  <clipPath id="escudo"><path d="M32 6 L53 14 V30 Q53 48 32 58 Q11 48 11 30 V14 Z"/></clipPath>
+  <g clip-path="url(#escudo)">{"".join(hexes)}</g>"""
     else:  # fechar
         shapes = f"""
   <path d="M16 16 L48 48 M48 16 L16 48" stroke="{w}" stroke-width="6" stroke-linecap="round"/>"""

@@ -127,3 +127,31 @@ O instalador guarda backups em `~/.cyberoutlaw-installer`. Ele reaproveita recib
 - **Pendente:**
   - As intros em tela cheia da Capri ("peek" e "up-close", 1920×1080) não entraram.
   - Conferir no Roblox real o esqueleto R15 e a luneta.
+
+## Versão 4 (HUD neon com páginas, implantes, Sandevistan, trem e dia e noite)
+
+- **HUD neon:**
+  - A barra de armas embaixo (placa 3D na frente da câmera) mostra 4 armas por página, com setas `<` `>` (`buildWeaponBar`, `BAR_HITS`).
+  - O cartão de arma antigo saiu; o minimapa (vida, fôlego e estabilidade) foi para a mesma placa neon 3D.
+  - As placas giram em volta da borda de fora (`holoTilt`), então nunca saem do retângulo do layout.
+  - Botões neon: arsenal (só no toque), implantes (I) e habilidade (X), todos dentro do layout testado em 6 telas.
+- **Implantes** (`IMPLANTS` em `src/arsenal.server.luau`):
+  - Nomes do Cyberpunk: Sandevistan Militar (coluna), Ópticos Kiroshi, Lâminas Louva-a-Deus, Braços de Gorila, Tendões Reforçados e Armadura Subdérmica.
+  - Só o Sandevistan funciona; os outros aparecem como "em breve".
+  - Terminal holográfico 3D (`buildImplantPanel`): lista, boneco R6 de holograma que gira arrastando, marcas dos lugares do corpo e o botão ENCAIXAR. O toque usa uma camada 2D com as mesmas áreas (`panel.hits`).
+- **Sandevistan** (regras em `SANDEVISTAN`, testadas em `tests/arsenal_test.luau`):
+  - 4 s: quem ativou anda 2,2x e atira 2x mais rápido; quem está a até 90 studs anda a 30%.
+  - Rastros coloridos (verde, ciano, azul, violeta, rosa, amarelo); partículas quase param.
+  - Cada uso gasta 25 de estabilidade. A zero, 2 s de ciberpsicose: o servidor atira sozinho no jogador mais perto à vista, fora da zona segura. Depois volta a 40 e regenera 2,5/s após 8 s sem usar.
+  - Sons sintetizados: `habilidade_lenta`, `surto` e `implante_encaixe` (`tools/synth_weapon_fx.py`).
+- **Trem** (`trainSchedule`, `carCFrame`, `buildTrainCar` em `src/play.client.luau`):
+  - Três carros andam no viaduto pela hora do servidor, sem rede. Param 14 s na Estação Prisma com as portas abertas.
+  - Quem está em pé no carro anda junto (corpo, rumo e câmera).
+  - Elevadores de vidro ligam a esquina (446, -47) à plataforma.
+- **Dia e noite** (`dayLight`, `DAY_KEYS`): 24 minutos por dia, no cliente, pela hora do servidor.
+  - Luz, névoa, nuvens, raios de sol e postes mudam aos poucos. O céu desenhado fica para a noite; de dia é o céu padrão do Roblox.
+- **Correções:**
+  - As pernas não abrem mais ao atirar andando de costas.
+  - A Baseplate do modelo fica escondida abaixo do asfalto e os SpawnLocations do modelo são desligados (era o "cubo invisível" do spawn).
+- **Símbolos:** o atlas tem agora 16 glifos (8 novos dos implantes). No Figma, seção "CyberOutlaw v5", com componentes `Ícone/Implante/*`.
+- **Pendente:** conferir no Roblox real a entrada pela camada 2D do terminal, a carona no trem, o céu de dia (IDs do céu padrão) e o efeito de câmera lenta.
