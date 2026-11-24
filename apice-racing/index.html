@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- HEAD:START -->
+<title>Ápice Racing</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Corrida 3D no navegador: física de derrapagem, nitro, rivais com IA e três circuitos.">
+<meta name="theme-color" content="#0C0E1A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<!-- HEAD:END -->
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- BODY:START -->
+<a class="skip" href="#grid">Pular para o grid de largada</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#inicio" aria-label="Ápice Racing, início">
+      <svg class="brand-mark" viewBox="0 0 40 28" aria-hidden="true">
+        <path d="M2 26 L20 3 L38 26" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="miter"/>
+        <path d="M11 26 L20 14.5 L29 26" fill="none" stroke="var(--signal)" stroke-width="5" stroke-linejoin="miter"/>
+      </svg>
+      <span class="brand-word">ÁPICE<span class="brand-sub">racing</span></span>
+    </a>
+    <nav class="nav" aria-label="Seções">
+      <a href="#garagem">Garagem</a>
+      <a href="#pistas">Circuitos</a>
+      <a href="#recordes">Recordes</a>
+      <a href="#controles">Controles</a>
+    </nav>
+    <div class="topbar-actions">
+      <button class="toggle" id="toggle-music" type="button" aria-pressed="true" title="Música">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6.5" cy="18" r="2.5" fill="currentColor"/><circle cx="17.5" cy="16" r="2.5" fill="currentColor"/></svg>
+        <span class="sr">Música</span>
+      </button>
+      <button class="toggle" id="toggle-sfx" type="button" aria-pressed="true" title="Efeitos sonoros">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="sr">Efeitos sonoros</span>
+      </button>
+      <button class="btn btn-primary btn-sm" id="top-race" type="button">Correr</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="inicio" aria-labelledby="hero-title">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <canvas id="hero-canvas-3d" aria-hidden="true" hidden></canvas>
+    <div class="hero-shade" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span>Corrida 3D · roda direto no navegador</p>
+        <h1 id="hero-title">Freie tarde.<br><span>Acerte o ápice.</span></h1>
+        <p class="lede">Corrida em 3D com câmera atrás do carro, física de derrapagem a 120 Hz, nitro que carrega no drift e rivais com IA disputando cada curva em três circuitos.</p>
+        <div class="cta-row">
+          <button class="btn btn-primary btn-lg" id="hero-race" type="button">
+            Correr agora
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></svg>
+          </button>
+          <a class="btn btn-ghost btn-lg" href="#garagem">Escolher carro</a>
+        </div>
+        <p class="hero-pick" id="hero-pick">Faísca GT · Distrito Neon · 3 voltas</p>
+      </div>
+      <aside class="tower" aria-label="Transmissão ao vivo da corrida de demonstração">
+        <header class="tower-head">
+          <span class="tower-live">AO VIVO</span>
+          <span class="tower-track" id="tower-track">Distrito Neon</span>
+          <span class="tower-lap" id="tower-lap">V 1/3</span>
+        </header>
+        <ol class="tower-list" id="tower-list"></ol>
+      </aside>
+    </div>
+  </section>
+
+  <div class="curb" aria-hidden="true"></div>
+
+  <section class="section" id="garagem" aria-labelledby="garagem-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">Box 01</p>
+        <h2 id="garagem-title">Garagem</h2>
+        <p class="section-lede">Quatro carros, quatro jeitos de contornar curva. Cada um é o mais rápido em algum circuito.</p>
+      </header>
+      <div class="cars" id="cars" role="radiogroup" aria-label="Carro"></div>
+      <div class="paint">
+        <p class="label" id="paint-label">Pintura <span id="paint-name">Laranja Sinal</span></p>
+        <div class="swatches" id="swatches" role="radiogroup" aria-labelledby="paint-label"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="pistas" aria-labelledby="pistas-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">Box 02</p>
+        <h2 id="pistas-title">Circuitos</h2>
+        <p class="section-lede">Asfalto que muda de humor: muro de concreto à noite, areia fofa no deserto, gelo na serra.</p>
+      </header>
+      <div class="tracks" id="tracks" role="radiogroup" aria-label="Circuito"></div>
+    </div>
+  </section>
+
+  <section class="section setup" id="grid" aria-labelledby="grid-title">
+    <div class="wrap setup-inner">
+      <div class="setup-summary">
+        <p class="eyebrow">Box 03</p>
+        <h2 id="grid-title">Grid de largada</h2>
+        <p class="setup-line" id="setup-line">Faísca GT no Distrito Neon</p>
+        <ul class="setup-facts" id="setup-facts"></ul>
+      </div>
+      <form class="setup-form" id="setup-form" autocomplete="off">
+        <fieldset>
+          <legend>Voltas</legend>
+          <div class="seg" id="seg-laps"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Rivais</legend>
+          <div class="seg" id="seg-opponents"></div>
+        </fieldset>
+        <fieldset class="wide">
+          <legend>Dificuldade da IA</legend>
+          <div class="seg" id="seg-difficulty"></div>
+        </fieldset>
+        <label class="field wide" for="driver-name">
+          <span>Seu nome no placar</span>
+          <input id="driver-name" name="driver-name" type="text" maxlength="14" placeholder="Você">
+        </label>
+        <button class="btn btn-primary btn-xl wide" id="start-race" type="submit">
+          Largar
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <div class="curb curb-thin" aria-hidden="true"></div>
+
+  <section class="section" id="recordes" aria-labelledby="recordes-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">Cronometragem</p>
+        <h2 id="recordes-title">Recordes</h2>
+        <p class="section-lede">Seus melhores tempos ficam salvos neste navegador.</p>
+      </header>
+      <div class="table-scroll">
+        <table class="records" id="records">
+          <thead>
+            <tr><th scope="col">Circuito</th><th scope="col">Melhor volta</th><th scope="col">Carro</th><th scope="col">Melhor corrida</th><th scope="col">Data</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="controles" aria-labelledby="controles-title">
+    <div class="wrap controls-grid">
+      <header class="section-head">
+        <p class="eyebrow">Briefing</p>
+        <h2 id="controles-title">Controles</h2>
+        <p class="section-lede">Teclado, controle ou toque. No celular os botões aparecem na tela.</p>
+      </header>
+      <dl class="keys">
+        <div><dt><kbd>W</kbd><kbd>↑</kbd></dt><dd>Acelerar</dd></div>
+        <div><dt><kbd>S</kbd><kbd>↓</kbd></dt><dd>Frear e dar ré</dd></div>
+        <div><dt><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></dt><dd>Esterçar</dd></div>
+        <div><dt><kbd>Shift</kbd><kbd>N</kbd></dt><dd>Nitro</dd></div>
+        <div><dt><kbd class="wide">Espaço</kbd></dt><dd>Freio de mão para drift</dd></div>
+        <div><dt><kbd>P</kbd><kbd>Esc</kbd></dt><dd>Pausar</dd></div>
+        <div><dt><kbd>C</kbd></dt><dd>Trocar câmera: atrás do carro, alta ou vista de cima</dd></div>
+        <div><dt><kbd>R</kbd></dt><dd>Reiniciar corrida</dd></div>
+        <div><dt><kbd>M</kbd></dt><dd>Música liga/desliga</dd></div>
+      </dl>
+      <ol class="tips">
+        <li><b>Drift carrega o nitro.</b> Segure a derrapagem por mais de um segundo e a barra enche mais rápido.</li>
+        <li><b>Placas azuis dão turbo.</b> Passe por cima das setas para ganhar 1,2 s de empurrão.</li>
+        <li><b>Gelo não perdoa.</b> Na Serra Gelada, freie em linha reta antes das placas brancas.</li>
+        <li><b>Controle funciona.</b> Gatilho direito acelera, esquerdo freia, A aciona o nitro.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p>Ápice Racing. Three.js (WebGL), Canvas 2D e Web Audio, sem nenhuma imagem externa: carros, pistas, cenário e trilha são gerados por código.</p>
+    <p class="footer-meta" id="footer-meta">Física a 120 Hz · 1 px = 10 cm</p>
+  </div>
+</footer>
+
+<div class="game" id="game" hidden>
+  <canvas id="game-canvas" tabindex="-1" aria-label="Pista da corrida vista de cima"></canvas>
+  <canvas id="game-canvas-3d" tabindex="-1" aria-label="Pista da corrida em 3D" hidden></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div class="hud" id="hud">
+    <div class="hud-tl">
+      <div class="hud-pos"><span class="hud-label">POS</span><b id="hud-pos">1</b><span id="hud-total">/6</span></div>
+      <div class="hud-lap"><span class="hud-label">VOLTA</span><b id="hud-lap">1/3</b></div>
+      <ol class="hud-tower" id="hud-tower" aria-label="Classificação"></ol>
+    </div>
+    <div class="hud-tr">
+      <dl class="hud-times">
+        <div><dt>TEMPO</dt><dd id="hud-time">0:00.000</dd></div>
+        <div><dt>VOLTA</dt><dd id="hud-cur">-:--.---</dd></div>
+        <div><dt>MELHOR</dt><dd id="hud-best">-:--.---</dd></div>
+      </dl>
+      <div class="hud-buttons">
+        <button class="icon-btn" id="hud-camera" type="button" title="Trocar câmera (C)" aria-label="Trocar câmera">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h3l2-3h8l2 3h3v11H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="icon-btn" id="hud-fullscreen" type="button" title="Tela cheia" aria-label="Tela cheia">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+        </button>
+        <button class="icon-btn" id="hud-pause" type="button" title="Pausar (P)" aria-label="Pausar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="hud-bl">
+      <canvas class="minimap" id="minimap" aria-hidden="true"></canvas>
+    </div>
+    <div class="hud-br">
+      <div class="gauge">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <path class="gauge-track" d="M 43.43 156.57 A 80 80 0 1 1 156.57 156.57" />
+          <path class="gauge-red" d="M 177.27 120.71 A 80 80 0 0 1 156.57 156.57" />
+          <path class="gauge-fill" id="gauge-fill" pathLength="100" d="M 43.43 156.57 A 80 80 0 1 1 156.57 156.57" />
+          <g class="gauge-ticks" id="gauge-ticks"></g>
+        </svg>
+        <div class="gauge-read">
+          <b id="hud-speed">0</b>
+          <span>km/h</span>
+          <i id="hud-gear">N</i>
+        </div>
+      </div>
+      <div class="nitro" aria-label="Nitro">
+        <span class="hud-label">N₂O</span>
+        <div class="nitro-bar"><i id="hud-nitro"></i></div>
+      </div>
+    </div>
+
+    <div class="lights" id="lights" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <div class="wrong" id="wrong" hidden>CONTRAMÃO</div>
+  </div>
+
+  <div class="touch-pad" id="touch" aria-hidden="true">
+    <div class="touch-left">
+      <button type="button" data-k="left"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3"/></svg></button>
+      <button type="button" data-k="right"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3"/></svg></button>
+    </div>
+    <div class="touch-right">
+      <button type="button" data-k="nitro" class="t-nitro">N₂O</button>
+      <button type="button" data-k="hand" class="t-hand">DRIFT</button>
+      <button type="button" data-k="brake" class="t-brake">FREIO</button>
+      <button type="button" data-k="gas" class="t-gas">ACEL</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="pause" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+      <p class="eyebrow">Bandeira vermelha</p>
+      <h2 id="pause-title">Pausado</h2>
+      <div class="panel-actions">
+        <button class="btn btn-primary" id="btn-resume" type="button">Continuar</button>
+        <button class="btn btn-ghost" id="btn-restart" type="button">Reiniciar corrida</button>
+        <button class="btn btn-ghost" id="btn-exit" type="button">Sair para o menu</button>
+      </div>
+      <div class="panel-toggles">
+        <button class="toggle wide" id="pause-music" type="button" aria-pressed="true">Música</button>
+        <button class="toggle wide" id="pause-sfx" type="button" aria-pressed="true">Efeitos</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="results" hidden>
+    <div class="panel panel-results" role="dialog" aria-modal="true" aria-labelledby="results-title">
+      <div class="checker" aria-hidden="true"></div>
+      <p class="eyebrow" id="results-track">Distrito Neon · 3 voltas</p>
+      <h2 id="results-title"><span id="results-place">1º</span> lugar</h2>
+      <p class="results-note" id="results-note"></p>
+      <div class="table-scroll">
+        <table class="classif">
+          <thead><tr><th scope="col">Pos</th><th scope="col">Piloto</th><th scope="col">Carro</th><th scope="col">Tempo</th><th scope="col">Melhor volta</th></tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <div class="panel-actions row">
+        <button class="btn btn-primary" id="btn-again" type="button">Correr de novo</button>
+        <button class="btn btn-ghost" id="btn-tracks" type="button">Trocar circuito</button>
+        <button class="btn btn-ghost" id="btn-menu" type="button">Menu</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- BODY:END -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/cars.js"></script>
+<script src="js/tracks.js"></script>
+<script src="js/race.js"></script>
+<script src="js/render.js"></script>
+<script src="js/render3d.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
