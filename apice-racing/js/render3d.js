@@ -332,13 +332,43 @@
   }
 
   /* ---------- Modelo GLB (carro do jogador) ---------- */
+  // Hospedagens que não servem .glb recebem o modelo num .js com base64 (APX_MODEL_JS = true).
+  function fetchModelBuffer(url) {
+    if (!window.APX_MODEL_JS) {
+      return fetch(url).then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const done = () => {
+        const b64 = window.APX_MODEL_DATA && window.APX_MODEL_DATA[url];
+        if (!b64) { reject(new Error('modelo ausente')); return; }
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        resolve(bytes.buffer);
+      };
+      if (window.APX_MODEL_DATA && window.APX_MODEL_DATA[url]) { done(); return; }
+      const sc = document.createElement('script');
+      sc.src = url + '.js';
+      sc.onload = done;
+      sc.onerror = () => reject(new Error('script do modelo não carregou'));
+      document.head.appendChild(sc);
+    });
+  }
+
   const modelCache = new Map();
   function loadModel(url) {
     if (!url || !THREE.GLTFLoader) return Promise.resolve(null);
     if (modelCache.has(url)) return modelCache.get(url).promise;
     const entry = { obj: null };
     entry.promise = new Promise((resolve) => {
-      new THREE.GLTFLoader().load(url, (gltf) => {
+      const fail = (err) => {
+        console.warn('Modelo 3D não carregou:', err && err.message ? err.message : err);
+        resolve(null);
+      };
+      fetchModelBuffer(url).then((buf) => new THREE.GLTFLoader().parse(buf, '', (gltf) => {
         const model = gltf.scene;
         // no arquivo a frente aponta para -X; no jogo a frente é +X
         model.rotation.y = Math.PI;
@@ -359,10 +389,7 @@
         wrap.add(model);
         entry.obj = wrap;
         resolve(wrap);
-      }, undefined, (err) => {
-        console.warn('Modelo 3D não carregou:', err && err.message ? err.message : err);
-        resolve(null);
-      });
+      }, fail)).catch(fail);
     });
     modelCache.set(url, entry);
     return entry.promise;

@@ -4,6 +4,7 @@
   python3 tools/build.py            -> dist/apice-racing.html (documento completo, abre direto no navegador)
   python3 tools/build.py --fragment SAIDA.html -> fragmento sem <html>/<head>/<body> (para hospedagens que montam o esqueleto)
 """
+import base64
 import pathlib
 import re
 import shutil
@@ -32,7 +33,17 @@ def main():
     args = sys.argv[1:]
     if args and args[0] == "--fragment":
         out = pathlib.Path(args[1])
-        out.write_text(inner, encoding="utf-8")
+        # a hospedagem do fragmento não serve .glb: o modelo vai em .js (base64)
+        frag = inner.replace("<script>\n", "<script>window.APX_MODEL_JS = true;\n", 1) if False else inner
+        frag = frag.replace(f"{external}\n<script>\n", f"{external}\n<script>window.APX_MODEL_JS = true;</script>\n<script>\n", 1)
+        out.write_text(frag, encoding="utf-8")
+        assets = out.parent / "assets"
+        shutil.copytree(ROOT / "assets", assets, dirs_exist_ok=True)
+        for glb in (ROOT / "assets").rglob("*.glb"):
+            rel = glb.relative_to(ROOT).as_posix()
+            b64 = base64.b64encode(glb.read_bytes()).decode("ascii")
+            (out.parent / (rel + ".js")).write_text(
+                f"(window.APX_MODEL_DATA = window.APX_MODEL_DATA || {{}})[{rel!r}] = '{b64}';\n", encoding="utf-8")
     else:
         full_head = head.replace('<meta name="claude:viewport-fit-sides" content="cover">\n', "")
         doc = (
