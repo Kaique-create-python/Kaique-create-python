@@ -343,9 +343,14 @@ local function retargetPose(transforms, strafe: number?)
 		local direction = swing(REST_FRAMES[tip].Position - REST_PIVOTS[pivot], f[tip].Position - p[pivot], DOWN)
 		local front = (f[upper].Rotation * REST_FRAMES[upper].Rotation:Inverse()) * FRONT
 		if key == "rightLeg" or key == "leftLeg" then
-			-- Andando de lado ou de costas (mirando), as pernas passam a dar o passo na direção do movimento.
+			-- Andando de lado ou de costas (mirando), o passo segue a direção do movimento. Só a direção gira: girar
+			-- também a "frente" torceria a perna em volta do pivô do quadril do R6 (que fica na borda da perna) e
+			-- as pernas abririam para os lados. De lado o passo fica mais curto, para uma perna não cruzar a outra.
+			local side = math.abs(math.sin(strafe or 0))
+			if side > 0.01 then
+				direction = DOWN:Lerp(direction, 1 - 0.45 * side).Unit
+			end
 			direction = turn * direction
-			front = turn * front
 		end
 		pose[key] = torso:VectorToObjectSpace(direction)
 		pose[key .. "Up"] = torso:VectorToObjectSpace(front)
@@ -432,7 +437,8 @@ M.mirrorCFrame = mirrorCFrame
 -- Atlas cell: weapons at 384 x 192 in two columns (left 768 px), glyphs at 128 x 128 in the right strip.
 -- Same layout as design/icones.py (weapon silhouettes projected from the 3D models).
 local ICON_ORDER = { "punhos", "faca", "glock", "deagle", "uzi", "ak47", "m4", "escopeta", "sniper" }
-local GLYPHS = { "tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar" }
+local GLYPHS = { "tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar",
+	"implantes", "sandevistan", "psicose", "kiroshi", "louva", "gorila", "tendoes", "subdermal" }
 local function iconRect(key: string): (Vector2?, Vector2?)
 	local weapon = table.find(ICON_ORDER, key)
 	if weapon then
@@ -465,6 +471,9 @@ local TEAL = Color3.fromRGB(72, 226, 210)
 local SUNSET = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, PINK), ColorSequenceKeypoint.new(0.55, ORANGE), ColorSequenceKeypoint.new(1, GOLD),
 })
+-- Neon do HUD 3D (como o do Chrome Clash): ciano, e rosa para dano e ciberpsicose.
+local NEON = Color3.fromRGB(86, 255, 222)
+local NEON_HURT = Color3.fromRGB(255, 72, 140)
 local CENTER = Vector2.new(0.5, 0.5)
 local FULL = UDim2.fromScale(1, 1)
 local BUILDER = "rbxasset://fonts/families/BuilderSans.json"
@@ -581,15 +590,15 @@ end
 
 -- Layout ---------------------------------------------------------------------------------------------------
 -- Posições em pixels da área segura (abaixo da barra do Roblox e fora dos entalhes). Pura: os testes conferem
--- que nada se sobrepõe em celulares, tablets e PCs. No toque: mapa no alto à esquerda, arma no alto à direita
--- (toque para trocar) e botões em arco em volta do pulo do Roblox. No PC: mapa embaixo à esquerda, arma
--- embaixo à direita.
+-- que nada se sobrepõe em celulares, tablets e PCs. No toque: mapa no alto à esquerda, arsenal e implantes no
+-- alto à direita, barra de armas embaixo no centro e botões em arco em volta do pulo do Roblox. No PC: mapa
+-- embaixo à esquerda, barra no centro, implantes e habilidade embaixo à direita.
 local MAP_BLOCK = {
-	touch = { width = 136, map = 88, gap = 4, caption = 14, bar = 5, breath = 3 },
-	desktop = { width = 272, map = 184, gap = 6, caption = 16, bar = 7, breath = 4 },
+	touch = { width = 136, map = 88, gap = 4, caption = 14, bar = 5, breath = 3, psy = 4 },
+	desktop = { width = 272, map = 184, gap = 6, caption = 16, bar = 7, breath = 4, psy = 5 },
 }
 local function blockHeight(b): number
-	return b.map + b.gap + b.caption + b.gap + b.bar + 3 + b.breath
+	return b.map + b.gap + b.caption + b.gap + b.bar + 3 + b.breath + 3 + b.psy
 end
 
 local function hudLayout(screen: Vector2, touch: boolean, jump)
@@ -602,7 +611,11 @@ local function hudLayout(screen: Vector2, touch: boolean, jump)
 		local m = math.floor(12 * s)
 		l.scale = s
 		l.minimap = { anchor = Vector2.new(0, 0), position = Vector2.new(m, math.floor(10 * s)), size = Vector2.new(b.width, blockHeight(b)) }
-		l.weapon = { anchor = Vector2.new(1, 0), position = Vector2.new(W - m, math.floor(10 * s)), size = Vector2.new(176, 50) }
+		-- Canto de cima à direita: roleta de armas e implantes (o cartão de arma antigo saiu: a barra neon mostra tudo).
+		l.arsenal = { anchor = Vector2.new(1, 0), position = Vector2.new(W - m, math.floor(10 * s)), size = Vector2.new(44, 44) }
+		l.implants = { anchor = Vector2.new(1, 0), position = Vector2.new(W - m - math.floor(52 * s), math.floor(10 * s)), size = Vector2.new(44, 44) }
+		-- Barra neon das armas, embaixo no centro (entre o analógico e os botões de ação).
+		l.neon = { anchor = Vector2.new(0.5, 1), position = Vector2.new(math.floor(W / 2), H - math.floor(4 * s)), size = Vector2.new(280, 46) }
 		l.toast = { anchor = Vector2.new(0.5, 0), position = Vector2.new(math.floor(W / 2), math.floor(8 * s)), size = Vector2.new(260, 50) }
 		local center, radius
 		if jump then
@@ -618,6 +631,7 @@ local function hudLayout(screen: Vector2, touch: boolean, jump)
 			fire = { center = center + Vector2.new(-76, -6) * k, radius = 32 * k },
 			aim = { center = center + Vector2.new(-46, -74) * k, radius = 26 * k },
 			reload = { center = center + Vector2.new(10, -78) * k, radius = 21 * k },
+			ability = { center = center + Vector2.new(-112, -78) * k, radius = 24 * k },
 		}
 		l.wheel = { scale = math.clamp(H / 340, 0.78, 1.4) }
 	else
@@ -626,7 +640,9 @@ local function hudLayout(screen: Vector2, touch: boolean, jump)
 		local m = math.floor(24 * s)
 		l.scale = s
 		l.minimap = { anchor = Vector2.new(0, 1), position = Vector2.new(m, H - m), size = Vector2.new(b.width, blockHeight(b)) }
-		l.weapon = { anchor = Vector2.new(1, 1), position = Vector2.new(W - m, H - m), size = Vector2.new(300, 66) }
+		l.neon = { anchor = Vector2.new(0.5, 1), position = Vector2.new(math.floor(W / 2), H - m), size = Vector2.new(420, 76) }
+		l.implants = { anchor = Vector2.new(1, 1), position = Vector2.new(W - m, H - m), size = Vector2.new(56, 56) }
+		l.ability = { anchor = Vector2.new(1, 1), position = Vector2.new(W - m - math.floor(64 * s), H - m), size = Vector2.new(56, 56) }
 		l.toast = { anchor = Vector2.new(0.5, 0), position = Vector2.new(math.floor(W / 2), math.floor(22 * s)), size = Vector2.new(420, 70) }
 		l.buttons = {}
 		l.wheel = { scale = math.clamp(H / 860, 0.8, 1.4) }
@@ -660,18 +676,24 @@ local function buildHud(parent: Instance, touch: boolean)
 		Name = "CyberOutlawHUD", ResetOnSpawn = false, DisplayOrder = 30, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
 	})
-	local hud = { gui = gui }
-	local block = frame(gui, "Minimap", 1, { Size = UDim2.fromOffset(b.width, blockHeight(b)) })
-	local blockScale = new("UIScale", block, { Name = "Escala" })
-	local plate = frame(block, "Plate", 1, { Size = UDim2.fromOffset(b.width, b.map), BackgroundColor3 = PANEL, BackgroundTransparency = 0.22 })
+	local hud = { gui = gui, canvas = Vector2.new(b.width, blockHeight(b)) }
+	-- A âncora é o que o layout posiciona; o bloco fica dentro dela (2D) ou vai para a placa neon 3D (no jogo).
+	local anchor = frame(gui, "MinimapAncora", 1, { Size = UDim2.fromOffset(b.width, blockHeight(b)) })
+	local anchorScale = new("UIScale", anchor, { Name = "Escala" })
+	local block = frame(anchor, "Minimap", 1, { Size = UDim2.fromOffset(b.width, blockHeight(b)) })
+	local blockScale = new("UIScale", block, { Name = "Escala3D", Scale = 1 })
+	-- Neon no mesmo estilo da barra de armas: traço ciano forte e um halo largo por trás.
+	local halo = frame(block, "Halo", 1, { Size = UDim2.fromOffset(b.width, b.map) })
+	round(halo, UDim.new(0, 8))
+	stroke(halo, NEON, 0.82, 7)
+	local plate = frame(block, "Plate", 1, { Size = UDim2.fromOffset(b.width, b.map), BackgroundColor3 = PANEL, BackgroundTransparency = 0.3 })
 	round(plate, UDim.new(0, 6))
-	local plateEdge = stroke(plate, LINE, 0.3, 1.5)
-	sunset(plateEdge, 35)
+	stroke(plate, NEON, 0.05, 1.5)
 	-- Frame com ClipsDescendants (CanvasGroup não recorta numa ScreenGui Global).
 	local view = frame(plate, "Viewport", 2, { Position = UDim2.fromOffset(1, 1), Size = UDim2.new(1, -2, 1, -2), ClipsDescendants = true })
 	local pivot = frame(view, "Pivot", 2, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(0, 0) })
 	local map = frame(pivot, "Map", 2, {})
-	local arrow = label(view, "PlayerArrow", "▲", f.heavy, if touch then 13 else 17, TEXT, 8, {
+	local arrow = label(view, "PlayerArrow", "▲", f.heavy, if touch then 13 else 17, NEON, 8, {
 		AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(18, 18),
 		TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.35, TextStrokeColor3 = PANEL,
 	})
@@ -715,6 +737,15 @@ local function buildHud(parent: Instance, touch: boolean)
 	round(breathTrack, UDim.new(0, 2))
 	local breath = frame(breathTrack, "StaminaFill", 4, { Size = FULL, BackgroundColor3 = BREATH, BackgroundTransparency = 0 })
 	round(breath, UDim.new(0, 2))
+	-- Ciberpsicose (só com o Sandevistan encaixado): cada uso esvazia a barra; a zero, surto.
+	local psyTrack = frame(block, "PsicoseTrack", 3, {
+		Position = UDim2.fromOffset(0, barY + b.bar + 3 + b.breath + 3), Size = UDim2.fromOffset(b.width, b.psy),
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.3, Visible = false,
+	})
+	round(psyTrack, UDim.new(0, 2))
+	stroke(psyTrack, NEON_HURT, 0.5, 1)
+	local psy = frame(psyTrack, "PsicoseFill", 4, { Size = FULL, BackgroundColor3 = NEON_HURT, BackgroundTransparency = 0 })
+	round(psy, UDim.new(0, 2))
 
 	local toast = frame(gui, "DistrictToast", 10, { Visible = false })
 	local toastScale = new("UIScale", toast, { Name = "Escala" })
@@ -774,8 +805,8 @@ local function buildHud(parent: Instance, touch: boolean)
 	end
 
 	function hud.layout(l)
-		place(block, l.minimap, l.scale, blockScale)
-		block.Size = UDim2.fromOffset(b.width, blockHeight(b))
+		place(anchor, l.minimap, l.scale, anchorScale)
+		hud.scale = l.scale
 		place(toast, l.toast, l.scale, toastScale)
 		local x0, _, x1, y1 = layoutRect(l.minimap, l.scale)
 		if touch then
@@ -816,6 +847,12 @@ local function buildHud(parent: Instance, touch: boolean)
 		breathTrack.Visible = stamina < 0.999 or input.exhausted == true
 		breath.Size = UDim2.fromScale(stamina, 1)
 		breath.BackgroundColor3 = if input.exhausted then HURT else BREATH
+		psyTrack.Visible = type(input.psychosis) == "number"
+		if psyTrack.Visible then
+			local value = math.clamp(input.psychosis, 0, 1)
+			psy.Size = UDim2.fromScale(value, 1)
+			psy.BackgroundColor3 = if value < 0.25 then HURT:Lerp(NEON_HURT, 0.5 + 0.5 * math.sin(state.time * 9)) else NEON_HURT
+		end
 		-- HUD que descansa: com vida cheia e sem correr, as barras ficam discretas (como no GTA 6).
 		local busy = health < 0.999 or breathTrack.Visible or state.time - state.damage < 4
 		state.idle = if busy then 0 else state.idle + dt
@@ -853,7 +890,8 @@ local function buildHud(parent: Instance, touch: boolean)
 		end
 		safe.Visible = input.safe == true
 	end
-	hud.parts = { block = block, toast = toast, safe = safe, fill = fill, trail = trail, map = map, pivot = pivot, arrow = arrow, track = track }
+	hud.parts = { block = block, toast = toast, safe = safe, fill = fill, trail = trail, map = map, pivot = pivot, arrow = arrow, track = track,
+		anchor = anchor, blockScale = blockScale, psy = psy, psyTrack = psyTrack }
 	return hud
 end
 M.buildHud = buildHud
@@ -1184,101 +1222,6 @@ local function buildWheel(parent: Instance, defs, templates, touch: boolean, atl
 end
 M.buildWheel = buildWheel
 
--- Arma atual: ícone 2D, nome e munição; no toque, o cartão abre a roleta.
-local function buildWeaponCard(parent: Instance, touch: boolean, atlas: string?)
-	local f = fonts()
-	local w, h = if touch then 176 else 300, if touch then 50 else 66
-	local gui = new("ScreenGui", parent, {
-		Name = "CyberOutlawArmaAtual", ResetOnSpawn = false, DisplayOrder = 31, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
-	})
-	local panel = new("TextButton", gui, {
-		Name = "Painel", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromOffset(w, h),
-		Active = touch, Selectable = false, AnchorPoint = Vector2.new(1, if touch then 0 else 1),
-		Position = if touch then UDim2.new(1, -12, 0, 10) else UDim2.new(1, -24, 1, -24),
-	})
-	local scale = new("UIScale", panel, { Name = "Escala" })
-	local back = frame(panel, "Fundo", 1, { Size = FULL, BackgroundColor3 = PANEL, BackgroundTransparency = 0 })
-	round(back, UDim.new(0, 8))
-	new("UIGradient", back, {
-		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.62), NumberSequenceKeypoint.new(1, 0.36) }),
-	})
-	local iconW = if touch then 70 else 116
-	local iconBox = frame(panel, "IconeArea", 2, {
-		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, if touch then 4 else 8, 0.5, 0), Size = UDim2.fromOffset(iconW, h - 10),
-	})
-	local icon, viewport
-	if atlas then
-		icon = atlasImage(iconBox, "Icone", atlas, "punhos", 3, { Size = FULL, ImageColor3 = TEXT })
-	else
-		icon = new("ViewportFrame", iconBox, {
-			Name = "Modelo3D", Size = FULL, BackgroundTransparency = 1, ZIndex = 3, Ambient = Color3.fromRGB(150, 150, 170),
-			LightColor = Color3.fromRGB(255, 240, 230), LightDirection = Vector3.new(-1, -1.4, -0.6),
-		})
-	end
-	local accentBar = frame(panel, "Destaque", 3, {
-		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.fromScale(1, 0.5), Size = UDim2.new(0, 3, 1, -12),
-		BackgroundTransparency = 0, BackgroundColor3 = LINE,
-	})
-	round(accentBar, UDim.new(1, 0))
-	sunset(accentBar, 90)
-	local nameLabel = label(panel, "Nome", "PUNHOS", f.bold, if touch then 9 else 11, ORANGE, 3, {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, if touch then 5 else 7), Size = UDim2.fromOffset(w - iconW - 24, if touch then 11 else 14),
-		TextXAlignment = Enum.TextXAlignment.Right,
-	})
-	local mag = label(panel, "Pente", "", f.heavy, if touch then 22 else 30, TEXT, 3, {
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, if touch then -46 else -64, 1, if touch then -5 else -7),
-		Size = UDim2.fromOffset(if touch then 60 else 90, if touch then 26 else 34), TextXAlignment = Enum.TextXAlignment.Right,
-	})
-	local reserve = label(panel, "Reserva", "", f.bold, if touch then 12 else 15, SUB, 3, {
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, if touch then -8 else -11), Size = UDim2.fromOffset(if touch then 34 else 50, if touch then 16 else 20),
-		TextXAlignment = Enum.TextXAlignment.Right,
-	})
-	local reloadTrack = frame(panel, "Recarga", 4, {
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -3), Size = UDim2.fromOffset(if touch then 92 else 150, 2),
-		BackgroundTransparency = 0.8, BackgroundColor3 = LINE, Visible = false,
-	})
-	local reloadFill = frame(reloadTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = LINE })
-	sunset(reloadFill)
-	local card = { gui = gui, panel = panel, scale = scale }
-	local shown
-	function card.show(def, template, ammo, progress: number?)
-		if shown ~= def.id then
-			shown = def.id
-			nameLabel.Text = upper(def.name or def.id)
-			if icon:IsA("ImageLabel") then
-				local offset, size = iconRect(def.id)
-				icon.ImageRectOffset = offset or Vector2.zero
-				icon.ImageRectSize = size or Vector2.zero
-			else
-				for _, child in icon:GetChildren() do
-					child:Destroy()
-				end
-				viewport = viewportModel(icon, template)
-				poseViewport(viewport, 0.6)
-			end
-		end
-		if type(ammo) == "table" then
-			mag.Text = tostring(ammo[1] or 0)
-			reserve.Text = "/" .. tostring(ammo[2] or 0)
-			local low = (ammo[1] or 0) <= math.max(1, math.floor((def.mag or 10) * 0.25))
-			mag.TextColor3 = if low then ACCENT else TEXT
-		else
-			mag.Text = ""
-			reserve.Text = ""
-		end
-		reloadTrack.Visible = progress ~= nil
-		if progress then
-			reloadFill.Size = UDim2.fromScale(math.clamp(progress, 0, 1), 1)
-		end
-	end
-	function card.layout(l)
-		place(panel, l.weapon, l.scale, scale)
-	end
-	return card
-end
-M.buildWeaponCard = buildWeaponCard
-
 -- Botão de toque redondo, translúcido, com ícone 2D branco (ou o nome, enquanto os ícones aguardam aprovação).
 -- Glifos feitos de Frames, para os botões terem símbolo mesmo antes do atlas ser aprovado.
 local function frameGlyph(parent: Instance, key: string, z: number, color: Color3): Frame
@@ -1339,6 +1282,31 @@ local function frameGlyph(parent: Instance, key: string, z: number, color: Color
 		})
 		bar(0.82, 0.24, 0.18, 0.18, 45, 0.1)
 		bar(0.5, 0.52, 0.24, 0.44, 8, 0.25)
+	elseif key == "implantes" then
+		-- Chip: corpo quadrado vazado, núcleo e três pinos de cada lado.
+		local body = frame(box, "Chip", z, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.56, 0.56) })
+		round(body, UDim.new(0.14, 0))
+		stroke(body, color, 0, 2)
+		bar(0.5, 0.5, 0.2, 0.2, 0, 0.2)
+		for index = 0, 2 do
+			local t = 0.3 + index * 0.2
+			bar(0.1, t, 0.16, 0.06)
+			bar(0.9, t, 0.16, 0.06)
+			bar(t, 0.1, 0.06, 0.16)
+			bar(t, 0.9, 0.06, 0.16)
+		end
+	elseif key == "sandevistan" then
+		-- Coluna: vértebras que estreitam para baixo, ligadas por um cabo.
+		bar(0.5, 0.5, 0.06, 0.96, 0, 0.5)
+		for index = 0, 4 do
+			bar(0.5, 0.1 + index * 0.2, 0.74 - index * 0.1, 0.11, 0, 0.4)
+		end
+	elseif key == "psicose" then
+		-- Olho rachado: anel, pupila e um raio cortando.
+		ring(0.5, 0.5, 0.8, 2)
+		bar(0.5, 0.5, 0.2, 0.2, 0, 1)
+		bar(0.38, 0.3, 0.06, 0.4, -28, 0.5)
+		bar(0.6, 0.68, 0.06, 0.4, -28, 0.5)
 	else
 		bar(0.5, 0.5, 0.5, 0.5, 45, 0.2)
 	end
@@ -1475,93 +1443,221 @@ local function buildAdminPanel(parent: Instance, touch: boolean, points, packs, 
 end
 M.buildAdminPanel = buildAdminPanel
 
--- HUD neon em 3D (como o do Chrome Clash): vida e quatro armas rápidas desenhadas numa SurfaceGui presa a
--- uma placa na frente da câmera, inclinada e com balanço. Brilho acima de 1 faz o neon acender com o bloom.
-local NEON = Color3.fromRGB(86, 255, 222)
-local NEON_HURT = Color3.fromRGB(255, 72, 140)
-local QUICK = { "punhos", "glock", "ak47", "escopeta" }
-M.QUICK = QUICK
-local NEON_CANVAS = Vector2.new(600, 240)
-local function buildNeonHud(defs, atlas: string?)
-	local mono = Font.fromEnum(Enum.Font.Michroma)
+-- Botão do HUD no estilo neon: vidro escuro, traço ciano e halo largo, símbolo do atlas (ou de Frames) e a
+-- tecla no canto no PC. Fica 2D porque recebe toque; o visual combina com as placas 3D.
+local function neonButton(parent: Instance, name: string, glyph: string, atlas: string?, keyHint: string?, circle: boolean?)
+	local corner = if circle then UDim.new(1, 0) else UDim.new(0, 9)
+	local button = new("TextButton", parent, {
+		Name = name, Text = "", AutoButtonColor = false, BackgroundColor3 = PANEL, BackgroundTransparency = 0.32, ZIndex = 20,
+		AnchorPoint = CENTER, Size = UDim2.fromOffset(44, 44), Selectable = false,
+	})
+	round(button, corner)
+	local scale = new("UIScale", button, { Name = "Escala" })
+	local glow = frame(button, "Halo", 19, { Size = FULL })
+	round(glow, corner)
+	local halo = stroke(glow, NEON, 0.78, 6)
+	local line = stroke(button, NEON, 0.12, 1.5)
+	local image
+	if atlas and iconRect(glyph) then
+		image = atlasImage(button, "Icone", atlas, glyph, 21, {
+			AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.62, 0.62), ImageColor3 = NEON,
+		})
+	else
+		frameGlyph(button, glyph, 21, NEON)
+	end
+	if keyHint then
+		label(button, "Tecla", keyHint, Font.fromEnum(Enum.Font.Michroma), 10, NEON, 22, {
+			AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -3, 1, -2), Size = UDim2.fromOffset(16, 12),
+			TextXAlignment = Enum.TextXAlignment.Right,
+		})
+	end
+	local entry = { button = button, line = line, halo = halo, image = image, scale = scale }
+	-- Aceso (habilidade ativa ou painel aberto) ou apagado; color troca o neon (rosa no surto).
+	function entry.light(on: boolean, color: Color3?)
+		local tone = color or NEON
+		line.Color, halo.Color = tone, tone
+		line.Thickness = if on then 2.5 else 1.5
+		halo.Transparency = if on then 0.45 else 0.78
+		button.BackgroundTransparency = if on then 0.12 else 0.32
+		if image then
+			image.ImageColor3 = tone
+		end
+	end
+	return entry
+end
+M.neonButton = neonButton
+
+-- Barra neon das armas em 3D: uma placa na frente da câmera, inclinada e com balanço, com quatro armas por
+-- página (setas < > mostram as outras), a tecla de cada uma e a munição. O brilho acima de 1 acende com o bloom.
+-- As posições ficam em escala para a camada 2D de toque usar as mesmas áreas (BAR_HITS).
+local BAR_PER_PAGE = 4
+local BAR_SLOT_X, BAR_SLOT_W, BAR_SLOT_PITCH = 0.073, 0.145, 0.155
+local BAR_HITS = {
+	left = { UDim2.fromScale(0, 0.08), UDim2.fromScale(0.065, 0.84) },
+	right = { UDim2.fromScale(0.691, 0.08), UDim2.fromScale(0.065, 0.84) },
+}
+for index = 1, BAR_PER_PAGE do
+	BAR_HITS[index] = { UDim2.fromScale(BAR_SLOT_X + (index - 1) * BAR_SLOT_PITCH, 0.08), UDim2.fromScale(BAR_SLOT_W, 0.84) }
+end
+M.BAR_HITS = BAR_HITS
+M.BAR_PER_PAGE = BAR_PER_PAGE
+local SHORT_NAMES = { punhos = "SOCO", faca = "FACA", glock = "G17", deagle = ".50", uzi = "UZI", ak47 = "AK",
+	m4 = "M4", escopeta = "12", sniper = ".308" }
+local function neonBox(parent: Instance, name: string, position: UDim2, size: UDim2, z: number, thick: number?)
+	local glow = frame(parent, name .. "Halo", z, { Position = position, Size = size })
+	round(glow, UDim.new(0, 8))
+	local halo = stroke(glow, NEON, 0.8, 9)
+	local box = frame(parent, name, z + 1, { Position = position, Size = size })
+	round(box, UDim.new(0, 6))
+	local line = stroke(box, NEON, 0, thick or 3)
+	return box, line, glow, halo
+end
+local function holoSurface(name: string, canvas: Vector2): (Part, SurfaceGui)
 	local part = Instance.new("Part")
-	part.Name = "CyberOutlawHudNeon"
+	part.Name = name
 	part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch, part.CastShadow = true, false, false, false, false
 	part.Transparency = 1
 	part.Size = Vector3.new(3, 1.2, 0.02)
 	local gui = new("SurfaceGui", nil, {
-		Name = "CyberOutlawHudNeon", Face = Enum.NormalId.Back, Adornee = part, AlwaysOnTop = true, LightInfluence = 0,
-		Brightness = 2.2, SizingMode = Enum.SurfaceGuiSizingMode.FixedSize, CanvasSize = NEON_CANVAS,
+		Name = name, Face = Enum.NormalId.Back, Adornee = part, AlwaysOnTop = true, LightInfluence = 0,
+		Brightness = 2.2, SizingMode = Enum.SurfaceGuiSizingMode.FixedSize, CanvasSize = canvas,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, ResetOnSpawn = false, ClipsDescendants = false,
 	})
-	-- Moldura neon: traço forte e um halo largo e fraco por trás.
-	local function neonBox(parent, name, position, size, z)
-		local glow = frame(parent, name .. "Halo", z, { Position = position, Size = size })
-		round(glow, UDim.new(0, 8))
-		stroke(glow, NEON, 0.8, 9)
-		local box = frame(parent, name, z + 1, { Position = position, Size = size })
-		round(box, UDim.new(0, 6))
-		local line = stroke(box, NEON, 0, 3)
-		return box, line, glow
+	return part, gui
+end
+M.holoSurface = holoSurface
+-- Inclinação da placa pela posição na tela (nx, ny de -1 a 1 a partir do centro): devolve o pivô (borda de
+-- fora: -1, 0 ou 1 em x e y) e os ângulos (pitch, yaw) em radianos, como um painel curvo de cabine.
+local function holoTilt(nx: number, ny: number): (number, number, number, number)
+	local fx = if math.abs(nx) > 0.35 then (if nx < 0 then -1 else 1) else 0
+	local fy = if math.abs(ny) > 0.35 then (if ny < 0 then -1 else 1) else 0
+	return fx, fy, -ny * 0.24, -nx * 0.28
+end
+M.holoTilt = holoTilt
+local function buildWeaponBar(defs, atlas: string?)
+	local mono = Font.fromEnum(Enum.Font.Michroma)
+	-- Números estreitos (Roboto Mono em negrito) para "30/150" caber ao lado das setas.
+	local digits = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold)
+	local part, gui = holoSurface("CyberOutlawBarraNeon", Vector2.new(560, 92))
+	local texts = {} -- { label, fração da altura da tela }
+	local function text(parent, name, value, share, z, props, font)
+		local item = label(parent, name, value, font or mono, 18, NEON, z, props)
+		table.insert(texts, { item, share })
+		return item
 	end
-	-- Vida: tampa com o símbolo de vida, barra e número.
-	local cap, capLine = neonBox(gui, "Tampa", UDim2.fromScale(0.03, 0.06), UDim2.fromScale(0.08, 0.26), 2)
-	label(cap, "Simbolo", "+", mono, 30, NEON, 4, { TextXAlignment = Enum.TextXAlignment.Center })
-	local bar, barLine = neonBox(gui, "Vida", UDim2.fromScale(0.13, 0.1), UDim2.fromScale(0.66, 0.18), 2)
-	local fill = frame(bar, "Preenchimento", 4, { Position = UDim2.fromScale(0.015, 0.18), Size = UDim2.fromScale(0.97, 0.64),
-		BackgroundTransparency = 0.05, BackgroundColor3 = NEON })
-	round(fill, UDim.new(0, 3))
-	new("UIGradient", fill, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 0.35) }) })
-	local number = label(gui, "Numero", "100", mono, 34, NEON, 4, { Position = UDim2.fromScale(0.81, 0.04), Size = UDim2.fromScale(0.17, 0.3) })
-	-- Armas rápidas: caixas com o número da tecla em cima e o ícone (ou a sigla) dentro.
 	local slots = {}
-	local byKey = {}
-	for _, d in defs do
-		byKey[d.id] = d
-	end
-	for index, id in QUICK do
-		local d = byKey[id]
-		local x = 0.03 + (index - 1) * 0.24
-		local box, line, glow = neonBox(gui, "Slot" .. index, UDim2.fromScale(x, 0.5), UDim2.fromScale(0.21, 0.44), 2)
-		local key = frame(gui, "Tecla" .. index, 5, { Position = UDim2.fromScale(x + 0.005, 0.36), Size = UDim2.fromScale(0.06, 0.12) })
-		round(key, UDim.new(0, 3))
-		stroke(key, NEON, 0, 2)
-		label(key, "Numero", tostring(d and d.order or index), mono, 16, NEON, 6, { TextXAlignment = Enum.TextXAlignment.Center })
+	for index = 1, BAR_PER_PAGE do
+		local hit = BAR_HITS[index]
+		local box, line, glow = neonBox(gui, "Slot" .. index, hit[1], hit[2], 2)
+		local key = text(box, "Tecla", "", 0.2, 5, {
+			Position = UDim2.fromScale(0.07, 0.03), Size = UDim2.fromScale(0.4, 0.3), TextXAlignment = Enum.TextXAlignment.Left,
+		})
 		local icon
-		if atlas and iconRect(id) then
-			icon = atlasImage(box, "Icone", atlas, id, 5, { AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.52),
-				Size = UDim2.fromScale(0.86, 0.72), ImageColor3 = NEON })
-		else
-			local short = ({ punhos = "SOCO", glock = "G17", ak47 = "AK", escopeta = "12" })[id] or string.upper(id)
-			icon = label(box, "Sigla", short, mono, 22, NEON, 5, { TextXAlignment = Enum.TextXAlignment.Center })
+		if atlas then
+			icon = new("ImageLabel", box, {
+				Name = "Icone", BackgroundTransparency = 1, Image = atlas, ImageColor3 = NEON, ScaleType = Enum.ScaleType.Fit,
+				AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromScale(0.9, 0.62), ZIndex = 5,
+			})
 		end
-		slots[index] = { id = id, box = box, line = line, glow = glow, icon = icon }
+		local short = text(box, "Sigla", "", 0.28, 5, {
+			AnchorPoint = CENTER, Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromScale(0.96, 0.5),
+			TextXAlignment = Enum.TextXAlignment.Center, Visible = atlas == nil,
+		})
+		slots[index] = { box = box, line = line, glow = glow, key = key, icon = icon, short = short, id = nil }
 	end
-	local neon = { part = part, gui = gui, slots = slots, fill = fill, number = number }
-	local lines = { capLine, barLine }
-	function neon.set(health: number, current: string)
-		local hurt = health < 0.3
-		local color = if hurt then NEON_HURT else NEON
-		fill.Size = UDim2.fromScale(0.97 * math.clamp(health, 0, 1), 0.64)
-		fill.BackgroundColor3 = color
-		number.Text = tostring(math.max(0, math.round(health * 100)))
-		number.TextColor3 = color
-		for _, l in lines do
-			l.Color = color
+	local arrows = {}
+	for _, side in { "left", "right" } do
+		local hit = BAR_HITS[side]
+		local box, line = neonBox(gui, if side == "left" then "SetaEsquerda" else "SetaDireita", hit[1], hit[2], 2, 2)
+		text(box, "Simbolo", if side == "left" then "<" else ">", 0.42, 5, { TextXAlignment = Enum.TextXAlignment.Center })
+		arrows[side] = { box = box, line = line }
+	end
+	-- Munição: pente grande, reserva menor, nome da arma e a recarga embaixo.
+	local mag = text(gui, "Pente", "", 0.46, 4, {
+		Position = UDim2.fromScale(0.772, 0.04), Size = UDim2.fromScale(0.108, 0.52), TextXAlignment = Enum.TextXAlignment.Right,
+	}, digits)
+	local reserve = text(gui, "Reserva", "", 0.24, 4, {
+		Position = UDim2.fromScale(0.884, 0.2), Size = UDim2.fromScale(0.114, 0.3), TextXAlignment = Enum.TextXAlignment.Left,
+	}, digits)
+	local nameLabel = text(gui, "Nome", "", 0.2, 4, {
+		Position = UDim2.fromScale(0.77, 0.58), Size = UDim2.fromScale(0.225, 0.22), TextXAlignment = Enum.TextXAlignment.Center,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	})
+	local reloadTrack = frame(gui, "Recarga", 4, {
+		Position = UDim2.fromScale(0.775, 0.86), Size = UDim2.fromScale(0.215, 0.05), BackgroundTransparency = 0.7, BackgroundColor3 = NEON,
+		Visible = false,
+	})
+	local reloadFill = frame(reloadTrack, "Valor", 5, { Size = UDim2.fromScale(0, 1), BackgroundTransparency = 0, BackgroundColor3 = NEON })
+	local bar = { part = part, gui = gui, slots = slots, arrows = arrows, page = 1, mag = mag, reserve = reserve, name = nameLabel,
+		reload = reloadTrack }
+	bar.pages = math.max(1, math.ceil(#defs / BAR_PER_PAGE))
+	-- A tela da placa acompanha o retângulo do layout (2 px de tela por px do layout, sem esticar).
+	function bar.resize(canvas: Vector2)
+		gui.CanvasSize = canvas
+		for _, entry in texts do
+			entry[1].TextSize = math.max(9, math.floor(canvas.Y * entry[2] + 0.5))
 		end
+	end
+	function bar.setPage(page: number)
+		bar.page = math.clamp(page, 1, bar.pages)
+		for index, slot in slots do
+			local d = defs[(bar.page - 1) * BAR_PER_PAGE + index]
+			slot.id = d and d.id
+			slot.box.Visible = d ~= nil
+			slot.glow.Visible = false
+			if d then
+				slot.key.Text = tostring(d.order or index)
+				slot.short.Text = SHORT_NAMES[d.id] or upper(d.id)
+				if slot.icon then
+					local offset, size = iconRect(d.id)
+					slot.icon.ImageRectOffset, slot.icon.ImageRectSize = offset or Vector2.zero, size or Vector2.zero
+				end
+			end
+		end
+		arrows.left.box.Visible = bar.page > 1
+		arrows.right.box.Visible = bar.page < bar.pages
+	end
+	function bar.pageOf(id: string): number
+		for index, d in defs do
+			if d.id == id then
+				return (index - 1) // BAR_PER_PAGE + 1
+			end
+		end
+		return bar.page
+	end
+	-- weapon: a definição da arma atual; ammo: { pente, reserva } ou nil; progress: recarga de 0 a 1 ou nil.
+	function bar.set(weapon, ammo, progress: number?)
+		local current = weapon and weapon.id
 		for _, slot in slots do
-			local on = slot.id == current
-			slot.box.BackgroundTransparency = if on then 0.72 else 1
+			local on = slot.id ~= nil and slot.id == current
+			slot.box.BackgroundTransparency = if on then 0.74 else 1
 			slot.box.BackgroundColor3 = NEON
 			slot.line.Thickness = if on then 4 else 2.5
-			slot.line.Transparency = if on then 0 else 0.3
+			slot.line.Transparency = if on then 0 else 0.35
 			slot.glow.Visible = on
 		end
+		if type(ammo) == "table" then
+			mag.Text = tostring(ammo[1] or 0)
+			reserve.Text = "/" .. tostring(ammo[2] or 0)
+			local low = (ammo[1] or 0) <= math.max(1, math.floor(((weapon and weapon.mag) or 10) * 0.25))
+			mag.TextColor3 = if low then NEON_HURT else NEON
+		else
+			mag.Text = "∞"
+			reserve.Text = ""
+			mag.TextColor3 = NEON
+		end
+		nameLabel.Text = upper((weapon and (weapon.name or weapon.id)) or "")
+		reloadTrack.Visible = progress ~= nil
+		if progress then
+			reloadFill.Size = UDim2.fromScale(math.clamp(progress, 0, 1), 1)
+		end
 	end
-	neon.set(1, "punhos")
-	return neon
+	bar.resize(gui.CanvasSize)
+	bar.setPage(1)
+	bar.set(defs[1], nil, nil)
+	return bar
 end
-M.buildNeonHud = buildNeonHud
+M.buildWeaponBar = buildWeaponBar
 
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
@@ -1834,7 +1930,34 @@ local function start()
 	end)
 	task.spawn(mountAdmin)
 	local wheel = if #defs > 0 then buildWheel(playerGui, defs, templates, touch, ATLAS) else nil
-	local card = if #defs > 0 then buildWeaponCard(playerGui, touch, ATLAS) else nil
+	-- Barra neon das armas (placa 3D) e a âncora 2D que marca o lugar dela e recebe o toque nas mesmas áreas.
+	local bar = if #defs > 0 then buildWeaponBar(defs, ATLAS) else nil
+	local barAnchor = frame(hud.gui, "BarraNeonAncora", 1, { AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(280, 46) })
+	local barAnchorScale = new("UIScale", barAnchor, { Name = "Escala" })
+	local barTaps = {}
+	if bar then
+		bar.gui.Parent = playerGui
+		for key, hit in BAR_HITS do
+			-- Toque um pouco maior que a caixa: as caixas encostam umas nas outras e as setas crescem para fora.
+			local x, w = hit[1].X.Scale - 0.005, BAR_SLOT_PITCH
+			if key == "left" then
+				x, w = -0.05, 0.118
+			elseif key == "right" then
+				x, w = 0.688, 0.118
+			end
+			barTaps[key] = new("TextButton", barAnchor, {
+				Name = "Toque" .. tostring(key), Text = "", BackgroundTransparency = 1, Position = UDim2.fromScale(x, 0),
+				Size = UDim2.fromScale(w, 1), ZIndex = 2, Selectable = false,
+			})
+		end
+	end
+	-- Botões neon: arsenal (no toque; no PC é Q), implantes (I) e a habilidade do implante encaixado (X).
+	local arsenalButton = if touch and wheel then neonButton(hud.gui, "Arsenal", "arsenal", ATLAS, nil, false) else nil
+	local implantsButton = neonButton(hud.gui, "Implantes", "implantes", ATLAS, if touch then nil else "I", false)
+	local abilityButton = neonButton(hud.gui, "Habilidade", "sandevistan", ATLAS, if touch then nil else "X", touch)
+	abilityButton.button.Visible = false
+	local implantsOpen = false
+	local toggleImplants: ((boolean?) -> ())?, useAbility: (() -> ())? -- definidas na seção dos implantes
 	local blur = Instance.new("BlurEffect")
 	blur.Name = "CyberOutlawRoletaBlur"
 	blur.Size = 0
@@ -1856,6 +1979,7 @@ local function start()
 	deathGrade.TintColor = Color3.fromRGB(255, 200, 210)
 	deathGrade.Parent = camera
 	local damageFlash = 0
+	local barShows
 	local safeBlockedUntil = 0
 	local aimBlur = 0
 
@@ -1886,8 +2010,22 @@ local function start()
 		end
 		local l = hudLayout(size, touch, if touch then jumpButton() else nil)
 		hud.layout(l)
-		if card then
-			card.layout(l)
+		place(barAnchor, l.neon, l.scale, barAnchorScale)
+		if bar then
+			bar.resize(l.neon.size * 2)
+		end
+		if arsenalButton then
+			place(arsenalButton.button, l.arsenal, l.scale, arsenalButton.scale)
+		end
+		place(implantsButton.button, l.implants, l.scale, implantsButton.scale)
+		if touch then
+			local spec = l.buttons.ability
+			abilityButton.button.AnchorPoint = CENTER
+			abilityButton.button.Position = UDim2.fromOffset(spec.center.X, spec.center.Y)
+			abilityButton.button.Size = UDim2.fromOffset(spec.radius * 2, spec.radius * 2)
+			abilityButton.scale.Scale = 1
+		else
+			place(abilityButton.button, l.ability, l.scale, abilityButton.scale)
 		end
 		if wheel then
 			wheel.scale.Scale = l.wheel.scale
@@ -2583,8 +2721,8 @@ local function start()
 			closeWheel(false)
 		end)
 	end
-	if card then
-		card.panel.Activated:Connect(function()
+	if arsenalButton then
+		arsenalButton.button.Activated:Connect(function()
 			if wheelOpen then
 				closeWheel(false)
 			else
@@ -2592,6 +2730,33 @@ local function start()
 			end
 		end)
 	end
+	-- Barra: as setas trocam a página; uma caixa equipa a arma dela.
+	for key, tap in barTaps do
+		tap.Activated:Connect(function()
+			if not bar then
+				return
+			end
+			if key == "left" or key == "right" then
+				bar.setPage(bar.page + (if key == "left" then -1 else 1))
+				sound(pick("ui_tick", "click"), nil, 0.3)
+			else
+				local slot = bar.slots[key]
+				if slot and slot.id and slot.box.Visible then
+					equip(slot.id)
+				end
+			end
+		end)
+	end
+	implantsButton.button.Activated:Connect(function()
+		if toggleImplants then
+			toggleImplants()
+		end
+	end)
+	abilityButton.button.Activated:Connect(function()
+		if useAbility then
+			useAbility()
+		end
+	end)
 
 	-- Input ----------------------------------------------------------------------------------------
 	local function typing()
@@ -2637,7 +2802,8 @@ local function start()
 		elseif key == Enum.KeyCode.DPadLeft then
 			cycle(-1)
 		else
-			local numbers = { Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five, Enum.KeyCode.Six }
+			local numbers = { Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five,
+				Enum.KeyCode.Six, Enum.KeyCode.Seven, Enum.KeyCode.Eight, Enum.KeyCode.Nine }
 			local index = table.find(numbers, key)
 			if index and defs[index] then
 				equip(defs[index].id)
@@ -3275,13 +3441,17 @@ local function start()
 		local weapon = def()
 		local reloadAt = player:GetAttribute("CyberOutlawRecargaAte")
 		local reloading = type(reloadAt) == "number" and reloadAt > Workspace:GetServerTimeNow()
-		if card then
+		if bar then
 			local progress = nil
 			if reloading then
 				progress = 1 - (reloadAt - Workspace:GetServerTimeNow()) / (weapon.reload or 1)
 			end
-			card.show(weapon, templates[weapon.id], ammoTable[weapon.id], progress)
-			card.gui.Enabled = not dead
+			-- A página segue a arma equipada (pela roleta, teclas ou barra); as setas só olham as outras.
+			if barShows ~= weapon.id then
+				barShows = weapon.id
+				bar.setPage(bar.pageOf(weapon.id))
+			end
+			bar.set(weapon, ammoTable[weapon.id], progress)
 		end
 		-- HUD: vida, fôlego, minimapa, distrito e hora.
 		local position = if root then root.Position else nil
@@ -3355,47 +3525,56 @@ local function start()
 		end
 	end
 
-	-- HUD neon 3D: âncora 2D embaixo no centro (livre no celular e no PC), placa na frente da câmera.
-	local neonHud = buildNeonHud(defs, ATLAS)
-	neonHud.gui.Parent = playerGui
-	local neonAnchor = frame(hud.gui, "HudNeonAncora", 1, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -4 else -18),
-		Size = UDim2.fromOffset(if touch then 220 else 300, if touch then 88 else 120),
-	})
-	for index, slot in neonHud.slots do
-		local tap = new("TextButton", neonAnchor, {
-			Name = "Toque" .. index, Text = "", BackgroundTransparency = 1, Position = UDim2.fromScale(0.03 + (index - 1) * 0.24, 0.45),
-			Size = UDim2.fromScale(0.22, 0.52), ZIndex = 2,
-		})
-		tap.Activated:Connect(function()
-			equip(slot.id)
-		end)
+	-- Placas neon 3D: a barra de armas e o minimapa saem da tela 2D e flutuam na frente da câmera, no mesmo
+	-- retângulo do layout (as âncoras 2D continuam marcando o lugar e recebem o toque).
+	local mapPart, mapGui = holoSurface("CyberOutlawMapaNeon", hud.canvas)
+	mapGui.Brightness = 1.5
+	mapGui.Parent = playerGui
+	hud.parts.block.Parent = mapGui
+	hud.parts.block.Position = UDim2.fromOffset(0, 0)
+	local holo = { sway = 0, swayVel = 0, yaw = nil }
+	-- Coloca a placa onde a âncora está na tela, a "depth" studs à frente, virada para a câmera como um painel
+	-- curvo de cabine (as dos lados giram para o centro) e com o balanço da mola. O giro é em volta da borda de
+	-- fora (HOLO_PIVOT): ela fica parada na área segura e a borda de dentro recua, então a placa nunca cresce
+	-- para fora do retângulo do layout.
+	local function holoPlace(part: BasePart, anchor: GuiObject, depth: number)
+		local size, at = anchor.AbsoluteSize, anchor.AbsolutePosition
+		local view = camera.ViewportSize
+		local cx, cy = at.X + size.X / 2, at.Y + size.Y / 2
+		local nx = math.clamp((cx - view.X / 2) / math.max(1, view.X / 2), -1, 1)
+		local ny = math.clamp((cy - view.Y / 2) / math.max(1, view.Y / 2), -1, 1)
+		local fx, fy, pitch, yaw = holoTilt(nx, ny)
+		local ray = camera:ScreenPointToRay(cx + fx * size.X / 2, cy + fy * size.Y / 2, 1)
+		local along = math.max(0.2, ray.Direction:Dot(camera.CFrame.LookVector))
+		local pivot = camera.CFrame.Position + ray.Direction * (depth / along)
+		local perPixel = 2 * depth * math.tan(math.rad(camera.FieldOfView) / 2) / math.max(1, view.Y)
+		local w, h = math.max(0.05, size.X * perPixel), math.max(0.05, size.Y * perPixel)
+		part.Size = Vector3.new(w, h, 0.02)
+		-- Na placa, x cresce para a direita e y para cima (na tela, y cresce para baixo).
+		part.CFrame = CFrame.new(pivot) * camera.CFrame.Rotation
+			* CFrame.Angles(pitch, yaw + holo.sway, math.rad(1.2) * math.sin(os.clock() * 0.8 + nx))
+			* CFrame.new(-fx * w / 2, fy * h / 2, 0)
 	end
-	if hud.parts.track then
-		hud.parts.track.Visible = false
-	end
-	local neonSway, neonSwayVel, neonLastYaw = 0, 0, nil
-	local function neonStep(dt: number)
-		local size, at = neonAnchor.AbsoluteSize, neonAnchor.AbsolutePosition
-		local hidden = dead or wheelOpen or not hud.gui.Enabled or size.X < 2
-		neonHud.part.Parent = if hidden then nil else camera
-		if hidden then
-			return
-		end
-		-- Balanço: a placa fica um pouco para trás quando a câmera gira e volta com mola.
+	local function holoStep(dt: number)
+		local hidden = dead or wheelOpen or implantsOpen or not hud.gui.Enabled
 		local look = camera.CFrame.LookVector
 		local yaw = math.atan2(-look.X, -look.Z)
-		local turn = if neonLastYaw then angleDelta(neonLastYaw, yaw) else 0
-		neonLastYaw = yaw
-		neonSway, neonSwayVel = spring(neonSway, neonSwayVel, math.clamp(-turn / math.max(dt, 1e-3) * 0.02, -0.12, 0.12), 2.2, dt)
-		local depth = 4
-		local perPixel = 2 * depth * math.tan(math.rad(camera.FieldOfView) / 2) / math.max(1, camera.ViewportSize.Y)
-		local ray = camera:ScreenPointToRay(at.X + size.X / 2, at.Y + size.Y / 2, depth)
-		neonHud.part.Size = Vector3.new(size.X * perPixel, size.Y * perPixel, 0.02)
-		neonHud.part.CFrame = CFrame.new(ray.Origin) * camera.CFrame.Rotation
-			* CFrame.Angles(math.rad(-16), neonSway, math.rad(2) * math.sin(os.clock() * 0.8))
-		local health = if humanoid then humanoid.Health / math.max(1, humanoid.MaxHealth) else 1
-		neonHud.set(health, current)
+		local turn = if holo.yaw then angleDelta(holo.yaw, yaw) else 0
+		holo.yaw = yaw
+		holo.sway, holo.swayVel = spring(holo.sway, holo.swayVel, math.clamp(-turn / math.max(dt, 1e-3) * 0.02, -0.12, 0.12), 2.2, dt)
+		local showMap = not hidden and hud.parts.anchor.AbsoluteSize.X > 2
+		mapPart.Parent = if showMap then camera else nil
+		if showMap then
+			holoPlace(mapPart, hud.parts.anchor, 4)
+		end
+		local showBar = bar ~= nil and not hidden and barAnchor.AbsoluteSize.X > 2
+		barAnchor.Visible = showBar
+		if bar then
+			bar.part.Parent = if showBar then camera else nil
+			if showBar then
+				holoPlace(bar.part, barAnchor, 4)
+			end
+		end
 	end
 
 	local lastAimSent = false
@@ -3415,7 +3594,7 @@ local function start()
 			warn("CyberOutlaw | Movimento: " .. tostring(problem))
 		end
 		pcall(interfaceStep, dt, aimingNow, raised)
-		pcall(neonStep, dt)
+		pcall(holoStep, dt)
 		pcall(reflectionStep, dt)
 		pcall(reflectCharacters)
 		pcall(pitchStep)

@@ -1,7 +1,8 @@
 -- Exporta o HUD real do CyberOutlawPlay (Instances de verdade) para a prévia em HTML.
 -- Uso: lune run tools/hud_preview.luau <pasta de saída>
--- Para cada aparelho, monta HUD, mira, cartão da arma, botões de toque e a roleta aberta, resolve
--- UDim2, AnchorPoint e UIScale em pixels da tela e grava um JSON por cena.
+-- Para cada aparelho, monta HUD, mira, barra de armas, botões neon e de toque e a roleta aberta, resolve
+-- UDim2, AnchorPoint e UIScale em pixels da tela e grava um JSON por cena. As placas 3D do jogo (barra de
+-- armas e minimapa) saem como camadas "holo", com a inclinação que o jogo usa na frente da câmera.
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local process = require("@lune/process")
@@ -149,6 +150,23 @@ local function screenGui(gui, screen: Vector2, insets)
 	return { name = gui.Name, order = prop(gui, "DisplayOrder", 0), enabled = prop(gui, "Enabled", true), items = rows }
 end
 
+-- Placa 3D: os itens de uma SurfaceGui (ou do bloco do mapa) no retângulo da âncora, com a inclinação do jogo.
+local function holo(name: string, nodes, rect, scale: number, screen: Vector2)
+	local rows = {}
+	for _, node in nodes do
+		if node:IsA("GuiObject") then
+			table.insert(rows, export(node, rect[1], rect[2], rect[3], rect[4], scale))
+		end
+	end
+	local nx = math.clamp((rect[1] + rect[3] / 2 - screen.X / 2) / (screen.X / 2), -1, 1)
+	local ny = math.clamp((rect[2] + rect[4] / 2 - screen.Y / 2) / (screen.Y / 2), -1, 1)
+	local fx, fy, pitch, yaw = play.holoTilt(nx, ny)
+	-- CSS: rotateX positivo afasta a borda de cima, rotateY positivo afasta a borda direita (como o pitch e o yaw
+	-- do jogo com o sinal do pitch trocado); a origem é a borda de fora, que fica parada.
+	return { name = name, order = 29, enabled = true, items = rows,
+		holo = { r = rect, rx = math.deg(-pitch), ry = math.deg(yaw), ox = 50 + fx * 50, oy = 50 + fy * 50 } }
+end
+
 local devices = {
 	{ name = "pc_1080", screen = V2.new(1920, 1080), insets = { top = 58, left = 0, right = 0, bottom = 0 }, touch = false },
 	{ name = "celular_a06", screen = V2.new(800, 360), insets = { top = 58, left = 47, right = 48, bottom = 22 }, touch = true },
@@ -166,14 +184,16 @@ for _, device in devices do
 		hud.layout(l)
 		hud.setMap(city)
 		local combat = play.buildCombat(folder, device.touch)
-		local card = play.buildWeaponCard(folder, device.touch, "rbxassetid://123")
-		card.layout(l)
-		local weapon = if scene == "rua" then defs[1] else defs[3]
-		card.show(weapon, nil, if weapon.kind == "gun" then { 9, 96 } else nil, nil)
+		-- Barra de armas: na rua com os punhos (página 1), mirando com a AK (página 2, setas dos dois lados).
+		local weapon = if scene == "rua" then defs[1] else defs[6]
+		local bar = play.buildWeaponBar(defs, "rbxassetid://123")
+		bar.resize(l.neon.size * l.scale)
+		bar.setPage(bar.pageOf(weapon.id))
+		bar.set(weapon, if weapon.kind == "gun" then { 24, 150 } else nil, if scene == "roleta" then 0.45 else nil)
 		local state = {
 			health = if scene == "mirando" then 46 else 82, maxHealth = 100, stamina = if scene == "rua" then 0.55 else 1,
 			exhausted = false, position = V3.new(150, 3, 196), cameraYaw = math.rad(-35), facingYaw = math.rad(-20),
-			district = { name = "Distrito Prisma" }, clock = "00:36",
+			district = { name = "Distrito Prisma" }, clock = "00:36", psychosis = if scene == "mirando" then 0.35 else 0.8,
 		}
 		hud.update(state, 0.2)
 		if scene ~= "rua" then
@@ -181,15 +201,37 @@ for _, device in devices do
 				hud.update(state, 0.2) -- o aviso de distrito já saiu
 			end
 		end
-		if device.touch then
-			for key, spec in l.buttons do
-				local glyph = ({ fire = weapon.id, aim = "mira", reload = "recarga" })[key]
-				play.touchButton(hud.gui, key, "", glyph, spec.center, spec.radius, "rbxassetid://123")
-			end
+		local function placeButton(entry, item)
+			entry.button.AnchorPoint = item.anchor
+			entry.button.Position = roblox.UDim2.fromOffset(item.position.X, item.position.Y)
+			entry.button.Size = roblox.UDim2.fromOffset(item.size.X, item.size.Y)
+			entry.scale.Scale = l.scale
 		end
+		local implants = play.neonButton(hud.gui, "Implantes", "implantes", "rbxassetid://123", if device.touch then nil else "I", false)
+		placeButton(implants, l.implants)
+		local ability = play.neonButton(hud.gui, "Habilidade", "sandevistan", "rbxassetid://123", if device.touch then nil else "X", device.touch)
+		ability.light(scene == "mirando")
+		if device.touch then
+			local arsenalButton = play.neonButton(hud.gui, "Arsenal", "arsenal", "rbxassetid://123", nil, false)
+			placeButton(arsenalButton, l.arsenal)
+			for key, spec in l.buttons do
+				if key == "ability" then
+					ability.button.Position = roblox.UDim2.fromOffset(spec.center.X, spec.center.Y)
+					ability.button.Size = roblox.UDim2.fromOffset(spec.radius * 2, spec.radius * 2)
+				else
+					local glyph = ({ fire = weapon.id, aim = "mira", reload = "recarga" })[key]
+					play.touchButton(hud.gui, key, "", glyph, spec.center, spec.radius, "rbxassetid://123")
+				end
+			end
+		else
+			placeButton(ability, l.ability)
+		end
+		-- O bloco do mapa vai para a placa 3D, como no jogo.
+		local block = hud.parts.block
+		block.Parent = nil
 		combat.crosshair(scene == "mirando", 0.25)
 		combat.step(1, if scene == "mirando" then 1 else 0, 0)
-		local guis = { hud.gui, combat.gui, card.gui }
+		local guis = { hud.gui, combat.gui }
 		if scene == "roleta" then
 			local wheel = play.buildWheel(folder, defs, nil, device.touch, "rbxassetid://123")
 			wheel.gui.Enabled = true
@@ -201,6 +243,14 @@ for _, device in devices do
 		local exported = {}
 		for _, gui in guis do
 			table.insert(exported, screenGui(gui, device.screen, device.insets))
+		end
+		local function screenRect(item)
+			local x0, y0, x1, y1 = play.layoutRect(item, l.scale)
+			return { x0 + device.insets.left, y0 + device.insets.top, x1 - x0, y1 - y0 }
+		end
+		if scene ~= "roleta" then
+			table.insert(exported, holo("MapaNeon", { block }, screenRect(l.minimap), l.scale, device.screen))
+			table.insert(exported, holo("BarraNeon", bar.gui:GetChildren(), screenRect(l.neon), 1, device.screen))
 		end
 		local path = string.format("%s/%s_%s.json", output, device.name, scene)
 		fs.writeFile(path, serde.encode("json", { screen = { device.screen.X, device.screen.Y }, insets = device.insets, guis = exported }))

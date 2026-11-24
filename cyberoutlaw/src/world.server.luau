@@ -1289,7 +1289,8 @@ local function buildCity(root: Instance, art, options)
 	for index, cell in holeList do
 		local x0, z0 = cell[1] * TILE, cell[2] * TILE
 		-- Fundo escuro bem abaixo do plano: o reflexo do cliente aparece entre ele e a água.
-		local water = box(puddles, "Poça", x0 + TILE / 2, GROUND - 0.01, z0 + TILE / 2, TILE, 0.02, TILE, rgb(10, 16, 26), M.Glass)
+		-- Sólida: quem pisa na poça fica no nível da água, sem cair pelo buraco do asfalto.
+		local water = box(puddles, "Poça", x0 + TILE / 2, GROUND - 0.01, z0 + TILE / 2, TILE, 0.02, TILE, rgb(10, 16, 26), M.Glass, true)
 		water.Transparency = 0.62
 		water.Reflectance = 0.25
 		water:SetAttribute("CyberOutlawPlano", GROUND)
@@ -2347,13 +2348,34 @@ local function main()
 		return
 	end
 	applyLighting(game:GetService("Lighting"), ART)
-	-- Um Baseplate padrão ficaria entre o chão e o reflexo das poças: some sem deixar de existir.
+	-- Um Baseplate do modelo do Roblox some e desce para logo abaixo do asfalto. Antes ele ficava invisível
+	-- mas sólido: em alguns modelos o topo dele fica acima do asfalto, e perto do spawn o jogador andava em
+	-- cima de um "cubo invisível" até cair na borda dele. Abaixo do chão ele só segura quem pisa numa poça.
 	local baseplate = workspace:FindFirstChild("Baseplate")
 	if baseplate and baseplate:IsA("BasePart") then
 		baseplate.Transparency = 1
+		baseplate.CanQuery = false
+		baseplate.CanTouch = false
+		baseplate.Anchored = true
+		baseplate.CFrame = CFrame.new(baseplate.Position.X, GROUND - 0.3 - baseplate.Size.Y / 2, baseplate.Position.Z)
 		for _, child in baseplate:GetChildren() do
 			if child:IsA("Texture") or child:IsA("Decal") then
 				child.Transparency = 1
+			end
+		end
+	end
+	-- SpawnLocations do modelo padrão (fora a nossa, criada depois) também saem do caminho.
+	for _, item in workspace:GetChildren() do
+		if item:IsA("SpawnLocation") then
+			item.Enabled = false
+			item.Transparency = 1
+			item.CanCollide = false
+			item.CanQuery = false
+			item.CanTouch = false
+			for _, child in item:GetChildren() do
+				if child:IsA("Decal") or child:IsA("Texture") then
+					child.Transparency = 1
+				end
 			end
 		end
 	end

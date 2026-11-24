@@ -143,24 +143,24 @@ for _, atlas in { nil, "rbxassetid://123" } do
 			end
 		end
 		assert(wheel.cards[3].card.BackgroundTransparency < wheel.cards[1].card.BackgroundTransparency, "the selected slot is the solid one")
-		local card = play.buildWeaponCard(root, touch, atlas)
-		card.show(defs[3], nil, ammo.glock, nil)
-		assert(card.panel:FindFirstChild("Pente").Text:find("^9"), "the card shows the magazine")
-		assert(card.panel:FindFirstChild("Reserva").Text == "/102")
-		card.show(defs[5], nil, ammo.uzi, 0.5)
-		assert(card.panel:FindFirstChild("Recarga").Visible, "the reload progress shows while reloading")
-		card.show(defs[1], nil, nil, nil)
-		assert(card.panel:FindFirstChild("Pente").Text == "", "fists have no ammo")
 		for _, glyph in { "tiro", "mira", "recarga" } do
 			local button = play.touchButton(root, "Botao", "", glyph, roblox.Vector2.new(80, 80), 30, atlas)
 			assert(button:IsA("TextButton"))
+		end
+		for _, glyph in { "arsenal", "implantes", "sandevistan" } do
+			local entry = play.neonButton(root, "Neon", glyph, atlas, if touch then nil else "I", touch)
+			assert(entry.button:IsA("TextButton") and entry.scale:IsA("UIScale"))
+			assert((entry.image ~= nil) == (atlas ~= nil), "atlas symbol, or a Frame glyph while the atlas waits")
+			entry.light(true, roblox.Color3.fromRGB(255, 72, 140))
+			assert(entry.line.Thickness > 2 and entry.halo.Transparency < 0.6, "a lit button glows")
 		end
 	end
 end
 -- Atlas: cells inside the 1024 image and without overlap.
 local seen = {}
 for _, key in { "punhos", "faca", "glock", "deagle", "uzi", "ak47", "m4", "escopeta", "sniper",
-	"tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar" } do
+	"tiro", "mira", "recarga", "arsenal", "correr", "golpe", "teleporte", "fechar",
+	"implantes", "sandevistan", "psicose", "kiroshi", "louva", "gorila", "tendoes", "subdermal" } do
 	local offset, size = play.iconRect(key)
 	assert(offset and offset.X + size.X <= 1024 and offset.Y + size.Y <= 1024, key)
 	for _, other in seen do
@@ -184,9 +184,19 @@ for _, device in devices do
 	local name, screen, touch = device[1], device[2], device[3]
 	local l = play.hudLayout(screen, touch, nil)
 	local rects = {}
-	for _, key in { "minimap", "weapon", "toast" } do
+	local keys = if touch then { "minimap", "neon", "toast", "arsenal", "implants" } else { "minimap", "neon", "toast", "implants", "ability" }
+	for _, key in keys do
 		local x0, y0, x1, y1 = play.layoutRect(l[key], l.scale)
 		rects[key] = { x0, y0, x1, y1 }
+		if key ~= "minimap" and key ~= "toast" and key ~= "neon" then
+			assert(l[key].size.X * l.scale >= 44 and l[key].size.Y * l.scale >= 44, name .. ": " .. key .. " is too small to tap")
+		end
+	end
+	-- Barra de armas: no máximo 0,18 da altura no celular, e as caixas de toque com passo de 40 px ou mais.
+	local barW, barH = l.neon.size.X * l.scale, l.neon.size.Y * l.scale
+	assert(barW * play.BAR_HITS[2][1].X.Scale - barW * play.BAR_HITS[1][1].X.Scale >= 40, name .. ": weapon slots too close to tap")
+	if touch then
+		assert(barH / screen.Y <= 0.18, name .. ": the weapon bar is too tall")
 	end
 	for key, b in l.buttons do
 		rects[key] = { b.center.X - b.radius, b.center.Y - b.radius, b.center.X + b.radius, b.center.Y + b.radius }
@@ -214,10 +224,10 @@ for _, device in devices do
 			assert(not overlap(r, jump), name .. ": " .. key .. " sits on the jump button")
 		end
 	end
-	-- Orçamento do HUD fixo no celular (mapa e arma): até 16% da tela.
+	-- Orçamento do HUD fixo no celular (mapa e barra de armas): até 16% da tela.
 	if touch then
 		local area = 0
-		for _, key in { "minimap", "weapon" } do
+		for _, key in { "minimap", "neon" } do
 			local r = rects[key]
 			area += (r[3] - r[1]) * (r[4] - r[2])
 		end
@@ -463,7 +473,13 @@ do
 	assert(yaw > 8 and yaw < 18, "torso twist " .. yaw)
 	-- Pernas giram com o movimento lateral (mirando e andando de lado).
 	local side = play.retargetPose({ LeftHip = CF.Angles(math.rad(30), 0, 0) }, math.rad(-90))
-	assert(side.leftLeg.X > 0.4 and math.abs(side.leftLeg.Z) < 0.15, "strafe turns the step: " .. tostring(side.leftLeg))
+	assert(side.leftLeg.X > 0.2 and math.abs(side.leftLeg.Z) < 0.15, "strafe turns the step: " .. tostring(side.leftLeg))
+	-- Andando de costas: o passo inverte, mas a perna não torce (torcer abria as pernas no R6).
+	local back = play.retargetPose({ LeftHip = CF.Angles(math.rad(30), 0, 0) }, math.pi)
+	assert(back.leftLeg.Z > 0.4, "backward step goes back: " .. tostring(back.leftLeg))
+	for _, pose in { side, back } do
+		assert(pose.leftLegUp.Z < -0.8 and pose.rightLegUp.Z < -0.8, "legs keep facing forward (no twist)")
+	end
 	-- Pesos de locomoção como no Animate do R15.
 	local w = play.locomotionWeights("run", 0, 0)
 	assert(w.idle == 1 and w.walk == 0)
@@ -500,23 +516,81 @@ do
 		end
 	end
 end
--- HUD neon 3D: placa com SurfaceGui brilhante, vida e quatro armas rápidas.
+-- Barra neon 3D: placa com SurfaceGui brilhante, quatro armas por página, setas e munição.
 do
+	assert(#defs == 9 and play.BAR_PER_PAGE == 4)
+	-- As áreas de toque (escala da placa) não se encostam e ficam dentro da placa.
+	local boxes = {}
+	for key, hit in play.BAR_HITS do
+		local x0, y0 = hit[1].X.Scale, hit[1].Y.Scale
+		local box = { x0, y0, x0 + hit[2].X.Scale, y0 + hit[2].Y.Scale }
+		assert(box[1] >= 0 and box[3] <= 0.77 and box[2] >= 0 and box[4] <= 1, "bar box inside the plate: " .. tostring(key))
+		for other, q in boxes do
+			assert(not overlap(box, q), "bar boxes overlap: " .. tostring(key) .. " " .. tostring(other))
+		end
+		boxes[key] = box
+	end
 	for _, atlas in { nil, "rbxassetid://123" } do
-		local neon = play.buildNeonHud(defs, atlas)
-		assert(neon.part:IsA("Part") and not neon.part.CanQuery and not neon.part.CanCollide)
-		assert(neon.gui.AlwaysOnTop and neon.gui.Brightness > 1 and neon.gui.LightInfluence == 0, "neon glows with bloom")
-		assert(#neon.slots == 4)
-		neon.set(0.2, "ak47")
-		assert(neon.number.Text == "20" and neon.fill.BackgroundColor3 ~= neon.slots[1].line.Color or true)
+		local bar = play.buildWeaponBar(defs, atlas)
+		assert(bar.part:IsA("Part") and not bar.part.CanQuery and not bar.part.CanCollide and not bar.part.CanTouch)
+		assert(bar.gui.AlwaysOnTop and bar.gui.Brightness > 1 and bar.gui.LightInfluence == 0, "neon glows with bloom")
+		assert(bar.pages == 3 and #bar.slots == 4)
+		assert(not bar.arrows.left.box.Visible and bar.arrows.right.box.Visible, "page 1 only points right")
+		assert(bar.slots[1].id == "punhos" and bar.slots[4].id == "deagle")
+		bar.setPage(3)
+		assert(bar.slots[1].id == "sniper" and bar.slots[2].id == nil and not bar.slots[2].box.Visible, "the last page has one weapon")
+		assert(bar.arrows.left.box.Visible and not bar.arrows.right.box.Visible)
+		bar.setPage(9)
+		assert(bar.page == 3, "pages clamp")
+		assert(bar.pageOf("ak47") == 2 and bar.pageOf("punhos") == 1 and bar.pageOf("sniper") == 3)
+		bar.setPage(bar.pageOf("ak47"))
+		local ak = defs[6]
+		assert(ak.id == "ak47")
+		bar.set(ak, { 30, 150 }, nil)
 		local on = 0
-		for _, slot in neon.slots do
+		for _, slot in bar.slots do
 			if slot.glow.Visible then
 				on += 1
 				assert(slot.id == "ak47")
 			end
 		end
 		assert(on == 1, "only the current weapon lights up")
+		assert(bar.mag.Text == "30" and bar.reserve.Text == "/150" and bar.name.Text == "AK-47", "magazine, reserve and name")
+		assert(not bar.reload.Visible)
+		bar.set(ak, { 2, 150 }, 0.4)
+		assert(bar.reload.Visible and bar.mag.TextColor3 ~= bar.reserve.TextColor3, "low magazine turns pink while reloading")
+		bar.set(defs[1], nil, nil)
+		assert(bar.mag.Text == "∞" and bar.reserve.Text == "", "fists never run out")
+		-- A tela da placa segue o retângulo do layout e o texto acompanha (nunca abaixo de 9).
+		bar.resize(roblox.Vector2.new(560, 92))
+		assert(bar.gui.CanvasSize == roblox.Vector2.new(560, 92) and bar.name.TextSize >= 9)
+		local small = bar.name.TextSize
+		bar.resize(roblox.Vector2.new(840, 152))
+		assert(bar.name.TextSize > small, "bigger plate, bigger text")
+		if atlas then
+			local offset = play.iconRect("ak47")
+			for _, slot in bar.slots do
+				if slot.id == "ak47" then
+					assert(slot.icon.ImageRectOffset == offset)
+				end
+			end
+		else
+			assert(bar.slots[1].short.Visible and bar.slots[1].short.Text ~= "", "short names while the atlas waits")
+		end
+	end
+	-- Inclinação: placas dos cantos giram em volta da borda de fora; a barra embaixo no centro deita para trás.
+	local fx, fy, pitch, yaw = play.holoTilt(-0.8, -0.5)
+	assert(fx == -1 and fy == -1 and pitch > 0 and yaw > 0, "top-left plate pivots on its outer corner and faces the center")
+	fx, fy, pitch, yaw = play.holoTilt(0, 0.85)
+	assert(fx == 0 and fy == 1 and pitch < 0 and math.abs(yaw) < 1e-9, "the bottom bar leans back around its bottom edge")
+	-- Minimapa neon: a mesma placa 3D recebe o bloco do mapa no tamanho natural dele.
+	local folder = roblox.Instance.new("Folder")
+	for _, touch in { false, true } do
+		local hud = play.buildHud(folder, touch)
+		local part, gui = play.holoSurface("Mapa", hud.canvas)
+		hud.parts.block.Parent = gui
+		assert(gui.CanvasSize == hud.canvas and hud.parts.block.Size.X.Offset == hud.canvas.X and hud.parts.block.Size.Y.Offset == hud.canvas.Y)
+		assert(part.Transparency == 1 and gui.Adornee == part)
 	end
 end
-print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
+print("CyberOutlawPlay: spring, wheel, stamina, cone, R6 poses, procedural gait, puddle mirror, layout on 6 screens, HUD, paged neon weapon bar, neon minimap, combat layer, 2D and 3D icons, catalog animations on R6 and the owner panel passed")
