@@ -690,6 +690,10 @@ local function main()
 	local templates = {}
 	for _, def in WEAPONS do
 		local model = buildModel(def)
+		-- Pega no braço R6: os NPCs armados (life.server.luau) soldam a mesma arma no mesmo lugar.
+		pcall(function()
+			model:SetAttribute("Pega", gripOffset(def, { Size = Vector3.new(1, 2, 1) } :: any))
+		end)
 		model.Parent = models
 		templates[def.id] = model
 	end
@@ -885,6 +889,7 @@ local function main()
 		end
 		local ammo = state.ammo[def.id]
 		ammo.mag -= 1
+		character:SetAttribute("CyberOutlawUltimoTiro", time) -- pedestres fogem, polícia escuta
 		local boost = if mind and time < mind.activeUntil then SANDEVISTAN.cadencia else 1
 		state.nextShot = time + 1 / (def.rate * boost)
 		params.FilterDescendantsInstances = { character }

@@ -3690,10 +3690,12 @@ local function start()
 
 	if effectEvent then
 		effectEvent.OnClientEvent:Connect(function(kind, who, id, a, b)
-			if typeof(who) ~= "Instance" or not who:IsA("Player") then
+			-- Tiros dos NPCs armados chegam com o modelo do NPC no lugar do jogador.
+			local npcModel = typeof(who) == "Instance" and who:IsA("Model") and kind == "tiro"
+			if not npcModel and (typeof(who) ~= "Instance" or not who:IsA("Player")) then
 				return
 			end
-			local model = who.Character
+			local model = if npcModel then who else who.Character
 			local weapon = byId[id]
 			if kind == "sandevistan" then
 				-- Ativou: som com cauda longa no corpo de quem ativou; na própria tela, clarão e o surto se vier.
@@ -4221,6 +4223,12 @@ local function start()
 		local right = body:FindFirstChild("Right Shoulder")
 		local left = body:FindFirstChild("Left Shoulder")
 		if not right or not left then
+			return
+		end
+		if model:GetAttribute("CyberOutlawMaosAlto") == true then
+			-- Camelô rendido: mãos para cima.
+			right.Transform = jointTransform(right.C0, right.C1, armRotation(Vector3.new(0.15, 1, -0.1).Unit, Vector3.new(0, 0, 1)))
+			left.Transform = jointTransform(left.C0, left.C1, armRotation(Vector3.new(-0.15, 1, -0.1).Unit, Vector3.new(0, 0, 1)))
 			return
 		end
 		local id = model:GetAttribute("CyberOutlawArma")
@@ -4876,6 +4884,16 @@ local function start()
 				pcall(gaitCharacter, model, dt)
 				local ok = pcall(poseCharacter, model, now)
 				local _ = ok
+			end
+		end
+		-- NPCs da cidade (pedestres, gangues, polícia): mesma animação R6 dos jogadores.
+		local npcs = Workspace:FindFirstChild("CyberOutlawNPCs")
+		if npcs then
+			for _, model in npcs:GetChildren() do
+				if model:IsA("Model") then
+					pcall(gaitCharacter, model, dt)
+					pcall(poseCharacter, model, now)
+				end
 			end
 		end
 		pcall(headStep, dt)

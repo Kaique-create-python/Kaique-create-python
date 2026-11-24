@@ -36,6 +36,7 @@ SERVER_SCRIPTS = (
     ("CyberOutlawR6", "r6_guard.server.luau"),
     ("CyberOutlawCity", "world.server.luau"),
     ("CyberOutlawArsenal", "arsenal.server.luau"),
+    ("CyberOutlawVida", "life.server.luau"),
 )
 # Poly Haven scans (CC0) shared with the menu. The city uses no generated images.
 # Imagens que o script da cidade recebe: fotos CC0 e arte desenhada por código. As artes geradas do menu

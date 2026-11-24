@@ -429,20 +429,20 @@
       "path": "audio/habilidade_lenta.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "e88b855658b130eaceb313ffa297eed13c567f54b5381efc3bafc7737b70376b",
+      "sha256": "8a3b13e681a02077d2a62cb71d0a07f4216498282b0b98c24fdf9ee9cc588fc0",
       "displayName": "CyberOutlaw habilidade_lenta",
       "description": "Efeito eletrônico original.",
-      "durationSeconds": 3.2
+      "durationSeconds": 3.8
     },
     {
       "key": "surto",
       "path": "audio/surto.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "c6322cbe3061788b95968faa172f2399c1c1186e4172941f0fe1775f7d87a632",
+      "sha256": "b9e50c8c5355ef362b2e8d75dca95e270dcc433f605a9bd4f6cf303e60875c1d",
       "displayName": "CyberOutlaw surto",
       "description": "Efeito eletrônico original.",
-      "durationSeconds": 1.6
+      "durationSeconds": 3.0
     },
     {
       "key": "implante_encaixe",
@@ -453,6 +453,36 @@
       "displayName": "CyberOutlaw implante_encaixe",
       "description": "Efeito eletrônico original.",
       "durationSeconds": 0.55
+    },
+    {
+      "key": "pulo_duplo",
+      "path": "audio/pulo_duplo.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "84a755941301d61313813c413f5e0e83820ff2767cc7612f766e48f9456f7dab",
+      "displayName": "CyberOutlaw pulo_duplo",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.5
+    },
+    {
+      "key": "soco_gorila",
+      "path": "audio/soco_gorila.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "54bb8a395d993c4dd5966c95da773002003ab97ff6780c980c05cd8e3db3dfaa",
+      "displayName": "CyberOutlaw soco_gorila",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.6
+    },
+    {
+      "key": "kiroshi_scan",
+      "path": "audio/kiroshi_scan.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "321a1ec9a34f8f83fb73ad7e461bb32802fff0884d24f29bad469bda08887296",
+      "displayName": "CyberOutlaw kiroshi_scan",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.6
     },
     {
       "key": "title",
