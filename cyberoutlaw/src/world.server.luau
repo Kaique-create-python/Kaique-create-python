@@ -1535,6 +1535,71 @@ local function buildCity(root: Instance, art, options)
 		districtGroups[district.key] = group(blocks, district.name)
 	end
 
+	-- Edifício Colmeia: saguão e 12 andares, um loft por jogador (servidores de 12). Paredes de vidro com a
+	-- cidade em volta, núcleo do elevador no fundo e, em cada andar, o marcador invisível "Unidade" que o
+	-- script de vida usa para pôr o lixo, os móveis e o ponto de chegada do dono.
+	local APARTMENT_FLOOR, APARTMENT_LOBBY = 14, 16
+	local function apartments(model: Instance, x0: number, x1: number, z0: number, z1: number)
+		local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+		local w, d = 64, 48
+		local ax0, ax1, az0, az1 = cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2
+		model.Name = "Edifício Colmeia"
+		local concrete, frameColor = rgb(58, 60, 70), rgb(36, 38, 46)
+		-- Saguão: vidro na frente (rua do lado -Z), recepção, painel do elevador.
+		span(model, "Piso do saguão", ax0, ax1, CURB, CURB + 0.3, az0, az1, rgb(40, 40, 48), M.Slate, true)
+		local lobbyTop = CURB + APARTMENT_LOBBY
+		for _, side in { { ax0, ax0 + 1, az0, az1 }, { ax1 - 1, ax1, az0, az1 }, { ax0, ax1, az1 - 1, az1 } } do
+			span(model, "Parede do saguão", side[1], side[2], CURB, lobbyTop, side[3], side[4], concrete, M.Concrete, true)
+		end
+		-- Fachada do saguão com porta aberta no meio.
+		span(model, "Vidro do saguão", ax0, cx - 5, CURB + 0.3, lobbyTop, az0, az0 + 0.4, PALETTE.glass, M.Glass, true).Transparency = 0.5
+		span(model, "Vidro do saguão", cx + 5, ax1, CURB + 0.3, lobbyTop, az0, az0 + 0.4, PALETTE.glass, M.Glass, true).Transparency = 0.5
+		span(model, "Verga da porta", cx - 5, cx + 5, CURB + 10, lobbyTop, az0, az0 + 0.4, concrete, M.Concrete, true)
+		local sign = box(model, "Letreiro do Colmeia", cx, lobbyTop + 3, az0 - 0.6, 34, 5, 0.6, PALETTE.ink)
+		label(surface(sign, N.Front, "Nome do prédio", 20, 1.8, 900), "EDIFÍCIO COLMEIA · APARTAMENTOS", FONTS.corporate, PALETTE.white, PALETTE.pink)
+		local desk = box(model, "Recepção", cx - 16, CURB + 2, cz + 4, 12, 3.4, 3, rgb(30, 30, 38), M.Metal, true)
+		box(model, "Luz da recepção", cx - 16, CURB + 3.75, cz + 2.45, 12, 0.2, 0.1, shade(PALETTE.cyan, 0.85), M.Neon)
+		local _ = desk
+		local panel = box(model, "Painel do elevador", cx + 18, CURB + 4, az1 - 1.3, 6, 7, 0.6, rgb(24, 24, 30), M.Metal, true)
+		panel:SetAttribute("CyberOutlawElevador", "saguao")
+		label(surface(panel, N.Front, "Elevador", 30, 1.8, 120), "ELEVADOR\nMEU APARTAMENTO", FONTS.corporate, PALETTE.white, PALETTE.cyan)
+		local lobbyLight = box(model, "Luz do saguão", cx, lobbyTop - 0.3, cz, w - 8, 0.2, d - 8, shade(PALETTE.led, 0.9), M.Neon)
+		light(lobbyLight, "SurfaceLight", rgb(220, 235, 255), 1.2, 18, N.Bottom, 120)
+		-- Andares: laje, vidro em volta com montantes, núcleo do elevador no fundo e luz no teto.
+		for floor = 1, 12 do
+			local y0 = lobbyTop + (floor - 1) * APARTMENT_FLOOR
+			span(model, "Laje", ax0, ax1, y0, y0 + 0.6, az0, az1, concrete, M.Concrete, true)
+			local glassSides = { { ax0, ax0 + 0.4, az0, az1 }, { ax1 - 0.4, ax1, az0, az1 }, { ax0, ax1, az0, az0 + 0.4 }, { ax0, ax1, az1 - 0.4, az1 } }
+			for _, side in glassSides do
+				local pane = span(model, "Janela", side[1], side[2], y0 + 0.6, y0 + APARTMENT_FLOOR, side[3], side[4], PALETTE.glass, M.Glass, true)
+				pane.Transparency = 0.55
+				pane.Reflectance = 0.15
+			end
+			for _, column in { { ax0, az0 }, { ax1, az0 }, { ax0, az1 }, { ax1, az1 }, { cx, az0 }, { cx, az1 }, { ax0, cz }, { ax1, cz } } do
+				box(model, "Montante", column[1], y0 + APARTMENT_FLOOR / 2, column[2], 1, APARTMENT_FLOOR, 1, frameColor, M.Metal, true)
+			end
+			span(model, "Núcleo do elevador", cx + 12, cx + 24, y0 + 0.6, y0 + APARTMENT_FLOOR, az1 - 8, az1 - 0.4, concrete, M.Concrete, true)
+			local door = box(model, "Porta do elevador", cx + 18, y0 + 4.4, az1 - 8.15, 5, 7.6, 0.3, rgb(70, 72, 84), M.Metal, true)
+			door:SetAttribute("CyberOutlawElevador", "andar")
+			door:SetAttribute("Unidade", floor)
+			local number = box(model, "Número do andar", cx + 18, y0 + 9.4, az1 - 8.2, 3.4, 1.4, 0.2, PALETTE.ink)
+			label(surface(number, N.Front, "Andar", 40, 1.6, 90), string.format("%02d", floor), FONTS.corporate, PALETTE.white, PALETTE.cyan)
+			local strip = box(model, "Luz do apartamento", cx - 6, y0 + APARTMENT_FLOOR - 0.15, cz - 2, 30, 0.12, 2, rgb(255, 236, 210), M.Neon)
+			light(strip, "SurfaceLight", rgb(255, 230, 200), 0.9, 16, N.Bottom, 130)
+			-- Marcador do loft (invisível): o chão livre do apartamento, para o lixo, os móveis e a chegada.
+			local unit = box(model, "Unidade", cx - 4, y0 + 0.6 + 6, cz, w - 12, 12, d - 6, PALETTE.ink, M.SmoothPlastic)
+			unit.Transparency, unit.CanCollide, unit.CanQuery, unit.CanTouch = 1, false, false, false
+			unit:SetAttribute("Unidade", floor)
+			unit:SetAttribute("Chegada", Vector3.new(cx + 18, y0 + 0.6, az1 - 12))
+			-- Número do andar em néon na fachada (rua).
+			local tag = box(model, "Número na fachada", ax0 - 0.6, y0 + APARTMENT_FLOOR / 2, az0 + 6, 0.3, 4, 6, PALETTE.ink)
+			label(surface(tag, N.Left, "Andar", 20, 1.8, 600), string.format("%02d", floor), FONTS.corporate, PALETTE.white, PALETTE.pink)
+		end
+		local roofY = lobbyTop + 12 * APARTMENT_FLOOR
+		span(model, "Cobertura", ax0, ax1, roofY, roofY + 1, az0, az1, concrete, M.Concrete, true)
+		box(model, "Luz da cobertura", cx, roofY + 1.2, cz, w - 2, 0.3, 0.6, shade(PALETTE.pink, 0.85), M.Neon)
+	end
+
 	local function plaza(model: Instance, x0: number, x1: number, z0: number, z1: number)
 		local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
 		local tile = box(model, "Piso da praça", cx, CURB + 0.06, cz, x1 - x0 - 24, 0.12, z1 - z0 - 24, rgb(48, 46, 56), M.Slate)
@@ -1715,6 +1780,9 @@ local function buildCity(root: Instance, art, options)
 			local key = string.format("%d,%d", bx, bz)
 			if bx == 100 and bz == 100 then -- quadra da Praça da Maré
 				plaza(model, x0, x1, z0, z1)
+				shopsOn = {}
+			elseif bx == 300 and bz == 100 then -- ao lado da praça: os apartamentos dos jogadores
+				apartments(model, lx0, lx1, lz0, lz1)
 				shopsOn = {}
 			elseif district.key == "centro" then
 				local accent = r.pick(theme.accents)
@@ -2363,6 +2431,7 @@ local function publishPoints(city: Instance, ReplicatedStorage: Instance, HttpSe
 		add("bairro_" .. district.key, district.name, Vector3.new(x, GROUND, z))
 	end
 	add("estacao", "Estação do monotrilho", Vector3.new(409, DECK, 0))
+	add("colmeia", "Edifício Colmeia (apartamentos)", Vector3.new(291, CURB, 40))
 	add("viaduto", "Via Expressa (viaduto)", Vector3.new(0, EXPRESS_TOP, EXPRESS_Z - 6))
 	folder:SetAttribute("Lista", HttpService:JSONEncode(list))
 	folder.Parent = ReplicatedStorage
