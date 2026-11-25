@@ -11,6 +11,35 @@ local ATLAS = if type(MEDIA) == "table" and type(MEDIA.icones) == "number" and M
 
 local M = {}
 
+-- Biblioteca licenciada do Roblox: sons profissionais (equipe de som do Roblox e ProSoundEffects) que o
+-- Roblox deixa públicos para qualquer jogo, sem envio e sem chave. Medidos com tools/library_sounds.py:
+-- vol iguala o volume percebido (pelo RMS dos 50 ms mais altos), region corta a cauda longa das gravações
+-- de tiro (um disparo por gravação, com eco de área aberta) e speed ajusta o tom. Se um ID não carregar,
+-- o jogo toca o som próprio enviado pelo midia (mesma chave).
+local LIBRARY = {
+	ui_tick = { id = 17208339919, vol = 1 }, -- Roblox GUI - Hover 01
+	ui_abrir = { id = 17208405682, vol = 0.9 }, -- Roblox GUI - Swipe
+	ui_fechar = { id = 17208186900, vol = 0.8 }, -- Roblox GUI - Back
+	ui_confirmar = { id = 17208396156, vol = 0.6 }, -- Roblox GUI - Select
+	ui_negado = { id = 17208353912, vol = 0.5 }, -- Roblox GUI - Negative
+	acerto = { id = 9113520887, vol = 1.1, jitter = 0.05 }, -- PSE Body Hit, Chin Hit, With Rubber Glove
+	acerto_cabeca = { id = 9119072899, vol = 1 }, -- PSE Shield Impacts, Punches
+	tempo_estrondo = { id = 9125484367, vol = 0.9 }, -- PSE Deep Hit, Big Reverberant Boom
+	tempo_pulso = { id = 9119855716, vol = 0.55 }, -- PSE Synth Whomp, Boomy, Pulsing
+	tempo_volta = { id = 9125626856, vol = 0.55, region = { 0, 2.25 } }, -- PSE Light Cone Suck, Reverse Cymbal Build
+	surto_estatica = { id = 9125998684, vol = 0.9 }, -- PSE Static, Burst of Interference
+	kiroshi_scan = { id = 9120985237, vol = 1.2 }, -- PSE Zap, Glassy Reversed Whoosh
+	implante_encaixe = { id = 9118363081, vol = 1.1 }, -- PSE Robot Servo, Short Gritty Bursts
+	arma_glock = { id = 9114708294, vol = 0.8, region = { 0, 0.9 }, jitter = 0.03 }, -- PSE 9mm Beretta
+	arma_deagle = { id = 9119297472, vol = 0.9, region = { 0, 1.5 }, jitter = 0.02 }, -- PSE S&W .357 Magnum
+	arma_uzi = { id = 9114714603, vol = 0.7, region = { 0, 0.38 }, speed = 1.12, jitter = 0.04 }, -- PSE 9mm Beretta
+	arma_ak47 = { id = 9116343569, vol = 0.75, region = { 0, 0.75 }, jitter = 0.03 }, -- PSE AK-47 single shots
+	arma_m4 = { id = 9116343569, vol = 0.7, region = { 0, 0.65 }, speed = 1.08, jitter = 0.03 },
+	arma_escopeta = { id = 9112909615, vol = 1, region = { 0, 1.1 } }, -- PSE Mossberg 12 gauge
+	arma_sniper = { id = 9118173988, vol = 0.95, region = { 0, 2.4 } }, -- PSE Barrett M82 .50
+}
+M.LIBRARY = LIBRARY
+
 -- Pure math (tested in tests/play_test.luau) ------------------------------------------------------
 -- Critically damped spring, stable for any dt (implicit Euler).
 local function spring(x, v, target, frequency: number, dt: number)
@@ -1781,7 +1810,7 @@ local function neonButton(parent: Instance, name: string, glyph: string, atlas: 
 		frameGlyph(button, glyph, 21, NEON)
 	end
 	if keyHint then
-		label(button, "Tecla", keyHint, Font.fromEnum(Enum.Font.Michroma), 10, NEON, 22, {
+		label(button, "Tecla", keyHint, Font.new("rbxassetid://12187375422", Enum.FontWeight.Bold), 10, NEON, 22, {
 			AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -3, 1, -2), Size = UDim2.fromOffset(16, 12),
 			TextXAlignment = Enum.TextXAlignment.Right,
 		})
@@ -1850,7 +1879,7 @@ local function holoTilt(nx: number, ny: number): (number, number, number, number
 end
 M.holoTilt = holoTilt
 local function buildWeaponBar(defs, atlas: string?)
-	local mono = Font.fromEnum(Enum.Font.Michroma)
+	local mono = Font.new("rbxassetid://12187375422", Enum.FontWeight.Bold)
 	-- Números estreitos (Roboto Mono em negrito) para "30/150" caber ao lado das setas.
 	local digits = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold)
 	local part, gui = holoSurface("CyberOutlawBarraNeon", Vector2.new(560, 92))
@@ -2097,7 +2126,7 @@ M.implantFacts = implantFacts
 
 local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 	local f = fonts()
-	local mono = Font.fromEnum(Enum.Font.Michroma)
+	local mono = Font.new("rbxassetid://12187375422", Enum.FontWeight.Bold)
 	local part, gui = holoSurface("CyberOutlawTerminal", Vector2.new(1100, 560))
 	gui.Brightness = 1.7
 	-- Textos: { rótulo, fração da altura da placa, mínimo em px de tela, limite (texto que encolhe para caber) }.
@@ -2759,37 +2788,72 @@ local function start()
 	-- Primeiro som aprovado da lista (os novos têm o antigo como reserva).
 	local function pick(...: string): string
 		for _, key in { ... } do
-			if type(SOUNDS[key]) == "number" then
+			if type(SOUNDS[key]) == "number" or LIBRARY[key] then
 				return key
 			end
 		end
 		return (...)
 	end
-	local function sound(key: string, parent: Instance?, volume: number?)
-		local id = SOUNDS[key]
+	-- IDs da biblioteca que não carregaram (o jogo cai para o som próprio da mesma chave).
+	local libraryFailed: { [number]: boolean } = {}
+	task.spawn(function()
+		local probes, seen = {}, {}
+		for _, entry in LIBRARY do
+			if not seen[entry.id] then
+				seen[entry.id] = true
+				local probe = Instance.new("Sound")
+				probe.SoundId = string.format("rbxassetid://%.0f", entry.id)
+				table.insert(probes, probe)
+			end
+		end
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync(probes, function(content, status)
+				if status == Enum.AssetFetchStatus.Failure then
+					local id = tonumber(string.match(tostring(content), "%d+"))
+					if id then
+						libraryFailed[id] = true
+					end
+				end
+			end)
+		end)
+		for _, probe in probes do
+			probe:Destroy()
+		end
+	end)
+	local function sound(key: string, parent: Instance?, volume: number?): Sound?
+		local entry = LIBRARY[key]
+		local useLibrary = entry ~= nil and not libraryFailed[entry.id]
+		local id = if useLibrary then entry.id else SOUNDS[key]
 		if type(id) ~= "number" or id <= 0 then
-			return
+			return nil
 		end
 		local item = Instance.new("Sound")
 		item.SoundId = string.format("rbxassetid://%.0f", id)
-		item.Volume = volume or 0.6
+		item.Volume = (volume or 0.6) * (if useLibrary then entry.vol else 1)
 		item.RollOffMaxDistance = if string.sub(key, 1, 5) == "arma_" then 520 else 260
 		item.RollOffMinDistance = if string.sub(key, 1, 5) == "arma_" then 18 else 10
-		if parent then
-			item.Parent = parent
-			item:Play()
-			item.Ended:Once(function()
-				item:Destroy()
-			end)
-			task.delay(4, function()
-				if item.Parent then
-					item:Destroy()
-				end
-			end)
-		else
-			SoundService:PlayLocalSound(item)
-			item:Destroy()
+		local life = 4
+		if useLibrary then
+			local jitter = entry.jitter or 0
+			item.PlaybackSpeed = (entry.speed or 1) * (1 + (rng:NextNumber() * 2 - 1) * jitter)
+			if entry.region then
+				item.PlaybackRegionsEnabled = true
+				item.PlaybackRegion = NumberRange.new(entry.region[1], entry.region[2])
+				life = (entry.region[2] - entry.region[1]) / item.PlaybackSpeed + 0.3
+			end
 		end
+		-- Sem pai: toca em 2D (no SoundService), e não pelo PlayLocalSound, que ignora o trecho cortado.
+		item.Parent = parent or SoundService
+		item:Play()
+		item.Ended:Once(function()
+			item:Destroy()
+		end)
+		task.delay(math.max(life, 6), function()
+			if item.Parent then
+				item:Destroy()
+			end
+		end)
+		return item
 	end
 
 	-- Character state ---------------------------------------------------------------------------
@@ -3603,7 +3667,10 @@ local function start()
 			state.hurtPitch = math.clamp(push.Z, -1, 1) * (if heavy then 0.55 else 0.32)
 			state.hurtRoll = math.clamp(-push.X, -1, 1) * (if heavy then 0.45 else 0.26)
 		end
-		sound(if headHit then pick("acerto_cabeca", "acerto") else "acerto", nil, if heavy then 0.95 else 0.8)
+		sound("acerto", nil, if heavy then 1 else 0.85)
+		if headHit then
+			sound("acerto_cabeca", nil, 0.9)
+		end
 		cam.trauma = math.min(1, cam.trauma + (if heavy then 0.32 else 0.16))
 		cam.punch = math.min(1.6, (cam.punch or 0) + (if heavy then 1 else 0.55))
 		spark(position, Color3.fromRGB(190, 10, 30), if heavy then 14 else 9, normal)
@@ -3743,7 +3810,11 @@ local function start()
 		muzzleFlash(from, accent, look)
 		-- Tiro próprio: a versão pesada (grave reforçado) bem alta, e um segundo baque grave por baixo.
 		local shotKey = weapon.som or ("arma_" .. weapon.id)
-		sound(pick(shotKey .. "_pesada", shotKey), nil, 1)
+		-- Disparo gravado da biblioteca e, por baixo, o reforço grave (a versão "pesada" enviada pelo midia).
+		sound(shotKey, nil, 1)
+		if type(SOUNDS[shotKey .. "_pesada"]) == "number" then
+			sound(shotKey .. "_pesada", nil, 0.45)
+		end
 		if weapon.acao then
 			-- Bomba da escopeta e ferrolho da sniper logo depois do disparo.
 			task.delay(0.34, sound, weapon.acao, nil, 0.5)
@@ -3777,13 +3848,14 @@ local function start()
 				local rootPart = model and model:FindFirstChild("HumanoidRootPart")
 				if who == player then
 					abilityFx.flashAt = os.clock()
-					sound(pick("parar_tempo", "habilidade_lenta"), nil, 0.95)
+					-- O mundo para: estrondo subgrave gravado (o pulso e a volta ficam no sandiStep).
+					sound("tempo_estrondo", nil, 1)
 					if b == true then
 						abilityFx.rageAt = os.clock()
-						task.delay(0.15, sound, "surto", nil, 0.9)
+						task.delay(0.15, sound, "surto_estatica", nil, 1)
 					end
 				elseif rootPart then
-					sound(pick("parar_tempo", "habilidade_lenta"), rootPart, 0.8)
+					sound("tempo_estrondo", rootPart, 0.9)
 				end
 				return
 			end
@@ -3822,7 +3894,7 @@ local function start()
 					local weaponModel = model and model:FindFirstChild("CyberOutlawArma")
 					local emitter = weaponModel and weaponModel.PrimaryPart
 					local shotKey = if weapon and weapon.som then weapon.som else "arma_" .. tostring(id)
-					sound(pick(shotKey .. "_pesada", shotKey), emitter, 1)
+					sound(shotKey, emitter, 1)
 					if weapon and weapon.acao and emitter then
 						task.delay(0.34, sound, weapon.acao, emitter, 0.55)
 					end
@@ -5422,7 +5494,7 @@ local function start()
 			})
 			new("UIGradient", edge, { Rotation = side[5], Transparency = NumberSequence.new(0.25, 1) })
 		end
-		local rageTitle = label(rageGui, "Titulo", "CIBERPSICOSE", Font.fromEnum(Enum.Font.Michroma), if touch then 26 else 44, Color3.fromRGB(255, 70, 100), 3, {
+		local rageTitle = label(rageGui, "Titulo", "CIBERPSICOSE", Font.new("rbxassetid://12187375422", Enum.FontWeight.Bold), if touch then 26 else 44, Color3.fromRGB(255, 70, 100), 3, {
 			AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.16), Size = UDim2.fromOffset(600, 60),
 			TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, TextStrokeColor3 = Color3.fromRGB(40, 0, 10),
 		})
@@ -5509,7 +5581,7 @@ local function start()
 				table.insert(brackets, across)
 				table.insert(brackets, down)
 			end
-			local tech = Font.fromEnum(Enum.Font.Michroma)
+			local tech = Font.new("rbxassetid://12187375422", Enum.FontWeight.Bold)
 			local brand = label(overlay, "Marca", "SANDEVISTAN · ATIVO", tech, if touch then 11 else 14, Color3.fromRGB(70, 255, 140), 5, {
 				Position = UDim2.new(0, 34, 0, if touch then 70 else 40), Size = UDim2.fromOffset(320, 18), TextStrokeTransparency = 0.5,
 			})
@@ -5557,6 +5629,7 @@ local function start()
 			inner.Color = Color3.new(0, 0, 0)
 			local wave = { at = -10, center = Vector3.zero, reverse = false }
 			local was = false
+			local pulse: Sound? = nil
 			local beat = 0
 			return function(dt: number, active: boolean)
 				local now = os.clock()
@@ -5564,6 +5637,22 @@ local function start()
 				if active ~= was then
 					was = active
 					wave.at, wave.reverse = now, not active
+					-- Som: pulso grave em loop enquanto dura, e o prato ao contrário chegando no topo quando o tempo volta.
+					if active then
+						pulse = sound("tempo_pulso", nil, 1)
+						if pulse then
+							pulse.Looped = true
+						end
+						local left = if character then timeAttr(character, "CyberOutlawSandevistanAte") - serverNow() else 0
+						task.delay(math.max(0, left - 2.1), function()
+							if was then
+								sound("tempo_volta", nil, 1)
+							end
+						end)
+					elseif pulse then
+						pulse:Destroy()
+						pulse = nil
+					end
 					wave.center = if root0 and root0:IsA("BasePart") then root0.Position - Vector3.new(0, 2.9, 0) else camera.Focus.Position
 					if active then
 						-- A poeira aparece espalhada em volta de onde a câmera está agora.
@@ -5847,7 +5936,7 @@ local function start()
 								Name = "CyberOutlawSurto", Adornee = head, Size = UDim2.fromOffset(180, 34), StudsOffset = Vector3.new(0, 2.6, 0),
 								AlwaysOnTop = true, MaxDistance = 220, LightInfluence = 0,
 							})
-							label(tag, "Texto", "CIBERPSICOSE", Font.fromEnum(Enum.Font.Michroma), 18, Color3.fromRGB(255, 70, 100), 2, {
+							label(tag, "Texto", "CIBERPSICOSE", Font.new("rbxassetid://12187375422", Enum.FontWeight.Bold), 18, Color3.fromRGB(255, 70, 100), 2, {
 								TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.2, TextStrokeColor3 = Color3.fromRGB(40, 0, 10),
 							})
 							rageTags[model] = tag

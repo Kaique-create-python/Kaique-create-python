@@ -9,6 +9,28 @@ local SOUNDS = if type(MEDIA) == "table" and type(MEDIA.sons) == "table" then ME
 
 local M = {}
 
+-- Sons da biblioteca licenciada do Roblox (equipe de som do Roblox e ProSoundEffects), públicos para
+-- qualquer jogo: o toque, o atender e o desligar são os mesmos das chamadas do app do Roblox. vol iguala o
+-- volume percebido (medido em tools/library_sounds.py). Sem carregar, cai no som próprio da mesma chave.
+local LIBRARY = {
+	chamada = { id = 17208308857, vol = 0.45 }, -- Roblox GUI - Ringtone (22 s, toca até atender)
+	chamada_atender = { id = 17208209318, vol = 0.5 }, -- Roblox GUI - Call Accept
+	chamada_recusar = { id = 17208214688, vol = 0.5 }, -- Roblox GUI - Call Decline
+	chamada_fim = { id = 17208220181, vol = 0.45 }, -- Roblox GUI - Call Hang Up
+	notificacao = { id = 17208361335, vol = 0.3 }, -- Roblox GUI - Notification High
+	clique = { id = 15675059323, vol = 0.45 }, -- Roblox_UI_Bright_Click
+	aba = { id = 17208408337, vol = 0.7 }, -- Roblox GUI - Tab
+	ui_abrir = { id = 17208405682, vol = 0.9 }, -- Roblox GUI - Swipe
+	ui_fechar = { id = 17208186900, vol = 0.8 }, -- Roblox GUI - Back
+	ui_negado = { id = 17208353912, vol = 0.5 }, -- Roblox GUI - Negative
+	compra = { id = 17208380755, vol = 0.6 }, -- Roblox GUI - Purchase
+	dinheiro = { id = 127645268874265, vol = 0.5 }, -- CoinTransfer_01 (Roblox)
+	assalto = { id = 9113728049, vol = 0.7 }, -- PSE Cash Register, Drawer
+	alarme = { id = 9119164823, vol = 1.6 }, -- PSE Siren Variety, Short Bursts
+	radio_policia = { id = 9116219037, vol = 1.8 }, -- PSE LAPD Radio Beep, Dispatcher Chatter
+}
+M.LIBRARY = LIBRARY
+
 -- Pura: confere se um móvel cabe na unidade (mesma regra do servidor, para o fantasma ficar vermelho).
 local function footprint(size: Vector3, rot: number): (number, number)
 	if rot % 2 == 1 then
@@ -57,16 +79,25 @@ local function clock(seconds: number): string
 end
 M.clock = clock
 
+
 -- Cliente ------------------------------------------------------------------------------------------------
-local TEXT = Color3.fromRGB(242, 243, 246)
-local SUB = Color3.fromRGB(164, 170, 184)
-local PANEL = Color3.fromRGB(12, 11, 26)
-local NEON = Color3.fromRGB(86, 255, 222)
-local PINK = Color3.fromRGB(255, 72, 140)
-local GOLD = Color3.fromRGB(255, 208, 102)
-local GREEN = Color3.fromRGB(98, 232, 148)
-local RED = Color3.fromRGB(255, 70, 84)
-local HOT = Color3.fromRGB(255, 84, 92) -- vermelho das molduras (Cyberpunk)
+-- Sistema de design do Agente (o implante que é o "celular" de Maré Baixa), seguindo as skills de interface:
+-- vidro azul-abissal, coral para molduras e ações, ciano maré para o que está ao vivo (chamada, sinal),
+-- âmbar para dinheiro e trabalho. Rajdhani nos títulos e botões, TitilliumWeb no texto e números de
+-- largura fixa nos relógios. Painéis chanfrados com borda em Path2D. Frases normais (nada de CAIXA ALTA
+-- nem "A · B · C"), e o único destaque forte é a holochamada.
+local ABYSS = Color3.fromRGB(10, 20, 28)
+local WELL = Color3.fromRGB(6, 12, 18)
+local CORAL = Color3.fromRGB(255, 92, 84)
+local TIDE = Color3.fromRGB(94, 246, 255)
+local AMBER = Color3.fromRGB(255, 196, 64)
+local PAPER = Color3.fromRGB(234, 240, 244)
+local FOG = Color3.fromRGB(138, 158, 170)
+local GOOD = Color3.fromRGB(98, 232, 148)
+local DANGER = Color3.fromRGB(255, 70, 84)
+local GLASS = 0.16
+local RAJDHANI = "rbxassetid://12187375422"
+local TITILLIUM = "rbxasset://fonts/families/TitilliumWeb.json"
 local BUILDER = "rbxasset://fonts/families/BuilderSans.json"
 
 local function start()
@@ -76,8 +107,8 @@ local function start()
 	local UserInputService = game:GetService("UserInputService")
 	local SoundService = game:GetService("SoundService")
 	local HttpService = game:GetService("HttpService")
+	local TweenService = game:GetService("TweenService")
 	local player = Players.LocalPlayer
-	local camera = workspace.CurrentCamera
 	local folder = ReplicatedStorage:WaitForChild("CyberOutlawVida", 120)
 	if not folder then
 		return
@@ -93,6 +124,7 @@ local function start()
 	local fixerList = decode("Fixers", {})
 	local economy = decode("Economia", { faxina = 150, venda = 0.5 })
 	local unitRule = decode("Unidade", { meia = { 26, 21 }, livre = { 12, 26, 8, 21 }, grade = 0.5 })
+	local lines = decode("FalasProntas", {})
 	local byId, sizes, floors = {}, {}, {}
 	for _, def in catalog do
 		byId[def.id] = def
@@ -109,19 +141,51 @@ local function start()
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	local house = { unidade = 0, moveis = {}, guardados = {}, sujeira = {} }
 
-	local function sound(key: string, volume: number?)
-		local id = SOUNDS[key]
+	local failed: { [number]: boolean } = {}
+	task.spawn(function()
+		local probes = {}
+		for _, entry in LIBRARY do
+			local probe = Instance.new("Sound")
+			probe.SoundId = string.format("rbxassetid://%.0f", entry.id)
+			table.insert(probes, probe)
+		end
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync(probes, function(content, status)
+				local id = tonumber(string.match(tostring(content), "%d+"))
+				if status == Enum.AssetFetchStatus.Failure and id then
+					failed[id] = true
+				end
+			end)
+		end)
+		for _, probe in probes do
+			probe:Destroy()
+		end
+	end)
+	-- Toca e devolve o Sound (o toque da chamada precisa parar quando atende).
+	local function sound(key: string, volume: number?): Sound?
+		local entry = LIBRARY[key]
+		local useLibrary = entry ~= nil and not failed[entry.id]
+		local id = if useLibrary then entry.id else SOUNDS[key]
 		if type(id) ~= "number" or id <= 0 then
-			return
+			return nil
 		end
 		local item = Instance.new("Sound")
 		item.SoundId = string.format("rbxassetid://%.0f", id)
-		item.Volume = volume or 0.6
-		SoundService:PlayLocalSound(item)
-		item:Destroy()
+		item.Volume = (volume or 1) * (if useLibrary then entry.vol else 0.6)
+		item.Parent = SoundService
+		item:Play()
+		item.Ended:Once(function()
+			item:Destroy()
+		end)
+		task.delay(30, function()
+			if item.Parent then
+				item:Destroy()
+			end
+		end)
+		return item
 	end
 
-	-- Kit de interface -----------------------------------------------------------------------------------
+	-- Kit ------------------------------------------------------------------------------------------------
 	local function new(class: string, parent: Instance?, props)
 		local item = Instance.new(class)
 		for key, value in props or {} do
@@ -130,19 +194,17 @@ local function start()
 		item.Parent = parent
 		return item
 	end
-	local function font(weight)
-		return Font.new(BUILDER, weight or Enum.FontWeight.Bold)
+	local function display(weight: Enum.FontWeight?): Font
+		return Font.new(RAJDHANI, weight or Enum.FontWeight.Bold)
 	end
-	local function corner(item, radius: number)
-		-- Estilo Cyberpunk: cantos quase retos.
-		new("UICorner", item, { CornerRadius = UDim.new(0, math.min(radius, 2)) })
+	local function body(weight: Enum.FontWeight?): Font
+		return Font.new(TITILLIUM, weight or Enum.FontWeight.Regular)
 	end
-	local function outline(item, color: Color3, transparency: number, thickness: number?)
-		return new("UIStroke", item, { Color = color, Transparency = transparency, Thickness = thickness or 1.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-	end
+	local DIGITS = Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold)
+	local MONEY = Font.new(BUILDER, Enum.FontWeight.ExtraBold) -- tem o símbolo do euro; a Rajdhani pode não ter
 	local function text(parent, name, value, size, color, props)
 		local base = {
-			Name = name, Text = value, FontFace = font(), TextSize = size, TextColor3 = color, BackgroundTransparency = 1,
+			Name = name, Text = value, FontFace = body(), TextSize = size, TextColor3 = color, BackgroundTransparency = 1,
 			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, Size = UDim2.fromScale(1, 1),
 		}
 		for key, value2 in props or {} do
@@ -150,108 +212,252 @@ local function start()
 		end
 		return new("TextLabel", parent, base)
 	end
-	local function plate(parent, name, props)
-		local base = { Name = name, BackgroundColor3 = PANEL, BackgroundTransparency = 0.18, BorderSizePixel = 0 }
+	local function outline(item, color: Color3, transparency: number, thickness: number?)
+		return new("UIStroke", item, { Color = color, Transparency = transparency, Thickness = thickness or 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+	end
+	local function uiScale(item: Instance): number
+		local k, node = 1, item
+		while node do
+			local found = node:FindFirstChildOfClass("UIScale")
+			if found then
+				k *= found.Scale
+			end
+			node = node.Parent :: Instance
+		end
+		return k
+	end
+	-- Chanfro da skill roblox-ui-genre-scifi (hud_shapes.luau): um Frame girado 45° recortado por outro corta os
+	-- cantos sem emenda, e um Path2D fechado desenha a borda fina pelos cortes. corners: "all", "tlbr" ou "trbl".
+	local function chamfer(root: GuiObject, cut: number, corners: string, color: Color3, transparency: number, edgeColor: Color3?, edgeAlpha: number?)
+		root.BackgroundTransparency = 1
+		local clip = new("Frame", root, { Name = "Chanfro", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true, ZIndex = root.ZIndex })
+		local fill = new("Frame", clip, {
+			Name = "Vidro", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundColor3 = color,
+			BackgroundTransparency = transparency, BorderSizePixel = 0, Rotation = if corners == "trbl" then -45 else 45, ZIndex = root.ZIndex,
+		})
+		-- Brilho do vidro: mais claro em cima (rotação compensa o giro de 45° do recheio).
+		new("UIGradient", fill, { Rotation = 45, Transparency = NumberSequence.new(0.35, 0), Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 210, 220)) })
+		local function layout()
+			local w, h = root.AbsoluteSize.X, root.AbsoluteSize.Y
+			if w < 1 or h < 1 then
+				return
+			end
+			local c = cut * uiScale(root)
+			local cutting = ((w + h) / 2 - c) / math.sqrt(2)
+			local open = (w + h) / math.sqrt(2) + 2
+			local ax = cutting
+			local by = if corners == "all" then cutting else open
+			fill.Size = UDim2.fromScale(2 * ax / w, 2 * by / h)
+		end
+		root:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+		task.defer(layout)
+		if edgeColor then
+			local tl = corners == "all" or corners == "tlbr"
+			local tr = corners == "all" or corners == "trbl"
+			local points = {}
+			local function p(sx, ox, sy, oy)
+				table.insert(points, Path2DControlPoint.new(UDim2.new(sx, ox, sy, oy)))
+			end
+			if tl then
+				p(0, 0, 0, cut)
+				p(0, cut, 0, 0)
+			else
+				p(0, 0, 0, 0)
+			end
+			if tr then
+				p(1, -cut, 0, 0)
+				p(1, 0, 0, cut)
+			else
+				p(1, 0, 0, 0)
+			end
+			if tl then
+				p(1, 0, 1, -cut)
+				p(1, -cut, 1, 0)
+			else
+				p(1, 0, 1, 0)
+			end
+			if tr then
+				p(0, cut, 1, 0)
+				p(0, 0, 1, -cut)
+			else
+				p(0, 0, 1, 0)
+			end
+			pcall(function()
+				local edge = Instance.new("Path2D")
+				edge.Name = "Borda"
+				edge.Closed = true
+				edge.Color3 = edgeColor
+				edge.Transparency = edgeAlpha or 0.35
+				edge.Thickness = 1.5
+				edge.ZIndex = root.ZIndex + 1
+				edge:SetControlPoints(points)
+				edge.Parent = root
+			end)
+		end
+		return fill
+	end
+	-- Placa de vidro chanfrada (o recheio fica atrás do conteúdo pelo ZIndex).
+	local function plate(parent, name: string, props, cut: number?, corners: string?, edge: Color3?)
+		local base = { Name = name, BackgroundTransparency = 1, BorderSizePixel = 0 }
 		for key, value in props or {} do
 			base[key] = value
 		end
 		local item = new("Frame", parent, base)
-		corner(item, 2)
-		outline(item, HOT, 0.3)
-		-- Aba vermelha no canto de cima (assinatura dos painéis de Night City).
-		new("Frame", item, { Name = "Aba", Position = UDim2.fromOffset(-1, -3), Size = UDim2.fromOffset(26, 3), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 30 })
+		chamfer(item, cut or 12, corners or "tlbr", ABYSS, GLASS, edge or CORAL, 0.45)
 		return item
 	end
-	local function button(parent, name, caption, color: Color3, props, onClick)
+	-- Botões: primário cheio (uma ação por tela), secundário com contorno, fantasma só texto.
+	local function button(parent, name: string, caption: string, kind: string, color: Color3, props, onClick)
 		local base = {
-			Name = name, Text = caption, FontFace = font(Enum.FontWeight.ExtraBold), TextSize = 14, TextColor3 = color,
-			BackgroundColor3 = PANEL, BackgroundTransparency = 0.1, AutoButtonColor = true, BorderSizePixel = 0,
+			Name = name, Text = caption, FontFace = display(), TextSize = 17, TextColor3 = if kind == "primario" then WELL else color,
+			BackgroundColor3 = color, BackgroundTransparency = if kind == "primario" then 0 elseif kind == "secundario" then 0.88 else 1,
+			AutoButtonColor = false, BorderSizePixel = 0,
 		}
 		for key, value in props or {} do
 			base[key] = value
 		end
 		local item = new("TextButton", parent, base)
-		corner(item, 6)
-		outline(item, color, 0.2)
-		item.Activated:Connect(onClick)
+		new("UICorner", item, { CornerRadius = UDim.new(0, 2) })
+		if kind == "secundario" then
+			outline(item, color, 0.25, 1.5)
+		end
+		local scale = new("UIScale", item, {})
+		local rest = item.BackgroundTransparency
+		item.MouseEnter:Connect(function()
+			item.BackgroundTransparency = math.max(0, rest - 0.12)
+			sound("ui_tick", 0.6)
+		end)
+		item.MouseLeave:Connect(function()
+			item.BackgroundTransparency = rest
+			scale.Scale = 1
+		end)
+		item.MouseButton1Down:Connect(function()
+			scale.Scale = 0.96
+		end)
+		item.MouseButton1Up:Connect(function()
+			scale.Scale = 1
+		end)
+		item.Activated:Connect(function()
+			sound("clique", 1)
+			onClick()
+		end)
 		return item
 	end
+	local function tween(item: Instance, seconds: number, goal, style: Enum.EasingStyle?)
+		local motion = TweenService:Create(item, TweenInfo.new(seconds, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), goal)
+		motion:Play()
+		return motion
+	end
+	-- Retrato oficial do avatar de um jogador (o mesmo do app do Roblox).
+	local headshots: { [number]: string } = {}
+	local function headshot(userId: number): string
+		if headshots[userId] then
+			return headshots[userId]
+		end
+		local ok, image = pcall(function()
+			return Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		end)
+		headshots[userId] = if ok then image else ""
+		return headshots[userId]
+	end
 
-	local gui = new("ScreenGui", player:WaitForChild("PlayerGui"), {
+	local playerGui = player:WaitForChild("PlayerGui")
+	local gui = new("ScreenGui", playerGui, {
 		Name = "CyberOutlawVida", ResetOnSpawn = false, DisplayOrder = 36, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets, Enabled = false,
 	})
-	local top = new("ScreenGui", player.PlayerGui, {
+	local top = new("ScreenGui", playerGui, {
 		Name = "CyberOutlawVidaTopo", ResetOnSpawn = false, DisplayOrder = 36, ScreenInsets = Enum.ScreenInsets.TopbarSafeInsets, Enabled = false,
 	})
 
-	-- Carteira e estrelas, à direita da barra do Roblox.
+	-- Carteira e estrelas, à direita da barra do Roblox --------------------------------------------------------
 	local chip = new("Frame", top, {
-		Name = "Carteira", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(140, 30),
-		BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0,
+		Name = "Carteira", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(132, 32),
 	})
-	new("UIGradient", chip, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.35, 0.45), NumberSequenceKeypoint.new(1, 0.35) }) })
-	new("Frame", chip, { Name = "Traco", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.new(0.8, 0, 0, 2), BackgroundColor3 = GOLD, BorderSizePixel = 0 })
-	local wallet = text(chip, "Valor", money(0), 17, GOLD, {
-		TextXAlignment = Enum.TextXAlignment.Right, Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, -8, 1, 0), FontFace = font(Enum.FontWeight.ExtraBold),
-		TextStrokeTransparency = 0.7, TextStrokeColor3 = GOLD,
+	chamfer(chip, 8, "tlbr", ABYSS, 0.25, AMBER, 0.5)
+	local wallet = text(chip, "Valor", money(0), 17, AMBER, {
+		TextXAlignment = Enum.TextXAlignment.Center, FontFace = MONEY, ZIndex = 3,
 	})
-	local stars = text(top, "Estrelas", "", 18, RED, {
-		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -166, 0.5, 0), Size = UDim2.fromOffset(110, 30),
-		TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.4, Visible = false,
+	local stars = text(top, "Estrelas", "", 18, DANGER, {
+		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -150, 0.5, 0), Size = UDim2.fromOffset(110, 30),
+		TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.4, Visible = false, FontFace = Font.new(BUILDER, Enum.FontWeight.Bold),
 	})
+	local shownMoney = player:GetAttribute("CyberOutlawEddies") or 0
 	local function refreshWallet()
-		wallet.Text = money(player:GetAttribute("CyberOutlawEddies") or 0)
+		local goal = player:GetAttribute("CyberOutlawEddies") or 0
+		-- Conta subindo ou descendo rápido (o número muda na frente do jogador).
+		local from = shownMoney
+		shownMoney = goal
+		local started = os.clock()
+		task.spawn(function()
+			while os.clock() - started < 0.45 do
+				local k = (os.clock() - started) / 0.45
+				wallet.Text = money(from + (goal - from) * (1 - (1 - k) ^ 3))
+				task.wait()
+			end
+			wallet.Text = money(goal)
+		end)
 	end
 	player:GetAttributeChangedSignal("CyberOutlawEddies"):Connect(refreshWallet)
-	refreshWallet()
+	wallet.Text = money(shownMoney)
 
-	-- Avisos rápidos (dinheiro, mensagens) embaixo da carteira.
+	-- Avisos: cartões curtos que entram pela direita, com a barra da cor do assunto -----------------------------
 	local toasts = new("Frame", gui, {
-		Name = "Avisos", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, if touch then 118 else 12), Size = UDim2.fromOffset(300, 200),
+		Name = "Avisos", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, if touch then 112 else 74), Size = UDim2.fromOffset(300, 220),
 		BackgroundTransparency = 1,
 	})
-	new("UIListLayout", toasts, { HorizontalAlignment = Enum.HorizontalAlignment.Right, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+	new("UIListLayout", toasts, { HorizontalAlignment = Enum.HorizontalAlignment.Right, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 	local toastCount = 0
 	local function toast(message: string, color: Color3?)
 		toastCount += 1
-		local item = plate(toasts, "Aviso", { Size = UDim2.fromOffset(300, 30), LayoutOrder = toastCount })
-		item:FindFirstChildOfClass("UIStroke").Color = color or NEON
-		text(item, "Texto", message, 14, color or TEXT, { Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -16, 1, 0), TextTruncate = Enum.TextTruncate.AtEnd })
-		task.delay(4.5, function()
-			item:Destroy()
+		local holder = new("Frame", toasts, { Name = "Aviso", Size = UDim2.fromOffset(290, 34), BackgroundTransparency = 1, LayoutOrder = toastCount, ClipsDescendants = true })
+		local item = new("Frame", holder, { Name = "Cartao", Size = UDim2.fromScale(1, 1), Position = UDim2.fromScale(1, 0), BackgroundTransparency = 1 })
+		chamfer(item, 8, "tlbr", ABYSS, 0.12, nil)
+		new("Frame", item, { Name = "Barra", Size = UDim2.new(0, 3, 1, -10), Position = UDim2.fromOffset(6, 5), BackgroundColor3 = color or TIDE, BorderSizePixel = 0, ZIndex = 2 })
+		text(item, "Texto", message, 15, PAPER, {
+			Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -22, 1, 0), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2, FontFace = body(Enum.FontWeight.SemiBold),
+		})
+		tween(item, 0.25, { Position = UDim2.fromScale(0, 0) })
+		task.delay(4.2, function()
+			tween(item, 0.25, { Position = UDim2.fromScale(1, 0) }, Enum.EasingStyle.Quad)
+			task.delay(0.3, function()
+				holder:Destroy()
+			end)
 		end)
-		local list = toasts:GetChildren()
-		local frames = 0
-		for _, child in list do
+		local frames = {}
+		for _, child in toasts:GetChildren() do
 			if child:IsA("Frame") then
-				frames += 1
+				table.insert(frames, child)
 			end
 		end
-		if frames > 5 then
-			for _, child in list do
-				if child:IsA("Frame") then
-					child:Destroy()
-					break
-				end
-			end
+		if #frames > 4 then
+			table.sort(frames, function(a, b)
+				return a.LayoutOrder < b.LayoutOrder
+			end)
+			frames[1]:Destroy()
 		end
 	end
 
-	-- Botões Casa (H) e Agente (J): no toque, embaixo dos botões de cima; no PC, acima dos implantes.
+	-- Botões Casa (H) e Agente (J) --------------------------------------------------------------------------------
 	local function hudButton(name: string, caption: string, key: string?)
 		local item = new("TextButton", gui, {
-			Name = name, Text = caption .. (if key and not touch then "  " .. key else ""), FontFace = font(Enum.FontWeight.ExtraBold), TextSize = 12,
-			TextColor3 = NEON, BackgroundColor3 = PANEL, BackgroundTransparency = 0.3, AutoButtonColor = true, BorderSizePixel = 0,
-			Size = UDim2.fromOffset(if touch then 58 else 84, if touch then 40 else 34), AnchorPoint = Vector2.new(1, 0),
+			Name = name, Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(if touch then 58 else 96, if touch then 40 else 36), AnchorPoint = Vector2.new(1, 0),
 		})
-		corner(item, 2)
-		outline(item, HOT, 0.12)
-		item.TextColor3 = HOT
+		chamfer(item, 8, "tlbr", ABYSS, 0.2, CORAL, 0.2)
+		text(item, "Nome", caption, if touch then 15 else 17, PAPER, { TextXAlignment = Enum.TextXAlignment.Center, FontFace = display(), ZIndex = 3,
+			Size = UDim2.new(1, if key and not touch then -22 else 0, 1, 0) })
+		if key and not touch then
+			text(item, "Tecla", key, 12, CORAL, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(14, 14),
+				TextXAlignment = Enum.TextXAlignment.Center, FontFace = DIGITS, ZIndex = 3 })
+		end
+		item.MouseEnter:Connect(function()
+			sound("ui_tick", 0.6)
+		end)
 		return item
 	end
-	local homeButton = hudButton("Casa", "CASA", "H")
-	local agentButton = hudButton("Agente", "AGENTE", "J")
+	local homeButton = hudButton("Casa", "Casa", "H")
+	local agentButton = hudButton("Agente", "Agente", "J")
 	local function layoutButtons()
 		local size = gui.AbsoluteSize
 		if touch then
@@ -260,25 +466,27 @@ local function start()
 		else
 			homeButton.AnchorPoint, agentButton.AnchorPoint = Vector2.new(1, 1), Vector2.new(1, 1)
 			homeButton.Position = UDim2.fromOffset(size.X - 24, size.Y - 96)
-			agentButton.Position = UDim2.fromOffset(size.X - 116, size.Y - 96)
+			agentButton.Position = UDim2.fromOffset(size.X - 128, size.Y - 96)
 		end
 	end
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutButtons)
 	task.defer(layoutButtons)
 
-	-- Objetivo da missão: linha no alto e um losango no mundo.
-	-- Como no Cyberpunk: o trabalho fica num canto, em duas linhas (quem pagou e o prazo; o que fazer e a distância).
+	-- Trabalho atual: quem paga e o prazo em cima, o que fazer e a distância embaixo ------------------------------
 	local objective = new("Frame", gui, {
 		Name = "Objetivo", AnchorPoint = if touch then Vector2.new(0, 0) else Vector2.new(1, 0), Position = if touch then UDim2.fromOffset(12, 172) else UDim2.new(1, -24, 0, 16),
-		Size = UDim2.fromOffset(if touch then 220 else 330, if touch then 38 else 46), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Visible = false,
+		Size = UDim2.fromOffset(if touch then 232 else 340, if touch then 44 else 50), BackgroundTransparency = 1, Visible = false,
 	})
-	new("UIGradient", objective, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0.95) }) })
-	new("Frame", objective, { Name = "Traco", Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = GOLD, BorderSizePixel = 0 })
-	local objectiveHead = text(objective, "Rotulo", "TRABALHO", if touch then 9 else 11, HOT, {
-		Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -14, 0.42, 0), FontFace = Font.fromEnum(Enum.Font.Michroma), TextTruncate = Enum.TextTruncate.AtEnd,
+	chamfer(objective, 10, "tlbr", ABYSS, 0.2, AMBER, 0.55)
+	local objectiveHead = text(objective, "Quem", "", if touch then 13 else 15, FOG, {
+		Position = UDim2.fromOffset(12, 3), Size = UDim2.new(1, -74, 0.45, 0), FontFace = body(Enum.FontWeight.SemiBold), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 3,
 	})
-	local objectiveText = text(objective, "Texto", "", if touch then 12 else 15, GOLD, {
-		Position = UDim2.new(0, 10, 0.42, 0), Size = UDim2.new(1, -14, 0.58, -2), TextTruncate = Enum.TextTruncate.AtEnd, TextStrokeTransparency = 0.6,
+	local objectiveClock = text(objective, "Prazo", "", if touch then 13 else 15, AMBER, {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 3), Size = UDim2.new(0, 60, 0.45, 0), TextXAlignment = Enum.TextXAlignment.Right,
+		FontFace = DIGITS, ZIndex = 3,
+	})
+	local objectiveText = text(objective, "Texto", "", if touch then 15 else 18, AMBER, {
+		Position = UDim2.new(0, 12, 0.42, 0), Size = UDim2.new(1, -20, 0.58, -3), TextTruncate = Enum.TextTruncate.AtEnd, FontFace = display(), ZIndex = 3,
 	})
 	local marker = new("Part", nil, {
 		Name = "CyberOutlawObjetivo", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.one,
@@ -287,13 +495,22 @@ local function start()
 		Name = "Marcador", AlwaysOnTop = true, Size = UDim2.fromOffset(90, 54), LightInfluence = 0, MaxDistance = 100000,
 	})
 	local diamond = new("Frame", board, {
-		Name = "Losango", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(18, 18), Rotation = 45,
-		BackgroundColor3 = GOLD, BorderSizePixel = 0,
+		Name = "Losango", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(16, 16), Rotation = 45,
+		BackgroundColor3 = AMBER, BorderSizePixel = 0,
 	})
-	outline(diamond, PANEL, 0, 2)
-	local distanceText = text(board, "Distancia", "", 13, GOLD, {
-		Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.3,
+	outline(diamond, WELL, 0, 2)
+	local distanceText = text(board, "Distancia", "", 14, AMBER, {
+		Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.3,
+		FontFace = display(),
 	})
+	-- Localização mandada por alguém na chamada: losango ciano por um minuto.
+	local friendMarker = marker:Clone()
+	friendMarker.Name = "CyberOutlawAmigo"
+	local friendBoard = friendMarker:FindFirstChild("Marcador") :: BillboardGui
+	friendBoard:FindFirstChild("Losango").BackgroundColor3 = TIDE
+	local friendText = friendBoard:FindFirstChild("Distancia") :: TextLabel
+	friendText.TextColor3 = TIDE
+	local friendUntil = 0
 	local mission = nil
 	local function readMission()
 		local raw = player:GetAttribute("CyberOutlawMissao")
@@ -310,166 +527,187 @@ local function start()
 	player:GetAttributeChangedSignal("CyberOutlawMissao"):Connect(readMission)
 	readMission()
 
-	-- Holochamada ------------------------------------------------------------------------------------------
-	-- Como no Cyberpunk 2077 e em Edgerunners: não existe celular na mão. O implante Agente projeta a chamada na
-	-- visão: retrato do contato num quadro vermelho com cortes de sinal, código da linha, o nome em ciano,
-	-- "CHAMADA RECEBIDA" em vermelho e as teclas em caixinhas ([T] ATENDER · [Y] RECUSAR). A conversa vira
-	-- legenda "Nome: fala" embaixo, e no fim aparece o contrato (valor e prazo) para aceitar ou recusar.
-	local MONO = Font.fromEnum(Enum.Font.RobotoMono)
-	local TECH = Font.fromEnum(Enum.Font.Michroma)
+	-- Holochamada (o destaque da interface) -----------------------------------------------------------------------
+	-- Como em Cyberpunk 2077 e Edgerunners, não existe celular na mão: o Agente projeta a chamada na visão. O
+	-- rosto entra num quadro chanfrado com varredura de holograma; quem fala tem as barras de voz mexendo; as
+	-- falas viram legenda "Nome: fala" embaixo. Serve para os fixers (rosto 3D) e para outros jogadores (o
+	-- retrato oficial do avatar), com o toque, o atender e o desligar das chamadas do próprio Roblox.
+	local HOLO_AT = if touch then UDim2.new(0.5, -210, 0, 2) else UDim2.new(0, 28, 0.24, 0)
 	local holo = new("Frame", gui, {
-		Name = "Holochamada", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 28, 0.26, 0),
-		Size = UDim2.fromOffset(340, 132), BackgroundTransparency = 1, Visible = false,
+		Name = "Holochamada", Position = HOLO_AT, Size = if touch then UDim2.fromOffset(420, 84) else UDim2.fromOffset(392, 132),
+		BackgroundTransparency = 1, Visible = false,
 	})
-	local holoScale = new("UIScale", holo, { Scale = 1 })
-	local HOLO_AT = if touch then UDim2.new(0.5, -200, 0, 2) else UDim2.new(0, 28, 0.26, 0)
-	if touch then
-		holo.Size = UDim2.fromOffset(400, 80)
-	end
-	local holoGlow = new("Frame", holo, {
-		Name = "Brilho", Position = UDim2.fromOffset(98, 4), Size = UDim2.new(1, -98, 1, -8), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0,
-	})
-	new("UIGradient", holoGlow, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1) }) })
-	-- Cortes de sinal à esquerda do retrato (os blocos vermelhos da referência).
-	for index = 0, 7 do
-		new("Frame", holo, {
-			Name = "Sinal", Position = UDim2.fromOffset(0, 10 + index * 13), Size = UDim2.fromOffset(4 + (index * 7) % 9, 8), BackgroundColor3 = HOT,
-			BackgroundTransparency = 0.25 + (index % 3) * 0.2, BorderSizePixel = 0,
-		})
-	end
+	chamfer(holo, 16, "tlbr", ABYSS, 0.1, CORAL, 0.25)
+	local frameSize = if touch then Vector2.new(58, 70) else Vector2.new(88, 108)
 	local portraitFrame = new("Frame", holo, {
-		Name = "Quadro", Position = UDim2.fromOffset(16, 6), Size = if touch then UDim2.fromOffset(56, 68) else UDim2.fromOffset(78, 96),
-		BackgroundColor3 = Color3.fromRGB(30, 8, 12), BorderSizePixel = 0,
+		Name = "Quadro", Position = UDim2.fromOffset(10, (if touch then 84 else 132) / 2 - frameSize.Y / 2), Size = UDim2.fromOffset(frameSize.X, frameSize.Y),
+		BackgroundTransparency = 1, ZIndex = 3,
 	})
-	outline(portraitFrame, HOT, 0, 2)
+	chamfer(portraitFrame, 10, "tlbr", WELL, 0, CORAL, 0)
 	local portrait = new("ViewportFrame", portraitFrame, {
-		Name = "Rosto", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Ambient = Color3.fromRGB(150, 130, 140),
-		LightColor = Color3.fromRGB(255, 225, 220), LightDirection = Vector3.new(-0.6, -0.5, 1), ImageColor3 = Color3.fromRGB(255, 225, 225),
+		Name = "Rosto", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Ambient = Color3.fromRGB(150, 140, 150),
+		LightColor = Color3.fromRGB(255, 230, 225), LightDirection = Vector3.new(-0.6, -0.5, 1), ZIndex = 4,
 	})
-	for line = 0, 31 do
-		new("Frame", portraitFrame, {
-			Name = "Linha", Position = UDim2.fromOffset(0, line * 3), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = HOT,
-			BackgroundTransparency = 0.86, BorderSizePixel = 0, ZIndex = 3,
-		})
-	end
-	new("Frame", portraitFrame, { Name = "Canto", Position = UDim2.fromOffset(-3, -3), Size = UDim2.fromOffset(12, 4), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 4 })
-	new("Frame", portraitFrame, { Name = "Canto", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 3, 1, 3), Size = UDim2.fromOffset(12, 4), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 4 })
 	local portraitCamera = new("Camera", portrait, { FieldOfView = 24 })
 	portrait.CurrentCamera = portraitCamera
-	-- Colunas de texto: no PC embaixo uma da outra; no toque, texto no meio e os botões grandes à direita.
-	local textX, textW = if touch then 80 else 104, if touch then -264 else -108
-	local lineCode = text(holo, "Linha", "", if touch then 9 else 10, HOT, { Position = UDim2.fromOffset(textX, 4), Size = UDim2.new(1, textW, 0, 12), FontFace = MONO, TextTransparency = 0.2 })
-	local callerName = text(holo, "Nome", "", 19, NEON, {
-		Position = UDim2.fromOffset(textX, if touch then 15 else 18), Size = UDim2.new(1, textW, 0, if touch then 22 else 26), FontFace = TECH, TextScaled = true,
-		TextStrokeTransparency = 0.6, TextStrokeColor3 = NEON,
+	local avatar = new("ImageLabel", portraitFrame, { Name = "Avatar", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 4, Visible = false,
+		ScaleType = Enum.ScaleType.Crop })
+	-- Tom de holograma por cima e a linha de varredura que desce.
+	local tint = new("Frame", portraitFrame, { Name = "Tom", Size = UDim2.fromScale(1, 1), BackgroundColor3 = TIDE, BackgroundTransparency = 0.9, BorderSizePixel = 0, ZIndex = 5 })
+	local sweep = new("Frame", portraitFrame, { Name = "Varredura", Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = TIDE, BackgroundTransparency = 0.35, BorderSizePixel = 0, ZIndex = 6 })
+	local textX = frameSize.X + 22
+	local callerName = text(holo, "Nome", "", if touch then 21 else 26, PAPER, {
+		Position = UDim2.fromOffset(textX, if touch then 8 else 14), Size = UDim2.new(1, -textX - (if touch then 190 else 14), 0, if touch then 24 else 30),
+		FontFace = display(), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 3,
 	})
-	new("UITextSizeConstraint", callerName, { MaxTextSize = if touch then 16 else 19 })
-	local callStatus = text(holo, "Status", "", if touch then 11 else 13, HOT, {
-		Position = UDim2.fromOffset(textX, if touch then 39 else 46), Size = UDim2.new(1, textW, 0, 16), FontFace = TECH, TextTruncate = Enum.TextTruncate.AtEnd,
+	local callStatus = text(holo, "Status", "", if touch then 14 else 16, CORAL, {
+		Position = UDim2.fromOffset(textX, if touch then 32 else 46), Size = UDim2.new(1, -textX - (if touch then 190 else 14), 0, 18),
+		FontFace = body(Enum.FontWeight.SemiBold), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 3,
 	})
-	local callerRole = text(holo, "Cargo", "", if touch then 10 else 11, SUB, {
-		Position = UDim2.fromOffset(textX, if touch then 56 else 64), Size = UDim2.new(1, textW, 0, 14), FontFace = font(Enum.FontWeight.Medium),
-		TextTruncate = Enum.TextTruncate.AtEnd,
+	local callerRole = text(holo, "Cargo", "", if touch then 12 else 14, FOG, {
+		Position = UDim2.fromOffset(textX, if touch then 52 else 66), Size = UDim2.new(1, -textX - (if touch then 190 else 14), 0, 16),
+		TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 3,
 	})
-	local actions = new("Frame", holo, {
-		Name = "Botoes", AnchorPoint = if touch then Vector2.new(1, 0.5) else Vector2.zero,
-		Position = if touch then UDim2.new(1, -4, 0.5, 0) else UDim2.fromOffset(104, 84), Size = if touch then UDim2.fromOffset(180, 46) else UDim2.new(1, -108, 0, 30),
-		BackgroundTransparency = 1,
+	-- Barras de voz: mexem enquanto alguém fala na chamada.
+	-- No celular as barras ficam na base do retrato (a faixa é estreita e o nome precisa de espaço).
+	local wave = new("Frame", if touch then portraitFrame else holo, {
+		Name = "Voz", AnchorPoint = if touch then Vector2.new(0.5, 1) else Vector2.new(1, 0),
+		Position = if touch then UDim2.new(0.5, 0, 1, -3) else UDim2.new(1, -14, 0, 18),
+		Size = if touch then UDim2.fromOffset(50, 14) else UDim2.fromOffset(54, 20), BackgroundTransparency = 1, ZIndex = 7,
 	})
-	new("UIListLayout", actions, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, if touch then 6 else 14), SortOrder = Enum.SortOrder.LayoutOrder,
-		VerticalAlignment = Enum.VerticalAlignment.Center, HorizontalAlignment = if touch then Enum.HorizontalAlignment.Right else Enum.HorizontalAlignment.Left })
-	-- Tecla na caixinha + ação: no toque, a linha inteira é o botão.
-	local function keyAction(caption: string, key: string, color: Color3, order: number, onClick)
-		if touch then
-			local big = new("TextButton", actions, {
-				Name = caption, Text = caption, FontFace = TECH, TextSize = 11, TextColor3 = color, AutoButtonColor = true, BackgroundColor3 = Color3.fromRGB(16, 6, 12),
-				BackgroundTransparency = 0.15, BorderSizePixel = 0, Size = UDim2.fromOffset(86, 44), LayoutOrder = order,
-			})
-			outline(big, color, 0, 1.5)
-			big.Activated:Connect(onClick)
-			return big
-		end
-		local item = new("TextButton", actions, {
-			Name = caption, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromOffset(104, 30), LayoutOrder = order,
+	local bars = {}
+	for index = 1, 9 do
+		bars[index] = new("Frame", wave, {
+			Name = "Barra", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, (index - 1) * 6, 0.5, 0), Size = UDim2.new(0, 3, 0.15, 0),
+			BackgroundColor3 = TIDE, BorderSizePixel = 0, ZIndex = 7,
 		})
-		local cap = new("Frame", item, { Name = "Tecla", Position = UDim2.fromOffset(0, 3), Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Color3.fromRGB(20, 6, 10),
-			BackgroundTransparency = 0.2, BorderSizePixel = 0 })
-		outline(cap, color, 0, 1.5)
-		text(cap, "Letra", key, 13, color, { FontFace = TECH, TextXAlignment = Enum.TextXAlignment.Center })
-		text(item, "Acao", caption, 14, color, { Position = UDim2.fromOffset(30, 0), Size = UDim2.new(1, -30, 1, 0), FontFace = TECH })
-		item.Activated:Connect(onClick)
-		return item
 	end
+	local actions = new("Frame", holo, {
+		Name = "Acoes", AnchorPoint = if touch then Vector2.new(1, 0.5) else Vector2.zero,
+		Position = if touch then UDim2.new(1, -10, 0.5, 0) else UDim2.fromOffset(textX, 88), Size = if touch then UDim2.fromOffset(180, 44) else UDim2.new(1, -textX - 12, 0, 34),
+		BackgroundTransparency = 1, ZIndex = 3,
+	})
+	new("UIListLayout", actions, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Center, HorizontalAlignment = if touch then Enum.HorizontalAlignment.Right else Enum.HorizontalAlignment.Left })
+	-- Frases prontas da chamada entre jogadores: uma coluna que abre ao lado da chamada.
+	local phrases = new("Frame", gui, {
+		Name = "Frases", Size = UDim2.fromOffset(250, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Visible = false,
+	})
+	new("UIListLayout", phrases, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
 	local subtitle = new("Frame", gui, {
-		Name = "Legenda", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -64 else -120), Size = UDim2.fromOffset(if touch then 400 else 640, if touch then 50 else 58),
-		BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Visible = false,
+		Name = "Legenda", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -64 else -126),
+		Size = UDim2.fromOffset(if touch then 420 else 680, if touch then 50 else 60), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Visible = false,
 	})
-	new("UIGradient", subtitle, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.55),
-		NumberSequenceKeypoint.new(0.8, 0.55), NumberSequenceKeypoint.new(1, 1) }) })
-	local subtitleText = text(subtitle, "Texto", "", if touch then 14 else 17, TEXT, {
-		Position = UDim2.fromOffset(16, 2), Size = UDim2.new(1, -32, 1, -4), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
-		FontFace = font(Enum.FontWeight.SemiBold), RichText = true, TextStrokeTransparency = 0.5,
+	new("UIGradient", subtitle, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.18, 0.5),
+		NumberSequenceKeypoint.new(0.82, 0.5), NumberSequenceKeypoint.new(1, 1) }) })
+	local subtitleText = text(subtitle, "Texto", "", if touch then 16 else 19, PAPER, {
+		Position = UDim2.fromOffset(18, 2), Size = UDim2.new(1, -36, 1, -4), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = body(Enum.FontWeight.SemiBold), RichText = true, TextStrokeTransparency = 0.55,
 	})
-	local call = nil -- { offer, state = "tocando"|"conversa"|"oferta"|"recado", token }
-	local speaker, speakerColor = "", "#5EF6FF"
+
+	local call = nil -- { kind = "fixer"|"jogador", state, offer, id, outro, ring, token, at, speaking }
+	local speakerColor = "#5EF6FF"
+	local function stopRing()
+		if call and call.ring then
+			call.ring:Destroy()
+			call.ring = nil
+		end
+	end
 	local function clearActions()
 		for _, child in actions:GetChildren() do
 			if child:IsA("TextButton") then
 				child:Destroy()
 			end
 		end
+		phrases.Visible = false
 	end
-	local function showPortrait(fixerId: string)
+	-- Ações da chamada: no PC a tecla aparece pequena dentro do botão.
+	local function action(caption: string, kind: string, color: Color3, key: string?, order: number, onClick)
+		local width = if touch then 86 else math.max(96, #caption * 9 + 34)
+		local item = button(actions, caption, caption, kind, color, {
+			Size = UDim2.fromOffset(width, if touch then 44 else 32), LayoutOrder = order, TextSize = if touch then 15 else 16, ZIndex = 4,
+		}, onClick)
+		if key and not touch then
+			item.Text = caption .. "  " .. key
+		end
+		return item
+	end
+	local function showFace(fixerId: string?, userId: number?)
 		for _, child in portrait:GetChildren() do
 			if child:IsA("WorldModel") then
 				child:Destroy()
 			end
 		end
-		local fixer = fixers[fixerId]
-		speaker = if fixer then fixer.nome else "Fixer"
-		local tone = if fixer then Color3.fromRGB(fixer.cor[1], fixer.cor[2], fixer.cor[3]) else NEON
-		speakerColor = string.format("#%02X%02X%02X", math.floor(tone.R * 255), math.floor(tone.G * 255), math.floor(tone.B * 255))
-		lineCode.Text = string.format("TRN_%s_%06d  ||| SINAL", string.upper(string.sub(fixerId, 1, 4)), math.random(0, 999999))
-		local source = folder:FindFirstChild("Fixers")
-		local template = source and source:FindFirstChild(fixerId)
-		if not template then
+		portrait.Visible, avatar.Visible = fixerId ~= nil, userId ~= nil
+		if userId then
+			avatar.Image = headshot(userId)
+			speakerColor = "#5EF6FF"
 			return
 		end
-		local world = new("WorldModel", portrait, { Name = "Mundo" })
-		local bust = template:Clone()
-		bust.Parent = world
-		local head = bust:FindFirstChild("Head")
-		if head and head:IsA("BasePart") then
-			local at = head.Position
-			portraitCamera.CFrame = CFrame.lookAt(at + Vector3.new(0.9, -0.2, -5.2), at + Vector3.new(0, -0.5, 0))
+		local fixer = fixers[fixerId or ""]
+		local tone = if fixer then Color3.fromRGB(fixer.cor[1], fixer.cor[2], fixer.cor[3]) else TIDE
+		speakerColor = string.format("#%02X%02X%02X", math.floor(tone.R * 255), math.floor(tone.G * 255), math.floor(tone.B * 255))
+		local source = folder:FindFirstChild("Fixers")
+		local template = source and source:FindFirstChild(fixerId or "")
+		if template then
+			local world = new("WorldModel", portrait, { Name = "Mundo" })
+			local bust = template:Clone()
+			bust.Parent = world
+			local head = bust:FindFirstChild("Head")
+			if head and head:IsA("BasePart") then
+				local at = head.Position
+				portraitCamera.CFrame = CFrame.lookAt(at + Vector3.new(0.9, -0.15, -5), at + Vector3.new(0, -0.45, 0))
+			end
 		end
 	end
-	local function hangUp()
-		call = nil
-		holo.Visible = false
-		subtitle.Visible = false
-		clearActions()
+	local function openCard()
+		holo.Visible = true
+		holo.Position = HOLO_AT + (if touch then UDim2.fromOffset(0, -30) else UDim2.fromOffset(-50, 0))
+		tween(holo, 0.28, { Position = HOLO_AT })
 	end
-	-- Digita a fala letra por letra (sem cortar acentos no meio).
-	local function typeLines(lines, done)
+	local function hangUp(soundKey: string?)
+		stopRing()
+		if soundKey then
+			sound(soundKey, 1)
+		end
+		call = nil
+		clearActions()
+		tween(holo, 0.2, { Position = HOLO_AT + (if touch then UDim2.fromOffset(0, -30) else UDim2.fromOffset(-50, 0)) }, Enum.EasingStyle.Quad)
+		task.delay(0.2, function()
+			if not call then
+				holo.Visible = false
+			end
+		end)
+		subtitle.Visible = false
+	end
+	-- Fala letra por letra (MaxVisibleGraphemes, sem cortar acento) com as barras de voz mexendo.
+	local function say(speaker: string, color: string, textLines, done)
+		if not call then
+			return
+		end
 		local token = {}
 		call.token = token
 		subtitle.Visible = true
 		task.spawn(function()
-			for _, line in lines do
-				local count = utf8.len(line) or #line
-				for index = 1, count, 2 do
+			for _, line in textLines do
+				subtitleText.Text = string.format('<font color="%s">%s:</font> %s', color, speaker, line)
+				local total = utf8.len(subtitleText.ContentText) or #line
+				local head = (utf8.len(speaker) or #speaker) + 2
+				call.speaking = true
+				for count = head, total, 2 do
 					if not call or call.token ~= token then
 						return
 					end
-					local cut = utf8.offset(line, index + 1) or (#line + 1)
-					subtitleText.Text = string.format('<font color="%s">%s:</font> %s', speakerColor, speaker, string.sub(line, 1, cut - 1))
-					task.wait(0.03)
+					subtitleText.MaxVisibleGraphemes = count
+					task.wait(0.028)
 				end
-				subtitleText.Text = string.format('<font color="%s">%s:</font> %s', speakerColor, speaker, line)
-				task.wait(math.clamp(count * 0.035, 1.6, 3.2))
+				subtitleText.MaxVisibleGraphemes = -1
+				if call then
+					call.speaking = false
+				end
+				task.wait(math.clamp(total * 0.034, 1.5, 3.2))
 			end
-			if call and call.token == token then
+			if call and call.token == token and done then
 				done()
 			end
 		end)
@@ -481,16 +719,17 @@ local function start()
 		end
 		call.state = "oferta"
 		local offer = call.offer
-		callStatus.Text = string.upper(offer.titulo)
-		callStatus.TextColor3 = GOLD
-		callerRole.Text = string.format("%s · PRAZO %s · %s", money(offer.valor), clock(offer.prazo), string.upper(offer.bairro or ""))
-		callerRole.TextColor3 = GOLD
-		subtitleText.Text = string.format('<font color="#FFD066">CONTRATO:</font> %s', offer.objetivo)
+		callStatus.Text = offer.titulo
+		callStatus.TextColor3 = AMBER
+		callerRole.Text = string.format("%s em %s, prazo de %s", money(offer.valor), offer.bairro or "Maré Baixa", clock(offer.prazo))
+		callerRole.TextColor3 = AMBER
+		subtitleText.MaxVisibleGraphemes = -1
+		subtitleText.Text = string.format('<font color="#FFC440">Trabalho:</font> %s', offer.objetivo)
 		clearActions()
-		keyAction("ACEITAR", "T", GREEN, 1, function()
+		action("Aceitar", "primario", GOOD, "T", 1, function()
 			answer()
 		end)
-		keyAction("RECUSAR", "Y", HOT, 2, function()
+		action("Recusar", "secundario", CORAL, "Y", 2, function()
 			decline()
 		end)
 	end
@@ -498,91 +737,181 @@ local function start()
 		if not call then
 			return
 		end
-		if call.state == "tocando" then
-			call.state = "conversa"
-			request:FireServer("atender", call.offer.id)
-			callStatus.Text = "EM CHAMADA"
-			callStatus.TextColor3 = NEON
-			clearActions()
-			typeLines(call.offer.falas, offerStep)
-		elseif call.state == "oferta" then
-			request:FireServer("aceitar", call.offer.id)
-			local offer = call.offer
-			call.state = "recado"
-			clearActions()
-			typeLines({ offer.tchau }, hangUp)
+		if call.kind == "fixer" then
+			if call.state == "tocando" then
+				stopRing()
+				sound("chamada_atender", 1)
+				call.state = "conversa"
+				call.at = os.clock()
+				request:FireServer("atender", call.offer.id)
+				callStatus.Text = "Em chamada"
+				callStatus.TextColor3 = TIDE
+				clearActions()
+				say(call.offer.nome, speakerColor, call.offer.falas, offerStep)
+			elseif call.state == "oferta" then
+				request:FireServer("aceitar", call.offer.id)
+				sound("notificacao", 1)
+				call.state = "recado"
+				clearActions()
+				say(call.offer.nome, speakerColor, { call.offer.tchau }, function()
+					hangUp("chamada_fim")
+				end)
+			end
+		elseif call.kind == "jogador" and call.state == "tocando" then
+			stopRing()
+			request:FireServer("atenderJogador", call.id)
 		end
 	end
 	decline = function()
 		if not call then
 			return
 		end
-		if call.offer then
-			request:FireServer("recusar", call.offer.id)
+		if call.kind == "fixer" then
+			if call.offer then
+				request:FireServer("recusar", call.offer.id)
+			end
+			hangUp("chamada_recusar")
+		else
+			request:FireServer(if call.state == "tocando" then "recusarJogador" else "desligar", call.id)
+			hangUp("chamada_recusar")
 		end
-		hangUp()
+	end
+	local function ring()
+		local tone = sound("chamada", 1)
+		if tone and call then
+			call.ring = tone
+		end
 	end
 	local function incoming(offer, outgoing: boolean)
-		call = { offer = offer, state = "tocando", at = os.clock() }
-		holo.Visible = true
-		showPortrait(offer.fixer)
-		callerName.Text = string.upper(offer.nome)
-		callerRole.Text = string.upper(offer.cargo)
-		callerRole.TextColor3 = SUB
+		if call and call.kind == "jogador" then
+			return -- quem está falando com outro jogador não recebe fixer por cima
+		end
+		stopRing()
+		call = { kind = "fixer", offer = offer, state = "tocando", at = os.clock() }
+		showFace(offer.fixer, nil)
+		callerName.Text = offer.nome
+		callerRole.Text = offer.cargo
+		callerRole.TextColor3 = FOG
 		clearActions()
+		openCard()
 		if outgoing then
 			answer()
 			return
 		end
-		callStatus.Text = "CHAMADA RECEBIDA"
-		callStatus.TextColor3 = HOT
-		keyAction("ATENDER", "T", NEON, 1, answer)
-		keyAction("RECUSAR", "Y", HOT, 2, decline)
-		task.spawn(function()
-			local current = call
-			for _ = 1, 8 do
-				if call ~= current or call.state ~= "tocando" then
-					return
-				end
-				sound("chamada", 0.7)
-				task.wait(2.6)
-			end
-		end)
+		callStatus.Text = "Chamada recebida"
+		callStatus.TextColor3 = CORAL
+		action("Atender", "primario", TIDE, "T", 1, answer)
+		action("Recusar", "secundario", CORAL, "Y", 2, decline)
+		ring()
 	end
 	local function fixerMessage(fixerId: string, message: string, good: boolean)
+		if call and call.kind == "jogador" then
+			toast(message, if good then GOOD else DANGER)
+			return
+		end
 		local fixer = fixers[fixerId]
-		call = { state = "recado", at = os.clock() }
-		holo.Visible = true
-		showPortrait(fixerId)
-		callerName.Text = string.upper(if fixer then fixer.nome else "Fixer")
-		callerRole.Text = string.upper(if fixer then fixer.titulo else "")
-		callerRole.TextColor3 = SUB
-		callStatus.Text = if good then "TRABALHO CONCLUÍDO" else "TRABALHO PERDIDO"
-		callStatus.TextColor3 = if good then GREEN else HOT
+		stopRing()
+		call = { kind = "fixer", state = "recado", at = os.clock() }
+		showFace(fixerId, nil)
+		callerName.Text = if fixer then fixer.nome else "Fixer"
+		callerRole.Text = if fixer then fixer.titulo else ""
+		callerRole.TextColor3 = FOG
+		callStatus.Text = if good then "Trabalho concluído" else "Trabalho perdido"
+		callStatus.TextColor3 = if good then GOOD else DANGER
 		clearActions()
-		typeLines({ message }, hangUp)
+		openCard()
+		sound("notificacao", 1)
+		say(callerName.Text, speakerColor, { message }, function()
+			hangUp("chamada_fim")
+		end)
 	end
-	local _ = holoScale
+	-- Chamadas entre jogadores.
+	local function playerCard(data, state: string)
+		stopRing()
+		call = { kind = "jogador", id = data.id, outro = data.outro, state = state, at = os.clock() }
+		showFace(nil, data.outro.userId)
+		callerName.Text = data.outro.nome
+		callerRole.Text = "Contato do Agente"
+		callerRole.TextColor3 = FOG
+		clearActions()
+		openCard()
+	end
+	local function activeActions()
+		clearActions()
+		local order = 0
+		local function add(caption, kind, color, onClick)
+			order += 1
+			action(caption, kind, color, nil, order, onClick)
+		end
+		add("Frases", "secundario", TIDE, function()
+			phrases.Visible = not phrases.Visible
+		end)
+		if not touch then
+			add("Localização", "secundario", TIDE, function()
+				request:FireServer("compartilharLocal", call and call.id)
+			end)
+			add("Convidar", "secundario", AMBER, function()
+				request:FireServer("convidarCasa", call and call.id)
+			end)
+		end
+		add("Desligar", "primario", CORAL, function()
+			decline()
+		end)
+		-- No celular a localização e o convite vão no topo da lista de frases (a faixa é estreita).
+		for _, child in phrases:GetChildren() do
+			if child:IsA("GuiObject") then
+				child:Destroy()
+			end
+		end
+		local function phraseButton(caption: string, color: Color3, index: number, onClick)
+			button(phrases, "Frase", caption, "secundario", color, {
+				Size = UDim2.new(1, 0, 0, if touch then 40 else 32), LayoutOrder = index, TextSize = if touch then 15 else 16,
+				TextXAlignment = Enum.TextXAlignment.Left, FontFace = body(Enum.FontWeight.SemiBold),
+			}, onClick)
+		end
+		if touch then
+			phraseButton("Mandar minha localização", TIDE, 1, function()
+				request:FireServer("compartilharLocal", call and call.id)
+				phrases.Visible = false
+			end)
+			phraseButton("Convidar pro meu apartamento", AMBER, 2, function()
+				request:FireServer("convidarCasa", call and call.id)
+				phrases.Visible = false
+			end)
+		end
+		for index, line in lines do
+			phraseButton(line, PAPER, index + 2, function()
+				request:FireServer("falaPronta", call and call.id, index)
+				phrases.Visible = false
+			end)
+		end
+		phrases.Position = if touch then UDim2.new(0.5, -125, 0, 92) else UDim2.new(0, 28, 0.24, 140)
+	end
 
-	-- Painéis (Casa e Agente) -----------------------------------------------------------------------------
-	local dim = new("Frame", gui, { Name = "Fundo", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, Visible = false, ZIndex = 20 })
-	local card = plate(gui, "Painel", {
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(if touch then 0.9 else 0.56, if touch then 0.97 else 0.74),
-		Visible = false, ZIndex = 21, BackgroundTransparency = 0.06,
+	-- Painéis da Casa e do Agente -------------------------------------------------------------------------------
+	local dim = new("Frame", gui, { Name = "Fundo", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, Visible = false, ZIndex = 20 })
+	local card = new("Frame", gui, {
+		Name = "Painel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(if touch then 0.9 else 0.58, if touch then 0.97 else 0.76),
+		BackgroundTransparency = 1, Visible = false, ZIndex = 21,
 	})
-	new("UISizeConstraint", card, { MaxSize = Vector2.new(820, 620), MinSize = Vector2.new(320, 240) })
-	local title = text(card, "Titulo", "", if touch then 14 else 18, NEON, {
-		Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -70, 0, 30), ZIndex = 22, FontFace = Font.fromEnum(Enum.Font.Michroma), TextTruncate = Enum.TextTruncate.AtEnd,
+	new("UISizeConstraint", card, { MaxSize = Vector2.new(860, 640), MinSize = Vector2.new(320, 240) })
+	local cardScale = new("UIScale", card, {})
+	chamfer(card, 18, "tlbr", ABYSS, 0.04, CORAL, 0.3)
+	local title = text(card, "Titulo", "", if touch then 20 else 26, PAPER, {
+		Position = UDim2.fromOffset(18, 6), Size = UDim2.new(1, -150, 0, 30), ZIndex = 22, FontFace = display(), TextTruncate = Enum.TextTruncate.AtEnd,
 	})
-	local close
+	local subtitleLabel = text(card, "Subtitulo", "", 14, FOG, {
+		Position = UDim2.fromOffset(18, 34), Size = UDim2.new(1, -150, 0, 16), ZIndex = 22, TextTruncate = Enum.TextTruncate.AtEnd,
+	})
 	local tabs = new("ScrollingFrame", card, {
-		Name = "Abas", Position = UDim2.fromOffset(12, 40), Size = UDim2.new(1, -24, 0, 36), BackgroundTransparency = 1, ZIndex = 22, BorderSizePixel = 0,
+		Name = "Abas", Position = UDim2.fromOffset(14, 56), Size = UDim2.new(1, -28, 0, 38), BackgroundTransparency = 1, ZIndex = 22, BorderSizePixel = 0,
 		ScrollBarThickness = 0, ScrollingDirection = Enum.ScrollingDirection.X, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(),
 	})
-	new("UIListLayout", tabs, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
-	local body = new("ScrollingFrame", card, {
-		Name = "Conteudo", Position = UDim2.fromOffset(12, 82), Size = UDim2.new(1, -24, 1, -92), BackgroundTransparency = 1, BorderSizePixel = 0,
-		ScrollBarThickness = 4, ScrollBarImageColor3 = NEON, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), ZIndex = 22,
+	new("UIListLayout", tabs, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Center })
+	local content = new("ScrollingFrame", card, {
+		Name = "Conteudo", Position = UDim2.fromOffset(14, 100), Size = UDim2.new(1, -28, 1, -110), BackgroundTransparency = 1, BorderSizePixel = 0,
+		ScrollBarThickness = 3, ScrollBarImageColor3 = CORAL, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), ZIndex = 22,
 		ElasticBehavior = Enum.ElasticBehavior.Never,
 	})
 	local panel = nil -- "casa" | "agente"
@@ -590,45 +919,59 @@ local function start()
 	local filter = "Todos"
 	local render
 	local function setOpen(which)
+		local was = panel
 		panel = which
 		local open = which ~= nil
-		dim.Visible, card.Visible = open, open
 		player:SetAttribute("CyberOutlawPainel", open)
-		homeButton.BackgroundTransparency = if which == "casa" then 0 else 0.3
-		agentButton.BackgroundTransparency = if which == "agente" then 0 else 0.3
 		if open then
+			dim.Visible, card.Visible = true, true
+			if not was then
+				sound("ui_abrir", 1)
+				cardScale.Scale = 0.94
+				tween(cardScale, 0.22, { Scale = 1 })
+				tween(dim, 0.22, { BackgroundTransparency = 0.45 })
+			end
 			render()
+		elseif was then
+			sound("ui_fechar", 1)
+			tween(cardScale, 0.16, { Scale = 0.96 }, Enum.EasingStyle.Quad)
+			tween(dim, 0.16, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad)
+			task.delay(0.16, function()
+				if not panel then
+					dim.Visible, card.Visible = false, false
+				end
+			end)
 		end
 	end
-	close = button(card, "Fechar", "X", HOT, {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 4), Size = UDim2.fromOffset(44, 34), ZIndex = 23, FontFace = Font.fromEnum(Enum.Font.Michroma), TextSize = 16,
+	button(card, "Fechar", "Fechar", "secundario", CORAL, {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 12), Size = UDim2.fromOffset(if touch then 84 else 96, 34), ZIndex = 23,
 	}, function()
 		setOpen(nil)
 	end)
-	local function clearBody()
-		for _, child in body:GetChildren() do
+	local function clearContent()
+		for _, child in content:GetChildren() do
 			child:Destroy()
 		end
 		for _, child in tabs:GetChildren() do
-			if child:IsA("TextButton") then
+			if child:IsA("GuiObject") then
 				child:Destroy()
 			end
 		end
 	end
-	local function row(order: number, height: number)
-		local item = new("Frame", body, {
-			Name = "Linha", Size = UDim2.new(1, -8, 0, if touch then math.min(height, 50) else height), BackgroundColor3 = Color3.fromRGB(24, 14, 26),
-			BackgroundTransparency = 0.15, LayoutOrder = order, ZIndex = 23, BorderSizePixel = 0,
-		})
-		new("Frame", item, { Name = "Traco", Size = UDim2.new(0, 2, 1, 0), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 24 })
+	local function section(order: number, caption: string)
+		text(content, "Secao", caption, 15, FOG, { Size = UDim2.new(1, -8, 0, 26), LayoutOrder = order, ZIndex = 23, FontFace = body(Enum.FontWeight.SemiBold) })
+	end
+	local function row(order: number, height: number, edge: Color3?)
+		local item = new("Frame", content, { Name = "Linha", Size = UDim2.new(1, -8, 0, height), BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 23 })
+		chamfer(item, 8, "tlbr", Color3.fromRGB(16, 30, 40), 0.1, edge, if edge then 0.4 else nil)
 		return item
 	end
 	local function preview(parent, id: string, size: number)
 		local view = new("ViewportFrame", parent, {
-			Name = "Previa", Size = UDim2.fromOffset(size, size), BackgroundColor3 = Color3.fromRGB(8, 8, 18), BackgroundTransparency = 0,
+			Name = "Previa", Size = UDim2.fromOffset(size, size), BackgroundColor3 = WELL, BackgroundTransparency = 0,
 			Ambient = Color3.fromRGB(170, 170, 190), LightColor = Color3.new(1, 1, 1), LightDirection = Vector3.new(-1, -1.4, -0.6), ZIndex = 24,
 		})
-		corner(view, 6)
+		new("UICorner", view, { CornerRadius = UDim.new(0, 2) })
 		local source = folder:FindFirstChild("Moveis")
 		local template = source and source:FindFirstChild(id)
 		local tam = sizes[id]
@@ -645,14 +988,15 @@ local function start()
 	end
 	local function tabButton(key: string, caption: string, order: number)
 		local selected = tab == key
-		local item = button(tabs, "Aba", caption, if selected then GOLD else SUB, {
-			Size = UDim2.fromOffset(if touch then 104 else 130, 30), LayoutOrder = order, ZIndex = 23, TextSize = 13,
-			BackgroundTransparency = if selected then 0 else 0.4,
+		button(tabs, "Aba", caption, if selected then "primario" else "fantasma", if selected then CORAL else PAPER, {
+			Size = UDim2.fromOffset(if touch then 112 else 132, 32), LayoutOrder = order, ZIndex = 23, TextSize = 17,
 		}, function()
-			tab = key
-			render()
+			if tab ~= key then
+				sound("aba", 1)
+				tab = key
+				render()
+			end
 		end)
-		return item
 	end
 
 	local startPlacing
@@ -665,62 +1009,68 @@ local function start()
 				table.insert(cats, def.cat)
 			end
 		end
-		local chips = new("Frame", body, { Name = "Filtros", Size = UDim2.new(1, -8, 0, 30), BackgroundTransparency = 1, LayoutOrder = 0, ZIndex = 23 })
-		new("UIListLayout", chips, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+		local chips = new("ScrollingFrame", content, {
+			Name = "Filtros", Size = UDim2.new(1, -8, 0, 34), BackgroundTransparency = 1, LayoutOrder = 0, ZIndex = 23, BorderSizePixel = 0,
+			ScrollBarThickness = 0, ScrollingDirection = Enum.ScrollingDirection.X, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(),
+		})
+		new("UIListLayout", chips, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 		for index, cat in cats do
-			button(chips, "Filtro", cat, if filter == cat then NEON else SUB, {
-				Size = UDim2.fromOffset(84, 26), LayoutOrder = index, ZIndex = 24, TextSize = 12, BackgroundTransparency = if filter == cat then 0 else 0.5,
+			local active = filter == cat
+			button(chips, "Filtro", cat, if active then "secundario" else "fantasma", if active then TIDE else FOG, {
+				Size = UDim2.fromOffset(#cat * 9 + 30, 30), LayoutOrder = index, ZIndex = 24, TextSize = 16,
 			}, function()
 				filter = cat
 				render()
 			end)
 		end
-		local grid = new("Frame", body, { Name = "Grade", Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 23 })
-		new("UIGridLayout", grid, { CellSize = UDim2.fromOffset(if touch then 132 else 160, if touch then 186 else 212), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+		local grid = new("Frame", content, { Name = "Grade", Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 23 })
+		new("UIGridLayout", grid, { CellSize = UDim2.fromOffset(if touch then 140 else 172, if touch then 206 else 238), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder })
 		local cash = player:GetAttribute("CyberOutlawEddies") or 0
 		for _, def in catalog do
 			if filter == "Todos" or def.cat == filter then
-				local cell = new("Frame", grid, { Name = def.id, BackgroundColor3 = Color3.fromRGB(22, 20, 44), BackgroundTransparency = 0.15, LayoutOrder = def.ordem, ZIndex = 23 })
-				corner(cell, 8)
-				outline(cell, NEON, 0.7, 1)
-				local view = preview(cell, def.id, if touch then 92 else 112)
+				local cell = new("Frame", grid, { Name = def.id, BackgroundTransparency = 1, LayoutOrder = def.ordem, ZIndex = 23 })
+				chamfer(cell, 10, "tlbr", Color3.fromRGB(16, 30, 40), 0.05, nil)
+				local size = if touch then 104 else 128
+				local view = preview(cell, def.id, size)
 				view.AnchorPoint = Vector2.new(0.5, 0)
-				view.Position = UDim2.new(0.5, 0, 0, 6)
-				local y = (if touch then 92 else 112) + 8
-				text(cell, "Nome", def.nome, 13, TEXT, { Position = UDim2.fromOffset(8, y), Size = UDim2.new(1, -16, 0, 32), TextWrapped = true, ZIndex = 24,
-					TextYAlignment = Enum.TextYAlignment.Top })
+				view.Position = UDim2.new(0.5, 0, 0, 8)
+				text(cell, "Nome", def.nome, 16, PAPER, { Position = UDim2.fromOffset(10, size + 12), Size = UDim2.new(1, -20, 0, 36), TextWrapped = true, ZIndex = 24,
+					TextYAlignment = Enum.TextYAlignment.Top, FontFace = display() })
 				local afford = cash >= def.preco
-				button(cell, "Comprar", money(def.preco), if afford then GOLD else RED, {
-					AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -6), Size = UDim2.new(1, -16, 0, 30), ZIndex = 24, TextSize = 14,
+				local buy = button(cell, "Comprar", money(def.preco), if afford then "primario" else "secundario", if afford then AMBER else FOG, {
+					AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 32), ZIndex = 24, FontFace = MONEY, TextSize = 16,
 				}, function()
+					if not afford then
+						sound("ui_negado", 1)
+						toast("Faltam " .. money(def.preco - cash) .. " para " .. def.nome .. ".", DANGER)
+						return
+					end
 					request:FireServer("comprar", def.id)
 				end)
+				local _ = buy
 			end
 		end
 	end
 
 	local function mine()
 		local order = 0
-		local function heading(caption: string)
-			order += 1
-			text(body, "Secao", caption, 14, NEON, { Size = UDim2.new(1, -8, 0, 24), LayoutOrder = order, ZIndex = 23 })
-		end
-		heading("GUARDADOS")
+		order += 1
+		section(order, "Guardados")
 		local any = false
 		for id, count in house.guardados do
 			local def = byId[id]
 			if def then
 				any = true
 				order += 1
-				local line = row(order, 64)
-				local view = preview(line, id, 56)
-				view.Position = UDim2.fromOffset(4, 4)
-				text(line, "Nome", string.format("%s  ×%d", def.nome, count), 14, TEXT, { Position = UDim2.fromOffset(68, 0), Size = UDim2.new(1, -260, 1, 0), ZIndex = 24 })
-				button(line, "Colocar", "COLOCAR", GREEN, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -96, 0.5, 0), Size = UDim2.fromOffset(86, 30), ZIndex = 24, TextSize = 12 }, function()
+				local line = row(order, 66)
+				preview(line, id, 54).Position = UDim2.fromOffset(8, 6)
+				text(line, "Nome", if count > 1 then string.format("%s (%d)", def.nome, count) else def.nome, 17, PAPER, {
+					Position = UDim2.fromOffset(72, 0), Size = UDim2.new(1, -300, 1, 0), ZIndex = 24, FontFace = display(), TextTruncate = Enum.TextTruncate.AtEnd })
+				button(line, "Colocar", "Colocar", "primario", TIDE, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -112, 0.5, 0), Size = UDim2.fromOffset(96, 34), ZIndex = 24 }, function()
 					startPlacing(id, nil)
 				end)
-				button(line, "Vender", "VENDER " .. money(def.preco * economy.venda), RED, {
-					AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(86, 30), ZIndex = 24, TextSize = 10,
+				button(line, "Vender", "Vender " .. money(def.preco * economy.venda), "secundario", CORAL, {
+					AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(98, 34), ZIndex = 24, TextSize = 13, FontFace = MONEY,
 				}, function()
 					request:FireServer("venderGuardado", id)
 				end)
@@ -728,25 +1078,26 @@ local function start()
 		end
 		if not any then
 			order += 1
-			text(body, "Vazio", "Nada guardado. Compre móveis na LOJA.", 13, SUB, { Size = UDim2.new(1, -8, 0, 24), LayoutOrder = order, ZIndex = 23 })
+			text(content, "Vazio", "Nada guardado. Os móveis comprados na loja aparecem aqui.", 15, FOG, { Size = UDim2.new(1, -8, 0, 26), LayoutOrder = order, ZIndex = 23 })
 		end
-		heading("NO APARTAMENTO")
+		order += 1
+		section(order, "No apartamento")
 		for _, item in house.moveis do
 			local def = byId[item.id]
 			if def then
 				order += 1
-				local line = row(order, 64)
-				local view = preview(line, item.id, 56)
-				view.Position = UDim2.fromOffset(4, 4)
-				text(line, "Nome", def.nome, 14, TEXT, { Position = UDim2.fromOffset(68, 0), Size = UDim2.new(1, -340, 1, 0), ZIndex = 24 })
+				local line = row(order, 66)
+				preview(line, item.id, 54).Position = UDim2.fromOffset(8, 6)
+				text(line, "Nome", def.nome, 17, PAPER, { Position = UDim2.fromOffset(72, 0), Size = UDim2.new(1, -390, 1, 0), ZIndex = 24, FontFace = display(),
+					TextTruncate = Enum.TextTruncate.AtEnd })
 				local uid = item.u
-				button(line, "Mover", "MOVER", NEON, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -186, 0.5, 0), Size = UDim2.fromOffset(84, 30), ZIndex = 24, TextSize = 12 }, function()
+				button(line, "Mover", "Mover", "secundario", TIDE, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -212, 0.5, 0), Size = UDim2.fromOffset(96, 34), ZIndex = 24 }, function()
 					startPlacing(item.id, uid)
 				end)
-				button(line, "Guardar", "GUARDAR", GOLD, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -96, 0.5, 0), Size = UDim2.fromOffset(84, 30), ZIndex = 24, TextSize = 12 }, function()
+				button(line, "Guardar", "Guardar", "secundario", AMBER, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -110, 0.5, 0), Size = UDim2.fromOffset(96, 34), ZIndex = 24 }, function()
 					request:FireServer("guardar", uid)
 				end)
-				button(line, "Vender", "VENDER", RED, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(84, 30), ZIndex = 24, TextSize = 12 }, function()
+				button(line, "Vender", "Vender", "secundario", CORAL, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(96, 34), ZIndex = 24 }, function()
 					request:FireServer("vender", uid)
 				end)
 			end
@@ -755,69 +1106,114 @@ local function start()
 
 	local function renovate()
 		local order = 0
-		for _, group in { { "piso", "PISO" }, { "luz", "LUZ DO TETO" }, { "vidro", "JANELAS" } } do
+		for _, group in { { "piso", "Piso" }, { "luz", "Luz do teto" }, { "vidro", "Janelas" } } do
 			order += 1
-			text(body, "Secao", group[2], 14, NEON, { Size = UDim2.new(1, -8, 0, 24), LayoutOrder = order, ZIndex = 23 })
+			section(order, group[2])
 			order += 1
-			local line = new("Frame", body, { Name = "Opcoes", Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 23 })
-			new("UIGridLayout", line, { CellSize = UDim2.fromOffset(if touch then 150 else 170, 44), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+			local line = new("Frame", content, { Name = "Opcoes", Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 23 })
+			new("UIGridLayout", line, { CellSize = UDim2.fromOffset(if touch then 156 else 178, 52), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 			for index, option in renovations[group[1]] or {} do
 				local current = house[group[1]] == option.id
-				local tone = Color3.fromRGB(option.cor[1], option.cor[2], option.cor[3])
-				local item = button(line, option.id, string.format("%s\n%s", option.nome, if current then "EM USO" elseif option.preco == 0 then "GRÁTIS" else money(option.preco)),
-					if current then GREEN else TEXT, { LayoutOrder = index, ZIndex = 24, TextSize = 12, TextWrapped = true }, function()
-						if not current then
-							request:FireServer("reforma", group[1], option.id)
-						end
-					end)
-				local swatch = new("Frame", item, { Size = UDim2.new(0, 6, 1, -8), Position = UDim2.fromOffset(4, 4), BackgroundColor3 = tone, BorderSizePixel = 0, ZIndex = 25 })
-				corner(swatch, 3)
+				local tile = new("TextButton", line, { Name = option.id, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, LayoutOrder = index, ZIndex = 24 })
+				chamfer(tile, 8, "tlbr", Color3.fromRGB(16, 30, 40), 0.05, if current then GOOD else nil, 0.2)
+				new("Frame", tile, { Name = "Cor", Size = UDim2.new(0, 8, 1, -12), Position = UDim2.fromOffset(8, 6),
+					BackgroundColor3 = Color3.fromRGB(option.cor[1], option.cor[2], option.cor[3]), BorderSizePixel = 0, ZIndex = 25 })
+				text(tile, "Nome", option.nome, 15, PAPER, { Position = UDim2.fromOffset(24, 4), Size = UDim2.new(1, -30, 0, 22), ZIndex = 25, FontFace = display(),
+					TextTruncate = Enum.TextTruncate.AtEnd })
+				text(tile, "Preco", if current then "Em uso" elseif option.preco == 0 then "Grátis" else money(option.preco), 14, if current then GOOD else AMBER, {
+					Position = UDim2.fromOffset(24, 26), Size = UDim2.new(1, -30, 0, 20), ZIndex = 25, FontFace = if current then body(Enum.FontWeight.SemiBold) else MONEY })
+				tile.Activated:Connect(function()
+					if not current then
+						sound("clique", 1)
+						request:FireServer("reforma", group[1], option.id)
+					end
+				end)
 			end
 		end
 	end
 
+	-- Agente: o app de contatos do implante (fixers e as pessoas deste servidor).
+	local function bust(parent, fixerId: string, size: number)
+		local view = new("ViewportFrame", parent, { Name = "Rosto", Size = UDim2.fromOffset(size, size), BackgroundColor3 = WELL, ZIndex = 24,
+			Ambient = Color3.fromRGB(150, 140, 150), LightColor = Color3.fromRGB(255, 230, 225), LightDirection = Vector3.new(-0.6, -0.5, 1) })
+		local source = folder:FindFirstChild("Fixers")
+		local template = source and source:FindFirstChild(fixerId)
+		if template then
+			local world = new("WorldModel", view, {})
+			local copy = template:Clone()
+			copy.Parent = world
+			local head = copy:FindFirstChild("Head")
+			local cam = new("Camera", view, { FieldOfView = 24 })
+			view.CurrentCamera = cam
+			if head and head:IsA("BasePart") then
+				cam.CFrame = CFrame.lookAt(head.Position + Vector3.new(0.8, -0.1, -4.4), head.Position + Vector3.new(0, -0.3, 0))
+			end
+		end
+		return view
+	end
 	local function agentPanel()
 		local order = 0
-		local function heading(caption: string)
-			order += 1
-			text(body, "Secao", caption, 14, NEON, { Size = UDim2.new(1, -8, 0, 24), LayoutOrder = order, ZIndex = 23 })
-		end
-		heading("TRABALHO ATUAL")
-		order += 1
-		local current = row(order, 60)
 		if mission then
-			text(current, "Texto", string.format("%s · %s\n%s", mission.titulo, money(mission.valor or 0), mission.objetivo), 14, TEXT, {
-				Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -130, 1, 0), TextWrapped = true, ZIndex = 24,
-			})
-			button(current, "Abandonar", "ABANDONAR", RED, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(110, 32), ZIndex = 24, TextSize = 12 }, function()
+			order += 1
+			section(order, "Trabalho atual")
+			order += 1
+			local current = row(order, 70, AMBER)
+			text(current, "Titulo", mission.titulo or "", 18, AMBER, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -150, 0, 24), ZIndex = 24, FontFace = display() })
+			text(current, "Texto", string.format("%s, pago por %s", mission.objetivo or "", mission.nomeFixer or "um fixer"), 14, PAPER, {
+				Position = UDim2.fromOffset(14, 32), Size = UDim2.new(1, -150, 0, 30), ZIndex = 24, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top })
+			button(current, "Abandonar", "Abandonar", "secundario", CORAL, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(116, 34), ZIndex = 24 }, function()
 				request:FireServer("abandonar")
 			end)
-		else
-			text(current, "Texto", "Nenhum. Ligue para um fixer ou espere uma holochamada.", 14, SUB, { Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -20, 1, 0), TextWrapped = true, ZIndex = 24 })
 		end
-		heading("CONTATOS")
+		order += 1
+		section(order, "Fixers")
 		for _, fixer in fixerList do
 			order += 1
-			local line = row(order, 54)
-			local tone = Color3.fromRGB(fixer.cor[1], fixer.cor[2], fixer.cor[3])
-			local dot = new("Frame", line, { Size = UDim2.fromOffset(10, 10), Position = UDim2.new(0, 10, 0.5, -5), BackgroundColor3 = tone, BorderSizePixel = 0, ZIndex = 24 })
-			corner(dot, 5)
-			text(line, "Nome", fixer.nome .. "\n" .. fixer.titulo, 14, TEXT, { Position = UDim2.fromOffset(28, 0), Size = UDim2.new(1, -150, 1, 0), ZIndex = 24 })
-			button(line, "Ligar", "LIGAR", GREEN, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(100, 32), ZIndex = 24, TextSize = 13 }, function()
+			local line = row(order, 64)
+			bust(line, fixer.id, 50).Position = UDim2.fromOffset(8, 7)
+			text(line, "Nome", fixer.nome, 18, PAPER, { Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -190, 0, 24), ZIndex = 24, FontFace = display() })
+			text(line, "Cargo", fixer.titulo, 14, FOG, { Position = UDim2.fromOffset(70, 32), Size = UDim2.new(1, -190, 0, 20), ZIndex = 24 })
+			button(line, "Ligar", "Ligar", "primario", TIDE, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(100, 36), ZIndex = 24 }, function()
 				request:FireServer("ligar", fixer.id)
 				setOpen(nil)
 			end)
 		end
-		heading("AJUSTES")
+		order += 1
+		section(order, "Pessoas neste servidor")
+		local anyone = false
+		for _, other in Players:GetPlayers() do
+			if other ~= player then
+				anyone = true
+				order += 1
+				local line = row(order, 64)
+				local face = new("ImageLabel", line, { Name = "Rosto", Position = UDim2.fromOffset(8, 7), Size = UDim2.fromOffset(50, 50), BackgroundColor3 = WELL, ZIndex = 24,
+					Image = "", ScaleType = Enum.ScaleType.Crop })
+				task.spawn(function()
+					face.Image = headshot(other.UserId)
+				end)
+				text(line, "Nome", other.DisplayName, 18, PAPER, { Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -190, 0, 24), ZIndex = 24, FontFace = display(),
+					TextTruncate = Enum.TextTruncate.AtEnd })
+				local busy = other:GetAttribute("CyberOutlawNaoPerturbe") == true
+				text(line, "Usuario", if busy then "Não perturbe" else "@" .. other.Name, 14, if busy then CORAL else FOG, {
+					Position = UDim2.fromOffset(70, 32), Size = UDim2.new(1, -190, 0, 20), ZIndex = 24, TextTruncate = Enum.TextTruncate.AtEnd })
+				button(line, "Ligar", "Ligar", if busy then "secundario" else "primario", if busy then FOG else TIDE, {
+					AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(100, 36), ZIndex = 24 }, function()
+					request:FireServer("ligarJogador", other.UserId)
+					setOpen(nil)
+				end)
+			end
+		end
+		if not anyone then
+			order += 1
+			text(content, "Vazio", "Ninguém mais no servidor agora. Quando alguém entrar, aparece aqui.", 15, FOG, { Size = UDim2.new(1, -8, 0, 26), LayoutOrder = order, ZIndex = 23 })
+		end
 		order += 1
 		local quiet = player:GetAttribute("CyberOutlawNaoPerturbe") == true
-		local line = row(order, 50)
-		text(line, "Texto", string.format("Reputação de rua: %d", player:GetAttribute("CyberOutlawReputacao") or 0), 14, GOLD, {
-			Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -200, 1, 0), ZIndex = 24,
-		})
-		button(line, "NaoPerturbe", if quiet then "NÃO PERTURBE: ON" else "NÃO PERTURBE: OFF", if quiet then PINK else SUB, {
-			AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(170, 32), ZIndex = 24, TextSize = 12,
-		}, function()
+		local footer = row(order, 54)
+		text(footer, "Reputacao", string.format("Reputação de rua: %d", player:GetAttribute("CyberOutlawReputacao") or 0), 16, AMBER, {
+			Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -220, 1, 0), ZIndex = 24, FontFace = display() })
+		button(footer, "NaoPerturbe", if quiet then "Não perturbe: ligado" else "Não perturbe: desligado", "secundario", if quiet then CORAL else FOG, {
+			AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(196, 34), ZIndex = 24, TextSize = 15 }, function()
 			request:FireServer("naoPerturbe", not quiet)
 			task.delay(0.3, render)
 		end)
@@ -827,23 +1223,24 @@ local function start()
 		if not panel then
 			return
 		end
-		clearBody()
-		new("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
-		-- Só a Casa tem abas: no Agente a lista começa logo abaixo do título.
+		clearContent()
+		new("UIListLayout", content, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 		tabs.Visible = panel == "casa"
-		body.Position = UDim2.fromOffset(12, if panel == "casa" then 82 else 44)
-		body.Size = UDim2.new(1, -24, 1, if panel == "casa" then -90 else -52)
+		content.Position = UDim2.fromOffset(14, if panel == "casa" then 100 else 60)
+		content.Size = UDim2.new(1, -28, 1, if panel == "casa" then -110 else -70)
 		if panel == "casa" then
-			title.Text = if (house.unidade or 0) > 0 then string.format("APARTAMENTO %02d · EDIFÍCIO COLMEIA", house.unidade) else "CASA · COLMEIA LOTADO"
-			tabButton("loja", "LOJA", 1)
-			tabButton("meus", "MEUS MÓVEIS", 2)
-			tabButton("reforma", "REFORMA", 3)
-			button(tabs, "IrCasa", "IR PARA CASA", NEON, { Size = UDim2.fromOffset(if touch then 112 else 130, 30), LayoutOrder = 4, ZIndex = 23, TextSize = 12 }, function()
+			title.Text = if (house.unidade or 0) > 0 then string.format("Apartamento %02d", house.unidade) else "Colmeia lotado"
+			subtitleLabel.Text = if (house.unidade or 0) > 0 then "Edifício Colmeia, Maré Baixa" else "Sem apartamento livre neste servidor"
+			tabButton("loja", "Loja", 1)
+			tabButton("meus", "Meus móveis", 2)
+			tabButton("reforma", "Reforma", 3)
+			button(tabs, "IrCasa", "Ir para casa", "secundario", TIDE, { Size = UDim2.fromOffset(if touch then 120 else 136, 32), LayoutOrder = 4, ZIndex = 23 }, function()
 				request:FireServer("irCasa")
 				setOpen(nil)
 			end)
 			if #house.sujeira > 0 then
-				button(tabs, "Faxina", "FAXINA " .. money(economy.faxina), GOLD, { Size = UDim2.fromOffset(if touch then 112 else 130, 30), LayoutOrder = 5, ZIndex = 23, TextSize = 12 }, function()
+				button(tabs, "Faxina", "Faxina " .. money(economy.faxina), "secundario", AMBER, { Size = UDim2.fromOffset(if touch then 128 else 146, 32), LayoutOrder = 5,
+					ZIndex = 23, FontFace = MONEY, TextSize = 14 }, function()
 					request:FireServer("faxina")
 				end)
 			end
@@ -855,7 +1252,8 @@ local function start()
 				renovate()
 			end
 		else
-			title.Text = "AGENTE · CONTATOS"
+			title.Text = "Agente"
+			subtitleLabel.Text = "Contatos, trabalhos e chamadas"
 			agentPanel()
 		end
 	end
@@ -865,17 +1263,27 @@ local function start()
 	agentButton.Activated:Connect(function()
 		setOpen(if panel == "agente" then nil else "agente")
 	end)
+	Players.PlayerAdded:Connect(function()
+		if panel == "agente" then
+			render()
+		end
+	end)
+	Players.PlayerRemoving:Connect(function()
+		if panel == "agente" then
+			task.defer(render)
+		end
+	end)
 
-	-- Posicionamento: fantasma na frente do personagem, dentro do apartamento, preso na grade de 0,5.
-	local placing = nil -- { id, uid, rot, ghost }
+	-- Posicionamento: fantasma na frente do personagem, dentro do apartamento, preso na grade de 0,5 --------------
+	local placing = nil -- { id, uid, rot, ghost, glow, marker, x, z, valid }
 	local placeBar = new("Frame", gui, {
-		Name = "Posicionar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -60 else -110), Size = UDim2.fromOffset(330, 44),
+		Name = "Posicionar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -60 else -110), Size = UDim2.fromOffset(340, 44),
 		BackgroundTransparency = 1, Visible = false,
 	})
 	new("UIListLayout", placeBar, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center })
-	local placeHint = text(gui, "DicaPosicionar", "Ande até o lugar. Girar: Z · Colocar: F · Cancelar: C", 13, SUB, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -108 else -158), Size = UDim2.fromOffset(420, 20),
-		TextXAlignment = Enum.TextXAlignment.Center, Visible = false, TextStrokeTransparency = 0.4,
+	local placeHint = text(gui, "DicaPosicionar", "Ande até o lugar. Z gira, F coloca, C cancela.", 15, PAPER, {
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -108 else -160), Size = UDim2.fromOffset(440, 22),
+		TextXAlignment = Enum.TextXAlignment.Center, Visible = false, TextStrokeTransparency = 0.4, FontFace = body(Enum.FontWeight.SemiBold),
 	})
 	local function unitMarker(): BasePart?
 		local n = player:GetAttribute("CyberOutlawUnidade") or 0
@@ -901,7 +1309,7 @@ local function start()
 	end
 	local function confirmPlacing()
 		if not placing or not placing.valid then
-			sound("ui_negado", 0.3)
+			sound("ui_negado", 1)
 			return
 		end
 		if placing.uid then
@@ -909,27 +1317,29 @@ local function start()
 		else
 			request:FireServer("colocar", placing.id, placing.x, placing.z, placing.rot)
 		end
+		sound("compra", 0.6)
 		stopPlacing()
 	end
 	local function rotatePlacing()
 		if placing then
 			placing.rot = (placing.rot + 1) % 4
+			sound("ui_tick", 1)
 		end
 	end
-	button(placeBar, "Girar", "GIRAR", NEON, { Size = UDim2.fromOffset(100, 40) }, rotatePlacing)
-	button(placeBar, "Colocar", "COLOCAR", GREEN, { Size = UDim2.fromOffset(110, 40) }, confirmPlacing)
-	button(placeBar, "Cancelar", "CANCELAR", RED, { Size = UDim2.fromOffset(100, 40) }, stopPlacing)
+	button(placeBar, "Girar", "Girar", "secundario", TIDE, { Size = UDim2.fromOffset(100, 42) }, rotatePlacing)
+	button(placeBar, "Colocar", "Colocar", "primario", GOOD, { Size = UDim2.fromOffset(116, 42) }, confirmPlacing)
+	button(placeBar, "Cancelar", "Cancelar", "secundario", CORAL, { Size = UDim2.fromOffset(104, 42) }, stopPlacing)
 	startPlacing = function(id: string, uid: number?)
 		local markerPart = unitMarker()
 		local character = player.Character
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 		if not markerPart or not rootPart then
-			toast("Você não tem apartamento neste servidor.", RED)
+			toast("Você não tem apartamento neste servidor.", DANGER)
 			return
 		end
 		local here = markerPart.CFrame:PointToObjectSpace(rootPart.Position)
 		if math.abs(here.X) > markerPart.Size.X / 2 + 1 or math.abs(here.Z) > markerPart.Size.Z / 2 + 1 or math.abs(here.Y) > markerPart.Size.Y then
-			toast("Vá para o seu apartamento (botão IR PARA CASA) para arrumar os móveis.", GOLD)
+			toast("Vá para o seu apartamento (Ir para casa) para arrumar os móveis.", AMBER)
 			return
 		end
 		stopPlacing()
@@ -947,7 +1357,7 @@ local function start()
 				item:Destroy()
 			end
 		end
-		local glow = new("Highlight", ghost, { FillColor = NEON, OutlineColor = NEON, FillTransparency = 0.7, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop })
+		local glowing = new("Highlight", ghost, { FillColor = TIDE, OutlineColor = TIDE, FillTransparency = 0.7, DepthMode = Enum.HighlightDepthMode.AlwaysOnTop })
 		ghost.Parent = workspace
 		local rot = 0
 		if uid then
@@ -957,20 +1367,19 @@ local function start()
 				end
 			end
 		end
-		placing = { id = id, uid = uid, rot = rot, ghost = ghost, glow = glow, marker = markerPart }
+		placing = { id = id, uid = uid, rot = rot, ghost = ghost, glow = glowing, marker = markerPart }
 		setOpen(nil)
 		placeBar.Visible = true
 		placeHint.Visible = not touch
 	end
 
-	-- Interações (ProximityPrompt) no estilo da interface: [E] na caixinha vermelha, ação em ciano, objeto em
-	-- cinza e a barra de segurar enchendo. No toque, a placa inteira é o botão (segura para assaltar, limpar...).
+	-- Interações (ProximityPrompt) no mesmo estilo: tecla na caixinha, ação, objeto e a barra de segurar ------------
 	local ProximityPromptService = game:GetService("ProximityPromptService")
-	local promptGui = new("ScreenGui", player.PlayerGui, { Name = "CyberOutlawInteracoes", ResetOnSpawn = false, DisplayOrder = 34 })
+	local promptGui = new("ScreenGui", playerGui, { Name = "CyberOutlawInteracoes", ResetOnSpawn = false, DisplayOrder = 34 })
 	local shownPrompts = {}
 	local function keyName(prompt: ProximityPrompt, inputType: Enum.ProximityPromptInputType): string
 		if inputType == Enum.ProximityPromptInputType.Gamepad then
-			return string.gsub(prompt.GamepadKeyCode.Name, "Button", "")
+			return (string.gsub(prompt.GamepadKeyCode.Name, "Button", ""))
 		end
 		return prompt.KeyboardKeyCode.Name
 	end
@@ -984,26 +1393,24 @@ local function start()
 			StudsOffsetWorldSpace = Vector3.new(0, if prompt.Parent and prompt.Parent.Name == "HumanoidRootPart" then 3.2 else 1.6, 0), Active = tapping,
 			ResetOnSpawn = false,
 		})
-		local face = new(if tapping then "TextButton" else "Frame", board2, {
-			Name = "Placa", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.3, BorderSizePixel = 0,
-		})
+		local face = new(if tapping then "TextButton" else "Frame", board2, { Name = "Placa", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 })
 		if tapping then
 			(face :: TextButton).Text = ""
 			(face :: TextButton).AutoButtonColor = false
 		end
-		new("Frame", face, { Name = "Traco", Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = HOT, BorderSizePixel = 0 })
-		local cap = new("Frame", face, { Name = "Tecla", Position = UDim2.fromOffset(10, 13), Size = UDim2.fromOffset(32, 32), BackgroundColor3 = Color3.fromRGB(26, 8, 12), BorderSizePixel = 0 })
-		outline(cap, HOT, 0, 1.5)
-		text(cap, "Letra", if tapping then "TOQUE" else keyName(prompt, inputType), if tapping then 8 else 15, HOT, {
-			FontFace = Font.fromEnum(Enum.Font.Michroma), TextXAlignment = Enum.TextXAlignment.Center,
+		chamfer(face, 10, "tlbr", ABYSS, 0.12, CORAL, 0.35)
+		local cap = new("Frame", face, { Name = "Tecla", Position = UDim2.fromOffset(10, 12), Size = UDim2.fromOffset(34, 34), BackgroundTransparency = 1, ZIndex = 2 })
+		chamfer(cap, 6, "tlbr", WELL, 0, CORAL, 0)
+		text(cap, "Letra", if tapping then "Toque" else keyName(prompt, inputType), if tapping then 11 else 18, CORAL, {
+			FontFace = display(), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3,
 		})
-		text(face, "Acao", string.upper(prompt.ActionText), 15, NEON, {
-			Position = UDim2.fromOffset(52, 8), Size = UDim2.new(1, -58, 0, 22), FontFace = Font.fromEnum(Enum.Font.Michroma), TextTruncate = Enum.TextTruncate.AtEnd,
+		text(face, "Acao", prompt.ActionText, 19, PAPER, {
+			Position = UDim2.fromOffset(54, 6), Size = UDim2.new(1, -60, 0, 24), FontFace = display(), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2,
 		})
-		text(face, "Objeto", prompt.ObjectText, 12, SUB, { Position = UDim2.fromOffset(52, 30), Size = UDim2.new(1, -58, 0, 16), TextTruncate = Enum.TextTruncate.AtEnd })
-		local track = new("Frame", face, { Name = "Segurar", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 3, 1, 0), Size = UDim2.new(1, -3, 0, 3),
-			BackgroundColor3 = HOT, BackgroundTransparency = 0.75, BorderSizePixel = 0, Visible = prompt.HoldDuration > 0 })
-		local fill = new("Frame", track, { Name = "Valor", Size = UDim2.fromScale(0, 1), BackgroundColor3 = HOT, BorderSizePixel = 0 })
+		text(face, "Objeto", prompt.ObjectText, 14, FOG, { Position = UDim2.fromOffset(54, 30), Size = UDim2.new(1, -60, 0, 18), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 2 })
+		local track = new("Frame", face, { Name = "Segurar", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 10, 1, -4), Size = UDim2.new(1, -20, 0, 3),
+			BackgroundColor3 = CORAL, BackgroundTransparency = 0.75, BorderSizePixel = 0, Visible = prompt.HoldDuration > 0, ZIndex = 2 })
+		local fill = new("Frame", track, { Name = "Valor", Size = UDim2.fromScale(0, 1), BackgroundColor3 = CORAL, BorderSizePixel = 0, ZIndex = 3 })
 		local entry = { board = board2, holdAt = nil, connections = {} }
 		shownPrompts[prompt] = entry
 		table.insert(entry.connections, prompt.PromptButtonHoldBegan:Connect(function()
@@ -1016,9 +1423,8 @@ local function start()
 		table.insert(entry.connections, prompt.Triggered:Connect(function()
 			entry.holdAt = nil
 			fill.Size = UDim2.fromScale(1, 1)
-			face.BackgroundColor3 = Color3.fromRGB(60, 12, 18)
+			sound("ui_confirmar", 0.8)
 			task.delay(0.15, function()
-				face.BackgroundColor3 = Color3.new(0, 0, 0)
 				fill.Size = UDim2.fromScale(0, 1)
 			end)
 		end))
@@ -1051,34 +1457,37 @@ local function start()
 		end
 	end)
 
-	-- Avisos do servidor -----------------------------------------------------------------------------------
+	-- Avisos do servidor --------------------------------------------------------------------------------------------
+	local LOOT = { ["Caixa eletrônico hackeado"] = true, ["Assalto ao camelô"] = true, ["Máquina arrombada"] = true, ["Carteira batida"] = true }
 	notice.OnClientEvent:Connect(function(kind, a, b, c)
 		if kind == "dinheiro" and type(a) == "number" then
 			if a > 0 then
-				sound("dinheiro", 0.6)
+				sound(if LOOT[b] then "assalto" else "dinheiro", 1)
 			end
-			toast(string.format("%s%s%s", if a > 0 then "+" else "", money(a), if type(b) == "string" then "  " .. b else ""), if a > 0 then GREEN else RED)
+			toast(string.format("%s%s%s", if a > 0 then "+" else "", money(a), if type(b) == "string" then "  " .. b else ""), if a > 0 then GOOD else DANGER)
 		elseif kind == "msg" and type(a) == "string" then
-			toast(a, TEXT)
+			toast(a, TIDE)
 		elseif kind == "procurado" and type(a) == "number" then
-			sound("alarme", 0.55)
-			toast(string.format("PROCURADO: %s", string.rep("★", a)), RED)
+			sound("alarme", 1)
+			task.delay(0.7, sound, "radio_policia", 1)
+			toast(string.format("Procurado: %s", string.rep("★", a)), DANGER)
 		elseif kind == "chamada" and type(a) == "table" then
 			incoming(a, b == true)
 		elseif kind == "perdida" and type(a) == "string" then
-			if call and call.state == "tocando" then
-				hangUp()
+			if call and call.kind == "fixer" and call.state == "tocando" then
+				hangUp(nil)
 			end
 			local fixer = fixers[a]
-			toast("Chamada perdida: " .. (if fixer then fixer.nome else "fixer") .. " (ligue pelo AGENTE)", GOLD)
+			toast("Chamada perdida de " .. (if fixer then fixer.nome else "um fixer") .. ". Ligue pelo Agente.", AMBER)
 		elseif kind == "fixer" and type(a) == "string" and type(b) == "string" then
 			fixerMessage(a, b, c == true)
 		elseif kind == "missao" and type(a) == "table" then
-			toast("Trabalho aceito: " .. tostring(a.titulo), NEON)
+			toast("Trabalho aceito: " .. tostring(a.titulo), AMBER)
 		elseif kind == "comprado" and type(a) == "string" then
 			local def = byId[a]
 			if def then
-				toast("Comprado: " .. def.nome .. " (está em MEUS MÓVEIS)", GOLD)
+				sound("compra", 1)
+				toast(def.nome .. " comprado. Está em Meus móveis.", AMBER)
 			end
 		elseif kind == "casa" and type(a) == "table" then
 			house = a
@@ -1087,6 +1496,49 @@ local function start()
 			house.sujeira = house.sujeira or {}
 			if panel then
 				render()
+			end
+		elseif kind == "chamadaJogador" and type(a) == "table" then
+			playerCard(a, "tocando")
+			callStatus.Text = "Chamada recebida"
+			callStatus.TextColor3 = CORAL
+			action("Atender", "primario", TIDE, "T", 1, answer)
+			action("Recusar", "secundario", CORAL, "Y", 2, decline)
+			ring()
+		elseif kind == "chamandoJogador" and type(a) == "table" then
+			playerCard(a, "chamando")
+			callStatus.Text = "Chamando…"
+			callStatus.TextColor3 = TIDE
+			action("Cancelar", "secundario", CORAL, "Y", 1, decline)
+		elseif kind == "chamadaAtiva" and type(a) == "table" then
+			if not call or call.id ~= a.id then
+				playerCard(a, "ativa")
+			end
+			stopRing()
+			sound("chamada_atender", 1)
+			call.state = "ativa"
+			call.at = os.clock()
+			callStatus.TextColor3 = TIDE
+			activeActions()
+		elseif kind == "chamadaFala" and type(a) == "table" and call and call.id == a.id then
+			say(if a.minha then "Você" else a.de, if a.minha then "#FFC440" else "#5EF6FF", { a.texto }, nil)
+		elseif kind == "chamadaLocal" and type(a) == "table" and typeof(a.pos) == "Vector3" then
+			friendMarker.Position = a.pos + Vector3.new(0, 7, 0)
+			friendMarker.Parent = workspace
+			friendUntil = os.clock() + 60
+			sound("notificacao", 1)
+			toast(a.de .. " mandou a localização (marcador ciano).", TIDE)
+		elseif kind == "chamadaConvite" and type(a) == "table" and call and call.id == a.id then
+			sound("notificacao", 1)
+			toast(a.de .. " te convidou para o apartamento " .. string.format("%02d", a.unidade or 0) .. ".", AMBER)
+			action("Visitar", "primario", AMBER, nil, 0, function()
+				request:FireServer("visitar", call and call.id)
+			end)
+		elseif kind == "chamadaFim" and type(a) == "table" then
+			if call and call.kind == "jogador" and call.id == a.id then
+				hangUp("chamada_fim")
+				if type(a.motivo) == "string" then
+					toast(a.motivo, FOG)
+				end
 			end
 		end
 	end)
@@ -1102,7 +1554,7 @@ local function start()
 	end)
 	request:FireServer("casa")
 
-	-- Teclas: H casa, J agente, T atender/aceitar, Y recusar; no posicionamento Z gira, F coloca, C cancela.
+	-- Teclas: H casa, J agente, T atender ou aceitar, Y recusar ou desligar; no posicionamento Z gira, F coloca, C cancela.
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if processed or not gui.Enabled then
 			return
@@ -1129,7 +1581,7 @@ local function start()
 		end
 	end)
 
-	-- Por quadro: estrelas, objetivo, fantasma e o "chiado" do holograma.
+	-- Por quadro: estrelas, objetivo, marcadores, fantasma, varredura do retrato e barras de voz.
 	local started = player:GetAttribute("CyberOutlawMenuStarted") == true
 	RunService.RenderStepped:Connect(function()
 		if not started then
@@ -1141,10 +1593,10 @@ local function start()
 		if covered and panel then
 			setOpen(nil)
 		end
-		local admin = player.PlayerGui:FindFirstChild("CyberOutlawAdminBotao")
+		local admin = playerGui:FindFirstChild("CyberOutlawAdminBotao")
 		local shift = if admin and admin:IsA("ScreenGui") and admin.Enabled then 56 else 8
 		chip.Position = UDim2.new(1, -shift, 0.5, 0)
-		stars.Position = UDim2.new(1, -shift - 150, 0.5, 0)
+		stars.Position = UDim2.new(1, -shift - 140, 0.5, 0)
 		local level = player:GetAttribute("CyberOutlawProcurado") or 0
 		stars.Visible = level > 0
 		if level > 0 then
@@ -1152,36 +1604,49 @@ local function start()
 			stars.Text = string.rep("★", level) .. string.rep("☆", 5 - level)
 			stars.TextTransparency = if seen and os.clock() % 0.5 < 0.25 then 0.6 else 0
 		end
-		local character = player.Character
-		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 		if touch and objective.Visible then
-			local hudGui = player.PlayerGui:FindFirstChild("CyberOutlawHUD")
+			local hudGui = playerGui:FindFirstChild("CyberOutlawHUD")
 			local anchor = hudGui and hudGui:FindFirstChild("MinimapAncora")
 			if anchor and anchor:IsA("GuiObject") then
 				local origin = gui.AbsolutePosition
 				objective.Position = UDim2.fromOffset(anchor.AbsolutePosition.X - origin.X, anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y - origin.Y + 28)
 			end
 		end
+		local character = player.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 		if mission and rootPart and rootPart:IsA("BasePart") then
 			local distance = if type(mission.alvo) == "table" then (Vector3.new(mission.alvo[1], mission.alvo[2], mission.alvo[3]) - rootPart.Position).Magnitude else 0
 			local left = (mission.prazo or 0) - workspace:GetServerTimeNow()
-			local extra = if mission.restantes then string.format(" · faltam %d", mission.restantes) else ""
-			objectiveHead.Text = string.format("TRABALHO · %s · %s", string.upper(mission.nomeFixer or ""), clock(left))
-			objectiveHead.TextColor3 = if left < 30 then RED else HOT
-			objectiveText.Text = string.format("◆ %s%s · %d m", mission.objetivo or "", extra, math.floor(distance / 3.6))
-			objectiveText.TextColor3 = if left < 30 then RED else GOLD
+			local extra = if mission.restantes then string.format(", faltam %d", mission.restantes) else ""
+			objectiveHead.Text = "Trabalho de " .. (mission.nomeFixer or "um fixer")
+			objectiveClock.Text = clock(left)
+			objectiveClock.TextColor3 = if left < 30 then DANGER else AMBER
+			objectiveText.Text = string.format("%s%s (%d m)", mission.objetivo or "", extra, math.floor(distance / 3.6))
 			distanceText.Text = string.format("%d m", math.floor(distance / 3.6))
 		end
+		if friendMarker.Parent then
+			if os.clock() > friendUntil then
+				friendMarker.Parent = nil
+			elseif rootPart and rootPart:IsA("BasePart") then
+				friendText.Text = string.format("%d m", math.floor((friendMarker.Position - rootPart.Position).Magnitude / 3.6))
+			end
+		end
 		if holo.Visible then
-			-- Chiado de sinal: o retrato some e treme por instantes; a chamada entra deslizando.
-			portrait.ImageTransparency = if math.random() < 0.05 then 0.55 else 0.02
-			portrait.Position = UDim2.fromOffset(if math.random() < 0.04 then math.random(-3, 3) else 0, 0)
-			local age = os.clock() - ((call and call.at) or 0)
-			local slide = 1 - math.clamp(age / 0.25, 0, 1)
-			holo.Position = HOLO_AT + (if touch then UDim2.fromOffset(0, -40 * slide * slide) else UDim2.fromOffset(-60 * slide * slide, 0))
-			holoGlow.BackgroundTransparency = slide
+			local now = os.clock()
+			sweep.Position = UDim2.fromScale(0, (now * 0.6) % 1)
+			tint.BackgroundTransparency = if math.random() < 0.04 then 0.75 else 0.9
+			local talking = call ~= nil and call.speaking == true
+			for index, bar in bars do
+				local goal = if talking then 0.25 + 0.75 * math.abs(math.noise(now * 9, index * 0.37)) * 1.6 else 0.15
+				bar.Size = UDim2.new(0, 3, math.clamp(goal, 0.12, 1), 0)
+			end
+			if call and call.kind == "jogador" and call.state == "ativa" then
+				callStatus.Text = "Em chamada  " .. clock(now - (call.at or now))
+			elseif call and call.kind == "fixer" and (call.state == "conversa" or call.state == "recado") and call.at then
+				callerRole.TextColor3 = FOG
+			end
 			if call and call.state == "tocando" then
-				callStatus.TextTransparency = if os.clock() % 0.8 < 0.4 then 0 else 0.45
+				callStatus.TextTransparency = if now % 0.9 < 0.45 then 0 else 0.4
 			else
 				callStatus.TextTransparency = 0
 			end
@@ -1197,11 +1662,10 @@ local function start()
 			local z = math.floor(here.Z / grid + 0.5) * grid
 			placing.x, placing.z = x, z
 			placing.valid = fits(unitRule, sizes, floors, house.moveis, placing.id, x, z, placing.rot, placing.uid)
-			placing.glow.FillColor = if placing.valid then NEON else RED
+			placing.glow.FillColor = if placing.valid then TIDE else DANGER
 			placing.glow.OutlineColor = placing.glow.FillColor
 			placing.ghost:PivotTo(markerPart.CFrame * CFrame.new(x, -markerPart.Size.Y / 2 + 0.1, z) * CFrame.Angles(0, placing.rot * math.pi / 2, 0))
 		end
-		local _ = camera
 	end)
 	player.CharacterRemoving:Connect(stopPlacing)
 end

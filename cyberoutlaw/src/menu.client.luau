@@ -455,8 +455,11 @@ local cooldowns = {}
 local preloadAssets = {}
 local preloadImages = {}
 local levels = { click = 0.26, confirm = 0.36, glitch = 0.16, react = 0.23, hello_morning = 0.40, hello_late = 0.40, hello_miss = 0.40 }
+-- Cliques e transições do menu vêm da biblioteca de interface do próprio Roblox (pública em qualquer jogo):
+-- som de estúdio no lugar dos bipes sintéticos, e funciona mesmo antes do midia.
+local LIBRARY = { click = 15675059323, confirm = 17208396156, glitch = 15675046931 }
 for key, level in levels do
-	local uri = asset((ASSETS.sounds or {})[key])
+	local uri = if LIBRARY[key] then string.format("rbxassetid://%d", LIBRARY[key]) else asset((ASSETS.sounds or {})[key])
 	if uri ~= "" then
 		sounds[key] = make("Sound", setFolder, key, { SoundId = uri, Volume = level })
 		table.insert(preloadAssets, sounds[key])

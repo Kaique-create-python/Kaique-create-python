@@ -459,6 +459,8 @@ stage.guiService.ReducedMotionEnabled = true
 stage:step(0.05)
 assert(stage.stageTime == 0, "reduced motion holds the live stage at the first camera pose")
 stage:find("Play").Activated:Fire()
+-- O clique de confirmar (biblioteca do Roblox, sempre disponível) toca antes de sair: espera a saída curta.
+stage:step(0.4)
 assert(stage.stageClosed and stage.player:GetAttribute("CyberOutlawMenuOpen") == false, "Jogar releases the live stage before entering the place")
 
 local function fakeClip(id, size)

@@ -132,6 +132,30 @@ local function finish(model: Model): Vector3
 end
 M.finish = finish
 
+-- Sorteio determinístico (mesma semente, mesmo resultado no servidor e nos testes).
+local function rand(seed: number)
+	local state = math.floor(seed) % 2147483646 + 1
+	local r = {}
+	function r.next(): number
+		state = state * 48271 % 2147483647
+		return state / 2147483647
+	end
+	function r.range(a: number, b: number): number
+		return a + (b - a) * r.next()
+	end
+	function r.int(a: number, b: number): number
+		return math.min(b, a + math.floor((b - a + 1) * r.next()))
+	end
+	function r.pick(list)
+		return list[r.int(1, #list)]
+	end
+	function r.chance(p: number): boolean
+		return r.next() < p
+	end
+	return r
+end
+M.rand = rand
+
 -- Paleta dos móveis ------------------------------------------------------------------------------------------
 local INK = rgb(24, 24, 30)
 local GRAPHITE = rgb(40, 40, 48)
@@ -702,6 +726,361 @@ local FURNITURE = {
 			end
 		end,
 	},
+	-- Leva 2: mais 22 móveis (com um pé no Brasil: rede, churrasqueira, TV de tubo e pichação).
+	{
+		id = "pufe", nome = "Pufe de couro", preco = 280, cat = "Sala", desc = "Afunda devagar. Ninguém levanta fácil.",
+		build = function(m)
+			part(m, "Pufe", Vector3.new(3.4, 2.2, 3.4), CFrame.new(0, 1.1, 0), rgb(120, 54, 40), MAT.Leather, Enum.PartType.Ball)
+			part(m, "Afundado", Vector3.new(2.2, 0.5, 2.2), CFrame.new(0, 2.05, 0), rgb(104, 46, 34), MAT.Leather, Enum.PartType.Ball)
+		end,
+	},
+	{
+		id = "rack_servidores", nome = "Rack de servidores", preco = 2600, cat = "Tecnologia", luz = true,
+		desc = "Doze lâminas piscando. A conta de luz que se vire.",
+		build = function(m)
+			box(m, "Gabinete", 3, 7, 2.6, 0, 3.5, 0, INK, MAT.Metal)
+			for row = 0, 11 do
+				local y = 0.9 + row * 0.5
+				box(m, "Lâmina", 2.6, 0.38, 0.1, 0, y, -1.28, GRAPHITE, MAT.Metal)
+				for k = 0, 3 do
+					neon(m, "LED", 0.08, 0.08, 0.04, -1 + k * 0.18, y, -1.35, if (row + k) % 3 == 0 then LIME elseif (row + k) % 3 == 1 then CYAN else ORANGE)
+				end
+			end
+			local door = box(m, "Porta de vidro", 2.9, 6.6, 0.06, 0, 3.6, -1.42, rgb(60, 80, 100), MAT.Glass)
+			door.Transparency = 0.6
+			glow(door, CYAN, 0.8, 8)
+		end,
+	},
+	{
+		id = "cabine_dj", nome = "Cabine de DJ", preco = 3800, cat = "Lazer", luz = true, desc = "Dois pratos, um mixer e o prédio inteiro reclamando.",
+		build = function(m)
+			box(m, "Bancada", 6, 3.2, 2.6, 0, 1.6, 0, INK, MAT.Metal)
+			local front = neon(m, "Frente", 5.8, 2.4, 0.06, 0, 1.6, -1.32, PINK)
+			front.Transparency = 0.25
+			glow(front, PINK, 1.2, 12)
+			for _, x in { -1.9, 1.9 } do
+				post(m, "Prato", 1.6, 0.12, x, 3.27, 0, GRAPHITE, MAT.Metal)
+				post(m, "Disco", 1.4, 0.04, x, 3.35, 0, rgb(16, 16, 18), MAT.SmoothPlastic)
+				post(m, "Selo", 0.4, 0.05, x, 3.38, 0, GOLD, MAT.SmoothPlastic)
+			end
+			box(m, "Mixer", 1.4, 0.2, 1.6, 0, 3.3, 0, GRAPHITE, MAT.Metal)
+			for k = 0, 3 do
+				neon(m, "Fader", 0.12, 0.06, 0.5, -0.45 + k * 0.3, 3.42, 0.1, if k % 2 == 0 then CYAN else PINK)
+			end
+			for _, x in { -3.6, 3.6 } do
+				box(m, "Caixa", 1.2, 4.2, 1.4, x, 2.1, 0.4, INK, MAT.SmoothPlastic)
+				part(m, "Alto-falante", Vector3.new(0.1, 0.9, 0.9), CFrame.new(x, 2.8, -0.32) * CFrame.Angles(0, math.pi / 2, 0), GRAPHITE, MAT.Rubber, Enum.PartType.Cylinder)
+			end
+		end,
+	},
+	{
+		id = "moto_exposicao", nome = "Moto em exposição", preco = 6500, cat = "Lazer", luz = true, desc = "Uma moto de corrida em cima de um pódio giratório.",
+		build = function(m)
+			post(m, "Pódio", 9, 0.5, 0, 0.25, 0, GRAPHITE, MAT.Metal)
+			local ring = post(m, "Anel do pódio", 9.1, 0.08, 0, 0.5, 0, CYAN, MAT.Neon)
+			ring.CastShadow = false
+			glow(ring, CYAN, 1, 12)
+			for _, z in { -2.4, 2.4 } do
+				part(m, "Roda", Vector3.new(0.7, 2.4, 2.4), CFrame.new(0, 1.7, z), INK, MAT.Rubber, Enum.PartType.Cylinder)
+				part(m, "Aro", Vector3.new(0.74, 1.3, 1.3), CFrame.new(0, 1.7, z), CHROME, MAT.Metal, Enum.PartType.Cylinder)
+			end
+			part(m, "Tanque", Vector3.new(1.2, 1.2, 2.6), CFrame.new(0, 2.9, -0.3) * CFrame.Angles(0.12, 0, 0), rgb(200, 30, 50), MAT.SmoothPlastic)
+			part(m, "Carenagem", Vector3.new(1.1, 1.3, 1.6), CFrame.new(0, 2.5, -2.0) * CFrame.Angles(-0.5, 0, 0), rgb(200, 30, 50), MAT.SmoothPlastic)
+			box(m, "Banco", 0.9, 0.3, 1.8, 0, 3.15, 1.3, INK, MAT.Leather)
+			box(m, "Quadro", 0.5, 0.5, 4.6, 0, 2.1, 0, GRAPHITE, MAT.Metal)
+			part(m, "Guidão", Vector3.new(2.2, 0.16, 0.16), CFrame.new(0, 3.5, -1.5), CHROME, MAT.Metal, Enum.PartType.Cylinder)
+			neon(m, "Farol", 0.6, 0.3, 0.1, 0, 2.9, -2.65, WHITE)
+			neon(m, "Filete", 0.08, 0.08, 3.6, 0.62, 2.7, -0.2, PINK)
+			neon(m, "Filete", 0.08, 0.08, 3.6, -0.62, 2.7, -0.2, PINK)
+		end,
+	},
+	{
+		id = "globo_holo", nome = "Globo holográfico", preco = 2100, cat = "Tecnologia", luz = true, desc = "O mapa da cidade girando no ar.",
+		build = function(m)
+			post(m, "Base", 1.8, 2.6, 0, 1.3, 0, GRAPHITE, MAT.Metal)
+			post(m, "Emissor", 1.2, 0.1, 0, 2.66, 0, CYAN, MAT.Neon).CastShadow = false
+			local globe = ball(m, "Globo", 2.6, 0, 4.3, 0, CYAN, MAT.Neon)
+			globe.Transparency = 0.82
+			globe.CastShadow = false
+			for _, angle in { 0, math.pi / 3, -math.pi / 3 } do
+				local ring = part(m, "Anel", Vector3.new(0.04, 2.7, 2.7), CFrame.new(0, 4.3, 0) * CFrame.Angles(0, angle, math.pi / 2), CYAN, MAT.Neon, Enum.PartType.Cylinder)
+				ring.Transparency = 0.5
+				ring.CastShadow = false
+			end
+			glow(globe, CYAN, 1.2, 10)
+		end,
+	},
+	{
+		id = "frigobar", nome = "Frigobar de vidro", preco = 450, cat = "Cozinha", luz = true, desc = "Energético gelado à vista.",
+		build = function(m)
+			box(m, "Corpo", 2, 2.8, 2, 0, 1.4, 0, INK, MAT.Metal)
+			local glass = box(m, "Porta", 1.8, 2.5, 0.06, 0, 1.45, -1.02, rgb(120, 200, 255), MAT.Glass)
+			glass.Transparency = 0.55
+			for row = 0, 2 do
+				for k = 0, 3 do
+					post(m, "Lata", 0.3, 0.6, -0.6 + k * 0.4, 0.6 + row * 0.8, -0.3, if k % 2 == 0 then CYAN else PINK, MAT.Metal)
+				end
+			end
+			glow(glass, CYAN, 0.7, 6)
+		end,
+	},
+	{
+		id = "estante", nome = "Estante de livros e peças", preco = 950, cat = "Sala", desc = "Livros de papel, chips velhos e um capacete de moto.",
+		build = function(m)
+			box(m, "Fundo", 5, 7, 0.3, 0, 3.5, 0.85, rgb(56, 40, 32), MAT.WoodPlanks)
+			for _, x in { -2.4, 2.4 } do
+				box(m, "Lateral", 0.2, 7, 2, x, 3.5, 0, rgb(56, 40, 32), MAT.WoodPlanks)
+			end
+			local r = rand(321)
+			for shelf = 0, 3 do
+				local y = 0.15 + shelf * 1.75
+				box(m, "Prateleira", 4.8, 0.15, 2, 0, y, 0, rgb(64, 46, 36), MAT.WoodPlanks)
+				local x = -2.1
+				while x < 2 do
+					local w = r.range(0.2, 0.35)
+					local h = r.range(0.9, 1.4)
+					box(m, "Livro", w, h, 1.3, x + w / 2, y + 0.08 + h / 2, 0.1, r.pick({ rgb(160, 40, 40), rgb(40, 80, 140), rgb(200, 170, 60), rgb(40, 120, 80), rgb(220, 220, 220), INK }), MAT.SmoothPlastic)
+					x += w + r.range(0, 0.08)
+					if r.chance(0.12) then
+						x += 0.8
+					end
+				end
+			end
+			ball(m, "Capacete", 1.1, 1.4, 5.8, 0, rgb(200, 30, 50), MAT.SmoothPlastic)
+		end,
+	},
+	{
+		id = "painel_led", nome = "Painel de LED vertical", preco = 1200, cat = "Decoração", luz = true, desc = "Gradiente do pôr do sol de Maré Baixa.",
+		build = function(m)
+			box(m, "Base", 2.4, 0.4, 1.2, 0, 0.2, 0, INK, MAT.Metal)
+			local panel = box(m, "Painel", 2, 7.5, 0.3, 0, 4.15, 0, rgb(10, 8, 20), MAT.SmoothPlastic)
+			local gui = Instance.new("SurfaceGui")
+			gui.Name = "Tela"
+			gui.Face = Enum.NormalId.Front
+			gui.LightInfluence = 0
+			gui.Brightness = 2
+			gui.Parent = panel
+			local fill = Instance.new("Frame")
+			fill.Size = UDim2.fromScale(1, 1)
+			fill.BorderSizePixel = 0
+			fill.BackgroundColor3 = Color3.new(1, 1, 1)
+			fill.Parent = gui
+			local gradient = Instance.new("UIGradient")
+			gradient.Rotation = 90
+			gradient.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, PINK), ColorSequenceKeypoint.new(0.5, ORANGE), ColorSequenceKeypoint.new(1, VIOLET) })
+			gradient.Parent = fill
+			glow(panel, ORANGE, 1.4, 12)
+		end,
+	},
+	{
+		id = "fliperama_luta", nome = "Fliperama de luta", preco = 2100, cat = "Lazer", luz = true, desc = "PUNHO DE AÇO II, versão turbo.",
+		build = function(m)
+			box(m, "Gabinete", 2.8, 6.4, 2.6, 0, 3.2, 0.2, rgb(120, 16, 24), MAT.SmoothPlastic)
+			local display = part(m, "Tela", Vector3.new(2.2, 1.8, 0.1), CFrame.new(0, 4.5, -1.08) * CFrame.Angles(-0.2, 0, 0), rgb(4, 4, 10))
+			screen(display, Enum.NormalId.Front, "PUNHO DE AÇO II\n1P  VS  2P", Enum.Font.Arcade, GOLD, rgb(30, 4, 8))
+			part(m, "Painel", Vector3.new(2.8, 0.35, 1.1), CFrame.new(0, 3.2, -1.45) * CFrame.Angles(0.25, 0, 0), INK, MAT.SmoothPlastic)
+			for index, color in { PINK, CYAN, GOLD, PINK, CYAN, GOLD } do
+				local x = if index <= 3 then -1.1 + index * 0.25 else 0.2 + (index - 3) * 0.25
+				ball(m, "Botão", 0.22, x, 3.42, -1.55, color, MAT.Neon).CastShadow = false
+			end
+			local marquee = box(m, "Letreiro", 2.8, 0.8, 0.3, 0, 6.2, -0.95, rgb(20, 4, 6))
+			screen(marquee, Enum.NormalId.Front, "LUTA!", Enum.Font.Bangers, rgb(255, 80, 60), nil)
+			glow(marquee, rgb(255, 80, 60), 1.1, 9)
+		end,
+	},
+	{
+		id = "mesa_jantar", nome = "Mesa de jantar com cadeiras", preco = 1700, cat = "Cozinha", desc = "Para quatro pessoas ou um mercenário com fome.",
+		build = function(m)
+			box(m, "Tampo", 6, 0.25, 3.6, 0, 2.6, 0, rgb(40, 40, 48), MAT.Marble)
+			post(m, "Coluna", 0.6, 2.5, 0, 1.25, 0, CHROME, MAT.Metal)
+			post(m, "Pé", 2.6, 0.15, 0, 0.08, 0, CHROME, MAT.Metal)
+			neon(m, "Luz", 5.8, 0.06, 0.06, 0, 2.45, -1.78, CYAN)
+			for _, spot in { { -1.6, -2.6, 0 }, { 1.6, -2.6, 0 }, { -1.6, 2.6, math.pi }, { 1.6, 2.6, math.pi } } do
+				local cf = CFrame.new(spot[1], 0, spot[2]) * CFrame.Angles(0, spot[3], 0)
+				part(m, "Assento", Vector3.new(1.6, 0.3, 1.6), cf * CFrame.new(0, 1.7, 0), INK, MAT.Leather)
+				part(m, "Encosto", Vector3.new(1.6, 1.8, 0.25), cf * CFrame.new(0, 2.7, 0.75), INK, MAT.Leather)
+				part(m, "Perna", Vector3.new(0.2, 1.6, 0.2), cf * CFrame.new(0, 0.8, 0), CHROME, MAT.Metal)
+			end
+		end,
+	},
+	{
+		id = "bambu", nome = "Vaso de bambu", preco = 260, cat = "Decoração", desc = "Verde de verdade no meio do concreto.",
+		build = function(m)
+			box(m, "Vaso", 1.8, 1.2, 1.8, 0, 0.6, 0, rgb(30, 30, 34), MAT.Concrete)
+			for index = 1, 6 do
+				local angle = index * 1.05
+				local h = 4 + (index % 3) * 0.8
+				part(m, "Bambu", Vector3.new(0.18, h, 0.18), CFrame.new(math.cos(angle) * 0.45, 1.2 + h / 2, math.sin(angle) * 0.45) * CFrame.Angles(math.sin(angle) * 0.08, 0, math.cos(angle) * 0.08),
+					rgb(120, 160, 70), MAT.Wood)
+				part(m, "Folhas", Vector3.new(1.2, 0.08, 0.5), CFrame.new(math.cos(angle) * 0.6, 1.2 + h, math.sin(angle) * 0.6) * CFrame.Angles(0, angle, 0.3), rgb(70, 140, 60), MAT.Grass)
+			end
+		end,
+	},
+	{
+		id = "tapete_listrado", nome = "Tapete listrado", preco = 400, cat = "Decoração", chao = true, desc = "Listras de neon apagado.",
+		build = function(m)
+			for index = 0, 7 do
+				box(m, "Listra", 1, 0.06, 6, -3.5 + index, 0.03, 0, if index % 2 == 0 then rgb(30, 26, 50) else rgb(60, 40, 90), MAT.Fabric)
+			end
+		end,
+	},
+	{
+		id = "tapete_pichado", nome = "Tapete pichado", preco = 600, cat = "Decoração", chao = true, desc = "Arte de rua que você pode pisar.",
+		build = function(m)
+			local base = box(m, "Tapete", 8, 0.08, 5, 0, 0.04, 0, rgb(26, 26, 30), MAT.Fabric)
+			local gui = screen(base, Enum.NormalId.Top, "MARÉ BAIXA", Enum.Font.PermanentMarker, LIME, nil, false)
+			gui.Rotation = -8
+		end,
+	},
+	{
+		id = "robo_treino", nome = "Robô de treino", preco = 1500, cat = "Academia", desc = "Bate de volta? Não. Mas aguenta.",
+		build = function(m)
+			box(m, "Base", 2.4, 0.4, 2.4, 0, 0.2, 0, INK, MAT.Metal)
+			post(m, "Haste", 0.4, 2.6, 0, 1.7, 0, CHROME, MAT.Metal)
+			box(m, "Tronco", 2, 2.2, 1.1, 0, 4, 0, rgb(70, 74, 84), MAT.DiamondPlate)
+			ball(m, "Cabeça", 1.2, 0, 5.7, 0, rgb(70, 74, 84), MAT.Metal)
+			neon(m, "Olho", 0.8, 0.14, 0.1, 0, 5.8, -0.56, rgb(255, 50, 50))
+			for _, x in { -1.4, 1.4 } do
+				part(m, "Braço", Vector3.new(0.7, 1.8, 0.7), CFrame.new(x, 4.1, -0.2) * CFrame.Angles(0.5, 0, 0), rgb(60, 62, 70), MAT.Metal)
+			end
+		end,
+	},
+	{
+		id = "maquina_venda", nome = "Máquina de venda", preco = 1800, cat = "Cozinha", luz = true, desc = "Salgadinho, energético e um chip de memória.",
+		build = function(m)
+			box(m, "Corpo", 3.6, 7, 2.6, 0, 3.5, 0, rgb(30, 30, 40), MAT.Metal)
+			local front = box(m, "Vitrine", 2.4, 4.6, 0.06, -0.4, 4.2, -1.32, rgb(120, 180, 255), MAT.Glass)
+			front.Transparency = 0.5
+			for row = 0, 3 do
+				for k = 0, 3 do
+					box(m, "Produto", 0.4, 0.6, 0.4, -1.3 + k * 0.6, 2.6 + row * 1.1, -0.9, ({ PINK, CYAN, GOLD, LIME })[(row + k) % 4 + 1], MAT.SmoothPlastic)
+				end
+			end
+			local pad = box(m, "Teclado", 0.7, 1.4, 0.06, 1.3, 4.2, -1.32, INK)
+			screen(pad, Enum.NormalId.Front, "€$", Enum.Font.Michroma, CYAN, rgb(6, 14, 22))
+			glow(front, CYAN, 1, 9)
+		end,
+	},
+	{
+		id = "cafeteira", nome = "Bancada de café", preco = 700, cat = "Cozinha", desc = "Café brasileiro, máquina italiana.",
+		build = function(m)
+			box(m, "Balcão", 3.6, 3.2, 2, 0, 1.6, 0, rgb(60, 44, 34), MAT.WoodPlanks)
+			box(m, "Tampo", 3.8, 0.2, 2.2, 0, 3.3, 0, rgb(30, 30, 34), MAT.Marble)
+			box(m, "Máquina", 1.4, 1.4, 1.2, -0.6, 4.1, 0.2, CHROME, MAT.Metal)
+			post(m, "Xícara", 0.35, 0.3, -0.6, 3.55, -0.3, WHITE, MAT.SmoothPlastic)
+			local steam = Instance.new("ParticleEmitter")
+			steam.Name = "Vapor"
+			steam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+			steam.Rate = 3
+			steam.Lifetime = NumberRange.new(1, 1.6)
+			steam.Speed = NumberRange.new(0.6, 1)
+			steam.Size = NumberSequence.new(0.3, 0.9)
+			steam.Transparency = NumberSequence.new(0.6, 1)
+			steam.Parent = box(m, "Bico", 0.2, 0.2, 0.2, -0.6, 3.75, -0.3, CHROME, MAT.Metal)
+			post(m, "Pote", 0.6, 0.8, 1.1, 3.8, 0, rgb(120, 80, 50), MAT.Glass)
+		end,
+	},
+	{
+		id = "rede", nome = "Rede de dormir", preco = 500, cat = "Quarto", desc = "Tecnologia de ponta do Nordeste.",
+		build = function(m)
+			for _, z in { -3.6, 3.6 } do
+				box(m, "Poste", 0.5, 5.4, 0.5, 0, 2.7, z, rgb(80, 56, 40), MAT.Wood)
+			end
+			local colors = { rgb(220, 60, 60), rgb(240, 200, 60), rgb(60, 160, 90), rgb(60, 120, 200) }
+			for index = 0, 5 do
+				local z = -2.6 + index * 1.04
+				local sag = 1.8 - math.sin((index + 0.5) / 6 * math.pi) * 1.1
+				part(m, "Pano", Vector3.new(2.2, 0.12, 1.08), CFrame.new(0, sag, z) * CFrame.Angles(0, 0, 0), colors[index % 4 + 1], MAT.Fabric)
+			end
+			for _, z in { -3.1, 3.1 } do
+				part(m, "Corda", Vector3.new(0.08, 0.08, 1.2), CFrame.new(0, 3.2, z) * CFrame.Angles(if z > 0 then 0.9 else -0.9, 0, 0), rgb(220, 200, 160), MAT.Fabric)
+			end
+		end,
+	},
+	{
+		id = "churrasqueira", nome = "Churrasqueira elétrica", preco = 900, cat = "Cozinha", luz = true, desc = "Domingo em Maré Baixa tem cheiro de fumaça.",
+		build = function(m)
+			box(m, "Corpo", 3.4, 2.6, 1.8, 0, 1.3, 0, rgb(70, 70, 76), MAT.Metal)
+			local coals = neon(m, "Brasas", 3, 0.1, 1.4, 0, 2.62, 0, ORANGE)
+			coals.Transparency = 0.2
+			glow(coals, ORANGE, 1.3, 10)
+			for k = 0, 6 do
+				box(m, "Grelha", 0.06, 0.06, 1.5, -1.35 + k * 0.45, 2.85, 0, CHROME, MAT.Metal)
+			end
+			for k = 0, 2 do
+				part(m, "Espeto", Vector3.new(3, 0.12, 0.12), CFrame.new(0, 3, -0.4 + k * 0.4), CHROME, MAT.Metal, Enum.PartType.Cylinder)
+				box(m, "Carne", 0.9, 0.35, 0.35, -0.6 + k * 0.5, 3, -0.4 + k * 0.4, rgb(130, 50, 36), MAT.SmoothPlastic)
+			end
+			local smoke = Instance.new("ParticleEmitter")
+			smoke.Name = "Fumaça"
+			smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+			smoke.Rate = 4
+			smoke.Lifetime = NumberRange.new(1.5, 2.5)
+			smoke.Speed = NumberRange.new(1, 2)
+			smoke.Size = NumberSequence.new(0.6, 2)
+			smoke.Transparency = NumberSequence.new(0.5, 1)
+			smoke.Color = ColorSequence.new(rgb(200, 200, 200))
+			smoke.Parent = coals
+		end,
+	},
+	{
+		id = "tv_tubo", nome = "TV de tubo", preco = 350, cat = "Sala", luz = true, desc = "Ainda passa novela, com chuvisco.",
+		build = function(m)
+			box(m, "Rack", 3.6, 1.6, 1.8, 0, 0.8, 0, rgb(70, 50, 36), MAT.WoodPlanks)
+			box(m, "Caixa", 3, 2.6, 2.4, 0, 2.9, 0.1, rgb(50, 50, 54), MAT.SmoothPlastic)
+			local tube = box(m, "Tela", 2.4, 1.9, 0.08, -0.15, 2.95, -1.12, rgb(30, 40, 40))
+			screen(tube, Enum.NormalId.Front, "NOVELA DAS 9", Enum.Font.Arcade, rgb(200, 230, 210), rgb(40, 52, 50))
+			part(m, "Antena", Vector3.new(0.06, 1.6, 0.06), CFrame.new(0.4, 4.8, 0.3) * CFrame.Angles(0, 0, -0.5), CHROME, MAT.Metal)
+			part(m, "Antena", Vector3.new(0.06, 1.6, 0.06), CFrame.new(-0.4, 4.8, 0.3) * CFrame.Angles(0, 0, 0.5), CHROME, MAT.Metal)
+			glow(tube, rgb(180, 220, 200), 0.6, 8)
+		end,
+	},
+	{
+		id = "gato_holo", nome = "Gato holográfico", preco = 1200, cat = "Decoração", luz = true, desc = "Não come, não arranha, não te ama.",
+		build = function(m)
+			post(m, "Pedestal", 1.6, 1.6, 0, 0.8, 0, GRAPHITE, MAT.Metal)
+			local cat = {
+				{ "Corpo", Vector3.new(0.9, 0.8, 1.4), CFrame.new(0, 2.05, 0.1) },
+				{ "Cabeça", Vector3.new(0.75, 0.65, 0.65), CFrame.new(0, 2.75, -0.45) },
+				{ "Orelha", Vector3.new(0.18, 0.3, 0.12), CFrame.new(-0.22, 3.15, -0.45) * CFrame.Angles(0, 0, 0.3) },
+				{ "Orelha", Vector3.new(0.18, 0.3, 0.12), CFrame.new(0.22, 3.15, -0.45) * CFrame.Angles(0, 0, -0.3) },
+				{ "Rabo", Vector3.new(0.14, 1.2, 0.14), CFrame.new(0.2, 2.4, 0.85) * CFrame.Angles(0.6, 0, 0.4) },
+			}
+			for _, piece in cat do
+				local item = part(m, piece[1], piece[2], piece[3], PINK, MAT.Neon)
+				item.Transparency = 0.35
+				item.CastShadow = false
+			end
+			glow(m:FindFirstChild("Corpo") :: BasePart, PINK, 1, 8)
+		end,
+	},
+	{
+		id = "cofre", nome = "Cofre blindado", preco = 1600, cat = "Decoração", desc = "Onde mercenário guarda o que não declara.",
+		build = function(m)
+			box(m, "Corpo", 3, 3.6, 2.6, 0, 1.8, 0, rgb(60, 64, 72), MAT.DiamondPlate)
+			box(m, "Porta", 2.6, 3.2, 0.2, 0, 1.8, -1.35, rgb(80, 84, 94), MAT.Metal)
+			part(m, "Dial", Vector3.new(0.2, 0.8, 0.8), CFrame.new(0.4, 2.2, -1.5) * CFrame.Angles(0, math.pi / 2, 0), CHROME, MAT.Metal, Enum.PartType.Cylinder)
+			box(m, "Alavanca", 0.9, 0.15, 0.15, -0.5, 1.6, -1.55, CHROME, MAT.Metal)
+			neon(m, "Trava", 0.3, 0.1, 0.05, 0.4, 2.9, -1.47, rgb(255, 60, 60))
+		end,
+	},
+	{
+		id = "luminaria_arco", nome = "Luminária de arco", preco = 640, cat = "Decoração", luz = true, desc = "Arco cromado com cúpula de luz quente.",
+		build = function(m)
+			box(m, "Base", 1.4, 0.3, 1.4, 0, 0.15, 0, rgb(236, 236, 240), MAT.Marble)
+			box(m, "Haste", 0.14, 5.3, 0.14, 0, 2.95, 0, CHROME, MAT.Metal)
+			-- Arco: meia-volta de raio 1,3 em cima da haste, de x = 0 até x = 2,6.
+			for k = 0, 7 do
+				local a0, a1 = math.pi - k / 8 * math.pi, math.pi - (k + 1) / 8 * math.pi
+				local p0 = Vector3.new(1.3 + math.cos(a0) * 1.3, 5.6 + math.sin(a0) * 1.3, 0)
+				local p1 = Vector3.new(1.3 + math.cos(a1) * 1.3, 5.6 + math.sin(a1) * 1.3, 0)
+				part(m, "Arco", Vector3.new(0.14, (p1 - p0).Magnitude + 0.05, 0.14), CFrame.lookAt((p0 + p1) / 2, p1) * CFrame.Angles(math.pi / 2, 0, 0), CHROME, MAT.Metal)
+			end
+			local shade = ball(m, "Cúpula", 1.2, 2.6, 5.1, 0, rgb(255, 214, 150), MAT.Neon)
+			shade.CastShadow = false
+			glow(shade, rgb(255, 214, 150), 1.4, 14)
+		end,
+	},
 }
 local FURNITURE_BY_ID = {}
 for index, def in FURNITURE do
@@ -755,29 +1134,6 @@ local function renovation(kind: string, id: string?)
 end
 M.renovation = renovation
 
--- Sorteio determinístico (mesma semente, mesmo resultado no servidor e nos testes).
-local function rand(seed: number)
-	local state = math.floor(seed) % 2147483646 + 1
-	local r = {}
-	function r.next(): number
-		state = state * 48271 % 2147483647
-		return state / 2147483647
-	end
-	function r.range(a: number, b: number): number
-		return a + (b - a) * r.next()
-	end
-	function r.int(a: number, b: number): number
-		return math.min(b, a + math.floor((b - a + 1) * r.next()))
-	end
-	function r.pick(list)
-		return list[r.int(1, #list)]
-	end
-	function r.chance(p: number): boolean
-		return r.next() < p
-	end
-	return r
-end
-M.rand = rand
 
 -- Pedestres: corpo R6 padrão do Roblox, roupa e implantes feitos de peças soldadas ---------------------------
 local function cfm(x, y, z, m)
@@ -3640,6 +3996,137 @@ local function missionSystem(S)
 	return api
 end
 
+
+-- Chamadas entre jogadores pelo Agente: toca, atende ou recusa, e na chamada vão frases prontas (sem texto
+-- livre, que precisaria do filtro de chat), a localização (vira um marcador para o outro) e o convite para o
+-- apartamento (o convidado sobe direto para a porta do anfitrião).
+local CALL_LINES = {
+	"Bora fazer um trampo junto?",
+	"Cola aqui, preciso de ajuda!",
+	"Tô indo aí.",
+	"A polícia tá na minha cola!",
+	"Valeu, mano.",
+	"Te encontro no Colmeia.",
+}
+M.CALL_LINES = CALL_LINES
+local function callSystem(S)
+	local api = {}
+	local Players = S.Players
+	local calls: { [string]: any } = {}
+	local busy: { [Player]: string } = {}
+	local lastDial: { [Player]: number } = {}
+	local counter = 0
+
+	local function info(player: Player)
+		return { nome = player.DisplayName, userId = player.UserId }
+	end
+	local function other(call, player: Player): Player
+		return if call.a == player then call.b else call.a
+	end
+	local function close(call, reason: string)
+		if calls[call.id] ~= call then
+			return
+		end
+		calls[call.id] = nil
+		for _, player in { call.a, call.b } do
+			if busy[player] == call.id then
+				busy[player] = nil
+			end
+			if player.Parent then
+				S.notify(player, "chamadaFim", { id = call.id, motivo = reason })
+			end
+		end
+	end
+
+	function api.request(player: Player, action: string, a, b)
+		if action == "ligarJogador" then
+			local target = if type(a) == "number" then Players:GetPlayerByUserId(a) else nil
+			if not target or target == player then
+				return
+			end
+			if lastDial[player] and os.clock() - lastDial[player] < 4 then
+				return
+			end
+			lastDial[player] = os.clock()
+			if busy[player] then
+				S.notify(player, "msg", "Você já está numa chamada.")
+				return
+			end
+			if busy[target] or target:GetAttribute("CyberOutlawNaoPerturbe") == true then
+				S.notify(player, "msg", target.DisplayName .. " está ocupado agora.")
+				return
+			end
+			counter += 1
+			local call = { id = "j" .. counter, a = player, b = target, state = "tocando", at = os.clock() }
+			calls[call.id] = call
+			busy[player], busy[target] = call.id, call.id
+			S.notify(player, "chamandoJogador", { id = call.id, outro = info(target) })
+			S.notify(target, "chamadaJogador", { id = call.id, outro = info(player) })
+			task.delay(25, function()
+				if calls[call.id] == call and call.state == "tocando" then
+					close(call, "Ninguém atendeu.")
+				end
+			end)
+			return
+		end
+		local call = if type(a) == "string" then calls[a] else nil
+		if not call or (call.a ~= player and call.b ~= player) then
+			return
+		end
+		local peer = other(call, player)
+		if action == "atenderJogador" and call.state == "tocando" and player == call.b then
+			call.state = "ativa"
+			call.at = os.clock()
+			S.notify(call.a, "chamadaAtiva", { id = call.id, outro = info(call.b) })
+			S.notify(call.b, "chamadaAtiva", { id = call.id, outro = info(call.a) })
+		elseif action == "recusarJogador" or action == "desligar" then
+			close(call, if action == "recusarJogador" then player.DisplayName .. " recusou a chamada." else player.DisplayName .. " desligou.")
+		elseif call.state == "ativa" then
+			if action == "falaPronta" and type(b) == "number" and CALL_LINES[b] then
+				S.notify(peer, "chamadaFala", { id = call.id, de = player.DisplayName, texto = CALL_LINES[b] })
+				S.notify(player, "chamadaFala", { id = call.id, de = player.DisplayName, texto = CALL_LINES[b], minha = true })
+			elseif action == "compartilharLocal" then
+				local character = player.Character
+				if character then
+					local position = character:GetPivot().Position
+					S.notify(peer, "chamadaLocal", { id = call.id, de = player.DisplayName, pos = position })
+					S.notify(player, "msg", "Localização enviada para " .. peer.DisplayName .. ".")
+				end
+			elseif action == "convidarCasa" then
+				local unit = S.homes.unitOf(player)
+				if not unit then
+					S.notify(player, "msg", "Você não tem apartamento neste servidor.")
+					return
+				end
+				call.invite = player
+				S.notify(peer, "chamadaConvite", { id = call.id, de = player.DisplayName, unidade = unit.n })
+				S.notify(player, "msg", "Convite enviado para " .. peer.DisplayName .. ".")
+			elseif action == "visitar" and call.invite == peer then
+				local unit = S.homes.unitOf(peer)
+				local character = player.Character
+				if unit and unit.arrival and character then
+					if S.isWanted(player) then
+						S.notify(player, "msg", "Com a polícia atrás de você, não dá para subir.")
+						return
+					end
+					local arrival = unit.arrival + Vector3.new(2.5, 3.2, 0)
+					character:PivotTo(CFrame.lookAt(arrival, arrival + Vector3.new(0, 0, -1)))
+					S.notify(peer, "msg", player.DisplayName .. " chegou no seu apartamento.")
+				end
+			end
+		end
+	end
+
+	function api.leave(player: Player)
+		local id = busy[player]
+		if id and calls[id] then
+			close(calls[id], player.DisplayName .. " saiu do servidor.")
+		end
+		lastDial[player] = nil
+	end
+	return api
+end
+
 local function main()
 	local S = {
 		Players = game:GetService("Players"),
@@ -3762,6 +4249,7 @@ local function main()
 	folder:SetAttribute("Catalogo", HttpService:JSONEncode(catalog))
 	folder:SetAttribute("Reformas", HttpService:JSONEncode(RENOVATIONS))
 	folder:SetAttribute("Fixers", HttpService:JSONEncode(fixers))
+	folder:SetAttribute("FalasProntas", HttpService:JSONEncode(CALL_LINES))
 	folder:SetAttribute("Economia", HttpService:JSONEncode({ faxina = ECONOMY.express, venda = ECONOMY.sellBack, limpeza = ECONOMY.cleanEach }))
 	folder:SetAttribute("Unidade", HttpService:JSONEncode({ meia = { UNIT.half.X, UNIT.half.Y }, livre = UNIT.keepOut, grade = UNIT.grid, maximo = UNIT.maxItems }))
 	folder:SetAttribute("Lixo", HttpService:JSONEncode((function()
@@ -3778,6 +4266,7 @@ local function main()
 	S.npc = npcSystem(S)
 	S.crime = crimeSystem(S)
 	S.missions = missionSystem(S)
+	S.calls = callSystem(S)
 	function S.isWanted(player: Player): boolean
 		return S.crime.level(player) > 0
 	end
@@ -3804,6 +4293,8 @@ local function main()
 	local HOME_ACTIONS = { comprar = true, colocar = true, mover = true, guardar = true, vender = true, venderGuardado = true, reforma = true,
 		faxina = true, irCasa = true, casa = true }
 	local MISSION_ACTIONS = { atender = true, recusar = true, aceitar = true, abandonar = true, ligar = true, naoPerturbe = true }
+	local CALL_ACTIONS = { ligarJogador = true, atenderJogador = true, recusarJogador = true, desligar = true, falaPronta = true,
+		compartilharLocal = true, convidarCasa = true, visitar = true }
 	local budget: { [Player]: { number } } = {}
 	request.OnServerEvent:Connect(function(player, action, a, b, c, d)
 		if type(action) ~= "string" then
@@ -3823,6 +4314,8 @@ local function main()
 			S.homes.request(player, action, a, b, c, d)
 		elseif MISSION_ACTIONS[action] then
 			S.missions.request(player, action, a, b)
+		elseif CALL_ACTIONS[action] then
+			S.calls.request(player, action, a, b)
 		end
 	end)
 
@@ -3878,6 +4371,7 @@ local function main()
 		join(player)
 	end
 	Players.PlayerRemoving:Connect(function(player)
+		S.calls.leave(player)
 		S.missions.leave(player)
 		S.homes.release(player)
 		S.crime.clear(player)
