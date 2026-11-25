@@ -5756,12 +5756,13 @@ local function start()
 		pcall(reflectCharacters)
 		pcall(pitchStep)
 		-- Automatic fire while the trigger is held.
-		if triggerHeld and def().auto and not wheelOpen and not implantsOpen then
+		if triggerHeld and def().auto and not wheelOpen and not implantsOpen and player:GetAttribute("CyberOutlawPainel") ~= true then
 			shoot()
 		end
 		-- Mouse locked while playing (like third-person shooters), free in the wheel and menus.
 		if not touch then
 			local free = wheelOpen or implantsOpen or GuiService.MenuIsOpen or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
+				or player:GetAttribute("CyberOutlawPainel") == true -- painéis da casa e do agente (life.client.luau)
 			UserInputService.MouseBehavior = if free then Enum.MouseBehavior.Default else Enum.MouseBehavior.LockCenter
 			UserInputService.MouseIconEnabled = free
 		end

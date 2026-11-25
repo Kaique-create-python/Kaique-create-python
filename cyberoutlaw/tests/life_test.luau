@@ -32,3 +32,22 @@ for _, def in L.TRASH do
 	print("lixo", def.id, #m:GetChildren())
 end
 print("CyberOutlawVida: móveis, pedestres, lixo e regras montados")
+
+-- Cliente: regras puras (dinheiro, relógio e se o móvel cabe, igual ao servidor).
+local client = luau.load(fs.readFile("src/life.client.luau"):gsub("__CYBEROUTLAW_MEDIA__", "{}"), { debugName = "life.client.luau", environment = env })()
+assert(client.money(1250) == "€$ 1.250" and client.money(250) == "€$ 250" and client.money(-1234567) == "-€$ 1.234.567", client.money(1250))
+assert(client.clock(125) == "2:05")
+local unit = { meia = { 26, 21 }, livre = { 12, 26, 8, 21 } }
+local sizes, floors = {}, {}
+for _, def in L.FURNITURE do
+	local _, size = L.buildFurniture(def)
+	sizes[def.id] = size
+	floors[def.id] = def.chao == true
+end
+for _, case in { { "sofa_couro", 0, 0, 0, {} }, { "sofa_couro", 30, 0, 0, {} }, { "sofa_couro", 20, 15, 0, {} }, { "sofa_couro", 0, 0, 0, { { u = 1, id = "cama_neon", x = 0, z = 0, r = 0 } } },
+	{ "tapete_holo", 0, 0, 1, { { u = 1, id = "cama_neon", x = 0, z = 0, r = 0 } } } } do
+	local a = client.fits(unit, sizes, floors, case[5], case[1], case[2], case[3], case[4], nil)
+	local b = L.canPlace(sizes, case[5], case[1], case[2], case[3], case[4], nil)
+	assert(a == b, "cliente e servidor discordam em " .. case[1])
+end
+print("CyberOutlawVida cliente: dinheiro, prazo e encaixe dos móveis iguais ao servidor")

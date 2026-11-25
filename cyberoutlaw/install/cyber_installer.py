@@ -47,7 +47,7 @@ CITY_ART = ("asphalt", "asphalt_normal", "asphalt_rough", "concrete", "concrete_
             "tijolo", "tijolo_normal", "metal_ondulado", "metal_ondulado_normal", "piso_hexagonal", "piso_hexagonal_normal",
             "concreto_rachado", "concreto_rachado_normal")
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
-CLIENT_SCRIPTS = (("CyberOutlawPlay", "play.client.luau"),)
+CLIENT_SCRIPTS = (("CyberOutlawPlay", "play.client.luau"), ("CyberOutlawVidaCliente", "life.client.luau"))
 V1_ASSET_TYPES = {"video", "sounds", "clips"}
 ASSET_TYPES = V1_ASSET_TYPES | {"art"}
 ASSET_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}")
