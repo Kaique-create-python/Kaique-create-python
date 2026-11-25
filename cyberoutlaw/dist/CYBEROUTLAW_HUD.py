@@ -1,4 +1,4 @@
-"""Abre no Termux o pacote CyberOutlaw v6: casa com loja de móveis, holochamadas e missões, assaltos, polícia, pedestres e impacto nos acertos."""
+"""Abre no Termux o pacote CyberOutlaw v7: holochamada estilo Night City, tiros mais graves e altos, casa, missões e polícia."""
 
 import hashlib
 from http.client import HTTPException
@@ -9,10 +9,10 @@ import tempfile
 from urllib.request import urlopen
 
 
-RELEASE = "bf13d4a594ab72f5548cee4ce6f49527c53ed354"
+RELEASE = "b03a662983ed6e253abc2ffba74de8c3c5bad21a"
 PACKAGE = "CYBEROUTLAW_TERMUX.pyz"
-PACKAGE_BYTES = 28_735_827
-PACKAGE_SHA256 = "9b7361dbe430bdf272b291256d41f144690a5061727c7e58d0d7e5e99d6f6a17"
+PACKAGE_BYTES = 29_105_054
+PACKAGE_SHA256 = "f9214e61bec329c9c8229514d00b039bf765620a9ff1253f0a544b0b41699e57"
 PACKAGE_URL = f"https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/{RELEASE}/cyberoutlaw/dist/{PACKAGE}"
 BLOCK_SIZE = 128 * 1024
 
