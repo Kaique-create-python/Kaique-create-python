@@ -245,8 +245,9 @@ local function start()
 			TextColor3 = NEON, BackgroundColor3 = PANEL, BackgroundTransparency = 0.3, AutoButtonColor = true, BorderSizePixel = 0,
 			Size = UDim2.fromOffset(if touch then 58 else 84, if touch then 40 else 34), AnchorPoint = Vector2.new(1, 0),
 		})
-		corner(item, 8)
-		outline(item, NEON, 0.12)
+		corner(item, 2)
+		outline(item, HOT, 0.12)
+		item.TextColor3 = HOT
 		return item
 	end
 	local homeButton = hudButton("Casa", "CASA", "H")

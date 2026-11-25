@@ -757,9 +757,9 @@ local TEXT = Color3.fromRGB(242, 243, 246)
 local SUB = Color3.fromRGB(164, 170, 184)
 local PANEL = Color3.fromRGB(12, 11, 26)
 local LINE = Color3.fromRGB(255, 255, 255)
-local HEALTH = Color3.fromRGB(98, 212, 148)
+local HEALTH = Color3.fromRGB(94, 246, 255) -- vida em ciano, como em Night City
 local HURT = Color3.fromRGB(236, 72, 84)
-local BREATH = Color3.fromRGB(158, 210, 255)
+local BREATH = Color3.fromRGB(255, 208, 102)
 local ACCENT = Color3.fromRGB(255, 206, 114)
 -- Paleta "pôr do sol de Maré Baixa": rosa quente, laranja e dourado sobre vidro azul-escuro (como o
 -- clima de Vice City), usada só nos destaques: o resto do HUD continua discreto.
@@ -767,17 +767,18 @@ local PINK = Color3.fromRGB(255, 72, 140)
 local ORANGE = Color3.fromRGB(255, 146, 72)
 local GOLD = Color3.fromRGB(255, 208, 102)
 local TEAL = Color3.fromRGB(72, 226, 210)
+-- Estilo Cyberpunk 2077: molduras e ícones vermelho-coral, destaques em ciano, objetivos em amarelo.
 local NEON_SEQUENCE = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(86, 255, 222)),
-	ColorSequenceKeypoint.new(0.55, Color3.fromRGB(64, 214, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 140, 255)),
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 104, 92)),
+	ColorSequenceKeypoint.new(0.55, Color3.fromRGB(255, 72, 84)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 132, 96)),
 })
 local SUNSET = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, PINK), ColorSequenceKeypoint.new(0.55, ORANGE), ColorSequenceKeypoint.new(1, GOLD),
 })
 -- Neon do HUD 3D (como o do Chrome Clash): ciano, e rosa para dano e ciberpsicose.
-local NEON = Color3.fromRGB(86, 255, 222)
-local NEON_HURT = Color3.fromRGB(255, 72, 140)
+local NEON = Color3.fromRGB(255, 92, 84)
+local NEON_HURT = Color3.fromRGB(196, 96, 255) -- ciberpsicose em violeta (o vermelho já é das molduras)
 local CENTER = Vector2.new(0.5, 0.5)
 local FULL = UDim2.fromScale(1, 1)
 local BUILDER = "rbxasset://fonts/families/BuilderSans.json"
@@ -832,8 +833,10 @@ local function label(parent, name, text, font, size, color, z, props)
 	return new("TextLabel", parent, base)
 end
 
+-- Cantos retos (Night City); só os botões redondos de toque continuam círculos.
 local function round(parent, radius: UDim)
-	new("UICorner", parent, { CornerRadius = radius })
+	local shape = if radius.Scale >= 0.5 then radius else UDim.new(0, math.min(radius.Offset, 2))
+	new("UICorner", parent, { CornerRadius = shape })
 end
 
 local function stroke(parent, color: Color3, transparency: number, thickness: number?)
