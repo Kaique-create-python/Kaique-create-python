@@ -549,7 +549,7 @@
       "path": "audio/arma_glock_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "4dfd350a2dc28b2a975dd74d888a0e9e20fdd5cc1a5d0e94bf7b7664ddf708a9",
+      "sha256": "28c702ad70a7c402e9e7fc752529a47497ea10558bc6e30c8ac0d4f66144ebdc",
       "displayName": "CyberOutlaw arma_glock_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.62
@@ -559,7 +559,7 @@
       "path": "audio/arma_deagle_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "70f801d32aa7ae588c3bac6ac728b8c533a7724c299e13aadef69fd0ca1f8c1a",
+      "sha256": "fbf0c349f5201982c7f884b45188b746f05311cd3c372b657dfb7c5661c61594",
       "displayName": "CyberOutlaw arma_deagle_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.85
@@ -569,7 +569,7 @@
       "path": "audio/arma_uzi_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "8544733cba34fab001e6b9d6d394406586fafb03ee40a1a6b4c93a71fed591fb",
+      "sha256": "6a6cdfefe9b90fc8a7c4c51ce1b82cc5cfa6b26bd7cadafcadac82c4348a10e0",
       "displayName": "CyberOutlaw arma_uzi_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.38
@@ -579,7 +579,7 @@
       "path": "audio/arma_ak47_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "965e4c65d8e6efb5d7fe560ef53b81d245b5503b87f89855020b5f032729bf4a",
+      "sha256": "ef7c12b6ed12dda3d46222472aa607f33dadb143a2273b8511fd86aa6e419bce",
       "displayName": "CyberOutlaw arma_ak47_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.8
@@ -589,7 +589,7 @@
       "path": "audio/arma_m4_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "9201a18e67c818de2bc4398a66b4722019aab53672ce1385b6494598f885716a",
+      "sha256": "0954a542a3abfe33f780893e750956ee995f6434667d3f336cbf012497547ca4",
       "displayName": "CyberOutlaw arma_m4_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 0.7
@@ -599,7 +599,7 @@
       "path": "audio/arma_escopeta_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "a3b7983a9507e0721b73bc994029d73e1a1868dce8e0aa58ce827fe017663577",
+      "sha256": "327dabdad826b4ddce0893b699a2243259a6cbd2b7b4d04fbbb72643ed83f790",
       "displayName": "CyberOutlaw arma_escopeta_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 1.0
@@ -609,7 +609,7 @@
       "path": "audio/arma_sniper_pesada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "7b3a243a6858bae5db1f2d1d7b3e662f8216d506946bbb1163c023271a5af4a9",
+      "sha256": "4118f1197581069621e86887a160e4ae576df8dfda7d90ea6567701c8c188e9a",
       "displayName": "CyberOutlaw arma_sniper_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 1.5
