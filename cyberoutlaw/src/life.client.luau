@@ -13,7 +13,8 @@ local M = {}
 -- qualquer jogo: o toque, o atender e o desligar são os mesmos das chamadas do app do Roblox. vol iguala o
 -- volume percebido (medido em tools/library_sounds.py). Sem carregar, cai no som próprio da mesma chave.
 local LIBRARY = {
-	chamada = { id = 17208308857, vol = 0.45 }, -- Roblox GUI - Ringtone (22 s, toca até atender)
+	-- proprio: o som feito no ElevenLabs (enviado pelo midia) ganha da biblioteca quando já existe; o número é o volume.
+	chamada = { id = 17208308857, vol = 0.45, proprio = 0.55, loop = true }, -- Roblox GUI - Ringtone (toca até atender)
 	chamada_atender = { id = 17208209318, vol = 0.5 }, -- Roblox GUI - Call Accept
 	chamada_recusar = { id = 17208214688, vol = 0.5 }, -- Roblox GUI - Call Decline
 	chamada_fim = { id = 17208220181, vol = 0.45 }, -- Roblox GUI - Call Hang Up
@@ -21,7 +22,7 @@ local LIBRARY = {
 	clique = { id = 15675059323, vol = 0.45 }, -- Roblox_UI_Bright_Click
 	aba = { id = 17208408337, vol = 0.7 }, -- Roblox GUI - Tab
 	ui_abrir = { id = 17208405682, vol = 0.9 }, -- Roblox GUI - Swipe
-	ui_fechar = { id = 17208186900, vol = 0.8 }, -- Roblox GUI - Back
+	ui_fechar = { id = 17208186900, vol = 0.8, proprio = 0.7 }, -- Roblox GUI - Back
 	ui_negado = { id = 17208353912, vol = 0.5 }, -- Roblox GUI - Negative
 	compra = { id = 17208380755, vol = 0.6 }, -- Roblox GUI - Purchase
 	dinheiro = { id = 127645268874265, vol = 0.5 }, -- CoinTransfer_01 (Roblox)
@@ -38,28 +39,36 @@ local function footprint(size: Vector3, rot: number): (number, number)
 	end
 	return size.X / 2, size.Z / 2
 end
-local function fits(unit, sizes, floors, placed, id: string, x: number, z: number, rot: number, ignore: number?): boolean
+-- Devolve também o motivo, com as mesmas frases do servidor (aparecem embaixo do móvel no modo construção).
+local function fits(unit, sizes, floors, placed, id: string, x: number, z: number, rot: number, ignore: number?): (boolean, string?)
 	local size = sizes[id]
 	if not size then
-		return false
+		return false, "Móvel desconhecido."
 	end
 	local hx, hz = footprint(size, rot)
 	if math.abs(x) + hx > unit.meia[1] + 0.01 or math.abs(z) + hz > unit.meia[2] + 0.01 then
-		return false
+		return false, "Fora do apartamento."
 	end
 	local k = unit.livre
 	if x + hx > k[1] and x - hx < k[2] and z + hz > k[3] and z - hz < k[4] then
-		return false
+		return false, "Deixe livre a saída do elevador."
 	end
+	local count = 0
 	for _, item in placed do
-		if item.u ~= ignore and not floors[id] and not floors[item.id] and sizes[item.id] then
-			local ox, oz = footprint(sizes[item.id], item.r)
-			if math.abs(item.x - x) < hx + ox - 0.1 and math.abs(item.z - z) < hz + oz - 0.1 then
-				return false
+		if item.u ~= ignore then
+			count += 1
+			if not floors[id] and not floors[item.id] and sizes[item.id] then
+				local ox, oz = footprint(sizes[item.id], item.r)
+				if math.abs(item.x - x) < hx + ox - 0.1 and math.abs(item.z - z) < hz + oz - 0.1 then
+					return false, "Encostado em outro móvel."
+				end
 			end
 		end
 	end
-	return true
+	if unit.maximo and count >= unit.maximo then
+		return false, string.format("Apartamento cheio (máximo de %d móveis).", unit.maximo)
+	end
+	return true, nil
 end
 M.fits = fits
 
@@ -164,14 +173,17 @@ local function start()
 	-- Toca e devolve o Sound (o toque da chamada precisa parar quando atende).
 	local function sound(key: string, volume: number?): Sound?
 		local entry = LIBRARY[key]
-		local useLibrary = entry ~= nil and not failed[entry.id]
-		local id = if useLibrary then entry.id else SOUNDS[key]
+		local own = SOUNDS[key]
+		local preferOwn = entry ~= nil and entry.proprio ~= nil and type(own) == "number" and own > 0
+		local useLibrary = entry ~= nil and not preferOwn and not failed[entry.id]
+		local id = if useLibrary then entry.id else own
 		if type(id) ~= "number" or id <= 0 then
 			return nil
 		end
 		local item = Instance.new("Sound")
 		item.SoundId = string.format("rbxassetid://%.0f", id)
-		item.Volume = (volume or 1) * (if useLibrary then entry.vol else 0.6)
+		item.Volume = (volume or 1) * (if useLibrary then entry.vol elseif preferOwn then entry.proprio else 0.6)
+		item.Looped = entry ~= nil and entry.loop == true
 		item.Parent = SoundService
 		item:Play()
 		item.Ended:Once(function()
@@ -378,10 +390,23 @@ local function start()
 	local wallet = text(chip, "Valor", money(0), 17, AMBER, {
 		TextXAlignment = Enum.TextXAlignment.Center, FontFace = MONEY, ZIndex = 3,
 	})
-	local stars = text(top, "Estrelas", "", 18, DANGER, {
-		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -150, 0.5, 0), Size = UDim2.fromOffset(110, 30),
-		TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.4, Visible = false, FontFace = Font.new(BUILDER, Enum.FontWeight.Bold),
+	-- Sete estrelas: acesas em vermelho, piscando quando a polícia perdeu você de vista (está procurando); a
+	-- estrela nova cresce e volta ao tamanho quando o nível sobe.
+	local stars = new("Frame", top, {
+		Name = "Estrelas", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -150, 0.5, 0), Size = UDim2.fromOffset(7 * 16 + 4, 30),
+		BackgroundTransparency = 1, Visible = false,
 	})
+	new("UIListLayout", stars, { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder })
+	local starLabels = {}
+	for index = 1, 7 do
+		local label = text(stars, "Estrela", "★", 18, DANGER, {
+			Size = UDim2.fromOffset(16, 26), LayoutOrder = index, TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.35,
+			FontFace = Font.new(BUILDER, Enum.FontWeight.Bold),
+		})
+		starLabels[index] = { label = label, scale = new("UIScale", label, {}) }
+	end
+	local shownLevel = 0
 	local shownMoney = player:GetAttribute("CyberOutlawEddies") or 0
 	local function refreshWallet()
 		local goal = player:GetAttribute("CyberOutlawEddies") or 0
@@ -1217,6 +1242,17 @@ local function start()
 			request:FireServer("naoPerturbe", not quiet)
 			task.delay(0.3, render)
 		end)
+		if SOUNDS.musica_calma or SOUNDS.musica_tensa then
+			order += 1
+			local musicOn = player:GetAttribute("CyberOutlawMusica") ~= false
+			local musicRow = row(order, 54)
+			text(musicRow, "Trilha", "Trilha da cidade", 16, PAPER, { Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -220, 1, 0), ZIndex = 24, FontFace = display() })
+			button(musicRow, "Musica", if musicOn then "Música: ligada" else "Música: desligada", "secundario", if musicOn then TIDE else FOG, {
+				AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(196, 34), ZIndex = 24, TextSize = 15 }, function()
+				player:SetAttribute("CyberOutlawMusica", not musicOn)
+				task.defer(render)
+			end)
+		end
 	end
 
 	render = function()
@@ -1471,6 +1507,15 @@ local function start()
 			sound("alarme", 1)
 			task.delay(0.7, sound, "radio_policia", 1)
 			toast(string.format("Procurado: %s", string.rep("★", a)), DANGER)
+		elseif kind == "policia" and type(a) == "string" then
+			local arriving = { helicoptero = "Helicóptero da PMMB no ar.", swat = "AV da PMMB trazendo a SWAT.", tanque = "Tanque! Saia do círculo vermelho." }
+			local names = { helicoptero = "Helicóptero", av = "AV", tanque = "Tanque" }
+			if a == "abatido" then
+				toast(string.format("%s da PMMB abatido.", names[b] or "Viatura"), AMBER)
+			elseif arriving[a] then
+				sound("radio_policia", 1)
+				toast(arriving[a], DANGER)
+			end
 		elseif kind == "chamada" and type(a) == "table" then
 			incoming(a, b == true)
 		elseif kind == "perdida" and type(a) == "string" then
@@ -1581,6 +1626,269 @@ local function start()
 		end
 	end)
 
+	-- Viaturas da PMMB, só neste cliente: rotores girando, giroflex alternando, jatos tremendo, holofote do
+	-- helicóptero no procurado, torre do tanque seguindo a mira, laser e círculo vermelho antes do canhão (dá
+	-- tempo de sair), e a barra de blindagem de quem está levando tiro.
+	do
+		local localFolder = new("Folder", workspace, { Name = "CyberOutlawViaturasLocal" })
+		local tracked = {}
+		local sight = RaycastParams.new()
+		sight.FilterType = Enum.RaycastFilterType.Exclude
+		local LAMP = Color3.fromRGB(255, 244, 214)
+		local function marker(name: string, size: Vector3, color: Color3, shape: Enum.PartType?): BasePart
+			return new("Part", localFolder, {
+				Name = name, Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false, Size = size, Color = color,
+				Material = Enum.Material.Neon, Transparency = 1, Shape = shape or Enum.PartType.Block,
+			})
+		end
+		local function prepare(model: Model)
+			local entry = { kind = model:GetAttribute("CyberOutlawViatura"), motors = {}, sirens = {}, jets = {}, parts = {} }
+			for _, item in model:GetDescendants() do
+				if item:IsA("Motor6D") and item.Name == "Giro" then
+					table.insert(entry.motors, { motor = item, group = item:GetAttribute("Grupo"), angle = 0 })
+				elseif item:IsA("BasePart") and item:GetAttribute("Giroflex") then
+					table.insert(entry.sirens, { part = item, side = item:GetAttribute("Giroflex"), light = item:FindFirstChildWhichIsA("Light") })
+				elseif item:IsA("BasePart") and item:GetAttribute("Jato") then
+					table.insert(entry.jets, item)
+				end
+			end
+			if entry.kind == "helicoptero" then
+				entry.lamp = model:FindFirstChild("Holofote")
+				entry.source = marker("Holofote", Vector3.new(0.4, 0.4, 0.4), LAMP)
+				entry.spot = marker("Fim do feixe", Vector3.new(0.4, 0.4, 0.4), LAMP)
+				entry.light = new("SpotLight", entry.source, { Face = Enum.NormalId.Front, Angle = 22, Range = 130, Brightness = 7, Color = LAMP, Shadows = true })
+				entry.shaft = new("Beam", entry.source, {
+					Attachment0 = new("Attachment", entry.source, {}), Attachment1 = new("Attachment", entry.spot, {}), Color = ColorSequence.new(LAMP),
+					Width0 = 1.2, Width1 = 15, FaceCamera = true, LightEmission = 1, LightInfluence = 0, Segments = 1,
+					Transparency = NumberSequence.new(0.8, 0.93),
+				})
+				table.insert(entry.parts, entry.source)
+				table.insert(entry.parts, entry.spot)
+			elseif entry.kind == "tanque" then
+				local gun = model:FindFirstChild("CyberOutlawArma")
+				local muzzle = gun and gun:IsA("Model") and gun.PrimaryPart and gun.PrimaryPart:FindFirstChild("Cano")
+				if muzzle and muzzle:IsA("Attachment") then
+					entry.dot = marker("Mira do canhão", Vector3.new(0.5, 0.5, 0.5), DANGER, Enum.PartType.Ball)
+					entry.ring = marker("Área do tiro", Vector3.new(0.16, 30, 30), DANGER, Enum.PartType.Cylinder)
+					entry.laser = new("Beam", entry.dot, {
+						Attachment0 = muzzle, Attachment1 = new("Attachment", entry.dot, {}), Color = ColorSequence.new(DANGER), Width0 = 0.18, Width1 = 0.18,
+						FaceCamera = true, LightEmission = 1, LightInfluence = 0, Segments = 1, Enabled = false,
+					})
+					table.insert(entry.parts, entry.dot)
+					table.insert(entry.parts, entry.ring)
+				end
+			end
+			entry.humanoid = model:FindFirstChildOfClass("Humanoid")
+			entry.board = new("BillboardGui", localFolder, {
+				Name = "Blindagem", Adornee = model.PrimaryPart, Size = UDim2.fromOffset(110, 8), AlwaysOnTop = true, Enabled = false, MaxDistance = 240,
+				StudsOffsetWorldSpace = Vector3.new(0, if entry.kind == "tanque" then 7.5 else 6.5, 0),
+			})
+			local back = new("Frame", entry.board, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WELL, BackgroundTransparency = 0.15, BorderSizePixel = 0 })
+			entry.fill = new("Frame", back, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = DANGER, BorderSizePixel = 0 })
+			tracked[model] = entry
+		end
+		RunService.RenderStepped:Connect(function(dt)
+			local police = workspace:FindFirstChild("CyberOutlawPolicia")
+			if police then
+				for _, model in police:GetChildren() do
+					if model:IsA("Model") and not tracked[model] and model.PrimaryPart then
+						prepare(model)
+					end
+				end
+			end
+			local now, serverNow = os.clock(), workspace:GetServerTimeNow()
+			local phase = math.floor(now * 5) % 2 + 1
+			for model, entry in tracked do
+				if model.Parent == nil then
+					for _, item in entry.parts do
+						item:Destroy()
+					end
+					entry.board:Destroy()
+					tracked[model] = nil
+					continue
+				end
+				local dead = model:GetAttribute("Destruido") == true
+				for _, joint in entry.motors do
+					if joint.group == "torre" then
+						local goal = model:GetAttribute("MiraYaw") or 0
+						local delta = (goal - joint.angle + math.pi) % (2 * math.pi) - math.pi
+						joint.angle += math.clamp(delta, -dt * 1.8, dt * 1.8)
+					else
+						joint.angle += dt * (if joint.group == "cauda" then 46 else 30) * (if dead then 0.2 else 1)
+					end
+					joint.motor.Transform = CFrame.Angles(0, joint.angle, 0)
+				end
+				for _, siren in entry.sirens do
+					local on = not dead and siren.side == phase
+					siren.part.Transparency = if on then 0 else 0.78
+					if siren.light then
+						siren.light.Enabled = on
+					end
+				end
+				for _, jet in entry.jets do
+					jet.Transparency = if dead then 1 else 0.05 + 0.35 * math.abs(math.noise(now * 7, jet.Position.X * 0.1))
+				end
+				if entry.lamp and entry.source then
+					local target = Players:GetPlayerByUserId(model:GetAttribute("Alvo") or 0)
+					local character = target and target.Character
+					local targetRoot = character and character:FindFirstChild("HumanoidRootPart")
+					local from = entry.lamp.Position
+					local on = not dead and targetRoot ~= nil and targetRoot:IsA("BasePart") and (targetRoot.Position - from).Magnitude < 320
+					if on and targetRoot and targetRoot:IsA("BasePart") then
+						-- Balança um pouco, como quem segura o holofote lá de cima.
+						local sway = Vector3.new(math.noise(now * 0.5, 1.3) * 5, 0, math.noise(now * 0.5, 7.7) * 5)
+						local aim = targetRoot.Position - Vector3.new(0, 2.6, 0) + sway
+						sight.FilterDescendantsInstances = { police :: Instance, localFolder }
+						local hit = workspace:Raycast(from, (aim - from).Unit * 420, sight)
+						local finish = if hit then hit.Position else aim
+						entry.source.CFrame = CFrame.lookAt(from, finish)
+						entry.spot.Position = finish
+					end
+					entry.shaft.Enabled = on
+					entry.light.Enabled = on
+				end
+				if entry.laser then
+					local charge = model:GetAttribute("CargaAte") or 0
+					local point = model:GetAttribute("MiraPonto")
+					local active = not dead and charge > serverNow and typeof(point) == "Vector3"
+					entry.laser.Enabled = active
+					if active and typeof(point) == "Vector3" then
+						if entry.charge ~= charge then
+							entry.charge = charge
+							sight.FilterDescendantsInstances = { police :: Instance, localFolder }
+							local ground = workspace:Raycast(point + Vector3.new(0, 3, 0), Vector3.new(0, -30, 0), sight)
+							entry.ground = if ground then ground.Position else point
+						end
+						local left = math.clamp((charge - serverNow) / 1.6, 0, 1)
+						entry.dot.Position = point
+						entry.dot.Transparency = 0.1
+						entry.ring.CFrame = CFrame.new(entry.ground + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+						entry.ring.Transparency = 0.5 + 0.35 * (0.5 + 0.5 * math.sin(now * (10 + (1 - left) * 30)))
+						entry.laser.Width0 = 0.14 + (1 - left) * 0.3
+						entry.laser.Width1 = entry.laser.Width0
+					else
+						entry.dot.Transparency = 1
+						entry.ring.Transparency = 1
+					end
+				end
+				local humanoid = entry.humanoid
+				if humanoid and humanoid.MaxHealth > 0 then
+					local fraction = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+					entry.board.Enabled = not dead and fraction < 0.999
+					entry.fill.Size = UDim2.fromScale(fraction, 1)
+				end
+			end
+		end)
+	end
+
+	-- Trilha da cidade: Under the Steel Canopy baixinho quando está tudo de boa; Tiro Rápido quando tem estrela,
+	-- tiroteio por perto ou alguém te machucando. Troca com fade, só volta para a calma depois de 15 s de paz,
+	-- abaixa nas holochamadas e, no Sandevistan, fica lenta e abafada. As duas chegam pelo comando midia; o botão
+	-- "Música" no painel do Agente desliga.
+	do
+		local function track(name: string, id): Sound?
+			if type(id) ~= "number" or id <= 0 then
+				return nil
+			end
+			return new("Sound", SoundService, { Name = name, SoundId = string.format("rbxassetid://%.0f", id), Looped = true, Volume = 0 })
+		end
+		local tracks = { calma = track("MusicaCalma", SOUNDS.musica_calma), tensa = track("MusicaTensa", SOUNDS.musica_tensa) }
+		if tracks.calma or tracks.tensa then
+			local group = new("SoundGroup", SoundService, { Name = "CyberOutlawMusica", Volume = 1 })
+			local eq = new("EqualizerSoundEffect", group, { HighGain = 0, MidGain = 0, LowGain = 0 })
+			local LEVEL = { calma = 0.3, tensa = 0.5 }
+			local started, pausedAt = {}, {}
+			for _, item in tracks do
+				item.SoundGroup = group
+			end
+			local mood, calmSince, lastHurt, lastHealth = "calma", 0, -100, nil :: number?
+			local function bind(character: Model)
+				local humanoid = character:WaitForChild("Humanoid", 10)
+				if humanoid and humanoid:IsA("Humanoid") then
+					lastHealth = humanoid.Health
+					humanoid.HealthChanged:Connect(function(health)
+						if lastHealth and health < lastHealth - 0.5 then
+							lastHurt = os.clock()
+						end
+						lastHealth = health
+					end)
+				end
+			end
+			player.CharacterAdded:Connect(bind)
+			if player.Character then
+				task.spawn(bind, player.Character)
+			end
+			local function danger(now: number): boolean
+				if (player:GetAttribute("CyberOutlawProcurado") or 0) > 0 or now - lastHurt < 12 then
+					return true
+				end
+				local character = player.Character
+				local shot = character and character:GetAttribute("CyberOutlawUltimoTiro")
+				if type(shot) == "number" and workspace:GetServerTimeNow() - shot < 10 then
+					return true
+				end
+				local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+				local npcs = workspace:FindFirstChild("CyberOutlawNPCs")
+				if rootPart and rootPart:IsA("BasePart") and npcs then
+					for _, model in npcs:GetChildren() do
+						if model:GetAttribute("CyberOutlawMirando") == true then
+							local other = model:FindFirstChild("HumanoidRootPart")
+							if other and other:IsA("BasePart") and (other.Position - rootPart.Position).Magnitude < 90 then
+								return true
+							end
+						end
+					end
+				end
+				return false
+			end
+			local checkAt = 0
+			RunService.Heartbeat:Connect(function(dt)
+				if player:GetAttribute("CyberOutlawMenuStarted") ~= true then
+					return
+				end
+				local now = os.clock()
+				if now >= checkAt then
+					checkAt = now + 0.5
+					if danger(now) then
+						calmSince = now
+						if mood ~= "tensa" and tracks.tensa then
+							mood = "tensa"
+							if now - (pausedAt.tensa or now) > 30 then
+								tracks.tensa.TimePosition = 0
+							end
+						end
+					elseif mood == "tensa" and now - calmSince > 15 then
+						mood = "calma"
+					end
+				end
+				local on = player:GetAttribute("CyberOutlawMusica") ~= false
+				local duck = if call ~= nil then 0.35 else 1
+				local character = player.Character
+				local slowed = character ~= nil and (character:GetAttribute("CyberOutlawSandevistanAte") or 0) > workspace:GetServerTimeNow()
+				local blend = math.min(1, dt * 3)
+				for name, item in tracks do
+					local goal = if on and name == mood then LEVEL[name] * duck else 0
+					local step = dt * (if goal > item.Volume then 0.22 else 0.32)
+					item.Volume = if goal > item.Volume then math.min(goal, item.Volume + step) else math.max(goal, item.Volume - step)
+					if item.Volume > 0.001 and not item.IsPlaying then
+						if started[name] then
+							item:Resume()
+						else
+							started[name] = true
+							item:Play()
+						end
+					elseif item.Volume <= 0.001 and item.IsPlaying then
+						item:Pause()
+						pausedAt[name] = now
+					end
+					item.PlaybackSpeed += ((if slowed then 0.8 else 1) - item.PlaybackSpeed) * blend
+				end
+				eq.HighGain += ((if slowed then -24 else 0) - eq.HighGain) * blend
+				eq.MidGain += ((if slowed then -8 else 0) - eq.MidGain) * blend
+			end)
+		end
+	end
+
 	-- Por quadro: estrelas, objetivo, marcadores, fantasma, varredura do retrato e barras de voz.
 	local started = player:GetAttribute("CyberOutlawMenuStarted") == true
 	RunService.RenderStepped:Connect(function()
@@ -1597,12 +1905,22 @@ local function start()
 		local shift = if admin and admin:IsA("ScreenGui") and admin.Enabled then 56 else 8
 		chip.Position = UDim2.new(1, -shift, 0.5, 0)
 		stars.Position = UDim2.new(1, -shift - 140, 0.5, 0)
-		local level = player:GetAttribute("CyberOutlawProcurado") or 0
+		local level = math.clamp(player:GetAttribute("CyberOutlawProcurado") or 0, 0, #starLabels)
 		stars.Visible = level > 0
+		if level > shownLevel then
+			for index = shownLevel + 1, level do
+				starLabels[index].scale.Scale = 1.9
+				tween(starLabels[index].scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
+			end
+		end
+		shownLevel = level
 		if level > 0 then
-			local seen = player:GetAttribute("CyberOutlawVisto") == true
-			stars.Text = string.rep("★", level) .. string.rep("☆", 5 - level)
-			stars.TextTransparency = if seen and os.clock() % 0.5 < 0.25 then 0.6 else 0
+			local searching = player:GetAttribute("CyberOutlawVisto") ~= true and os.clock() % 0.7 < 0.35
+			for index, entry in starLabels do
+				local lit = index <= level
+				entry.label.TextColor3 = if not lit then FOG elseif searching then PAPER else DANGER
+				entry.label.TextTransparency = if lit then 0 else 0.62
+			end
 		end
 		if touch and objective.Visible then
 			local hudGui = playerGui:FindFirstChild("CyberOutlawHUD")

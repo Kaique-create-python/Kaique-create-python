@@ -16,11 +16,12 @@ local M = {}
 -- vol iguala o volume percebido (pelo RMS dos 50 ms mais altos), region corta a cauda longa das gravações
 -- de tiro (um disparo por gravação, com eco de área aberta) e speed ajusta o tom. Se um ID não carregar,
 -- o jogo toca o som próprio enviado pelo midia (mesma chave).
+-- proprio: o som feito no ElevenLabs (enviado pelo midia) ganha da biblioteca quando já existe; o número é o volume.
 local LIBRARY = {
-	ui_tick = { id = 17208339919, vol = 1 }, -- Roblox GUI - Hover 01
+	ui_tick = { id = 17208339919, vol = 1, proprio = 0.9 }, -- Roblox GUI - Hover 01
 	ui_abrir = { id = 17208405682, vol = 0.9 }, -- Roblox GUI - Swipe
-	ui_fechar = { id = 17208186900, vol = 0.8 }, -- Roblox GUI - Back
-	ui_confirmar = { id = 17208396156, vol = 0.6 }, -- Roblox GUI - Select
+	ui_fechar = { id = 17208186900, vol = 0.8, proprio = 0.8 }, -- Roblox GUI - Back
+	ui_confirmar = { id = 17208396156, vol = 0.6, proprio = 0.7 }, -- Roblox GUI - Select
 	ui_negado = { id = 17208353912, vol = 0.5 }, -- Roblox GUI - Negative
 	acerto = { id = 9113520887, vol = 1.1, jitter = 0.05 }, -- PSE Body Hit, Chin Hit, With Rubber Glove
 	acerto_cabeca = { id = 9119072899, vol = 1 }, -- PSE Shield Impacts, Punches
@@ -2822,14 +2823,16 @@ local function start()
 	end)
 	local function sound(key: string, parent: Instance?, volume: number?): Sound?
 		local entry = LIBRARY[key]
-		local useLibrary = entry ~= nil and not libraryFailed[entry.id]
-		local id = if useLibrary then entry.id else SOUNDS[key]
+		local own = SOUNDS[key]
+		local preferOwn = entry ~= nil and entry.proprio ~= nil and type(own) == "number" and own > 0
+		local useLibrary = entry ~= nil and not preferOwn and not libraryFailed[entry.id]
+		local id = if useLibrary then entry.id else own
 		if type(id) ~= "number" or id <= 0 then
 			return nil
 		end
 		local item = Instance.new("Sound")
 		item.SoundId = string.format("rbxassetid://%.0f", id)
-		item.Volume = (volume or 0.6) * (if useLibrary then entry.vol else 1)
+		item.Volume = (volume or 0.6) * (if useLibrary then entry.vol elseif preferOwn then entry.proprio else 1)
 		item.RollOffMaxDistance = if string.sub(key, 1, 5) == "arma_" then 520 else 260
 		item.RollOffMinDistance = if string.sub(key, 1, 5) == "arma_" then 18 else 10
 		local life = 4

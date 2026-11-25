@@ -389,10 +389,10 @@
       "path": "audio/ui_tick.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "cf7485754c1e3b1096c8e8cef5b2cf892cf3ae7577f4390955d058a37f2d0171",
+      "sha256": "5f340b8d0e7f6f3aaf1a03b4950471e1035e5fd214f104b9bdfc359ef344e5bc",
       "displayName": "CyberOutlaw ui_tick",
-      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
-      "durationSeconds": 0.12
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 0.22
     },
     {
       "key": "ui_abrir",
@@ -409,20 +409,20 @@
       "path": "audio/ui_fechar.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "45a9c9469571329e92a232624c5247fdbc8824eb8af16ffc730f2a3f51550893",
+      "sha256": "ec69f06ecfd2c6bb1a18a3f55abe33beaad34c25dbdfaa3afedc761e6aeee40f",
       "displayName": "CyberOutlaw ui_fechar",
-      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
-      "durationSeconds": 0.196
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 0.48
     },
     {
       "key": "ui_confirmar",
       "path": "audio/ui_confirmar.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "45253b7bbacad860688e947d880fca726db4996ec838bf930b426f5f8a547363",
+      "sha256": "bc9acfb91ff3027bf3c3b68f6bdedbc8ad08a8595ca3576ea71df8c2555c2209",
       "displayName": "CyberOutlaw ui_confirmar",
-      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
-      "durationSeconds": 0.189
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 1.25
     },
     {
       "key": "ui_negado",
@@ -549,10 +549,10 @@
       "path": "audio/chamada.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "16ed4cdcce37d8bd357fafa7f654fa1cac2c0eb2ed33d7650bc5965d526b0ea3",
+      "sha256": "b4b57363918b4c95e613d08a184f6fd0e8b8ef41694a64998b3b84612b37ba5b",
       "displayName": "CyberOutlaw chamada",
-      "description": "Efeito eletrônico original.",
-      "durationSeconds": 1.6
+      "description": "ElevenLabs Sound Effects.",
+      "durationSeconds": 3.999
     },
     {
       "key": "dinheiro",
@@ -643,6 +643,26 @@
       "displayName": "CyberOutlaw arma_sniper_pesada",
       "description": "Gravação CC0 de Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney (https://opengameart.org/content/the-free-firearm-sound-library), recortada por código.",
       "durationSeconds": 1.5
+    },
+    {
+      "key": "musica_calma",
+      "path": "audio/musica_calma.ogg",
+      "assetType": "Audio",
+      "contentType": "audio/ogg",
+      "sha256": "7234735d1b4a6748fcf28fe13f207e0c3b427adb899962e660001982013769f5",
+      "displayName": "CyberOutlaw musica_calma",
+      "description": "Trilha da cidade: Under the Steel Canopy, fornecida pelo dono do jogo.",
+      "durationSeconds": 156.05
+    },
+    {
+      "key": "musica_tensa",
+      "path": "audio/musica_tensa.ogg",
+      "assetType": "Audio",
+      "contentType": "audio/ogg",
+      "sha256": "72e67b45a2730d01ec07427fd782917e5d58fa212056762b3ba8b07119f527a6",
+      "displayName": "CyberOutlaw musica_tensa",
+      "description": "Trilha da cidade: Tiro Rápido, fornecida pelo dono do jogo.",
+      "durationSeconds": 42.353
     },
     {
       "key": "title",

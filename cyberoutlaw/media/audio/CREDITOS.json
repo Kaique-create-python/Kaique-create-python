@@ -169,15 +169,12 @@
     "sha256": "34444cc59b0171ecda9bede2e52c3c7eb5c092bf05f274b3cd61ddbcb262e5f5"
   },
   "ui_tick": {
-    "provider": "OpenGameArt",
-    "license": "CC0 1.0",
-    "authors": "LFA",
-    "source": "https://opengameart.org/content/equipment-clicks-ii",
-    "file": "equipmentclicks.wav",
-    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
-    "process": "tools/real_foley_audio.py",
-    "durationSeconds": 0.12,
-    "sha256": "cf7485754c1e3b1096c8e8cef5b2cf892cf3ae7577f4390955d058a37f2d0171"
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v3",
+    "prompt": "Very soft subtle hover tick for a sci-fi game interface, tiny airy glass tap, quiet and short, dry.",
+    "process": "recortado e normalizado (pico -3 dB, 48 kHz mono)",
+    "durationSeconds": 0.22,
+    "sha256": "5f340b8d0e7f6f3aaf1a03b4950471e1035e5fd214f104b9bdfc359ef344e5bc"
   },
   "ui_abrir": {
     "provider": "OpenGameArt",
@@ -191,26 +188,20 @@
     "sha256": "292ba57324ab3e03c4b8164430fef6993f37f06929e06b2d6361dbd70d14e099"
   },
   "ui_fechar": {
-    "provider": "OpenGameArt",
-    "license": "CC0 1.0",
-    "authors": "LFA",
-    "source": "https://opengameart.org/content/equipment-clicks-ii",
-    "file": "equipmentclicks.wav",
-    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
-    "process": "tools/real_foley_audio.py",
-    "durationSeconds": 0.196,
-    "sha256": "45a9c9469571329e92a232624c5247fdbc8824eb8af16ffc730f2a3f51550893"
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v3",
+    "prompt": "Holographic menu panel closing in a cyberpunk game: short reverse whoosh collapsing into a soft muted click, sleek, under one second.",
+    "process": "recortado e normalizado (pico -3 dB, 48 kHz mono)",
+    "durationSeconds": 0.48,
+    "sha256": "ec69f06ecfd2c6bb1a18a3f55abe33beaad34c25dbdfaa3afedc761e6aeee40f"
   },
   "ui_confirmar": {
-    "provider": "OpenGameArt",
-    "license": "CC0 1.0",
-    "authors": "LFA",
-    "source": "https://opengameart.org/content/equipment-clicks-ii",
-    "file": "equipmentclicks.wav",
-    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
-    "process": "tools/real_foley_audio.py",
-    "durationSeconds": 0.189,
-    "sha256": "45253b7bbacad860688e947d880fca726db4996ec838bf930b426f5f8a547363"
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v3",
+    "prompt": "Satisfying confirm sound for a cyberpunk game interface: two quick ascending warm synth notes with a glassy shimmer tail, premium, short.",
+    "process": "recortado e normalizado (pico -3 dB, 48 kHz mono)",
+    "durationSeconds": 1.25,
+    "sha256": "bc9acfb91ff3027bf3c3b68f6bdedbc8ad08a8595ca3576ea71df8c2555c2209"
   },
   "arma_glock": {
     "provider": "The Free Firearm Sound Library (OpenGameArt)",
@@ -362,10 +353,12 @@
     "sha256": "22e8a68b42a28a025d24ebf9618dbfaecf90e4f41f63d6abc863f5721b0865b5"
   },
   "chamada": {
-    "provider": "Síntese própria",
-    "source": "tools/synth_weapon_fx.py",
-    "durationSeconds": 1.6,
-    "sha256": "16ed4cdcce37d8bd357fafa7f654fa1cac2c0eb2ed33d7650bc5965d526b0ea3"
+    "provider": "ElevenLabs",
+    "model": "eleven_text_to_sound_v3",
+    "prompt": "Incoming holographic call ringtone from a neural implant in a cyberpunk city: pulsing warm synth tones over a soft deep bass, sleek and mysterious, repeating twice, about four seconds.",
+    "process": "recortado e normalizado (pico -3 dB, 48 kHz mono)",
+    "durationSeconds": 3.999,
+    "sha256": "b4b57363918b4c95e613d08a184f6fd0e8b8ef41694a64998b3b84612b37ba5b"
   },
   "dinheiro": {
     "provider": "Síntese própria",
@@ -488,5 +481,22 @@
     "process": "tools/real_foley_audio.py",
     "durationSeconds": 0.583,
     "sha256": "1c2668268d5a37791be1f9e21ee4a1eadb6510df5a12cc7660a6ab23b5ee0636"
+  },
+  "musica_calma": {
+    "provider": "Fornecida pelo dono do jogo",
+    "title": "Under the Steel Canopy",
+    "file": "under_the_steel_canopy.mp3",
+    "process": "loop de 0 a 156 s (antes do fim da faixa) com emenda cruzada de 3 s; -20 dB RMS; OGG Vorbis",
+    "durationSeconds": 156.05,
+    "sha256": "7234735d1b4a6748fcf28fe13f207e0c3b427adb899962e660001982013769f5"
+  },
+  "musica_tensa": {
+    "provider": "Fornecida pelo dono do jogo",
+    "title": "Tiro Rápido",
+    "authors": "monique19love",
+    "file": "gravação de tela (só o áudio)",
+    "process": "24 compassos a 136 BPM (18,7 s a 61,1 s da gravação) com emenda cruzada de 2 s; -17 dB RMS; OGG Vorbis",
+    "durationSeconds": 42.353,
+    "sha256": "72e67b45a2730d01ec07427fd782917e5d58fa212056762b3ba8b07119f527a6"
   }
 }

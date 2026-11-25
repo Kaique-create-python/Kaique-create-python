@@ -26,7 +26,9 @@ OPTIONAL_SOUNDS = ("arma_glock", "arma_deagle", "arma_uzi", "arma_ak47", "arma_m
                    "habilidade_lenta", "surto", "implante_encaixe", "pulo_duplo", "soco_gorila", "kiroshi_scan",
                    "parar_tempo", "acerto", "acerto_cabeca", "chamada", "dinheiro", "alarme",
                    "arma_glock_pesada", "arma_deagle_pesada", "arma_uzi_pesada", "arma_ak47_pesada", "arma_m4_pesada",
-                   "arma_escopeta_pesada", "arma_sniper_pesada")
+                   "arma_escopeta_pesada", "arma_sniper_pesada",
+                   # Trilhas da cidade (OGG): calma sem polícia nem tiroteio, tensa com estrela ou em combate.
+                   "musica_calma", "musica_tensa")
 ART = {
     "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),

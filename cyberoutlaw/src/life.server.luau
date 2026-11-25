@@ -1350,6 +1350,16 @@ local function outfit(seed: number, kind: string, gangKey: string?, forced: stri
 		spec.face.visor = CYAN
 		spec.hair.style = "careca"
 		spec.extras.ombreiras = true
+	elseif style == "swat" then
+		-- Tropa de elite da PMMB: blindagem preta, balaclava, capacete com visor vermelho e luvas.
+		spec.shirt, spec.pants, spec.sleeve = rgb(18, 20, 26), rgb(16, 18, 24), rgb(18, 20, 26)
+		spec.extras.colete = rgb(28, 30, 36)
+		spec.extras.capacete = true
+		spec.extras.ombreiras = true
+		spec.extras.balaclava = true
+		spec.face.visor = rgb(255, 46, 70)
+		spec.hair.style = "careca"
+		spec.boots = rgb(12, 12, 16)
 	elseif style == "camelo" then
 		spec.shirt = r.pick(BRIGHTS)
 		spec.extras.avental = rgb(230, 230, 236)
@@ -1388,6 +1398,8 @@ local function dress(model: Model, spec)
 		local isCyber = spec.cyberarm == arm or spec.cyberarm == "Both"
 		if isCyber then
 			cyber(arm)
+		elseif spec.style == "swat" then
+			wear(model, arm, "Luva", Vector3.new(1.04, 0.46, 1.04), CFrame.new(0, -0.79, 0), rgb(14, 14, 18), MAT.Leather)
 		elseif spec.sleeve ~= skin then
 			wear(model, arm, "Mão", Vector3.new(1.02, 0.42, 1.02), CFrame.new(0, -0.8, 0), skin, MAT.SmoothPlastic)
 		end
@@ -1418,6 +1430,14 @@ local function dress(model: Model, spec)
 			local back = wear(model, "Torso", "Placa do colete", Vector3.new(1.6, 0.6, 0.06), CFrame.new(0, 0.35, 0.6), rgb(20, 24, 36), MAT.SmoothPlastic)
 			screen(back, Enum.NormalId.Back, "PMMB", Enum.Font.Michroma, CYAN, rgb(20, 24, 36))
 			wear(model, "Torso", "Distintivo", Vector3.new(0.3, 0.36, 0.06), CFrame.new(-0.5, 0.45, -0.6), GOLD, MAT.Metal)
+		elseif spec.style == "swat" then
+			local back = wear(model, "Torso", "Placa do colete", Vector3.new(1.7, 0.62, 0.06), CFrame.new(0, 0.35, 0.6), rgb(16, 16, 20), MAT.SmoothPlastic)
+			screen(back, Enum.NormalId.Back, "SWAT", Enum.Font.Michroma, rgb(255, 70, 90), rgb(16, 16, 20))
+			wear(model, "Torso", "Rádio", Vector3.new(0.34, 0.6, 0.24), CFrame.new(0.62, 0.5, -0.62), rgb(30, 30, 34), MAT.Metal)
+			wear(model, "Torso", "Antena", Vector3.new(0.06, 0.9, 0.06), CFrame.new(0.7, 1.2, -0.62), rgb(20, 20, 24), MAT.Metal)
+			for _, x in { -0.55, 0, 0.55 } do
+				wear(model, "Torso", "Carregador", Vector3.new(0.4, 0.55, 0.22), CFrame.new(x, -0.25, -0.68), rgb(36, 38, 44), MAT.Fabric)
+			end
 		end
 	end
 	if extras.gravata then
@@ -1430,7 +1450,7 @@ local function dress(model: Model, spec)
 		wear(model, "Left Arm", "Braçadeira", Vector3.new(1.06, 0.3, 1.06), CFrame.new(0, 0.5, 0), extras["braçadeira"], MAT.Neon)
 	end
 	if extras.ombreiras then
-		local tone = if spec.style == "policia" then rgb(30, 36, 58) else rgb(60, 62, 70)
+		local tone = if spec.style == "policia" then rgb(30, 36, 58) elseif spec.style == "swat" then rgb(26, 28, 34) else rgb(60, 62, 70)
 		for _, arm in { "Right Arm", "Left Arm" } do
 			wear(model, arm, "Ombreira", Vector3.new(1.2, 0.5, 1.24), CFrame.new(0, 0.85, 0), tone, MAT.Metal)
 		end
@@ -1453,7 +1473,7 @@ local function dress(model: Model, spec)
 	-- Pernas: botas e, nas gangues, joelheiras.
 	for _, leg in { "Right Leg", "Left Leg" } do
 		wear(model, leg, "Bota", Vector3.new(1.06, 0.62, 1.12), CFrame.new(0, -0.7, -0.04), spec.boots, MAT.Leather)
-		if spec.style == "gangue" or spec.style == "alvo" or spec.style == "policia" then
+		if spec.style == "gangue" or spec.style == "alvo" or spec.style == "policia" or spec.style == "swat" then
 			wear(model, leg, "Joelheira", Vector3.new(1.08, 0.4, 0.3), CFrame.new(0, 0.05, -0.5), rgb(46, 48, 56), MAT.Metal)
 		end
 	end
@@ -1489,8 +1509,16 @@ local function dress(model: Model, spec)
 	if extras.capuz then
 		wear(model, "Head", "Capuz", Vector3.new(1.5, 1.45, 1.4), CFrame.new(0, 0.15, 0.14), spec.jacket and spec.jacket.color or rgb(30, 30, 40), MAT.Fabric)
 	end
+	if extras.balaclava then
+		wear(model, "Head", "Balaclava", Vector3.new(1.3, 1.24, 1.3), CFrame.new(0, -0.02, 0), rgb(16, 16, 20), MAT.Fabric)
+	end
 	if extras.capacete then
-		wear(model, "Head", "Capacete", Vector3.new(1.46, 0.9, 1.46), CFrame.new(0, 0.5, 0.02), rgb(26, 30, 44), MAT.Metal)
+		local swat = spec.style == "swat"
+		wear(model, "Head", "Capacete", Vector3.new(if swat then 1.56 else 1.46, 0.9, if swat then 1.56 else 1.46), CFrame.new(0, 0.5, 0.02),
+			if swat then rgb(20, 22, 28) else rgb(26, 30, 44), MAT.Metal)
+		if swat then
+			wear(model, "Head", "Lanterna do capacete", Vector3.new(0.2, 0.2, 0.36), CFrame.new(0.66, 0.5, -0.5), rgb(230, 240, 255), MAT.Neon)
+		end
 	end
 	local face = spec.face
 	if face.visor then
@@ -1969,11 +1997,13 @@ local function missionOffer(seed: number, fixerId: string, kind: string?, ctx)
 end
 M.missionOffer = missionOffer
 
--- Procurado: estrelas de 0 a 5; cada crime soma; sem polícia por perto o nível cai uma estrela a cada `decay` s.
+-- Procurado: estrelas de 0 a 7; cada crime soma; sem ninguém da polícia te vendo (a pé, helicóptero ou AV) o
+-- nível cai uma estrela a cada decay[nível] s. As viaturas de cada nível estão em POLICE (mais abaixo).
 local WANTED = {
-	max = 5, decay = 22, seen = 120,
-	cops = { 2, 3, 4, 6, 8 },
-	crimes = { caixa = 2, maquina = 1, camelo = 2, carteira = 1, civil = 1, policia = 2, tiroPolicia = 1 },
+	max = 7, decay = { 16, 18, 20, 22, 24, 26, 28 }, seen = 120,
+	cops = { 2, 3, 4, 4, 5, 5, 6 },
+	crimes = { caixa = 2, maquina = 1, camelo = 2, carteira = 1, civil = 1, policia = 2, tiroPolicia = 1, swat = 2, viatura = 2,
+		tanque = 3 },
 }
 M.WANTED = WANTED
 local function wantedAfter(level: number, crime: string): number
@@ -2717,8 +2747,11 @@ local function npcSystem(S)
 	end
 	api.blockAt = blockAt
 
-	local HEALTH = { civil = 60, gangue = 110, alvo = 280, policia = 140, camelo = 70, contato = 120 }
-	local NAMES = { civil = "Pedestre", gangue = "Gangue", alvo = "Alvo", policia = "Policial", camelo = "Camelô", contato = "Contato" }
+	local HEALTH = { civil = 60, gangue = 110, alvo = 280, policia = 140, camelo = 70, contato = 120, swat = 230 }
+	local NAMES = { civil = "Pedestre", gangue = "Gangue", alvo = "Alvo", policia = "Policial", camelo = "Camelô", contato = "Contato",
+		swat = "SWAT" }
+	local COPS = { policia = true, swat = true }
+	api.COPS = COPS
 
 	local function walkTo(npc, point: Vector3)
 		npc.target = point
@@ -2891,7 +2924,7 @@ local function npcSystem(S)
 		npc.lostAt = nil
 		-- Tempo de reação: ninguém atira no mesmo instante em que te vê.
 		npc.nextShot = math.max(npc.nextShot or 0, os.clock() + random.range(1.0, 1.8))
-		npc.humanoid.WalkSpeed = if npc.kind == "policia" then 17 else 15
+		npc.humanoid.WalkSpeed = if npc.kind == "policia" then 17 elseif npc.kind == "swat" then 16 else 15
 		npc.model:SetAttribute("CyberOutlawMirando", true)
 	end
 	api.engage = engage
@@ -2936,7 +2969,7 @@ local function npcSystem(S)
 			engage(npc, player)
 			for _, other in list do
 				if other ~= npc and other.weapon and other.state ~= "morto" and other.state ~= "atacar"
-					and other.kind ~= "civil" and (other.gang == npc.gang or other.kind == npc.kind)
+					and other.kind ~= "civil" and (other.gang == npc.gang or other.kind == npc.kind or (COPS[other.kind] and COPS[npc.kind]))
 					and (other.root.Position - npc.root.Position).Magnitude < 36 then
 					engage(other, player)
 				end
@@ -3067,7 +3100,7 @@ local function npcSystem(S)
 			local onTarget = false
 			if result and characterOf(result.Instance) == character then
 				onTarget = true
-				damage += (def.damage or 12) * (if npc.kind == "policia" then 0.36 else 0.3) * (if result.Instance.Name == "Head" then 1.4 else 1)
+				damage += (def.damage or 12) * (if COPS[npc.kind] then 0.36 else 0.3) * (if result.Instance.Name == "Head" then 1.4 else 1)
 			end
 			table.insert(hits, { point, if result then result.Normal else -direction, onTarget })
 		end
@@ -3086,7 +3119,7 @@ local function npcSystem(S)
 			calm(npc)
 			return
 		end
-		if npc.kind == "policia" and not S.isWanted(player) then
+		if COPS[npc.kind] and not S.isWanted(player) then
 			calm(npc)
 			npc.leaveAt = now + 3
 			return
@@ -3113,7 +3146,7 @@ local function npcSystem(S)
 			npc.model:SetAttribute("CyberOutlawPitch", math.floor(pitch))
 		end
 		local visible = distance < 120 and sees(npc, enemyRoot)
-		local reach = if npc.home then 70 else (if npc.kind == "policia" then 48 else 55)
+		local reach = if npc.home then 70 else (if npc.kind == "policia" then 48 elseif npc.kind == "swat" then 62 else 55)
 		if npc.root.Anchored then
 			-- Parado de vez (sem físicas): só mira e atira.
 		elseif not visible or distance > reach then
@@ -3137,7 +3170,7 @@ local function npcSystem(S)
 		if stopped then
 			npc.humanoid.WalkSpeed = 1.5
 		elseif npc.humanoid.WalkSpeed < 5 then
-			npc.humanoid.WalkSpeed = if npc.kind == "policia" then 17 else 15
+			npc.humanoid.WalkSpeed = if npc.kind == "policia" then 17 elseif npc.kind == "swat" then 16 else 15
 		end
 		if visible and now >= (npc.nextShot or 0) and shooters < 2 and not (stopped and random.chance(0.85)) then
 			fire(npc, character)
@@ -3252,7 +3285,7 @@ local function npcSystem(S)
 				local distance = (npc.root.Position - position).Magnitude
 				if not npc.weapon and distance < 75 and npc.state ~= "fugir" and not npc.root.Anchored then
 					flee(npc, position)
-				elseif npc.weapon and npc.kind ~= "policia" and npc.state ~= "atacar" and distance < 30 then
+				elseif npc.weapon and not COPS[npc.kind] and npc.state ~= "atacar" and distance < 30 then
 					engage(npc, player)
 				end
 			end
@@ -3374,6 +3407,1075 @@ local function npcSystem(S)
 	return api
 end
 
+-- Polícia de Maré Baixa (PMMB) em 7 estrelas ------------------------------------------------------------------
+-- ★1-2 policiais a pé; ★3 o helicóptero chega, acha você com o holofote e mantém a polícia te vendo; ★4 o
+-- atirador da porta abre fogo; ★5-6 os AVs (carros voadores) descem a SWAT de rapel; ★7 o tanque flutuante com
+-- canhão (a mira aparece antes do tiro, dá para sair da frente). Helicóptero, AV e tanque levam tiro: um Humanoid
+-- escondido guarda a blindagem, e eles caem e explodem.
+local POLICE = {
+	heli = { level = 3, gunner = 4, health = 1100, altitude = 46, radius = 56, speed = 38, burst = 3, damage = 6,
+		reload = { 3.4, 4.8 }, sight = 260 },
+	av = { level = 5, count = { 0, 0, 0, 0, 1, 2, 2 }, health = 800, squad = 2, speed = 52, hover = 30, drops = 2,
+		gunner = 6, damage = 5, reload = { 4.2, 6.2 }, sight = 220 },
+	tank = { level = 7, health = 3000, speed = 15, reach = 130, windup = 1.6, reload = { 6.5, 8.5 }, blast = 15,
+		damage = 58, hover = 3.4 },
+	swat = { weapon = "m4", speed = 16 },
+	caps = { heli = 2, av = 3, tank = 1 },
+	sounds = {
+		rotor = 9114504259, -- PSE Flutter Pulse Constant (corte rápido de hélice, sci-fi)
+		turbina = 9116930984, -- PSE Mini Jet Car, Turbine Constants
+		colchao = 9112812233, -- PSE Landing Craft, Air Cushion (o tanque flutua)
+		sirene = 9112871822, -- PSE Siren Composite, Group of Police Cars
+		carga = 9116230464, -- PSE Laser Cannon, Big Windup and Fire
+		queda = 9114795278, -- PSE Helicopter Crash
+		rapel = 9118718290, -- PSE Rope Slide
+	},
+}
+M.POLICE = POLICE
+
+-- Faixa da direita de uma rua (as avenidas têm canteiro no meio, onde ficam os pilares do monotrilho e do
+-- elevado): distância do eixo até o meio da faixa.
+local function laneOffset(width: number): number
+	return if width >= 70 then 17 else 7
+end
+M.laneOffset = laneOffset
+
+local function nearestLine(lines, value: number): (number, number)
+	local best, width = lines[1][1], lines[1][2]
+	for _, line in lines do
+		if math.abs(line[1] - value) < math.abs(best - value) then
+			best, width = line[1], line[2]
+		end
+	end
+	return best, width
+end
+M.nearestLine = nearestLine
+
+local function sign(value: number): number
+	return if value > 0.5 then 1 elseif value < -0.5 then -1 else 0
+end
+
+-- Rota do tanque pelas ruas em L, sempre na faixa da direita: a última perna é a rua mais perto do alvo, até a
+-- altura dele; a primeira leva do cruzamento de saída até essa rua.
+local function streetRoute(lines, from: Vector3, to: Vector3, height: number): { Vector3 }
+	local x0, wx0 = nearestLine(lines, from.X)
+	local z0, wz0 = nearestLine(lines, from.Z)
+	local x1, wx1 = nearestLine(lines, to.X)
+	local z1, wz1 = nearestLine(lines, to.Z)
+	local function dir(value: number): number
+		local d = sign(value)
+		return if d == 0 then 1 else d
+	end
+	local points = {}
+	if math.abs(to.Z - z1) <= math.abs(to.X - x1) then
+		-- Alvo na rua em X (z = z1): desce pela rua x0 até z1 e anda por ela até o X do alvo.
+		local d1, d2 = sign(z1 - z0), dir(to.X - x0)
+		local lane = z1 + d2 * laneOffset(wz1)
+		if d1 ~= 0 then
+			table.insert(points, Vector3.new(x0 - d1 * laneOffset(wx0), height, z0))
+			table.insert(points, Vector3.new(x0 - d1 * laneOffset(wx0), height, lane))
+		else
+			table.insert(points, Vector3.new(x0, height, lane))
+		end
+		table.insert(points, Vector3.new(to.X, height, lane))
+	else
+		-- Alvo na rua em Z (x = x1): anda pela rua z0 até x1 e sobe por ela até o Z do alvo.
+		local d1, d2 = sign(x1 - x0), dir(to.Z - z0)
+		local lane = x1 - d2 * laneOffset(wx1)
+		if d1 ~= 0 then
+			table.insert(points, Vector3.new(x0, height, z0 + d1 * laneOffset(wz0)))
+			table.insert(points, Vector3.new(lane, height, z0 + d1 * laneOffset(wz0)))
+		else
+			table.insert(points, Vector3.new(lane, height, z0))
+		end
+		table.insert(points, Vector3.new(lane, height, to.Z))
+	end
+	return points
+end
+M.streetRoute = streetRoute
+
+-- Montagem das viaturas: peças ancoradas em volta da origem, nariz para -Z. "Corpo" é o PrimaryPart; peças com o
+-- atributo Grupo giram juntas num Motor6D (rotores, torre do tanque) que o cliente anima; o resto vai soldado.
+local NAVY, BLACK, STEEL = rgb(20, 26, 42), rgb(14, 15, 20), rgb(70, 76, 90)
+local SIREN_RED, SIREN_BLUE = rgb(255, 40, 60), rgb(40, 120, 255)
+
+local function wedge(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?)
+	local item = Instance.new("WedgePart")
+	item.Name = name
+	item.Size = size
+	item.CFrame = cf
+	item.Color = color
+	item.Material = material or MAT.Metal
+	item.Anchored = true
+	item.TopSurface = Enum.SurfaceType.Smooth
+	item.BottomSurface = Enum.SurfaceType.Smooth
+	item.Parent = parent
+	return item
+end
+
+local function siren(model: Model, name: string, cf: CFrame, color: Color3, size: Vector3)
+	local item = part(model, name, size, cf, color, MAT.Neon)
+	item.CastShadow = false
+	item:SetAttribute("Giroflex", if color == SIREN_RED then 1 else 2)
+	glow(item, color, 2.4, 22)
+	return item
+end
+
+local function livery(item: BasePart, face: Enum.NormalId, text: string)
+	local label = screen(item, face, text, Enum.Font.Michroma, rgb(220, 236, 255), nil, true)
+	label.TextStrokeTransparency = 0.8
+	return label
+end
+
+local function gunModel(model: Model, cf: CFrame, length: number): Model
+	local gun = Instance.new("Model")
+	gun.Name = "CyberOutlawArma"
+	local barrel = part(gun, "Cano", Vector3.new(0.34, 0.34, length), cf, BLACK, MAT.Metal)
+	local body = part(gun, "Ferrolho", Vector3.new(0.6, 0.6, 1.2), cf * CFrame.new(0, 0, length / 2 - 0.3), STEEL, MAT.Metal)
+	local _ = body
+	local tip = Instance.new("Attachment")
+	tip.Name = "Cano"
+	tip.Position = Vector3.new(0, 0, -length / 2)
+	tip.Parent = barrel
+	gun.PrimaryPart = barrel
+	gun.Parent = model
+	return gun
+end
+
+local function buildHeli(): Model
+	local model = Instance.new("Model")
+	model.Name = "Helicóptero PMMB"
+	local body = part(model, "Corpo", Vector3.new(5, 4, 10), CFrame.new(0, 0, 0), NAVY, MAT.Metal)
+	body.Reflectance = 0.08
+	part(model, "Barriga", Vector3.new(4.4, 1, 9), CFrame.new(0, -2.4, 0.2), BLACK, MAT.Metal)
+	local canopy = part(model, "Cabine", Vector3.new(4.4, 4.4, 4.4), CFrame.new(0, 0.1, -5.2), rgb(26, 52, 70), MAT.Glass, Enum.PartType.Ball)
+	canopy.Transparency = 0.25
+	canopy.Reflectance = 0.3
+	part(model, "Nariz", Vector3.new(3, 3.6, 3.6), CFrame.new(0, -0.6, -6.4) * CFrame.Angles(0, math.pi / 2, 0), NAVY, MAT.Metal, Enum.PartType.Cylinder)
+	part(model, "Motor", Vector3.new(3.6, 1.6, 5), CFrame.new(0, 2.6, 1), STEEL, MAT.Metal)
+	part(model, "Cauda", Vector3.new(1.6, 1.5, 6), CFrame.new(0, 0.9, 7.8), NAVY, MAT.Metal)
+	part(model, "Ponta da cauda", Vector3.new(1, 1, 5), CFrame.new(0, 1.1, 12.8), NAVY, MAT.Metal)
+	part(model, "Estabilizador", Vector3.new(4.4, 0.2, 1.3), CFrame.new(0, 1.1, 13.2), BLACK, MAT.Metal)
+	local fin = part(model, "Deriva", Vector3.new(0.24, 3, 1.8), CFrame.new(0, 2.4, 14.6), NAVY, MAT.Metal)
+	livery(fin, Enum.NormalId.Left, "PMMB")
+	-- Faixas néon e a pintura: a polícia de Maré Baixa é azul-marinho com filete ciano.
+	for _, side in { -1, 1 } do
+		local stripe = part(model, "Filete", Vector3.new(0.06, 0.24, 9.4), CFrame.new(side * 2.52, -0.6, 0.2), rgb(80, 220, 255), MAT.Neon)
+		stripe.CastShadow = false
+		part(model, "Esqui", Vector3.new(0.34, 0.3, 10), CFrame.new(side * 2.3, -3.9, -0.4), BLACK, MAT.Metal)
+		part(model, "Haste do esqui", Vector3.new(0.26, 1.4, 0.26), CFrame.new(side * 2.3, -3.2, -3), BLACK, MAT.Metal)
+		part(model, "Haste do esqui", Vector3.new(0.26, 1.4, 0.26), CFrame.new(side * 2.3, -3.2, 2.4), BLACK, MAT.Metal)
+		part(model, "Janela da porta", Vector3.new(0.1, 1.6, 2.4), CFrame.new(side * 2.52, 0.6, -1.6), rgb(20, 40, 56), MAT.Glass).Transparency = 0.3
+	end
+	livery(body, Enum.NormalId.Right, "PMMB")
+	livery(body, Enum.NormalId.Left, "PMMB")
+	siren(model, "Giroflex vermelho", CFrame.new(-0.8, 2.2, -2.6), SIREN_RED, Vector3.new(0.9, 0.3, 0.6))
+	siren(model, "Giroflex azul", CFrame.new(0.8, 2.2, -2.6), SIREN_BLUE, Vector3.new(0.9, 0.3, 0.6))
+	-- Holofote embaixo do nariz: o cliente acende o feixe e mira no procurado.
+	part(model, "Holofote", Vector3.new(0.9, 1.1, 1.1), CFrame.new(0, -2.9, -4.4) * CFrame.Angles(0, 0, math.pi / 2), BLACK, MAT.Metal, Enum.PartType.Cylinder)
+	-- Rotor principal (mastro, cubo, quatro pás e o disco borrado) e rotor de cauda.
+	part(model, "Mastro", Vector3.new(1.4, 0.7, 0.7), CFrame.new(0, 3.8, 0.2) * CFrame.Angles(0, 0, math.pi / 2), BLACK, MAT.Metal, Enum.PartType.Cylinder)
+	local hub = part(model, "Rotor", Vector3.new(1.1, 1.1, 1.1), CFrame.new(0, 4.5, 0.2), STEEL, MAT.Metal, Enum.PartType.Ball)
+	hub:SetAttribute("Grupo", "rotor")
+	for k = 0, 3 do
+		local blade = part(model, "Pá", Vector3.new(0.9, 0.1, 12.5), CFrame.new(0, 4.55, 0.2) * CFrame.Angles(0, k * math.pi / 2, 0) * CFrame.new(0, 0, 6.6), BLACK, MAT.Metal)
+		blade:SetAttribute("Grupo", "rotor")
+	end
+	local disc = part(model, "Disco do rotor", Vector3.new(0.05, 26, 26), CFrame.new(0, 4.5, 0.2) * CFrame.Angles(0, 0, math.pi / 2), rgb(200, 210, 230), MAT.SmoothPlastic, Enum.PartType.Cylinder)
+	disc.Transparency = 0.93
+	disc.CastShadow = false
+	disc.CanQuery = false
+	local tailHub = part(model, "Rotor traseiro", Vector3.new(0.6, 0.6, 0.6), CFrame.new(0.7, 2.6, 15), STEEL, MAT.Metal, Enum.PartType.Ball)
+	tailHub:SetAttribute("Grupo", "cauda")
+	for k = 0, 1 do
+		local blade = part(model, "Pá da cauda", Vector3.new(0.1, 4.6, 0.36), CFrame.new(0.78, 2.6, 15) * CFrame.Angles(k * math.pi / 2, 0, 0), BLACK, MAT.Metal)
+		blade:SetAttribute("Grupo", "cauda")
+	end
+	gunModel(model, CFrame.new(2.9, -0.8, -1.2), 2.6)
+	model.PrimaryPart = body
+	return model
+end
+M.buildHeli = buildHeli
+
+local function buildAV(): Model
+	local model = Instance.new("Model")
+	model.Name = "AV PMMB"
+	local body = part(model, "Corpo", Vector3.new(7, 2.2, 13), CFrame.new(0, 0, 0), NAVY, MAT.Metal)
+	body.Reflectance = 0.12
+	wedge(model, "Capô", Vector3.new(7, 1.6, 3.4), CFrame.new(0, -0.3, -8.2), NAVY, MAT.Metal)
+	wedge(model, "Traseira", Vector3.new(7, 1.6, 2.4), CFrame.new(0, -0.3, 7.7) * CFrame.Angles(0, math.pi, 0), NAVY, MAT.Metal)
+	local cabin = part(model, "Cabine", Vector3.new(5.6, 1.9, 6.4), CFrame.new(0, 2, -0.6), rgb(22, 44, 62), MAT.Glass)
+	cabin.Transparency = 0.3
+	cabin.Reflectance = 0.25
+	wedge(model, "Para-brisa", Vector3.new(5.6, 1.9, 2.4), CFrame.new(0, 2, -5), rgb(22, 44, 62), MAT.Glass).Transparency = 0.3
+	part(model, "Teto", Vector3.new(5.8, 0.3, 5.6), CFrame.new(0, 3.05, -0.2), NAVY, MAT.Metal)
+	part(model, "Para-choque", Vector3.new(7.2, 0.7, 0.5), CFrame.new(0, -0.6, -9.7), BLACK, MAT.Metal)
+	livery(body, Enum.NormalId.Right, "PMMB")
+	livery(body, Enum.NormalId.Left, "PMMB")
+	-- Quatro propulsores nos cantos (anel néon embaixo e luz) e a barra de giroflex no teto.
+	for _, x in { -4.6, 4.6 } do
+		for _, z in { -5.4, 5.4 } do
+			post(model, "Propulsor", 3, 1.6, x, -0.2, z, BLACK, MAT.Metal)
+			local ring = post(model, "Jato", 2.4, 0.2, x, -1.1, z, rgb(90, 220, 255), MAT.Neon)
+			ring.CastShadow = false
+			ring:SetAttribute("Jato", true)
+			glow(ring, rgb(90, 220, 255), 1.6, 14)
+		end
+	end
+	for _, side in { -1, 1 } do
+		local stripe = part(model, "Filete", Vector3.new(0.06, 0.2, 12), CFrame.new(side * 3.53, 0.3, 0), rgb(80, 220, 255), MAT.Neon)
+		stripe.CastShadow = false
+		part(model, "Farol", Vector3.new(1.2, 0.3, 0.2), CFrame.new(side * 2.4, 0.2, -9.95), rgb(230, 240, 255), MAT.Neon).CastShadow = false
+	end
+	siren(model, "Giroflex vermelho", CFrame.new(-1.3, 3.35, -0.2), SIREN_RED, Vector3.new(2.2, 0.36, 0.7))
+	siren(model, "Giroflex azul", CFrame.new(1.3, 3.35, -0.2), SIREN_BLUE, Vector3.new(2.2, 0.36, 0.7))
+	gunModel(model, CFrame.new(0, -1.5, -8), 2.4)
+	-- Portas da SWAT: as cordas de rapel saem daqui.
+	for index, side in { -1, 1 } do
+		local door = Instance.new("Attachment")
+		door.Name = "Porta" .. index
+		door.Position = Vector3.new(side * 3.7, -1, 1)
+		door.Parent = body
+	end
+	model.PrimaryPart = body
+	return model
+end
+M.buildAV = buildAV
+
+local function buildTank(): Model
+	local model = Instance.new("Model")
+	model.Name = "Tanque PMMB"
+	local olive = rgb(34, 38, 46)
+	local body = part(model, "Corpo", Vector3.new(10, 3, 15), CFrame.new(0, 0, 0), olive, MAT.DiamondPlate)
+	wedge(model, "Blindagem da frente", Vector3.new(10, 2.2, 3.2), CFrame.new(0, 0.4, -9.1), olive, MAT.Metal)
+	wedge(model, "Blindagem de trás", Vector3.new(10, 1.6, 2), CFrame.new(0, 0.1, 8.5) * CFrame.Angles(0, math.pi, 0), olive, MAT.Metal)
+	for _, side in { -1, 1 } do
+		part(model, "Saia blindada", Vector3.new(0.6, 2.4, 16), CFrame.new(side * 5.3, -0.4, 0), BLACK, MAT.Metal)
+		local stripe = part(model, "Faixa de perigo", Vector3.new(0.08, 0.5, 15.6), CFrame.new(side * 5.62, 0.2, 0), rgb(255, 196, 40), MAT.Neon)
+		stripe.CastShadow = false
+		part(model, "Farol", Vector3.new(1.4, 0.36, 0.2), CFrame.new(side * 3.2, 0.9, -10.75), rgb(240, 240, 255), MAT.Neon).CastShadow = false
+	end
+	-- Colchão de ar: quatro bocais laranja embaixo.
+	for _, x in { -3.4, 3.4 } do
+		for _, z in { -5, 5 } do
+			local pad = post(model, "Bocal", 3, 0.3, x, -1.65, z, rgb(255, 140, 50), MAT.Neon)
+			pad.CastShadow = false
+			pad:SetAttribute("Jato", true)
+			glow(pad, rgb(255, 140, 50), 1.4, 12)
+		end
+	end
+	-- Torre (gira no Motor6D "Torre"; o servidor manda o ângulo no atributo MiraYaw) e o canhão.
+	local turret = part(model, "Torre", Vector3.new(6.4, 2.4, 7), CFrame.new(0, 2.7, 1), olive, MAT.DiamondPlate)
+	turret:SetAttribute("Grupo", "torre")
+	livery(turret, Enum.NormalId.Left, "PMMB")
+	livery(turret, Enum.NormalId.Right, "PMMB")
+	local hatch = part(model, "Escotilha", Vector3.new(2.4, 0.5, 2.4), CFrame.new(1.2, 4.1, 2.4), BLACK, MAT.Metal)
+	hatch:SetAttribute("Grupo", "torre")
+	for _, item in {
+		siren(model, "Giroflex vermelho", CFrame.new(-2, 4.05, 3.6), SIREN_RED, Vector3.new(1.4, 0.34, 0.6)),
+		siren(model, "Giroflex azul", CFrame.new(-0.4, 4.05, 3.6), SIREN_BLUE, Vector3.new(1.4, 0.34, 0.6)),
+	} do
+		item:SetAttribute("Grupo", "torre")
+	end
+	local gun = gunModel(model, CFrame.new(0, 3, -6.2), 9)
+	for _, item in gun:GetDescendants() do
+		if item:IsA("BasePart") then
+			item:SetAttribute("Grupo", "torre")
+			if item.Name == "Cano" then
+				item.Size = Vector3.new(0.9, 0.9, 9)
+			end
+		end
+	end
+	local muzzle = part(gun, "Freio de boca", Vector3.new(1.3, 1.3, 1.1), CFrame.new(0, 3, -10.6), BLACK, MAT.Metal)
+	muzzle:SetAttribute("Grupo", "torre")
+	model.PrimaryPart = body
+	return model
+end
+M.buildTank = buildTank
+
+-- Viaturas em ação: voam com AlignPosition (servidor é o dono da física), levam tiro pelo Humanoid escondido e
+-- saem de cena quando o nível do procurado cai. O cliente gira os rotores, pisca o giroflex, acende o holofote e
+-- desenha a mira do tanque (life.client.luau).
+local function policeSystem(S)
+	local api = {}
+	local Players = S.Players
+	local folder = Instance.new("Folder")
+	folder.Name = "CyberOutlawPolicia"
+	folder.Parent = workspace
+	local units = {}
+	api.units = units
+	local random = rand(os.time() % 4999 + 29)
+	local ray = RaycastParams.new()
+	ray.FilterType = Enum.RaycastFilterType.Exclude
+	ray.IgnoreWater = true
+	local ROAD = 0.25 -- topo do asfalto
+
+	local function ignore(extra: Instance?)
+		local list: { Instance } = { folder }
+		local npcs = workspace:FindFirstChild("CyberOutlawNPCs")
+		if npcs then
+			table.insert(list, npcs)
+		end
+		for _, player in Players:GetPlayers() do
+			if player.Character then
+				table.insert(list, player.Character)
+			end
+		end
+		if extra then
+			table.insert(list, extra)
+		end
+		ray.FilterDescendantsInstances = list
+	end
+
+	local function rootOf(player: Player?): BasePart?
+		local character = player and player.Parent and player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		if humanoid and humanoid.Health > 0 and rootPart and rootPart:IsA("BasePart") then
+			return rootPart
+		end
+		return nil
+	end
+
+	-- Altura do que estiver embaixo (telhado, viaduto ou rua).
+	local function floorAt(x: number, z: number): number
+		ignore(nil)
+		local result = workspace:Raycast(Vector3.new(x, 900, z), Vector3.new(0, -1000, 0), ray)
+		return if result then result.Position.Y else ROAD
+	end
+
+	local function clearSight(from: Vector3, target: BasePart): boolean
+		ray.FilterDescendantsInstances = { folder, workspace:FindFirstChild("CyberOutlawNPCs") or folder }
+		local result = workspace:Raycast(from, target.Position - from, ray)
+		return result == nil or result.Instance:IsDescendantOf(target.Parent :: Instance)
+	end
+
+	local function playAt(parent: Instance, id: number, volume: number, reach: number, start: number?)
+		local item = Instance.new("Sound")
+		item.SoundId = "rbxassetid://" .. id
+		item.Volume = volume
+		item.RollOffMode = Enum.RollOffMode.InverseTapered
+		item.RollOffMinDistance = 24
+		item.RollOffMaxDistance = reach
+		item.TimePosition = start or 0
+		item.Parent = parent
+		item:Play()
+		task.delay(8, function()
+			item:Destroy()
+		end)
+		return item
+	end
+
+	-- Explosão: o cliente desenha a bola de fogo e treme a câmera; aqui só o dano, que cai com a distância.
+	local function blast(position: Vector3, radius: number, damage: number)
+		if S.explosionFx then
+			S.explosionFx(position, radius)
+		end
+		for _, player in Players:GetPlayers() do
+			local rootPart = rootOf(player)
+			if rootPart and not S.inSafeZone(rootPart.Position) then
+				local distance = (rootPart.Position - position).Magnitude
+				if distance < radius then
+					S.damagePlayer(rootPart.Parent :: Model, damage * (1 - distance / radius), nil)
+				end
+			end
+		end
+		for _, npc in S.npc.list do
+			if npc.state ~= "morto" and npc.kind ~= "policia" and npc.kind ~= "swat" and npc.root.Parent then
+				local distance = (npc.root.Position - position).Magnitude
+				if distance < radius then
+					npc.humanoid:TakeDamage(damage * 1.6 * (1 - distance / radius))
+				end
+			end
+		end
+	end
+
+	local function remove(unit)
+		if unit.removed then
+			return
+		end
+		unit.removed = true
+		for index, other in units do
+			if other == unit then
+				table.remove(units, index)
+				break
+			end
+		end
+		for _, entry in unit.ropes or {} do
+			entry.rope:Destroy()
+		end
+		unit.model:Destroy()
+	end
+
+	local function burn(root: BasePart, size: number)
+		for _, spec in {
+			{ "rbxasset://textures/particles/fire_main.dds", ColorSequence.new(rgb(255, 190, 90), rgb(255, 70, 30)), size, 18, 1.2 },
+			{ "rbxasset://textures/particles/smoke_main.dds", ColorSequence.new(rgb(40, 40, 44), rgb(20, 20, 22)), size * 2.2, 10, 5 },
+		} do
+			local emitter = Instance.new("ParticleEmitter")
+			emitter.Texture = spec[1]
+			emitter.Color = spec[2]
+			emitter.Size = NumberSequence.new(spec[3] * 0.5, spec[3])
+			emitter.Rate = spec[4]
+			emitter.Lifetime = NumberRange.new(spec[5] * 0.6, spec[5])
+			emitter.Speed = NumberRange.new(4, 9)
+			emitter.SpreadAngle = Vector2.new(18, 18)
+			emitter.Acceleration = Vector3.new(0, 6, 0)
+			emitter.Transparency = NumberSequence.new(0.2, 1)
+			emitter.LightEmission = if spec[4] > 12 then 0.8 else 0
+			emitter.Parent = root
+		end
+	end
+
+	-- Abatido: quem atirou por último leva a culpa (mais estrelas); voadores caem girando e explodem no chão.
+	local function wreck(unit)
+		if unit.dead then
+			return
+		end
+		unit.dead = true
+		local id = unit.model:GetAttribute("CyberOutlawAgressor")
+		local killer = if type(id) == "number" then Players:GetPlayerByUserId(id) else nil
+		if killer and S.crime then
+			S.crime.crime(killer, if unit.kind == "tanque" then "tanque" else "viatura")
+			S.notify(killer, "policia", "abatido", unit.kind)
+		end
+		unit.align.Enabled = false
+		unit.orient.Enabled = false
+		unit.model:SetAttribute("Destruido", true)
+		if unit.engine then
+			unit.engine:Stop()
+		end
+		for _, entry in unit.ropes or {} do
+			entry.rope:Destroy()
+		end
+		unit.ropes = {}
+		local root = unit.root
+		if unit.kind == "tanque" then
+			blast(root.Position + Vector3.new(0, 2, 0), 18, 38)
+			burn(root, 6)
+			for _, item in unit.model:GetDescendants() do
+				if item:IsA("BasePart") and item.Material ~= MAT.Neon then
+					item.Color = item.Color:Lerp(rgb(20, 18, 16), 0.7)
+				elseif item:IsA("Light") then
+					item.Enabled = false
+				end
+			end
+			task.delay(12, remove, unit)
+			return
+		end
+		playAt(root, POLICE.sounds.queda, 2.2, 420)
+		local spin = Instance.new("AngularVelocity")
+		spin.Attachment0 = root:FindFirstChild("Voo") :: Attachment
+		spin.AngularVelocity = Vector3.new(0, if random.chance(0.5) then 5 else -5, 0)
+		spin.MaxTorque = 4e7
+		spin.RelativeTo = Enum.ActuatorRelativeTo.World
+		spin.Parent = root
+		burn(root, 3)
+		for _, item in unit.model:GetDescendants() do
+			if item:IsA("BasePart") and item.Name ~= "Disco do rotor" then
+				item.CanCollide = item == root
+			end
+		end
+		task.spawn(function()
+			local started = os.clock()
+			while os.clock() - started < 5 and root.Parent do
+				task.wait(0.1)
+				ignore(unit.model)
+				if workspace:Raycast(root.Position, Vector3.new(0, -5, 0), ray) then
+					break
+				end
+			end
+			if root.Parent then
+				blast(root.Position, 16, 42)
+				spin:Destroy()
+				task.delay(7, remove, unit)
+			end
+		end)
+	end
+
+	local function face(unit, look: Vector3, pitch: number, roll: number?)
+		local flat = Vector3.new(look.X, 0, look.Z)
+		if flat.Magnitude > 0.1 then
+			unit.orient.CFrame = CFrame.lookAt(Vector3.zero, flat.Unit) * CFrame.Angles(-pitch, 0, roll or 0)
+		end
+	end
+
+	-- Põe a viatura no mundo: juntas (Motor6D nos grupos que giram), física sem âncora, blindagem e motor.
+	local function launch(kind: string, model: Model, at: CFrame, target: Player, health: number, speed: number, engine: { number })
+		model:PivotTo(at)
+		local root = model.PrimaryPart :: BasePart
+		local hubs = {}
+		for _, item in model:GetDescendants() do
+			if item:IsA("BasePart") and (item.Name == "Rotor" or item.Name == "Rotor traseiro" or item.Name == "Torre") then
+				hubs[item:GetAttribute("Grupo")] = item
+			end
+		end
+		for group, hub in hubs do
+			local sideways = if group == "cauda" then CFrame.Angles(0, 0, math.pi / 2) else CFrame.identity
+			local motor = Instance.new("Motor6D")
+			motor.Name = "Giro"
+			motor.Part0 = root
+			motor.Part1 = hub
+			motor.C0 = root.CFrame:ToObjectSpace(hub.CFrame) * sideways
+			motor.C1 = sideways
+			motor:SetAttribute("Grupo", group)
+			motor.Parent = root
+		end
+		for _, item in model:GetDescendants() do
+			if item:IsA("BasePart") and item ~= root then
+				local group = item:GetAttribute("Grupo")
+				local hub = if type(group) == "string" then hubs[group] else nil
+				if item ~= hub then
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = hub or root
+					weld.Part1 = item
+					weld.Parent = item
+				end
+			end
+		end
+		local solid = { Corpo = true, ["Saia blindada"] = true, Torre = true, ["Blindagem da frente"] = true }
+		for _, item in model:GetDescendants() do
+			if item:IsA("BasePart") then
+				item.Anchored = false
+				item.CanTouch = false
+				item.CanCollide = kind == "tanque" and solid[item.Name] == true
+				item.Massless = item ~= root
+			end
+		end
+		local humanoid = Instance.new("Humanoid")
+		humanoid.Name = "Blindagem"
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		humanoid.BreakJointsOnDeath = false
+		humanoid.RequiresNeck = false
+		pcall(function()
+			humanoid.EvaluateStateMachine = false
+		end)
+		humanoid.MaxHealth = health
+		humanoid.Health = health
+		humanoid.Parent = model
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "Voo"
+		attachment.Parent = root
+		local align = Instance.new("AlignPosition")
+		align.Mode = Enum.PositionAlignmentMode.OneAttachment
+		align.Attachment0 = attachment
+		align.ApplyAtCenterOfMass = true
+		align.MaxForce = 4e7
+		align.MaxVelocity = speed
+		align.Responsiveness = 16
+		align.Position = at.Position
+		align.Parent = root
+		local orient = Instance.new("AlignOrientation")
+		orient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+		orient.Attachment0 = attachment
+		orient.MaxTorque = 4e7
+		orient.Responsiveness = 9
+		orient.CFrame = at.Rotation
+		orient.Parent = root
+		local sound = Instance.new("Sound")
+		sound.Name = "Motor"
+		sound.SoundId = "rbxassetid://" .. engine[1]
+		sound.Looped = true
+		sound.Volume = engine[2]
+		sound.RollOffMode = Enum.RollOffMode.InverseTapered
+		sound.RollOffMinDistance = 30
+		sound.RollOffMaxDistance = engine[3]
+		if engine[4] then
+			sound.PlaybackRegionsEnabled = true
+			sound.LoopRegion = NumberRange.new(engine[4], engine[5])
+			sound.TimePosition = engine[4]
+		end
+		sound.Parent = root
+		sound:Play()
+		model:SetAttribute("CyberOutlawViatura", kind)
+		model:SetAttribute("Alvo", target.UserId)
+		model.Parent = folder
+		pcall(function()
+			root:SetNetworkOwner(nil)
+		end)
+		local gun = model:FindFirstChild("CyberOutlawArma")
+		local unit = {
+			kind = kind, model = model, root = root, humanoid = humanoid, align = align, orient = orient, target = target,
+			engine = sound, born = os.clock(), state = "chegando", nextShot = os.clock() + 4, ropes = {},
+			gun = gun and gun.PrimaryPart and gun.PrimaryPart:FindFirstChild("Cano"),
+		}
+		humanoid.HealthChanged:Connect(function(value)
+			if value <= 0 then
+				wreck(unit)
+			end
+		end)
+		table.insert(units, unit)
+		return unit
+	end
+
+	local function leave(unit)
+		if unit.leaving or unit.dead then
+			return
+		end
+		unit.leaving = true
+		unit.leaveAt = os.clock()
+		local position = unit.root.Position
+		local away = Vector3.new(position.X, 0, position.Z)
+		away = if away.Magnitude > 1 then away.Unit else Vector3.xAxis
+		unit.exit = position + away * 600 + Vector3.new(0, 160, 0)
+		for _, entry in unit.ropes do
+			entry.rope:Destroy()
+		end
+		unit.ropes = {}
+	end
+	api.leave = leave
+
+	-- Atirador da porta (helicóptero) ou da torreta (AV): mira de gente, não de robô.
+	local function gunnerShot(unit, damage: number)
+		local player = unit.target
+		local rootPart = rootOf(player)
+		local character = rootPart and rootPart.Parent :: Model
+		if not character or not unit.gun or unit.dead then
+			return
+		end
+		local from = unit.gun.WorldPosition
+		local aimPart = (character:FindFirstChild("Torso") or rootPart) :: BasePart
+		local distance = (aimPart.Position - from).Magnitude
+		local slowed = (character:GetAttribute("CyberOutlawSandevistanAte") or 0) > S.now()
+		if slowed and random.chance(0.85) then
+			return
+		end
+		local spread = math.rad(4 + distance * 0.045 + rootPart.AssemblyLinearVelocity.Magnitude * 0.45 + (if slowed then 8 else 0))
+		local direction = cone((aimPart.Position - from).Unit, spread, random)
+		ray.FilterDescendantsInstances = { folder, workspace:FindFirstChild("CyberOutlawNPCs") or folder }
+		local result = workspace:Raycast(from, direction * 420, ray)
+		local point = if result then result.Position else from + direction * 420
+		local onTarget = result ~= nil and result.Instance:IsDescendantOf(character)
+		if onTarget and not S.inSafeZone(rootPart.Position) then
+			S.damagePlayer(character, damage, unit.model)
+		end
+		S.shotFx(unit.model, "m4", from, { { point, if result then result.Normal else -direction, onTarget } })
+	end
+
+	local function burst(unit, damage: number, shots: number)
+		task.spawn(function()
+			for _ = 1, shots do
+				if unit.dead or unit.leaving then
+					return
+				end
+				gunnerShot(unit, damage)
+				task.wait(0.14)
+			end
+		end)
+	end
+
+	-- Helicóptero: chega reto, depois gira em volta do procurado com o nariz nele, acima dos telhados.
+	local function heliThink(unit, now: number, dt: number)
+		local position = unit.root.Position
+		if unit.leaving then
+			unit.align.Position = unit.exit
+			face(unit, unit.exit - position, 0.2)
+			if now - unit.leaveAt > 14 then
+				remove(unit)
+			end
+			return
+		end
+		local target = rootOf(unit.target)
+		if not target then
+			return
+		end
+		local cfg = POLICE.heli
+		local center = target.Position
+		local offset = Vector3.new(position.X - center.X, 0, position.Z - center.Z)
+		local far = offset.Magnitude > cfg.radius * 1.6
+		unit.angle = (unit.angle or math.atan2(offset.Z, offset.X)) + dt * cfg.speed / cfg.radius * 0.45
+		local goal = if far then center + offset.Unit * cfg.radius
+			else center + Vector3.new(math.cos(unit.angle), 0, math.sin(unit.angle)) * cfg.radius
+		if now >= (unit.nextFloor or 0) then
+			unit.nextFloor = now + 0.5
+			local ahead = position + (if far then -offset.Unit * 40 else Vector3.zero)
+			unit.floor = math.max(floorAt(goal.X, goal.Z), floorAt(position.X, position.Z), floorAt(ahead.X, ahead.Z))
+		end
+		unit.align.Position = Vector3.new(goal.X, math.max(center.Y + cfg.altitude, (unit.floor or 0) + 24), goal.Z)
+		face(unit, -offset, if far then 0.16 else 0.04, if far then 0 else -0.12)
+		if far then
+			return
+		end
+		unit.state = "orbita"
+		if S.crime.level(unit.target) >= cfg.gunner and now >= unit.nextShot and not S.inSafeZone(center) then
+			unit.nextShot = now + random.range(cfg.reload[1], cfg.reload[2])
+			if unit.gun and (center - unit.gun.WorldPosition).Magnitude < 170 and clearSight(unit.gun.WorldPosition, target) then
+				burst(unit, cfg.damage, cfg.burst)
+			end
+		end
+	end
+
+	-- Ponto de descida do AV: na faixa de uma rua perto do procurado, com o céu livre até o asfalto.
+	local function dropPoint(center: Vector3): Vector3?
+		local lines = S.lines
+		if not lines then
+			return nil
+		end
+		local x1, wx = nearestLine(lines, center.X)
+		local z1, wz = nearestLine(lines, center.Z)
+		local options = {}
+		for _, shift in { 0, 28, -28, 52, -52 } do
+			table.insert(options, Vector3.new(x1 + laneOffset(wx), ROAD, center.Z + shift))
+			table.insert(options, Vector3.new(center.X + shift, ROAD, z1 + laneOffset(wz)))
+		end
+		table.sort(options, function(a, b)
+			return math.abs((a - center).Magnitude - 34) < math.abs((b - center).Magnitude - 34)
+		end)
+		for _, point in options do
+			local distance = (Vector3.new(point.X, center.Y, point.Z) - center).Magnitude
+			if distance > 14 and distance < 95 and not S.inSafeZone(point) then
+				local ground = floorAt(point.X, point.Z)
+				if ground < 3 then
+					return Vector3.new(point.X, ground, point.Z)
+				end
+			end
+		end
+		return nil
+	end
+
+	-- Rapel: o soldado nasce na porta e desce numa corda com guincho até o chão; lá ele entra no tiroteio.
+	local function rappel(unit, index: number, height: number)
+		local door = unit.root:FindFirstChild("Porta" .. (index % 2 + 1))
+		if not door or not door:IsA("Attachment") then
+			return
+		end
+		local start = door.WorldPosition - Vector3.new(0, 4.6, 0)
+		local npc = S.npc.spawn("swat", start, { weapon = POLICE.swat.weapon, speed = POLICE.swat.speed, yaw = random.range(0, 6.28) })
+		npc.squad = unit
+		local hook = Instance.new("Attachment")
+		hook.Name = "Rapel"
+		hook.Position = Vector3.new(0, 0.8, 0)
+		hook.Parent = npc.root
+		local rope = Instance.new("RopeConstraint")
+		rope.Attachment0 = door
+		rope.Attachment1 = hook
+		rope.Length = 2.4
+		rope.Visible = true
+		rope.Thickness = 0.12
+		rope.Color = BrickColor.new("Black")
+		rope.WinchEnabled = true
+		rope.WinchTarget = math.max(height - 2.5, 3)
+		rope.WinchSpeed = 11
+		rope.WinchForce = 4e4
+		rope.WinchResponsiveness = 40
+		rope.Parent = unit.root
+		table.insert(unit.ropes, { rope = rope, hook = hook, npc = npc, at = os.clock() })
+		table.insert(unit.squad, npc)
+		playAt(unit.root, POLICE.sounds.rapel, 1.6, 140)
+	end
+
+	-- AV: chega alto, desce na rua perto do procurado, solta a SWAT de rapel, sobe e fica rondando (com a torreta
+	-- atirando a partir de 6 estrelas). Se a equipe cair, volta para soltar outra (até POLICE.av.drops vezes).
+	local function avThink(unit, now: number, dt: number)
+		local cfg = POLICE.av
+		local position = unit.root.Position
+		for index = #unit.ropes, 1, -1 do
+			local entry = unit.ropes[index]
+			local npc = entry.npc
+			local landed = false
+			if npc.removed or npc.state == "morto" then
+				landed = true
+			else
+				ignore(npc.model)
+				landed = workspace:Raycast(npc.root.Position, Vector3.new(0, -3.6, 0), ray) ~= nil or now - entry.at > 5.5
+			end
+			if landed then
+				entry.rope:Destroy()
+				entry.hook:Destroy()
+				table.remove(unit.ropes, index)
+				if not npc.removed and npc.state ~= "morto" then
+					S.npc.engage(npc, unit.target)
+				end
+			end
+		end
+		if unit.leaving then
+			unit.align.Position = unit.exit
+			face(unit, unit.exit - position, 0.18)
+			if now - unit.leaveAt > 14 then
+				remove(unit)
+			end
+			return
+		end
+		local target = rootOf(unit.target)
+		if not target then
+			return
+		end
+		local center = target.Position
+		if unit.state == "chegando" then
+			unit.drop = unit.drop or dropPoint(center)
+			local spot = unit.drop or center
+			local cruise = math.max(floorAt(position.X, position.Z), floorAt(spot.X, spot.Z), center.Y) + 40
+			unit.align.Position = Vector3.new(spot.X, cruise, spot.Z)
+			face(unit, spot - position, 0.14)
+			if Vector3.new(spot.X - position.X, 0, spot.Z - position.Z).Magnitude < 10 then
+				unit.state = if unit.drop then "descendo" else "orbita"
+			end
+		elseif unit.state == "descendo" then
+			unit.align.Position = unit.drop + Vector3.new(0, 9, 0)
+			face(unit, center - position, 0)
+			if position.Y - unit.drop.Y < 10.5 then
+				unit.state, unit.dropped, unit.nextRope, unit.squad = "rapel", 0, now, {}
+				unit.drops = (unit.drops or 0) + 1
+			end
+		elseif unit.state == "rapel" then
+			face(unit, center - position, 0)
+			if unit.dropped < cfg.squad and now >= unit.nextRope then
+				unit.dropped += 1
+				unit.nextRope = now + 0.8
+				rappel(unit, unit.dropped, position.Y - unit.drop.Y)
+			elseif unit.dropped >= cfg.squad and #unit.ropes == 0 then
+				unit.state = "orbita"
+				unit.drop = nil
+				unit.redropAt = now + 25
+			end
+		else
+			local offset = Vector3.new(position.X - center.X, 0, position.Z - center.Z)
+			unit.angle = (unit.angle or math.atan2(offset.Z, offset.X)) + dt * 0.35
+			local goal = center + Vector3.new(math.cos(unit.angle), 0, math.sin(unit.angle)) * 42
+			if now >= (unit.nextFloor or 0) then
+				unit.nextFloor = now + 0.5
+				unit.floor = math.max(floorAt(goal.X, goal.Z), floorAt(position.X, position.Z))
+			end
+			unit.align.Position = Vector3.new(goal.X, math.max(center.Y + cfg.hover, (unit.floor or 0) + 18), goal.Z)
+			face(unit, center - position, 0.05)
+			local alive = 0
+			for _, npc in unit.squad or {} do
+				if not npc.removed and npc.state ~= "morto" then
+					alive += 1
+				end
+			end
+			if alive == 0 and (unit.drops or 0) < cfg.drops and now >= (unit.redropAt or 0) then
+				unit.state = "chegando"
+			end
+			if S.crime.level(unit.target) >= cfg.gunner and now >= unit.nextShot and not S.inSafeZone(center) then
+				unit.nextShot = now + random.range(cfg.reload[1], cfg.reload[2])
+				if unit.gun and clearSight(unit.gun.WorldPosition, target) then
+					burst(unit, cfg.damage, 2)
+				end
+			end
+		end
+	end
+
+	-- Tanque: anda pelas faixas até ter o procurado à vista; aí para, gira a torre e atira o canhão. A mira
+	-- (laser vermelho no cliente) aparece POLICE.tank.windup segundos antes, no ponto onde o alvo estava.
+	local TURRET = CFrame.new(0, 2.7, 1)
+	local MUZZLE = Vector3.new(0, 0.3, -12.15)
+	local function tankThink(unit, now: number, _dt: number)
+		local cfg = POLICE.tank
+		local root = unit.root
+		local position = root.Position
+		local target = rootOf(unit.target)
+		if unit.leaving or not target then
+			local back = unit.route[1]
+			unit.align.Position = back
+			face(unit, back - position, 0)
+			if unit.leaving and (now - unit.leaveAt > 25 or (Vector3.new(back.X - position.X, 0, back.Z - position.Z)).Magnitude < 6) then
+				remove(unit)
+			end
+			return
+		end
+		local toTarget = target.Position - position
+		local distance = toTarget.Magnitude
+		local localDir = root.CFrame:VectorToObjectSpace(toTarget)
+		local yaw = math.atan2(-localDir.X, -localDir.Z)
+		unit.yaw = yaw
+		if math.abs((unit.model:GetAttribute("MiraYaw") or 0) - yaw) > 0.03 then
+			unit.model:SetAttribute("MiraYaw", yaw)
+		end
+		local muzzle = (root.CFrame * TURRET * CFrame.Angles(0, yaw, 0)) * MUZZLE
+		local visible = distance < cfg.reach and clearSight(muzzle, target)
+		if visible then
+			unit.align.Position = position
+		else
+			local waypoint = unit.route[unit.wp]
+			if waypoint then
+				local flat = Vector3.new(waypoint.X - position.X, 0, waypoint.Z - position.Z)
+				if flat.Magnitude < 6 then
+					unit.wp += 1
+				else
+					unit.align.Position = waypoint
+					face(unit, flat, 0)
+				end
+				if (position - (unit.lastPos or position)).Magnitude > 1.5 then
+					unit.lastPos, unit.movedAt = position, now
+				elseif now - (unit.movedAt or now) > 3 then
+					unit.wp += 1
+					unit.movedAt = now
+				end
+			end
+		end
+		if visible and not unit.charging and now >= unit.nextShot and not S.inSafeZone(target.Position) then
+			unit.charging = true
+			local lock = target.Position - Vector3.new(0, 1.5, 0)
+			unit.model:SetAttribute("MiraPonto", lock)
+			unit.model:SetAttribute("CargaAte", S.now() + cfg.windup)
+			playAt(root, 9125980435, 4, 260) -- PSE Spaceship Pre Blast, Electric Charge Up
+			task.delay(cfg.windup, function()
+				unit.charging = false
+				unit.nextShot = os.clock() + random.range(cfg.reload[1], cfg.reload[2])
+				if unit.dead or unit.leaving or not root.Parent then
+					return
+				end
+				local from = (root.CFrame * TURRET * CFrame.Angles(0, unit.yaw or 0, 0)) * MUZZLE
+				local reach = math.min((lock - from).Magnitude + 6, 220)
+				local direction = (lock - from).Unit
+				ray.FilterDescendantsInstances = { folder }
+				local result = workspace:Raycast(from, direction * reach, ray)
+				local point = if result then result.Position else from + direction * reach
+				playAt(root, POLICE.sounds.carga, 3, 520, 0.42)
+				S.shotFx(unit.model, "canhao", from, { { point, if result then result.Normal else -direction, false } })
+				blast(point, cfg.blast, cfg.damage)
+			end)
+		end
+	end
+
+	local THINK = { helicoptero = heliThink, av = avThink, tanque = tankThink }
+	local elapsed = 0
+	S.RunService.Heartbeat:Connect(function(dt)
+		elapsed += dt
+		if elapsed < 0.1 then
+			return
+		end
+		local step = elapsed
+		elapsed = 0
+		local now = os.clock()
+		for index = #units, 1, -1 do
+			local unit = units[index]
+			if unit and not unit.removed then
+				if not unit.root.Parent then
+					remove(unit)
+				elseif not unit.dead then
+					if not unit.leaving and not unit.target.Parent then
+						leave(unit)
+					end
+					local ok, err = pcall(THINK[unit.kind], unit, now, step)
+					if not ok and not unit.warned then
+						unit.warned = true
+						warn("[CyberOutlaw] viatura:", err)
+					end
+				end
+			end
+		end
+	end)
+
+	local function count(kind: string, player: Player?): number
+		local n = 0
+		for _, unit in units do
+			if unit.kind == kind and not unit.dead and not unit.leaving and (player == nil or unit.target == player) then
+				n += 1
+			end
+		end
+		return n
+	end
+
+	local function aloft(center: Vector3, distance: number, lift: number): CFrame
+		local angle = random.range(0, 2 * math.pi)
+		local spot = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * distance
+		local height = math.max(floorAt(spot.X, spot.Z) + 40, center.Y + lift)
+		local position = Vector3.new(spot.X, height, spot.Z)
+		return CFrame.lookAt(position, Vector3.new(center.X, height, center.Z))
+	end
+
+	local function spawnTank(player: Player, center: Vector3): boolean
+		local lines = S.lines
+		if not lines then
+			return false
+		end
+		local options = {}
+		for _, a in lines do
+			for _, b in lines do
+				local point = Vector3.new(a[1], ROAD, b[1])
+				local distance = (Vector3.new(point.X, center.Y, point.Z) - center).Magnitude
+				if math.abs(a[1]) <= 800 and math.abs(b[1]) <= 800 and distance > 170 and distance < 320 and not S.inSafeZone(point) then
+					table.insert(options, point)
+				end
+			end
+		end
+		if #options == 0 then
+			return false
+		end
+		local start = options[random.int(1, #options)]
+		local route = streetRoute(lines, start, center, ROAD + POLICE.tank.hover)
+		if #route < 2 then
+			return false
+		end
+		local at = CFrame.lookAt(route[1], Vector3.new(route[2].X, route[1].Y, route[2].Z))
+		local unit = launch("tanque", buildTank(), at, player, POLICE.tank.health, POLICE.tank.speed,
+			{ POLICE.sounds.colchao, 1.6, 300 })
+		unit.route, unit.wp, unit.state = route, 2, "rodando"
+		unit.nextShot = os.clock() + 3
+		return true
+	end
+
+	-- Chamado pelo sistema de crimes a cada 2 s para cada procurado: manda o que falta para o nível e dispensa
+	-- o que sobrou (uma viatura nova por vez, com teto por servidor).
+	function api.think(player: Player, level: number, rootPart: BasePart)
+		for _, unit in units do
+			if unit.target == player and not unit.dead and not unit.leaving then
+				local need = if unit.kind == "helicoptero" then POLICE.heli.level elseif unit.kind == "av" then POLICE.av.level else POLICE.tank.level
+				if level < need then
+					leave(unit)
+				end
+			end
+		end
+		local wantAV = POLICE.av.count[math.clamp(level, 1, #POLICE.av.count)] or 0
+		for _, unit in units do
+			if count("av", player) <= wantAV then
+				break
+			end
+			if unit.kind == "av" and unit.target == player and not unit.dead and not unit.leaving then
+				leave(unit)
+			end
+		end
+		local center = rootPart.Position
+		if S.inSafeZone(center) then
+			return
+		end
+		if level >= POLICE.heli.level and count("helicoptero", player) == 0 and count("helicoptero", nil) < POLICE.caps.heli then
+			launch("helicoptero", buildHeli(), aloft(center, 260, 90), player, POLICE.heli.health, POLICE.heli.speed,
+				{ POLICE.sounds.rotor, 2.2, 480 })
+			S.notify(player, "policia", "helicoptero")
+			return
+		end
+		if count("av", player) < wantAV and count("av", nil) < POLICE.caps.av then
+			launch("av", buildAV(), aloft(center, 300, 110), player, POLICE.av.health, POLICE.av.speed,
+				{ POLICE.sounds.turbina, 1.2, 320, 8, 33 })
+			S.notify(player, "policia", "swat")
+			return
+		end
+		if level >= POLICE.tank.level and count("tanque", player) == 0 and count("tanque", nil) < POLICE.caps.tank then
+			if spawnTank(player, center) then
+				S.notify(player, "policia", "tanque")
+			end
+		end
+	end
+
+	function api.release(player: Player)
+		for _, unit in units do
+			if unit.target == player then
+				leave(unit)
+			end
+		end
+	end
+
+	-- Helicóptero e AV veem de longe: com eles no ar o procurado só despista escondido (dentro de prédio,
+	-- embaixo do viaduto).
+	function api.sees(player: Player, rootPart: BasePart): boolean
+		for _, unit in units do
+			if unit.target == player and not unit.dead and not unit.leaving then
+				local sight = if unit.kind == "helicoptero" then POLICE.heli.sight elseif unit.kind == "av" then POLICE.av.sight else 140
+				local eye = unit.root.Position - Vector3.new(0, 3, 0)
+				if (eye - rootPart.Position).Magnitude < sight and clearSight(eye, rootPart) then
+					return true
+				end
+			end
+		end
+		return false
+	end
+	return api
+end
+
 -- Assaltos e nível de procurado (polícia PMMB).
 local function crimeSystem(S)
 	local api = {}
@@ -3412,6 +4514,7 @@ local function crimeSystem(S)
 	function api.clear(player: Player)
 		wanted[player] = nil
 		publish(player)
+		S.police.release(player)
 	end
 
 	local function screenText(spot, text: string, color: Color3)
@@ -3578,13 +4681,15 @@ local function crimeSystem(S)
 			api.crime(killer, "civil")
 		elseif npc.kind == "policia" then
 			api.crime(killer, "policia")
+		elseif npc.kind == "swat" then
+			api.crime(killer, "swat")
 		elseif (npc.kind == "gangue" or npc.kind == "alvo") and not npc.mission then
 			local range = ECONOMY.loot[npc.kind]
 			S.data.give(killer, math.random(range[1], range[2]), "Saque da gangue")
 		end
 	end
 	function api.npcAttacked(npc, player: Player)
-		if npc.kind == "policia" then
+		if npc.kind == "policia" or npc.kind == "swat" then
 			local last = copNoise[player]
 			if not last or os.clock() - last > 8 then
 				copNoise[player] = os.clock()
@@ -3595,7 +4700,7 @@ local function crimeSystem(S)
 	-- Tiro perto de policial também vira procurado.
 	function api.shot(player: Player, position: Vector3)
 		for _, npc in S.npc.list do
-			if npc.kind == "policia" and npc.state ~= "morto" and (npc.root.Position - position).Magnitude < 70 then
+			if (npc.kind == "policia" or npc.kind == "swat") and npc.state ~= "morto" and (npc.root.Position - position).Magnitude < 70 then
 				local last = copNoise[player]
 				if not last or os.clock() - last > 8 then
 					copNoise[player] = os.clock()
@@ -3606,7 +4711,8 @@ local function crimeSystem(S)
 		end
 	end
 
-	-- Visto pela polícia, o nível segura; longe dela, cai uma estrela a cada WANTED.decay segundos.
+	-- Visto pela polícia (a pé, do helicóptero ou do AV), o nível segura; escondido, cai uma estrela a cada
+	-- WANTED.decay[nível] segundos.
 	local random = rand(os.time() % 7777 + 3)
 	task.spawn(function()
 		local tick = 0
@@ -3624,11 +4730,13 @@ local function crimeSystem(S)
 				local seen = false
 				if rootPart and rootPart:IsA("BasePart") then
 					for _, npc in S.npc.list do
-						if npc.kind == "policia" and npc.state ~= "morto" and (npc.root.Position - rootPart.Position).Magnitude < WANTED.seen and S.npc.sees(npc, rootPart) then
+						if (npc.kind == "policia" or npc.kind == "swat") and npc.state ~= "morto" and (npc.root.Position - rootPart.Position).Magnitude < WANTED.seen
+							and S.npc.sees(npc, rootPart) then
 							seen = true
 							break
 						end
 					end
+					seen = seen or S.police.sees(player, rootPart)
 				end
 				if seen then
 					entry.lastSeen = now
@@ -3638,11 +4746,12 @@ local function crimeSystem(S)
 					publish(player)
 				end
 				local safe = rootPart and S.inSafeZone(rootPart.Position)
-				if not safe and now - entry.lastSeen > WANTED.decay then
+				if not safe and now - entry.lastSeen > WANTED.decay[math.clamp(entry.level, 1, WANTED.max)] then
 					entry.level -= 1
 					entry.lastSeen = now
 					if entry.level <= 0 then
 						wanted[player] = nil
+						S.police.release(player)
 						S.notify(player, "msg", "Você despistou a polícia.")
 					end
 					publish(player)
@@ -3669,6 +4778,8 @@ local function crimeSystem(S)
 							end
 						end
 					end
+					-- Helicóptero, AVs com a SWAT e o tanque, conforme o nível.
+					S.police.think(player, entry.level, rootPart)
 				end
 			end
 		end
@@ -4150,6 +5261,7 @@ local function main()
 	end
 	local layout = HttpService:JSONDecode(board:GetAttribute("Layout"))
 	S.blocks, S.blockList = cityBlocks(layout)
+	S.lines = layout.lines
 	local districts = layout.districts or {}
 	function S.districtAt(x: number, z: number)
 		for _, district in districts do
@@ -4181,6 +5293,11 @@ local function main()
 	function S.shotFx(model: Model, id: string, from: Vector3, hits)
 		if effect then
 			effect:FireAllClients("tiro", model, id, from, hits)
+		end
+	end
+	function S.explosionFx(position: Vector3, radius: number)
+		if effect then
+			effect:FireAllClients("explosao", position, radius)
 		end
 	end
 	local lastHurt: { [Player]: number } = {}
@@ -4264,6 +5381,7 @@ local function main()
 	S.data = dataSystem(S)
 	S.homes = homeSystem(S)
 	S.npc = npcSystem(S)
+	S.police = policeSystem(S)
 	S.crime = crimeSystem(S)
 	S.missions = missionSystem(S)
 	S.calls = callSystem(S)
