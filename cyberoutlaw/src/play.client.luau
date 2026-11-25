@@ -5415,6 +5415,187 @@ local function start()
 				frozen = nil
 			end
 		end
+		-- Detalhes do Sandevistan (tudo colorido por cima do mundo cinza, na ViewportFrame dos rastros):
+		-- onda de choque ao ligar (bolha e anel no chão), poeira suspensa no ar quase parada, cantos e leitura
+		-- "TEMPO ×0,08" com o tempo restante, bordas com aberração cromática, linhas de varredura, batida no
+		-- canto da tela e o "estalo" de volta quando desliga.
+		local sandiStep = (function()
+			local overlay = new("ScreenGui", playerGui, {
+				Name = "CyberOutlawSandevistanHUD", ResetOnSpawn = false, DisplayOrder = 3, Enabled = false, IgnoreGuiInset = true,
+				ScreenInsets = Enum.ScreenInsets.None, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			})
+			local edges = {}
+			for index, spec in { { 0, 0.16, 0, Color3.fromRGB(40, 255, 150) }, { 0.84, 0.16, 180, Color3.fromRGB(255, 40, 210) } } do
+				local edge = frame(overlay, "Aberracao", 1, {
+					Position = UDim2.fromScale(spec[1], 0), Size = UDim2.fromScale(spec[2], 1), BackgroundTransparency = 0, BackgroundColor3 = spec[4],
+				})
+				new("UIGradient", edge, { Rotation = spec[3], Transparency = NumberSequence.new(0.55, 1) })
+				edges[index] = edge
+			end
+			local lines = frame(overlay, "Varredura", 2, { Size = FULL })
+			for index = 0, 89 do
+				frame(lines, "Linha", 2, {
+					Position = UDim2.fromScale(0, index / 90), Size = UDim2.new(1, 0, 0, 1), BackgroundTransparency = 0.9, BackgroundColor3 = Color3.new(0, 0, 0),
+				})
+			end
+			local brackets = {}
+			for _, spec in { { 0, 0, 1, 1 }, { 1, 0, -1, 1 }, { 0, 1, 1, -1 }, { 1, 1, -1, -1 } } do
+				local holder = frame(overlay, "Canto", 4, {
+					AnchorPoint = Vector2.new(spec[1], spec[2]), Position = UDim2.new(spec[1], -spec[3] * 26, spec[2], -spec[4] * 26), Size = UDim2.fromOffset(46, 46),
+				})
+				local across = frame(holder, "H", 4, {
+					AnchorPoint = Vector2.new(spec[1], spec[2]), Position = UDim2.fromScale(spec[1], spec[2]), Size = UDim2.fromOffset(46, 3), BackgroundTransparency = 0,
+				})
+				local down = frame(holder, "V", 4, {
+					AnchorPoint = Vector2.new(spec[1], spec[2]), Position = UDim2.fromScale(spec[1], spec[2]), Size = UDim2.fromOffset(3, 46), BackgroundTransparency = 0,
+				})
+				table.insert(brackets, across)
+				table.insert(brackets, down)
+			end
+			local tech = Font.fromEnum(Enum.Font.Michroma)
+			local brand = label(overlay, "Marca", "SANDEVISTAN · ATIVO", tech, if touch then 11 else 14, Color3.fromRGB(70, 255, 140), 5, {
+				Position = UDim2.new(0, 34, 0, if touch then 70 else 40), Size = UDim2.fromOffset(320, 18), TextStrokeTransparency = 0.5,
+			})
+			local readout = label(overlay, "Tempo", "TEMPO ×0,08", tech, if touch then 18 else 26, Color3.new(1, 1, 1), 5, {
+				AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -86 else -150), Size = UDim2.fromOffset(420, 30),
+				TextXAlignment = Enum.TextXAlignment.Center, TextStrokeTransparency = 0.35,
+			})
+			local clockText = label(overlay, "Relogio", "", Font.new("rbxasset://fonts/families/RobotoMono.json", Enum.FontWeight.Bold), if touch then 12 else 15,
+				Color3.fromRGB(50, 235, 255), 5, {
+					AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -70 else -128), Size = UDim2.fromOffset(420, 18),
+					TextXAlignment = Enum.TextXAlignment.Center,
+				})
+			local track = frame(overlay, "Restante", 5, {
+				AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -64 else -120), Size = UDim2.fromOffset(if touch then 220 else 320, 3),
+				BackgroundTransparency = 0.7, BackgroundColor3 = Color3.new(1, 1, 1),
+			})
+			local fill = frame(track, "Valor", 6, { Size = FULL, BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(70, 255, 140) })
+			local gradient = new("UIGradient", fill, { Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, GHOST_COLORS[1]), ColorSequenceKeypoint.new(0.5, GHOST_COLORS[3]), ColorSequenceKeypoint.new(1, GHOST_COLORS[5]),
+			}) })
+			-- Poeira e faíscas suspensas: pedacinhos de luz quase parados em volta da câmera.
+			local motes = {}
+			for index = 1, 70 do
+				local mote = Instance.new("Part")
+				mote.Name = "Poeira"
+				mote.Anchored, mote.CanCollide, mote.CanQuery, mote.CanTouch, mote.CastShadow = true, false, false, false, false
+				mote.Material = Enum.Material.Neon
+				mote.Shape = Enum.PartType.Ball
+				local size = rng:NextNumber(0.05, 0.16)
+				mote.Size = Vector3.new(size, size, size)
+				mote.Color = if index % 5 == 0 then GHOST_COLORS[index % #GHOST_COLORS + 1] else Color3.fromRGB(220, 240, 255)
+				motes[index] = { part = mote, drift = Vector3.new(rng:NextNumber(-0.15, 0.15), rng:NextNumber(-0.08, 0.12), rng:NextNumber(-0.15, 0.15)) }
+			end
+			-- Onda de choque: bolha que cresce e anel no chão (e o contrário quando o tempo volta).
+			local bubble = Instance.new("Part")
+			bubble.Name = "Bolha"
+			bubble.Anchored, bubble.CanCollide, bubble.CanQuery, bubble.CanTouch, bubble.CastShadow = true, false, false, false, false
+			bubble.Material = Enum.Material.Neon
+			bubble.Shape = Enum.PartType.Ball
+			local ring = bubble:Clone()
+			ring.Name = "Anel"
+			ring.Shape = Enum.PartType.Cylinder
+			local inner = ring:Clone()
+			inner.Name = "AnelMiolo"
+			inner.Color = Color3.new(0, 0, 0)
+			local wave = { at = -10, center = Vector3.zero, reverse = false }
+			local was = false
+			local beat = 0
+			return function(dt: number, active: boolean)
+				local now = os.clock()
+				local root0 = character and character:FindFirstChild("HumanoidRootPart")
+				if active ~= was then
+					was = active
+					wave.at, wave.reverse = now, not active
+					wave.center = if root0 and root0:IsA("BasePart") then root0.Position - Vector3.new(0, 2.9, 0) else camera.Focus.Position
+					if active then
+						-- A poeira aparece espalhada em volta de onde a câmera está agora.
+						for _, mote in motes do
+							mote.part.Position = camera.CFrame.Position + Vector3.new(rng:NextNumber(-28, 28), rng:NextNumber(-6, 14), rng:NextNumber(-28, 28))
+						end
+					end
+				end
+				local age = now - wave.at
+				local span = if wave.reverse then 0.35 else 0.7
+				local k = math.clamp(age / span, 0, 1)
+				if k < 1 then
+					local grow = if wave.reverse then 1 - k else 1 - (1 - k) ^ 3
+					local radius = 4 + 76 * grow
+					local tone = GHOST_COLORS[math.floor(now * 12) % #GHOST_COLORS + 1]
+					bubble.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
+					bubble.CFrame = CFrame.new(wave.center + Vector3.new(0, 3, 0))
+					bubble.Color = tone
+					bubble.Transparency = 0.78 + 0.22 * k
+					ring.Size = Vector3.new(0.12, radius * 2.2, radius * 2.2)
+					ring.CFrame = CFrame.new(wave.center + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+					ring.Color = tone
+					ring.Transparency = 0.2 + 0.8 * k
+					inner.Size = Vector3.new(0.14, radius * 2.2 - 1.6, radius * 2.2 - 1.6)
+					inner.CFrame = ring.CFrame
+					inner.Transparency = 1
+					bubble.Parent, ring.Parent = trailView, trailView
+				else
+					bubble.Parent, ring.Parent = nil, nil
+				end
+				overlay.Enabled = fx.slow > 0.02
+				if not overlay.Enabled then
+					for _, mote in motes do
+						mote.part.Parent = nil
+					end
+					return
+				end
+				local alpha = fx.slow
+				beat += dt
+				local pulse = 0.5 + 0.5 * math.sin(beat * 7.5)
+				for index, edge in edges do
+					edge.BackgroundTransparency = 1 - alpha * (0.55 + 0.25 * pulse)
+					edge.Position = UDim2.fromScale(if index == 1 then 0 else 0.84, 0) + UDim2.fromOffset((if index == 1 then -1 else 1) * 4 * pulse, 0)
+				end
+				lines.Position = UDim2.fromOffset(0, (beat * 30) % 6)
+				for _, child in lines:GetChildren() do
+					if child:IsA("Frame") then
+						child.BackgroundTransparency = 1 - 0.12 * alpha
+					end
+				end
+				local tone = GHOST_COLORS[math.floor(now * 8) % #GHOST_COLORS + 1]
+				for _, piece in brackets do
+					piece.BackgroundColor3 = tone
+					piece.BackgroundTransparency = 1 - alpha
+				end
+				brand.TextColor3 = tone
+				brand.TextTransparency = 1 - alpha
+				local left = if character then math.max(0, timeAttr(character, "CyberOutlawSandevistanAte") - serverNow()) else 0
+				local total = math.max(0.5, sandevistanStats.duracao or 4)
+				readout.Text = string.format("TEMPO ×%s", string.gsub(string.format("%.2f", sandevistanStats.lento or 0.08), "%.", ","))
+				readout.TextTransparency = 1 - alpha * (if rng:NextNumber() < 0.05 then 0.4 else 1)
+				readout.Position = UDim2.new(0.5, if rng:NextNumber() < 0.06 then rng:NextInteger(-4, 4) else 0, 1, if touch then -86 else -150)
+				clockText.Text = string.format("00:%05.2f  ·  ESTABILIDADE %d%%", left, math.floor(abilityFx.stability or 100))
+				clockText.TextTransparency = 1 - alpha
+				fill.Size = UDim2.fromScale(math.clamp(left / total, 0, 1), 1)
+				gradient.Offset = Vector2.new((now * 0.6) % 1 - 0.5, 0)
+				track.BackgroundTransparency = 1 - 0.3 * alpha
+				fill.BackgroundTransparency = 1 - alpha
+				local eye = camera.CFrame.Position
+				for _, mote in motes do
+					local part0 = mote.part
+					local position = part0.Position + mote.drift * dt
+					-- Fica sempre perto da câmera: quem sai do cubo volta do outro lado.
+					local offset = position - eye
+					if math.abs(offset.X) > 30 then
+						position -= Vector3.new(math.sign(offset.X) * 60, 0, 0)
+					end
+					if math.abs(offset.Z) > 30 then
+						position -= Vector3.new(0, 0, math.sign(offset.Z) * 60)
+					end
+					if offset.Y > 16 or offset.Y < -8 then
+						position = Vector3.new(position.X, eye.Y + rng:NextNumber(-6, 14), position.Z)
+					end
+					part0.Position = position
+					part0.Transparency = 1 - alpha * 0.85
+					part0.Parent = trailView
+				end
+			end
+		end)()
 		local function approach(value: number, goal: number, rate: number): number
 			return value + (goal - value) * math.min(1, rate)
 		end
@@ -5432,7 +5613,10 @@ local function start()
 			slowGrade.Saturation = -1 * fx.slow - 0.25 * fx.slowed
 			slowGrade.Contrast = 0.3 * fx.slow
 			slowGrade.Brightness = 0.35 * flash - 0.04 * fx.slow
-			abilityFov = 10 * fx.slow + 6 * flash
+			-- Zoom: fecha um instante (o "soco" do tempo parando) e depois abre mais largo que o normal.
+			local snap = math.clamp(1 - (os.clock() - abilityFx.flashAt) / 0.16, 0, 1)
+			abilityFov = 12 * fx.slow + 8 * flash - 16 * snap
+			pcall(sandiStep, dt, active)
 			trailGui.Enabled = fx.slow > 0.01
 			if trailGui.Enabled then
 				trailCamera.CFrame = camera.CFrame
@@ -5513,7 +5697,7 @@ local function start()
 		local ghostClock = setmetatable({}, { __mode = "k" }) :: any
 		local highlights = setmetatable({}, { __mode = "k" }) :: any
 		local rageTags = setmetatable({}, { __mode = "k" }) :: any
-		local GHOST_LIFE = 0.55
+		local GHOST_LIFE = 0.8
 		local function ghostPart(): Part
 			local item = table.remove(ghostPool)
 			if not item then
@@ -5571,7 +5755,7 @@ local function start()
 							ghostClock[model] = state
 						end
 						local moved = if state.position then (rootPart.Position - state.position).Magnitude else 99
-						if clock - state.last > 0.07 and (moved > 0.3 or clock - state.last > 0.22) then
+						if clock - state.last > 0.05 and (moved > 0.25 or clock - state.last > 0.2) then
 							state.last, state.position = clock, rootPart.Position
 							state.index += 1
 							local palette = if frenzy then FRENZY_COLORS else GHOST_COLORS

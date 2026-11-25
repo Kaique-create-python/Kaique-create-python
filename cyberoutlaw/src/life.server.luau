@@ -2533,7 +2533,8 @@ local function npcSystem(S)
 		npc.enemy = player
 		npc.state = "atacar"
 		npc.lostAt = nil
-		npc.nextShot = math.max(npc.nextShot or 0, os.clock() + random.range(0.4, 0.9))
+		-- Tempo de reação: ninguém atira no mesmo instante em que te vê.
+		npc.nextShot = math.max(npc.nextShot or 0, os.clock() + random.range(1.0, 1.8))
 		npc.humanoid.WalkSpeed = if npc.kind == "policia" then 17 else 15
 		npc.model:SetAttribute("CyberOutlawMirando", true)
 	end
@@ -2697,7 +2698,9 @@ local function npcSystem(S)
 		local aimPart = (random.chance(0.12) and character:FindFirstChild("Head")) or character:FindFirstChild("Torso") or aimRoot
 		local distance = (aimPart.Position - from).Magnitude
 		local speed = aimRoot.AssemblyLinearVelocity.Magnitude
-		local spread = math.rad((def.spread or 1) * 1.4 + 2.2 + distance * 0.025 + speed * 0.12)
+		-- Mira de gente, não de robô: espalha mais com a distância, com o alvo correndo e no Sandevistan.
+		local slowed = (character:GetAttribute("CyberOutlawSandevistanAte") or 0) > S.now()
+		local spread = math.rad((def.spread or 1) * 2 + 5 + distance * 0.05 + speed * 0.45 + (if slowed then 8 else 0))
 		local range = def.range or 200
 		ray.FilterDescendantsInstances = { npc.model }
 		local hits, damage = {}, 0
@@ -2708,7 +2711,7 @@ local function npcSystem(S)
 			local onTarget = false
 			if result and characterOf(result.Instance) == character then
 				onTarget = true
-				damage += (def.damage or 12) * 0.5 * (if result.Instance.Name == "Head" then 1.5 else 1)
+				damage += (def.damage or 12) * (if npc.kind == "policia" then 0.36 else 0.3) * (if result.Instance.Name == "Head" then 1.4 else 1)
 			end
 			table.insert(hits, { point, if result then result.Normal else -direction, onTarget })
 		end
@@ -2766,16 +2769,31 @@ local function npcSystem(S)
 			local side = Vector3.new(-flat.Z, 0, flat.X).Unit * random.range(-5, 5)
 			walkTo(npc, npc.root.Position + side)
 		end
-		if visible and now >= (npc.nextShot or 0) then
+		-- No máximo dois atiram em você ao mesmo tempo (os outros se mexem e esperam a vez), e com o
+		-- Sandevistan ligado o tempo deles quase para.
+		local shooters = 0
+		for _, other in list do
+			if other ~= npc and other.enemy == player and other.state == "atacar" and other.lastFired and now - other.lastFired < 1.4 then
+				shooters += 1
+			end
+		end
+		local stopped = (character:GetAttribute("CyberOutlawSandevistanAte") or 0) > S.now()
+		if stopped then
+			npc.humanoid.WalkSpeed = 1.5
+		elseif npc.humanoid.WalkSpeed < 5 then
+			npc.humanoid.WalkSpeed = if npc.kind == "policia" then 17 else 15
+		end
+		if visible and now >= (npc.nextShot or 0) and shooters < 2 and not (stopped and random.chance(0.85)) then
 			fire(npc, character)
+			npc.lastFired = now
 			local def = npc.weapon
 			npc.burst = (npc.burst or 0) + 1
-			local limit = if def.auto then random.int(3, 5) else random.int(1, 2)
+			local limit = if def.auto then random.int(2, 4) else 1
 			if npc.burst >= limit then
 				npc.burst = 0
-				npc.nextShot = now + random.range(1.1, 1.9)
+				npc.nextShot = now + random.range(1.6, 2.6)
 			else
-				npc.nextShot = now + math.max(0.18, 1 / (def.rate or 2))
+				npc.nextShot = now + math.max(0.22, 1.4 / (def.rate or 2))
 			end
 		end
 	end
