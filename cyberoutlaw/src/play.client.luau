@@ -2830,7 +2830,7 @@ local function start()
 	local cam = {
 		yaw = 0, pitch = math.rad(-10), focus = nil, focusVel = Vector3.zero, height = 0, heightVel = 0,
 		distance = 11.5, distanceVel = 0, shoulder = 1.35, shoulderVel = 0, fov = 70, fovVel = 0,
-		lastInput = 0, trauma = 0, kick = 0, kickYaw = 0, side = 1, deathSpin = 0,
+		lastInput = 0, trauma = 0, kick = 0, kickYaw = 0, side = 1, deathSpin = 0, punch = 0,
 	}
 	local touchCamera: { [InputObject]: Vector3 } = {}
 	local stick = Vector2.zero
@@ -3547,6 +3547,69 @@ local function start()
 		combat.hit(false)
 	end
 
+	-- Impacto: som carnudo, tranco na câmera, zoom curto, sangue/faíscas, o alvo pisca e dá um solavanco.
+	local hitFlash = Instance.new("Highlight")
+	hitFlash.Name = "CyberOutlawAcerto"
+	hitFlash.FillColor = Color3.new(1, 1, 1)
+	hitFlash.OutlineColor = Color3.fromRGB(255, 60, 80)
+	hitFlash.FillTransparency = 1
+	hitFlash.OutlineTransparency = 1
+	hitFlash.DepthMode = Enum.HighlightDepthMode.Occluded
+	hitFlash.Parent = camera
+	local flashAt = -10
+	local function targetNear(position: Vector3): Model?
+		local best, bestDistance = nil, 5
+		local function test(model: Instance?)
+			local rootPart = model and model:FindFirstChild("HumanoidRootPart")
+			if model and model ~= character and rootPart and rootPart:IsA("BasePart") then
+				local distance = (rootPart.Position - position).Magnitude
+				if distance < bestDistance then
+					best, bestDistance = model :: Model, distance
+				end
+			end
+		end
+		for _, other in Players:GetPlayers() do
+			test(other.Character)
+		end
+		local npcs = Workspace:FindFirstChild("CyberOutlawNPCs")
+		for _, model in if npcs then npcs:GetChildren() else {} do
+			test(model)
+		end
+		return best
+	end
+	local function impact(position: Vector3, normal: Vector3?, heavy: boolean?)
+		local target = targetNear(position)
+		local headHit = false
+		if target then
+			local targetHead = target:FindFirstChild("Head")
+			headHit = targetHead ~= nil and targetHead:IsA("BasePart") and (targetHead.Position - position).Magnitude < 1.1
+			hitFlash.Adornee = target
+			flashAt = os.clock()
+			local state = poses[target] or {}
+			poses[target] = state
+			local rootPart = target:FindFirstChild("HumanoidRootPart")
+			local push = if rootPart and rootPart:IsA("BasePart") and root then rootPart.CFrame:VectorToObjectSpace((rootPart.Position - root.Position).Unit) else Vector3.zAxis
+			state.hurtAt = os.clock()
+			state.hurtPitch = math.clamp(push.Z, -1, 1) * (if heavy then 0.55 else 0.32)
+			state.hurtRoll = math.clamp(-push.X, -1, 1) * (if heavy then 0.45 else 0.26)
+		end
+		sound(if headHit then pick("acerto_cabeca", "acerto") else "acerto", nil, if heavy then 0.95 else 0.8)
+		cam.trauma = math.min(1, cam.trauma + (if heavy then 0.32 else 0.16))
+		cam.punch = math.min(1.6, (cam.punch or 0) + (if heavy then 1 else 0.55))
+		spark(position, Color3.fromRGB(190, 10, 30), if heavy then 14 else 9, normal)
+		spark(position, Color3.fromRGB(255, 220, 160), 4, normal)
+		combat.hit(headHit)
+	end
+	RunService.RenderStepped:Connect(function()
+		local age = os.clock() - flashAt
+		local alpha = math.clamp(age / 0.18, 0, 1)
+		hitFlash.FillTransparency = 0.35 + 0.65 * alpha
+		hitFlash.OutlineTransparency = alpha
+		if alpha >= 1 then
+			hitFlash.Adornee = nil
+		end
+	end)
+
 	-- Weapons ------------------------------------------------------------------------------------
 	local function equip(id: string)
 		if not byId[id] or (dead) then
@@ -3702,13 +3765,13 @@ local function start()
 				local rootPart = model and model:FindFirstChild("HumanoidRootPart")
 				if who == player then
 					abilityFx.flashAt = os.clock()
-					sound(pick("habilidade_lenta", "glitch"), nil, 0.8)
+					sound(pick("parar_tempo", "habilidade_lenta"), nil, 0.95)
 					if b == true then
 						abilityFx.rageAt = os.clock()
-						task.delay(0.15, sound, pick("surto", "glitch"), nil, 0.9)
+						task.delay(0.15, sound, "surto", nil, 0.9)
 					end
 				elseif rootPart then
-					sound(pick("habilidade_lenta", "glitch"), rootPart, 0.7)
+					sound(pick("parar_tempo", "habilidade_lenta"), rootPart, 0.8)
 				end
 				return
 			end
@@ -3722,9 +3785,8 @@ local function start()
 			if kind == "tiro" and type(b) == "table" then
 				if who == player then
 					for _, hit in b do
-						if hit[3] then
-							showHit()
-							sound(pick("ui_tick", "click"), nil, 0.45)
+						if hit[3] and typeof(hit[1]) == "Vector3" then
+							impact(hit[1], if typeof(hit[2]) == "Vector3" then hit[2] else nil, weapon ~= nil and (weapon.damage or 0) >= 40)
 							break
 						end
 					end
@@ -3761,8 +3823,7 @@ local function start()
 					spark(b, Color3.fromRGB(255, 120, 90), 5)
 				end
 			elseif kind == "golpe" and who == player and typeof(b) == "Vector3" then
-				showHit()
-				spark(b, Color3.fromRGB(255, 120, 90), 6)
+				impact(b + Vector3.new(0, 0.5, 0), nil, id == "gorila" or id == "louva" or id == "faca")
 			elseif kind == "troca" and who == player and type(id) == "string" then
 				current = id
 			end
@@ -3778,7 +3839,7 @@ local function start()
 		wheel.gui.Enabled = true
 		wheelSelection = (byId[current] and byId[current].order) or 1
 		wheel.select(wheelSelection, ammoTable)
-		sound(pick("ui_abrir", "glitch"), nil, 0.35)
+		sound("ui_abrir", nil, 0.35)
 	end
 
 	local function closeWheel(equipSelected: boolean)
@@ -3790,7 +3851,7 @@ local function start()
 			equip(defs[wheelSelection].id)
 			sound(pick("ui_confirmar", "confirm"), nil, 0.4)
 		else
-			sound(pick("ui_fechar", "glitch"), nil, 0.3)
+			sound("ui_fechar", nil, 0.3)
 		end
 	end
 
@@ -3800,7 +3861,7 @@ local function start()
 				if wheelOpen and wheelSelection ~= index then
 					wheelSelection = index
 					wheel.select(index, ammoTable)
-					sound(pick("ui_tick", "click"), nil, 0.3)
+					sound("ui_tick", nil, 0.3)
 				end
 			end)
 			entry.card.Activated:Connect(function()
@@ -3830,7 +3891,7 @@ local function start()
 			end
 			if key == "left" or key == "right" then
 				bar.setPage(bar.page + (if key == "left" then -1 else 1))
-				sound(pick("ui_tick", "click"), nil, 0.3)
+				sound("ui_tick", nil, 0.3)
 			else
 				local slot = bar.slots[key]
 				if slot and slot.id and slot.box.Visible then
@@ -3951,7 +4012,7 @@ local function start()
 					if index and index ~= wheelSelection then
 						wheelSelection = index
 						wheel.select(index, ammoTable)
-						sound(pick("ui_tick", "click"), nil, 0.3)
+						sound("ui_tick", nil, 0.3)
 					end
 				end
 			elseif not processed and UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter and not raving(character) then
@@ -4075,6 +4136,7 @@ local function start()
 		-- Recoil that returns, plus shake with intensity (trauma).
 		cam.kick *= math.exp(-dt * 9)
 		cam.kickYaw *= math.exp(-dt * 9)
+		cam.punch = (cam.punch or 0) * math.exp(-dt * 12)
 		cam.trauma = math.max(0, cam.trauma - dt * 1.6)
 		bloom = math.max(0, bloom - dt * 3)
 		playTime += dt
@@ -4099,7 +4161,7 @@ local function start()
 		else
 			cam.distance, cam.distanceVel = spring(cam.distance, cam.distanceVel, allowed, 2.2, dt)
 		end
-		camera.FieldOfView = cam.fov
+		camera.FieldOfView = cam.fov - (cam.punch or 0) * 3
 		camera.CFrame = CFrame.new(pivot - rotation.LookVector * cam.distance) * rotation
 		camera.Focus = CFrame.new(focus)
 
@@ -4234,6 +4296,16 @@ local function start()
 		local id = model:GetAttribute("CyberOutlawArma")
 		local weapon = byId[id]
 		local state = poses[model]
+		if state and state.hurtAt then
+			-- Solavanco de quem levou o tiro: o tronco tomba para trás e volta.
+			local k = 1 - (now - state.hurtAt) / 0.3
+			local joint = model:FindFirstChild("HumanoidRootPart") and model.HumanoidRootPart:FindFirstChild("RootJoint")
+			if k <= 0 then
+				state.hurtAt = nil
+			elseif joint and joint:IsA("Motor6D") then
+				joint.Transform = joint.Transform * CFrame.Angles(state.hurtPitch * k * k, 0, state.hurtRoll * k * k)
+			end
+		end
 		local isLocal = model == character
 		local pitch = if isLocal then cam.pitch else math.rad(model:GetAttribute("CyberOutlawPitch") or 0)
 		local aimed = if isLocal then (aiming or aimToggle or raving(model)) else model:GetAttribute("CyberOutlawMirando") == true
@@ -5137,9 +5209,6 @@ local function start()
 			if open then
 				triggerHeld, aiming, aimToggle = false, false, false
 				readMind()
-				sound(pick("ui_abrir", "glitch"), nil, 0.35)
-			else
-				sound(pick("ui_fechar", "glitch"), nil, 0.3)
 			end
 			implantsButton.light(open)
 		end
@@ -5150,7 +5219,6 @@ local function start()
 			end
 			local t = serverNow()
 			if boosted(character) or raving(character) or timeAttr(character, "CyberOutlawHabilidadePronta") > t then
-				sound(pick("ui_negado", "click"), nil, 0.3)
 				return
 			end
 			action:FireServer("habilidade")
@@ -5181,13 +5249,10 @@ local function start()
 							local verb = terminal.actionFor(id)
 							if verb and id and action then
 								action:FireServer("implante", id, verb == "encaixar")
-								sound(pick("implante_encaixe", "ui_confirmar", "confirm"), nil, 0.55)
-							else
-								sound(pick("ui_negado", "click"), nil, 0.3)
+								sound("implante_encaixe", nil, 0.55)
 							end
 						elseif string.sub(key, 1, 6) == "linha:" then
 							terminal.select(string.sub(key, 7))
-							sound(pick("ui_tick", "click"), nil, 0.3)
 						end
 					end)
 				end
@@ -5639,7 +5704,7 @@ local function start()
 				doubleUsed = true
 				local v = root.AssemblyLinearVelocity
 				root.AssemblyLinearVelocity = Vector3.new(v.X, 58, v.Z)
-				sound(pick("pulo_duplo", "glitch"), nil, 0.6)
+				sound("pulo_duplo", nil, 0.6)
 				spark(root.Position - Vector3.new(0, 3, 0), Color3.fromRGB(86, 220, 255), 6, Vector3.yAxis)
 			end
 		end)

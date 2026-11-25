@@ -315,5 +315,41 @@
     "sha256": "321a1ec9a34f8f83fb73ad7e461bb32802fff0884d24f29bad469bda08887296",
     "provider": "Síntese própria",
     "source": "tools/synth_weapon_fx.py"
+  },
+  "parar_tempo": {
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py",
+    "durationSeconds": 4.6,
+    "sha256": "6fe9f30f5605575427c957e8a604e4d47fcc4597fb5402f979e6b938c93232c2"
+  },
+  "acerto": {
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py",
+    "durationSeconds": 0.38,
+    "sha256": "5cf7ee37af059a7d53bb4e12491433c01f7592c291d57310db87c1a8b6c8de6d"
+  },
+  "acerto_cabeca": {
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py",
+    "durationSeconds": 0.55,
+    "sha256": "22e8a68b42a28a025d24ebf9618dbfaecf90e4f41f63d6abc863f5721b0865b5"
+  },
+  "chamada": {
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py",
+    "durationSeconds": 1.6,
+    "sha256": "16ed4cdcce37d8bd357fafa7f654fa1cac2c0eb2ed33d7650bc5965d526b0ea3"
+  },
+  "dinheiro": {
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py",
+    "durationSeconds": 0.7,
+    "sha256": "3962e59921c50152efd5169ec92f19af460167798ee39e95e1923471c30ca72e"
+  },
+  "alarme": {
+    "provider": "Síntese própria",
+    "source": "tools/synth_weapon_fx.py",
+    "durationSeconds": 1.4,
+    "sha256": "ec1b6ed4612e5c01b218faf186f86710775ca9f07975496746f0875ff4a654b7"
   }
 }

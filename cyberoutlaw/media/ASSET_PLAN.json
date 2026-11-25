@@ -485,6 +485,66 @@
       "durationSeconds": 0.6
     },
     {
+      "key": "parar_tempo",
+      "path": "audio/parar_tempo.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "6fe9f30f5605575427c957e8a604e4d47fcc4597fb5402f979e6b938c93232c2",
+      "displayName": "CyberOutlaw parar_tempo",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 4.6
+    },
+    {
+      "key": "acerto",
+      "path": "audio/acerto.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "5cf7ee37af059a7d53bb4e12491433c01f7592c291d57310db87c1a8b6c8de6d",
+      "displayName": "CyberOutlaw acerto",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.38
+    },
+    {
+      "key": "acerto_cabeca",
+      "path": "audio/acerto_cabeca.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "22e8a68b42a28a025d24ebf9618dbfaecf90e4f41f63d6abc863f5721b0865b5",
+      "displayName": "CyberOutlaw acerto_cabeca",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.55
+    },
+    {
+      "key": "chamada",
+      "path": "audio/chamada.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "16ed4cdcce37d8bd357fafa7f654fa1cac2c0eb2ed33d7650bc5965d526b0ea3",
+      "displayName": "CyberOutlaw chamada",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 1.6
+    },
+    {
+      "key": "dinheiro",
+      "path": "audio/dinheiro.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "3962e59921c50152efd5169ec92f19af460167798ee39e95e1923471c30ca72e",
+      "displayName": "CyberOutlaw dinheiro",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 0.7
+    },
+    {
+      "key": "alarme",
+      "path": "audio/alarme.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "ec1b6ed4612e5c01b218faf186f86710775ca9f07975496746f0875ff4a654b7",
+      "displayName": "CyberOutlaw alarme",
+      "description": "Efeito eletrônico original.",
+      "durationSeconds": 1.4
+    },
+    {
       "key": "title",
       "path": "art/title.png",
       "assetType": "Image",

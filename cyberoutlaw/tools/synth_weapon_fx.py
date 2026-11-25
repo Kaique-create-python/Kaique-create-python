@@ -249,6 +249,100 @@ def implant_lock():
     return whir + click(n, 0.24, 2400, 81, 1.1) + click(n, 0.3, 3200, 82, 0.9) + beep
 
 
+def time_stop():
+    """Parar o tempo (Sandevistan): pratos ao contrário que sugam o ar, um gongo enorme e grave (parciais de
+    sino a 41 Hz), o mundo "desligando" como fita que freia, e um relógio cujo tique-taque desacelera.
+    Nada de onda quadrada: só senos, ruído filtrado e reverb longo de catedral."""
+    n = int(RATE * 4.6)
+    t = np.arange(n) / RATE
+    hit = 0.75
+    pre = np.clip(t / hit, 0, 1) ** 4 * (t < hit + 0.01)
+    swell = (biquad(noise(n, 141), "high", 3000) * 0.6 + biquad(noise(n, 142), "band", 900, 0.8) * 0.5) * pre * 0.8
+    suck = np.sin(glide(60, 420, hit, t)) * pre * 0.3
+    after = np.clip(t - hit, 0, None)
+    on = t >= hit
+    gong = np.zeros(n)
+    for ratio, gain, dec in ((1.0, 1.0, 0.55), (2.76, 0.45, 0.9), (5.40, 0.22, 1.4), (8.93, 0.1, 2.0), (0.5, 0.6, 0.45)):
+        bend = 1 - 0.18 * np.clip(after / 3.5, 0, 1)
+        gong += np.sin(2 * np.pi * np.cumsum(41.0 * ratio * bend) / RATE) * gain * env(after, 0.006, dec)
+    gong = np.tanh(gong * 1.8) * on
+    sub = np.tanh(np.sin(glide(70, 22, 2.2, after)) * 2.5) * on * env(after, 0.004, 0.8) * 0.9
+    slam = biquad(noise(n, 143), "low", 160) * on * env(after, 0.001, 7) * 1.8
+    # "Fita freando": um acorde grave que perde a afinação até parar.
+    stop = np.clip(1 - after / 1.6, 0, 1) ** 2
+    chord = sum(np.sin(2 * np.pi * np.cumsum(f * stop) / RATE) * g for f, g in ((110, 0.4), (164.8, 0.28), (220, 0.2)))
+    chord = biquad(chord, "low", 900) * on * stop * 0.6
+    clock = np.zeros(n)
+    beat, gap, k = hit + 0.55, 0.32, 0
+    while beat < 4.4:
+        bt = np.clip(t - beat, 0, None)
+        freq = 2100 if k % 2 == 0 else 1650
+        clock += (biquad(noise(n, 150 + k), "band", freq, 6) * 1.2 + np.sin(2 * np.pi * freq * 0.5 * bt) * 0.4) * (t >= beat) * env(bt, 0.0006, 70)
+        beat += gap
+        gap *= 1.28
+        k += 1
+    clock *= 0.35
+    mix = swell + suck + gong * 0.9 + sub + slam + chord + clock
+    return reverb(mix, 144, seconds=3.2, decay=1.4, amount=0.55, cutoff=3500)
+
+
+def hit_flesh():
+    """Acerto (tiro ou soco num corpo): baque grave e carnudo, um tapa abafado e um estalo seco curto."""
+    n = int(RATE * 0.38)
+    t = np.arange(n) / RATE
+    thump = np.tanh(np.sin(glide(95, 42, 0.12, t)) * 3.0) * env(t, 0.001, 16) * 1.0
+    slap = biquad(noise(n, 161), "band", 650, 1.2) * env(t, 0.0008, 38) * 0.9
+    crunch = biquad(noise(n, 162), "band", 2400, 2.0) * env(t, 0.0004, 90) * 0.4
+    return tail(thump + slap + crunch, 163, decay=14, amount=0.15)
+
+
+def hit_critical():
+    """Acerto na cabeça: o mesmo baque mais pesado com um estalo metálico agudo por cima."""
+    n = int(RATE * 0.55)
+    t = np.arange(n) / RATE
+    base = np.zeros(n)
+    flesh = hit_flesh()
+    base[: len(flesh)] += flesh * 1.1
+    ping = sum(np.sin(2 * np.pi * f * t) * g for f, g in ((1890, 0.18), (3150, 0.1), (4420, 0.05))) * env(t, 0.001, 11)
+    boom = np.tanh(np.sin(glide(60, 30, 0.25, t)) * 2) * env(t, 0.002, 6) * 0.6
+    return reverb(base + ping + boom, 164, seconds=0.5, decay=8, amount=0.2)
+
+
+def holo_call():
+    """Holochamada chegando: dois pulsos graves e suaves com um brilho de vidro (toca duas vezes)."""
+    n = int(RATE * 1.6)
+    t = np.arange(n) / RATE
+    out = np.zeros(n)
+    for start in (0.0, 0.32, 0.8, 1.12):
+        bt = np.clip(t - start, 0, None)
+        gate = (t >= start) * env(bt, 0.02, 7)
+        tone = np.sin(2 * np.pi * 220 * bt) * 0.5 + np.sin(2 * np.pi * 330 * bt) * 0.3 + np.sin(2 * np.pi * 880 * bt) * 0.08
+        out += tone * gate
+    return reverb(out, 171, seconds=0.9, decay=5, amount=0.35)
+
+
+def cash():
+    """Dinheiro entrando: moedas de crédito (sinos curtos que sobem) e um baque grave de confirmação."""
+    n = int(RATE * 0.7)
+    t = np.arange(n) / RATE
+    out = np.tanh(np.sin(2 * np.pi * 70 * t) * 2) * env(t, 0.002, 14) * 0.5
+    for start, f in ((0.03, 1568), (0.1, 2093), (0.17, 2637)):
+        bt = np.clip(t - start, 0, None)
+        out += np.sin(2 * np.pi * f * bt) * (t >= start) * env(bt, 0.002, 16) * 0.22
+    return reverb(out, 181, seconds=0.6, decay=7, amount=0.3)
+
+
+def wanted_alarm():
+    """Procurado: sirene grave que sobe e desce duas vezes, com um pulso de baixo."""
+    n = int(RATE * 1.4)
+    t = np.arange(n) / RATE
+    f = 420 + 220 * np.sin(2 * np.pi * 1.4 * t - np.pi / 2)
+    phase = 2 * np.pi * np.cumsum(f) / RATE
+    siren = (np.sin(phase) * 0.6 + np.sin(phase * 2) * 0.15) * env(t, 0.05, 1.2)
+    pulse = np.tanh(np.sin(2 * np.pi * 55 * t) * 2) * env(t, 0.003, 5) * 0.5
+    return reverb(siren + pulse, 191, seconds=0.8, decay=5, amount=0.3)
+
+
 def write(name, signal):
     signal = signal / max(1e-9, np.abs(signal).max()) * 0.89  # peak at -1 dBFS
     fade = min(len(signal), int(RATE * 0.01))
@@ -271,6 +365,12 @@ SOUNDS = {
     "pulo_duplo": double_jump,
     "soco_gorila": gorilla_punch,
     "kiroshi_scan": kiroshi_scan,
+    "parar_tempo": time_stop,
+    "acerto": hit_flesh,
+    "acerto_cabeca": hit_critical,
+    "chamada": holo_call,
+    "dinheiro": cash,
+    "alarme": wanted_alarm,
 }
 
 
