@@ -2764,7 +2764,8 @@ local function start()
 		local item = Instance.new("Sound")
 		item.SoundId = string.format("rbxassetid://%.0f", id)
 		item.Volume = volume or 0.6
-		item.RollOffMaxDistance = 260
+		item.RollOffMaxDistance = if string.sub(key, 1, 5) == "arma_" then 520 else 260
+		item.RollOffMinDistance = if string.sub(key, 1, 5) == "arma_" then 18 else 10
 		if parent then
 			item.Parent = parent
 			item:Play()
@@ -3731,7 +3732,9 @@ local function start()
 			end
 		end
 		muzzleFlash(from, accent, look)
-		sound(weapon.som or ("arma_" .. weapon.id), nil, 0.7)
+		-- Tiro próprio: a versão pesada (grave reforçado) bem alta, e um segundo baque grave por baixo.
+		local shotKey = weapon.som or ("arma_" .. weapon.id)
+		sound(pick(shotKey .. "_pesada", shotKey), nil, 1)
 		if weapon.acao then
 			-- Bomba da escopeta e ferrolho da sniper logo depois do disparo.
 			task.delay(0.34, sound, weapon.acao, nil, 0.5)
@@ -3809,7 +3812,8 @@ local function start()
 					muzzleFlash(from, accent, look)
 					local weaponModel = model and model:FindFirstChild("CyberOutlawArma")
 					local emitter = weaponModel and weaponModel.PrimaryPart
-					sound(if weapon and weapon.som then weapon.som else "arma_" .. tostring(id), emitter, 0.8)
+					local shotKey = if weapon and weapon.som then weapon.som else "arma_" .. tostring(id)
+					sound(pick(shotKey .. "_pesada", shotKey), emitter, 1)
 					if weapon and weapon.acao and emitter then
 						task.delay(0.34, sound, weapon.acao, emitter, 0.55)
 					end

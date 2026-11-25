@@ -351,5 +351,82 @@
     "source": "tools/synth_weapon_fx.py",
     "durationSeconds": 1.4,
     "sha256": "ec1b6ed4612e5c01b218faf186f86710775ca9f07975496746f0875ff4a654b7"
+  },
+  "arma_glock_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Walther PPQ/X_39P.wav",
+    "sourceSha256": "d679a3cd87eae2898d984159f83544392932e6b77526045b672e3aaa9c2dda9f",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 0.62,
+    "sha256": "4dfd350a2dc28b2a975dd74d888a0e9e20fdd5cc1a5d0e94bf7b7664ddf708a9"
+  },
+  "arma_deagle_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/1911/A_42P.wav",
+    "sourceSha256": "8e84438e771c157155a6a1ff47a6a7a7d81b6f39b185d41e426c57337a82254a",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 0.85,
+    "sha256": "70f801d32aa7ae588c3bac6ac728b8c533a7724c299e13aadef69fd0ca1f8c1a"
+  },
+  "arma_uzi_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Carl Gustav M45/G_31P.wav",
+    "sourceSha256": "5982c6c2fa44545b750ba6217ed57797a6a15c02f5c9943ac0e99e5f3ab2b158",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 0.38,
+    "sha256": "8544733cba34fab001e6b9d6d394406586fafb03ee40a1a6b4c93a71fed591fb"
+  },
+  "arma_ak47_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/AK-47/C_31P.wav",
+    "sourceSha256": "5c3261c3bdd7657fd07c141f1f683bef06c2e03da475f43f3943f755360a4994",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 0.8,
+    "sha256": "965e4c65d8e6efb5d7fe560ef53b81d245b5503b87f89855020b5f032729bf4a"
+  },
+  "arma_m4_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/AR-15/D_32P.wav",
+    "sourceSha256": "acee9d2106b68fe5956225a19d7aedf943d97793817f9bda9d486a2b74b0a812",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 0.7,
+    "sha256": "9201a18e67c818de2bc4398a66b4722019aab53672ce1385b6494598f885716a"
+  },
+  "arma_escopeta_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Mossberg/N_30P.wav",
+    "sourceSha256": "b5a28243e16f8cb10adfc5225d96e90f108d24393fcfffcaa6dcf203af03634a",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 1.0,
+    "sha256": "a3b7983a9507e0721b73bc994029d73e1a1868dce8e0aa58ce827fe017663577"
+  },
+  "arma_sniper_pesada": {
+    "provider": "The Free Firearm Sound Library (OpenGameArt)",
+    "license": "CC0 1.0",
+    "authors": "Ben Jaszczak, Brian Nelson, Kevin Heras e Matthew Nanney",
+    "source": "https://opengameart.org/content/the-free-firearm-sound-library",
+    "file": "Prepared SFX Library/Tikka/W_29P.wav",
+    "sourceSha256": "b1ffe3c104391bf8ceb8337aa4d5a2ca47938fb88ccbd051cdd2b2e205d9e72b",
+    "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
+    "durationSeconds": 1.5,
+    "sha256": "7b3a243a6858bae5db1f2d1d7b3e662f8216d506946bbb1163c023271a5af4a9"
   }
 }

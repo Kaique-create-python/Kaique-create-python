@@ -66,6 +66,7 @@ local PINK = Color3.fromRGB(255, 72, 140)
 local GOLD = Color3.fromRGB(255, 208, 102)
 local GREEN = Color3.fromRGB(98, 232, 148)
 local RED = Color3.fromRGB(255, 70, 84)
+local HOT = Color3.fromRGB(255, 84, 92) -- vermelho das molduras (Cyberpunk)
 local BUILDER = "rbxasset://fonts/families/BuilderSans.json"
 
 local function start()
@@ -133,7 +134,8 @@ local function start()
 		return Font.new(BUILDER, weight or Enum.FontWeight.Bold)
 	end
 	local function corner(item, radius: number)
-		new("UICorner", item, { CornerRadius = UDim.new(0, radius) })
+		-- Estilo Cyberpunk: cantos quase retos.
+		new("UICorner", item, { CornerRadius = UDim.new(0, math.min(radius, 2)) })
 	end
 	local function outline(item, color: Color3, transparency: number, thickness: number?)
 		return new("UIStroke", item, { Color = color, Transparency = transparency, Thickness = thickness or 1.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
@@ -154,8 +156,10 @@ local function start()
 			base[key] = value
 		end
 		local item = new("Frame", parent, base)
-		corner(item, 8)
-		outline(item, NEON, 0.35)
+		corner(item, 2)
+		outline(item, HOT, 0.3)
+		-- Aba vermelha no canto de cima (assinatura dos painéis de Night City).
+		new("Frame", item, { Name = "Aba", Position = UDim2.fromOffset(-1, -3), Size = UDim2.fromOffset(26, 3), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 30 })
 		return item
 	end
 	local function button(parent, name, caption, color: Color3, props, onClick)
@@ -183,12 +187,15 @@ local function start()
 
 	-- Carteira e estrelas, à direita da barra do Roblox.
 	local chip = new("Frame", top, {
-		Name = "Carteira", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(150, 32),
-		BackgroundColor3 = PANEL, BackgroundTransparency = 0.2, BorderSizePixel = 0,
+		Name = "Carteira", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(140, 30),
+		BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0,
 	})
-	corner(chip, 16)
-	outline(chip, GOLD, 0.3)
-	local wallet = text(chip, "Valor", money(0), 16, GOLD, { TextXAlignment = Enum.TextXAlignment.Center })
+	new("UIGradient", chip, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.35, 0.45), NumberSequenceKeypoint.new(1, 0.35) }) })
+	new("Frame", chip, { Name = "Traco", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.new(0.8, 0, 0, 2), BackgroundColor3 = GOLD, BorderSizePixel = 0 })
+	local wallet = text(chip, "Valor", money(0), 17, GOLD, {
+		TextXAlignment = Enum.TextXAlignment.Right, Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, -8, 1, 0), FontFace = Font.fromEnum(Enum.Font.Michroma),
+		TextStrokeTransparency = 0.7, TextStrokeColor3 = GOLD,
+	})
 	local stars = text(top, "Estrelas", "", 18, RED, {
 		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -166, 0.5, 0), Size = UDim2.fromOffset(110, 30),
 		TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.4, Visible = false,
@@ -263,7 +270,10 @@ local function start()
 		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, if touch then 64 else 100), Size = UDim2.fromOffset(if touch then 330 else 440, 30),
 		Visible = false,
 	})
-	local objectiveText = text(objective, "Texto", "", if touch then 13 else 15, TEXT, {
+	objective.BackgroundColor3 = Color3.new(0, 0, 0)
+	objective.BackgroundTransparency = 0.45
+	text(objective, "Rotulo", "TRABALHO", 10, HOT, { Position = UDim2.fromOffset(30, -16), Size = UDim2.fromOffset(120, 12), FontFace = Font.fromEnum(Enum.Font.Michroma) })
+	local objectiveText = text(objective, "Texto", "", if touch then 13 else 15, GOLD, {
 		Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -20, 1, 0), TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	local marker = new("Part", nil, {
@@ -297,40 +307,81 @@ local function start()
 	readMission()
 
 	-- Holochamada ------------------------------------------------------------------------------------------
-	-- Pesquisa (Cyberpunk 2077): o "celular" é o implante Agente; a chamada aparece no canto da visão com o rosto
-	-- do contato em vídeo holográfico, nome e "chamada recebida"; atende com uma tecla e a conversa vira legenda.
-	local holo = plate(gui, "Holochamada", {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, if touch then 112 else 60), Size = UDim2.fromOffset(310, 112), Visible = false,
-		BackgroundTransparency = 0.25,
+	-- Como no Cyberpunk 2077 e em Edgerunners: não existe celular na mão. O implante Agente projeta a chamada na
+	-- visão: retrato do contato num quadro vermelho com cortes de sinal, código da linha, o nome em ciano,
+	-- "CHAMADA RECEBIDA" em vermelho e as teclas em caixinhas ([T] ATENDER · [Y] RECUSAR). A conversa vira
+	-- legenda "Nome: fala" embaixo, e no fim aparece o contrato (valor e prazo) para aceitar ou recusar.
+	local MONO = Font.fromEnum(Enum.Font.RobotoMono)
+	local TECH = Font.fromEnum(Enum.Font.Michroma)
+	local holo = new("Frame", gui, {
+		Name = "Holochamada", AnchorPoint = Vector2.new(0, 0), Position = if touch then UDim2.fromOffset(14, 186) else UDim2.new(0, 28, 0.26, 0),
+		Size = UDim2.fromOffset(340, 132), BackgroundTransparency = 1, Visible = false,
 	})
-	local holoStroke = holo:FindFirstChildOfClass("UIStroke")
-	local portrait = new("ViewportFrame", holo, {
-		Name = "Rosto", Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(96, 96), BackgroundColor3 = Color3.fromRGB(4, 20, 30),
-		BackgroundTransparency = 0.2, Ambient = Color3.fromRGB(120, 255, 240), LightColor = Color3.fromRGB(90, 230, 255), ImageColor3 = Color3.fromRGB(150, 255, 240),
+	local holoScale = new("UIScale", holo, { Scale = if touch then 0.86 else 1 })
+	local holoGlow = new("Frame", holo, {
+		Name = "Brilho", Position = UDim2.fromOffset(98, 4), Size = UDim2.new(1, -98, 1, -8), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0,
 	})
-	corner(portrait, 6)
-	for line = 0, 23 do
-		new("Frame", portrait, {
-			Name = "Linha", Position = UDim2.fromOffset(0, line * 4), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-			BackgroundTransparency = 0.7, BorderSizePixel = 0, ZIndex = 3,
+	new("UIGradient", holoGlow, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1) }) })
+	-- Cortes de sinal à esquerda do retrato (os blocos vermelhos da referência).
+	for index = 0, 7 do
+		new("Frame", holo, {
+			Name = "Sinal", Position = UDim2.fromOffset(0, 10 + index * 13), Size = UDim2.fromOffset(4 + (index * 7) % 9, 8), BackgroundColor3 = HOT,
+			BackgroundTransparency = 0.25 + (index % 3) * 0.2, BorderSizePixel = 0,
 		})
 	end
-	local portraitCamera = new("Camera", portrait, { FieldOfView = 26 })
+	local portraitFrame = new("Frame", holo, {
+		Name = "Quadro", Position = UDim2.fromOffset(16, 6), Size = UDim2.fromOffset(78, 96), BackgroundColor3 = Color3.fromRGB(30, 8, 12), BorderSizePixel = 0,
+	})
+	outline(portraitFrame, HOT, 0, 2)
+	local portrait = new("ViewportFrame", portraitFrame, {
+		Name = "Rosto", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Ambient = Color3.fromRGB(150, 130, 140),
+		LightColor = Color3.fromRGB(255, 225, 220), LightDirection = Vector3.new(-0.6, -0.5, 1), ImageColor3 = Color3.fromRGB(255, 225, 225),
+	})
+	for line = 0, 31 do
+		new("Frame", portraitFrame, {
+			Name = "Linha", Position = UDim2.fromOffset(0, line * 3), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = HOT,
+			BackgroundTransparency = 0.86, BorderSizePixel = 0, ZIndex = 3,
+		})
+	end
+	new("Frame", portraitFrame, { Name = "Canto", Position = UDim2.fromOffset(-3, -3), Size = UDim2.fromOffset(12, 4), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 4 })
+	new("Frame", portraitFrame, { Name = "Canto", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 3, 1, 3), Size = UDim2.fromOffset(12, 4), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 4 })
+	local portraitCamera = new("Camera", portrait, { FieldOfView = 24 })
 	portrait.CurrentCamera = portraitCamera
-	local callerName = text(holo, "Nome", "", 17, TEXT, { Position = UDim2.fromOffset(114, 8), Size = UDim2.new(1, -122, 0, 22) })
-	local callerRole = text(holo, "Cargo", "", 12, SUB, { Position = UDim2.fromOffset(114, 28), Size = UDim2.new(1, -122, 0, 16), FontFace = font(Enum.FontWeight.Medium) })
-	local callStatus = text(holo, "Status", "", 12, NEON, { Position = UDim2.fromOffset(114, 46), Size = UDim2.new(1, -122, 0, 16) })
-	local actions = new("Frame", holo, { Name = "Botoes", Position = UDim2.fromOffset(114, 70), Size = UDim2.new(1, -122, 0, 34), BackgroundTransparency = 1 })
-	new("UIListLayout", actions, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
-	local subtitle = plate(gui, "Legenda", {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -64 else -118), Size = UDim2.fromOffset(if touch then 380 else 560, 54),
-		Visible = false, BackgroundTransparency = 0.35,
+	local lineCode = text(holo, "Linha", "", 10, HOT, { Position = UDim2.fromOffset(104, 6), Size = UDim2.new(1, -108, 0, 12), FontFace = MONO, TextTransparency = 0.2 })
+	local callerName = text(holo, "Nome", "", 19, NEON, {
+		Position = UDim2.fromOffset(104, 18), Size = UDim2.new(1, -108, 0, 26), FontFace = TECH, TextScaled = true, TextStrokeTransparency = 0.6, TextStrokeColor3 = NEON,
 	})
+	new("UITextSizeConstraint", callerName, { MaxTextSize = 19 })
+	local callStatus = text(holo, "Status", "", 13, HOT, { Position = UDim2.fromOffset(104, 46), Size = UDim2.new(1, -108, 0, 18), FontFace = TECH })
+	local callerRole = text(holo, "Cargo", "", 11, SUB, { Position = UDim2.fromOffset(104, 64), Size = UDim2.new(1, -108, 0, 14), FontFace = font(Enum.FontWeight.Medium) })
+	local actions = new("Frame", holo, { Name = "Botoes", Position = UDim2.fromOffset(104, 84), Size = UDim2.new(1, -108, 0, 30), BackgroundTransparency = 1 })
+	new("UIListLayout", actions, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 14), SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Center })
+	-- Tecla na caixinha + ação: no toque, a linha inteira é o botão.
+	local function keyAction(caption: string, key: string, color: Color3, order: number, onClick)
+		local item = new("TextButton", actions, {
+			Name = caption, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromOffset(if touch then 112 else 104, 30), LayoutOrder = order,
+		})
+		local cap = new("Frame", item, { Name = "Tecla", Position = UDim2.fromOffset(0, 3), Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Color3.fromRGB(20, 6, 10),
+			BackgroundTransparency = 0.2, BorderSizePixel = 0 })
+		outline(cap, color, 0, 1.5)
+		text(cap, "Letra", if touch then "●" else key, 13, color, { FontFace = TECH, TextXAlignment = Enum.TextXAlignment.Center })
+		text(item, "Acao", caption, 14, color, { Position = UDim2.fromOffset(30, 0), Size = UDim2.new(1, -30, 1, 0), FontFace = TECH })
+		item.Activated:Connect(onClick)
+		return item
+	end
+	local subtitle = new("Frame", gui, {
+		Name = "Legenda", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -62 else -120), Size = UDim2.fromOffset(if touch then 420 else 640, 58),
+		BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Visible = false,
+	})
+	new("UIGradient", subtitle, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.55),
+		NumberSequenceKeypoint.new(0.8, 0.55), NumberSequenceKeypoint.new(1, 1) }) })
 	local subtitleText = text(subtitle, "Texto", "", if touch then 14 else 17, TEXT, {
-		Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 1, -8), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
-		FontFace = font(Enum.FontWeight.SemiBold),
+		Position = UDim2.fromOffset(16, 2), Size = UDim2.new(1, -32, 1, -4), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = font(Enum.FontWeight.SemiBold), RichText = true, TextStrokeTransparency = 0.5,
 	})
-	local call = nil -- { offer, state = "tocando"|"conversa"|"oferta"|"recado", at }
+	local call = nil -- { offer, state = "tocando"|"conversa"|"oferta"|"recado", token }
+	local speaker, speakerColor = "", "#5EF6FF"
 	local function clearActions()
 		for _, child in actions:GetChildren() do
 			if child:IsA("TextButton") then
@@ -344,6 +395,11 @@ local function start()
 				child:Destroy()
 			end
 		end
+		local fixer = fixers[fixerId]
+		speaker = if fixer then fixer.nome else "Fixer"
+		local tone = if fixer then Color3.fromRGB(fixer.cor[1], fixer.cor[2], fixer.cor[3]) else NEON
+		speakerColor = string.format("#%02X%02X%02X", math.floor(tone.R * 255), math.floor(tone.G * 255), math.floor(tone.B * 255))
+		lineCode.Text = string.format("TRN_%s_%06d  ▮▮▯ SINAL", string.upper(string.sub(fixerId, 1, 4)), math.random(0, 999999))
 		local source = folder:FindFirstChild("Fixers")
 		local template = source and source:FindFirstChild(fixerId)
 		if not template then
@@ -355,13 +411,8 @@ local function start()
 		local head = bust:FindFirstChild("Head")
 		if head and head:IsA("BasePart") then
 			local at = head.Position
-			portraitCamera.CFrame = CFrame.lookAt(at + Vector3.new(0.6, -0.1, -4.8), at + Vector3.new(0, -0.35, 0))
+			portraitCamera.CFrame = CFrame.lookAt(at + Vector3.new(0.9, -0.2, -5.2), at + Vector3.new(0, -0.5, 0))
 		end
-		local fixer = fixers[fixerId]
-		local tone = if fixer then Color3.fromRGB(fixer.cor[1], fixer.cor[2], fixer.cor[3]) else NEON
-		holoStroke.Color = tone
-		callerName.TextColor3 = TEXT
-		callStatus.TextColor3 = tone
 	end
 	local function hangUp()
 		call = nil
@@ -369,21 +420,24 @@ local function start()
 		subtitle.Visible = false
 		clearActions()
 	end
+	-- Digita a fala letra por letra (sem cortar acentos no meio).
 	local function typeLines(lines, done)
 		local token = {}
 		call.token = token
 		subtitle.Visible = true
 		task.spawn(function()
 			for _, line in lines do
-				for count = 1, #line, 2 do
+				local count = utf8.len(line) or #line
+				for index = 1, count, 2 do
 					if not call or call.token ~= token then
 						return
 					end
-					subtitleText.Text = string.sub(line, 1, count)
+					local cut = utf8.offset(line, index + 1) or (#line + 1)
+					subtitleText.Text = string.format('<font color="%s">%s:</font> %s', speakerColor, speaker, string.sub(line, 1, cut - 1))
 					task.wait(0.03)
 				end
-				subtitleText.Text = line
-				task.wait(math.clamp(#line * 0.035, 1.6, 3.2))
+				subtitleText.Text = string.format('<font color="%s">%s:</font> %s', speakerColor, speaker, line)
+				task.wait(math.clamp(count * 0.035, 1.6, 3.2))
 			end
 			if call and call.token == token then
 				done()
@@ -397,13 +451,16 @@ local function start()
 		end
 		call.state = "oferta"
 		local offer = call.offer
-		callStatus.Text = string.format("%s · %s · %s", string.upper(offer.titulo), money(offer.valor), clock(offer.prazo))
-		subtitleText.Text = offer.objetivo
+		callStatus.Text = string.upper(offer.titulo)
+		callStatus.TextColor3 = GOLD
+		callerRole.Text = string.format("%s · PRAZO %s · %s", money(offer.valor), clock(offer.prazo), string.upper(offer.bairro or ""))
+		callerRole.TextColor3 = GOLD
+		subtitleText.Text = string.format('<font color="#FFD066">CONTRATO:</font> %s', offer.objetivo)
 		clearActions()
-		button(actions, "Aceitar", if touch then "ACEITAR" else "ACEITAR (T)", GREEN, { Size = UDim2.fromOffset(88, 32), LayoutOrder = 1 }, function()
+		keyAction("ACEITAR", "T", GREEN, 1, function()
 			answer()
 		end)
-		button(actions, "Recusar", if touch then "RECUSAR" else "RECUSAR (Y)", RED, { Size = UDim2.fromOffset(88, 32), LayoutOrder = 2 }, function()
+		keyAction("RECUSAR", "Y", HOT, 2, function()
 			decline()
 		end)
 	end
@@ -415,6 +472,7 @@ local function start()
 			call.state = "conversa"
 			request:FireServer("atender", call.offer.id)
 			callStatus.Text = "EM CHAMADA"
+			callStatus.TextColor3 = NEON
 			clearActions()
 			typeLines(call.offer.falas, offerStep)
 		elseif call.state == "oferta" then
@@ -435,20 +493,21 @@ local function start()
 		hangUp()
 	end
 	local function incoming(offer, outgoing: boolean)
-		call = { offer = offer, state = "tocando" }
+		call = { offer = offer, state = "tocando", at = os.clock() }
 		holo.Visible = true
 		showPortrait(offer.fixer)
-		callerName.Text = offer.nome
-		callerRole.Text = offer.cargo .. " · HOLOCHAMADA"
+		callerName.Text = string.upper(offer.nome)
+		callerRole.Text = string.upper(offer.cargo)
+		callerRole.TextColor3 = SUB
 		clearActions()
 		if outgoing then
-			call.state = "tocando"
 			answer()
 			return
 		end
 		callStatus.Text = "CHAMADA RECEBIDA"
-		button(actions, "Atender", if touch then "ATENDER" else "ATENDER (T)", GREEN, { Size = UDim2.fromOffset(88, 32), LayoutOrder = 1 }, answer)
-		button(actions, "Recusar", if touch then "RECUSAR" else "RECUSAR (Y)", RED, { Size = UDim2.fromOffset(88, 32), LayoutOrder = 2 }, decline)
+		callStatus.TextColor3 = HOT
+		keyAction("ATENDER", "T", NEON, 1, answer)
+		keyAction("RECUSAR", "Y", HOT, 2, decline)
 		task.spawn(function()
 			local current = call
 			for _ = 1, 8 do
@@ -462,16 +521,18 @@ local function start()
 	end
 	local function fixerMessage(fixerId: string, message: string, good: boolean)
 		local fixer = fixers[fixerId]
-		call = { state = "recado" }
+		call = { state = "recado", at = os.clock() }
 		holo.Visible = true
 		showPortrait(fixerId)
-		callerName.Text = if fixer then fixer.nome else "Fixer"
-		callerRole.Text = (if fixer then fixer.titulo else "") .. " · MENSAGEM"
+		callerName.Text = string.upper(if fixer then fixer.nome else "Fixer")
+		callerRole.Text = string.upper(if fixer then fixer.titulo else "")
+		callerRole.TextColor3 = SUB
 		callStatus.Text = if good then "TRABALHO CONCLUÍDO" else "TRABALHO PERDIDO"
-		callStatus.TextColor3 = if good then GREEN else RED
+		callStatus.TextColor3 = if good then GREEN else HOT
 		clearActions()
 		typeLines({ message }, hangUp)
 	end
+	local _ = holoScale
 
 	-- Painéis (Casa e Agente) -----------------------------------------------------------------------------
 	local dim = new("Frame", gui, { Name = "Fundo", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, Visible = false, ZIndex = 20 })
@@ -946,6 +1007,10 @@ local function start()
 			started = player:GetAttribute("CyberOutlawMenuStarted") == true
 		end
 		gui.Enabled, top.Enabled = started, started
+		local admin = player.PlayerGui:FindFirstChild("CyberOutlawAdminBotao")
+		local shift = if admin and admin:IsA("ScreenGui") and admin.Enabled then 56 else 8
+		chip.Position = UDim2.new(1, -shift, 0.5, 0)
+		stars.Position = UDim2.new(1, -shift - 150, 0.5, 0)
 		local level = player:GetAttribute("CyberOutlawProcurado") or 0
 		stars.Visible = level > 0
 		if level > 0 then
@@ -960,12 +1025,22 @@ local function start()
 			local left = (mission.prazo or 0) - workspace:GetServerTimeNow()
 			local extra = if mission.restantes then string.format(" · faltam %d", mission.restantes) else ""
 			objectiveText.Text = string.format("◆ %s%s · %d m · %s", mission.objetivo or "", extra, math.floor(distance / 3.6), clock(left))
-			objectiveText.TextColor3 = if left < 30 then RED else TEXT
+			objectiveText.TextColor3 = if left < 30 then RED else GOLD
 			distanceText.Text = string.format("%d m", math.floor(distance / 3.6))
 		end
 		if holo.Visible then
-			portrait.ImageTransparency = if math.random() < 0.04 then 0.5 else 0.08
-			portrait.Position = UDim2.fromOffset(8 + (if math.random() < 0.03 then math.random(-2, 2) else 0), 8)
+			-- Chiado de sinal: o retrato some e treme por instantes; a chamada entra deslizando.
+			portrait.ImageTransparency = if math.random() < 0.05 then 0.55 else 0.02
+			portrait.Position = UDim2.fromOffset(if math.random() < 0.04 then math.random(-3, 3) else 0, 0)
+			local age = os.clock() - ((call and call.at) or 0)
+			local slide = 1 - math.clamp(age / 0.25, 0, 1)
+			holo.Position = (if touch then UDim2.fromOffset(14, 186) else UDim2.new(0, 28, 0.26, 0)) + UDim2.fromOffset(-60 * slide * slide, 0)
+			holoGlow.BackgroundTransparency = slide
+			if call and call.state == "tocando" then
+				callStatus.TextTransparency = if os.clock() % 0.8 < 0.4 then 0 else 0.45
+			else
+				callStatus.TextTransparency = 0
+			end
 		end
 		if placing and rootPart and rootPart:IsA("BasePart") then
 			local markerPart = placing.marker
