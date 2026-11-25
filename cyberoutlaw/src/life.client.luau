@@ -1242,7 +1242,7 @@ local function start()
 			request:FireServer("naoPerturbe", not quiet)
 			task.delay(0.3, render)
 		end)
-		if SOUNDS.musica_calma or SOUNDS.musica_tensa then
+		do
 			order += 1
 			local musicOn = player:GetAttribute("CyberOutlawMusica") ~= false
 			local musicRow = row(order, 54)
@@ -1792,7 +1792,13 @@ local function start()
 			end
 			return new("Sound", SoundService, { Name = name, SoundId = string.format("rbxassetid://%.0f", id), Looped = true, Volume = 0 })
 		end
-		local tracks = { calma = track("MusicaCalma", SOUNDS.musica_calma), tensa = track("MusicaTensa", SOUNDS.musica_tensa) }
+		-- Enquanto as suas não forem enviadas pelo midia (ou se não carregarem), tocam músicas da biblioteca
+		-- licenciada do Roblox: APM "Carry a Big Stick (b)" na calma e APM "Shadow Warrior" na tensa.
+		local own = type(SOUNDS.musica_calma) == "number" and SOUNDS.musica_calma > 0
+		local tracks = {
+			calma = track("MusicaCalma", if own then SOUNDS.musica_calma else 9043639670),
+			tensa = track("MusicaTensa", if type(SOUNDS.musica_tensa) == "number" and SOUNDS.musica_tensa > 0 then SOUNDS.musica_tensa else 1843956137),
+		}
 		if tracks.calma or tracks.tensa then
 			local group = new("SoundGroup", SoundService, { Name = "CyberOutlawMusica", Volume = 1 })
 			local eq = new("EqualizerSoundEffect", group, { HighGain = 0, MidGain = 0, LowGain = 0 })
