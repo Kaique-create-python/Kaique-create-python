@@ -110,9 +110,13 @@ def key_prompt():
     with warnings.catch_warnings():
         warnings.simplefilter("error", getpass.GetPassWarning)
         result = getpass.getpass("Chave Roblox Open Cloud (oculta): ")
-    result = "".join(c for c in result if c.isascii() and c.isprintable() and not c.isspace())
+    from install.chave import clean_key, fingerprint
+    result, notes = clean_key(result)
     if not result:
         raise ValueError("A chave está vazia.")
+    for note in notes:
+        print("Chave: " + note + ".", flush=True)
+    print("Chave lida: " + fingerprint(result) + ". Compare com a que você copiou do site.", flush=True)
     return result
 
 

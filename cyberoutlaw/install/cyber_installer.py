@@ -22,6 +22,7 @@ if not __package__:
 from .cloud import Cloud, DEFINITE_REJECTIONS, PLACE_ID, TARGET, UNIVERSE_ID, unique_fields
 from .codec import Failure
 from .patcher import CLIENT_HEADER, SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
+from .chave import clean_key, fingerprint
 from .paths import guard, locked_state, read_json, read_place, remove, write_json, write_offline, write_once
 
 
@@ -543,11 +544,14 @@ def _hidden_key():
         with warnings.catch_warnings():
             warnings.simplefilter("error", getpass.GetPassWarning)
             key = getpass.getpass("Chave Roblox Open Cloud (entrada oculta). ")
-            key = "".join(c for c in key if c.isascii() and c.isprintable() and not c.isspace())
+            key, notes = clean_key(key)
     except (EOFError, getpass.GetPassWarning):
         raise Failure("Use o terminal interativo do Termux para digitar a chave com entrada oculta.") from None
     if not key or not key.isascii() or not key.isprintable() or any(char.isspace() for char in key):
         raise Failure("A chave Roblox Open Cloud está vazia ou tem caracteres inválidos.")
+    for note in notes:
+        print("Chave: " + note + ".")
+    print("Chave lida: " + fingerprint(key) + ". Compare com a que você copiou do site.")
     return key
 
 
