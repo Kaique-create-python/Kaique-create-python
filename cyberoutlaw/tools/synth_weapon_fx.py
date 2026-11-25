@@ -362,7 +362,6 @@ SOUNDS = {
     "habilidade_lenta": sandevistan,
     "surto": frenzy,
     "implante_encaixe": implant_lock,
-    "pulo_duplo": double_jump,
     "soco_gorila": gorilla_punch,
     "kiroshi_scan": kiroshi_scan,
     "parar_tempo": time_stop,

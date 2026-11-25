@@ -240,7 +240,7 @@ def main():
                 "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone", "file": inner,
                 "sourceSha256": hashlib.sha256(steps_archive.read_bytes()).hexdigest(),
             })
-    for key, signal in ui_sounds().items():
+    for key, signal in {}.items():  # interface e pulo: gravações reais em tools/real_foley_audio.py
         results[key] = (signal, {"provider": "Síntese própria", "license": "Original do projeto", "source": "tools/prepare_weapon_audio.py"})
 
     for key, (signal, info) in results.items():

@@ -119,20 +119,20 @@
       "path": "audio/click.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
+      "sha256": "69d3bd423ba15dcad949b07c5bb58d02508934aec294f5bb2087f8cd1e42c281",
       "displayName": "CyberOutlaw click",
-      "description": "ElevenLabs Sound Effects.",
-      "durationSeconds": 0.158005
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.126
     },
     {
       "key": "confirm",
       "path": "audio/confirm.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
+      "sha256": "4d0aa6bec33cd2176c288510282fc2de2c4f4fdcb330e491f49d7aea50114ea9",
       "displayName": "CyberOutlaw confirm",
-      "description": "ElevenLabs Sound Effects.",
-      "durationSeconds": 0.34
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.211
     },
     {
       "key": "glitch",
@@ -389,40 +389,70 @@
       "path": "audio/ui_tick.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "719e4111bebd3cd96f603bd0bfd393e419131f1c7548ebb00038d699ba082935",
+      "sha256": "cf7485754c1e3b1096c8e8cef5b2cf892cf3ae7577f4390955d058a37f2d0171",
       "displayName": "CyberOutlaw ui_tick",
-      "description": "Som de interface sintetizado por código.",
-      "durationSeconds": 0.05
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.12
     },
     {
       "key": "ui_abrir",
       "path": "audio/ui_abrir.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "2ee0de3e6e181c9a578407bc3121fb11d1e33417f737a14d3ccff3aad1320d02",
+      "sha256": "292ba57324ab3e03c4b8164430fef6993f37f06929e06b2d6361dbd70d14e099",
       "displayName": "CyberOutlaw ui_abrir",
-      "description": "Som de interface sintetizado por código.",
-      "durationSeconds": 0.22
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.18
     },
     {
       "key": "ui_fechar",
       "path": "audio/ui_fechar.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "9e45ad54f0e90c25abdcd0027345a9981729c087c69b48562f854c8a6484875b",
+      "sha256": "45a9c9469571329e92a232624c5247fdbc8824eb8af16ffc730f2a3f51550893",
       "displayName": "CyberOutlaw ui_fechar",
-      "description": "Som de interface sintetizado por código.",
-      "durationSeconds": 0.22
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.196
     },
     {
       "key": "ui_confirmar",
       "path": "audio/ui_confirmar.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "ad7faab72bfbe5f421045e7c5864e0e5fe17dd245c60465ab2fcf1c49e508b35",
+      "sha256": "45253b7bbacad860688e947d880fca726db4996ec838bf930b426f5f8a547363",
       "displayName": "CyberOutlaw ui_confirmar",
-      "description": "Som de interface sintetizado por código.",
-      "durationSeconds": 0.32
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.189
+    },
+    {
+      "key": "ui_negado",
+      "path": "audio/ui_negado.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "9002abbaba40d71b1509cc1638e6e83d1484bb1ddfe70ddb4a17a6d266ff4e68",
+      "displayName": "CyberOutlaw ui_negado",
+      "description": "Gravação CC0 de LFA (https://opengameart.org/content/equipment-clicks-ii), recortada por código.",
+      "durationSeconds": 0.314
+    },
+    {
+      "key": "pulo",
+      "path": "audio/pulo.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "d4ab0f61148ce70658f53b347dff0bea234690c7fcff4e832b114ba3e100e998",
+      "displayName": "CyberOutlaw pulo",
+      "description": "Gravação CC0 de Fantozzi (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.335
+    },
+    {
+      "key": "aterrissar",
+      "path": "audio/aterrissar.wav",
+      "assetType": "Audio",
+      "contentType": "audio/wav",
+      "sha256": "1c2668268d5a37791be1f9e21ee4a1eadb6510df5a12cc7660a6ab23b5ee0636",
+      "displayName": "CyberOutlaw aterrissar",
+      "description": "Gravação CC0 de Fantozzi (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.583
     },
     {
       "key": "habilidade_lenta",
@@ -459,10 +489,10 @@
       "path": "audio/pulo_duplo.wav",
       "assetType": "Audio",
       "contentType": "audio/wav",
-      "sha256": "84a755941301d61313813c413f5e0e83820ff2767cc7612f766e48f9456f7dab",
+      "sha256": "981169c806f0c1842706d9768cceac36390c6bb748a745ef106f577809ed8243",
       "displayName": "CyberOutlaw pulo_duplo",
-      "description": "Efeito eletrônico original.",
-      "durationSeconds": 0.5
+      "description": "Gravação CC0 de Fantozzi e LFA (OpenGameArt) (https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), recortada por código.",
+      "durationSeconds": 0.551
     },
     {
       "key": "soco_gorila",

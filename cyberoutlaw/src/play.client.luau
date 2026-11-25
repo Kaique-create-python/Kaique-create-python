@@ -4989,6 +4989,63 @@ local function start()
 		onPreSimulation(if type(b) == "number" then b else a)
 	end)
 
+	-- Sons do corpo: os sons padrão do Roblox (pulo, queda, corrida...) ficam mudos; no lugar, pulo e
+	-- aterrissagem gravados de verdade (passos em pedra, CC0), e os passos do próprio jogo.
+	do
+		local MUTE = { Jumping = true, Landing = true, FreeFalling = true, Running = true, GettingUp = true, Climbing = true, Splash = true, Swimming = true }
+		local function body(model: Model)
+			local rootPart = model:WaitForChild("HumanoidRootPart", 10)
+			local hum = model:WaitForChild("Humanoid", 10)
+			if not rootPart or not hum or not rootPart:IsA("BasePart") or not hum:IsA("Humanoid") then
+				return
+			end
+			local function mute(item: Instance)
+				if item:IsA("Sound") and MUTE[item.Name] then
+					item.Volume = 0
+				end
+			end
+			for _, item in rootPart:GetChildren() do
+				mute(item)
+			end
+			rootPart.ChildAdded:Connect(mute)
+			local falling = 0
+			hum.StateChanged:Connect(function(_, new)
+				if new == Enum.HumanoidStateType.Jumping then
+					sound("pulo", rootPart, if model == character then 0.55 else 0.4)
+				elseif new == Enum.HumanoidStateType.Freefall then
+					falling = 0
+				elseif new == Enum.HumanoidStateType.Landed then
+					local speed = math.max(falling, -rootPart.AssemblyLinearVelocity.Y)
+					if speed > 18 then
+						sound("aterrissar", rootPart, math.clamp(speed / 70, 0.35, 0.9))
+					end
+				end
+			end)
+			local watcher
+			watcher = RunService.Heartbeat:Connect(function()
+				if not model.Parent then
+					watcher:Disconnect()
+					return
+				end
+				if hum.Parent and hum:GetState() == Enum.HumanoidStateType.Freefall then
+					falling = math.max(falling, -rootPart.AssemblyLinearVelocity.Y)
+				end
+			end)
+		end
+		local function watchPlayer(other: Player)
+			other.CharacterAdded:Connect(function(model)
+				task.spawn(body, model)
+			end)
+			if other.Character then
+				task.spawn(body, other.Character)
+			end
+		end
+		Players.PlayerAdded:Connect(watchPlayer)
+		for _, other in Players:GetPlayers() do
+			watchPlayer(other)
+		end
+	end
+
 	local function interfaceStep(dt: number, aimingNow: boolean, raised: boolean)
 		local weapon = def()
 		local reloadAt = player:GetAttribute("CyberOutlawRecargaAte")

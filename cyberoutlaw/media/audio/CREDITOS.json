@@ -1,19 +1,25 @@
 {
   "click": {
-    "durationSeconds": 0.158005,
-    "sha256": "038d3ae69a0c825d4b9fbe720c5062d8edd7f985666e05b200c07796b8d0f9ac",
-    "provider": "ElevenLabs",
-    "model": "eleven_text_to_sound_v2",
-    "generationId": "meiWWevOHLv9eh9sZLKc",
-    "originalSha256": "ac9c43672b999dae298a79eb7c75bd9065f7627e1a3a30c6f53301d5bc373f9b"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.126,
+    "sha256": "69d3bd423ba15dcad949b07c5bb58d02508934aec294f5bb2087f8cd1e42c281"
   },
   "confirm": {
-    "durationSeconds": 0.34,
-    "sha256": "bf700fb78254a8319e41b8233cad82cdf87149e768f0a3566abae3602dece532",
-    "provider": "ElevenLabs",
-    "model": "eleven_text_to_sound_v2",
-    "generationId": "4LUr7UGVDngt8dH1Xkil",
-    "originalSha256": "a614ea988c26baf29f69da199281069901ca0bded5bc146219bdf9abf71abca3"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.211,
+    "sha256": "4d0aa6bec33cd2176c288510282fc2de2c4f4fdcb330e491f49d7aea50114ea9"
   },
   "glitch": {
     "durationSeconds": 0.35,
@@ -163,32 +169,48 @@
     "sha256": "34444cc59b0171ecda9bede2e52c3c7eb5c092bf05f274b3cd61ddbcb262e5f5"
   },
   "ui_tick": {
-    "provider": "Síntese própria",
-    "license": "Original do projeto",
-    "source": "tools/prepare_weapon_audio.py",
-    "durationSeconds": 0.05,
-    "sha256": "719e4111bebd3cd96f603bd0bfd393e419131f1c7548ebb00038d699ba082935"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.12,
+    "sha256": "cf7485754c1e3b1096c8e8cef5b2cf892cf3ae7577f4390955d058a37f2d0171"
   },
   "ui_abrir": {
-    "provider": "Síntese própria",
-    "license": "Original do projeto",
-    "source": "tools/prepare_weapon_audio.py",
-    "durationSeconds": 0.22,
-    "sha256": "2ee0de3e6e181c9a578407bc3121fb11d1e33417f737a14d3ccff3aad1320d02"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.18,
+    "sha256": "292ba57324ab3e03c4b8164430fef6993f37f06929e06b2d6361dbd70d14e099"
   },
   "ui_fechar": {
-    "provider": "Síntese própria",
-    "license": "Original do projeto",
-    "source": "tools/prepare_weapon_audio.py",
-    "durationSeconds": 0.22,
-    "sha256": "9e45ad54f0e90c25abdcd0027345a9981729c087c69b48562f854c8a6484875b"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.196,
+    "sha256": "45a9c9469571329e92a232624c5247fdbc8824eb8af16ffc730f2a3f51550893"
   },
   "ui_confirmar": {
-    "provider": "Síntese própria",
-    "license": "Original do projeto",
-    "source": "tools/prepare_weapon_audio.py",
-    "durationSeconds": 0.32,
-    "sha256": "ad7faab72bfbe5f421045e7c5864e0e5fe17dd245c60465ab2fcf1c49e508b35"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.189,
+    "sha256": "45253b7bbacad860688e947d880fca726db4996ec838bf930b426f5f8a547363"
   },
   "arma_glock": {
     "provider": "The Free Firearm Sound Library (OpenGameArt)",
@@ -299,10 +321,15 @@
     "source": "tools/synth_weapon_fx.py"
   },
   "pulo_duplo": {
-    "durationSeconds": 0.5,
-    "sha256": "84a755941301d61313813c413f5e0e83820ff2767cc7612f766e48f9456f7dab",
-    "provider": "Síntese própria",
-    "source": "tools/synth_weapon_fx.py"
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi e LFA (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps.7z (Stone)",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.551,
+    "sha256": "981169c806f0c1842706d9768cceac36390c6bb748a745ef106f577809ed8243"
   },
   "soco_gorila": {
     "durationSeconds": 0.6,
@@ -428,5 +455,38 @@
     "process": "tools/heavy_weapon_audio.py (grave reforçado, baque subgrave, saturação)",
     "durationSeconds": 1.5,
     "sha256": "4118f1197581069621e86887a160e4ae576df8dfda7d90ea6567701c8c188e9a"
+  },
+  "ui_negado": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "LFA",
+    "source": "https://opengameart.org/content/equipment-clicks-ii",
+    "file": "equipmentclicks.wav",
+    "sourceSha256": "42d40e4970fcee45b86088dab9c6a6e7f87b6dc29a6dd9dbbf4d98da7a4e3a47",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.314,
+    "sha256": "9002abbaba40d71b1509cc1638e6e83d1484bb1ddfe70ddb4a17a6d266ff4e68"
+  },
+  "pulo": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps.7z (Stone)",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.335,
+    "sha256": "d4ab0f61148ce70658f53b347dff0bea234690c7fcff4e832b114ba3e100e998"
+  },
+  "aterrissar": {
+    "provider": "OpenGameArt",
+    "license": "CC0 1.0",
+    "authors": "Fantozzi (OpenGameArt)",
+    "source": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "file": "Fantozzi-footsteps.7z (Stone)",
+    "sourceSha256": "415d360e0911c1c1c5355ee94023b772e6f4044f59b9b580610e7dbffd1840fd",
+    "process": "tools/real_foley_audio.py",
+    "durationSeconds": 0.583,
+    "sha256": "1c2668268d5a37791be1f9e21ee4a1eadb6510df5a12cc7660a6ab23b5ee0636"
   }
 }
