@@ -1068,11 +1068,14 @@ local function buildHud(parent: Instance, touch: boolean)
 		BackgroundColor3 = ACCENT, BackgroundTransparency = 0,
 	})
 
-	local safe = label(gui, "ZonaSegura", "ZONA SEGURA · ARMAS TRAVADAS", f.heavy, if touch then 9 else 11, TEXT, 12, {
+	-- Selo da zona segura no estilo do resto: placa escura, traço ciano à esquerda e texto ciano.
+	local safe = label(gui, "ZonaSegura", "ZONA SEGURA · ARMAS TRAVADAS", f.heavy, if touch then 9 else 11, HEALTH, 12, {
 		Size = UDim2.fromOffset(if touch then 168 else 220, if touch then 18 else 22), TextXAlignment = Enum.TextXAlignment.Center,
-		BackgroundColor3 = Color3.fromRGB(26, 110, 88), BackgroundTransparency = 0.12, Visible = false,
+		BackgroundColor3 = PANEL, BackgroundTransparency = 0.25, Visible = false,
 	})
-	round(safe, UDim.new(1, 0))
+	round(safe, UDim.new(0, 2))
+	stroke(safe, HEALTH, 0.55, 1)
+	frame(safe, "Traco", 13, { Size = UDim2.new(0, 3, 1, 0), BackgroundTransparency = 0, BackgroundColor3 = HEALTH })
 
 	local mapScale = if touch then 0.16 else 0.22 -- pixels por stud
 	local extent = 0
@@ -1880,9 +1883,9 @@ local function buildWeaponBar(defs, atlas: string?)
 	local arrows = {}
 	for _, side in { "left", "right" } do
 		local hit = BAR_HITS[side]
-		local box, line = neonBox(gui, if side == "left" then "SetaEsquerda" else "SetaDireita", hit[1], hit[2], 2, 2)
+		local box, line, glow = neonBox(gui, if side == "left" then "SetaEsquerda" else "SetaDireita", hit[1], hit[2], 2, 2)
 		text(box, "Simbolo", if side == "left" then "<" else ">", 0.42, 5, { TextXAlignment = Enum.TextXAlignment.Center })
-		arrows[side] = { box = box, line = line }
+		arrows[side] = { box = box, line = line, glow = glow }
 	end
 	-- Munição: pente grande, reserva menor, nome da arma e a recarga embaixo.
 	local mag = text(gui, "Pente", "", 0.46, 4, {
@@ -1926,8 +1929,11 @@ local function buildWeaponBar(defs, atlas: string?)
 				end
 			end
 		end
+		-- O halo é outro Frame: some junto com a seta (antes sobrava uma "cápsula" vazia na última página).
 		arrows.left.box.Visible = bar.page > 1
 		arrows.right.box.Visible = bar.page < bar.pages
+		arrows.left.glow.Visible = arrows.left.box.Visible
+		arrows.right.glow.Visible = arrows.right.box.Visible
 	end
 	function bar.pageOf(id: string): number
 		for index, d in defs do
@@ -5020,6 +5026,11 @@ local function start()
 			safe = (position ~= nil and inSafeZone(position) and weapon.kind == "gun") or os.clock() < safeBlockedUntil,
 		}, dt)
 		hud.gui.Enabled = not dead and not implantsOpen
+		-- Avisa o life.client.luau (casa, agente, objetivo) para sair da frente do terminal e da roleta.
+		local covered = dead or implantsOpen or wheelOpen
+		if player:GetAttribute("CyberOutlawHudOculto") ~= covered then
+			player:SetAttribute("CyberOutlawHudOculto", covered)
+		end
 		-- Mira: só com arma de fogo, ao mirar ou logo depois de um tiro; no celular, sempre que armado.
 		local showCross = not dead and not wheelOpen and not implantsOpen and weapon.kind == "gun" and (aimingNow or raised or touch)
 		combat.crosshair(showCross, bloom + (if aimingNow then 0 else 0.6))

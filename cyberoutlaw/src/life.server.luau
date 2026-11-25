@@ -1830,6 +1830,7 @@ local function homeSystem(S)
 				elseif item.Name == "Painel do elevador" and item:GetAttribute("CyberOutlawElevador") == "saguao" then
 					lobby = item.Position + Vector3.new(0, -1, -5)
 					local prompt = Instance.new("ProximityPrompt")
+					prompt.Style = Enum.ProximityPromptStyle.Custom -- desenhado pelo life.client.luau
 					prompt.Name = "Elevador"
 					prompt.ActionText = "Subir"
 					prompt.ObjectText = "Elevador · meu apartamento"
@@ -1857,6 +1858,7 @@ local function homeSystem(S)
 			unit.door = doors[unit.n]
 			if unit.door then
 				local prompt = Instance.new("ProximityPrompt")
+				prompt.Style = Enum.ProximityPromptStyle.Custom -- desenhado pelo life.client.luau
 				prompt.Name = "Elevador"
 				prompt.ActionText = "Descer"
 				prompt.ObjectText = "Elevador · saguão"
@@ -1978,6 +1980,7 @@ local function homeSystem(S)
 				local pile = buildTrash(def)
 				pile:PivotTo(floorAt(unit, def.pos[1], def.pos[2], 0) * CFrame.new(0, 1.4, 0))
 				local prompt = Instance.new("ProximityPrompt")
+				prompt.Style = Enum.ProximityPromptStyle.Custom -- desenhado pelo life.client.luau
 				prompt.Name = "Limpar"
 				prompt.ActionText = if def.id == "lampada" then "Trocar" elseif def.id == "tapume" then "Consertar" else "Limpar"
 				prompt.ObjectText = def.nome
@@ -3086,6 +3089,7 @@ local function crimeSystem(S)
 
 	local function prompt(parent: Instance, action: string, object: string, hold: number)
 		local item = Instance.new("ProximityPrompt")
+		item.Style = Enum.ProximityPromptStyle.Custom -- desenhado pelo life.client.luau
 		item.Name = "Assalto"
 		item.ActionText = action
 		item.ObjectText = object
@@ -3425,6 +3429,7 @@ local function missionSystem(S)
 	local function contact(mission, position: Vector3, action: string, onDone)
 		local npc = S.npc.spawn("contato", position, { home = position, mission = mission, role = "contato", speed = 6 })
 		local item = Instance.new("ProximityPrompt")
+		item.Style = Enum.ProximityPromptStyle.Custom -- desenhado pelo life.client.luau
 		item.Name = "Missão"
 		item.ActionText = action
 		item.ObjectText = "Contato de " .. FIXER_BY_ID[mission.offer.fixer].nome

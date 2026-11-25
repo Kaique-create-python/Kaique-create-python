@@ -193,7 +193,7 @@ local function start()
 	new("UIGradient", chip, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.35, 0.45), NumberSequenceKeypoint.new(1, 0.35) }) })
 	new("Frame", chip, { Name = "Traco", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.new(0.8, 0, 0, 2), BackgroundColor3 = GOLD, BorderSizePixel = 0 })
 	local wallet = text(chip, "Valor", money(0), 17, GOLD, {
-		TextXAlignment = Enum.TextXAlignment.Right, Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, -8, 1, 0), FontFace = Font.fromEnum(Enum.Font.Michroma),
+		TextXAlignment = Enum.TextXAlignment.Right, Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, -8, 1, 0), FontFace = font(Enum.FontWeight.ExtraBold),
 		TextStrokeTransparency = 0.7, TextStrokeColor3 = GOLD,
 	})
 	local stars = text(top, "Estrelas", "", 18, RED, {
@@ -267,15 +267,18 @@ local function start()
 	task.defer(layoutButtons)
 
 	-- Objetivo da missão: linha no alto e um losango no mundo.
-	local objective = plate(gui, "Objetivo", {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, if touch then 64 else 100), Size = UDim2.fromOffset(if touch then 330 else 440, 30),
-		Visible = false,
+	-- Como no Cyberpunk: o trabalho fica num canto, em duas linhas (quem pagou e o prazo; o que fazer e a distância).
+	local objective = new("Frame", gui, {
+		Name = "Objetivo", AnchorPoint = if touch then Vector2.new(0, 0) else Vector2.new(1, 0), Position = if touch then UDim2.fromOffset(12, 172) else UDim2.new(1, -24, 0, 16),
+		Size = UDim2.fromOffset(if touch then 220 else 330, if touch then 38 else 46), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Visible = false,
 	})
-	objective.BackgroundColor3 = Color3.new(0, 0, 0)
-	objective.BackgroundTransparency = 0.45
-	text(objective, "Rotulo", "TRABALHO", 10, HOT, { Position = UDim2.fromOffset(30, -16), Size = UDim2.fromOffset(120, 12), FontFace = Font.fromEnum(Enum.Font.Michroma) })
-	local objectiveText = text(objective, "Texto", "", if touch then 13 else 15, GOLD, {
-		Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -20, 1, 0), TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd,
+	new("UIGradient", objective, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0.95) }) })
+	new("Frame", objective, { Name = "Traco", Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = GOLD, BorderSizePixel = 0 })
+	local objectiveHead = text(objective, "Rotulo", "TRABALHO", if touch then 9 else 11, HOT, {
+		Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -14, 0.42, 0), FontFace = Font.fromEnum(Enum.Font.Michroma), TextTruncate = Enum.TextTruncate.AtEnd,
+	})
+	local objectiveText = text(objective, "Texto", "", if touch then 12 else 15, GOLD, {
+		Position = UDim2.new(0, 10, 0.42, 0), Size = UDim2.new(1, -14, 0.58, -2), TextTruncate = Enum.TextTruncate.AtEnd, TextStrokeTransparency = 0.6,
 	})
 	local marker = new("Part", nil, {
 		Name = "CyberOutlawObjetivo", Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Transparency = 1, Size = Vector3.one,
@@ -315,10 +318,14 @@ local function start()
 	local MONO = Font.fromEnum(Enum.Font.RobotoMono)
 	local TECH = Font.fromEnum(Enum.Font.Michroma)
 	local holo = new("Frame", gui, {
-		Name = "Holochamada", AnchorPoint = Vector2.new(0, 0), Position = if touch then UDim2.fromOffset(14, 186) else UDim2.new(0, 28, 0.26, 0),
+		Name = "Holochamada", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 28, 0.26, 0),
 		Size = UDim2.fromOffset(340, 132), BackgroundTransparency = 1, Visible = false,
 	})
-	local holoScale = new("UIScale", holo, { Scale = if touch then 0.86 else 1 })
+	local holoScale = new("UIScale", holo, { Scale = 1 })
+	local HOLO_AT = if touch then UDim2.new(0.5, -200, 0, 2) else UDim2.new(0, 28, 0.26, 0)
+	if touch then
+		holo.Size = UDim2.fromOffset(400, 80)
+	end
 	local holoGlow = new("Frame", holo, {
 		Name = "Brilho", Position = UDim2.fromOffset(98, 4), Size = UDim2.new(1, -98, 1, -8), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0,
 	})
@@ -331,7 +338,8 @@ local function start()
 		})
 	end
 	local portraitFrame = new("Frame", holo, {
-		Name = "Quadro", Position = UDim2.fromOffset(16, 6), Size = UDim2.fromOffset(78, 96), BackgroundColor3 = Color3.fromRGB(30, 8, 12), BorderSizePixel = 0,
+		Name = "Quadro", Position = UDim2.fromOffset(16, 6), Size = if touch then UDim2.fromOffset(56, 68) else UDim2.fromOffset(78, 96),
+		BackgroundColor3 = Color3.fromRGB(30, 8, 12), BorderSizePixel = 0,
 	})
 	outline(portraitFrame, HOT, 0, 2)
 	local portrait = new("ViewportFrame", portraitFrame, {
@@ -348,31 +356,52 @@ local function start()
 	new("Frame", portraitFrame, { Name = "Canto", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 3, 1, 3), Size = UDim2.fromOffset(12, 4), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 4 })
 	local portraitCamera = new("Camera", portrait, { FieldOfView = 24 })
 	portrait.CurrentCamera = portraitCamera
-	local lineCode = text(holo, "Linha", "", 10, HOT, { Position = UDim2.fromOffset(104, 6), Size = UDim2.new(1, -108, 0, 12), FontFace = MONO, TextTransparency = 0.2 })
+	-- Colunas de texto: no PC embaixo uma da outra; no toque, texto no meio e os botões grandes à direita.
+	local textX, textW = if touch then 80 else 104, if touch then -264 else -108
+	local lineCode = text(holo, "Linha", "", if touch then 9 else 10, HOT, { Position = UDim2.fromOffset(textX, 4), Size = UDim2.new(1, textW, 0, 12), FontFace = MONO, TextTransparency = 0.2 })
 	local callerName = text(holo, "Nome", "", 19, NEON, {
-		Position = UDim2.fromOffset(104, 18), Size = UDim2.new(1, -108, 0, 26), FontFace = TECH, TextScaled = true, TextStrokeTransparency = 0.6, TextStrokeColor3 = NEON,
+		Position = UDim2.fromOffset(textX, if touch then 15 else 18), Size = UDim2.new(1, textW, 0, if touch then 22 else 26), FontFace = TECH, TextScaled = true,
+		TextStrokeTransparency = 0.6, TextStrokeColor3 = NEON,
 	})
-	new("UITextSizeConstraint", callerName, { MaxTextSize = 19 })
-	local callStatus = text(holo, "Status", "", 13, HOT, { Position = UDim2.fromOffset(104, 46), Size = UDim2.new(1, -108, 0, 18), FontFace = TECH })
-	local callerRole = text(holo, "Cargo", "", 11, SUB, { Position = UDim2.fromOffset(104, 64), Size = UDim2.new(1, -108, 0, 14), FontFace = font(Enum.FontWeight.Medium) })
-	local actions = new("Frame", holo, { Name = "Botoes", Position = UDim2.fromOffset(104, 84), Size = UDim2.new(1, -108, 0, 30), BackgroundTransparency = 1 })
-	new("UIListLayout", actions, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 14), SortOrder = Enum.SortOrder.LayoutOrder,
-		VerticalAlignment = Enum.VerticalAlignment.Center })
+	new("UITextSizeConstraint", callerName, { MaxTextSize = if touch then 16 else 19 })
+	local callStatus = text(holo, "Status", "", if touch then 11 else 13, HOT, {
+		Position = UDim2.fromOffset(textX, if touch then 39 else 46), Size = UDim2.new(1, textW, 0, 16), FontFace = TECH, TextTruncate = Enum.TextTruncate.AtEnd,
+	})
+	local callerRole = text(holo, "Cargo", "", if touch then 10 else 11, SUB, {
+		Position = UDim2.fromOffset(textX, if touch then 56 else 64), Size = UDim2.new(1, textW, 0, 14), FontFace = font(Enum.FontWeight.Medium),
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	})
+	local actions = new("Frame", holo, {
+		Name = "Botoes", AnchorPoint = if touch then Vector2.new(1, 0.5) else Vector2.zero,
+		Position = if touch then UDim2.new(1, -4, 0.5, 0) else UDim2.fromOffset(104, 84), Size = if touch then UDim2.fromOffset(180, 46) else UDim2.new(1, -108, 0, 30),
+		BackgroundTransparency = 1,
+	})
+	new("UIListLayout", actions, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, if touch then 6 else 14), SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Center, HorizontalAlignment = if touch then Enum.HorizontalAlignment.Right else Enum.HorizontalAlignment.Left })
 	-- Tecla na caixinha + ação: no toque, a linha inteira é o botão.
 	local function keyAction(caption: string, key: string, color: Color3, order: number, onClick)
+		if touch then
+			local big = new("TextButton", actions, {
+				Name = caption, Text = caption, FontFace = TECH, TextSize = 11, TextColor3 = color, AutoButtonColor = true, BackgroundColor3 = Color3.fromRGB(16, 6, 12),
+				BackgroundTransparency = 0.15, BorderSizePixel = 0, Size = UDim2.fromOffset(86, 44), LayoutOrder = order,
+			})
+			outline(big, color, 0, 1.5)
+			big.Activated:Connect(onClick)
+			return big
+		end
 		local item = new("TextButton", actions, {
-			Name = caption, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromOffset(if touch then 112 else 104, 30), LayoutOrder = order,
+			Name = caption, Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromOffset(104, 30), LayoutOrder = order,
 		})
 		local cap = new("Frame", item, { Name = "Tecla", Position = UDim2.fromOffset(0, 3), Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Color3.fromRGB(20, 6, 10),
 			BackgroundTransparency = 0.2, BorderSizePixel = 0 })
 		outline(cap, color, 0, 1.5)
-		text(cap, "Letra", if touch then "●" else key, 13, color, { FontFace = TECH, TextXAlignment = Enum.TextXAlignment.Center })
+		text(cap, "Letra", key, 13, color, { FontFace = TECH, TextXAlignment = Enum.TextXAlignment.Center })
 		text(item, "Acao", caption, 14, color, { Position = UDim2.fromOffset(30, 0), Size = UDim2.new(1, -30, 1, 0), FontFace = TECH })
 		item.Activated:Connect(onClick)
 		return item
 	end
 	local subtitle = new("Frame", gui, {
-		Name = "Legenda", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -62 else -120), Size = UDim2.fromOffset(if touch then 420 else 640, 58),
+		Name = "Legenda", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if touch then -64 else -120), Size = UDim2.fromOffset(if touch then 400 else 640, if touch then 50 else 58),
 		BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, Visible = false,
 	})
 	new("UIGradient", subtitle, { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.55),
@@ -400,7 +429,7 @@ local function start()
 		speaker = if fixer then fixer.nome else "Fixer"
 		local tone = if fixer then Color3.fromRGB(fixer.cor[1], fixer.cor[2], fixer.cor[3]) else NEON
 		speakerColor = string.format("#%02X%02X%02X", math.floor(tone.R * 255), math.floor(tone.G * 255), math.floor(tone.B * 255))
-		lineCode.Text = string.format("TRN_%s_%06d  ▮▮▯ SINAL", string.upper(string.sub(fixerId, 1, 4)), math.random(0, 999999))
+		lineCode.Text = string.format("TRN_%s_%06d  ||| SINAL", string.upper(string.sub(fixerId, 1, 4)), math.random(0, 999999))
 		local source = folder:FindFirstChild("Fixers")
 		local template = source and source:FindFirstChild(fixerId)
 		if not template then
@@ -538,13 +567,18 @@ local function start()
 	-- Painéis (Casa e Agente) -----------------------------------------------------------------------------
 	local dim = new("Frame", gui, { Name = "Fundo", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, Visible = false, ZIndex = 20 })
 	local card = plate(gui, "Painel", {
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(if touch then 0.78 else 0.56, if touch then 0.86 else 0.74),
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(if touch then 0.9 else 0.56, if touch then 0.97 else 0.74),
 		Visible = false, ZIndex = 21, BackgroundTransparency = 0.06,
 	})
 	new("UISizeConstraint", card, { MaxSize = Vector2.new(820, 620), MinSize = Vector2.new(320, 240) })
-	local title = text(card, "Titulo", "", 20, NEON, { Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -60, 0, 28), ZIndex = 22, FontFace = font(Enum.FontWeight.ExtraBold) })
+	local title = text(card, "Titulo", "", if touch then 14 else 18, NEON, {
+		Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -70, 0, 30), ZIndex = 22, FontFace = Font.fromEnum(Enum.Font.Michroma), TextTruncate = Enum.TextTruncate.AtEnd,
+	})
 	local close
-	local tabs = new("Frame", card, { Name = "Abas", Position = UDim2.fromOffset(12, 42), Size = UDim2.new(1, -24, 0, 32), BackgroundTransparency = 1, ZIndex = 22 })
+	local tabs = new("ScrollingFrame", card, {
+		Name = "Abas", Position = UDim2.fromOffset(12, 40), Size = UDim2.new(1, -24, 0, 36), BackgroundTransparency = 1, ZIndex = 22, BorderSizePixel = 0,
+		ScrollBarThickness = 0, ScrollingDirection = Enum.ScrollingDirection.X, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(),
+	})
 	new("UIListLayout", tabs, { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 	local body = new("ScrollingFrame", card, {
 		Name = "Conteudo", Position = UDim2.fromOffset(12, 82), Size = UDim2.new(1, -24, 1, -92), BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -566,7 +600,9 @@ local function start()
 			render()
 		end
 	end
-	close = button(card, "Fechar", "✕", PINK, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 8), Size = UDim2.fromOffset(40, 32), ZIndex = 23 }, function()
+	close = button(card, "Fechar", "X", HOT, {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 4), Size = UDim2.fromOffset(44, 34), ZIndex = 23, FontFace = Font.fromEnum(Enum.Font.Michroma), TextSize = 16,
+	}, function()
 		setOpen(nil)
 	end)
 	local function clearBody()
@@ -581,10 +617,10 @@ local function start()
 	end
 	local function row(order: number, height: number)
 		local item = new("Frame", body, {
-			Name = "Linha", Size = UDim2.new(1, -8, 0, height), BackgroundColor3 = Color3.fromRGB(22, 20, 44), BackgroundTransparency = 0.2,
-			LayoutOrder = order, ZIndex = 23, BorderSizePixel = 0,
+			Name = "Linha", Size = UDim2.new(1, -8, 0, if touch then math.min(height, 50) else height), BackgroundColor3 = Color3.fromRGB(24, 14, 26),
+			BackgroundTransparency = 0.15, LayoutOrder = order, ZIndex = 23, BorderSizePixel = 0,
 		})
-		corner(item, 6)
+		new("Frame", item, { Name = "Traco", Size = UDim2.new(0, 2, 1, 0), BackgroundColor3 = HOT, BorderSizePixel = 0, ZIndex = 24 })
 		return item
 	end
 	local function preview(parent, id: string, size: number)
@@ -793,6 +829,10 @@ local function start()
 		end
 		clearBody()
 		new("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+		-- Só a Casa tem abas: no Agente a lista começa logo abaixo do título.
+		tabs.Visible = panel == "casa"
+		body.Position = UDim2.fromOffset(12, if panel == "casa" then 82 else 44)
+		body.Size = UDim2.new(1, -24, 1, if panel == "casa" then -90 else -52)
 		if panel == "casa" then
 			title.Text = if (house.unidade or 0) > 0 then string.format("APARTAMENTO %02d · EDIFÍCIO COLMEIA", house.unidade) else "CASA · COLMEIA LOTADO"
 			tabButton("loja", "LOJA", 1)
@@ -923,6 +963,94 @@ local function start()
 		placeHint.Visible = not touch
 	end
 
+	-- Interações (ProximityPrompt) no estilo da interface: [E] na caixinha vermelha, ação em ciano, objeto em
+	-- cinza e a barra de segurar enchendo. No toque, a placa inteira é o botão (segura para assaltar, limpar...).
+	local ProximityPromptService = game:GetService("ProximityPromptService")
+	local promptGui = new("ScreenGui", player.PlayerGui, { Name = "CyberOutlawInteracoes", ResetOnSpawn = false, DisplayOrder = 34 })
+	local shownPrompts = {}
+	local function keyName(prompt: ProximityPrompt, inputType: Enum.ProximityPromptInputType): string
+		if inputType == Enum.ProximityPromptInputType.Gamepad then
+			return string.gsub(prompt.GamepadKeyCode.Name, "Button", "")
+		end
+		return prompt.KeyboardKeyCode.Name
+	end
+	ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
+		if prompt.Style ~= Enum.ProximityPromptStyle.Custom or shownPrompts[prompt] then
+			return
+		end
+		local tapping = inputType == Enum.ProximityPromptInputType.Touch
+		local board2 = new("BillboardGui", promptGui, {
+			Name = "Interacao", Adornee = prompt.Parent, AlwaysOnTop = true, LightInfluence = 0, Size = UDim2.fromOffset(250, 58),
+			StudsOffsetWorldSpace = Vector3.new(0, if prompt.Parent and prompt.Parent.Name == "HumanoidRootPart" then 3.2 else 1.6, 0), Active = tapping,
+			ResetOnSpawn = false,
+		})
+		local face = new(if tapping then "TextButton" else "Frame", board2, {
+			Name = "Placa", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.3, BorderSizePixel = 0,
+		})
+		if tapping then
+			(face :: TextButton).Text = ""
+			(face :: TextButton).AutoButtonColor = false
+		end
+		new("Frame", face, { Name = "Traco", Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = HOT, BorderSizePixel = 0 })
+		local cap = new("Frame", face, { Name = "Tecla", Position = UDim2.fromOffset(10, 13), Size = UDim2.fromOffset(32, 32), BackgroundColor3 = Color3.fromRGB(26, 8, 12), BorderSizePixel = 0 })
+		outline(cap, HOT, 0, 1.5)
+		text(cap, "Letra", if tapping then "TOQUE" else keyName(prompt, inputType), if tapping then 8 else 15, HOT, {
+			FontFace = Font.fromEnum(Enum.Font.Michroma), TextXAlignment = Enum.TextXAlignment.Center,
+		})
+		text(face, "Acao", string.upper(prompt.ActionText), 15, NEON, {
+			Position = UDim2.fromOffset(52, 8), Size = UDim2.new(1, -58, 0, 22), FontFace = Font.fromEnum(Enum.Font.Michroma), TextTruncate = Enum.TextTruncate.AtEnd,
+		})
+		text(face, "Objeto", prompt.ObjectText, 12, SUB, { Position = UDim2.fromOffset(52, 30), Size = UDim2.new(1, -58, 0, 16), TextTruncate = Enum.TextTruncate.AtEnd })
+		local track = new("Frame", face, { Name = "Segurar", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 3, 1, 0), Size = UDim2.new(1, -3, 0, 3),
+			BackgroundColor3 = HOT, BackgroundTransparency = 0.75, BorderSizePixel = 0, Visible = prompt.HoldDuration > 0 })
+		local fill = new("Frame", track, { Name = "Valor", Size = UDim2.fromScale(0, 1), BackgroundColor3 = HOT, BorderSizePixel = 0 })
+		local entry = { board = board2, holdAt = nil, connections = {} }
+		shownPrompts[prompt] = entry
+		table.insert(entry.connections, prompt.PromptButtonHoldBegan:Connect(function()
+			entry.holdAt = os.clock()
+		end))
+		table.insert(entry.connections, prompt.PromptButtonHoldEnded:Connect(function()
+			entry.holdAt = nil
+			fill.Size = UDim2.fromScale(0, 1)
+		end))
+		table.insert(entry.connections, prompt.Triggered:Connect(function()
+			entry.holdAt = nil
+			fill.Size = UDim2.fromScale(1, 1)
+			face.BackgroundColor3 = Color3.fromRGB(60, 12, 18)
+			task.delay(0.15, function()
+				face.BackgroundColor3 = Color3.new(0, 0, 0)
+				fill.Size = UDim2.fromScale(0, 1)
+			end)
+		end))
+		table.insert(entry.connections, RunService.RenderStepped:Connect(function()
+			if entry.holdAt and prompt.HoldDuration > 0 then
+				fill.Size = UDim2.fromScale(math.clamp((os.clock() - entry.holdAt) / prompt.HoldDuration, 0, 1), 1)
+			end
+		end))
+		if tapping then
+			table.insert(entry.connections, face.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+					prompt:InputHoldBegin()
+				end
+			end))
+			table.insert(entry.connections, face.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+					prompt:InputHoldEnd()
+				end
+			end))
+		end
+	end)
+	ProximityPromptService.PromptHidden:Connect(function(prompt)
+		local entry = shownPrompts[prompt]
+		if entry then
+			shownPrompts[prompt] = nil
+			for _, connection in entry.connections do
+				connection:Disconnect()
+			end
+			entry.board:Destroy()
+		end
+	end)
+
 	-- Avisos do servidor -----------------------------------------------------------------------------------
 	notice.OnClientEvent:Connect(function(kind, a, b, c)
 		if kind == "dinheiro" and type(a) == "number" then
@@ -1007,7 +1135,12 @@ local function start()
 		if not started then
 			started = player:GetAttribute("CyberOutlawMenuStarted") == true
 		end
-		gui.Enabled, top.Enabled = started, started
+		local covered = player:GetAttribute("CyberOutlawHudOculto") == true
+		gui.Enabled, top.Enabled = started and not covered, started
+		board.Enabled = not covered
+		if covered and panel then
+			setOpen(nil)
+		end
 		local admin = player.PlayerGui:FindFirstChild("CyberOutlawAdminBotao")
 		local shift = if admin and admin:IsA("ScreenGui") and admin.Enabled then 56 else 8
 		chip.Position = UDim2.new(1, -shift, 0.5, 0)
@@ -1021,11 +1154,21 @@ local function start()
 		end
 		local character = player.Character
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		if touch and objective.Visible then
+			local hudGui = player.PlayerGui:FindFirstChild("CyberOutlawHUD")
+			local anchor = hudGui and hudGui:FindFirstChild("MinimapAncora")
+			if anchor and anchor:IsA("GuiObject") then
+				local origin = gui.AbsolutePosition
+				objective.Position = UDim2.fromOffset(anchor.AbsolutePosition.X - origin.X, anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y - origin.Y + 28)
+			end
+		end
 		if mission and rootPart and rootPart:IsA("BasePart") then
 			local distance = if type(mission.alvo) == "table" then (Vector3.new(mission.alvo[1], mission.alvo[2], mission.alvo[3]) - rootPart.Position).Magnitude else 0
 			local left = (mission.prazo or 0) - workspace:GetServerTimeNow()
 			local extra = if mission.restantes then string.format(" · faltam %d", mission.restantes) else ""
-			objectiveText.Text = string.format("◆ %s%s · %d m · %s", mission.objetivo or "", extra, math.floor(distance / 3.6), clock(left))
+			objectiveHead.Text = string.format("TRABALHO · %s · %s", string.upper(mission.nomeFixer or ""), clock(left))
+			objectiveHead.TextColor3 = if left < 30 then RED else HOT
+			objectiveText.Text = string.format("◆ %s%s · %d m", mission.objetivo or "", extra, math.floor(distance / 3.6))
 			objectiveText.TextColor3 = if left < 30 then RED else GOLD
 			distanceText.Text = string.format("%d m", math.floor(distance / 3.6))
 		end
@@ -1035,7 +1178,7 @@ local function start()
 			portrait.Position = UDim2.fromOffset(if math.random() < 0.04 then math.random(-3, 3) else 0, 0)
 			local age = os.clock() - ((call and call.at) or 0)
 			local slide = 1 - math.clamp(age / 0.25, 0, 1)
-			holo.Position = (if touch then UDim2.fromOffset(14, 186) else UDim2.new(0, 28, 0.26, 0)) + UDim2.fromOffset(-60 * slide * slide, 0)
+			holo.Position = HOLO_AT + (if touch then UDim2.fromOffset(0, -40 * slide * slide) else UDim2.fromOffset(-60 * slide * slide, 0))
 			holoGlow.BackgroundTransparency = slide
 			if call and call.state == "tocando" then
 				callStatus.TextTransparency = if os.clock() % 0.8 < 0.4 then 0 else 0.45
