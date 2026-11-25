@@ -1,4 +1,4 @@
-"""Abre no Termux o pacote CyberOutlaw v10: HUD Night City corrigido, Sandevistan detalhado, tiros bem graves, sons reais e NPCs mais justos."""
+"""Abre no Termux o pacote CyberOutlaw v11: sons profissionais do Roblox, interface nova do Agente, chamadas entre jogadores e 55 móveis."""
 
 import hashlib
 from http.client import HTTPException
@@ -9,10 +9,10 @@ import tempfile
 from urllib.request import urlopen
 
 
-RELEASE = "b76f403f012fb6a208b89e1be5b1c86d2e649679"
+RELEASE = "695c179014c364ac790a87937846d68bc46c41d1"
 PACKAGE = "CYBEROUTLAW_TERMUX.pyz"
-PACKAGE_BYTES = 29_292_231
-PACKAGE_SHA256 = "539749944d76e33b2da33d758eb4296dde8b09e805500635e935d646b0e4c183"
+PACKAGE_BYTES = 29_304_700
+PACKAGE_SHA256 = "ae1eb2814ba5cf5f81f82d1c72e008d67a8d71ff1525e58eaf6148f6efbd8f52"
 PACKAGE_URL = f"https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/{RELEASE}/cyberoutlaw/dist/{PACKAGE}"
 BLOCK_SIZE = 128 * 1024
 
