@@ -3,18 +3,20 @@ local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
 
-local function load(media: string)
+local function load(media: string, runtime)
 	local source = fs.readFile("src/play.client.luau")
 	assert(select(2, source:gsub("__CYBEROUTLAW_MEDIA__", "")) == 1, "the script needs one media marker")
 	source = source:gsub("__CYBEROUTLAW_MEDIA__", media)
+	local environment = {
+		Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
+		Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, NumberSequence = roblox.NumberSequence,
+		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
+		Font = roblox.Font, utf8 = utf8,
+	}
+	for key, value in runtime or {} do environment[key] = value end
 	return luau.load(source, {
 		debugName = "play.client.luau",
-		environment = {
-			Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
-			Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, NumberSequence = roblox.NumberSequence,
-			NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
-			Font = roblox.Font, utf8 = utf8,
-		},
+		environment = environment,
 	})()
 end
 
@@ -893,6 +895,54 @@ do
 	assert(day.lamps < 0.5 and day.brightness > night.brightness)
 	assert(lightMobile.exposure > night.exposure and lightMobile.bloom < night.bloom)
 	assert(play.CITY_VISUAL_BUDGETS[1].puddles == 1 and play.CITY_VISUAL_BUDGETS[3].puddles == 3)
+end
+
+-- Os efeitos do servidor podem chegar depois que o jogador já saiu do menu.
+do
+	local lighting = roblox.Instance.new("Lighting")
+	local terrain = roblox.Instance.new("Terrain")
+	local time, preloads = 0, 0
+	local services = {
+		Lighting = lighting,
+		ContentProvider = {PreloadAsync = function() preloads += 1 end},
+	}
+	local client = load("{}", {
+		game = {GetService = function(_, name) return assert(services[name], name) end},
+		task = {spawn = function(callback) callback() end},
+	})
+	local apply = client.cityLighting({Terrain = terrain, GetServerTimeNow = function() return time end}, true)
+	apply(1)
+	local haze = roblox.Instance.new("Atmosphere")
+	haze.Density, haze.Parent = 0.1, lighting
+	local bloom = roblox.Instance.new("BloomEffect")
+	bloom.Name, bloom.Intensity, bloom.Size, bloom.Parent = "CyberOutlawCityBloom", 0, 8, lighting
+	local grade = roblox.Instance.new("ColorCorrectionEffect")
+	grade.Name, grade.Contrast, grade.Parent = "CyberOutlawCityGrade", 0, lighting
+	local sky = roblox.Instance.new("Sky")
+	local faces = {"SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp"}
+	for _, name in faces do sky[name] = "" end
+	sky.SkyboxUp = "rbxassetid://9006"
+	sky.Parent = lighting
+	apply(1)
+	assert(preloads == 0, "aguarda as seis faces do céu de Maré Baixa")
+	for index, name in faces do sky[name] = "rbxassetid://" .. (9000 + index) end
+	sky.CelestialBodiesShown, sky.StarCount = false, 0
+	apply(1)
+	assert(haze.Density > 0.25 and bloom.Intensity > 0.4 and bloom.Size == 20 and grade.Contrast > 0.1)
+	assert(preloads == 1 and sky.SkyboxUp == "rbxassetid://9006")
+	time = 16.5 * 60 -- 13h no ciclo da cidade.
+	apply(3)
+	assert(bloom.Size == 26 and sky.CelestialBodiesShown and sky.SkyboxUp == "rbxassetid://6412503613")
+	time = 0
+	apply(3)
+	assert(not sky.CelestialBodiesShown and sky.SkyboxUp == "rbxassetid://9006" and preloads == 1)
+	bloom:Destroy()
+	local replacement = roblox.Instance.new("BloomEffect")
+	replacement.Name, replacement.Size, replacement.Parent = "CyberOutlawCityBloom", 8, lighting
+	apply(1)
+	assert(replacement.Size == 20, "o cliente acompanha a substituição dos efeitos da cidade")
+	lighting:Destroy()
+	terrain:Destroy()
 end
 
 -- Reflexos de fachadas e letreiros, com recorte no plano da rua e seleção pela abertura.

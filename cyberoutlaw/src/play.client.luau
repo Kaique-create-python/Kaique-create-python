@@ -3313,19 +3313,15 @@ M.puddleReflections = puddleReflections
 
 local function cityLighting(workspace: Workspace, mare: boolean)
 	local lighting = game:GetService("Lighting")
-	local sky = lighting:FindFirstChildOfClass("Sky")
 	local dayFaces = {
 		SkyboxBk = "rbxassetid://6444884337", SkyboxDn = "rbxassetid://6444884785", SkyboxFt = "rbxassetid://6444884337",
 		SkyboxLf = "rbxassetid://6444884337", SkyboxRt = "rbxassetid://6444884337", SkyboxUp = "rbxassetid://6412503613",
 	}
-	local nightFaces = {}
-	local nightBodies, nightStars = true, 400
-	local custom = sky and sky.SkyboxUp ~= dayFaces.SkyboxUp and string.find(sky.SkyboxUp, "rbxassetid") ~= nil
-	if custom then
-		for key in dayFaces do
-			nightFaces[key] = (sky :: any)[key]
-		end
-		nightBodies, nightStars = sky.CelestialBodiesShown, sky.StarCount
+	local sky, nightFaces, lastNight, lastFaces
+	local nightBodies, nightStars
+	local daySkyRequested = false
+	local function preloadDaySky()
+		daySkyRequested = true
 		task.spawn(function()
 			local probe = Instance.new("Sky")
 			for key, value in dayFaces do
@@ -3347,9 +3343,37 @@ local function cityLighting(workspace: Workspace, mare: boolean)
 			end
 		end)
 	end
-	local haze = lighting:FindFirstChildOfClass("Atmosphere")
-	local bloom = lighting:FindFirstChild("CyberOutlawCityBloom")
-	local grade = lighting:FindFirstChild("CyberOutlawCityGrade")
+	local function updateSky(hour: number)
+		local current = lighting:FindFirstChildOfClass("Sky")
+		if current ~= sky then
+			sky, nightFaces, lastNight, lastFaces = current, nil, nil, nil
+		end
+		if not current then return end
+		if not nightFaces then
+			if current.SkyboxUp == dayFaces.SkyboxUp or not string.find(current.SkyboxUp, "rbxassetid://", 1, true) then
+				return
+			end
+			local faces = {}
+			for key in dayFaces do
+				local asset = (current :: any)[key]
+				if mare and not string.find(asset, "rbxassetid://", 1, true) then return end
+				faces[key] = asset
+			end
+			nightFaces = faces
+			nightBodies, nightStars = current.CelestialBodiesShown, current.StarCount
+			if not daySkyRequested then preloadDaySky() end
+		end
+		local night = nightSky(hour)
+		local faces = if night then nightFaces else dayFaces
+		if night ~= lastNight or faces.SkyboxUp ~= lastFaces then
+			lastNight, lastFaces = night, faces.SkyboxUp
+			for key, value in faces do
+				(current :: any)[key] = value
+			end
+			current.CelestialBodiesShown = if night then nightBodies else true
+			current.StarCount = if night then nightStars else 0
+		end
+	end
 	local rays = Instance.new("SunRaysEffect")
 	rays.Name, rays.Intensity, rays.Spread = "CyberOutlawSol", 0, 0.55
 	rays.Parent = lighting
@@ -3359,11 +3383,13 @@ local function cityLighting(workspace: Workspace, mare: boolean)
 		clouds.Name, clouds.Density = "CyberOutlawNuvens", 0.55
 		clouds.Parent = workspace.Terrain
 	end
-	local lastNight
-	local lastFaces
 	return function(tier: number): number
 		local hour = dayClock(workspace:GetServerTimeNow())
 		local light = visualDayLight(hour, mare, tier)
+		-- Os efeitos podem chegar depois da troca da câmera do menu para a cidade.
+		local haze = lighting:FindFirstChildOfClass("Atmosphere")
+		local bloom = lighting:FindFirstChild("CyberOutlawCityBloom")
+		local grade = lighting:FindFirstChild("CyberOutlawCityGrade")
 		lighting.ClockTime, lighting.Brightness = hour, light.brightness
 		lighting.Ambient, lighting.OutdoorAmbient, lighting.ExposureCompensation = light.ambient, light.outdoor, light.exposure
 		if haze then
@@ -3388,21 +3414,12 @@ local function cityLighting(workspace: Workspace, mare: boolean)
 		if mare then
 			clouds.Enabled = tier > 1
 		end
-		if sky and custom then
-			local night = nightSky(hour)
-			local faces = if night then nightFaces else dayFaces
-			if night ~= lastNight or faces.SkyboxUp ~= lastFaces then
-				lastNight, lastFaces = night, faces.SkyboxUp
-				for key, value in faces do
-					(sky :: any)[key] = value
-				end
-				sky.CelestialBodiesShown = if night then nightBodies else true
-				sky.StarCount = if night then nightStars else 0
-			end
-		end
+		updateSky(hour)
 		return light.lamps
 	end
 end
+
+M.cityLighting = cityLighting
 
 local function startCityVisuals(workspace: Workspace, camera: Camera, players: Players, runService: RunService, quality)
 	local city = workspace:WaitForChild("CyberOutlawCity", 120)
