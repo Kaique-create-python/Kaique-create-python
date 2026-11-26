@@ -239,10 +239,10 @@ for _, device in devices do
 	end
 end
 
--- HUD com o traçado real da cidade: minimapa, giro, distrito, hora, rastro de dano, fôlego e descanso.
+local city
 do
 	local normals = { Front = V3.new(0, 0, -1) }
-	local worldSource = string.gsub(fs.readFile("src/world.server.luau"), "__CYBEROUTLAW_ART__", "{}")
+	local worldSource = require("./support/world_source")()
 	local _, _, layoutData = luau.load(worldSource, {
 		debugName = "world.server.luau",
 		environment = {
@@ -251,7 +251,41 @@ do
 			ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, Enum = roblox.Enum, UDim2 = roblox.UDim2, Font = roblox.Font, Content = roblox.Content,
 		},
 	})()
-	local city = layoutData()
+	city = layoutData()
+end
+
+-- As duas direções usam eixos próprios. O canal só pode ser cruzado nas pontes.
+do
+	local hud = play.buildHud(roblox.Instance.new("Folder"), true)
+	local layout = table.clone(city)
+	layout.lines = nil
+	hud.setMap(layout)
+	assert(not hud.gui:FindFirstChild("NoSignal", true).Visible, "the minimap accepts independent street axes")
+	local map = hud.parts.map
+	assert(map.Size.X.Offset == 512 and math.abs(map.Size.Y.Offset - 435.2) < 1, "the rectangular map keeps equal scale on both axes")
+	local function covering(x, z)
+		local px, py = (x + 1600) * 0.16, (z + 1360) * 0.16
+		local hit
+		for _, child in map:GetChildren() do
+			local left, top = child.Position.X.Offset, child.Position.Y.Offset
+			if (not hit or child.ZIndex > hit.ZIndex) and px >= left and px < left + child.Size.X.Offset
+				and py >= top and py < top + child.Size.Y.Offset then
+				hit = child
+			end
+		end
+		return hit
+	end
+	assert(covering(-240, 120).Name == "Rua" and covering(120, 0).Name == "Avenida")
+	assert(covering(0, 120).Name == "Canal", "the central grid line never becomes a street")
+	local foot, road = covering(0, -480), covering(0, 0)
+	assert(foot.Name == "Passarela" and road.Name == "Ponte" and foot.BackgroundColor3 ~= road.BackgroundColor3,
+		"footbridges and road bridges are distinct")
+	assert(foot.Size.Y.Offset < road.Size.Y.Offset and covering(0, -465).Name == "Canal",
+		"the pedestrian crossing preserves the canal next to its narrower span")
+end
+
+-- HUD com o traçado real da cidade: minimapa, giro, distrito, hora, rastro de dano, fôlego e descanso.
+do
 	for _, touch in { false, true } do
 		local folder = roblox.Instance.new("Folder")
 		local hud = play.buildHud(folder, touch)
@@ -261,17 +295,20 @@ do
 		local view = hud.gui:FindFirstChild("Viewport", true)
 		assert(view.ClipsDescendants and view.ClassName == "Frame", "the minimap clips without CanvasGroup")
 		assert(hud.gui:FindFirstChild("NoSignal", true).Visible, "no map before the city publishes its layout")
+		local map = hud.parts.map
+		hud.setMap({ half = 1000, quay = 1070, lines = { { 0, 70, 12 } } })
+		assert(map.Size.X.Offset == map.Size.Y.Offset and map:FindFirstChild("Agua"), "a legacy square layout still draws its bay")
 		hud.setMap(city)
 		assert(not hud.gui:FindFirstChild("NoSignal", true).Visible, "the minimap draws the published city")
 		local state = {
-			health = 100, maxHealth = 100, stamina = 1, exhausted = false, position = V3.new(108, 3, 140),
+			health = 100, maxHealth = 100, stamina = 1, exhausted = false, position = V3.new(city.spawn[1], 3, city.spawn[2]),
 			cameraYaw = -math.pi / 2, facingYaw = 0, district = { name = "Distrito Prisma" }, clock = "00:36",
 		}
 		hud.update(state, 0.1)
 		local scale = if touch then 0.16 else 0.22
-		local extent = city.half + 400
-		local map = hud.parts.map
-		assert(math.abs(map.Position.X.Offset + (108 + extent) * scale) <= 1 and math.abs(map.Position.Y.Offset + (140 + extent) * scale) <= 1)
+		local extentX, extentZ = city.halfX + 400, city.halfZ + 400
+		assert(math.abs(map.Position.X.Offset + (state.position.X + extentX) * scale) <= 1
+			and math.abs(map.Position.Y.Offset + (state.position.Z + extentZ) * scale) <= 1)
 		assert(math.abs(hud.parts.pivot.Rotation + 90) < 0.001, "looking east turns the map")
 		assert(math.abs(hud.parts.arrow.Rotation + 90) < 0.001, "the player faces north, left of the camera")
 		assert(hud.gui:FindFirstChild("DistrictName", true).Text == "DISTRITO PRISMA" and hud.gui:FindFirstChild("Clock", true).Text == "00:36")
@@ -750,6 +787,60 @@ do
 		end
 	end
 	assert(lamps == 2, "red lamps at the back of the last car")
+end
+-- Linha 07: paradas para embarque nos dois sentidos e retorno sem virar os carros.
+do
+	local track = play.trainTrack(city.monorail, city.deck, city.monorailMode)
+	assert(track.total == 2340, "a shuttle does not close the route back to its first point")
+	local first = play.trackPoint(track, -1)
+	local last = play.trackPoint(track, 2341)
+	assert(first.X == -1170 and last.X == 1170, "the route ends at the viaduct limits")
+	local station = play.trackDistance(track, city.station[1], city.station[2])
+	assert(station == 1295, "the middle car lines up with Estação do Dique")
+	local schedule = play.shuttleSchedule(track.total, station)
+	local _, parts = play.buildTrainCar(1, true, false, -1)
+	local floor, slidingDoors = nil, 0
+	for _, entry in parts do
+		if entry.part.Name == "Piso" then
+			floor = entry
+		elseif entry.part.Name == "Porta" and entry.slide then
+			assert(entry.offset.Position.X < 0, "only the platform side opens")
+			slidingDoors += 1
+		end
+	end
+	assert(floor and slidingDoors == 4, "there are two boarding doors on the platform side")
+	local train = play.TRAIN
+	local endOffset = train.pitch + floor.part.Size.Z / 2
+	local openedAfter, westStop, eastStop = {}, nil, nil
+	local previous, previousSpeed, direction = station, 0, 0
+	for step = 0, 1800 do
+		local center, speed, open = schedule(step / 10)
+		assert(center >= endOffset - 1e-6 and center <= track.total - endOffset + 1e-6, "the entire train remains on the track")
+		assert(math.abs(center - previous) <= train.speed / 10 + 1e-4, "no jump in position at a stop or reversal")
+		assert(math.abs(speed - previousSpeed) <= train.accel / 10 + 1e-4, "the shuttle changes speed continuously")
+		if speed ~= 0 then
+			direction = math.sign(speed)
+		end
+		if open > 0 then
+			assert(speed == 0 and center == station, "passengers board only at the station")
+		end
+		if open == 1 then
+			openedAfter[direction] = true
+		end
+		if speed == 0 and center < endOffset + 0.5 then westStop = center end
+		if speed == 0 and center > track.total - endOffset - 0.5 then eastStop = center end
+		previous, previousSpeed = center, speed
+	end
+	assert(openedAfter[-1] and openedAfter[1] and westStop and eastStop, "both turnarounds serve the station")
+	for _, center in { westStop, station, eastStop } do
+		local pose = play.carCFrame(track, center)
+		assert((pose.LookVector - V3.new(1, 0, 0)).Magnitude < 1e-6, "the car keeps its orientation at a turnaround")
+		local floorTop = (pose * floor.offset).Position.Y + floor.part.Size.Y / 2
+		assert(math.abs(floorTop - 27.9) <= 0.15, "the train floor lines up with the station platform")
+	end
+	local floorPose = play.carCFrame(track, station) * floor.offset
+	local northEdge = floorPose:PointToWorldSpace(V3.new(-floor.part.Size.X / 2, 0, 0)).Z
+	assert(northEdge > -8.55 and northEdge < -8.3, "the north platform edge is within stepping distance")
 end
 -- Dia e noite: 24 minutos por dia, a noite de antes à meia-noite, sol forte ao meio-dia, sem salto.
 do

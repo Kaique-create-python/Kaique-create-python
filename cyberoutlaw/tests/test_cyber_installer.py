@@ -56,7 +56,7 @@ LEGACY_CONFIG = {
     "sounds": {"click": 21, "hello": 22},
     "clips": {"idle": {"fps": 6, "frames": [{"id": 31, "x": 0, "y": 5, "w": 64, "h": 64}]}},
 }
-V2_CONFIG = {"art": {"title": 98, "billboard": 99}, "clips": {}, "sounds": {"click": 25}, "video": 0}
+V2_CONFIG = {"art": {"titulo_vetor": 98, "teloes_vetor": 99}, "clips": {}, "sounds": {"click": 25}, "video": 0}
 
 
 def bound(template, assets):
@@ -346,7 +346,7 @@ class PatcherTests(unittest.TestCase):
         with self.assertRaisesRegex(Failure, "Nome inválido"):
             patch_place(xml_place(), SOURCE, server={"Other": f"{SERVER_HEADER}Other\n"})
 
-    def test_package_server_scripts_bind_only_photo_textures(self):
+    def test_package_server_scripts_bind_world_and_approved_materials(self):
         config = load_config(Path("/nonexistent/ASSETS.json"))
         config["art"] = {"asphalt": 11, "asphalt_normal": 12, "concrete": 13, "billboard": 14, "facades": 15}
         scripts = server_from_package(Path(__file__).resolve().parents[1], config)
@@ -364,13 +364,27 @@ class PatcherTests(unittest.TestCase):
         city = scripts["CyberOutlawCity"]
         self.assertIn('local ART = {["asphalt"] = 11, ["asphalt_normal"] = 12, ["concrete"] = 13}', city)
         self.assertNotIn("15", city.split("local ART = ", 1)[1].split("\n", 1)[0])
-        config["art"].update({"fachada_vidro": 21, "vitrines": 22, "poca_1": 23, "ceu_up": 24, "tijolo": 25})
+        config["art"].update({"fachada_vidro": 21, "vitrines": 22, "poca_1": 23, "ceu_up": 24, "tijolo": 25,
+                              "mare_glass_color": 26, "mare_glass_normal": 27})
         city = server_from_package(Path(__file__).resolve().parents[1], config)["CyberOutlawCity"]
         line = city.split("local ART = ", 1)[1].split("\n", 1)[0]
-        for key in ("fachada_vidro", "vitrines", "poca_1", "ceu_up", "tijolo"):
+        for key in ("fachada_vidro", "poca_1", "ceu_up", "tijolo", "mare_glass_color", "mare_glass_normal"):
             self.assertIn(f'["{key}"]', line, "code-drawn and CC0 city art reaches the city script")
+        self.assertIn("Mare.Transit = (function()", city)
+        self.assertNotIn("__CYBEROUTLAW_MARE_MODULES__", city)
+        self.assertNotIn('["vitrines"]', line)
         self.assertNotIn('["facades"]', line)
         self.assertNotIn('["billboard"]', line)
+
+    @patch("install.cyber_installer.V121_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
+    def test_v121_upgrade_does_not_recover_archived_generated_art(self):
+        legacy = {**V2_CONFIG, "art": {"title": 1, "billboard": 2, "facades": 3, "vitrines": 4, "asphalt": 5}}
+        original, _ = patch_place(xml_place(), bound(V1_TEMPLATE, legacy))
+        ready, changed, source = _prepare_update(original, bound(V2_TEMPLATE, V2_CONFIG))
+        self.assertTrue(changed)
+        self.assertEqual(menu_source(ready), source)
+        saved = _asset_table(_split_assets(source)[1], {*V1_ASSET_TYPES, "art"})
+        self.assertEqual(saved["art"], {**V2_CONFIG["art"], "asphalt": 5})
 
     @patch("install.cyber_installer.HUD_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
     def test_hud_v1_menu_upgrades_without_local_receipts(self):
@@ -398,16 +412,16 @@ class ConfigTests(unittest.TestCase):
                 "local ASSETS = __CYBEROUTLAW_CONFIG__\n-- __CYBEROUTLAW_CITY__\n-- __CYBEROUTLAW_SCENE__\n-- __CYBEROUTLAW_HUD__\nreturn ASSETS"
             )
             (root / "src" / "city.luau").write_text("local function createCyberCity(parent) end\n")
-            (root / "src" / "scene.luau").write_text("local function createCyberScene(parent) end\n")
+            (root / "src" / "scene.luau").write_text("local function openCyberOutlawScene(parent) end\n")
             (root / "src" / "hud.luau").write_text("local function mountCyberOutlawHud() end\n")
             empty, config = source_from_package(root)
             self.assertEqual(config, {"video": 0, "clips": {}, "sounds": {}, "art": {}})
             self.assertIn("local function createCyberCity(parent)", empty)
-            self.assertLess(empty.index("local function createCyberCity"), empty.index("local function createCyberScene"))
+            self.assertLess(empty.index("local function createCyberCity"), empty.index("local function openCyberOutlawScene"))
             self.assertIn("local function mountCyberOutlawHud()", empty)
             data = {
                 "video": 218,
-                "art": {"title": 24, "billboard": 49},
+                "art": {"titulo_vetor": 24, "teloes_vetor": 49},
                 "sounds": {"hover": 21},
                 "clips": {"idle": {"fps": 6, "frames": [{"id": 31, "x": 0, "y": 5, "w": 64, "h": 64}]}},
             }
@@ -416,7 +430,7 @@ class ConfigTests(unittest.TestCase):
             text, normalized = source_from_package(root)
             self.assertNotIn("__CYBEROUTLAW_", text)
             self.assertIn('["id"] = 31', text)
-            self.assertIn('["billboard"] = 49', text)
+            self.assertIn('["teloes_vetor"] = 49', text)
             self.assertEqual(normalized["sounds"]["hover"], 21)
             self.assertEqual(_asset_table(_split_assets(text)[1], {*V1_ASSET_TYPES, "art"}), normalized)
             ASSETS.write_text('{"video":0,"video":23}')

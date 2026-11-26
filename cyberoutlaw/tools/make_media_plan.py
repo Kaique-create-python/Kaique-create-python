@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from media_tools.catalog import verify_media, ART, OPTIONAL_SOUNDS, SOUNDS
 from media_tools import upload
+from media_tools.mare_art import MENU_ART, PBR_ART
 
 media = ROOT / "media"
 capri = json.loads((media / "capri/capri_clips.json").read_text())
@@ -53,20 +54,16 @@ for key in SOUNDS + OPTIONAL_SOUNDS:
     rows.append({**row(key, p, "Audio", mime, note), "durationSeconds": entry["durationSeconds"]})
 
 for key in ART:
-    if key == "title":
-        description = "Letreiro original CyberOutlaw."
-    elif key == "billboard":
-        description = "Arte original dos três painéis de Maré Baixa."
-    elif key == "facades":
-        description = "Quatro texturas originais para as fachadas da cidade 3D."
+    if key in MENU_ART:
+        description = "Arte do menu CyberOutlaw desenhada por código."
+    elif key in PBR_ART:
+        description = "Mapa PBR original de Maré Baixa produzido por texturização procedural."
     elif key == "icones_interface":
         description = "Ícones 2D das armas e dos botões, desenhados à mão em vetor, sem imagem gerada por IA."
     elif key == "fachada_painel":
         description = "Painéis modulares dos megaprédios de Maré Baixa, desenhados por código, sem imagem gerada por IA."
     elif key.startswith("fachada_"):
         description = "Janelas de Maré Baixa desenhadas por código, sem imagem gerada por IA."
-    elif key == "vitrines":
-        description = "Interiores das lojas de Maré Baixa vistos pela vitrine. Imagens geradas com IA no Figma, com autorização do dono do projeto."
     elif key == "anuncios":
         description = "Anúncios de marcas fictícias de Maré Baixa, desenhados por código, sem imagem gerada por IA."
     elif key.startswith("poca_"):

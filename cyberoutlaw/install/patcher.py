@@ -1,4 +1,4 @@
-"""Update the client script, managed server scripts and native avatar settings in a Roblox place."""
+"""Update managed scripts and native settings in a Roblox place."""
 
 from dataclasses import dataclass, field
 from hashlib import sha256
@@ -15,6 +15,7 @@ MENU_NAME = "CyberOutlawMenu"
 MENU_PATH = ("StarterPlayer", "StarterPlayerScripts", MENU_NAME)
 MENU_CLASSES = ("StarterPlayer", "StarterPlayerScripts", "LocalScript")
 SERVER_SERVICE = "ServerScriptService"
+CITY_SCRIPT = "CyberOutlawCity"
 # Every managed server script starts with this line plus its own name.
 SERVER_HEADER = "-- CyberOutlaw · script de servidor gerenciado: "
 CLIENT_HEADER = "-- CyberOutlaw · script de cliente gerenciado: "
@@ -23,15 +24,17 @@ CONTAINER_CLASSES = ("StarterPlayer", "StarterPlayerScripts", SERVER_SERVICE, "A
 SCRIPT_CLASSES = ("LocalScript", "Script")
 SERVICE_CLASSES = ("StarterPlayer", SERVER_SERVICE)
 R6 = 0  # Enum.GameAvatarType.R6
-RIG_PROPERTIES = {
-    "StarterPlayer": ("GameSettingsAvatar", "PlaceAvatarRules"),
-    "AvatarRules": ("AvatarType",),
-    "AvatarBodyRules": ("AvatarType",),
-    "Lighting": ("Technology", "LightingStyle", "PrioritizeLightingQuality"),
-}
 # Iluminação "Realistic" com prioridade de qualidade: o equivalente do antigo Future no sistema unificado
 # (Technology.Unified = 5, LightingStyle.Realistic = 0). Scripts não podem mudar isso; o arquivo do place pode.
 LIGHTING = (("Technology", "token", 5), ("LightingStyle", "token", 0), ("PrioritizeLightingQuality", "bool", True))
+CITY_STREAMING = (("StreamingEnabled", "bool", True), ("StreamingMinRadius", "int", 180), ("StreamingTargetRadius", "int", 640))
+NATIVE_PROPERTIES = {
+    "StarterPlayer": ("GameSettingsAvatar", "PlaceAvatarRules"),
+    "AvatarRules": ("AvatarType",),
+    "AvatarBodyRules": ("AvatarType",),
+    "Lighting": tuple(name for name, _, _ in LIGHTING),
+    "Workspace": tuple(name for name, _, _ in CITY_STREAMING),
+}
 
 
 def source_digest(source):
@@ -126,7 +129,8 @@ class _Item:
     sources: list = field(default_factory=list)
     referent: str = ""
     props_end: int = 0
-    avatar_props: dict = field(default_factory=dict)
+    native_props: dict = field(default_factory=dict)
+    first_child_start: int = 0
 
 
 @dataclass
@@ -195,6 +199,8 @@ class _Xml:
         elif tag == "Item":
             if attrs.get("referent"):
                 self.refs.add(attrs["referent"])
+            if parent_tag == "Item" and isinstance(parent, _Item) and not parent.first_child_start:
+                parent.first_child_start = position
             if parent_tag in ("roblox", "Item") and isinstance(parent, _Item) and (
                 parent is self.root or parent.class_name in CONTAINER_CLASSES
             ):
@@ -210,9 +216,9 @@ class _Xml:
             ):
                 node = _Prop(tag, position)
                 (parent.names if property_name == "Name" else parent.sources).append(node)
-            elif property_name in RIG_PROPERTIES.get(parent.class_name, ()):
+            elif property_name in NATIVE_PROPERTIES.get(parent.class_name, ()):
                 node = _Prop(tag, position)
-                parent.avatar_props.setdefault(property_name, []).append(node)
+                parent.native_props.setdefault(property_name, []).append(node)
         if isinstance(parent, _Prop):
             parent.nested = True
         self.stack.append((tag, node))
@@ -300,32 +306,33 @@ class _Xml:
             raise Failure(f"O {path[-1]} existente não tem a propriedade Source.")
         return self.raw[:prop.start] + self.source_markup(prop.tag, source) + self.raw[self.prop_end(prop):], True
 
-    def enforce_lighting(self):
-        lighting = _single((node for node in self.root.children if node.class_name == "Lighting"), "Lighting")
-        if lighting is None:
-            return self.raw
-        if lighting.props_count > 1:
-            raise Failure("O place tem propriedades de iluminação duplicadas.")
+    def enforce_service_properties(self, services):
         edits = []
-        additions = []
-        for name, kind, value in LIGHTING:
-            text = ("true" if value else "false") if kind == "bool" else str(value)
-            markup = self.bytes(f'<{kind} name="{name}">{text}</{kind}>')
-            prop = _single(lighting.avatar_props.get(name, ()), name)
-            if prop:
-                if prop.value({kind}).strip().lower() != text:
+        for class_name, properties in services.items():
+            node = _single((child for child in self.root.children if child.class_name == class_name), class_name)
+            if node is None:
+                continue
+            if node.props_count > 1:
+                raise Failure(f"O place tem propriedades duplicadas em {class_name}.")
+            additions = []
+            for name, kind, value in properties:
+                text = str(value).lower()
+                markup = self.bytes(f'<{kind} name="{name}">{text}</{kind}>')
+                prop = _single(node.native_props.get(name, ()), name)
+                if prop is None:
+                    additions.append(markup)
+                elif prop.value({kind}).strip().lower() != text:
                     edits.append((prop.start, self.prop_end(prop), markup))
-            else:
-                additions.append(markup)
-        if additions:
-            joined = b"".join(additions)
-            if lighting.props_count:
-                edits.append(self.child_edit(_Item("Properties", 0, end=lighting.props_end), joined))
-            elif lighting.children:
-                start = lighting.children[0].start
-                edits.append((start, start, self.bytes("<Properties>") + joined + self.bytes("</Properties>")))
-            else:
-                edits.append(self.child_edit(lighting, self.bytes("<Properties>") + joined + self.bytes("</Properties>")))
+            if additions:
+                joined = b"".join(additions)
+                if node.props_count:
+                    edits.append(self.child_edit(_Item("Properties", 0, end=node.props_end), joined))
+                else:
+                    markup = self.bytes("<Properties>") + joined + self.bytes("</Properties>")
+                    if node.first_child_start:
+                        edits.append((node.first_child_start, node.first_child_start, markup))
+                    else:
+                        edits.append(self.child_edit(node, markup))
         raw = self.raw
         for start, end, replacement in sorted(edits, reverse=True):
             raw = raw[:start] + replacement + raw[end:]
@@ -337,7 +344,7 @@ class _Xml:
         global_rules = [node for node in settings.children if node.class_name == "AvatarRules"] if settings else []
         default = _single((node for node in global_rules if node.names and node.names[0].value({"string"}) == "DefaultAvatarRules"), "DefaultAvatarRules")
         rules = [default] if default else []
-        link = _single(starter.avatar_props.get("PlaceAvatarRules", ()), "PlaceAvatarRules")
+        link = _single(starter.native_props.get("PlaceAvatarRules", ()), "PlaceAvatarRules")
         reference = link.value({"Ref"}).strip() if link else "null"
         if reference not in ("null", ""):
             explicit = _single(
@@ -359,7 +366,7 @@ class _Xml:
         for node, name in targets:
             if node.props_count > 1:
                 raise Failure("O place tem propriedades de avatar duplicadas.")
-            prop = _single(node.avatar_props.get(name, ()), name)
+            prop = _single(node.native_props.get(name, ()), name)
             markup = self.bytes(f'<token name="{name}">{R6}</token>')
             if prop:
                 if prop.value({"token"}).strip() != str(R6):
@@ -494,20 +501,31 @@ def _binary_r6(doc):
 
 
 def _binary_lighting(doc):
-    lighting = _single((ref for ref, obj in doc.objects.items() if obj["class"] == "Lighting" and doc.parents[ref] == -1), "Lighting")
-    if lighting is None:
+    return _binary_service_properties(doc, "Lighting", LIGHTING)
+
+
+def _binary_service_properties(doc, class_name, properties):
+    service = _single(
+        (ref for ref, obj in doc.objects.items() if obj["class"] == class_name and doc.parents[ref] == -1),
+        class_name,
+    )
+    if service is None:
         return False
-    obj = doc.objects[lighting]
+    obj = doc.objects[service]
     gid, index = obj["group"], obj["index"]
     count = len(doc.groups[gid]["refs"])
+    codes = {"bool": 0x02, "int": 0x03, "token": 0x12}
     changed = False
-    for name, kind, value in LIGHTING:
-        code = 0x12 if kind == "token" else 0x02
+    for name, kind, value in properties:
+        code = codes[kind]
+        if kind == "int":
+            # Int32 usa ZigZag antes da intercalação. Os enums usam o valor sem sinal.
+            value = (value << 1) ^ (value >> 31)
         prop = doc.props.get((gid, name))
         if prop is None:
             if count != 1:
-                raise Failure("Não foi possível separar a iluminação de outros serviços.")
-            payload = puints([value]) if kind == "token" else bytes([1 if value else 0])
+                raise Failure(f"Não foi possível separar {name} das outras instâncias de {class_name}.")
+            payload = bytes([value]) if kind == "bool" else puints([value])
             data = pack32(gid) + pstring(name.encode()) + bytes([code]) + payload
             chunk = Chunk(b"PROP", data)
             doc.chunks.insert(doc.chunks.index(doc.parent_chunk), chunk)
@@ -516,22 +534,24 @@ def _binary_lighting(doc):
             continue
         chunk, found, start = prop
         if found != code:
-            raise Failure(f"A propriedade {name} da iluminação tem um tipo inesperado.")
-        if kind == "token":
-            values = uints(chunk.data[start:], count)
-            if values[index] != value:
-                values[index] = value
-                chunk.data = chunk.data[:start] + puints(values)
-                chunk.packet = None
-                changed = True
+            raise Failure(f"A propriedade {class_name}.{name} tem um tipo inesperado.")
+        if kind == "bool":
+            if len(chunk.data) != start + count:
+                raise Failure(f"A propriedade {class_name}.{name} tem um tamanho inesperado.")
+            if bool(chunk.data[start + index]) == value:
+                continue
+            values = bytearray(chunk.data[start:])
+            values[index] = value
+            payload = bytes(values)
         else:
-            current = chunk.data[start + index]
-            if bool(current) != value:
-                data = bytearray(chunk.data)
-                data[start + index] = 1 if value else 0
-                chunk.data = bytes(data)
-                chunk.packet = None
-                changed = True
+            values = uints(chunk.data[start:], count)
+            if values[index] == value:
+                continue
+            values[index] = value
+            payload = puints(values)
+        chunk.data = chunk.data[:start] + payload
+        chunk.packet = None
+        changed = True
     return changed
 
 
@@ -614,7 +634,7 @@ def _patch_script(raw, path, classes, source, accept, force_r6=False):
 
 
 def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
-    """Install the menu, then each managed server script, then the R6 avatar rules."""
+    """Install the menu and managed scripts, then apply the requested native settings."""
     try:
         if not source:
             raise Failure("O código do menu está vazio.")
@@ -631,23 +651,25 @@ def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
             )
             changed = changed or edited
         if force_r6:
+            stream_city = server.get(CITY_SCRIPT, "").startswith(_server_header(CITY_SCRIPT))
             doc = _read_document(result)
             if isinstance(doc, Binary):
-                if _binary_r6(doc):
+                native_changed = _binary_r6(doc)
+                native_changed = _binary_lighting(doc) or native_changed
+                if stream_city:
+                    native_changed = _binary_service_properties(doc, "Workspace", CITY_STREAMING) or native_changed
+                if native_changed:
                     result, changed = doc.encode(), True
             else:
                 enforced = doc.enforce_r6()
                 if enforced != result:
+                    doc = _read_document(enforced)
+                services = {"Lighting": LIGHTING}
+                if stream_city:
+                    services["Workspace"] = CITY_STREAMING
+                enforced = doc.enforce_service_properties(services)
+                if enforced != result:
                     result, changed = enforced, True
-            # Na mesma passagem de configurações do place: iluminação Realistic com prioridade de qualidade.
-            doc = _read_document(result)
-            if isinstance(doc, Binary):
-                if _binary_lighting(doc):
-                    result, changed = doc.encode(), True
-            else:
-                lit = doc.enforce_lighting()
-                if lit != result:
-                    result, changed = lit, True
         if not changed:
             return raw, False
         if menu_source(result) != source:

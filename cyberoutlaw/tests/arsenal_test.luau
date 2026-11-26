@@ -2,6 +2,7 @@
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
+local serde = require("@lune/serde")
 
 local arsenal = luau.load(fs.readFile("src/arsenal.server.luau"), {
 	debugName = "arsenal.server.luau",
@@ -81,6 +82,70 @@ end
 -- Safe zone at Praça da Maré.
 assert(arsenal.inSafeZone(V3.new(107, 3, 139)))
 assert(not arsenal.inSafeZone(V3.new(107 + 100, 3, 107)))
+do
+	local function signal()
+		local callback
+		return {
+			Connect = function(_, handler)
+				callback = handler
+				return { Disconnect = function() callback = nil end }
+			end,
+			fire = function(...)
+				if callback then
+					callback(...)
+				end
+			end,
+		}
+	end
+	local childAdded, layoutChanged, cityAdded = signal(), signal(), signal()
+	local public = roblox.Instance.new("Folder")
+	local board = roblox.Instance.new("Configuration")
+	board.Name = "CyberOutlawCityInfo"
+	local boardSignal = {
+		Name = board.Name,
+		GetAttribute = function(_, name) return board:GetAttribute(name) end,
+		GetAttributeChangedSignal = function(_, _) return layoutChanged end,
+	}
+	local storage = {
+		ChildAdded = childAdded,
+		FindFirstChild = function() return nil end,
+	}
+	local world = {
+		ChildAdded = cityAdded,
+		FindFirstChild = function() return nil end,
+	}
+	local http = {
+		JSONEncode = function(_, value) return serde.encode("json", value) end,
+		JSONDecode = function(_, value) return serde.decode("json", value) end,
+	}
+	assert(arsenal.bindSafeZone, "the arsenal follows the server's city layout")
+	local isSafe = arsenal.bindSafeZone(storage, http, public, world)
+	assert(isSafe(V3.new(108, 3, 108)), "the legacy zone is usable without city metadata")
+	local city = roblox.Instance.new("Model")
+	city.Name = "CyberOutlawCity"
+	city:SetAttribute("SafeZoneCenter", V3.new(-120, 0, -120))
+	city:SetAttribute("SafeZoneRadius", 96)
+	cityAdded.fire(city)
+	assert(isSafe(V3.new(-115, 3, -83)) and not isSafe(V3.new(108, 3, 108)), "the new spawn is protected while its city builds")
+	local pending = serde.decode("json", public:GetAttribute("ZonaSegura"))
+	assert(pending[1] == -120 and pending[2] == -120 and pending[3] == 96, "the client receives the zone before the layout")
+	childAdded.fire(boardSignal)
+	board:SetAttribute("Layout", '{"safeZone":[-120,-120,95]}')
+	layoutChanged.fire()
+	local announced = serde.decode("json", public:GetAttribute("ZonaSegura"))
+	assert(announced[1] == -120 and announced[2] == -120 and announced[3] == 95, "the client receives the new safe zone")
+	assert(isSafe(V3.new(-115, 40, -83)) and not isSafe(V3.new(108, 3, 108)), "the server checks the new spawn in X and Z")
+	assert(not isSafe(V3.new(-25, 3, -120)), "the safe zone uses the advertised radius")
+	board:SetAttribute("Layout", '{"safeZone":[10,10,-1]}')
+	layoutChanged.fire()
+	assert(isSafe(V3.new(-115, 3, -83)), "invalid layouts leave the last valid zone in place")
+	storage.FindFirstChild = function() return boardSignal end
+	board:SetAttribute("Layout", '{"safeZone":[-120,-120,95]}')
+	world.FindFirstChild = function() return city end
+	local initialized = arsenal.bindSafeZone(storage, http, roblox.Instance.new("Folder"), world)
+	assert(initialized(V3.new(-115, 3, -83)), "a ready board is read during startup")
+	assert(not initialized(V3.new(-25, 3, -120)), "the board overrides the early city metadata")
+end
 
 -- Damage: full up to 60% of range, half at the end, headshot x1.5.
 local glock = byId.glock

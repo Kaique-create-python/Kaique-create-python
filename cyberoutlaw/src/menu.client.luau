@@ -246,7 +246,7 @@ for _, mark in marks do
 		AnchorPoint = CENTER, BackgroundColor3 = mark.color, BackgroundTransparency = mark.alpha,
 	})
 end
-local titleUri = asset((ASSETS.art or {}).title)
+local titleUri = asset((ASSETS.art or {}).titulo_vetor)
 local function logoLayer(name, z, color)
 	return make("ImageLabel", brand, name, {
 		Size = FULL, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z,

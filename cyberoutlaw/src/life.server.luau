@@ -1585,14 +1585,31 @@ M.buildPedestrian = buildPedestrian
 local CURB = 0.85
 local LANES = { [1] = 6.0, [-1] = 7.2 }
 M.LANES = LANES
+local function layoutAxes(layout)
+	local xLines = layout.xLines or layout.lines or layout
+	return xLines, layout.zLines or layout.lines or xLines
+end
+
+local function bankOf(canal, x: number): number
+	return if canal then math.sign(x - canal.x) else 0
+end
+
 local function cityBlocks(layout)
-	local lines = layout.lines
+	local xLines, zLines = layoutAxes(layout)
 	local blocks, list = {}, {}
-	for i = 1, #lines - 1 do
-		for j = 1, #lines - 1 do
-			local a, b, c, e = lines[i], lines[i + 1], lines[j], lines[j + 1]
-			local block = { i = i, j = j, x0 = a[1] + a[2] / 2, x1 = b[1] - b[2] / 2, z0 = c[1] + c[2] / 2, z1 = e[1] - e[2] / 2 }
+	for i = 1, #xLines - 1 do
+		for j = 1, #zLines - 1 do
+			local left, right, north, south = xLines[i], xLines[i + 1], zLines[j], zLines[j + 1]
+			local block = {
+				i = i, j = j, walkY = layout.walkY or CURB,
+				x0 = left[1] + left[2] / 2, x1 = right[1] - right[2] / 2,
+				z0 = north[1] + north[2] / 2, z1 = south[1] - south[2] / 2,
+			}
 			block.cx, block.cz = (block.x0 + block.x1) / 2, (block.z0 + block.z1) / 2
+			block.bank = bankOf(layout.canal, block.cx)
+			if layout.walkY ~= nil then
+				block.sidewalks = { left[3], right[3], north[3], south[3] }
+			end
 			block.key = i .. "," .. j
 			blocks[block.key] = block
 			table.insert(list, block)
@@ -1603,15 +1620,18 @@ end
 M.cityBlocks = cityBlocks
 
 local function corner(block, index: number, dir: number): Vector3
-	local inset = LANES[dir] or LANES[1]
-	if index == 1 then
-		return Vector3.new(block.x0 + inset, CURB, block.z0 + inset)
-	elseif index == 2 then
-		return Vector3.new(block.x1 - inset, CURB, block.z0 + inset)
-	elseif index == 3 then
-		return Vector3.new(block.x1 - inset, CURB, block.z1 - inset)
+	local west, north = index == 1 or index == 4, index <= 2
+	local insetX, insetZ = LANES[dir] or LANES[1], LANES[dir] or LANES[1]
+	if block.sidewalks then
+		local fraction = if dir == -1 then 0.82 else 0.71
+		insetX = (block.sidewalks[if west then 1 else 2] or 12.2) * fraction
+		insetZ = (block.sidewalks[if north then 3 else 4] or 12.2) * fraction
 	end
-	return Vector3.new(block.x0 + inset, CURB, block.z1 - inset)
+	return Vector3.new(
+		if west then block.x0 + insetX else block.x1 - insetX,
+		block.walkY or CURB,
+		if north then block.z0 + insetZ else block.z1 - insetZ
+	)
 end
 M.corner = corner
 
@@ -1641,7 +1661,7 @@ local function corridor(a: Vector3, b: Vector3, width: number): (CFrame, Vector3
 	local mid = (a + b) / 2
 	local delta = b - a
 	local size = Vector3.new(math.abs(delta.X) + width, 5.2, math.abs(delta.Z) + width)
-	return CFrame.new(mid.X, CURB + 3.2, mid.Z), size
+	return CFrame.new(mid.X, mid.Y + 3.2, mid.Z), size
 end
 M.corridor = corridor
 
@@ -1895,6 +1915,7 @@ local MISSION_TEXT = {
 M.MISSION_TEXT = MISSION_TEXT
 local MISSION_KINDS = { "alvo", "limpeza", "entrega", "roubo" }
 M.MISSION_KINDS = MISSION_KINDS
+local DEFAULT_SAFE_ZONE = { 108, 108, 95 }
 local FIRST_NAMES = { "Kaio", "Duda", "Bruno", "Jéssica", "Tavinho", "Marrento", "Lia", "Grilo", "Neca", "Zeca", "Pâmela", "Toninho" }
 local NICKNAMES = { "Sucata", "Navalha", "Faísca", "Dente de Aço", "Curto-Circuito", "Ferrugem", "Cromo", "Vidro", "Zumbi", "Bala" }
 
@@ -1906,34 +1927,68 @@ local function fill(text: string, vars): string
 end
 M.fill = fill
 
+local function distanceXZ(ax: number, az: number, bx: number, bz: number): number
+	return Vector2.new(ax - bx, az - bz).Magnitude
+end
+
+local function insideZone(x: number, z: number, zone): boolean
+	return distanceXZ(x, z, zone[1], zone[2]) < zone[3]
+end
+
 -- Monta uma oferta de trabalho. ctx: { origin = Vector3, blocks = lista, districtAt = fn(x, z) -> {name}, atms = { Vector3 },
--- blocked = fn(block) -> bool, apelido = string }. Pura: o sorteio vem da semente.
+-- blocked = fn(block) -> bool, safeZone = { x, z, raio }, apelido = string }. O sorteio vem da semente.
 local function missionOffer(seed: number, fixerId: string, kind: string?, ctx)
 	local r = rand(seed)
 	local fixer = FIXER_BY_ID[fixerId] or FIXERS[1]
 	kind = kind or r.pick(MISSION_KINDS)
-	if kind == "roubo" and #(ctx.atms or {}) == 0 then
-		kind = "alvo"
-	end
 	local origin = ctx.origin or Vector3.zero
+	local safe = ctx.safeZone or DEFAULT_SAFE_ZONE
+	local buffer = { safe[1], safe[2], math.max(150, safe[3]) }
+	local atm
+	if kind == "roubo" then
+		local best = math.huge
+		for _, point in ctx.atms or {} do
+			if not insideZone(point.X, point.Z, safe) then
+				local score = math.abs((point - origin).Magnitude - 420)
+				if insideZone(point.X, point.Z, buffer) then
+					score += 1000
+				end
+				if score < best then
+					atm, best = point, score
+				end
+			end
+		end
+		if not atm then
+			kind = "alvo"
+		end
+	end
+	local function usable(block): boolean
+		return not insideZone(block.cx, block.cz, buffer) and not (ctx.blocked and ctx.blocked(block))
+	end
 	local options = {}
 	for _, block in ctx.blocks do
-		local distance = (Vector3.new(block.cx, 0, block.cz) - Vector3.new(origin.X, 0, origin.Z)).Magnitude
-		local safe = (Vector3.new(block.cx, 0, block.cz) - Vector3.new(108, 0, 108)).Magnitude < 150
-		if distance >= 230 and distance <= 720 and not safe and not (ctx.blocked and ctx.blocked(block)) then
+		local distance = distanceXZ(block.cx, block.cz, origin.X, origin.Z)
+		if distance >= 230 and distance <= 720 and usable(block) then
 			table.insert(options, block)
 		end
 	end
 	if #options == 0 then
-		options = ctx.blocks
+		for _, block in ctx.blocks do
+			if usable(block) then
+				table.insert(options, block)
+			end
+		end
 	end
-	local block = r.pick(options)
+	local block = if #options > 0 then r.pick(options) elseif atm then ctx.blocks[1] else nil
+	if not block and not atm then
+		return nil
+	end
 	local cornerIndex = r.int(1, 4)
-	local target = corner(block, cornerIndex, 1)
+	local target = atm or corner(block, cornerIndex, 1)
 	local gangKey = r.pick(GANG_ORDER)
 	local offer = {
 		id = string.format("%s-%d", fixer.id, seed % 1000000), fixer = fixer.id, kind = kind, semente = seed,
-		gangue = gangKey, bloco = block.key, canto = cornerIndex, alvo = target,
+		gangue = gangKey, bloco = block and block.key, canto = cornerIndex, alvo = target,
 	}
 	local district = if ctx.districtAt then ctx.districtAt(target.X, target.Z) else nil
 	local vars = {
@@ -1951,8 +2006,8 @@ local function missionOffer(seed: number, fixerId: string, kind: string?, ctx)
 	elseif kind == "entrega" then
 		local far = {}
 		for _, other in ctx.blocks do
-			local d = (Vector3.new(other.cx, 0, other.cz) - Vector3.new(block.cx, 0, block.cz)).Magnitude
-			if d >= 300 and d <= 800 and not (ctx.blocked and ctx.blocked(other)) then
+			local d = distanceXZ(other.cx, other.cz, block.cx, block.cz)
+			if d >= 300 and d <= 800 and usable(other) then
 				table.insert(far, other)
 			end
 		end
@@ -1963,20 +2018,8 @@ local function missionOffer(seed: number, fixerId: string, kind: string?, ctx)
 		offer.prazo = math.clamp(math.floor(trip / 13 + 90), 150, 420)
 		offer.valor = 50 * r.int(9, 15)
 	elseif kind == "roubo" then
-		local nearest, best = nil, math.huge
-		for _, atm in ctx.atms do
-			local d = math.abs((atm - origin).Magnitude - 420)
-			if d < best and (atm - Vector3.new(108, 0, 108)).Magnitude > 150 then
-				nearest, best = atm, d
-			end
-		end
-		offer.alvo = nearest or ctx.atms[1]
 		offer.valor = 100 * r.int(3, 5)
 		offer.prazo = 300
-		if ctx.districtAt then
-			local spot = ctx.districtAt(offer.alvo.X, offer.alvo.Z)
-			vars.bairro = if spot then spot.name else vars.bairro
-		end
 	end
 	vars.valor = offer.valor
 	vars.minutos = math.floor(offer.prazo / 60 + 0.5)
@@ -2709,6 +2752,7 @@ local function npcSystem(S)
 
 	-- Faixas livres: conferidas no mundo de verdade (cache), além do teste da cidade.
 	local clearCache = {}
+	local ringCache = { [1] = {}, [-1] = {} }
 	local function clear(a: Vector3, b: Vector3): boolean
 		local key = string.format("%.1f,%.1f,%.1f,%.1f", a.X, a.Z, b.X, b.Z)
 		local cached = clearCache[key]
@@ -2724,18 +2768,28 @@ local function npcSystem(S)
 		return result
 	end
 	local function ringClear(block, dir: number): boolean
+		local cache = ringCache[dir]
+		if cache[block] ~= nil then
+			return cache[block]
+		end
 		for k = 1, 4 do
 			if not clear(corner(block, k, dir), corner(block, nextCorner(k, 1), dir)) then
+				cache[block] = false
 				return false
 			end
 		end
+		cache[block] = true
 		return true
 	end
 	api.ringClear = ringClear
 
 	local function blockAt(position: Vector3)
 		local best, bestDistance = nil, math.huge
+		local bank = bankOf(S.canal, position.X)
 		for _, block in S.blockList do
+			if bank ~= 0 and block.bank ~= bank then
+				continue
+			end
 			local dx = math.max(block.x0 - position.X, 0, position.X - block.x1)
 			local dz = math.max(block.z0 - position.Z, 0, position.Z - block.z1)
 			local distance = dx * dx + dz * dz
@@ -2743,7 +2797,7 @@ local function npcSystem(S)
 				best, bestDistance = block, distance
 			end
 		end
-		return best
+		return best or S.blockList[1]
 	end
 	api.blockAt = blockAt
 
@@ -2754,6 +2808,11 @@ local function npcSystem(S)
 	api.COPS = COPS
 
 	local function walkTo(npc, point: Vector3)
+		local canal = S.canal
+		if canal and (math.abs(point.X - canal.x) < canal.width / 2 + 1 or
+			(bankOf(canal, npc.root.Position.X) * bankOf(canal, point.X) < 0)) then
+			return
+		end
 		npc.target = point
 		npc.humanoid:MoveTo(point)
 		npc.lastMove = os.clock()
@@ -2779,7 +2838,8 @@ local function npcSystem(S)
 		if npc.state == "andar" and random.chance(0.32) then
 			local option = CROSSINGS[npc.corner][random.int(1, 2)]
 			local neighbor = S.blocks[(block.i + option[1]) .. "," .. (block.j + option[2])]
-			if neighbor and ringClear(neighbor, npc.dir) and clear(corner(block, npc.corner, npc.dir), corner(neighbor, option[3], npc.dir)) then
+			if neighbor and neighbor.bank == block.bank and ringClear(neighbor, npc.dir)
+				and clear(corner(block, npc.corner, npc.dir), corner(neighbor, option[3], npc.dir)) then
 				npc.block, npc.corner = neighbor, option[3]
 				walkTo(npc, corner(neighbor, option[3], npc.dir))
 				return
@@ -2884,7 +2944,7 @@ local function npcSystem(S)
 		npc.humanoid.WalkSpeed = npc.speed
 		if npc.home then
 			npc.state = "parado"
-			npc.humanoid:MoveTo(npc.home)
+			walkTo(npc, npc.home)
 		elseif npc.root.Anchored then
 			npc.state = "parado"
 		else
@@ -3326,7 +3386,7 @@ local function npcSystem(S)
 	for _, item in S.city:GetDescendants() do
 		if item:IsA("BasePart") and item.Name == "Carrinho de comida" then
 			local spot = item.CFrame * CFrame.new(4.4, -item.Size.Y / 2 - 0.4, 0)
-			table.insert(carts, { cart = item, position = Vector3.new(spot.Position.X, CURB, spot.Position.Z), look = item.CFrame.LookVector })
+			table.insert(carts, { cart = item, position = Vector3.new(spot.Position.X, S.walkY, spot.Position.Z), look = item.CFrame.LookVector })
 		end
 	end
 	api.carts = carts
@@ -3451,48 +3511,235 @@ local function nearestLine(lines, value: number): (number, number)
 end
 M.nearestLine = nearestLine
 
-local function sign(value: number): number
-	return if value > 0.5 then 1 elseif value < -0.5 then -1 else 0
+-- Cada interseção liga trechos de asfalto. Junto às passarelas, há pista nas duas margens até os bloqueios.
+local function roadNetwork(layout)
+	local xLines, zLines = layoutAxes(layout)
+	local canal = layout.canal
+	local network = { intersections = {}, segments = {}, canal = canal, roadY = layout.roadY or 0.25 }
+	local grid, bridges = {}, {}
+	for _, bridge in layout.bridges or {} do
+		if bridge[3] == "road" then
+			bridges[bridge[1]] = bridge[2]
+		end
+	end
+	local function node(x: number, z: number)
+		return { x = x, z = z, segments = {} }
+	end
+	local function offset(width: number): number
+		-- A faixa de 50 studs passa entre a base de 7 studs dos pilares e a borda da avenida.
+		return if canal then width * 0.24 else laneOffset(width)
+	end
+	local function connect(a, b, horizontal: boolean, width: number)
+		local first, last = if horizontal then a.x else a.z, if horizontal then b.x else b.z
+		local segment = {
+			a = a, b = b, horizontal = horizontal, first = first, last = last, length = last - first,
+			line = if horizontal then a.z else a.x, offset = offset(width),
+		}
+		table.insert(network.segments, segment)
+		table.insert(a.segments, segment)
+		table.insert(b.segments, segment)
+	end
+	for _, xLine in xLines do
+		if xLine[2] < 24 or (canal and math.abs(xLine[1] - canal.x) <= canal.width / 2) then
+			continue
+		end
+		local column = {}
+		table.insert(grid, column)
+		for j, zLine in zLines do
+			if zLine[2] < 24 then
+				continue
+			end
+			local current = node(xLine[1], zLine[1])
+			column[j] = current
+			table.insert(network.intersections, current)
+			local west = #grid > 1 and grid[#grid - 1][j]
+			if west then
+				local crosses = canal and bankOf(canal, west.x) ~= bankOf(canal, current.x)
+				if not crosses or (bridges[current.z] or 0) / 2 >= offset(zLine[2]) + 6 then
+					connect(west, current, true, zLine[2])
+				else
+					local approach = canal.width / 2 + 32
+					local westEnd, eastEnd = canal.x - approach, canal.x + approach
+					if west.x < westEnd then
+						connect(west, node(westEnd, current.z), true, zLine[2])
+					end
+					if current.x > eastEnd then
+						connect(node(eastEnd, current.z), current, true, zLine[2])
+					end
+				end
+			end
+			if column[j - 1] then
+				connect(column[j - 1], current, false, xLine[2])
+			end
+		end
+	end
+	return network
+end
+M.roadNetwork = roadNetwork
+
+local function streetPoint(segment, along: number, direction: number, height: number): Vector3
+	if segment.horizontal then
+		return Vector3.new(along, height, segment.line + direction * segment.offset)
+	end
+	return Vector3.new(segment.line - direction * segment.offset, height, along)
 end
 
--- Rota do tanque pelas ruas em L, sempre na faixa da direita: a última perna é a rua mais perto do alvo, até a
--- altura dele; a primeira leva do cruzamento de saída até essa rua.
-local function streetRoute(lines, from: Vector3, to: Vector3, height: number): { Vector3 }
-	local x0, wx0 = nearestLine(lines, from.X)
-	local z0, wz0 = nearestLine(lines, from.Z)
-	local x1, wx1 = nearestLine(lines, to.X)
-	local z1, wz1 = nearestLine(lines, to.Z)
-	local function dir(value: number): number
-		local d = sign(value)
-		return if d == 0 then 1 else d
+local MAX_ROUTE = 1200
+
+-- Liga a saída à faixa que passa mais perto do procurado. As curvas unem as faixas dentro do cruzamento.
+local function streetRoute(network, from: Vector3, to: Vector3, height: number): { Vector3 }
+	if not network.intersections then
+		network = roadNetwork(network)
 	end
-	local points = {}
-	if math.abs(to.Z - z1) <= math.abs(to.X - x1) then
-		-- Alvo na rua em X (z = z1): desce pela rua x0 até z1 e anda por ela até o X do alvo.
-		local d1, d2 = sign(z1 - z0), dir(to.X - x0)
-		local lane = z1 + d2 * laneOffset(wz1)
-		if d1 ~= 0 then
-			table.insert(points, Vector3.new(x0 - d1 * laneOffset(wx0), height, z0))
-			table.insert(points, Vector3.new(x0 - d1 * laneOffset(wx0), height, lane))
-		else
-			table.insert(points, Vector3.new(x0, height, lane))
+	local start, nearest = nil, math.huge
+	local canal = network.canal
+	local startBank = bankOf(canal, from.X)
+	for _, node in network.intersections do
+		local distance = distanceXZ(node.x, node.z, from.X, from.Z)
+		if distance < nearest and (startBank == 0 or bankOf(canal, node.x) == startBank) then
+			start, nearest = node, distance
 		end
-		table.insert(points, Vector3.new(to.X, height, lane))
-	else
-		-- Alvo na rua em Z (x = x1): anda pela rua z0 até x1 e sobe por ela até o Z do alvo.
-		local d1, d2 = sign(x1 - x0), dir(to.Z - z0)
-		local lane = x1 - d2 * laneOffset(wx1)
-		if d1 ~= 0 then
-			table.insert(points, Vector3.new(x0, height, z0 + d1 * laneOffset(wz0)))
-			table.insert(points, Vector3.new(lane, height, z0 + d1 * laneOffset(wz0)))
-		else
-			table.insert(points, Vector3.new(lane, height, z0))
+	end
+	if not start then
+		return {}
+	end
+	local costs, previous, settled = { [start] = 0 }, {}, {}
+	for _ = 1, #network.intersections do
+		local current, bestCost = nil, MAX_ROUTE
+		for _, node in network.intersections do
+			if not settled[node] and (costs[node] or math.huge) < bestCost then
+				current, bestCost = node, costs[node]
+			end
 		end
-		table.insert(points, Vector3.new(lane, height, to.Z))
+		if not current then
+			break
+		end
+		settled[current] = true
+		for _, segment in current.segments do
+			local nextNode = if segment.a == current then segment.b else segment.a
+			local cost = bestCost + segment.length
+			if cost < MAX_ROUTE and cost < (costs[nextNode] or math.huge) then
+				costs[nextNode], previous[nextNode] = cost, segment
+			end
+		end
+	end
+
+	local goal, lastSegment, lastDirection, destination
+	local bestGap, bestCost = math.huge, MAX_ROUTE
+	local targetBank = bankOf(canal, to.X)
+	for _, segment in network.segments do
+		for _, direction in { 1, -1 } do
+			local entry = if direction == 1 then segment.a else segment.b
+			local incoming = previous[entry]
+			local cost = costs[entry]
+			if not cost or incoming == segment then
+				continue
+			end
+			local endOfTurn = if incoming and incoming.horizontal ~= segment.horizontal then incoming.offset + 2 else 2
+			local first = segment.first + (if direction == 1 then endOfTurn else 0)
+			local last = segment.last - (if direction == -1 then endOfTurn else 0)
+			if first > last then
+				continue
+			end
+			local desired = if segment.horizontal then to.X else to.Z
+			local along = math.clamp(desired, first, last)
+			local point = streetPoint(segment, along, direction, height)
+			local gap = distanceXZ(point.X, point.Z, to.X, to.Z)
+			cost += math.abs(along - (if direction == 1 then segment.first else segment.last))
+			if cost < MAX_ROUTE and gap < POLICE.tank.reach and (targetBank == 0 or bankOf(canal, point.X) == targetBank)
+				and (gap < bestGap or (gap == bestGap and cost < bestCost)) then
+				goal, lastSegment, lastDirection, destination = entry, segment, direction, point
+				bestGap, bestCost = gap, cost
+			end
+		end
+	end
+	if not goal then
+		return {}
+	end
+
+	local segments, directions = { lastSegment }, { lastDirection }
+	while goal ~= start do
+		local segment = previous[goal]
+		local direction = if segment.b == goal then 1 else -1
+		table.insert(segments, segment)
+		table.insert(directions, direction)
+		goal = if direction == 1 then segment.a else segment.b
+	end
+	local firstSegment, firstDirection = segments[#segments], directions[#segments]
+	local startAlong = if firstDirection == 1 then firstSegment.first else firstSegment.last
+	local points = { streetPoint(firstSegment, startAlong, firstDirection, height) }
+	for index = #segments, 2, -1 do
+		local a, b = segments[index], segments[index - 1]
+		if a.horizontal ~= b.horizontal then
+			local aPoint = streetPoint(a, 0, directions[index], height)
+			local bPoint = streetPoint(b, 0, directions[index - 1], height)
+			table.insert(points, if a.horizontal then Vector3.new(bPoint.X, height, aPoint.Z) else Vector3.new(aPoint.X, height, bPoint.Z))
+		end
+	end
+	table.insert(points, destination)
+	local length = 0
+	for index = 2, #points do
+		length += (points[index] - points[index - 1]).Magnitude
+	end
+	if length > MAX_ROUTE then
+		return {}
 	end
 	return points
 end
 M.streetRoute = streetRoute
+
+-- Projeta o rapel nas pistas próximas. A validação do piso confirma que a descida está livre.
+local function roadDropPoint(network, center: Vector3, groundAt): Vector3?
+	local options, visited = {}, {}
+	local canal = network.canal
+	local bank = bankOf(canal, center.X)
+	local roadY = network.roadY
+	-- Nas quadras de 240 studs, a pista pode ficar a mais de 110 studs do centro.
+	local searchRadius = if canal then 145 else 95
+	for _, segment in network.segments do
+		local along = if segment.horizontal then center.X else center.Z
+		local across = if segment.horizontal then center.Z else center.X
+		if math.abs(across - segment.line) > searchRadius + segment.offset or along + searchRadius < segment.first or along - searchRadius > segment.last then
+			continue
+		end
+		for _, direction in { 1, -1 } do
+			for _, shift in { 0, 28, -28, 52, -52 } do
+				local point = streetPoint(segment, math.clamp(along + shift, segment.first, segment.last), direction, roadY)
+				local distance = distanceXZ(point.X, point.Z, center.X, center.Z)
+				if distance > 14 and distance < searchRadius and not visited[point]
+					and (not canal or (math.abs(point.X - canal.x) > canal.width / 2 + 8 and (bank == 0 or bankOf(canal, point.X) == bank))) then
+					visited[point] = true
+					table.insert(options, { point = point, score = math.abs(distance - 34) })
+				end
+			end
+		end
+	end
+	table.sort(options, function(a, b)
+		return a.score < b.score
+	end)
+	for index = 1, math.min(#options, 24) do
+		local point = options[index].point
+		local ground = groundAt(point)
+		if ground ~= nil and math.abs(ground - roadY) <= 0.65 then
+			return Vector3.new(point.X, ground, point.Z)
+		end
+	end
+	return nil
+end
+M.roadDropPoint = roadDropPoint
+
+-- Envoltória do casco (inclui a proa mais longa). No giro, reserva a área varrida pela carroceria.
+local function tankCorridor(a: Vector3, b: Vector3): (CFrame, Vector3)
+	local delta = b - a
+	local lift = Vector3.new(0, 1.15, 0)
+	if delta.Magnitude < 0.01 then
+		return CFrame.new(a + lift), Vector3.new(24, 5.55, 24)
+	end
+	local forward = delta.Unit
+	local center = (a + b) / 2 + lift + forward * 1.35
+	return CFrame.lookAt(center, center + forward), Vector3.new(11.4, 5.55, delta.Magnitude + 19)
+end
+M.tankCorridor = tankCorridor
 
 -- Montagem das viaturas: peças ancoradas em volta da origem, nariz para -Z. "Corpo" é o PrimaryPart; peças com o
 -- atributo Grupo giram juntas num Motor6D (rotores, torre do tanque) que o cliente anima; o resto vai soldado.
@@ -3708,7 +3955,13 @@ local function policeSystem(S)
 	local ray = RaycastParams.new()
 	ray.FilterType = Enum.RaycastFilterType.Exclude
 	ray.IgnoreWater = true
-	local ROAD = 0.25 -- topo do asfalto
+	local roads = S.roads
+	local roadY = roads.roadY
+	local tankOverlap = OverlapParams.new()
+	tankOverlap.FilterType = Enum.RaycastFilterType.Include
+	tankOverlap.FilterDescendantsInstances = { S.city }
+	tankOverlap.RespectCanCollide = true
+	tankOverlap.MaxParts = 1
 
 	local function ignore(extra: Instance?)
 		local list: { Instance } = { folder }
@@ -3737,11 +3990,15 @@ local function policeSystem(S)
 		return nil
 	end
 
+	local function floorHit(x: number, z: number): RaycastResult?
+		return workspace:Raycast(Vector3.new(x, 900, z), Vector3.new(0, -1000, 0), ray)
+	end
+
 	-- Altura do que estiver embaixo (telhado, viaduto ou rua).
 	local function floorAt(x: number, z: number): number
 		ignore(nil)
-		local result = workspace:Raycast(Vector3.new(x, 900, z), Vector3.new(0, -1000, 0), ray)
-		return if result then result.Position.Y else ROAD
+		local result = floorHit(x, z)
+		return if result then result.Position.Y else roadY
 	end
 
 	local function clearSight(from: Vector3, target: BasePart): boolean
@@ -4108,30 +4365,14 @@ local function policeSystem(S)
 
 	-- Ponto de descida do AV: na faixa de uma rua perto do procurado, com o céu livre até o asfalto.
 	local function dropPoint(center: Vector3): Vector3?
-		local lines = S.lines
-		if not lines then
-			return nil
-		end
-		local x1, wx = nearestLine(lines, center.X)
-		local z1, wz = nearestLine(lines, center.Z)
-		local options = {}
-		for _, shift in { 0, 28, -28, 52, -52 } do
-			table.insert(options, Vector3.new(x1 + laneOffset(wx), ROAD, center.Z + shift))
-			table.insert(options, Vector3.new(center.X + shift, ROAD, z1 + laneOffset(wz)))
-		end
-		table.sort(options, function(a, b)
-			return math.abs((a - center).Magnitude - 34) < math.abs((b - center).Magnitude - 34)
-		end)
-		for _, point in options do
-			local distance = (Vector3.new(point.X, center.Y, point.Z) - center).Magnitude
-			if distance > 14 and distance < 95 and not S.inSafeZone(point) then
-				local ground = floorAt(point.X, point.Z)
-				if ground < 3 then
-					return Vector3.new(point.X, ground, point.Z)
-				end
+		ignore(nil)
+		return roadDropPoint(roads, center, function(point)
+			if S.inSafeZone(point) then
+				return nil
 			end
-		end
-		return nil
+			local hit = floorHit(point.X, point.Z)
+			return if hit then hit.Position.Y else nil
+		end)
 	end
 
 	-- Rapel: o soldado nasce na porta e desce numa corda com guincho até o chão; lá ele entra no tiroteio.
@@ -4203,13 +4444,19 @@ local function policeSystem(S)
 		end
 		local center = target.Position
 		if unit.state == "chegando" then
-			unit.drop = unit.drop or dropPoint(center)
+			if not unit.drop and now >= (unit.nextDropSearch or 0) then
+				unit.nextDropSearch = now + 1
+				unit.drop = dropPoint(center)
+			end
 			local spot = unit.drop or center
 			local cruise = math.max(floorAt(position.X, position.Z), floorAt(spot.X, spot.Z), center.Y) + 40
 			unit.align.Position = Vector3.new(spot.X, cruise, spot.Z)
 			face(unit, spot - position, 0.14)
 			if Vector3.new(spot.X - position.X, 0, spot.Z - position.Z).Magnitude < 10 then
 				unit.state = if unit.drop then "descendo" else "orbita"
+				if not unit.drop then
+					unit.redropAt = now + 5
+				end
 			end
 		elseif unit.state == "descendo" then
 			unit.align.Position = unit.drop + Vector3.new(0, 9, 0)
@@ -4261,16 +4508,41 @@ local function policeSystem(S)
 	-- (laser vermelho no cliente) aparece POLICE.tank.windup segundos antes, no ponto onde o alvo estava.
 	local TURRET = CFrame.new(0, 2.7, 1)
 	local MUZZLE = Vector3.new(0, 0.3, -12.15)
+	local function driveTank(unit, now: number): boolean
+		local waypoint = unit.route[unit.wp]
+		if not waypoint then
+			return false
+		end
+		local position = unit.root.Position
+		if distanceXZ(waypoint.X, waypoint.Z, position.X, position.Z) < 1.2 then
+			unit.align.Position = waypoint
+			unit.wp += 1
+			unit.lastPos, unit.movedAt = position, now
+			return true
+		end
+		local previous = unit.route[unit.wp - 1]
+		local direction = (waypoint - previous).Unit
+		face(unit, direction, 0)
+		unit.align.Position = if unit.root.CFrame.LookVector:Dot(direction) > 0.985 then waypoint else previous
+		if (position - unit.lastPos).Magnitude > 1.5 then
+			unit.lastPos, unit.movedAt = position, now
+		elseif now - unit.movedAt > 4 then
+			unit.align.Position = position
+			return false
+		end
+		return true
+	end
+
 	local function tankThink(unit, now: number, _dt: number)
 		local cfg = POLICE.tank
 		local root = unit.root
 		local position = root.Position
 		local target = rootOf(unit.target)
 		if unit.leaving or not target then
-			local back = unit.route[1]
-			unit.align.Position = back
-			face(unit, back - position, 0)
-			if unit.leaving and (now - unit.leaveAt > 25 or (Vector3.new(back.X - position.X, 0, back.Z - position.Z)).Magnitude < 6) then
+			if not unit.leaving then
+				leave(unit)
+			end
+			if now - unit.leaveAt > 25 or not driveTank(unit, now) then
 				remove(unit)
 			end
 			return
@@ -4287,23 +4559,9 @@ local function policeSystem(S)
 		local visible = distance < cfg.reach and clearSight(muzzle, target)
 		if visible then
 			unit.align.Position = position
-		else
-			local waypoint = unit.route[unit.wp]
-			if waypoint then
-				local flat = Vector3.new(waypoint.X - position.X, 0, waypoint.Z - position.Z)
-				if flat.Magnitude < 6 then
-					unit.wp += 1
-				else
-					unit.align.Position = waypoint
-					face(unit, flat, 0)
-				end
-				if (position - (unit.lastPos or position)).Magnitude > 1.5 then
-					unit.lastPos, unit.movedAt = position, now
-				elseif now - (unit.movedAt or now) > 3 then
-					unit.wp += 1
-					unit.movedAt = now
-				end
-			end
+			unit.lastPos, unit.movedAt = position, now
+		elseif not driveTank(unit, now) and now - unit.movedAt > 4 then
+			leave(unit)
 		end
 		if visible and not unit.charging and now >= unit.nextShot and not S.inSafeZone(target.Position) then
 			unit.charging = true
@@ -4377,35 +4635,49 @@ local function policeSystem(S)
 		return CFrame.lookAt(position, Vector3.new(center.X, height, center.Z))
 	end
 
-	local function spawnTank(player: Player, center: Vector3): boolean
-		local lines = S.lines
-		if not lines then
-			return false
-		end
-		local options = {}
-		for _, a in lines do
-			for _, b in lines do
-				local point = Vector3.new(a[1], ROAD, b[1])
-				local distance = (Vector3.new(point.X, center.Y, point.Z) - center).Magnitude
-				if math.abs(a[1]) <= 800 and math.abs(b[1]) <= 800 and distance > 170 and distance < 320 and not S.inSafeZone(point) then
-					table.insert(options, point)
+	local function tankRouteClear(points): boolean
+		for index = 2, #points do
+			local cf, size = tankCorridor(points[index - 1], points[index])
+			if #workspace:GetPartBoundsInBox(cf, size, tankOverlap) > 0 then
+				return false
+			end
+			if index < #points then
+				local turnCF, turnSize = tankCorridor(points[index], points[index])
+				if #workspace:GetPartBoundsInBox(turnCF, turnSize, tankOverlap) > 0 then
+					return false
 				end
 			end
 		end
-		if #options == 0 then
-			return false
-		end
-		local start = options[random.int(1, #options)]
-		local route = streetRoute(lines, start, center, ROAD + POLICE.tank.hover)
-		if #route < 2 then
-			return false
-		end
-		local at = CFrame.lookAt(route[1], Vector3.new(route[2].X, route[1].Y, route[2].Z))
-		local unit = launch("tanque", buildTank(), at, player, POLICE.tank.health, POLICE.tank.speed,
-			{ POLICE.sounds.colchao, 1.6, 300 })
-		unit.route, unit.wp, unit.state = route, 2, "rodando"
-		unit.nextShot = os.clock() + 3
 		return true
+	end
+
+	local function spawnTank(player: Player, center: Vector3): boolean
+		local options = {}
+		local bank = bankOf(roads.canal, center.X)
+		for _, node in roads.intersections do
+			local point = Vector3.new(node.x, roadY, node.z)
+			local distance = distanceXZ(point.X, point.Z, center.X, center.Z)
+			if distance > 150 and distance < 420 and not S.inSafeZone(point) then
+				local penalty = if bank ~= 0 and bankOf(roads.canal, point.X) ~= bank then 90 else 0
+				table.insert(options, { point = point, score = math.abs(distance - 245) + penalty + random.range(0, 35) })
+			end
+		end
+		table.sort(options, function(a, b)
+			return a.score < b.score
+		end)
+		for index = 1, math.min(#options, 6) do
+			local route = streetRoute(roads, options[index].point, center, roadY + POLICE.tank.hover)
+			if #route >= 2 and not S.inSafeZone(route[1]) and tankRouteClear(route) then
+				local at = CFrame.lookAt(route[1], route[2])
+				local unit = launch("tanque", buildTank(), at, player, POLICE.tank.health, POLICE.tank.speed,
+					{ POLICE.sounds.colchao, 1.6, 300 })
+				local now = os.clock()
+				unit.route, unit.wp, unit.state = route, 2, "rodando"
+				unit.lastPos, unit.movedAt, unit.nextShot = route[1], now, now + 3
+				return true
+			end
+		end
+		return false
 	end
 
 	-- Chamado pelo sistema de crimes a cada 2 s para cada procurado: manda o que falta para o nível e dispensa
@@ -4768,9 +5040,13 @@ local function crimeSystem(S)
 					for _ = 1, math.min(2, desired - chasing) do
 						for _ = 1, 6 do
 							local block = S.blockList[random.int(1, #S.blockList)]
+							local bank = bankOf(S.canal, rootPart.Position.X)
+							if bank ~= 0 and block.bank ~= bank then
+								continue
+							end
 							local point = ringPoint(block, random.int(1, 4), random.range(0.1, 0.9), 1)
 							local distance = (Vector3.new(point.X, rootPart.Position.Y, point.Z) - rootPart.Position).Magnitude
-							if distance > 100 and distance < 200 and not S.inSafeZone(point) then
+							if distance > 100 and distance < 200 and not S.inSafeZone(point) and S.npc.ringClear(block, 1) then
 								local weapon = if entry.level >= 4 then "m4" elseif entry.level >= 3 then "escopeta" else "glock"
 								local cop = S.npc.spawn("policia", point, { weapon = weapon, speed = 17 })
 								S.npc.engage(cop, player)
@@ -4814,6 +5090,7 @@ local function missionSystem(S)
 		local origin = if character then character:GetPivot().Position else Vector3.zero
 		return missionOffer(os.time() * 13 + seq * 104729 + player.UserId % 1000, fixerId or FIXERS[random.int(1, #FIXERS)].id, kind, {
 			origin = origin, blocks = S.blockList, districtAt = S.districtAt, atms = S.atmPositions,
+			safeZone = S.safeZone,
 			blocked = function(block)
 				return not S.npc.ringClear(block, 1)
 			end,
@@ -4979,6 +5256,13 @@ local function missionSystem(S)
 
 	function api.call(player: Player, fixerId: string?, outgoing: boolean)
 		local offer = makeOffer(player, fixerId, nil)
+		if not offer then
+			nextCall[player] = os.clock() + random.range(90, 150)
+			if outgoing then
+				S.notify(player, "msg", "Sem trabalhos disponíveis agora.")
+			end
+			return
+		end
 		pending[player] = { offer = offer, sentAt = os.clock(), answered = outgoing }
 		S.notify(player, "chamada", publicOffer(offer), outgoing)
 	end
@@ -5261,7 +5545,8 @@ local function main()
 	end
 	local layout = HttpService:JSONDecode(board:GetAttribute("Layout"))
 	S.blocks, S.blockList = cityBlocks(layout)
-	S.lines = layout.lines
+	S.roads = roadNetwork(layout)
+	S.canal, S.walkY = layout.canal, layout.walkY or CURB
 	local districts = layout.districts or {}
 	function S.districtAt(x: number, z: number)
 		for _, district in districts do
@@ -5280,12 +5565,16 @@ local function main()
 			S.weapons[def.id] = def
 		end
 	end
-	local safe = { 108, 108, 95 }
-	pcall(function()
-		safe = HttpService:JSONDecode(arsenal:GetAttribute("ZonaSegura"))
-	end)
+	local safe = layout.safeZone
+	if not safe then
+		local ok, legacySafe = pcall(function()
+			return arsenal and HttpService:JSONDecode(arsenal:GetAttribute("ZonaSegura"))
+		end)
+		safe = (if ok then legacySafe else nil) or DEFAULT_SAFE_ZONE
+	end
+	S.safeZone = safe
 	function S.inSafeZone(position: Vector3): boolean
-		return Vector2.new(position.X - safe[1], position.Z - safe[2]).Magnitude < safe[3]
+		return insideZone(position.X, position.Z, safe)
 	end
 	function S.now(): number
 		return workspace:GetServerTimeNow()

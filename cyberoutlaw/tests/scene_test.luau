@@ -65,7 +65,7 @@ local stage = luau.load(fixture .. fs.readFile("src/scene.luau") .. "\nreturn op
         warn = function() end, task = require("@lune/task"),
     },
 })()
-local step, leave = stage({art={billboard=554, asphalt=555, asphalt_normal=556, asphalt_rough=557, facades=558}}, viewport, world, preview)
+local step, leave = stage({art={teloes_vetor=554, asphalt=555, asphalt_normal=556, asphalt_rough=557, fachadas_vetor=558}}, viewport, world, preview)
 assert(viewport.CyberOutlawWorkspaceStage == true and viewport.ImageTransparency == 1)
 assert(camera.CameraType == r.Enum.CameraType.Scriptable and camera.FieldOfView == 46)
 assert(workspace:FindFirstChild("CyberOutlawMenuStage") ~= nil)
@@ -113,7 +113,7 @@ assert(nextCamera.FieldOfView == 71 and nextCamera.CameraType == r.Enum.CameraTy
 assert(nextCamera:FindFirstChildOfClass("BloomEffect") == nil and workspace:FindFirstChild("CyberOutlawMenuStage") == nil)
 assert(lighting.ClockTime == 18 and math.abs(lighting.Brightness - 2.9) < 0.001)
 services.Workspace = {}
-local previewStep, previewLeave = stage({art={billboard=554}}, viewport, world, preview)
+local previewStep, previewLeave = stage({art={teloes_vetor=554}}, viewport, world, preview)
 assert(viewport.CyberOutlawWorkspaceStage == false and viewport.ImageTransparency == 0)
 assert(world:FindFirstChild("TestCity"))
 previewStep(2)

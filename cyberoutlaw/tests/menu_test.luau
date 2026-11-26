@@ -7,6 +7,21 @@ local source = fs.readFile("src/menu.client.luau")
 local hudSource = fs.readFile("src/hud.luau")
 local E = roblox.Enum
 
+-- Compile the real installed menu too. The scenario mocks use lighter scene fragments.
+local sceneSource = fs.readFile("src/scene.luau")
+local releaseFragments = {
+	{"__CYBEROUTLAW_CONFIG__", "{}"},
+	{"%-%- __CYBEROUTLAW_CITY__", fs.readFile("src/city.luau")},
+	{"%-%- __CYBEROUTLAW_SCENE__", "local openCyberOutlawScene = (function()\n" .. sceneSource
+		.. "\nreturn openCyberOutlawScene\nend)()"},
+	{"%-%- __CYBEROUTLAW_HUD__", hudSource},
+}
+local releaseSource = source
+for _, fragment in releaseFragments do
+	releaseSource = releaseSource:gsub(fragment[1], function() return fragment[2] end)
+end
+assert(type(luau.load(releaseSource, { debugName = "menu empacotado" })) == "function")
+
 local function signal()
 	local listeners = {}
 	return {
@@ -433,7 +448,7 @@ fallBack:step(6)
 assert(fallBack:find("MenuStack").Visible and fallBack:find("CyberCity").ImageTransparency == 1,
 	"a city build failure preserves the menu and dark fallback")
 
-local stage = scenario("{art={title=902}}", { useStage = true })
+local stage = scenario("{art={titulo_vetor=902}}", { useStage = true })
 assert(stage:find("Backdrop").BackgroundTransparency == 0, "the place stays hidden while the menu stage starts")
 assert(not stage:find("Profile").Visible, "the loader keeps the profile hidden")
 stage:step(6.1)
@@ -443,7 +458,7 @@ assert(stage:find("Wordmark").Text == "CyberOutlaw" and stage:find("Wordmark").V
 stage:find("Logo").IsLoaded = true
 stage:step(0.05)
 assert(stage:find("Logo").Visible and not stage:find("Wordmark").Visible, "the supplied brush art replaces the wordmark after loading")
-local fetched = scenario("{art={title=874357609916231}}", { titleFetch = true })
+local fetched = scenario("{art={titulo_vetor=874357609916231}}", { titleFetch = true })
 fetched:step(6.1)
 assert(fetched:find("Logo").Image == "rbxassetid://874357609916231" and not fetched:find("Wordmark").Visible,
 	"the approved art preloads independently and keeps its exact numeric id")

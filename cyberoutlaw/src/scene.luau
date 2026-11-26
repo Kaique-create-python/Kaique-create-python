@@ -110,7 +110,9 @@ local function openCyberOutlawScene(assets, viewport, viewportWorld, viewportCam
     local lighting = game:GetService("Lighting")
     local runService = game:GetService("RunService")
     local renderName = "CyberOutlawMenuCamera"
-    local art = assets.art or {}
+    local art = table.clone(assets.art or {})
+    art.billboard = art.teloes_vetor
+    art.facades = art.fachadas_vetor
     local stagePosition = Vector3.new(13300, 4100, 7200)
     local fieldOfView = 46
     local light = Color3.fromRGB

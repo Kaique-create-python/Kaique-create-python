@@ -665,24 +665,6 @@
       "durationSeconds": 42.353
     },
     {
-      "key": "title",
-      "path": "art/title.png",
-      "assetType": "Image",
-      "contentType": "image/png",
-      "sha256": "c3e9991a33c62440164828715689321940fc5ff473599ff7f9b986c5ca3dac0a",
-      "displayName": "CyberOutlaw title",
-      "description": "Letreiro original CyberOutlaw."
-    },
-    {
-      "key": "billboard",
-      "path": "art/billboard.png",
-      "assetType": "Image",
-      "contentType": "image/png",
-      "sha256": "273ce2b0b1dacc45eac98a736261450d342d8dee021f8d267a516f3c5e420efe",
-      "displayName": "CyberOutlaw billboard",
-      "description": "Arte original dos três painéis de Maré Baixa."
-    },
-    {
       "key": "concrete",
       "path": "art/concrete.png",
       "assetType": "Image",
@@ -728,15 +710,6 @@
       "description": "Material do terraço. Digitalização Poly Haven, licença CC0 1.0."
     },
     {
-      "key": "facades",
-      "path": "art/facades.png",
-      "assetType": "Image",
-      "contentType": "image/png",
-      "sha256": "bfd5240c3041d8b13887e6d1406bd62ebcbd68f4d0412e5593eb08eda973027f",
-      "displayName": "CyberOutlaw facades",
-      "description": "Quatro texturas originais para as fachadas da cidade 3D."
-    },
-    {
       "key": "fachada_residencial",
       "path": "art/fachada_residencial.png",
       "assetType": "Image",
@@ -780,15 +753,6 @@
       "sha256": "94badc0ce23c41b915da3249a58ea4b1adf5a7d8c839678ba3cb42364861d4eb",
       "displayName": "CyberOutlaw fachada_painel",
       "description": "Painéis modulares dos megaprédios de Maré Baixa, desenhados por código, sem imagem gerada por IA."
-    },
-    {
-      "key": "vitrines",
-      "path": "art/vitrines.png",
-      "assetType": "Image",
-      "contentType": "image/png",
-      "sha256": "bd2bcb4189f8b1dda97110c42c5ca04fbe5beefc4040d5db643a32d139f292e3",
-      "displayName": "CyberOutlaw vitrines",
-      "description": "Interiores das lojas de Maré Baixa vistos pela vitrine. Imagens geradas com IA no Figma, com autorização do dono do projeto."
     },
     {
       "key": "anuncios",
@@ -960,6 +924,267 @@
       "sha256": "a6eff51c19ed520ae11cf0954d70e377cfb04a50065f2fbf1b957eea11174925",
       "displayName": "CyberOutlaw concreto_rachado_normal",
       "description": "Material da cidade jogável. Digitalização Poly Haven, licença CC0 1.0."
+    },
+    {
+      "key": "titulo_vetor",
+      "path": "art/titulo_vetor.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "a61140170bd4ff2f4e9d77c3467961cc04f0a48de54f2ecdb1727e904414ad0e",
+      "displayName": "CyberOutlaw titulo_vetor",
+      "description": "Arte do menu CyberOutlaw desenhada por código."
+    },
+    {
+      "key": "teloes_vetor",
+      "path": "art/teloes_vetor.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "6ada749d669ded021142a86417053b0fd00d83c47011a075780acb4458c167b8",
+      "displayName": "CyberOutlaw teloes_vetor",
+      "description": "Arte do menu CyberOutlaw desenhada por código."
+    },
+    {
+      "key": "fachadas_vetor",
+      "path": "art/fachadas_vetor.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "36f56589ee53e3131b6ff6b946cc8bb7f9727b7371c0a509a4610f90e0dca027",
+      "displayName": "CyberOutlaw fachadas_vetor",
+      "description": "Arte do menu CyberOutlaw desenhada por código."
+    },
+    {
+      "key": "mare_asphalt_color",
+      "path": "art/mare_asphalt_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "7c87aad15faf8f33fbb92acf7f76d1858aab82fa66b9720da078011dd11c97b0",
+      "displayName": "CyberOutlaw mare_asphalt_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_asphalt_normal",
+      "path": "art/mare_asphalt_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "24016e7d5743ab468b1d6456bc3e9e6914d6014c069ab9d4d4d648663d29495c",
+      "displayName": "CyberOutlaw mare_asphalt_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_asphalt_roughness",
+      "path": "art/mare_asphalt_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "cac384aceac38493dd039104a7e97b9d7a288fdc01a018855cde8e2abbf996c0",
+      "displayName": "CyberOutlaw mare_asphalt_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_cement_color",
+      "path": "art/mare_cement_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "30dc9a3bb50fd14c9c90860a3e49c359121b8986e019fd8af8db79fe2cbadf48",
+      "displayName": "CyberOutlaw mare_cement_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_cement_normal",
+      "path": "art/mare_cement_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "3ac1f48aad7cb08ce8221b3af6d688f54d3d0e17f48718f3140685acf20e0d20",
+      "displayName": "CyberOutlaw mare_cement_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_cement_roughness",
+      "path": "art/mare_cement_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "2bd6bf700ae543133ec2d8d0d3aa5e71e49a1ce7b506c0472826a979fb4c76c1",
+      "displayName": "CyberOutlaw mare_cement_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_sidewalk_color",
+      "path": "art/mare_sidewalk_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "eaaa802281766cff96b20c67dd489f0c751e2153f1eda670f09f2c16601c011d",
+      "displayName": "CyberOutlaw mare_sidewalk_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_sidewalk_normal",
+      "path": "art/mare_sidewalk_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "7fd8c666c1b5dea87e546c1af82cd4886463a38ae7eb71ee0cac4fb8c21f1a0d",
+      "displayName": "CyberOutlaw mare_sidewalk_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_sidewalk_roughness",
+      "path": "art/mare_sidewalk_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "d3b709e208cfa1102be2a052d2c8da2b54cbe30a70edd6773318e9c1c6b1d475",
+      "displayName": "CyberOutlaw mare_sidewalk_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_glass_color",
+      "path": "art/mare_glass_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "53e5d13ca5848d046321d24d5c7854a68f5c4783d4e029e2fc72dc7f53244c37",
+      "displayName": "CyberOutlaw mare_glass_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_glass_normal",
+      "path": "art/mare_glass_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "ef2c6afbb9d98ca759ec7c53348c4dc34744aa78d7129ddf907bcd0d784bf49d",
+      "displayName": "CyberOutlaw mare_glass_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_glass_roughness",
+      "path": "art/mare_glass_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "f43d73a30bed0cfac5b1466df83ee693c1dd2211f1ba54716d87e30974dd7394",
+      "displayName": "CyberOutlaw mare_glass_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_glass_metalness",
+      "path": "art/mare_glass_metalness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "44728ea1e4aa72fa5451b71da281f6213028ccb5d6a32ee397e799fd376ee7e5",
+      "displayName": "CyberOutlaw mare_glass_metalness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_steel_color",
+      "path": "art/mare_steel_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "3f412f21a45f2500b13128c30a8d7492b5835f0ea26d275438f0c17ea7ab423a",
+      "displayName": "CyberOutlaw mare_steel_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_steel_normal",
+      "path": "art/mare_steel_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "f4984d8500b08d14a8ddf07d6ce13e4f3473c72b3ed3256d9f1a39ae83de2fe5",
+      "displayName": "CyberOutlaw mare_steel_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_steel_roughness",
+      "path": "art/mare_steel_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "ae0afa79282fa50fe2e6efd22cb06e91a8ab150823a47109c6c51c3cc8af9a8e",
+      "displayName": "CyberOutlaw mare_steel_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_steel_metalness",
+      "path": "art/mare_steel_metalness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "9de5ac190e4e312fadd4e039d5a0cf54e69414f10d8b17b10f70cb061e2b9225",
+      "displayName": "CyberOutlaw mare_steel_metalness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_brick_color",
+      "path": "art/mare_brick_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "ce25f23dd8aa82f1cd31f2456a5c8e98e08a952f8924553e53f094e9cf1ae1f2",
+      "displayName": "CyberOutlaw mare_brick_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_brick_normal",
+      "path": "art/mare_brick_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "500faaa56494ce6c890986d14b5d7fcefdeacead7734c53287c6f16ced4b3193",
+      "displayName": "CyberOutlaw mare_brick_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_brick_roughness",
+      "path": "art/mare_brick_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "728733b2751a5f3f62554a3d09ddad610073c5928733c4a2d192aaf8b24c2030",
+      "displayName": "CyberOutlaw mare_brick_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_roof_color",
+      "path": "art/mare_roof_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "e29755085189bfd272148334a6fcf1beabc830a131404e6d3fffe53413d4d513",
+      "displayName": "CyberOutlaw mare_roof_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_roof_normal",
+      "path": "art/mare_roof_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "9f589de708d57f4feb5af542adaed6ff9572c9423d686bb2437630fac7f4ad5c",
+      "displayName": "CyberOutlaw mare_roof_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_roof_roughness",
+      "path": "art/mare_roof_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "2ce2b5a05e3f1bdf6341432862315d0fd5358ced930b7bc16a6e4d3d99d20af8",
+      "displayName": "CyberOutlaw mare_roof_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_tile_color",
+      "path": "art/mare_tile_color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "7c0cea87a813522dcd4428885aef55365f5b2d2d4d0a0031856446235e52a2a3",
+      "displayName": "CyberOutlaw mare_tile_color",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_tile_normal",
+      "path": "art/mare_tile_normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "4826b41f5d382a858a2a3f1247ee9d8de6c6ecca472f0ffc0a86ac0d31bb1099",
+      "displayName": "CyberOutlaw mare_tile_normal",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
+    },
+    {
+      "key": "mare_tile_roughness",
+      "path": "art/mare_tile_roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "ecd4bef9e5007da88784dbd3f16c6f755490a7fcfb75f976cf59823a1c4a5947",
+      "displayName": "CyberOutlaw mare_tile_roughness",
+      "description": "Mapa PBR original de Maré Baixa produzido por texturização procedural."
     }
   ]
 }

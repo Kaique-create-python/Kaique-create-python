@@ -92,14 +92,18 @@ def build(output):
     files = [ROOT / "launcher.py"]
     if (ROOT / "README.md").is_file():
         files.append(ROOT / "README.md")
-    for folder in ("install", "media_tools", "src", "media/capri", "media/art"):
+    for folder in ("install", "media_tools", "src", "media/capri"):
         files.extend(path for path in (ROOT / folder).rglob("*")
                      if path.is_file() and "__pycache__" not in path.parts and path.suffix.lower()
                      in {".py", ".luau", ".json", ".png", ".wav", ".md", ".txt"})
     plan_path = ROOT / "media/ASSET_PLAN.json"
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    files.extend(ROOT / "media" / entry["path"] for entry in plan["assets"] if entry["assetType"] == "Audio")
-    files.extend((plan_path, ROOT / "media/audio/CREDITOS.json"))
+    for entry in plan["assets"]:
+        path = ROOT / "media" / entry["path"]
+        if path.is_symlink() or not path.resolve().is_relative_to(ROOT / "media") or not path.is_file():
+            raise ValueError("Caminho de mídia inválido: " + entry["key"])
+        files.append(path.resolve())
+    files.extend((plan_path, ROOT / "media/audio/CREDITOS.json", ROOT / "media/art/CREDITOS.md"))
     for p in files:
         if p.is_symlink() or p.stat().st_size > 20_000_000:
             raise ValueError("Arquivo de pacote inválido: " + p.name)

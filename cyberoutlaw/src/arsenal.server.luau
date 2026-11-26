@@ -3,8 +3,8 @@
 -- The models are built in code and published in ReplicatedStorage.CyberOutlawArsenal, so the
 -- client uses the same pieces in the weapon wheel without images.
 
-local SAFE_CENTER = Vector3.new(108, 0, 108) -- Praça da Maré
-local SAFE_RADIUS = 95
+local LEGACY_SAFE_ZONE = { 108, 108, 95 }
+local CITY_INFO = "CyberOutlawCityInfo"
 local rgb = Color3.fromRGB
 
 -- Armas reais. A ordem define a roleta: punhos no topo, o resto no sentido horário.
@@ -72,9 +72,70 @@ for _, def in WEAPONS do
 end
 
 -- Shared rules (tested in tests/arsenal_test.luau) ------------------------------------------------
-local function inSafeZone(position: Vector3): boolean
-	local flat = Vector3.new(position.X - SAFE_CENTER.X, 0, position.Z - SAFE_CENTER.Z)
-	return flat.Magnitude < SAFE_RADIUS
+local function inSafeZone(position: Vector3, zone): boolean
+	zone = zone or LEGACY_SAFE_ZONE
+	local dx, dz = position.X - zone[1], position.Z - zone[2]
+	return dx * dx + dz * dz < zone[3] * zone[3]
+end
+
+local function bindSafeZone(storage: Instance, http: HttpService, folder: Instance, world: Instance?)
+	local zone = LEGACY_SAFE_ZONE
+	local layoutReady = false
+	local function publish()
+		folder:SetAttribute("ZonaSegura", http:JSONEncode(zone))
+	end
+	local function update(x, z, radius): boolean
+		if type(x) ~= "number" or type(z) ~= "number" or type(radius) ~= "number"
+			or not (math.abs(x) < math.huge and math.abs(z) < math.huge and radius > 0 and radius < math.huge) then
+			return false
+		end
+		zone = { x, z, radius }
+		publish()
+		return true
+	end
+	local function whenChild(parent: Instance, name: string, onFound: (Instance) -> ())
+		local present = parent:FindFirstChild(name)
+		if present then
+			onFound(present)
+			return
+		end
+		local arrived: RBXScriptConnection
+		arrived = parent.ChildAdded:Connect(function(child)
+			if child.Name == name then
+				arrived:Disconnect()
+				onFound(child)
+			end
+		end)
+	end
+	local function watch(board: Instance)
+		local function read()
+			local raw = board:GetAttribute("Layout")
+			if type(raw) ~= "string" then
+				return
+			end
+			local ok, layout = pcall(http.JSONDecode, http, raw)
+			local candidate = if ok and type(layout) == "table" then layout.safeZone else nil
+			if type(candidate) == "table" and update(candidate[1], candidate[2], candidate[3]) then
+				layoutReady = true
+			end
+		end
+		board:GetAttributeChangedSignal("Layout"):Connect(read)
+		read()
+	end
+	publish()
+	whenChild(storage, CITY_INFO, watch)
+	-- O mundo publica o centro antes de liberar o spawn, enquanto a cidade ainda está sendo montada.
+	if world and not layoutReady then
+		whenChild(world, "CyberOutlawCity", function(city)
+			local center = city:GetAttribute("SafeZoneCenter")
+			if not layoutReady and typeof(center) == "Vector3" then
+				update(center.X, center.Z, city:GetAttribute("SafeZoneRadius"))
+			end
+		end)
+	end
+	return function(position: Vector3): boolean
+		return inSafeZone(position, zone)
+	end
 end
 
 local function damageFor(def, distance: number, headshot: boolean): number
@@ -684,6 +745,7 @@ local function main()
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "CyberOutlawArsenal"
+	local inSafeZone = bindSafeZone(ReplicatedStorage, HttpService, folder, workspace)
 	local models = Instance.new("Folder")
 	models.Name = "Modelos"
 	models.Parent = folder
@@ -722,7 +784,6 @@ local function main()
 		end
 	end
 	folder:SetAttribute("Implantes", HttpService:JSONEncode(publicImplants))
-	folder:SetAttribute("ZonaSegura", HttpService:JSONEncode({ SAFE_CENTER.X, SAFE_CENTER.Z, SAFE_RADIUS }))
 	local action = Instance.new("RemoteEvent")
 	action.Name = "Acao"
 	action.Parent = folder
@@ -1306,6 +1367,7 @@ return {
 	buildModel = buildModel,
 	gripOffset = gripOffset,
 	inSafeZone = inSafeZone,
+	bindSafeZone = bindSafeZone,
 	damageFor = damageFor,
 	checkShot = checkShot,
 	newState = newState,

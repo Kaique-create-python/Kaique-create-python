@@ -13,6 +13,7 @@ from urllib.parse import urlencode, urlsplit
 import warnings
 
 from . import upload
+from .mare_art import MENU_ART, PBR_ART
 
 SOUNDS = ("click", "confirm", "glitch", "react", "hello_morning", "hello_late", "hello_miss")
 # Weapon, footstep, and interface sounds (tools/prepare_weapon_audio.py and tools/synth_weapon_fx.py).
@@ -30,27 +31,27 @@ OPTIONAL_SOUNDS = ("arma_glock", "arma_deagle", "arma_uzi", "arma_ak47", "arma_m
                    # Trilhas da cidade (OGG): calma sem polícia nem tiroteio, tensa com estrela ou em combate.
                    "musica_calma", "musica_tensa")
 ART = {
-    "title": (1020, 258), "billboard": (1020, 1020),
     "concrete": (1024, 1024), "concrete_normal": (768, 768),
     "asphalt": (1024, 1024), "asphalt_normal": (768, 768), "asphalt_rough": (768, 768),
-    "facades": (1024, 1024),
     # Janelas da cidade jogável, desenhadas por tools/draw_city_textures.py (sem IA).
     "fachada_residencial": (768, 896), "fachada_escritorio": (768, 896), "fachada_vidro": (768, 896),
     # 2D icons for the wheel, the weapon card, and the touch buttons (design/icones.py, vector by hand).
     "icones_interface": (1024, 1024),
     # Cidade v2: painéis, vitrines, anúncios e céu desenhados por código (tools/draw_city_art.py, tools/draw_sky.py);
     # poças sobre o asfalto Poly Haven; tijolo, metal ondulado, piso hexagonal e concreto rachado Poly Haven (CC0).
-    "fachada_painel": (768, 896), "vitrines": (1024, 1024), "anuncios": (1024, 1024),
+    "fachada_painel": (768, 896), "anuncios": (1024, 1024),
     "poca_1": (512, 512), "poca_2": (512, 512), "poca_3": (512, 512), "poca_4": (512, 512),
     "ceu_bk": (512, 512), "ceu_dn": (512, 512), "ceu_ft": (512, 512), "ceu_lf": (512, 512), "ceu_rt": (512, 512), "ceu_up": (512, 512),
     "tijolo": (768, 768), "tijolo_normal": (512, 512), "metal_ondulado": (768, 768), "metal_ondulado_normal": (512, 512),
     "piso_hexagonal": (768, 768), "piso_hexagonal_normal": (512, 512), "concreto_rachado": (768, 768), "concreto_rachado_normal": (512, 512),
+    **MENU_ART, **PBR_ART,
 }
 # A cidade usa cores e faixas de luz em geometria enquanto estas imagens aguardam aprovação.
-CITY_V2_ART = ("fachada_painel", "vitrines", "anuncios", "poca_1", "poca_2", "poca_3", "poca_4",
+CITY_V2_ART = ("fachada_painel", "anuncios", "poca_1", "poca_2", "poca_3", "poca_4",
                "ceu_bk", "ceu_dn", "ceu_ft", "ceu_lf", "ceu_rt", "ceu_up", "tijolo", "tijolo_normal", "metal_ondulado",
                "metal_ondulado_normal", "piso_hexagonal", "piso_hexagonal_normal", "concreto_rachado", "concreto_rachado_normal")
-OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro", "icones_interface", *CITY_V2_ART})
+OPTIONAL_ART = frozenset({"fachada_residencial", "fachada_escritorio", "fachada_vidro", "icones_interface",
+                         *CITY_V2_ART, *MENU_ART, *PBR_ART})
 
 
 def _read(path):

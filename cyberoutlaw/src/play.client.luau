@@ -1108,38 +1108,82 @@ local function buildHud(parent: Instance, touch: boolean)
 	frame(safe, "Traco", 13, { Size = UDim2.new(0, 3, 1, 0), BackgroundTransparency = 0, BackgroundColor3 = HEALTH })
 
 	local mapScale = if touch then 0.16 else 0.22 -- pixels por stud
-	local extent = 0
+	local extentX, extentZ = 0, 0
 	function hud.setMap(data)
 		for _, child in map:GetChildren() do
 			child:Destroy()
 		end
-		extent = 0
+		extentX, extentZ = 0, 0
 		noSignal.Visible = true
-		if type(data) ~= "table" or type(data.lines) ~= "table" then
+		if type(data) ~= "table" then
+			return
+		end
+		local rectangular = type(data.xLines) == "table" and type(data.zLines) == "table"
+		if not rectangular and type(data.lines) ~= "table" then
 			return
 		end
 		local half = data.half or 1000
-		local quay = data.quay or half
-		extent = half + 400
-		local size = extent * 2 * mapScale
-		map.Size = UDim2.fromOffset(size, size)
+		local halfX, halfZ = data.halfX or half, data.halfZ or half
+		extentX, extentZ = halfX + 400, halfZ + 400
+		map.Size = UDim2.fromOffset(extentX * 2 * mapScale, extentZ * 2 * mapScale)
 		local function rect(name, x0, z0, x1, z1, color, transparency, z)
 			return frame(map, name, z, {
-				Position = UDim2.fromOffset((x0 + extent) * mapScale, (z0 + extent) * mapScale),
+				Position = UDim2.fromOffset((x0 + extentX) * mapScale, (z0 + extentZ) * mapScale),
 				Size = UDim2.fromOffset(math.max(1, (x1 - x0) * mapScale), math.max(1, (z1 - z0) * mapScale)),
 				BackgroundColor3 = color, BackgroundTransparency = transparency,
 			})
 		end
-		rect("Terra", -extent, -extent, extent, quay, Color3.fromRGB(24, 26, 34), 0, 2)
-		rect("Agua", -extent, quay, extent, extent, Color3.fromRGB(14, 32, 48), 0, 2)
-		for _, line in data.lines do
-			local p, width = line[1], line[2]
-			local tone = if width > 60 then Color3.fromRGB(104, 108, 122) else Color3.fromRGB(70, 74, 88)
-			rect("Rua", -half - 40, p - width / 2, half + 40, p + width / 2, tone, 0, 3)
-			rect("Rua", p - width / 2, -half - 40, p + width / 2, math.min(half + 40, quay), tone, 0, 3)
+		local land = Color3.fromRGB(24, 26, 34)
+		local mainRoad, sideRoad = Color3.fromRGB(104, 108, 122), Color3.fromRGB(70, 74, 88)
+		if rectangular then
+			local minX, maxX = -halfX - 40, halfX + 40
+			local minZ, maxZ = -halfZ - 40, halfZ + 40
+			local canal = data.canal
+			local bank = if canal then canal.bank or canal.width / 2 else 0
+			local sidewalk = Color3.fromRGB(43, 46, 57)
+			rect("Fora", -extentX, -extentZ, extentX, extentZ, Color3.fromRGB(14, 17, 25), 0, 2)
+			rect("Terra", minX, minZ, maxX, maxZ, land, 0, 3)
+			for _, line in data.xLines do
+				local x, radius, walk = line[1], line[2] / 2, line[3] or 0
+				if canal and x == canal.x then
+					continue
+				end
+				rect("Calcada", x - radius - walk, minZ, x + radius + walk, maxZ, sidewalk, 0, 4)
+				rect("Rua", x - radius, minZ, x + radius, maxZ, if radius >= 22 then mainRoad else sideRoad, 0, 5)
+			end
+			local function avenue(x0, x1, line)
+				local z, radius, walk = line[1], line[2] / 2, line[3] or 0
+				rect("Calcada", x0, z - radius - walk, x1, z + radius + walk, sidewalk, 0, 4)
+				rect("Avenida", x0, z - radius, x1, z + radius, if radius >= 22 then mainRoad else sideRoad, 0, 5)
+			end
+			for _, line in data.zLines do
+				avenue(minX, if canal then canal.x - bank else maxX, line)
+				if canal then
+					avenue(canal.x + bank, maxX, line)
+				end
+			end
+			if canal then
+				local water = canal.width / 2
+				rect("Canal", canal.x - water, -halfZ, canal.x + water, halfZ, Color3.fromRGB(21, 59, 79), 0, 6)
+				for _, bridge in data.bridges or {} do
+					local z, radius, foot = bridge[1], bridge[2] / 2, bridge[3] == "foot"
+					local tone = if foot then Color3.fromRGB(167, 142, 105) else Color3.fromRGB(124, 133, 151)
+					rect(if foot then "Passarela" else "Ponte", canal.x - bank, z - radius, canal.x + bank, z + radius, tone, 0, 7)
+				end
+			end
+		else
+			local quay = data.quay or half
+			rect("Terra", -extentX, -extentZ, extentX, quay, land, 0, 2)
+			rect("Agua", -extentX, quay, extentX, extentZ, Color3.fromRGB(14, 32, 48), 0, 2)
+			for _, line in data.lines do
+				local p, width = line[1], line[2]
+				local tone = if width > 60 then mainRoad else sideRoad
+				rect("Rua", -half - 40, p - width / 2, half + 40, p + width / 2, tone, 0, 3)
+				rect("Rua", p - width / 2, -half - 40, p + width / 2, math.min(half + 40, quay), tone, 0, 3)
+			end
 		end
 		if type(data.plaza) == "table" then
-			rect("Praca", data.plaza[1] - 30, data.plaza[2] - 30, data.plaza[1] + 30, data.plaza[2] + 30, ACCENT, 0.5, 4)
+			rect("Praca", data.plaza[1] - 30, data.plaza[2] - 30, data.plaza[1] + 30, data.plaza[2] + 30, ACCENT, 0.5, 8)
 		end
 		noSignal.Visible = false
 	end
@@ -1201,9 +1245,9 @@ local function buildHud(parent: Instance, touch: boolean)
 		track.BackgroundTransparency = 0.3 + state.fade * 0.6
 		fill.BackgroundTransparency = state.fade
 		-- Minimapa: o mapa gira com a câmera; a seta mostra para onde o personagem olha.
-		if extent > 0 and input.position then
+		if extentX > 0 and input.position then
 			local position = input.position
-			map.Position = UDim2.fromOffset(-(position.X + extent) * mapScale, -(position.Z + extent) * mapScale)
+			map.Position = UDim2.fromOffset(-(position.X + extentX) * mapScale, -(position.Z + extentZ) * mapScale)
 			pivot.Rotation = math.deg(input.cameraYaw or 0)
 			north.Rotation = -pivot.Rotation
 			arrow.Rotation = math.deg((input.cameraYaw or 0) - (input.facingYaw or 0))
@@ -2469,17 +2513,21 @@ local function buildImplantPanel(implants, atlas: string?, models: Instance?)
 end
 M.buildImplantPanel = buildImplantPanel
 
--- Monotrilho Linha Anel ---------------------------------------------------------------------------------------
--- O trem anda no viaduto em volta da cidade e é igual em todos os clientes: a posição sai da hora do servidor
--- (GetServerTimeNow), sem rede. Para na Estação Prisma com as portas abertas, acelera, corre, freia e volta à
--- estação depois de uma volta; quem estiver dentro é levado junto (cada cliente move o próprio corpo).
-local TRAIN = { speed = 45, accel = 5, dwell = 14, cars = 3, length = 34, pitch = 36, floor = 1.5, bogie = 13 }
+-- Monotrilho -------------------------------------------------------------------------------------------------
+-- A posição sai da hora do servidor (GetServerTimeNow). A Linha 07 vai e volta pela Estação do Dique.
+-- A Linha Anel para na Estação Prisma a cada volta. Cada cliente move o próprio personagem quando embarcado.
+local TRAIN = {
+	speed = 45, accel = 5, dwell = 14, turnaround = 2,
+	cars = 3, length = 34, pitch = 36, floorOverhang = 0.8, floor = 1.5, shuttleFloor = 0.5, bogie = 13,
+}
 M.TRAIN = TRAIN
 
--- Caminho fechado a partir dos pontos (x, z) do viaduto, na altura do trilho (deck).
-local function trainTrack(points, deck: number)
-	local track = { segments = {}, total = 0, deck = deck }
-	for index, point in points do
+-- Caminho a partir dos pontos (x, z), na altura publicada do trilho.
+local function trainTrack(points, deck: number, mode: string?)
+	local track = { segments = {}, total = 0, deck = deck, shuttle = mode == "shuttle" }
+	local count = if track.shuttle then #points - 1 else #points
+	for index = 1, count do
+		local point = points[index]
 		local nextPoint = points[index % #points + 1]
 		local a = Vector3.new(point[1], deck, point[2])
 		local b = Vector3.new(nextPoint[1], deck, nextPoint[2])
@@ -2493,9 +2541,9 @@ local function trainTrack(points, deck: number)
 end
 M.trainTrack = trainTrack
 
--- Ponto e direção a s studs do começo do caminho (dá a volta nos dois sentidos).
+-- Ponto e direção a s studs do começo do caminho.
 local function trackPoint(track, s: number): (Vector3, Vector3)
-	s %= track.total
+	s = if track.shuttle then math.clamp(s, 0, track.total) else s % track.total
 	for _, segment in track.segments do
 		if s <= segment.start + segment.length then
 			return segment.a + segment.dir * (s - segment.start), segment.dir
@@ -2521,6 +2569,10 @@ local function trackDistance(track, x: number, z: number): number
 end
 M.trackDistance = trackDistance
 
+local function trainDoors(elapsed: number): number
+	return math.clamp(math.min(elapsed - 0.6, TRAIN.dwell - 2 - elapsed), 0, 1)
+end
+
 -- Horário: parado (dwell s), acelera, corre, freia e chega de novo depois de uma volta (total studs).
 -- Devolve quanto já andou desde a estação, a velocidade e quanto as portas estão abertas (0 a 1).
 local function trainSchedule(t: number, total: number): (number, number, number)
@@ -2530,7 +2582,7 @@ local function trainSchedule(t: number, total: number): (number, number, number)
 	local cruise = math.max(0, (total - 2 * rampDistance) / v)
 	local u = t % (dwell + 2 * ramp + cruise)
 	if u < dwell then
-		return 0, 0, math.clamp(math.min(u - 0.6, dwell - 2 - u), 0, 1)
+		return 0, 0, trainDoors(u)
 	end
 	u -= dwell
 	if u < ramp then
@@ -2545,12 +2597,62 @@ local function trainSchedule(t: number, total: number): (number, number, number)
 end
 M.trainSchedule = trainSchedule
 
+-- As pontas da composição, incluindo o piso do último carro, ficam dentro do viaduto.
+local function shuttleSchedule(total: number, station: number)
+	local margin = (TRAIN.cars // 2) * TRAIN.pitch + TRAIN.length / 2 + TRAIN.floorOverhang + 0.25
+	local west, east = margin, total - margin
+	if station <= west or station >= east then
+		return nil
+	end
+	local legs, cycle = {}, 0
+	local accel = TRAIN.accel
+	local function addLeg(from: number, to: number, boarding: boolean)
+		local distance = math.abs(to - from)
+		local speed = math.min(TRAIN.speed, math.sqrt(distance * accel))
+		local ramp = speed / accel
+		local rampDistance = 0.5 * accel * ramp * ramp
+		local cruise = math.max(0, (distance - 2 * rampDistance) / speed)
+		local dwell = if boarding then TRAIN.dwell else TRAIN.turnaround
+		local duration = dwell + 2 * ramp + cruise
+		table.insert(legs, { from = from, to = to, direction = math.sign(to - from), boarding = boarding,
+			speed = speed, ramp = ramp, rampDistance = rampDistance, cruise = cruise, dwell = dwell, duration = duration })
+		cycle += duration
+	end
+	addLeg(station, east, true)
+	addLeg(east, station, false)
+	addLeg(station, west, true)
+	addLeg(west, station, false)
+	return function(t: number): (number, number, number)
+		local elapsed = t % cycle
+		for _, leg in legs do
+			if elapsed >= leg.duration then
+				elapsed -= leg.duration
+				continue
+			end
+			if elapsed < leg.dwell then
+				return leg.from, 0, if leg.boarding then trainDoors(elapsed) else 0
+			end
+			local travel = elapsed - leg.dwell
+			local dir = leg.direction
+			if travel < leg.ramp then
+				return leg.from + dir * 0.5 * accel * travel * travel, dir * accel * travel, 0
+			elseif travel < leg.ramp + leg.cruise then
+				return leg.from + dir * (leg.rampDistance + leg.speed * (travel - leg.ramp)), dir * leg.speed, 0
+			end
+			local left = leg.duration - elapsed
+			return leg.to - dir * 0.5 * accel * left * left, dir * accel * left, 0
+		end
+		return station, 0, 0
+	end
+end
+M.shuttleSchedule = shuttleSchedule
+
 -- Pose de um carro cujo centro está a s studs: apoiado em dois truques (frente e trás) no trilho, então
 -- faz a curva aos poucos. A origem é o chão do carro; a frente é -Z.
 local function carCFrame(track, s: number): CFrame
 	local front = trackPoint(track, s + TRAIN.bogie)
 	local back = trackPoint(track, s - TRAIN.bogie)
-	local lift = Vector3.new(0, TRAIN.floor, 0)
+	local lift = Vector3.new(0, if track.shuttle then TRAIN.shuttleFloor else TRAIN.floor, 0)
 	return CFrame.lookAt((front + back) / 2 + lift, front + lift)
 end
 M.carCFrame = carCFrame
@@ -2559,7 +2661,7 @@ M.carCFrame = carCFrame
 -- luz no teto e neon rosa por fora. Devolve o modelo e as peças com a pose no espaço do carro (e, nas portas,
 -- para onde correm ao abrir). head/tail: faróis na frente do primeiro carro e lanternas atrás do último.
 local TRAIN_BODY, TRAIN_DARK = Color3.fromRGB(58, 64, 80), Color3.fromRGB(26, 28, 36)
-local function buildTrainCar(index: number, head: boolean, tail: boolean)
+local function buildTrainCar(index: number, head: boolean, tail: boolean, platformSide: number?)
 	local model = Instance.new("Model")
 	model.Name = "Carro " .. index
 	local parts = {}
@@ -2579,7 +2681,7 @@ local function buildTrainCar(index: number, head: boolean, tail: boolean)
 		return p
 	end
 	local glass = Color3.fromRGB(120, 170, 200)
-	piece("Piso", Vector3.new(7.6, 0.5, L + 1.6), CFrame.new(0, 0.25, 0), Color3.fromRGB(44, 46, 54), Enum.Material.DiamondPlate, true)
+	piece("Piso", Vector3.new(7.6, 0.5, L + 2 * TRAIN.floorOverhang), CFrame.new(0, 0.25, 0), Color3.fromRGB(44, 46, 54), Enum.Material.DiamondPlate, true)
 	piece("Teto", Vector3.new(8, 0.6, L), CFrame.new(0, 8.3, 0), TRAIN_BODY, Enum.Material.Metal, true)
 	local strip = piece("Luz do teto", Vector3.new(1.2, 0.1, L - 4), CFrame.new(0, 7.95, 0), Color3.fromRGB(220, 240, 255), Enum.Material.Neon, false)
 	new("SurfaceLight", strip, { Face = Enum.NormalId.Bottom, Range = 12, Brightness = 1.6, Angle = 120, Color = Color3.fromRGB(210, 235, 255) })
@@ -2602,11 +2704,11 @@ local function buildTrainCar(index: number, head: boolean, tail: boolean)
 			for _, half in { -1, 1 } do
 				-- Folha da porta por fora da parede: abre correndo por cima dela.
 				local offset = CFrame.new(side * 4.05, 3.55, center + half * DOOR_W / 4)
-				local leaf = piece("Porta", Vector3.new(0.16, 6.1, DOOR_W / 2), offset, Color3.fromRGB(70, 76, 92), Enum.Material.Metal, true,
-					Vector3.new(0, 0, half * (DOOR_W / 2 + 0.1)))
+				local slide = if not platformSide or platformSide == side then Vector3.new(0, 0, half * (DOOR_W / 2 + 0.1)) else nil
+				local leaf = piece("Porta", Vector3.new(0.16, 6.1, DOOR_W / 2), offset, Color3.fromRGB(70, 76, 92), Enum.Material.Metal, true, slide)
 				leaf.CastShadow = false
 				piece("Vidro da porta", Vector3.new(0.18, 2.6, DOOR_W / 2 - 0.6), offset * CFrame.new(0, 1.2, 0), glass, Enum.Material.Glass, false,
-					Vector3.new(0, 0, half * (DOOR_W / 2 + 0.1))).Transparency = 0.4
+					slide).Transparency = 0.4
 			end
 		end
 	end
@@ -2772,9 +2874,17 @@ local function start()
 		action = arsenal:WaitForChild("Acao", 10)
 		effectEvent = arsenal:WaitForChild("Efeito", 10)
 		aimEvent = arsenal:WaitForChild("Mira", 10)
-		pcall(function()
-			safeZone = HttpService:JSONDecode(arsenal:GetAttribute("ZonaSegura"))
-		end)
+		local function readSafeZone()
+			local raw = arsenal:GetAttribute("ZonaSegura")
+			if type(raw) == "string" then
+				local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+				if ok and type(decoded) == "table" and type(decoded[1]) == "number" and type(decoded[2]) == "number" and type(decoded[3]) == "number" then
+					safeZone = decoded
+				end
+			end
+		end
+		arsenal:GetAttributeChangedSignal("ZonaSegura"):Connect(readSafeZone)
+		readSafeZone()
 	end
 	pcall(function()
 		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
@@ -4840,22 +4950,42 @@ local function start()
 		local rideParams = RaycastParams.new()
 		rideParams.FilterType = Enum.RaycastFilterType.Include
 		rideParams.FilterDescendantsInstances = { folder }
-		local cars, track, station
+		local cars, track, schedule
+		local middle = math.ceil(TRAIN.cars / 2)
 		local partList, frameList = {}, {}
 		local function ensure(): boolean
 			if cars then
 				return true
 			end
 			local layout = cityLayout
-			if type(layout) ~= "table" or type(layout.monorail) ~= "table" or #layout.monorail < 3 then
+			if type(layout) ~= "table" or type(layout.monorail) ~= "table" then
 				return false
 			end
-			track = trainTrack(layout.monorail, tonumber(layout.deck) or 66)
+			local shuttle = layout.monorailMode == "shuttle"
+			if #layout.monorail < (if shuttle then 2 else 3) then
+				return false
+			end
+			track = trainTrack(layout.monorail, tonumber(layout.deck) or 66, layout.monorailMode)
+			if track.total <= 0 then
+				return false
+			end
 			local spot = layout.station
-			station = if type(spot) == "table" then trackDistance(track, spot[1], spot[2]) else 0
+			local station = if type(spot) == "table" then trackDistance(track, spot[1], spot[2]) else 0
+			if shuttle then
+				schedule = shuttleSchedule(track.total, station)
+				if not schedule then
+					return false
+				end
+			else
+				schedule = function(t: number)
+					local traveled, speed, open = trainSchedule(t, track.total)
+					return station + traveled, speed, open
+				end
+			end
 			cars = {}
 			for index = 1, TRAIN.cars do
-				local model, parts = buildTrainCar(index, index == 1, index == TRAIN.cars)
+				-- Olhando a leste, o lado esquerdo do trem fica junto à plataforma norte.
+				local model, parts = buildTrainCar(index, index == 1, index == TRAIN.cars, if shuttle then -1 else nil)
 				model.Parent = folder
 				cars[index] = { model = model, parts = parts }
 			end
@@ -4865,13 +4995,25 @@ local function start()
 			if not ensure() then
 				return
 			end
-			local traveled, _, open = trainSchedule(serverNow(), track.total)
+			-- Procura o carro sob o personagem antes de deslocar a composição.
+			local rider
+			if cars[1].pose and root and humanoid and humanoid.Health > 0 then
+				local hit = Workspace:Raycast(root.Position, Vector3.new(0, -4.6, 0), rideParams)
+				if hit then
+					for _, car in cars do
+						if hit.Instance:IsDescendantOf(car.model) then
+							rider = car
+							break
+						end
+					end
+				end
+			end
+			local center, _, open = schedule(serverNow())
 			table.clear(partList)
 			table.clear(frameList)
-			local middle = math.ceil(TRAIN.cars / 2)
 			for index, car in cars do
-				-- O carro do meio para no centro da plataforma; o primeiro vai na frente.
-				local pose = carCFrame(track, station + traveled + (middle - index) * TRAIN.pitch)
+				-- O carro do meio para no centro da plataforma.
+				local pose = carCFrame(track, center + (middle - index) * TRAIN.pitch)
 				car.previous, car.pose = car.pose, pose
 				for _, entry in car.parts do
 					table.insert(partList, entry.part)
@@ -4880,28 +5022,19 @@ local function start()
 			end
 			Workspace:BulkMoveTo(partList, frameList, Enum.BulkMoveMode.FireCFrameChanged)
 			-- Carona: em pé num carro, o corpo, o rumo e a câmera andam e viram junto com ele.
-			if not root or not humanoid or humanoid.Health <= 0 then
+			if not rider or not root or rider.pose == rider.previous then
 				return
 			end
-			local hit = Workspace:Raycast(root.Position, Vector3.new(0, -4.6, 0), rideParams)
-			if not hit then
-				return
-			end
-			for _, car in cars do
-				if car.previous and hit.Instance:IsDescendantOf(car.model) then
-					local delta = car.pose * car.previous:Inverse()
-					local before = root.Position
-					root.CFrame = delta * root.CFrame
-					local _, turn = delta:ToEulerAnglesYXZ()
-					facingYaw += turn
-					cam.yaw += turn
-					local moved = root.Position - before
-					if cam.focus then
-						cam.focus += Vector3.new(moved.X, 0, moved.Z)
-						cam.height += moved.Y
-					end
-					break
-				end
+			local delta = rider.pose * rider.previous:Inverse()
+			local before = root.Position
+			root.CFrame = delta * root.CFrame
+			local _, turn = delta:ToEulerAnglesYXZ()
+			facingYaw += turn
+			cam.yaw += turn
+			local moved = root.Position - before
+			if cam.focus then
+				cam.focus += Vector3.new(moved.X, 0, moved.Z)
+				cam.height += moved.Y
 			end
 		end
 	end)()

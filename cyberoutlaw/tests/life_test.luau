@@ -79,6 +79,102 @@ end
 assert((route[#route] - Vector3.new(-130, 3.6, 175)).Magnitude < 40, "a rota termina perto do alvo")
 print("CyberOutlawVida: polícia com helicóptero, AV, tanque e SWAT montada; rota do tanque nas faixas", #route)
 
+local mare = {
+	xLines = {}, zLines = {}, halfX = 1200, halfZ = 960,
+	roadY = -0.266, walkY = 0.04, canal = { x = 0, width = 52 },
+	safeZone = { -120, -120, 95 },
+	bridges = {
+		{ -960, 34, "road" }, { -720, 34, "road" }, { -480, 14, "foot" },
+		{ -240, 34, "road" }, { 0, 50, "road" }, { 240, 14, "foot" },
+		{ 480, 44, "road" }, { 720, 14, "foot" }, { 960, 34, "road" },
+	},
+}
+for x = -1200, 1200, 240 do
+	table.insert(mare.xLines, { x, if x == 0 then 56 elseif math.abs(x) == 720 then 44 else 34, if x == 0 then 12.8 else 12.2 })
+end
+for z = -960, 960, 240 do
+	table.insert(mare.zLines, { z, if z == 0 then 50 elseif math.abs(z) == 480 then 44 else 34, 12.2 })
+end
+mare.lines = mare.xLines
+
+local blocks, blockList = L.cityBlocks(mare)
+assert(#blockList == 80 and not blocks["1,9"], "os eixos independentes formam 10 x 8 quadras")
+local westBank, eastBank = blocks["5,4"], blocks["6,4"]
+assert(westBank.bank == -1 and eastBank.bank == 1, "a orla separa os anéis por margem")
+for _, case in { { westBank, 2, -1 }, { eastBank, 1, 1 } } do
+	local point = L.corner(case[1], case[2], 1)
+	assert(point.X * case[3] > 31 and point.X * case[3] < 41, "canto no passeio ribeirinho")
+	assert(point.Z > -218 and point.Z < -210 and math.abs(point.Y - 0.04) < 1e-4, "canto no passeio do eixo Z")
+	local mid = L.ringPoint(case[1], case[2], 0.5, 1)
+	local cf = L.corridor(point, mid, 2)
+	assert(math.abs(cf.Position.Y - 3.24) < 1e-4, "corredor usa o piso da calçada")
+end
+
+local roads = L.roadNetwork(mare)
+local function checkRoute(points)
+	assert(#points >= 2, "o tanque deve chegar ao outro lado")
+	local crossing, totalDistance = nil, 0
+	for i = 2, #points do
+		local a, b = points[i - 1], points[i]
+		local dx, dz = b.X - a.X, b.Z - a.Z
+		assert(math.abs(a.Y - 3.134) < 1e-4 and math.abs(b.Y - a.Y) < 1e-4, "a altura segue o asfalto")
+		assert((dx == 0 and dz ~= 0) or (dz == 0 and dx ~= 0), "trajeto sem diagonais")
+		totalDistance += (b - a).Magnitude
+		if dz == 0 then
+			local axis, width = L.nearestLine(mare.zLines, a.Z)
+			local offset = (a.Z - axis) * math.sign(dx)
+			assert(offset > 6 and offset < width / 2 - 5.6, "tanque deve caber na faixa direita da avenida")
+			if a.X * b.X < 0 then
+				assert(axis == -960 or axis == -720 or axis == -240 or axis == 0 or axis == 480 or axis == 960, "o tanque só cruza em pontes viárias")
+				crossing = axis
+			end
+			assert(axis ~= 0 or offset > 9.1, "a carcaça não alcança as bases dos pilares da linha aérea")
+		else
+			local axis, width = L.nearestLine(mare.xLines, a.X)
+			local offset = (axis - a.X) * math.sign(dz)
+			assert(axis ~= 0 and offset > 6 and offset < width / 2 - 5.6, "tanque deve caber na faixa direita da rua")
+		end
+	end
+	assert(totalDistance < 1100, "rota de chegada limitada")
+	return crossing
+end
+local detourTarget = Vector3.new(95, 0, -480)
+local detour = L.streetRoute(roads, Vector3.new(-240, 0, -480), detourTarget, 3.134)
+local detourRow = checkRoute(detour)
+assert(detourRow == -720 or detourRow == -240, "a passarela exige um desvio pela ponte viária vizinha")
+assert((detour[#detour] - detourTarget).Magnitude < 15, "o desvio termina na rua do alvo")
+local viaductRoute = L.streetRoute(roads, Vector3.new(-240, 0, 0), Vector3.new(160, 0, 0), 3.134)
+assert(checkRoute(viaductRoute) == 0, "o tanque usa as faixas livres da ponte sob o viaduto")
+
+local disconnected = table.clone(mare)
+disconnected.bridges = { { -480, 14, "foot" } }
+assert(#L.streetRoute(disconnected, Vector3.new(-240, 0, -480), detourTarget, 3.134) == 0, "rota inexistente entre margens sem ponte viária")
+assert(#L.streetRoute(roads, Vector3.new(-1200, 0, -960), Vector3.new(1200, 0, 960), 3.134) == 0, "o tanque não planeja uma travessia longa da cidade inteira")
+
+local drop = L.roadDropPoint(roads, Vector3.new(-10, 5, 240), function(point)
+	assert(point.X <= -56 and math.abs(point.Z - 240) < 12, "rapel a oeste da passarela, na pista")
+	return -0.266
+end)
+assert(drop and math.abs(drop.Y + 0.266) < 1e-4, "rapel usa o piso confirmado")
+assert(not L.roadDropPoint(roads, Vector3.new(-10, 5, 240), function() return nil end), "sem descida com céu obstruído")
+assert(not L.roadDropPoint(roads, Vector3.new(-10, 5, 240), function() return -3.28 end), "sem descida sobre o canal")
+local middleOfBlock = Vector3.new(-360, 0, -360)
+local outerDrop = L.roadDropPoint(roads, middleOfBlock, function() return -0.266 end)
+assert(outerDrop and (outerDrop - middleOfBlock).Magnitude < 145, "a SWAT consegue chegar às quadras de 240 studs")
+
+local safe, far = blocks["5,4"], blocks["1,1"]
+local offer = L.missionOffer(4242, "cidinha", "entrega", {
+	origin = Vector3.new(-120, 0, -120), blocks = { safe, far }, safeZone = mare.safeZone,
+})
+assert(offer and offer.bloco == far.key and offer.blocoDestino == far.key, "missões continuam fora da nova zona segura quando caem no destino alternativo")
+local atm = Vector3.new(-360, 0.04, -450)
+local robbery = L.missionOffer(4242, "cidinha", "roubo", {
+	origin = Vector3.new(-120, 0, -120), blocks = { safe, far }, safeZone = mare.safeZone,
+	atms = { Vector3.new(-120, 0.04, -120), atm },
+})
+assert(robbery and robbery.alvo == atm, "o assalto usa um caixa fora da zona segura")
+print("CyberOutlawVida: quadras retangulares, rotas sobre as pontes viárias, rapel fora do canal e missões fora da praça")
+
 -- Cliente: regras puras (dinheiro, relógio e se o móvel cabe, igual ao servidor).
 local client = luau.load(fs.readFile("src/life.client.luau"):gsub("__CYBEROUTLAW_MEDIA__", "{}"), { debugName = "life.client.luau", environment = env })()
 assert(client.money(1250) == "€$ 1.250" and client.money(250) == "€$ 250" and client.money(-1234567) == "-€$ 1.234.567", client.money(1250))

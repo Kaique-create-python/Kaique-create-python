@@ -200,14 +200,12 @@ local sign12 = project(heroSign.CFrame.Position, 12, 16/9)
 assert(math.abs(x12 - x0) > math.abs(sign12 - sign0), "Perspectiva de movimento ausente")
 
 local wagon = city:FindFirstChild("Composição em movimento", true):FindFirstChild("Carroceria")
-local streak = city:FindFirstChild("Traço de chuva", true)
-local beforeTrain, beforeRain = wagon.CFrame.Position, streak.CFrame.Position
+assert(not city:FindFirstChild("Traço de chuva", true), "O cenário usa piso molhado sem partículas de chuva")
+local beforeTrain = wagon.CFrame.Position
 updateAt(3)
 assert((wagon.CFrame.Position - beforeTrain).Magnitude > 20)
-assert((streak.CFrame.Position - beforeRain).Magnitude > 0.1)
 updateAt(duration)
 near(wagon.CFrame.Position, beforeTrain, 0.0001)
-near(streak.CFrame.Position, beforeRain, 0.0001)
 
 print(("Terraço: %d peças com atlas, %d sem, %d caixilhos, %d varandas, %d reflexos, %d luzes, loop %ds, folga %.2f studs.")
     :format(atlasGeometry, geometry, frames, balconies, mirrors, lights, duration, nearest))

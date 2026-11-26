@@ -24,6 +24,7 @@ from .codec import Failure
 from .patcher import CLIENT_HEADER, SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
 from .chave import clean_key, fingerprint
 from .paths import guard, locked_state, read_json, read_place, remove, write_json, write_offline, write_once
+from media_tools.mare_art import ARCHIVED_ART, PBR_ART
 
 
 CONFIG_MARKER = "__CYBEROUTLAW_CONFIG__"
@@ -32,6 +33,11 @@ SCENE_MARKER = "-- __CYBEROUTLAW_SCENE__"
 HUD_MARKER = "-- __CYBEROUTLAW_HUD__"
 ART_MARKER = "__CYBEROUTLAW_ART__"
 MEDIA_MARKER = "__CYBEROUTLAW_MEDIA__"
+MARE_MODULES_MARKER = "-- __CYBEROUTLAW_MARE_MODULES__"
+MARE_MODULES = (
+    ("Context", "context"), ("Layout", "layout"), ("Streets", "streets"), ("Transit", "transit"),
+    ("PublicSpace", "public_space"), ("Buildings", "buildings"), ("Commerce", "commerce"),
+)
 # Server scripts installed in ServerScriptService, in this order.
 SERVER_SCRIPTS = (
     ("CyberOutlawR6", "r6_guard.server.luau"),
@@ -43,10 +49,10 @@ SERVER_SCRIPTS = (
 # Imagens que o script da cidade recebe: fotos CC0 e arte desenhada por código. As artes geradas do menu
 # (billboard, facades) ficam fora da cidade jogável.
 CITY_ART = ("asphalt", "asphalt_normal", "asphalt_rough", "concrete", "concrete_normal",
-            "fachada_residencial", "fachada_escritorio", "fachada_vidro", "fachada_painel", "vitrines", "anuncios",
+            "fachada_residencial", "fachada_escritorio", "fachada_vidro", "fachada_painel", "anuncios",
             "poca_1", "poca_2", "poca_3", "poca_4", "ceu_bk", "ceu_dn", "ceu_ft", "ceu_lf", "ceu_rt", "ceu_up",
             "tijolo", "tijolo_normal", "metal_ondulado", "metal_ondulado_normal", "piso_hexagonal", "piso_hexagonal_normal",
-            "concreto_rachado", "concreto_rachado_normal")
+            "concreto_rachado", "concreto_rachado_normal", *PBR_ART)
 CONFIRMATION = "PUBLICAR CYBEROUTLAW"
 CLIENT_SCRIPTS = (("CyberOutlawPlay", "play.client.luau"), ("CyberOutlawVidaCliente", "life.client.luau"))
 V1_ASSET_TYPES = {"video", "sounds", "clips"}
@@ -61,6 +67,8 @@ V3_TEMPLATE_SHA256 = "72e38fc5fbb1b0486ed74bb41c230b95b179c2f18a3bba1583421bff52
 CAMERA_TEMPLATE_SHA256 = "0aef4b6f02298843c6116cd43cac22eae2d6ad035cbce6d470ed29b4e7b67c62"
 # Commit 141e572: menu with HUD v1 and R6 avatar settings.
 HUD_TEMPLATE_SHA256 = "07c374ea84796a775353015704c2b3c90a72effa6e36a3bba8e8ff83e4d661c6"
+# Menu template in 3bcfa32 on ccr-b4068ef4-7ky9v8.
+V121_TEMPLATE_SHA256 = "c0d8020bca9e73afe391c58111dd13452a463337882a4e602ff0b0df397bf2ad"
 
 
 def digest(raw):
@@ -108,6 +116,8 @@ def _normalize_config(data):
             for name, value in _entries(data.get(field, {}), field)
         }
     config["sounds"].pop("rain", None)
+    for key in ARCHIVED_ART:
+        config["art"].pop(key, None)
     clips = {}
     for name, clip in _entries(data.get("clips", {}), "clips"):
         field = f"clips.{name}"
@@ -160,9 +170,24 @@ def source_from_package(root):
         fragment = (root / "src" / filename).read_text(encoding="utf-8-sig")
         if not fragment.strip() or any(tag in fragment for tag in markers):
             raise Failure(f"O código em {filename} está vazio ou contém marcadores do menu.")
-        menu = menu.replace(marker, fragment.rstrip("\n"))
+        fragment = fragment.rstrip("\n")
+        if marker == SCENE_MARKER:
+            fragment = f"local openCyberOutlawScene = (function()\n{fragment}\nreturn openCyberOutlawScene\nend)()"
+        menu = menu.replace(marker, fragment)
     config = load_config(root / "config" / "ASSETS.json")
     return menu.replace(CONFIG_MARKER, _luau(config)), config
+
+
+def _bind_mare_modules(root, code):
+    if code.count(MARE_MODULES_MARKER) != 1:
+        raise Failure("O script da cidade precisa de um marcador de módulos.")
+    fragments = ["local Mare = {}"]
+    for name, file in MARE_MODULES:
+        module = (root / "src" / "mare-baixa" / f"{file}.luau").read_text(encoding="utf-8-sig")
+        if not module.strip() or MARE_MODULES_MARKER in module or ART_MARKER in module:
+            raise Failure(f"Módulo de Maré Baixa vazio ou com marcador inválido. {file}")
+        fragments.append(f"Mare.{name} = (function()\n{module.rstrip()}\nend)()")
+    return code.replace(MARE_MODULES_MARKER, "\n".join(fragments), 1)
 
 
 def server_from_package(root, config):
@@ -177,6 +202,8 @@ def server_from_package(root, config):
             if not re.search(r"(?m)^local ART = " + ART_MARKER + r"$", code):
                 raise Failure(f"O marcador de arte em {filename} deve definir local ART em sua própria linha.")
             code = code.replace(ART_MARKER, _luau(art), 1)
+        if filename == "world.server.luau":
+            code = _bind_mare_modules(root, code)
         scripts[name] = f"{SERVER_HEADER}{name}\n{code}"
     # Client scripts (StarterPlayerScripts) receive the approved icons and sounds.
     media = {
@@ -310,7 +337,7 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force
         old_sha = source_digest(old)
         if old_template_sha == V1_TEMPLATE_SHA256:
             required = V1_ASSET_TYPES
-        elif old_template_sha in (V2_TEMPLATE_SHA256, V3_TEMPLATE_SHA256, CAMERA_TEMPLATE_SHA256, HUD_TEMPLATE_SHA256,
+        elif old_template_sha in (V2_TEMPLATE_SHA256, V3_TEMPLATE_SHA256, CAMERA_TEMPLATE_SHA256, HUD_TEMPLATE_SHA256, V121_TEMPLATE_SHA256,
                                   template_sha):
             required = ASSET_TYPES
         elif old_sha in known:
