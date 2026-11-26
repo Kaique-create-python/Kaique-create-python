@@ -1,4 +1,4 @@
-"""Abre no Termux o pacote CyberOutlaw v11: sons profissionais do Roblox, interface nova do Agente, chamadas entre jogadores e 55 móveis."""
+"""Abre no Termux a edição CyberOutlaw com a cidade jogável Maré Baixa."""
 
 import hashlib
 from http.client import HTTPException
@@ -9,10 +9,10 @@ import tempfile
 from urllib.request import urlopen
 
 
-RELEASE = "c04c76dfda60d160930d72ea2326bf17b319003a"
+RELEASE = "09182d3e7bd262310b41274034ea626ade63dac0"
 PACKAGE = "CYBEROUTLAW_TERMUX.pyz"
-PACKAGE_BYTES = 32_474_687
-PACKAGE_SHA256 = "ddbcc3cd1e47c4c5c784858eb30800328b376e1744363e96185c3fd35fe3cc0c"
+PACKAGE_BYTES = 34_399_873
+PACKAGE_SHA256 = "4a06d8187edb80e6bc4a183da1b8ec93ed2eb455b9267fd573aa3f0f5ff26dc3"
 PACKAGE_URL = f"https://raw.githubusercontent.com/Kaique-create-python/Kaique-create-python/{RELEASE}/cyberoutlaw/dist/{PACKAGE}"
 BLOCK_SIZE = 128 * 1024
 
