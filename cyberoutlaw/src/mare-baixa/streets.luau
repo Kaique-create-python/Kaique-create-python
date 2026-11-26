@@ -15,6 +15,9 @@ function Streets.build(ctx, city, layout)
     local quayPaving = rgb(105, 110, 123)
     local quayFill = rgb(197, 220, 249)
     local bridgeFill = rgb(250, 217, 178)
+    local wetHighlight = rgb(112, 149, 175)
+    local wetCyan = rgb(57, 153, 176)
+    local wetAmber = rgb(164, 118, 86)
     local paint = {collision = false, shadow = false}
     local rng = ctx.random(51428)
     local bank = layout.bank
@@ -38,11 +41,12 @@ function Streets.build(ctx, city, layout)
         return box(parent, name, line + across, y, center + along, span[2], h, span[1], color, material, options)
     end
 
-    local function wetGlint(parent, axis, center, line, along, across, span, color, transparency)
+    local function wetGlint(parent, axis, center, line, along, across, span, color, transparency, surfaceY)
         local x, z = if axis == "X" then center + along else line + across, if axis == "X" then line + across else center + along
         local width, depth = if axis == "X" then span[1] else span[2], if axis == "X" then span[2] else span[1]
-        local basis = CFrame.new(x, -0.229, z) * CFrame.Angles(0, 0, math.pi / 2)
-        local fleck = box(parent, "Reflexo de luminária no piso", x, -0.229, z, 0.012, width, depth, color, "neon", {
+        local y = surfaceY or -0.229
+        local basis = CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.pi / 2)
+        local fleck = box(parent, "Reflexo de luminária no piso", x, y, z, 0.012, width, depth, color, "neon", {
             shape = "Cylinder", cframe = basis, collision = false, shadow = false, transparency = transparency,
         })
         fleck:SetAttribute("MareBrilhoPiso", true)
@@ -52,7 +56,7 @@ function Streets.build(ctx, city, layout)
         local length = if reflective then rng:NextNumber(20, 29) else rng:NextNumber(9.8, 18.4)
         local width = if reflective then rng:NextNumber(3.6, 5.8) else rng:NextNumber(2.4, 4.4)
         local water = slab(parent, if reflective then "Poça" else "Lâmina de água", axis, {length, width},
-            center, line, along, across, -0.256, 0.024, rgb(45, 54, 68), "water",
+            center, line, along, across, -0.256, 0.024, rgb(58, 78, 99), "puddle",
             {collision = false, shadow = false, transparency = if reflective then 0.61 else 0.68, reflectance = 0.45})
         if reflective then
             water:SetAttribute("CyberOutlawPlano", layout.roadY)
@@ -248,11 +252,54 @@ function Streets.build(ctx, city, layout)
             {transparency = 1, shadow = false})
     end
 
+    local function quayWalk(parent, x, startZ, endZ, side, puddles)
+        local half = layout.sidewalkWidth / 2
+        local west, east = x - half, x + half
+        local plane = layout.walkY - 0.01
+        local color = if puddles then quayPaving else paving
+        local function floor(x0, x1, z0, z1)
+            box(parent, "Passeio ribeirinho", (x0 + x1) / 2, plane - 0.42, (z0 + z1) / 2, x1 - x0, 0.84, z1 - z0,
+                color, "sidewalk", {shadow = not puddles})
+        end
+        local last = startZ
+        for index, placeZ in puddles or {} do
+            local z = placeZ + side * 2.2
+            local length, width = if index == 1 then 16.4 else 19.6, if index == 1 then 5.2 else 6.1
+            local center = x + side * (if index == 1 then -0.34 else 0.38)
+            floor(west, east, last, z - length / 2)
+            local pool = group(parent, "Água no passeio do Prisma")
+            -- As faixas dão contornos irregulares à lâmina. O piso transparente mantém o apoio do jogador.
+            for _, band in {{-0.5, -0.31, 0.49, -0.13}, {-0.31, -0.12, 0.79, -0.08},
+                {-0.12, 0.17, 1, 0}, {0.17, 0.34, 0.84, 0.10}, {0.34, 0.5, 0.54, 0.12}} do
+                local leftZ, rightZ = z + band[1] * length, z + band[2] * length
+                local waterX, waterW = center + side * band[4] * width, band[3] * width
+                floor(west, waterX - waterW / 2, leftZ, rightZ)
+                floor(waterX + waterW / 2, east, leftZ, rightZ)
+                local bandZ, bandLength = (leftZ + rightZ) / 2, rightZ - leftZ
+                box(pool, "Apoio sob a água", waterX, plane - 0.42, bandZ, waterW, 0.84, bandLength, color, "sidewalk",
+                    {transparency = 1, shadow = false})
+                box(pool, "Lâmina no passeio", waterX, plane + 0.011, bandZ, waterW, 0.022, bandLength, rgb(69, 96, 124), "puddle",
+                    {collision = false, shadow = false, transparency = 0.47, reflectance = 0.57})
+            end
+            local marker = box(pool, "Poça", center, plane, z, width + 0.22, 0.022, length, rgb(69, 96, 124), "puddle",
+                {collision = false, shadow = false, transparency = 1})
+            marker:SetAttribute("CyberOutlawPlano", plane)
+            marker:SetAttribute("MarePocaPasseio", true)
+            ctx.reflection(marker)
+            table.insert(mirrors, marker)
+            wetGlint(pool, "Z", z, center, -length * 0.04, side * 0.81, {length * 0.60, 0.46}, wetHighlight, 0.80, plane + 0.027)
+            wetGlint(pool, "Z", z, center, length * 0.16, -side * 0.60, {length * 0.25, 0.34}, wetCyan, 0.67, plane + 0.034)
+            wetGlint(pool, "Z", z, center, -length * 0.13, -side * 0.65, {length * 0.18, 0.28}, wetAmber, 0.70, plane + 0.039)
+            last = z + length / 2
+        end
+        floor(west, east, last, endZ)
+    end
+
     for row = 1, layout.rows do
         local z0 = -layout.halfZ + (row - 1) * layout.pitch
         local z1 = z0 + layout.pitch
         local center = (z0 + z1) / 2
-        local central = row == 4 or row == 5
+        local wetWalk = layout.prismaBanks[row]
         local basin = group(canals, string.format("Cais %02d", row))
         box(basin, "Fundação do leito", 0, -9, center, layout.canalWidth, 2.3, layout.pitch, rgb(23, 33, 51), "cement")
         box(basin, "Espelho de água do canal", 0, -3.28, center, layout.canalWidth - 0.3, 0.12, layout.pitch, rgb(36, 54, 72), "water",
@@ -265,17 +312,17 @@ function Streets.build(ctx, city, layout)
             end
             local walkStart = z0 + (if layout.bridgeRows[z0] == "foot" then layout.footWidth / 2 else layout.avenueWidth(z0) / 2)
             local walkEnd = z1 - (if layout.bridgeRows[z1] == "foot" then layout.footWidth / 2 else layout.avenueWidth(z1) / 2)
-            box(basin, "Passeio ribeirinho", side * 35.4, -0.39, (walkStart + walkEnd) / 2,
-                layout.sidewalkWidth, 0.84, walkEnd - walkStart, if central then quayPaving else paving, "sidewalk")
+            quayWalk(basin, side * layout.quayX, walkStart, walkEnd, side, wetWalk)
             local first = walkStart + (if layout.bridgeRows[z0] == "foot" then 0 else 6.4)
             local last = walkEnd - (if layout.bridgeRows[z1] == "foot" then 0 else 6.4)
             bankRail(basin, side * 29.4, first, last, 0.03, gray)
             for localZ = -78, 79, 52 do
                 local hue = if (row + side + localZ) % 3 == 0 then rose else cyan
-                box(basin, "Balizador ribeirinho", side * 31.2, 0.77, center + localZ, 0.48, 1.52, 0.48,
+                local height = if wetWalk then 3.79 else 1.52
+                box(basin, "Balizador ribeirinho", side * 31.2, 0.01 + height / 2, center + localZ, 0.48, height, 0.48,
                     gray, "metal")
-                local lens = box(basin, "Friso do balizador", side * 31.2, 1.44, center + localZ, 0.49, 0.14, 0.49, hue, "neon", paint)
-                if central then
+                local lens = box(basin, "Friso do balizador", side * 31.2, height - 0.08, center + localZ, 0.50, 0.18, 0.50, hue, "neon", paint)
+                if wetWalk then
                     -- A luz da lente chega ao passeio dos dois lados do balizador.
                     ctx.lamp(lens, quayFill, 27, 1.28)
                 end

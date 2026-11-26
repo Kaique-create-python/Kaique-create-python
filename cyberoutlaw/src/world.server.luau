@@ -148,10 +148,14 @@ local function buildCity(root: Instance, art, options)
 		local seed = 202607 + row * 941 + column * 1651
 		local tone = if kind == "docks" or kind == "grid" or kind == "warehouse" then rgb(69, 71, 83) else rgb(76, 81, 95)
 		local x0, x1 = x - 99, x + 99
+		local quayEdge
+		if Layout.prismaBanks[row] and (column == 5 or column == 6) then
+			quayEdge = math.sign(x) * (Layout.quayX + Layout.sidewalkWidth / 2)
+		end
 		if column == 5 then
-			x1 = -29
+			x1 = quayEdge or -29
 		elseif column == 6 then
-			x0 = 29
+			x0 = quayEdge or 29
 		end
 		ctx.box(plot, "Base transitável da quadra", (x0 + x1) / 2, -1.02, z, x1 - x0, 2.02, 198, tone, "cement", {shadow = false})
 		if Layout.edgeLots[id] then
@@ -167,7 +171,7 @@ local function buildCity(root: Instance, art, options)
 		elseif kind == "grid" then
 			Mare.Commerce.utility(ctx, plot, x, z, seed, kind)
 		else
-			plaza.plaza(plot, x, z, seed, kind)
+			plaza.plaza(plot, x, z, seed, kind, quayEdge)
 		end
 		plaza.furniture(plot, x, z, seed + 3, row * 10 + column)
 		if id == "E5" then
@@ -186,6 +190,8 @@ local function buildCity(root: Instance, art, options)
 			end
 		end
 	end
+	local crossing = Mare.Prisma.build(ctx, city, Layout)
+	point("passarela_dique", "Passarela do Dique", crossing)
 
 	local storefronts = ctx.group(city, "Bancas e caixas da Maré")
 	for _, site in {
@@ -227,8 +233,9 @@ local function buildCity(root: Instance, art, options)
 		return (a.CFrame.Position - SPAWN).Magnitude < (b.CFrame.Position - SPAWN).Magnitude
 	end)
 	for index = 1, math.min(3, #mirrors) do
-		local position = mirrors[index].CFrame.Position
-		point("poca_" .. index, "Poça com reflexo " .. index, Vector3.new(position.X, Layout.roadY, position.Z))
+		local puddle = mirrors[index]
+		local position = puddle.CFrame.Position
+		point("poca_" .. index, "Poça com reflexo " .. index, Vector3.new(position.X, puddle:GetAttribute("CyberOutlawPlano"), position.Z))
 	end
 
 	ctx.finish()

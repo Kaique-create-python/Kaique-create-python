@@ -178,9 +178,9 @@ local function check(art)
 	assert(batches > 50 and batches < 85, "montagem deve dividir as quadras em lotes")
 	local parts, solids, lamps, signs, variants = {}, {}, 0, 0, 0
 	local top, puddles, atms, vending, vendors = -math.huge, 0, 0, 0, {}
-	local mirrorFloors = {}
+	local mirrorFloors, quayPools, plazaPools = {}, {}, {}
 	local sources, glints = 0, 0
-	local shoreLights, bridgeLights = 0, 0
+	local shoreLights, bridgeLights, vents = 0, 0, 0
 	for _, node in city:GetDescendants() do
 		if node:IsA("BasePart") and not node:IsA("SpawnLocation") then
 			assert(node.Anchored and (node.CanCollide or not node.CanQuery), node:GetFullName())
@@ -199,6 +199,7 @@ local function check(art)
 				assert(materials:FindFirstChild(node.MaterialVariant).BaseMaterial == node.Material)
 			end
 			if node:HasTag("CyberOutlawReflexoFonte") then sources += 1 end
+			if node:HasTag("CyberOutlawVaporUrbano") then vents += 1 end
 			if node:GetAttribute("MareBrilhoPiso") then
 				assert(not node.CanCollide and not node:HasTag("CyberOutlawReflexoFonte"))
 				glints += 1
@@ -213,10 +214,16 @@ local function check(art)
 			elseif node.Name == "Poça" then
 				puddles += 1
 				local plane = node:GetAttribute("CyberOutlawPlano")
-				assert(math.abs(plane + 0.266) < 0.001 and node.Transparency > 0.5)
-				assert(node:HasTag("CyberOutlawPoca"))
+				local quay = node:GetAttribute("MarePocaPasseio") == true
+				local expected = if quay then info.layout.walkY - 0.01 else info.layout.roadY
+				assert(math.abs(plane - expected) < 0.001 and node.Transparency > 0.5)
+				assert(node:HasTag("CyberOutlawPoca") and node.Material == rbx.Enum.Material.SmoothPlastic)
+				if quay then table.insert(quayPools, node) end
 				local at = node.CFrame.Position
 				table.insert(mirrorFloors, vec(at.X, plane, at.Z))
+			elseif node.Name == "Lâmina rasa" then
+				assert(node.Material == rbx.Enum.Material.SmoothPlastic and not node.CanCollide and node.Transparency < 0.5)
+				table.insert(plazaPools, node.CFrame.Position)
 			end
 		elseif node:IsA("Light") then
 			assert(not node.Shadows)
@@ -236,7 +243,10 @@ local function check(art)
 	assert(#parts == info.stats.parts and #solids == info.stats.colliders and lamps == info.stats.lights and signs == info.stats.signs)
 	assert(#parts < 49000 and #solids < 21000 and lamps < 1000, "orçamento de cena excedido")
 	assert(top >= 570 and atms == 5 and vending >= 3 and #vendors >= 10)
-	assert(puddles >= 20 and puddles <= 28 and sources >= 200 and sources <= 2200 and glints >= 400)
+	assert(puddles == 34 and #quayPools == 8 and #plazaPools == 4 and sources >= 200 and sources <= 2200 and glints >= 400)
+	local firstPool = math.huge
+	for _, position in plazaPools do firstPool = math.min(firstPool, (position - spawn.CFrame.Position).Magnitude) end
+	assert(firstPool < 16, "a primeira poça deve ficar no caminho visível da chegada")
 	assert(shoreLights >= 10 and bridgeLights >= 8, "os passeios centrais precisam de luz após a seleção por setor")
 	assert(city:FindFirstChild("Galpão da Doca do Sal", true) and city:FindFirstChild("Subestação da Maré", true))
 	local plots = city:FindFirstChild("Quadras")
@@ -266,13 +276,46 @@ local function check(art)
 	for _, point in info.points do
 		supported(solids, point.key, point.position, 1.3)
 	end
-	assert(#info.points == 16, "destinos do dono incompletos")
+	assert(#info.points == 17, "destinos do dono incompletos")
 	for _, position in vendors do
 		supported(solids, "camelô", vec(position.X, 0.25, position.Z), 0.8)
 	end
 	for _, position in mirrorFloors do
-		supported(solids, "pista sob a poça", position, 0.6)
+		supported(solids, "piso sob a poça", position, 0.6)
 	end
+	for _, marker in quayPools do
+		local bands = 0
+		for _, water in marker.Parent:GetChildren() do
+			if water.Name ~= "Lâmina no passeio" then continue end
+			assert(water.Material == rbx.Enum.Material.SmoothPlastic and water.Transparency < 0.5 and not water.CanCollide)
+			bands += 1
+			local center = water.CFrame.Position
+			for _, base in solids do
+				if base.part.Transparency < 0.98 and base.y0 < center.Y - 0.02 and base.y1 > center.Y - 12
+					and center.X > base.x0 and center.X < base.x1 and center.Z > base.z0 and center.Z < base.z1 then
+					assert(not verticalIntersection(base.part, center.X, center.Z), "reflexo coberto por " .. base.part:GetFullName())
+				end
+			end
+		end
+		assert(bands == 5, "contorno da poça incompleto")
+	end
+	local prismaBridge = assert(city:FindFirstChild("Passarela do Dique"))
+	assert(vents == 2 and city:FindFirstChild("Bancas cobertas do Prisma") and city:FindFirstChild("Entreposto do Prisma"))
+	local deck = prismaBridge:FindFirstChild("Piso da passarela")
+	assert(deck and deck.CanCollide)
+	local deckTop = deck.CFrame.Position.Y + deck.Size.Y / 2
+	local deckZ = deck.CFrame.Position.Z
+	for x = -46, 46, 4 do supported(solids, "tabuleiro do Dique", vec(x, deckTop, deckZ), 0.75) end
+	for _, side in {-1, 1} do supported(solids, "passeio sob a passarela", vec(side * 35.4, info.layout.walkY, deckZ), 0.9) end
+	local steps = 0
+	for _, part in prismaBridge:GetChildren() do
+		if part.Name == "Degrau da passarela" then
+			local position = part.CFrame.Position
+			supported(solids, "degrau do Dique", position + vec(0, part.Size.Y / 2, 0), 0.30)
+			steps += 1
+		end
+	end
+	assert(steps == 44, "a passarela tem dois acessos completos")
 	supported(solids, "chegada", spawn.CFrame.Position, 4)
 	local bridgeGroups = city:FindFirstChild("Canal e pontes")
 	for _, bridge in info.layout.bridges do
@@ -394,6 +437,9 @@ if path then
 		{name = "Doca", position = {-896, 20, 474}, look = {-840, 18, 591}, fov = 65},
 		{name = "Panorama", position = {-975, 475, 1222}, look = {16, 66, -90}, fov = 54},
 		{name = "Praca", position = {-111, 7.1, -208}, look = {-147, 7.5, -155}, fov = 59},
+		{name = "Prisma Canal", position = {-35.4, 6.7, -46}, look = {-17, 10, -119}, fov = 67},
+		{name = "Prisma Passarela", position = {-92, 6.7, -62}, look = {-55, 8.5, -105}, fov = 66},
+		{name = "Prisma Oficina", position = {-137, 19.5, -111}, look = {78, 32, -132}, fov = 67},
 		{name = "Vertice", position = {196, 23, -531}, look = {360, 225, -351}, fov = 65},
 		{name = "Vertice Terreo", position = {224, 7.1, -439}, look = {348, 59, -364}, fov = 65},
 		{name = "Colmeia", position = {-141, 7.7, 119}, look = {-139, 30, 185}, fov = 62},

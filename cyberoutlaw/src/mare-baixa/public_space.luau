@@ -182,10 +182,14 @@ function PublicSpace.new(ctx)
         end
     end
 
-    function api.plaza(parent, x, z, seed, kind)
+    function api.plaza(parent, x, z, seed, kind, quayEdge)
         local main = group(parent, if kind == "spawn" then "Praça do Dique" else "Praça de bairro")
         local ground = rgb(90, 91, 110)
-        box(main, "Esplanada em pavers", x, -0.096, z, 175, 0.26, 173, ground, "sidewalk", {shadow = false})
+        local west, east = x - 87.5, x + 87.5
+        if quayEdge then
+            if x < 0 then east = math.min(east, quayEdge) else west = math.max(west, quayEdge) end
+        end
+        box(main, "Esplanada em pavers", (west + east) / 2, -0.096, z, east - west, 0.26, 173, ground, "sidewalk", {shadow = false})
         if kind == "spawn" then
             skylight(main, x - 22, z - 38, "PRAÇA DO DIQUE")
             canopy(main, x - 39, z + 37, 37, 12, pink)

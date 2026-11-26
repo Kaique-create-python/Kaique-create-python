@@ -9,6 +9,7 @@ local layout = {
     walkY = 0.04,
     canalWidth = 52,
     bank = 42,
+    quayX = 35.4,
     sidewalkWidth = 12.8,
     bridgeRows = { [-960] = "road", [-720] = "road", [-480] = "foot", [-240] = "road", [0] = "road",
                     [240] = "foot", [480] = "road", [720] = "foot", [960] = "road" },
@@ -19,6 +20,8 @@ local layout = {
     stationZ = -4.6,
     deck = 27,
     turnaround = 1170,
+    prismaBanks = { [4] = {-154, -63}, [5] = {59, 156} },
+    prismaCrossing = { z = -118, x = 46.8, deck = 11.26 },
 }
 --   Oeste                                                           Canal     Leste
 local blocks = {

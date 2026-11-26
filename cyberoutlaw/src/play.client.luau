@@ -2981,7 +2981,7 @@ local function mirrorSource(part: BasePart, readLegacySign: boolean?)
 		return nil
 	end
 	local material = part:GetAttribute("MareMaterial")
-	if material == "asphalt" or material == "sidewalk" or material == "water" then
+	if material == "asphalt" or material == "sidewalk" or material == "water" or material == "puddle" then
 		return nil
 	end
 	local glow = part.Material == Enum.Material.Neon
@@ -3424,6 +3424,33 @@ end
 
 M.cityLighting = cityLighting
 
+local function steamEmitter(vent: BasePart): ParticleEmitter
+	local steam = Instance.new("ParticleEmitter")
+	steam.Name = "Vapor da ventilação"
+	steam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	steam.Enabled = false
+	-- Os bocais cilíndricos usam o eixo X local na vertical.
+	steam.EmissionDirection = Enum.NormalId.Right
+	steam.Rate = 3
+	steam.Speed = NumberRange.new(2.05, 3.25)
+	steam.Lifetime = NumberRange.new(1.8, 3.3)
+	steam.SpreadAngle = Vector2.new(10, 14)
+	steam.Acceleration = Vector3.new(0.92, 2.35, 0.31)
+	steam.Drag = 0.65
+	steam.Rotation = NumberRange.new(-180, 180)
+	steam.RotSpeed = NumberRange.new(-21, 18)
+	steam.LightInfluence = 0.83
+	steam.LightEmission = 0.08
+	steam.Color = ColorSequence.new(c3(219, 224, 224), c3(176, 187, 194))
+	steam.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.86), NumberSequenceKeypoint.new(0.46, 2.45),
+		NumberSequenceKeypoint.new(1, 4.15)})
+	steam.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.78), NumberSequenceKeypoint.new(0.25, 0.49),
+		NumberSequenceKeypoint.new(1, 1)})
+	steam.Parent = vent
+	return steam
+end
+M.steamEmitter = steamEmitter
+
 local function startCityVisuals(workspace: Workspace, camera: Camera, players: Players, runService: RunService, quality)
 	local city = workspace:WaitForChild("CyberOutlawCity", 120)
 	if not city then
@@ -3436,6 +3463,7 @@ local function startCityVisuals(workspace: Workspace, camera: Camera, players: P
 	local reflections = puddleReflections(workspace, camera, players)
 	local lamps = visualGrid()
 	local active, wants, near = {}, {}, {}
+	local steam = {}
 	local originalBrightness = setmetatable({}, { __mode = "k" })
 	local level = 1
 	local function dim(item: Light, brightness: number)
@@ -3520,6 +3548,15 @@ local function startCityVisuals(workspace: Workspace, camera: Camera, players: P
 		watch("CyberOutlawPoca", reflections.addPuddle, reflections.removePuddle)
 		watch("CyberOutlawReflexoFonte", reflections.addSource, reflections.removeSource)
 		watch("CyberOutlawLuzCidade", addLight, removeLight)
+		watch("CyberOutlawVaporUrbano", function(vent)
+			if vent:IsA("BasePart") and not steam[vent] then steam[vent] = steamEmitter(vent) end
+		end, function(vent)
+			local emitter = steam[vent]
+			if emitter then
+				emitter:Destroy()
+				steam[vent] = nil
+			end
+		end)
 	else
 		-- Places da cidade anterior não têm as etiquetas. O índice deles também acompanha o streaming.
 		local function addLegacy(item: Instance)
@@ -3563,6 +3600,12 @@ local function startCityVisuals(workspace: Workspace, camera: Camera, players: P
 			if tagged then
 				level = lampLevel
 				refreshLights(budget)
+				local eye = camera.CFrame.Position
+				local range, rate = if tier == 1 then 58 else 108, if tier == 1 then 3 else 5
+				for vent, emitter in steam do
+					emitter.Rate = rate
+					emitter.Enabled = (vent.CFrame.Position - eye).Magnitude <= range
+				end
 			elseif math.abs(lampLevel - level) > 0.02 then
 				level = lampLevel
 				for item, entry in lamps.entries do

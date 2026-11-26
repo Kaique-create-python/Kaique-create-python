@@ -10,7 +10,8 @@ local function load(media: string, runtime)
 	local environment = {
 		Instance = roblox.Instance, CFrame = roblox.CFrame, Vector2 = roblox.Vector2, Vector3 = roblox.Vector3,
 		Color3 = roblox.Color3, ColorSequence = roblox.ColorSequence, ColorSequenceKeypoint = roblox.ColorSequenceKeypoint, NumberSequence = roblox.NumberSequence,
-		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
+		NumberSequenceKeypoint = roblox.NumberSequenceKeypoint, NumberRange = roblox.NumberRange,
+		Enum = roblox.Enum, UDim = roblox.UDim, UDim2 = roblox.UDim2,
 		Font = roblox.Font, utf8 = utf8,
 	}
 	for key, value in runtime or {} do environment[key] = value end
@@ -973,6 +974,9 @@ do
 	part:SetAttribute("MareBrilhoPiso", true)
 	assert(play.mirrorSource(part) == nil, "o brilho do piso não vira uma fonte")
 	part:SetAttribute("MareBrilhoPiso", nil)
+	part:SetAttribute("MareMaterial", "puddle")
+	assert(play.mirrorSource(part) == nil, "a lâmina de água não entra na própria reflexão")
+	part:SetAttribute("MareMaterial", nil)
 	part:SetAttribute("MareReflexoCor", roblox.Color3.fromRGB(250, 100, 128))
 	assert(play.mirrorSource(part).emitted)
 	local opening = { eye = V3.new(0, 6, 8), height = 6, puddle = { frame = CF.new(), size = V3.new(4, 0.02, 3), plane = 0 } }
@@ -981,6 +985,15 @@ do
 	part.CFrame = CF.new(55, 6, -8)
 	assert(play.mirrorMiss(opening, play.mirrorSource(part)) > 11 ^ 2)
 	part:Destroy()
+end
+
+do
+	local vent = roblox.Instance.new("Part")
+	local steam = play.steamEmitter(vent)
+	assert(steam:IsA("ParticleEmitter") and steam.Parent == vent and not steam.Enabled)
+	assert(steam.Rate == 3 and steam.Lifetime.Max < 3.5 and steam.EmissionDirection == roblox.Enum.NormalId.Right)
+	assert(steam.Texture == "rbxasset://textures/particles/smoke_main.dds" and steam.LightInfluence > 0.8)
+	vent:Destroy()
 end
 
 -- Animações R6 originais: os dados do jogo batem com cada keyframe dos .rbxmx do usuário.

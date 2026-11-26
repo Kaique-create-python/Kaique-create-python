@@ -17,6 +17,7 @@ local definitions = {
     fabric = Enum.Material.Fabric,
     wood = Enum.Material.WoodPlanks,
     paint = Enum.Material.SmoothPlastic,
+    puddle = Enum.Material.SmoothPlastic,
     water = Enum.Material.Glass,
     foliage = Enum.Material.LeafyGrass,
 }
