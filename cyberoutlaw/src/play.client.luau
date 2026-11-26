@@ -2792,32 +2792,32 @@ local DAY_KEYS = {
 		tint = c3(244, 236, 255), rays = 0, clouds = c3(90, 70, 120), cover = 0.4, lamps = 1 },
 }
 M.DAY_KEYS = DAY_KEYS
--- Maré Baixa mantém a luz ambiente fria para separar as fachadas das luzes locais quentes.
+-- A luz fria da noite dá leitura ao piso e separa as fachadas das luzes locais quentes.
 local MARE_DAY_KEYS = {
-	{ hour = 0, brightness = 1.90, ambient = c3(47, 43, 69), outdoor = c3(74, 77, 114), exposure = -0.14, density = 0.26,
-		haze = c3(105, 127, 173), decay = c3(43, 50, 83), glare = 0, hazeAmount = 1.7, bloom = 0.50, threshold = 0.96,
-		tint = c3(243, 235, 255), grade = 0.018, contrast = 0.20, saturation = 0.08, rays = 0, clouds = c3(49, 46, 70), cover = 0.34, lamps = 1 },
-	{ hour = 5, brightness = 1.90, ambient = c3(43, 47, 73), outdoor = c3(71, 84, 123), exposure = -0.14, density = 0.27,
-		haze = c3(104, 131, 186), decay = c3(45, 58, 97), glare = 0, hazeAmount = 1.8, bloom = 0.50, threshold = 0.96,
-		tint = c3(239, 239, 255), grade = 0.018, contrast = 0.20, saturation = 0.08, rays = 0, clouds = c3(51, 53, 79), cover = 0.36, lamps = 1 },
-	{ hour = 6.4, brightness = 2.35, ambient = c3(70, 61, 83), outdoor = c3(123, 96, 110), exposure = -0.09, density = 0.30,
+	{ hour = 0, brightness = 2.14, ambient = c3(83, 86, 109), outdoor = c3(115, 125, 155), exposure = 0.28, diffuse = 0.30, density = 0.26,
+		haze = c3(126, 153, 195), decay = c3(66, 79, 121), glare = 0, hazeAmount = 1.52, bloom = 0.46, threshold = 1.14,
+		tint = c3(245, 248, 255), grade = 0.062, contrast = 0.060, saturation = 0.06, rays = 0, clouds = c3(65, 72, 105), cover = 0.37, lamps = 1 },
+	{ hour = 5, brightness = 2.14, ambient = c3(81, 87, 112), outdoor = c3(111, 126, 164), exposure = 0.27, diffuse = 0.32, density = 0.27,
+		haze = c3(125, 153, 202), decay = c3(66, 85, 131), glare = 0, hazeAmount = 1.62, bloom = 0.46, threshold = 1.14,
+		tint = c3(244, 248, 255), grade = 0.060, contrast = 0.060, saturation = 0.06, rays = 0, clouds = c3(65, 74, 108), cover = 0.38, lamps = 1 },
+	{ hour = 6.4, brightness = 2.35, ambient = c3(85, 77, 98), outdoor = c3(135, 104, 121), exposure = 0.05, diffuse = 0.44, density = 0.30,
 		haze = c3(198, 148, 157), decay = c3(128, 78, 98), glare = 0.35, hazeAmount = 2.1, bloom = 0.42, threshold = 1.13,
-		tint = c3(255, 238, 231), grade = 0.014, contrast = 0.18, saturation = 0.06, rays = 0.10, clouds = c3(226, 177, 167), cover = 0.48, lamps = 0.65 },
-	{ hour = 9, brightness = 2.65, ambient = c3(97, 102, 120), outdoor = c3(143, 153, 173), exposure = -0.04, density = 0.27,
+		tint = c3(255, 238, 231), grade = 0.025, contrast = 0.135, saturation = 0.06, rays = 0.10, clouds = c3(226, 177, 167), cover = 0.48, lamps = 0.65 },
+	{ hour = 9, brightness = 2.65, ambient = c3(97, 102, 120), outdoor = c3(143, 153, 173), exposure = -0.04, diffuse = 0.55, density = 0.27,
 		haze = c3(170, 192, 216), decay = c3(91, 118, 159), glare = 0.17, hazeAmount = 1.3, bloom = 0.29, threshold = 1.37,
 		tint = c3(245, 248, 255), grade = 0.009, contrast = 0.14, saturation = 0.02, rays = 0.05, clouds = c3(230, 236, 251), cover = 0.52, lamps = 0.32 },
-	{ hour = 13, brightness = 2.85, ambient = c3(103, 108, 125), outdoor = c3(151, 164, 183), exposure = -0.06, density = 0.26,
+	{ hour = 13, brightness = 2.85, ambient = c3(103, 108, 125), outdoor = c3(151, 164, 183), exposure = -0.06, diffuse = 0.55, density = 0.26,
 		haze = c3(173, 202, 226), decay = c3(88, 114, 155), glare = 0.15, hazeAmount = 1.1, bloom = 0.27, threshold = 1.45,
 		tint = c3(248, 251, 255), grade = 0.009, contrast = 0.14, saturation = 0.02, rays = 0.04, clouds = c3(234, 242, 255), cover = 0.48, lamps = 0.32 },
-	{ hour = 17, brightness = 2.55, ambient = c3(100, 86, 104), outdoor = c3(153, 126, 136), exposure = -0.08, density = 0.28,
+	{ hour = 17, brightness = 2.55, ambient = c3(100, 86, 104), outdoor = c3(153, 126, 136), exposure = -0.08, diffuse = 0.55, density = 0.28,
 		haze = c3(204, 176, 174), decay = c3(143, 96, 101), glare = 0.28, hazeAmount = 1.7, bloom = 0.34, threshold = 1.25,
 		tint = c3(255, 245, 239), grade = 0.010, contrast = 0.16, saturation = 0.05, rays = 0.08, clouds = c3(243, 211, 197), cover = 0.51, lamps = 0.48 },
-	{ hour = 18.5, brightness = 2.15, ambient = c3(76, 56, 83), outdoor = c3(142, 91, 111), exposure = -0.10, density = 0.30,
-		haze = c3(215, 135, 147), decay = c3(138, 66, 104), glare = 0.40, hazeAmount = 2.2, bloom = 0.44, threshold = 1.05,
-		tint = c3(255, 232, 235), grade = 0.012, contrast = 0.19, saturation = 0.07, rays = 0.11, clouds = c3(206, 125, 144), cover = 0.48, lamps = 0.80 },
-	{ hour = 20, brightness = 1.90, ambient = c3(50, 43, 72), outdoor = c3(80, 75, 119), exposure = -0.14, density = 0.27,
-		haze = c3(112, 121, 176), decay = c3(53, 48, 93), glare = 0, hazeAmount = 1.8, bloom = 0.50, threshold = 0.96,
-		tint = c3(246, 235, 255), grade = 0.018, contrast = 0.20, saturation = 0.08, rays = 0, clouds = c3(58, 49, 81), cover = 0.37, lamps = 1 },
+	{ hour = 18.5, brightness = 2.22, ambient = c3(102, 76, 101), outdoor = c3(157, 109, 130), exposure = 0.14, diffuse = 0.39, density = 0.29,
+		haze = c3(215, 147, 158), decay = c3(138, 76, 107), glare = 0.35, hazeAmount = 1.92, bloom = 0.44, threshold = 1.12,
+		tint = c3(255, 238, 239), grade = 0.043, contrast = 0.090, saturation = 0.07, rays = 0.11, clouds = c3(206, 125, 144), cover = 0.48, lamps = 0.80 },
+	{ hour = 20, brightness = 2.14, ambient = c3(88, 85, 111), outdoor = c3(124, 122, 154), exposure = 0.31, diffuse = 0.30, density = 0.27,
+		haze = c3(132, 150, 198), decay = c3(75, 78, 125), glare = 0, hazeAmount = 1.62, bloom = 0.46, threshold = 1.14,
+		tint = c3(247, 245, 255), grade = 0.065, contrast = 0.065, saturation = 0.06, rays = 0, clouds = c3(72, 69, 108), cover = 0.39, lamps = 1 },
 }
 -- Luz da cidade numa hora qualquer: mistura as duas horas-chave em volta (dá a volta da meia-noite).
 local function dayLight(hour: number, mare: boolean?)
@@ -2916,11 +2916,13 @@ end
 local function visualDayLight(hour: number, mare: boolean, tier: number)
 	local light = dayLight(hour, mare)
 	if mare and tier == 1 then
-		-- Nas qualidades que reduzem sombras e efeitos, a silhueta ainda precisa ser legível.
-		light.exposure += 0.13 * light.lamps
-		light.ambient = light.ambient:Lerp(c3(70, 66, 95), 0.29 * light.lamps)
-		light.contrast -= 0.035
-		light.bloom *= 0.83
+		-- Quando as sombras são reduzidas, o Ambient do Roblox cobre também as áreas abertas.
+		local nightFill = math.clamp((light.lamps - 0.65) / 0.35, 0, 1)
+		light.exposure += 0.10 * light.lamps + 0.06 * nightFill
+		light.ambient = light.ambient:Lerp(c3(102, 102, 121), 0.29 * nightFill)
+		light.grade += 0.015 * nightFill
+		light.contrast -= 0.025 * light.lamps
+		light.bloom *= 0.88
 	end
 	return light
 end
@@ -3392,6 +3394,7 @@ local function cityLighting(workspace: Workspace, mare: boolean)
 		local grade = lighting:FindFirstChild("CyberOutlawCityGrade")
 		lighting.ClockTime, lighting.Brightness = hour, light.brightness
 		lighting.Ambient, lighting.OutdoorAmbient, lighting.ExposureCompensation = light.ambient, light.outdoor, light.exposure
+		if mare then lighting.EnvironmentDiffuseScale = light.diffuse end
 		if haze then
 			haze.Density, haze.Color, haze.Decay = light.density, light.haze, light.decay
 			haze.Glare, haze.Haze = light.glare, light.hazeAmount

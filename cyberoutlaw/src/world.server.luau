@@ -249,32 +249,32 @@ local function applyLighting(lighting: Lighting, art)
 		return item
 	end
 	lighting.ClockTime = 1.15
-	lighting.Brightness = 1.90
+	lighting.Brightness = 2.14
 	lighting.GlobalShadows = true
 	lighting.ShadowSoftness = 0.29
-	lighting.ExposureCompensation = -0.14
+	lighting.ExposureCompensation = 0.28
 	lighting.GeographicLatitude = 25
-	lighting.Ambient = rgb(47, 43, 69)
-	lighting.OutdoorAmbient = rgb(74, 77, 114)
-	lighting.EnvironmentDiffuseScale = 0.55
+	lighting.Ambient = rgb(83, 86, 109)
+	lighting.OutdoorAmbient = rgb(115, 125, 155)
+	lighting.EnvironmentDiffuseScale = 0.30
 	lighting.EnvironmentSpecularScale = 1
 
 	local haze = effect("Atmosphere", "Névoa de Maré Baixa", true)
 	haze.Density = 0.26
 	haze.Offset = 0
-	haze.Color = rgb(105, 127, 173)
-	haze.Decay = rgb(43, 50, 83)
-	haze.Haze = 1.70
+	haze.Color = rgb(126, 153, 195)
+	haze.Decay = rgb(66, 79, 121)
+	haze.Haze = 1.52
 	haze.Glare = 0
 	local bloom = effect("BloomEffect", "CyberOutlawCityBloom")
-	bloom.Intensity = 0.50
+	bloom.Intensity = 0.46
 	bloom.Size = 26
-	bloom.Threshold = 0.96
+	bloom.Threshold = 1.14
 	local grade = effect("ColorCorrectionEffect", "CyberOutlawCityGrade")
-	grade.Brightness = 0.018
-	grade.Contrast = 0.20
-	grade.Saturation = 0.08
-	grade.TintColor = rgb(243, 235, 255)
+	grade.Brightness = 0.062
+	grade.Contrast = 0.060
+	grade.Saturation = 0.06
+	grade.TintColor = rgb(245, 248, 255)
 
 	local sky = effect("Sky", "Céu de Maré Baixa", true)
 	local faceIds = {}

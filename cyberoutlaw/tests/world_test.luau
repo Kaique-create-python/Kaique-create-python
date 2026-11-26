@@ -107,8 +107,9 @@ local function verifyLighting(applyLighting, lighting, art)
 	local bloom = lighting:FindFirstChild("CyberOutlawCityBloom")
 	local grade = lighting:FindFirstChild("CyberOutlawCityGrade")
 	assert(bloom and grade, "o ciclo visual do cliente precisa dos pós-efeitos nomeados")
-	assert(lighting.ClockTime > 1 and lighting.ClockTime < 2 and math.abs(lighting.Brightness - 1.9) < 0.001)
-	assert(lighting.ExposureCompensation < 0 and grade.Contrast >= 0.19 and bloom.Intensity >= 0.48)
+	assert(lighting.ClockTime > 1 and lighting.ClockTime < 2 and math.abs(lighting.Brightness - 2.14) < 0.001)
+	assert(lighting.ExposureCompensation >= 0.24 and lighting.Ambient.G > 0.31 and lighting.EnvironmentDiffuseScale < 0.35)
+	assert(grade.Brightness > 0.055 and grade.Contrast < 0.07 and bloom.Intensity > 0.4 and bloom.Threshold > 1)
 	assert(lighting:FindFirstChildOfClass("Atmosphere").Density < 0.4)
 	local sky = lighting:FindFirstChildOfClass("Sky")
 	if art.ceu_up then
@@ -179,6 +180,7 @@ local function check(art)
 	local top, puddles, atms, vending, vendors = -math.huge, 0, 0, 0, {}
 	local mirrorFloors = {}
 	local sources, glints = 0, 0
+	local shoreLights, bridgeLights = 0, 0
 	for _, node in city:GetDescendants() do
 		if node:IsA("BasePart") and not node:IsA("SpawnLocation") then
 			assert(node.Anchored and (node.CanCollide or not node.CanQuery), node:GetFullName())
@@ -219,6 +221,13 @@ local function check(art)
 		elseif node:IsA("Light") then
 			assert(not node.Shadows)
 			assert(node:HasTag("CyberOutlawLuzCidade") and node:GetAttribute("CyberOutlawBrilhoBase") > 0)
+			if node.Parent.Name == "Friso do balizador" then
+				assert(node:IsA("PointLight") and node.Range >= 24 and node.Brightness > 1)
+				shoreLights += 1
+			elseif node.Parent.Name == "Lente do guarda-corpo" then
+				assert(node:IsA("PointLight") and node.Range >= 24 and node.Brightness > 1)
+				bridgeLights += 1
+			end
 			lamps += 1
 		elseif node:IsA("SurfaceGui") then
 			signs += 1
@@ -228,6 +237,7 @@ local function check(art)
 	assert(#parts < 49000 and #solids < 21000 and lamps < 1000, "orçamento de cena excedido")
 	assert(top >= 570 and atms == 5 and vending >= 3 and #vendors >= 10)
 	assert(puddles >= 20 and puddles <= 28 and sources >= 200 and sources <= 2200 and glints >= 400)
+	assert(shoreLights >= 10 and bridgeLights >= 8, "os passeios centrais precisam de luz após a seleção por setor")
 	assert(city:FindFirstChild("Galpão da Doca do Sal", true) and city:FindFirstChild("Subestação da Maré", true))
 	local plots = city:FindFirstChild("Quadras")
 	local ids, types, themes = {}, {}, {}

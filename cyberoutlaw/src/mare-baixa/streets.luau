@@ -12,6 +12,9 @@ function Streets.build(ctx, city, layout)
     local cyan = rgb(99, 217, 242)
     local rose = rgb(242, 72, 157)
     local offWhite = rgb(192, 198, 201)
+    local quayPaving = rgb(105, 110, 123)
+    local quayFill = rgb(197, 220, 249)
+    local bridgeFill = rgb(250, 217, 178)
     local paint = {collision = false, shadow = false}
     local rng = ctx.random(51428)
     local bank = layout.bank
@@ -249,10 +252,11 @@ function Streets.build(ctx, city, layout)
         local z0 = -layout.halfZ + (row - 1) * layout.pitch
         local z1 = z0 + layout.pitch
         local center = (z0 + z1) / 2
+        local central = row == 4 or row == 5
         local basin = group(canals, string.format("Cais %02d", row))
         box(basin, "Fundação do leito", 0, -9, center, layout.canalWidth, 2.3, layout.pitch, rgb(23, 33, 51), "cement")
-        box(basin, "Espelho de água do canal", 0, -3.28, center, layout.canalWidth - 0.3, 0.12, layout.pitch, rgb(21, 36, 53), "water",
-            {collision = false, transparency = 0.24, reflectance = 0.55})
+        box(basin, "Espelho de água do canal", 0, -3.28, center, layout.canalWidth - 0.3, 0.12, layout.pitch, rgb(36, 54, 72), "water",
+            {collision = false, transparency = 0.24, reflectance = 0.44})
         for _, side in {-1, 1} do
             box(basin, "Muro de contenção", side * 28, -4.34, center, 5.7, 8.12, layout.pitch, rgb(64, 75, 92), "cement")
             for i = 1, 12 do
@@ -262,24 +266,25 @@ function Streets.build(ctx, city, layout)
             local walkStart = z0 + (if layout.bridgeRows[z0] == "foot" then layout.footWidth / 2 else layout.avenueWidth(z0) / 2)
             local walkEnd = z1 - (if layout.bridgeRows[z1] == "foot" then layout.footWidth / 2 else layout.avenueWidth(z1) / 2)
             box(basin, "Passeio ribeirinho", side * 35.4, -0.39, (walkStart + walkEnd) / 2,
-                layout.sidewalkWidth, 0.84, walkEnd - walkStart, paving, "sidewalk")
+                layout.sidewalkWidth, 0.84, walkEnd - walkStart, if central then quayPaving else paving, "sidewalk")
             local first = walkStart + (if layout.bridgeRows[z0] == "foot" then 0 else 6.4)
             local last = walkEnd - (if layout.bridgeRows[z1] == "foot" then 0 else 6.4)
             bankRail(basin, side * 29.4, first, last, 0.03, gray)
             for localZ = -78, 79, 52 do
                 local hue = if (row + side + localZ) % 3 == 0 then rose else cyan
-                local lampPart = box(basin, "Balizador ribeirinho", side * 31.2, 0.77, center + localZ, 0.48, 1.52, 0.48,
+                box(basin, "Balizador ribeirinho", side * 31.2, 0.77, center + localZ, 0.48, 1.52, 0.48,
                     gray, "metal")
-                box(basin, "Friso do balizador", side * 31.2, 1.44, center + localZ, 0.49, 0.14, 0.49, hue, "neon", paint)
+                local lens = box(basin, "Friso do balizador", side * 31.2, 1.44, center + localZ, 0.49, 0.14, 0.49, hue, "neon", paint)
+                if central then
+                    -- A luz da lente chega ao passeio dos dois lados do balizador.
+                    ctx.lamp(lens, quayFill, 27, 1.28)
+                end
                 for j = 1, 5 do
                     local length = rng:NextNumber(4.6, 18) * (1.14 - j * 0.13)
                     local reflected = box(basin, "Reflexo no canal", side * (23 - j * 1.46), -3.198 + j * 0.002,
                         center + localZ + (j - 2) * 1.71, 0.36 + j * 0.21, 0.012, length, hue, "neon",
                         {collision = false, shadow = false, transparency = 0.54 + j * 0.081})
                     reflected:SetAttribute("MareBrilhoPiso", true)
-                end
-                if row == 4 or row == 5 then
-                    ctx.lamp(lampPart, hue, 13, 0.45, "Front")
                 end
             end
         end
@@ -288,6 +293,7 @@ function Streets.build(ctx, city, layout)
     for row = 0, layout.rows do
         local z = -layout.halfZ + row * layout.pitch
         local kind = layout.bridgeRows[z]
+        local central = math.abs(z) <= layout.pitch
         local spanWidth = if kind == "foot" then layout.footWidth else layout.avenueWidth(z)
         local bridge = group(canals, (if kind == "foot" then "Passarela " else "Ponte ") .. tostring(z))
         box(bridge, "Laje da travessia", 0, -0.67, z, bank * 2, 0.80, spanWidth, roadway,
@@ -319,6 +325,11 @@ function Streets.build(ctx, city, layout)
             for x = -39, 41, 8 do
                 box(bridge, "Montante de travessia", x, 1.57, railing, 0.42, 3.16, 0.42, gray, "metal", paint)
                 box(bridge, "Detalhe frio da ponte", x, -1.34, railing + side * 0.48, 3.45, 0.19, 0.18, cyan, "neon", paint)
+                if central and (x == -23 or x == 25) then
+                    local guide = box(bridge, "Lente do guarda-corpo", x, 2.67, railing - side * 0.31, 0.52, 0.29, 0.25,
+                        bridgeFill, "neon", paint)
+                    ctx.lamp(guide, bridgeFill, 24, 1.34)
+                end
                 if math.abs(x) < 24 then
                     box(bridge, "Luz refletida sob a água", x, -5.10, railing + side * 0.48,
                         3.47, 0.19, 0.27, cyan, "neon", {collision = false, shadow = false, transparency = 0.64})

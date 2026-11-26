@@ -897,6 +897,19 @@ do
 	assert(play.CITY_VISUAL_BUDGETS[1].puddles == 1 and play.CITY_VISUAL_BUDGETS[3].puddles == 3)
 end
 
+-- A noite precisa manter preenchimento e contraste legíveis onde o celular reduz sombras e efeitos.
+do
+	for _, hour in {19 + 42 / 60, 20 + 2 / 60, 0, 5} do
+		for tier = 1, #play.CITY_VISUAL_BUDGETS do
+			local light = play.visualDayLight(hour, true, tier)
+			assert(light.exposure >= 0.24 and light.ambient.G > 0.31 and light.outdoor.G > 0.46,
+				"o anoitecer mantém luz de preenchimento nas calçadas e fachadas")
+			assert(light.grade >= 0.055 and light.contrast <= 0.07 and light.diffuse <= 0.34)
+			assert(light.brightness < play.dayLight(13, true).brightness and play.nightSky(hour))
+		end
+	end
+end
+
 -- Os efeitos do servidor podem chegar depois que o jogador já saiu do menu.
 do
 	local lighting = roblox.Instance.new("Lighting")
@@ -928,7 +941,9 @@ do
 	for index, name in faces do sky[name] = "rbxassetid://" .. (9000 + index) end
 	sky.CelestialBodiesShown, sky.StarCount = false, 0
 	apply(1)
-	assert(haze.Density > 0.25 and bloom.Intensity > 0.4 and bloom.Size == 20 and grade.Contrast > 0.1)
+	local expected = client.visualDayLight(20.5, true, 1)
+	assert(math.abs(haze.Density - expected.density) < 0.001 and math.abs(bloom.Intensity - expected.bloom) < 0.001)
+	assert(bloom.Size == 20 and math.abs(grade.Contrast - expected.contrast) < 0.001)
 	assert(preloads == 1 and sky.SkyboxUp == "rbxassetid://9006")
 	time = 16.5 * 60 -- 13h no ciclo da cidade.
 	apply(3)
