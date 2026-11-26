@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "userId": "1357078972",
+    "universeId": "10774214423",
+    "placeId": "122033314086516"
+  },
+  "assets": [
+    {
+      "key": "asphalt.color",
+      "path": "asphalt/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "516a17940d2353b29763c15522dea38d84fe9046a804f7fb474d0ac00a39f7e9",
+      "displayName": "Mare Baixa asphalt color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "asphalt.normal",
+      "path": "asphalt/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "b74eab4092e98cdccb9d55f95e74aa5fb1a98a3566fef52d701f166e039f6837",
+      "displayName": "Mare Baixa asphalt normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "asphalt.roughness",
+      "path": "asphalt/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "641e5ee5c572fa2a36f830654d8e66e4e06d62fd3ad51bafecd08edbf5f3a20e",
+      "displayName": "Mare Baixa asphalt roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "brick.color",
+      "path": "brick/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "9a902d0aaac8c2f11f5a033c8d323e091ddae98a13140f72992ecef81da06231",
+      "displayName": "Mare Baixa brick color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "brick.normal",
+      "path": "brick/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "0875e90ec9b4682d19ddccac211673779f72f6d61530cc75c3a564b1ea397a18",
+      "displayName": "Mare Baixa brick normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "brick.roughness",
+      "path": "brick/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "bb06b6d514f15485c27babaf43089a2aeb501531e53a052664f1eab19f1ad88c",
+      "displayName": "Mare Baixa brick roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "cement.color",
+      "path": "cement/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "0d4e09390d6b96e26c71e03419ac3ccbb14c109e2638afa20d5ffba2a32e9de9",
+      "displayName": "Mare Baixa cement color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "cement.normal",
+      "path": "cement/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "0e6c7e6becfadc5f1c2c32159ccf1344b537515858b391e5b6f9ab8f4697c638",
+      "displayName": "Mare Baixa cement normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "cement.roughness",
+      "path": "cement/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "251732e874c5a0955410601fd244eeffc1a650204a0ff900afaef10db8641fae",
+      "displayName": "Mare Baixa cement roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "glass.color",
+      "path": "glass/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "b2152b4f1ba9e99485bfba80e4fe9a4274c069170333f93072e2aa494c0002d3",
+      "displayName": "Mare Baixa glass color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "glass.metalness",
+      "path": "glass/metalness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "0b7498185b7de443da5dac4e3f06766df5a5eb43df97bb8e0c2b661bacd3781d",
+      "displayName": "Mare Baixa glass metalness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "glass.normal",
+      "path": "glass/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "1f9f1ee33bd9718b90a032e6f5ac4ba27687e1846810ebdd609faa3f4dcc49bb",
+      "displayName": "Mare Baixa glass normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "glass.roughness",
+      "path": "glass/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "cd654b298bd0bed6c7493c0e5ce6f4a41f5fa31cfa59bb892953e129f69717d0",
+      "displayName": "Mare Baixa glass roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "roof.color",
+      "path": "roof/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "ae87d43a1563857d37fcc2399374e8ea3d0fbdb126a79372072a782a584e27cc",
+      "displayName": "Mare Baixa roof color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "roof.normal",
+      "path": "roof/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "f2057a24fbe4d801479756a99cef13c8fd18c69f214bd22985f655c8160c7c12",
+      "displayName": "Mare Baixa roof normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "roof.roughness",
+      "path": "roof/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "f92b5a4ac130bb3ef2fdc24d7fca30cb844a94e3fa9b1cb9b0819b7fb0c8e56a",
+      "displayName": "Mare Baixa roof roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "sidewalk.color",
+      "path": "sidewalk/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "5c601e2dca5d4ef09be9ba8da11c238a3eeb8828e84011accaa7a4e66d4fea49",
+      "displayName": "Mare Baixa sidewalk color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "sidewalk.normal",
+      "path": "sidewalk/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "49b5ea99b1f78b190fab907a2a0ffaf3c3b03dd5aa14654305f6c70adc7993b5",
+      "displayName": "Mare Baixa sidewalk normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "sidewalk.roughness",
+      "path": "sidewalk/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "82e6cb653dc58706400f985a1b905642b1813c24fdd10ea0cdcb0c6e23bf5f1f",
+      "displayName": "Mare Baixa sidewalk roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "steel.color",
+      "path": "steel/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "65cab5acb61f2c8d6587cb982bbee0933c8ef91a9ebe36086813c44c6c9a17d7",
+      "displayName": "Mare Baixa steel color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "steel.metalness",
+      "path": "steel/metalness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "f842a50604d2f85a27ac3fabd993372fa1c8e704a0e6ca20e4dbf3b3de7c14f8",
+      "displayName": "Mare Baixa steel metalness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "steel.normal",
+      "path": "steel/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "f4984d8500b08d14a8ddf07d6ce13e4f3473c72b3ed3256d9f1a39ae83de2fe5",
+      "displayName": "Mare Baixa steel normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "steel.roughness",
+      "path": "steel/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "48ee5679461ddf5cb8ea7e9be9b99ee027e68a00f6127f5742b0dd2426e4a6d5",
+      "displayName": "Mare Baixa steel roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "tile.color",
+      "path": "tile/color.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "cb7fcb7e00cbabc51f3b878584b28eb6b9ec6354ec80e4570303c724a511bc51",
+      "displayName": "Mare Baixa tile color",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "tile.normal",
+      "path": "tile/normal.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "655b76c1414b1b204f22293f472138ad2d2046992ef35f5e19334f849065ffbb",
+      "displayName": "Mare Baixa tile normal",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    },
+    {
+      "key": "tile.roughness",
+      "path": "tile/roughness.png",
+      "assetType": "Image",
+      "contentType": "image/png",
+      "sha256": "e78dd9d3ea844be48b9d34bdacd0bf2b93c94fb15c9a3e5056f13562d09982d4",
+      "displayName": "Mare Baixa tile roughness",
+      "description": "Material de cenário original do projeto CyberOutlaw."
+    }
+  ]
+}

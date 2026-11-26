@@ -1,0 +1,693 @@
+{
+  "blocks": 80,
+  "bounds": {
+    "maximum": [
+      1232.5,
+      575,
+      996
+    ],
+    "minimum": [
+      -1232.5,
+      -10.150001525878906,
+      -996
+    ]
+  },
+  "cells": [
+    {
+      "column": 1,
+      "id": "A1",
+      "kind": "apartments",
+      "row": 1,
+      "x": -1080,
+      "z": -840
+    },
+    {
+      "column": 2,
+      "id": "B1",
+      "kind": "towers",
+      "row": 1,
+      "x": -840,
+      "z": -840
+    },
+    {
+      "column": 3,
+      "id": "C1",
+      "kind": "apartments",
+      "row": 1,
+      "x": -600,
+      "z": -840
+    },
+    {
+      "column": 4,
+      "id": "D1",
+      "kind": "mixed",
+      "row": 1,
+      "x": -360,
+      "z": -840
+    },
+    {
+      "column": 5,
+      "id": "E1",
+      "kind": "levee",
+      "row": 1,
+      "x": -120,
+      "z": -840
+    },
+    {
+      "column": 6,
+      "id": "F1",
+      "kind": "park",
+      "row": 1,
+      "x": 120,
+      "z": -840
+    },
+    {
+      "column": 7,
+      "id": "G1",
+      "kind": "hotel",
+      "row": 1,
+      "x": 360,
+      "z": -840
+    },
+    {
+      "column": 8,
+      "id": "H1",
+      "kind": "towers",
+      "row": 1,
+      "x": 600,
+      "z": -840
+    },
+    {
+      "column": 9,
+      "id": "I1",
+      "kind": "mixed",
+      "row": 1,
+      "x": 840,
+      "z": -840
+    },
+    {
+      "column": 10,
+      "id": "J1",
+      "kind": "warehouse",
+      "row": 1,
+      "x": 1080,
+      "z": -840
+    },
+    {
+      "column": 1,
+      "id": "A2",
+      "kind": "apartments",
+      "row": 2,
+      "x": -1080,
+      "z": -600
+    },
+    {
+      "column": 2,
+      "id": "B2",
+      "kind": "mixed",
+      "row": 2,
+      "x": -840,
+      "z": -600
+    },
+    {
+      "column": 3,
+      "id": "C2",
+      "kind": "towers",
+      "row": 2,
+      "x": -600,
+      "z": -600
+    },
+    {
+      "column": 4,
+      "id": "D2",
+      "kind": "mixed",
+      "row": 2,
+      "x": -360,
+      "z": -600
+    },
+    {
+      "column": 5,
+      "id": "E2",
+      "kind": "park",
+      "row": 2,
+      "x": -120,
+      "z": -600
+    },
+    {
+      "column": 6,
+      "id": "F2",
+      "kind": "finance",
+      "row": 2,
+      "x": 120,
+      "z": -600
+    },
+    {
+      "column": 7,
+      "id": "G2",
+      "kind": "tech",
+      "row": 2,
+      "x": 360,
+      "z": -600
+    },
+    {
+      "column": 8,
+      "id": "H2",
+      "kind": "towers",
+      "row": 2,
+      "x": 600,
+      "z": -600
+    },
+    {
+      "column": 9,
+      "id": "I2",
+      "kind": "apartments",
+      "row": 2,
+      "x": 840,
+      "z": -600
+    },
+    {
+      "column": 10,
+      "id": "J2",
+      "kind": "grid",
+      "row": 2,
+      "x": 1080,
+      "z": -600
+    },
+    {
+      "column": 1,
+      "id": "A3",
+      "kind": "towers",
+      "row": 3,
+      "x": -1080,
+      "z": -360
+    },
+    {
+      "column": 2,
+      "id": "B3",
+      "kind": "apartments",
+      "row": 3,
+      "x": -840,
+      "z": -360
+    },
+    {
+      "column": 3,
+      "id": "C3",
+      "kind": "mixed",
+      "row": 3,
+      "x": -600,
+      "z": -360
+    },
+    {
+      "column": 4,
+      "id": "D3",
+      "kind": "arcade",
+      "row": 3,
+      "x": -360,
+      "z": -360
+    },
+    {
+      "column": 5,
+      "id": "E3",
+      "kind": "levee",
+      "row": 3,
+      "x": -120,
+      "z": -360
+    },
+    {
+      "column": 6,
+      "id": "F3",
+      "kind": "tech",
+      "row": 3,
+      "x": 120,
+      "z": -360
+    },
+    {
+      "column": 7,
+      "id": "G3",
+      "kind": "vertice",
+      "row": 3,
+      "x": 360,
+      "z": -360
+    },
+    {
+      "column": 8,
+      "id": "H3",
+      "kind": "finance",
+      "row": 3,
+      "x": 600,
+      "z": -360
+    },
+    {
+      "column": 9,
+      "id": "I3",
+      "kind": "hotel",
+      "row": 3,
+      "x": 840,
+      "z": -360
+    },
+    {
+      "column": 10,
+      "id": "J3",
+      "kind": "towers",
+      "row": 3,
+      "x": 1080,
+      "z": -360
+    },
+    {
+      "column": 1,
+      "id": "A4",
+      "kind": "apartments",
+      "row": 4,
+      "x": -1080,
+      "z": -120
+    },
+    {
+      "column": 2,
+      "id": "B4",
+      "kind": "mixed",
+      "row": 4,
+      "x": -840,
+      "z": -120
+    },
+    {
+      "column": 3,
+      "id": "C4",
+      "kind": "arcade",
+      "row": 4,
+      "x": -600,
+      "z": -120
+    },
+    {
+      "column": 4,
+      "id": "D4",
+      "kind": "sodio",
+      "row": 4,
+      "x": -360,
+      "z": -120
+    },
+    {
+      "column": 5,
+      "id": "E4",
+      "kind": "spawn",
+      "row": 4,
+      "x": -120,
+      "z": -120
+    },
+    {
+      "column": 6,
+      "id": "F4",
+      "kind": "station",
+      "row": 4,
+      "x": 120,
+      "z": -120
+    },
+    {
+      "column": 7,
+      "id": "G4",
+      "kind": "hotel",
+      "row": 4,
+      "x": 360,
+      "z": -120
+    },
+    {
+      "column": 8,
+      "id": "H4",
+      "kind": "finance",
+      "row": 4,
+      "x": 600,
+      "z": -120
+    },
+    {
+      "column": 9,
+      "id": "I4",
+      "kind": "tech",
+      "row": 4,
+      "x": 840,
+      "z": -120
+    },
+    {
+      "column": 10,
+      "id": "J4",
+      "kind": "mixed",
+      "row": 4,
+      "x": 1080,
+      "z": -120
+    },
+    {
+      "column": 1,
+      "id": "A5",
+      "kind": "warehouse",
+      "row": 5,
+      "x": -1080,
+      "z": 120
+    },
+    {
+      "column": 2,
+      "id": "B5",
+      "kind": "towers",
+      "row": 5,
+      "x": -840,
+      "z": 120
+    },
+    {
+      "column": 3,
+      "id": "C5",
+      "kind": "arcade",
+      "row": 5,
+      "x": -600,
+      "z": 120
+    },
+    {
+      "column": 4,
+      "id": "D5",
+      "kind": "mixed",
+      "row": 5,
+      "x": -360,
+      "z": 120
+    },
+    {
+      "column": 5,
+      "id": "E5",
+      "kind": "park",
+      "row": 5,
+      "x": -120,
+      "z": 120
+    },
+    {
+      "column": 6,
+      "id": "F5",
+      "kind": "arcade",
+      "row": 5,
+      "x": 120,
+      "z": 120
+    },
+    {
+      "column": 7,
+      "id": "G5",
+      "kind": "tech",
+      "row": 5,
+      "x": 360,
+      "z": 120
+    },
+    {
+      "column": 8,
+      "id": "H5",
+      "kind": "mixed",
+      "row": 5,
+      "x": 600,
+      "z": 120
+    },
+    {
+      "column": 9,
+      "id": "I5",
+      "kind": "apartments",
+      "row": 5,
+      "x": 840,
+      "z": 120
+    },
+    {
+      "column": 10,
+      "id": "J5",
+      "kind": "grid",
+      "row": 5,
+      "x": 1080,
+      "z": 120
+    },
+    {
+      "column": 1,
+      "id": "A6",
+      "kind": "warehouse",
+      "row": 6,
+      "x": -1080,
+      "z": 360
+    },
+    {
+      "column": 2,
+      "id": "B6",
+      "kind": "grid",
+      "row": 6,
+      "x": -840,
+      "z": 360
+    },
+    {
+      "column": 3,
+      "id": "C6",
+      "kind": "apartments",
+      "row": 6,
+      "x": -600,
+      "z": 360
+    },
+    {
+      "column": 4,
+      "id": "D6",
+      "kind": "mixed",
+      "row": 6,
+      "x": -360,
+      "z": 360
+    },
+    {
+      "column": 5,
+      "id": "E6",
+      "kind": "levee",
+      "row": 6,
+      "x": -120,
+      "z": 360
+    },
+    {
+      "column": 6,
+      "id": "F6",
+      "kind": "mixed",
+      "row": 6,
+      "x": 120,
+      "z": 360
+    },
+    {
+      "column": 7,
+      "id": "G6",
+      "kind": "park",
+      "row": 6,
+      "x": 360,
+      "z": 360
+    },
+    {
+      "column": 8,
+      "id": "H6",
+      "kind": "towers",
+      "row": 6,
+      "x": 600,
+      "z": 360
+    },
+    {
+      "column": 9,
+      "id": "I6",
+      "kind": "apartments",
+      "row": 6,
+      "x": 840,
+      "z": 360
+    },
+    {
+      "column": 10,
+      "id": "J6",
+      "kind": "warehouse",
+      "row": 6,
+      "x": 1080,
+      "z": 360
+    },
+    {
+      "column": 1,
+      "id": "A7",
+      "kind": "warehouse",
+      "row": 7,
+      "x": -1080,
+      "z": 600
+    },
+    {
+      "column": 2,
+      "id": "B7",
+      "kind": "docks",
+      "row": 7,
+      "x": -840,
+      "z": 600
+    },
+    {
+      "column": 3,
+      "id": "C7",
+      "kind": "warehouse",
+      "row": 7,
+      "x": -600,
+      "z": 600
+    },
+    {
+      "column": 4,
+      "id": "D7",
+      "kind": "apartments",
+      "row": 7,
+      "x": -360,
+      "z": 600
+    },
+    {
+      "column": 5,
+      "id": "E7",
+      "kind": "park",
+      "row": 7,
+      "x": -120,
+      "z": 600
+    },
+    {
+      "column": 6,
+      "id": "F7",
+      "kind": "mixed",
+      "row": 7,
+      "x": 120,
+      "z": 600
+    },
+    {
+      "column": 7,
+      "id": "G7",
+      "kind": "towers",
+      "row": 7,
+      "x": 360,
+      "z": 600
+    },
+    {
+      "column": 8,
+      "id": "H7",
+      "kind": "apartments",
+      "row": 7,
+      "x": 600,
+      "z": 600
+    },
+    {
+      "column": 9,
+      "id": "I7",
+      "kind": "grid",
+      "row": 7,
+      "x": 840,
+      "z": 600
+    },
+    {
+      "column": 10,
+      "id": "J7",
+      "kind": "warehouse",
+      "row": 7,
+      "x": 1080,
+      "z": 600
+    },
+    {
+      "column": 1,
+      "id": "A8",
+      "kind": "grid",
+      "row": 8,
+      "x": -1080,
+      "z": 840
+    },
+    {
+      "column": 2,
+      "id": "B8",
+      "kind": "warehouse",
+      "row": 8,
+      "x": -840,
+      "z": 840
+    },
+    {
+      "column": 3,
+      "id": "C8",
+      "kind": "warehouse",
+      "row": 8,
+      "x": -600,
+      "z": 840
+    },
+    {
+      "column": 4,
+      "id": "D8",
+      "kind": "towers",
+      "row": 8,
+      "x": -360,
+      "z": 840
+    },
+    {
+      "column": 5,
+      "id": "E8",
+      "kind": "levee",
+      "row": 8,
+      "x": -120,
+      "z": 840
+    },
+    {
+      "column": 6,
+      "id": "F8",
+      "kind": "park",
+      "row": 8,
+      "x": 120,
+      "z": 840
+    },
+    {
+      "column": 7,
+      "id": "G8",
+      "kind": "mixed",
+      "row": 8,
+      "x": 360,
+      "z": 840
+    },
+    {
+      "column": 8,
+      "id": "H8",
+      "kind": "warehouse",
+      "row": 8,
+      "x": 600,
+      "z": 840
+    },
+    {
+      "column": 9,
+      "id": "I8",
+      "kind": "apartments",
+      "row": 8,
+      "x": 840,
+      "z": 840
+    },
+    {
+      "column": 10,
+      "id": "J8",
+      "kind": "grid",
+      "row": 8,
+      "x": 1080,
+      "z": 840
+    }
+  ],
+  "colliders": 20696,
+  "dimensions": [
+    2465,
+    585.1500244140625,
+    1992
+  ],
+  "districts": {
+    "apartments": 12,
+    "arcade": 4,
+    "docks": 1,
+    "finance": 3,
+    "grid": 6,
+    "hotel": 3,
+    "levee": 4,
+    "mixed": 13,
+    "park": 6,
+    "sodio": 1,
+    "spawn": 1,
+    "station": 1,
+    "tech": 4,
+    "towers": 10,
+    "vertice": 1,
+    "warehouse": 10
+  },
+  "footBridges": 3,
+  "lights": 858,
+  "parts": 47206,
+  "roadBridges": 6,
+  "signs": 7,
+  "spawn": [
+    -115,
+    0.1320037841796875,
+    -83
+  ],
+  "texturedParts": 0,
+  "tileableMaterials": 8
+}

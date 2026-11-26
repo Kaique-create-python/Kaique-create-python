@@ -1,0 +1,68 @@
+{
+  "asphalt": {
+    "tileStuds": 16,
+    "maps": {
+      "color": "asphalt/color.png",
+      "normal": "asphalt/normal.png",
+      "roughness": "asphalt/roughness.png"
+    }
+  },
+  "cement": {
+    "tileStuds": 12,
+    "maps": {
+      "color": "cement/color.png",
+      "normal": "cement/normal.png",
+      "roughness": "cement/roughness.png"
+    }
+  },
+  "sidewalk": {
+    "tileStuds": 8,
+    "maps": {
+      "color": "sidewalk/color.png",
+      "normal": "sidewalk/normal.png",
+      "roughness": "sidewalk/roughness.png"
+    }
+  },
+  "glass": {
+    "tileStuds": 16,
+    "maps": {
+      "color": "glass/color.png",
+      "normal": "glass/normal.png",
+      "roughness": "glass/roughness.png",
+      "metalness": "glass/metalness.png"
+    }
+  },
+  "steel": {
+    "tileStuds": 12,
+    "maps": {
+      "color": "steel/color.png",
+      "normal": "steel/normal.png",
+      "roughness": "steel/roughness.png",
+      "metalness": "steel/metalness.png"
+    }
+  },
+  "brick": {
+    "tileStuds": 10,
+    "maps": {
+      "color": "brick/color.png",
+      "normal": "brick/normal.png",
+      "roughness": "brick/roughness.png"
+    }
+  },
+  "roof": {
+    "tileStuds": 12,
+    "maps": {
+      "color": "roof/color.png",
+      "normal": "roof/normal.png",
+      "roughness": "roof/roughness.png"
+    }
+  },
+  "tile": {
+    "tileStuds": 8,
+    "maps": {
+      "color": "tile/color.png",
+      "normal": "tile/normal.png",
+      "roughness": "tile/roughness.png"
+    }
+  }
+}
