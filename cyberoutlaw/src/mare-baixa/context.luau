@@ -2,23 +2,23 @@
 local Context = {}
 
 local definitions = {
-    asphalt = {"Asphalt", 16},
-    cement = {"Concrete", 12},
-    sidewalk = {"Pavement", 8},
-    glass = {"Glass", 16},
-    steel = {"Metal", 12},
-    brick = {"Brick", 10},
-    roof = {"Slate", 12},
-    tile = {"CeramicTiles", 8},
-    metal = {"Metal", 12},
-    neon = {"Neon", 0},
-    stone = {"Basalt", 0},
-    rubber = {"Rubber", 0},
-    fabric = {"Fabric", 0},
-    wood = {"WoodPlanks", 0},
-    paint = {"SmoothPlastic", 0},
-    water = {"Glass", 0},
-    foliage = {"LeafyGrass", 0},
+    asphalt = Enum.Material.Asphalt,
+    cement = Enum.Material.Concrete,
+    sidewalk = Enum.Material.Pavement,
+    glass = Enum.Material.Glass,
+    steel = Enum.Material.Metal,
+    brick = Enum.Material.Brick,
+    roof = Enum.Material.Slate,
+    tile = Enum.Material.CeramicTiles,
+    metal = Enum.Material.Metal,
+    neon = Enum.Material.Neon,
+    stone = Enum.Material.Basalt,
+    rubber = Enum.Material.Rubber,
+    fabric = Enum.Material.Fabric,
+    wood = Enum.Material.WoodPlanks,
+    paint = Enum.Material.SmoothPlastic,
+    water = Enum.Material.Glass,
+    foliage = Enum.Material.LeafyGrass,
 }
 
 local function imageId(id)
@@ -30,22 +30,6 @@ end
 local function faceEnum(face)
     return if type(face) == "string" then Enum.NormalId[face] else face
 end
-
-local channels = {
-    color = "ColorMap",
-    normal = "NormalMap",
-    roughness = "RoughnessMap",
-    metalness = "MetalnessMap",
-}
-
-local fallbackArt = {
-    asphalt = {color = "asphalt", normal = "asphalt_normal", roughness = "asphalt_rough"},
-    cement = {color = "concrete", normal = "concrete_normal"},
-    sidewalk = {color = "concreto_rachado", normal = "concreto_rachado_normal"},
-    steel = {color = "metal_ondulado", normal = "metal_ondulado_normal"},
-    brick = {color = "tijolo", normal = "tijolo_normal"},
-    tile = {color = "piso_hexagonal", normal = "piso_hexagonal_normal"},
-}
 
 -- A mesma amostragem da prévia avulsa mantém os jardins e a rua nas mesmas posições.
 local function random(seed)
@@ -66,31 +50,14 @@ function Context.new(materialService, art, options)
     local stats = {parts = 0, colliders = 0, lights = 0, signs = 0}
     local api = {rgb = Color3.fromRGB, random = random, stats = stats}
     local variants = {}
-    for key, info in definitions do
-        if info[2] == 0 or key == "metal" or not materialService then
-            continue
-        end
-        local images = {}
-        for channel, property in channels do
-            images[property] = imageId(art["mare_" .. key .. "_" .. channel])
-        end
-        if not next(images) then
-            for channel, fallback in fallbackArt[key] or {} do
-                images[channels[channel]] = imageId(art[fallback])
+    -- A Open Cloud recebe as variantes prontas no Place. O servidor só lê o nome e o material base.
+    if materialService then
+        for key, hasColor in art.mare_tints or {} do
+            local variant = materialService:FindFirstChild("CyberOutlawMareBaixa_" .. key)
+            if variant and variant:IsA("MaterialVariant") and variant.BaseMaterial == definitions[key] then
+                variants[key] = {name = variant.Name, tint = hasColor == 1}
             end
         end
-        if not next(images) then
-            continue
-        end
-        local variant = Instance.new("MaterialVariant")
-        variant.Name = "MareBaixa_" .. key
-        variant.BaseMaterial = Enum.Material[info[1]]
-        variant.StudsPerTile = info[2]
-        for property, id in images do
-            variant[property] = id
-        end
-        variant.Parent = materialService
-        variants[key] = {name = variant.Name, tint = images.ColorMap ~= nil}
     end
     local pause = options.yield
     local lightGroups = {}
@@ -104,7 +71,7 @@ function Context.new(materialService, art, options)
 
     function api.box(parent, name, x, y, z, width, height, depth, color, material, options)
         options = options or {}
-        local info = assert(definitions[material], "Material não listado: " .. tostring(material) .. " em " .. name)
+        local baseMaterial = assert(definitions[material], "Material não listado: " .. tostring(material) .. " em " .. name)
         assert(width > 0 and height > 0 and depth > 0, "Dimensões inválidas em " .. name)
         local part = Instance.new(if options.shape == "Wedge" then "WedgePart" else "Part")
         if options.shape and part:IsA("Part") then
@@ -121,7 +88,7 @@ function Context.new(materialService, art, options)
         part.CastShadow = options.shadow ~= false and material ~= "neon" and material ~= "water"
         part.Transparency = options.transparency or 0
         part.Reflectance = options.reflectance or 0
-        part.Material = Enum.Material[info[1]]
+        part.Material = baseMaterial
         part.Color = color
         part:SetAttribute("MareMaterial", material)
         local variant = variants[material]

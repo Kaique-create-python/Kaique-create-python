@@ -8,7 +8,8 @@ As prévias usam a geometria exportada da versão integrada, com iluminação e 
 
 - O Edifício Colmeia mantém as 12 unidades, as chegadas e os painéis do elevador. A Praça do Dique concentra o nascimento e a zona segura.
 - O novo `Layout` informa os eixos X e Z, o canal e os tipos de ponte. O minimapa usa esses dados. As rotas do tanque cruzam o canal pelas pontes rodoviárias. O monotrilho faz ida e volta na Linha 07 com embarque na Estação do Dique.
-- As texturas PBR da cidade e as artes vetoriais do menu foram feitas por código. Os PNGs desta versão têm até 512 × 512 nos materiais do mapa. `midia` aproveita os recibos existentes e envia as imagens novas para aprovação. A geometria usa materiais nativos e as digitalizações já aprovadas quando faltam IDs.
+- As texturas PBR da cidade e as artes vetoriais do menu foram feitas por código. Os PNGs desta versão têm até 512 × 512 nos materiais do mapa. `midia` aproveita os recibos existentes e envia as imagens novas para aprovação. O instalador grava as variantes aprovadas em `MaterialService` antes da publicação. A geometria usa materiais nativos e as digitalizações já aprovadas quando faltam IDs.
+- A Praça do Dique recebe um piso de chegada persistente antes da montagem das quadras. O chão do modelo original é ocultado depois da construção da cidade.
 - O instalador grava o streaming do Roblox no Place, com mínimo de 180 e alvo de 640 studs. O desempenho depende do aparelho e deve ser conferido no cliente. [Streaming de instâncias](https://create.roblox.com/docs/workspace/streaming)
 
 No Termux, rode `python -u CYBEROUTLAW_HUD.py verificar` para validar o pacote. O comando `chave` faz a leitura de teste usando entrada oculta. `instalar` segue o fluxo de backup e pede confirmação de publicação.

@@ -21,10 +21,10 @@ if not __package__:
 
 from .cloud import Cloud, DEFINITE_REJECTIONS, PLACE_ID, TARGET, UNIVERSE_ID, unique_fields
 from .codec import Failure
-from .patcher import CLIENT_HEADER, SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
+from .patcher import CITY_SCRIPT, CLIENT_HEADER, SERVER_HEADER, menu_source, patch_place, place_format, same_binary_place, source_digest
 from .chave import clean_key, fingerprint
 from .paths import guard, locked_state, read_json, read_place, remove, write_json, write_offline, write_once
-from media_tools.mare_art import ARCHIVED_ART, PBR_ART
+from media_tools.mare_art import ARCHIVED_ART, PBR_ART, material_maps, material_properties
 
 
 CONFIG_MARKER = "__CYBEROUTLAW_CONFIG__"
@@ -193,6 +193,9 @@ def _bind_mare_modules(root, code):
 def server_from_package(root, config):
     """Build each managed server script, binding the city to the approved texture IDs."""
     art = {name: config["art"][name] for name in CITY_ART if config["art"].get(name)}
+    maps = material_maps(art)
+    if maps:
+        art["mare_tints"] = {material: int(bool(ids["color"])) for material, ids in maps.items()}
     scripts = {}
     for name, filename in SERVER_SCRIPTS:
         code = (root / "src" / filename).read_text(encoding="utf-8-sig")
@@ -219,12 +222,15 @@ def server_from_package(root, config):
     return scripts
 
 
-def _server_sources(builder, source):
+def _place_content(builder, source):
     if builder is None:
-        return None
+        return {}
     parts = _split_assets(source)
     config = _asset_table(parts[1], None) if parts else None
-    return builder(config if config is not None else _normalize_config({}))
+    config = config if config is not None else _normalize_config({})
+    scripts = builder(config)
+    materials = material_properties(config["art"]) if CITY_SCRIPT in scripts else {}
+    return {"server": scripts, "materials": materials}
 
 
 class _AssetLiteral:
@@ -312,7 +318,7 @@ def _merge_assets(older, newer):
 def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force_r6=False, server=None):
     target = _split_assets(source)
     if target is None:
-        ready, changed = patch_place(raw, source, known, force_r6=force_r6, server=_server_sources(server, source))
+        ready, changed = patch_place(raw, source, known, force_r6=force_r6, **_place_content(server, source))
         return ready, changed, source
     template, literal = target
     target_config = _asset_table(literal, ASSET_TYPES)
@@ -349,7 +355,7 @@ def _prepare_update(raw, source, known=frozenset(), published_raw=None, *, force
             allowed.add(old_sha)
             recovered = _merge_assets(recovered, old_assets)
     source = template.replace(CONFIG_MARKER, _luau(_merge_assets(recovered, target_config)), 1)
-    ready, changed = patch_place(raw, source, allowed, force_r6=force_r6, server=_server_sources(server, source))
+    ready, changed = patch_place(raw, source, allowed, force_r6=force_r6, **_place_content(server, source))
     return ready, changed, source
 
 
@@ -448,9 +454,10 @@ class Installer:
         if effective != source:
             self.report("A atualização reutiliza IDs de mídia do menu já instalado.")
         source = effective
-        server = _server_sources(self.server, source)
-        if patch_place(ready, source, force_r6=self.force_r6, server=server) != (ready, False):
+        content = _place_content(self.server, source)
+        if patch_place(ready, source, force_r6=self.force_r6, **content) != (ready, False):
             raise Failure("A segunda aplicação alterou o arquivo preparado.")
+        server = content.get("server", {})
         if not changed and latest == published:
             if _current(cloud.history()) != (latest, published):
                 raise Failure("O place mudou durante a conferência. Execute instalar novamente.")
@@ -468,7 +475,7 @@ class Installer:
             "base_sha256": base["sha256"],
             "format": format_name,
             "source_sha256": source_digest(source),
-            "server_sha256": {name: source_digest(code) for name, code in sorted((server or {}).items())},
+            "server_sha256": {name: source_digest(code) for name, code in sorted(server.items())},
             "ready_sha256": ready_sha,
             "bytes": len(ready),
             "backups": [live] if published == latest else [live, base],
@@ -480,7 +487,7 @@ class Installer:
         self.report(f"Place preparado em {ready_path}")
         if self.force_r6:
             self.report("HUD de jogo com retrato e mira central. Configuração de avatar do Place em R6.")
-        for name in sorted(server or {}):
+        for name in sorted(server):
             self.report(f"Script de servidor {name} em ServerScriptService.")
         self.report(f"SHA-256 {ready_sha}")
         self.report("Pause outras gravações neste place até o fim da publicação.")
@@ -616,7 +623,7 @@ def main(argv=None, root=None):
         if args.command == "preparar-offline":
             raw = read_place(args.original.expanduser())
             ready, _, source = _prepare_update(raw, source, force_r6=True, server=server)
-            if patch_place(ready, source, force_r6=True, server=_server_sources(server, source)) != (ready, False):
+            if patch_place(ready, source, force_r6=True, **_place_content(server, source)) != (ready, False):
                 raise Failure("A segunda aplicação alterou o arquivo preparado.")
             write_offline(args.destino.expanduser(), ready)
             print(f"Place preparado em {args.destino}. SHA-256 {digest(ready)}")

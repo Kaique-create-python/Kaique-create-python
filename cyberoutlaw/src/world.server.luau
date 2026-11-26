@@ -78,7 +78,21 @@ local function layoutData()
 	}
 end
 
-local function spawnAt(entry: Instance): SpawnLocation
+local function spawnAt(root: Instance): SpawnLocation
+	local entry = Instance.new("Model")
+	entry.Name = "Ponto de entrada"
+	entry.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+	-- O piso de chegada existe desde o início, inclusive se o envio das quadras para o cliente atrasar.
+	local floor = Instance.new("Part")
+	floor.Name = "Piso de chegada"
+	floor.Size = Vector3.new(172, 1, 170)
+	floor.CFrame = CFrame.new(plazaX, Layout.walkY - 0.58, plazaZ)
+	floor.Anchored = true
+	floor.CanCollide = true
+	floor.CanTouch = false
+	floor.Transparency = 1
+	floor.CastShadow = false
+	floor.Parent = entry
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "Chegada na Praça do Dique"
 	spawn.Size = Vector3.new(8, 0.2, 8)
@@ -93,11 +107,16 @@ local function spawnAt(entry: Instance): SpawnLocation
 	spawn.Duration = 3
 	spawn.Transparency = 1
 	spawn.Parent = entry
+	entry.Parent = root
 	return spawn
 end
 
 local function buildCity(root: Instance, art, options)
 	options = options or {}
+	local spawn = options.spawn or spawnAt(root)
+	if options.onSpawn then
+		options.onSpawn(spawn)
+	end
 	local ctx = Mare.Context.new(options.materialService, if type(art) == "table" then art else ART, options)
 	local city = ctx.group(root, "Maré Baixa")
 	city.WorldPivot = CFrame.new()
@@ -150,12 +169,8 @@ local function buildCity(root: Instance, art, options)
 		end
 	end
 
-	-- A praça e seu chão ficam completos antes de publicar o SpawnLocation ou ceder o primeiro lote.
+	-- Os pavers visíveis são as primeiras peças do cenário detalhado.
 	blockAt(5, 4)
-	local spawn = spawnAt(ctx.group(city, "Ponto de entrada"))
-	if options.onSpawn then
-		options.onSpawn(spawn)
-	end
 	local mirrors = Mare.Streets.build(ctx, city, Layout)
 	local liftPads = Mare.Transit.build(ctx, city, Layout)
 	for row, cells in Layout.blocks do
@@ -344,14 +359,7 @@ local function wireLifts(pads)
 	end
 end
 
-local function main()
-	local players = game:GetService("Players")
-	local replication = game:GetService("ReplicatedStorage")
-	local http = game:GetService("HttpService")
-	if workspace:FindFirstChild("CyberOutlawCity") then
-		return
-	end
-	applyLighting(game:GetService("Lighting"), ART)
+local function concealTemplate()
 	local function conceal(part: BasePart)
 		part.Transparency = 1
 		part.CanCollide = false
@@ -373,20 +381,33 @@ local function main()
 			conceal(item)
 		end
 	end
+end
 
+local function main()
+	local players = game:GetService("Players")
+	local replication = game:GetService("ReplicatedStorage")
+	local http = game:GetService("HttpService")
+	if workspace:FindFirstChild("CyberOutlawCity") then
+		return
+	end
 	local root = Instance.new("Model")
 	root.Name = "CyberOutlawCity"
 	root:SetAttribute("SafeZoneCenter", Vector3.new(plazaX, 0, plazaZ))
 	root:SetAttribute("SafeZoneRadius", SAFE_RADIUS)
+	local spawn = spawnAt(root)
 	root.Parent = workspace
+	assignSpawn(players, spawn)
+	local lightingReady, lightingError = pcall(applyLighting, game:GetService("Lighting"), ART)
+	if not lightingReady then
+		warn("[CyberOutlaw] Configuração da iluminação da cidade:", lightingError)
+	end
 	local started = os.clock()
 	local _, info = buildCity(root, ART, {
 		materialService = game:GetService("MaterialService"),
-		onSpawn = function(spawn)
-			assignSpawn(players, spawn)
-		end,
+		spawn = spawn,
 		yield = task.wait,
 	})
+	concealTemplate()
 	wireLifts(info.liftPads)
 	publishPoints(replication, http, info.points)
 	local board = replication:FindFirstChild("CyberOutlawCityInfo") or Instance.new("Configuration")

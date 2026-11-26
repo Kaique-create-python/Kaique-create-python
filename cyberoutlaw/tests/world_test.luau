@@ -7,7 +7,10 @@ local serde = require("@lune/serde")
 local worldSource = require("./support/world_source")
 
 local env = {
-	Instance = rbx.Instance, CFrame = rbx.CFrame, Vector2 = rbx.Vector2, Vector3 = rbx.Vector3,
+	Instance = {new = function(class)
+		assert(class ~= "MaterialVariant", "o script publicado não tem permissão de plugin para configurar um MaterialVariant")
+		return rbx.Instance.new(class)
+	end}, CFrame = rbx.CFrame, Vector2 = rbx.Vector2, Vector3 = rbx.Vector3,
 	Color3 = rbx.Color3, Enum = rbx.Enum, UDim2 = rbx.UDim2, Font = rbx.Font,
 }
 local vec = rbx.Vector3.new
@@ -15,7 +18,8 @@ local vec = rbx.Vector3.new
 local function artLiteral(art)
 	local fields = {}
 	for key, id in art do
-		table.insert(fields, string.format("[%q]=%s", key, tostring(id)))
+		local value = if type(id) == "table" then artLiteral(id) else tostring(id)
+		table.insert(fields, string.format("[%q]=%s", key, value))
 	end
 	table.sort(fields)
 	return "{" .. table.concat(fields, ",") .. "}"
@@ -122,6 +126,24 @@ local function check(art)
 	local place = rbx.Instance.new("DataModel")
 	local workspace = place:GetService("Workspace")
 	local materials = place:GetService("MaterialService")
+	if art.mare_tints then
+		-- Representa o que o instalador já gravou no Place, antes de qualquer Script rodar.
+		for _, data in {
+			{"asphalt", rbx.Enum.Material.Asphalt, 16, {ColorMap = 2001, NormalMap = 2002, RoughnessMap = 2003}},
+			{"cement", rbx.Enum.Material.Concrete, 12, {ColorMap = 1004, NormalMap = 1005}},
+			{"glass", rbx.Enum.Material.Glass, 16, {MetalnessMap = 2004}},
+		} do
+			local key, base, studs, maps = table.unpack(data)
+			local variant = rbx.Instance.new("MaterialVariant")
+			variant.Name = "CyberOutlawMareBaixa_" .. key
+			variant.BaseMaterial = base
+			variant.StudsPerTile = studs
+			for property, id in maps do
+				variant[property] = "rbxassetid://" .. id
+			end
+			variant.Parent = materials
+		end
+	end
 	verifyLighting(applyLighting, place:GetService("Lighting"), art)
 	local root = rbx.Instance.new("Model")
 	root.Name = "CyberOutlawCity"
@@ -133,6 +155,8 @@ local function check(art)
 		onSpawn = function(entry)
 			assert(batches == 0, "o spawn deve ser publicado antes da primeira pausa")
 			spawn = entry
+			assert(spawn.Parent.ModelStreamingMode == rbx.Enum.ModelStreamingMode.Persistent)
+			assert(spawn.Parent:FindFirstChild("Piso de chegada").CanCollide)
 			local early = {}
 			for _, part in root:GetDescendants() do
 				if part:IsA("BasePart") and part.CanCollide then
@@ -274,17 +298,17 @@ local function check(art)
 		assert(variants == 0 and #materials:GetChildren() == 0, "sem mídia aprovada o cenário usa materiais nativos")
 	else
 		assert(variants > 3000, "variantes devem ser aplicadas às peças nativas")
-		local asphalt = materials:FindFirstChild("MareBaixa_asphalt")
+		local asphalt = materials:FindFirstChild("CyberOutlawMareBaixa_asphalt")
 		assert(asphalt.ColorMap == "rbxassetid://2001" and asphalt.NormalMap == "rbxassetid://2002")
 		assert(asphalt.RoughnessMap == "rbxassetid://2003" and asphalt.BaseMaterial == rbx.Enum.Material.Asphalt)
-		local cement = materials:FindFirstChild("MareBaixa_cement")
+		local cement = materials:FindFirstChild("CyberOutlawMareBaixa_cement")
 		assert(cement.ColorMap == "rbxassetid://1004" and cement.NormalMap == "rbxassetid://1005")
-		local glass = materials:FindFirstChild("MareBaixa_glass")
+		local glass = materials:FindFirstChild("CyberOutlawMareBaixa_glass")
 		local hasColor, colorMap = pcall(function()
 			return glass.ColorMap
 		end)
 		assert(glass.MetalnessMap == "rbxassetid://2004" and (not hasColor or colorMap == ""))
-		assert(not materials:FindFirstChild("MareBaixa_roof"), "não deve usar IDs inválidos")
+		assert(#materials:GetChildren() == 3, "variantes faltantes ficam com o material base")
 	end
 	print(string.format("Maré Baixa · %d peças (%d sólidas), %d luzes, %d letreiros, %d bancas, %d pausas, %.2fs",
 		#parts, #solids, lamps, signs, #vendors, batches, os.clock() - start))
@@ -296,7 +320,7 @@ check({
 	asphalt = 1001, asphalt_normal = 1002, asphalt_rough = 1003,
 	concrete = 1004, concrete_normal = 1005, tijolo = 1006, tijolo_normal = 1007,
 	mare_asphalt_color = 2001, mare_asphalt_normal = 2002, mare_asphalt_roughness = 2003,
-	mare_glass_metalness = 2004, mare_roof_color = -1,
+		mare_glass_metalness = 2004, mare_tints = {asphalt = 1, cement = 1, glass = 0, roof = 1},
 	ceu_bk = 3001, ceu_dn = 3002, ceu_ft = 3003, ceu_lf = 3004, ceu_rt = 3005, ceu_up = 3006,
 })
 

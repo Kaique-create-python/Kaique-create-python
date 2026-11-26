@@ -7,7 +7,7 @@ import re
 from xml.parsers import expat
 from xml.sax.saxutils import escape
 
-from .codec import Binary, Chunk, Failure, MAX_FILE, pack32, prefs, pstring, puints, refs, uints
+from .codec import Binary, Chunk, Failure, MAX_FILE, pack32, prefs, pstring, puints, refs, string, u32, uints
 
 
 BINARY_MAGIC = b"<roblox!\x89\xff\r\n\x1a\n"
@@ -20,9 +20,11 @@ CITY_SCRIPT = "CyberOutlawCity"
 SERVER_HEADER = "-- CyberOutlaw · script de servidor gerenciado: "
 CLIENT_HEADER = "-- CyberOutlaw · script de cliente gerenciado: "
 SERVER_NAME = re.compile(r"CyberOutlaw[A-Za-z0-9]{1,48}")
-CONTAINER_CLASSES = ("StarterPlayer", "StarterPlayerScripts", SERVER_SERVICE, "AvatarSettings", "AvatarRules")
+MATERIAL_SERVICE = "MaterialService"
+MATERIAL_VARIANT = "MaterialVariant"
+CONTAINER_CLASSES = ("StarterPlayer", "StarterPlayerScripts", SERVER_SERVICE, "AvatarSettings", "AvatarRules", MATERIAL_SERVICE)
 SCRIPT_CLASSES = ("LocalScript", "Script")
-SERVICE_CLASSES = ("StarterPlayer", SERVER_SERVICE)
+SERVICE_CLASSES = ("StarterPlayer", SERVER_SERVICE, MATERIAL_SERVICE)
 R6 = 0  # Enum.GameAvatarType.R6
 # Iluminação "Realistic" com prioridade de qualidade: o equivalente do antigo Future no sistema unificado
 # (Technology.Unified = 5, LightingStyle.Realistic = 0). Scripts não podem mudar isso; o arquivo do place pode.
@@ -34,6 +36,7 @@ NATIVE_PROPERTIES = {
     "AvatarBodyRules": ("AvatarType",),
     "Lighting": tuple(name for name, _, _ in LIGHTING),
     "Workspace": tuple(name for name, _, _ in CITY_STREAMING),
+    MATERIAL_VARIANT: ("BaseMaterial", "StudsPerTile", "ColorMapContent", "NormalMapContent", "RoughnessMapContent", "MetalnessMapContent"),
 }
 
 
@@ -261,6 +264,13 @@ class _Xml:
         text = escape(source).replace("\r", "&#13;")
         return self.bytes(f'<{tag} name="Source">{text}</{tag}>')
 
+    def new_reference(self, name):
+        reference = "RBX_CYBEROUTLAW_" + name
+        while reference in self.refs:
+            reference += "_"
+        self.refs.add(reference)
+        return reference
+
     def child_edit(self, parent, markup):
         if self.raw.startswith(self.close_start(parent), parent.end):
             return parent.end, parent.end, markup
@@ -288,10 +298,7 @@ class _Xml:
         if depth < len(path):
             markup = b""
             for name, class_name in reversed(list(zip(path[depth:], classes[depth:]))):
-                reference = "RBX_CYBEROUTLAW_" + name
-                while reference in self.refs:
-                    reference += "_"
-                self.refs.add(reference)
+                reference = self.new_reference(name)
                 opening = self.bytes(f'<Item class="{class_name}" referent="{reference}"><Properties>')
                 name_prop = self.bytes(f'<string name="Name">{name}</string>')
                 source_prop = self.source_markup("ProtectedString", source) if name == path[-1] else b""
@@ -306,37 +313,80 @@ class _Xml:
             raise Failure(f"O {path[-1]} existente não tem a propriedade Source.")
         return self.raw[:prop.start] + self.source_markup(prop.tag, source) + self.raw[self.prop_end(prop):], True
 
-    def enforce_service_properties(self, services):
-        edits = []
-        for class_name, properties in services.items():
-            node = _single((child for child in self.root.children if child.class_name == class_name), class_name)
-            if node is None:
+    def native_markup(self, name, kind, value):
+        if kind == "Content":
+            text = f"<uri>{escape(value)}</uri>" if value else "<null />"
+        else:
+            text = str(value).lower()
+        return self.bytes(f'<{kind} name="{name}">{text}</{kind}>')
+
+    def native_edits(self, node, properties):
+        if node.props_count > 1:
+            raise Failure(f"O place tem propriedades duplicadas em {node.class_name}.")
+        edits, additions = [], []
+        for name, kind, value in properties:
+            markup = self.native_markup(name, kind, value)
+            prop = _single(node.native_props.get(name, ()), name)
+            if prop is None:
+                additions.append(markup)
                 continue
-            if node.props_count > 1:
-                raise Failure(f"O place tem propriedades duplicadas em {class_name}.")
-            additions = []
-            for name, kind, value in properties:
-                text = str(value).lower()
-                markup = self.bytes(f'<{kind} name="{name}">{text}</{kind}>')
-                prop = _single(node.native_props.get(name, ()), name)
-                if prop is None:
-                    additions.append(markup)
-                elif prop.value({kind}).strip().lower() != text:
-                    edits.append((prop.start, self.prop_end(prop), markup))
-            if additions:
-                joined = b"".join(additions)
-                if node.props_count:
-                    edits.append(self.child_edit(_Item("Properties", 0, end=node.props_end), joined))
+            end = self.prop_end(prop)
+            if kind == "Content":
+                if prop.tag != kind:
+                    raise Failure(f"A propriedade {node.class_name}.{name} tem um tipo inesperado.")
+                matches = self.raw[prop.start:end] == markup
+            else:
+                matches = prop.value({kind}).strip().lower() == str(value).lower()
+            if not matches:
+                edits.append((prop.start, end, markup))
+        if additions:
+            joined = b"".join(additions)
+            if node.props_count:
+                edits.append(self.child_edit(_Item("Properties", 0, end=node.props_end), joined))
+            else:
+                markup = self.bytes("<Properties>") + joined + self.bytes("</Properties>")
+                if node.first_child_start:
+                    edits.append((node.first_child_start, node.first_child_start, markup))
                 else:
-                    markup = self.bytes("<Properties>") + joined + self.bytes("</Properties>")
-                    if node.first_child_start:
-                        edits.append((node.first_child_start, node.first_child_start, markup))
-                    else:
-                        edits.append(self.child_edit(node, markup))
+                    edits.append(self.child_edit(node, markup))
+        return edits
+
+    def edited(self, edits):
         raw = self.raw
         for start, end, replacement in sorted(edits, reverse=True):
             raw = raw[:start] + replacement + raw[end:]
         return raw
+
+    def enforce_service_properties(self, services):
+        edits = []
+        for class_name, properties in services.items():
+            node = _single((child for child in self.root.children if child.class_name == class_name), class_name)
+            if node is not None:
+                edits.extend(self.native_edits(node, properties))
+        return self.edited(edits)
+
+    def enforce_materials(self, materials):
+        service = _single((node for node in self.root.children if node.class_name == MATERIAL_SERVICE), MATERIAL_SERVICE)
+        edits, additions = [], []
+        for name, properties in materials.items():
+            node = _single((child for child in service.children if child.names and child.names[0].value({"string"}) == name), name) if service else None
+            if node is not None:
+                if node.class_name != MATERIAL_VARIANT or len(node.names) != 1:
+                    raise Failure(f"O nome reservado {name} já está em uso no MaterialService.")
+                edits.extend(self.native_edits(node, properties))
+                continue
+            reference = self.new_reference(name)
+            opening = self.bytes(f'<Item class="{MATERIAL_VARIANT}" referent="{reference}"><Properties><string name="Name">{escape(name)}</string>')
+            props = b"".join(self.native_markup(*prop) for prop in properties)
+            additions.append(opening + props + self.bytes("</Properties></Item>"))
+        if additions:
+            markup = b"".join(additions)
+            if service is None:
+                reference = self.new_reference(MATERIAL_SERVICE)
+                opening = self.bytes(f'<Item class="{MATERIAL_SERVICE}" referent="{reference}"><Properties><string name="Name">{MATERIAL_SERVICE}</string></Properties>')
+                markup = opening + markup + self.bytes("</Item>")
+            edits.append(self.child_edit(service or self.root, markup))
+        return self.edited(edits)
 
     def enforce_r6(self):
         starter = _single((node for node in self.root.children if node.class_name == "StarterPlayer"), "StarterPlayer")
@@ -405,25 +455,74 @@ def _binary_location(doc, path=MENU_PATH, classes=MENU_CLASSES):
     return parent, len(path)
 
 
-def _add_binary(doc, parent, depth, source, force_r6=False, path=MENU_PATH, classes=MENU_CLASSES):
-    next_ref = max(doc.objects, default=-1) + 1
+BINARY_NATIVE_TYPES = {"string": 0x01, "bool": 0x02, "int": 0x03, "float": 0x04, "token": 0x12, "Content": 0x22}
+
+
+def _binary_native_value(kind, value):
+    if kind == "string":
+        return value.encode("utf-8")
+    if kind == "int":
+        return (value << 1) ^ (value >> 31)
+    if kind == "float":
+        bits = u32(struct.pack("<f", value))
+        return ((bits << 1) | (bits >> 31)) & 0xFFFFFFFF
+    if kind == "Content":
+        # Content types carry ZigZag-encoded discriminants: 0 = empty, 2 = URI, 4 = object.
+        return (2, value.encode("utf-8")) if value else (0, None)
+    return value
+
+
+def _binary_native_payload(kind, values, external=b"\x00" * 4):
+    if kind == "string":
+        return b"".join(pstring(value) for value in values)
+    if kind == "bool":
+        return bytes(values)
+    if kind == "Content":
+        uris = [value for code, value in values if code == 2]
+        objects = [value for code, value in values if code == 4]
+        return (puints([code for code, _ in values]) + pack32(len(uris)) + b"".join(pstring(uri) for uri in uris)
+                + pack32(len(objects)) + prefs(objects) + external)
+    return puints(values)
+
+
+def _binary_contents(data, count):
+    end = count * 4
+    types = uints(data[:end], count)
+    uri_count = u32(data, end)
+    end += 4
+    uris = []
+    if uri_count != types.count(2):
+        raise ValueError("Quantidade inválida de URIs no conteúdo do material.")
+    for _ in range(uri_count):
+        uri, end = string(data, end)
+        uris.append(uri)
+    object_count = u32(data, end)
+    start = end + 4
+    end = start + 4 * object_count
+    if object_count != types.count(4) or set(types) - {0, 2, 4}:
+        raise ValueError("Formato de conteúdo desconhecido no material.")
+    objects = refs(data[start:end], object_count)
+    external = data[end:]
+    if len(external) != 4 + 4 * u32(external):
+        raise ValueError("Conteúdo externo truncado no material.")
+    pointers = {2: iter(uris), 4: iter(objects)}
+    return [(code, next(pointers[code]) if code else None) for code in types], external
+
+
+def _append_binary_instances(doc, entries):
     next_group = max(doc.groups, default=-1) + 1
     parents = list(doc.parents.items())
     instances, props = [], []
-    for offset, (name, class_name) in enumerate(zip(path[depth:], classes[depth:])):
-        ref = next_ref + offset
+    for offset, (ref, parent, name, class_name, properties) in enumerate(entries):
         group = pack32(next_group + offset)
         service = class_name in SERVICE_CLASSES
         service_byte = b"\1" if service else b"\0"
         instance = group + pstring(class_name.encode()) + service_byte + pack32(1) + prefs([ref])
         instances.append(Chunk(b"INST", instance + (b"\1" if service else b"")))
-        props.append(Chunk(b"PROP", group + pstring(b"Name") + b"\1" + pstring(name.encode())))
-        if class_name == "StarterPlayer" and force_r6:
-            props.append(Chunk(b"PROP", group + pstring(b"GameSettingsAvatar") + b"\x12" + puints([R6])))
-        if offset == len(path) - depth - 1:
-            props.append(Chunk(b"PROP", group + pstring(b"Source") + b"\1" + pstring(source.encode())))
+        for prop, kind, value in (("Name", "string", name), *properties):
+            payload = _binary_native_payload(kind, [_binary_native_value(kind, value)])
+            props.append(Chunk(b"PROP", group + pstring(prop.encode()) + bytes([BINARY_NATIVE_TYPES[kind]]) + payload))
         parents.append((ref, parent))
-        parent = ref
 
     if doc.parent_chunk is None:
         raise Failure("O arquivo binário do place não contém a árvore de instâncias.")
@@ -440,6 +539,21 @@ def _add_binary(doc, parent, depth, source, force_r6=False, path=MENU_PATH, clas
     header = bytearray(doc.header)
     struct.pack_into("<II", header, 16, len(doc.groups) + len(instances), len(parents))
     doc.header = bytes(header)
+
+
+def _add_binary(doc, parent, depth, source, force_r6=False, path=MENU_PATH, classes=MENU_CLASSES):
+    next_ref = max(doc.objects, default=-1) + 1
+    entries = []
+    for offset, (name, class_name) in enumerate(zip(path[depth:], classes[depth:])):
+        ref = next_ref + offset
+        properties = []
+        if class_name == "StarterPlayer" and force_r6:
+            properties.append(("GameSettingsAvatar", "token", R6))
+        if offset == len(path) - depth - 1:
+            properties.append(("Source", "string", source))
+        entries.append((ref, parent, name, class_name, properties))
+        parent = ref
+    _append_binary_instances(doc, entries)
 
 
 def _binary_r6(doc):
@@ -509,23 +623,25 @@ def _binary_service_properties(doc, class_name, properties):
         (ref for ref, obj in doc.objects.items() if obj["class"] == class_name and doc.parents[ref] == -1),
         class_name,
     )
-    if service is None:
-        return False
-    obj = doc.objects[service]
+    return service is not None and _binary_native_properties(doc, service, properties)
+
+
+def _binary_native_properties(doc, ref, properties):
+    obj = doc.objects[ref]
+    class_name = obj["class"]
     gid, index = obj["group"], obj["index"]
     count = len(doc.groups[gid]["refs"])
-    codes = {"bool": 0x02, "int": 0x03, "token": 0x12}
     changed = False
-    for name, kind, value in properties:
-        code = codes[kind]
-        if kind == "int":
-            # Int32 usa ZigZag antes da intercalação. Os enums usam o valor sem sinal.
-            value = (value << 1) ^ (value >> 31)
+    for name, kind, raw_value in properties:
+        code = BINARY_NATIVE_TYPES[kind]
+        value = _binary_native_value(kind, raw_value)
         prop = doc.props.get((gid, name))
         if prop is None:
-            if count != 1:
+            if count != 1 and kind != "Content":
                 raise Failure(f"Não foi possível separar {name} das outras instâncias de {class_name}.")
-            payload = bytes([value]) if kind == "bool" else puints([value])
+            values = [(0, None)] * count if kind == "Content" else [value]
+            values[index] = value
+            payload = _binary_native_payload(kind, values)
             data = pack32(gid) + pstring(name.encode()) + bytes([code]) + payload
             chunk = Chunk(b"PROP", data)
             doc.chunks.insert(doc.chunks.index(doc.parent_chunk), chunk)
@@ -535,24 +651,47 @@ def _binary_service_properties(doc, class_name, properties):
         chunk, found, start = prop
         if found != code:
             raise Failure(f"A propriedade {class_name}.{name} tem um tipo inesperado.")
+        external = b"\x00" * 4
         if kind == "bool":
             if len(chunk.data) != start + count:
                 raise Failure(f"A propriedade {class_name}.{name} tem um tamanho inesperado.")
-            if bool(chunk.data[start + index]) == value:
-                continue
-            values = bytearray(chunk.data[start:])
-            values[index] = value
-            payload = bytes(values)
+            values = list(chunk.data[start:])
+        elif kind == "Content":
+            values, external = _binary_contents(chunk.data[start:], count)
         else:
             values = uints(chunk.data[start:], count)
-            if values[index] == value:
-                continue
-            values[index] = value
-            payload = puints(values)
+        if values[index] == value:
+            continue
+        values[index] = value
+        payload = _binary_native_payload(kind, values, external)
         chunk.data = chunk.data[:start] + payload
         chunk.packet = None
         changed = True
     return changed
+
+
+def _binary_materials(doc, materials):
+    service = _single((ref for ref, obj in doc.objects.items()
+                       if obj["class"] == MATERIAL_SERVICE and doc.parents[ref] == -1), MATERIAL_SERVICE)
+    next_ref = max(doc.objects, default=-1) + 1
+    entries = []
+    if service is None:
+        service = next_ref
+        entries.append((service, -1, MATERIAL_SERVICE, MATERIAL_SERVICE, ()))
+        next_ref += 1
+    changed = False
+    for name, properties in materials.items():
+        ref = _single(doc.children.get((service, name), ()), name)
+        if ref is None:
+            entries.append((next_ref, service, name, MATERIAL_VARIANT, properties))
+            next_ref += 1
+            continue
+        if doc.objects[ref]["class"] != MATERIAL_VARIANT:
+            raise Failure(f"O nome reservado {name} já está em uso no MaterialService.")
+        changed = _binary_native_properties(doc, ref, properties) or changed
+    if entries:
+        _append_binary_instances(doc, entries)
+    return changed or bool(entries)
 
 
 def _document(raw):
@@ -633,7 +772,7 @@ def _patch_script(raw, path, classes, source, accept, force_r6=False):
     return doc.encode(), True
 
 
-def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
+def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None, materials=None):
     """Install the menu and managed scripts, then apply the requested native settings."""
     try:
         if not source:
@@ -668,6 +807,15 @@ def patch_place(raw, source, known=frozenset(), *, force_r6=False, server=None):
                 if stream_city:
                     services["Workspace"] = CITY_STREAMING
                 enforced = doc.enforce_service_properties(services)
+                if enforced != result:
+                    result, changed = enforced, True
+        if materials:
+            doc = _read_document(result)
+            if isinstance(doc, Binary):
+                if _binary_materials(doc, materials):
+                    result, changed = doc.encode(), True
+            else:
+                enforced = doc.enforce_materials(materials)
                 if enforced != result:
                     result, changed = enforced, True
         if not changed:

@@ -362,8 +362,9 @@ class PatcherTests(unittest.TestCase):
             self.assertTrue(code.startswith(f"{SERVER_HEADER}{name}\n"))
             self.assertNotIn("__CYBEROUTLAW_ART__", code)
         city = scripts["CyberOutlawCity"]
-        self.assertIn('local ART = {["asphalt"] = 11, ["asphalt_normal"] = 12, ["concrete"] = 13}', city)
-        self.assertNotIn("15", city.split("local ART = ", 1)[1].split("\n", 1)[0])
+        line = city.split("local ART = ", 1)[1].split("\n", 1)[0]
+        self.assertIn('["mare_tints"] = {["asphalt"] = 1, ["cement"] = 1}', line)
+        self.assertNotIn("15", line)
         config["art"].update({"fachada_vidro": 21, "vitrines": 22, "poca_1": 23, "ceu_up": 24, "tijolo": 25,
                               "mare_glass_color": 26, "mare_glass_normal": 27})
         city = server_from_package(Path(__file__).resolve().parents[1], config)["CyberOutlawCity"]
@@ -375,6 +376,35 @@ class PatcherTests(unittest.TestCase):
         self.assertNotIn('["vitrines"]', line)
         self.assertNotIn('["facades"]', line)
         self.assertNotIn('["billboard"]', line)
+
+    def test_update_saves_approved_pbr_variants_in_the_place(self):
+        root = Path(__file__).resolve().parents[1]
+
+        def server(config):
+            return server_from_package(root, config)
+
+        art = {"asphalt": 21, "mare_asphalt_color": 31, "mare_asphalt_normal": 32, "concrete": 41}
+        target = bound(V2_TEMPLATE, {**V2_CONFIG, "art": {}})
+        old = bound(V2_TEMPLATE, {**V2_CONFIG, "art": art})
+        for filetype, raw in (("rbxlx", xml_place()), ("rbxl", make_binary())):
+            with self.subTest(place_format=filetype):
+                previous, _ = patch_place(raw, old)
+                ready, changed, source = _prepare_update(previous, target, force_r6=True, server=server)
+                self.assertTrue(changed)
+                self.assertEqual(source, old)
+                if raw.startswith(BINARY_MAGIC):
+                    native = Binary(ready)
+                    material = native.locate(("MaterialService", "CyberOutlawMareBaixa_asphalt"))
+                    group = native.objects[material]["group"]
+                    chunk, kind, start = native.props[group, "ColorMapContent"]
+                    self.assertEqual(kind, 0x22)
+                    self.assertIn(b"rbxassetid://31", chunk.data[start:])
+                    self.assertNotIn(b"rbxassetid://21", chunk.data[start:])
+                    self.assertTrue(native.locate(("MaterialService", "CyberOutlawMareBaixa_cement")) >= 0)
+                else:
+                    self.assertIn(b'<Content name="ColorMapContent"><uri>rbxassetid://31</uri></Content>', ready)
+                    self.assertIn(b'<Content name="ColorMapContent"><uri>rbxassetid://41</uri></Content>', ready)
+                self.assertEqual(_prepare_update(ready, target, force_r6=True, server=server), (ready, False, source))
 
     @patch("install.cyber_installer.V121_TEMPLATE_SHA256", source_digest(V1_TEMPLATE))
     def test_v121_upgrade_does_not_recover_archived_generated_art(self):
