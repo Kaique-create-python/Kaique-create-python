@@ -2857,7 +2857,7 @@ M.nightSky = nightSky
 -- A opção Automático não expõe o nível efetivo a LocalScripts. A cidade usa o tempo de quadro
 -- sustentado para variar o seu próprio orçamento e deixa a qualidade do Roblox com o jogador.
 local CITY_VISUAL_BUDGETS = {
-	{ puddles = 1, distance = 80, sourceRange = 82, parts = 42, lights = 12, lightRange = 100, bodies = 1, bodyRate = 14, builds = 6 },
+	{ puddles = 1, distance = 80, sourceRange = 106, parts = 42, lights = 12, lightRange = 100, bodies = 1, bodyRate = 14, builds = 6 },
 	{ puddles = 2, distance = 105, sourceRange = 112, parts = 46, lights = 22, lightRange = 145, bodies = 2, bodyRate = 20, builds = 8 },
 	{ puddles = 3, distance = 132, sourceRange = 128, parts = 52, lights = 34, lightRange = 180, bodies = 3, bodyRate = 24, builds = 10 },
 }
