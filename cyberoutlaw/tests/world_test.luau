@@ -107,7 +107,8 @@ local function verifyLighting(applyLighting, lighting, art)
 	local bloom = lighting:FindFirstChild("CyberOutlawCityBloom")
 	local grade = lighting:FindFirstChild("CyberOutlawCityGrade")
 	assert(bloom and grade, "o ciclo visual do cliente precisa dos pós-efeitos nomeados")
-	assert(lighting.ClockTime > 1 and lighting.ClockTime < 2 and lighting.Brightness > 2)
+	assert(lighting.ClockTime > 1 and lighting.ClockTime < 2 and math.abs(lighting.Brightness - 1.9) < 0.001)
+	assert(lighting.ExposureCompensation < 0 and grade.Contrast >= 0.19 and bloom.Intensity >= 0.48)
 	assert(lighting:FindFirstChildOfClass("Atmosphere").Density < 0.4)
 	local sky = lighting:FindFirstChildOfClass("Sky")
 	if art.ceu_up then
@@ -176,6 +177,8 @@ local function check(art)
 	assert(batches > 50 and batches < 85, "montagem deve dividir as quadras em lotes")
 	local parts, solids, lamps, signs, variants = {}, {}, 0, 0, 0
 	local top, puddles, atms, vending, vendors = -math.huge, 0, 0, 0, {}
+	local mirrorFloors = {}
+	local sources, glints = 0, 0
 	for _, node in city:GetDescendants() do
 		if node:IsA("BasePart") and not node:IsA("SpawnLocation") then
 			assert(node.Anchored and (node.CanCollide or not node.CanQuery), node:GetFullName())
@@ -193,6 +196,11 @@ local function check(art)
 				variants += 1
 				assert(materials:FindFirstChild(node.MaterialVariant).BaseMaterial == node.Material)
 			end
+			if node:HasTag("CyberOutlawReflexoFonte") then sources += 1 end
+			if node:GetAttribute("MareBrilhoPiso") then
+				assert(not node.CanCollide and not node:HasTag("CyberOutlawReflexoFonte"))
+				glints += 1
+			end
 			if node.Name == "Carrinho de comida" then
 				table.insert(vendors, (node.CFrame * rbx.CFrame.new(4.4, 0, 0)).Position)
 			elseif node.Name == "Máquina de venda" then
@@ -202,10 +210,15 @@ local function check(art)
 				assert(node:FindFirstChild("Tela", true):FindFirstChildOfClass("TextLabel"))
 			elseif node.Name == "Poça" then
 				puddles += 1
-				assert(math.abs(node:GetAttribute("CyberOutlawPlano") + 0.266) < 0.001 and node.Transparency > 0.5)
+				local plane = node:GetAttribute("CyberOutlawPlano")
+				assert(math.abs(plane + 0.266) < 0.001 and node.Transparency > 0.5)
+				assert(node:HasTag("CyberOutlawPoca"))
+				local at = node.CFrame.Position
+				table.insert(mirrorFloors, vec(at.X, plane, at.Z))
 			end
 		elseif node:IsA("Light") then
 			assert(not node.Shadows)
+			assert(node:HasTag("CyberOutlawLuzCidade") and node:GetAttribute("CyberOutlawBrilhoBase") > 0)
 			lamps += 1
 		elseif node:IsA("SurfaceGui") then
 			signs += 1
@@ -213,14 +226,16 @@ local function check(art)
 	end
 	assert(#parts == info.stats.parts and #solids == info.stats.colliders and lamps == info.stats.lights and signs == info.stats.signs)
 	assert(#parts < 49000 and #solids < 21000 and lamps < 1000, "orçamento de cena excedido")
-	assert(top >= 570 and atms == 5 and vending >= 3 and #vendors >= 10 and puddles >= 3)
+	assert(top >= 570 and atms == 5 and vending >= 3 and #vendors >= 10)
+	assert(puddles >= 20 and puddles <= 28 and sources >= 200 and sources <= 2200 and glints >= 400)
 	assert(city:FindFirstChild("Galpão da Doca do Sal", true) and city:FindFirstChild("Subestação da Maré", true))
 	local plots = city:FindFirstChild("Quadras")
-	local ids, types = {}, {}
+	local ids, types, themes = {}, {}, {}
 	for _, plot in plots:GetChildren() do
 		local id, kind = plot:GetAttribute("Quadra"), plot:GetAttribute("Tipo")
 		assert(not ids[id] and plot:FindFirstChild("Base transitável da quadra"))
 		ids[id], types[kind] = plot, true
+		themes[plot:GetAttribute("DistritoVisual")] = true
 	end
 	local uniqueTypes = 0
 	for _ in types do
@@ -230,13 +245,23 @@ local function check(art)
 	assert(ids.B7:GetAttribute("Tipo") == "docks" and ids.D4:GetAttribute("Tipo") == "sodio")
 	assert(ids.G3:FindFirstChild("Torre Vértice", true) and ids.E4:FindFirstChild("Praça do Dique"))
 	assert(ids.D4:FindFirstChild("Mercado do Sódio", true), "o mercado precisa manter sua quadra")
+	assert(ids.D4:FindFirstChild("Piso do mezanino", true).CanCollide)
+	local placard = ids.D4:FindFirstChild("Letreiro esmaltado", true)
+	assert(placard.CFrame.Position.Z < -196 and placard:FindFirstChildOfClass("SurfaceGui"))
+	assert(ids.D4:GetAttribute("DistritoVisual") == "sodio" and ids.G3:GetAttribute("DistritoVisual") == "vertice")
+	for _, theme in {"prisma", "sodio", "vertice", "colmeia", "docas", "altos", "costa", "cercado", "limite"} do
+		assert(themes[theme], theme)
+	end
 
 	for _, point in info.points do
 		supported(solids, point.key, point.position, 1.3)
 	end
-	assert(#info.points == 12, "destinos do dono incompletos")
+	assert(#info.points == 16, "destinos do dono incompletos")
 	for _, position in vendors do
 		supported(solids, "camelô", vec(position.X, 0.25, position.Z), 0.8)
+	end
+	for _, position in mirrorFloors do
+		supported(solids, "pista sob a poça", position, 0.6)
 	end
 	supported(solids, "chegada", spawn.CFrame.Position, 4)
 	local bridgeGroups = city:FindFirstChild("Canal e pontes")
@@ -312,6 +337,7 @@ local function check(art)
 	end
 	print(string.format("Maré Baixa · %d peças (%d sólidas), %d luzes, %d letreiros, %d bancas, %d pausas, %.2fs",
 		#parts, #solids, lamps, signs, #vendors, batches, os.clock() - start))
+	print(string.format("Reflexos · %d poças com abertura, %d fontes selecionadas e %d brilhos estáticos", puddles, sources, glints))
 	return parts
 end
 
@@ -353,13 +379,18 @@ if path then
 	local shots = {
 		{name = "Canal", position = {-11, 14, 366}, look = {5, 27, -245}, fov = 57},
 		{name = "Avenida", position = {229, 7.7, -17.76}, look = {229, 20, -450}, fov = 62},
-		{name = "Mercado", position = {-365.5, 6.2, -213}, look = {-359.5, 10.2, -125}, fov = 59},
+		{name = "Mercado", position = {-365.5, 7.4, -224}, look = {-359.5, 11, -125}, fov = 59},
 		{name = "Estacao", position = {37, 10.5, -49}, look = {138, 23.5, -2}, fov = 65},
 		{name = "Doca", position = {-896, 20, 474}, look = {-840, 18, 591}, fov = 65},
 		{name = "Panorama", position = {-975, 475, 1222}, look = {16, 66, -90}, fov = 54},
 		{name = "Praca", position = {-111, 7.1, -208}, look = {-147, 7.5, -155}, fov = 59},
 		{name = "Vertice", position = {196, 23, -531}, look = {360, 225, -351}, fov = 65},
+		{name = "Vertice Terreo", position = {224, 7.1, -439}, look = {348, 59, -364}, fov = 65},
 		{name = "Colmeia", position = {-141, 7.7, 119}, look = {-139, 30, 185}, fov = 62},
+		{name = "Altos", position = {805, 7.2, -706}, look = {853, 21, -585}, fov = 63},
+		{name = "Costa", position = {326, 7.1, 245}, look = {365, 20, 341}, fov = 61},
+		{name = "Cercado", position = {797, 7.5, 17}, look = {847, 17, 124}, fov = 64},
+		{name = "Limite", position = {1112, 7.8, 724}, look = {1078, 19, 840}, fov = 65},
 	}
 	fs.writeFile(path, serde.encode("json", {parts = parts, lights = lights, signs = signs, shots = shots}))
 	print(string.format("Prévia exportada para %s", path))

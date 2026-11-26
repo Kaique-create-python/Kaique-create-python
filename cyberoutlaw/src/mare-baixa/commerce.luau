@@ -180,6 +180,91 @@ local function marketStalls(ctx, parent, c, x, z, seed, arcade)
     end
 end
 
+local function marketPassage(ctx, model, c, x, z)
+    local _, box = station(ctx, model, "Passagem e mezanino do Sódio", x, z)
+    local deckHeight = 9.84
+    box("Piso do mezanino", -34, deckHeight - 0.28, 4, 8.6, 0.56, 64, c.concrete, "cement")
+    box("Viga longitudinal do mezanino", -29.94, deckHeight - 0.71, 4, 0.62, 0.48, 64, c.iron, "steel")
+    for dz = -22, 31, 17 do
+        box("Coluna lateral do mezanino", -38, 4.63, dz, 0.51, 9.1, 0.51, c.iron, "steel")
+        box("Console do mezanino", -34, 8.9, dz, 8.5, 0.54, 0.65, c.slate, "steel")
+    end
+    for _, side in { -1, 1 } do
+        local railX = -34 + side * 4.15
+        box("Guarda-corpo do mezanino", railX, deckHeight + 1.45, 4, 0.25, 2.9, 64, c.basalt, "steel",
+            {transparency = 1, shadow = false})
+        box("Corrimão do mezanino", railX, deckHeight + 2.76, 4, 0.28, 0.3, 64, c.ocher, "steel", TRIM)
+        for dz = -26, 35, 7.5 do
+            box("Balaústre", railX, deckHeight + 1.4, dz, 0.25, 2.8, 0.24, c.iron, "steel", TRIM)
+        end
+    end
+    box("Fechamento do mezanino", -34, deckHeight + 1.32, 35.76, 8.6, 2.64, 0.36, c.iron, "steel")
+    for index = 1, 19 do
+        local y = 0.22 + index * ((deckHeight - 0.22) / 19)
+        local dz = -28.52 - (19 - index) * 1.05
+        box("Degrau do mezanino", -34, y / 2, dz, 7.8, y, 1.06, c.concrete, "cement", {shadow = false})
+    end
+    for _, side in { -1, 1 } do
+        beamZY(box, "Corrimão da escada do mercado", -48.2, 2.8, -28.05, deckHeight + 2.75, -34 + side * 4.02,
+            0.24, 0.25, c.ocher, "steel")
+    end
+
+    -- O corredor coberto anuncia a entrada a partir da calçada. A estrutura é própria do Mercado do Sódio.
+    for _, side in { -1, 1 } do
+        local dx = side * 13.6
+        for _, dz in { -78, -59.5 } do
+            box("Pilar da entrada coberta", dx, 5.62, dz, 0.69, 11.0, 0.72, c.iron, "steel")
+            box("Sapata do pilar", dx, 0.34, dz, 1.93, 0.51, 2.22, c.concrete, "cement")
+        end
+        box("Calha da entrada", dx, 11.18, -68.8, 0.55, 0.39, 20.7, c.zinc, "steel")
+        beamXY(box, "Chapa translúcida da entrada", dx, 11.26, 0, 12.56, -68.8, 0.24, 20.9, c.petrol, "glass", CLEAR_GLASS)
+    end
+    for _, dz in { -77.7, -68.5, -59.5 } do
+        box("Travessa da entrada", 0, 11.05, dz, 27.6, 0.34, 0.38, c.iron, "steel")
+        for _, dx in { -7.5, 0, 7.5 } do
+            local color = if dx == 0 then c.amber else c.magenta
+            box("Suporte do pendente", dx, 10.67, dz, 0.19, 0.70, 0.19, c.iron, "metal", TRIM)
+            local shade = box("Difusor da entrada", dx, 10.17, dz, 1.53, 0.57, 1.05, color, "neon", TRIM)
+            if dx == 0 or dz == -68.5 then ctx.lamp(shade, color, 17, 1.85, "Bottom") end
+        end
+    end
+
+    local placard = box("Letreiro esmaltado", 0, 14.47, -78.34, 28.7, 3.62, 0.72, c.slate, "metal")
+    box("Moldura do letreiro", 0, 16.35, -78.38, 29.3, 0.32, 0.82, c.oxide, "metal", TRIM)
+    for _, side in { -1, 1 } do
+        box("Suspensão do letreiro", side * 13.6, 12.8, -78.1, 0.55, 3.6, 0.62, c.iron, "steel")
+    end
+    lightBar(ctx, box, c, 0, 12.43, -78.94, 26.7, c.amber, 20, 1.28)
+    if ctx.sign then ctx.sign(placard, "Front", "MERCADO DO SÓDIO", c.milk) end
+
+    -- Duas frentes diferentes junto ao acesso. O vão sob a cobertura fica livre para circulação.
+    local _, shops = station(ctx, model, "Ponto de refeições e oficina", x, z)
+    shops("Balcão de refeições", 28.5, 1.9, -75, 20.1, 3.56, 1.24, c.teal, "tile")
+    shops("Tampo inoxidável", 28.5, 3.75, -75, 20.9, 0.22, 1.95, c.zinc, "metal")
+    shops("Frente de alvenaria da cozinha", 28.5, 4.14, -62.6, 20, 8.04, 0.62, c.oxide, "brick")
+    shops("Coifa da cozinha", 30.4, 6.96, -64, 13.4, 1.42, 2.25, c.zinc, "steel")
+    shops("Bancada de preparo", 28.7, 1.79, -64.11, 18.3, 3.34, 2.57, c.slate, "metal")
+    shops("Cobertura do balcão", 28.5, 8.72, -68.9, 21.3, 0.42, 14.15, c.petrol, "roof")
+    for _, dx in {19.1, 37.9} do
+        shops("Montante do balcão", dx, 4.51, -74.65, 0.55, 8.5, 0.55, c.iron, "steel")
+        shops("Assento do balcão", dx + (if dx < 28.5 then 3.6 else -3.6), 1.91, -78.05, 1.7, 0.35, 1.7, c.ocher, "wood")
+        shops("Apoio do assento", dx + (if dx < 28.5 then 3.6 else -3.6), 0.95, -78.05, 0.63, 1.7, 0.65, c.iron, "steel")
+    end
+    lightBar(ctx, shops, c, 28.5, 8.41, -74.25, 18.2, c.cyan, 15, 1.15)
+
+    shops("Parede da oficina", -28.2, 4.8, -62.9, 15, 9.35, 0.75, c.concrete, "cement")
+    shops("Cobertura da oficina", -28.2, 9.82, -67.6, 16.4, 0.78, 11.4, c.iron, "roof")
+    for _, dx in {-35.7, -20.7} do
+        shops("Ombreira da oficina", dx, 4.69, -72.3, 0.72, 9.14, 0.82, c.iron, "steel")
+    end
+    shops("Porta de enrolar recolhida", -28.2, 7.43, -72.33, 14.8, 3.95, 0.32, c.slate, "metal")
+    for row = 1, 6 do
+        shops("Dobra da porta de aço", -28.2, 5.64 + row * 0.51, -72.55, 14.77, 0.14, 0.14, c.zinc, "metal", TRIM)
+    end
+    pallet(shops, c, -31.7, -66.5, c.wood, true)
+    lightBar(ctx, shops, c, -28.2, 9.15, -73.4, 12.5, c.amber, 14, 1.06)
+end
+
 function Commerce.market(ctx, parent, x, z, seed, variant)
     local c = palette(ctx)
     local sodio = variant == "sodio"
@@ -269,17 +354,9 @@ function Commerce.market(ctx, parent, x, z, seed, variant)
     end
 
     if sodio then
+        marketPassage(ctx, model, c, x, z)
         local _, tower = station(ctx, model, "Caixa-d'água do mercado", x, z)
         waterTower(tower, c, 29.5, 35.7, 20.97, 9.44, 10.2, c.oxide)
-        local face = hall("Letreiro esmaltado", 0, 14.25, -56.4, 35.8, 4.45, 0.73, c.slate, "metal")
-        hall("Moldura do letreiro", 0, 16.61, -56.42, 36.6, 0.32, 0.81, c.oxide, "metal", TRIM)
-        for _, side in { -1, 1 } do
-            hall("Suspensão do letreiro", side * 13.2, 17.36, -55.56, 0.42, 1.89, 1.3, c.iron, "steel")
-        end
-        lightBar(ctx, hall, c, 0, 11.86, -56.77, 31.9, c.amber, 19, 1.15)
-        if ctx.sign then
-            ctx.sign(face, "Front", "MERCADO DO SÓDIO", c.milk)
-        end
     end
     return model
 end

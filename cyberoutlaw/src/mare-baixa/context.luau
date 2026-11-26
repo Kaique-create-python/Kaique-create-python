@@ -61,6 +61,10 @@ function Context.new(materialService, art, options)
     end
     local pause = options.yield
     local lightGroups = {}
+    local mirrors, reflectionCandidates = {}, {}
+    local function cell(p, span)
+        return math.floor(p.X / span) .. "/" .. math.floor(p.Z / span)
+    end
 
     function api.group(parent, name)
         local model = Instance.new("Model")
@@ -95,7 +99,8 @@ function Context.new(materialService, art, options)
         if variant then
             part.MaterialVariant = variant.name
             if variant.tint then
-                part.Color = color:Lerp(Color3.new(1, 1, 1), 0.76)
+                local lift = if material == "glass" or material == "asphalt" then 0.52 else 0.64
+                part.Color = color:Lerp(Color3.new(1, 1, 1), lift)
             end
         end
         if part:IsA("Part") then
@@ -103,6 +108,15 @@ function Context.new(materialService, art, options)
             part.BottomSurface = Enum.SurfaceType.Smooth
         end
         part.Parent = parent
+        local position = part.CFrame.Position
+        if position.Y > 1.8 and position.Y < 155 and math.abs(position.X) < 680 and math.abs(position.Z) < 650
+            and part.Transparency < 0.74 and (material == "neon"
+                or (height >= 2.5 and math.max(width, depth) >= 5.6 and material ~= "foliage" and material ~= "water")) then
+            table.insert(reflectionCandidates, {
+                part = part, position = position, order = #reflectionCandidates + 1,
+                score = (if material == "neon" then 35 else 0) + math.min(height * math.max(width, depth), 360) / 24,
+            })
+        end
         stats.parts += 1
         if part.CanCollide then
             stats.colliders += 1
@@ -111,6 +125,11 @@ function Context.new(materialService, art, options)
             pause()
         end
         return part
+    end
+
+    function api.reflection(puddle)
+        puddle:AddTag("CyberOutlawPoca")
+        table.insert(mirrors, puddle.CFrame.Position)
     end
 
     function api.beam(parent, name, first, second, width, depth, color, material, options)
@@ -135,13 +154,15 @@ function Context.new(materialService, art, options)
             light.Angle = 115
         end
         local p = part.CFrame.Position
-        local key = string.format("%d/%d/%d", math.floor(p.X / 72), math.floor(p.Y / 52), math.floor(p.Z / 72))
+        local level = math.floor(p.Y / 38)
+        local key = cell(p, 72) .. "/" .. level
         local list = lightGroups[key]
         if not list then
             list = {}
             lightGroups[key] = list
         end
-        table.insert(list, {light = light, part = part, order = #list + 1, weight = range * brightness})
+        table.insert(list, {light = light, part = part, order = #list + 1, level = level,
+            weight = range * brightness * (if p.Y < 22 then 1.24 else 1)})
         return light
     end
 
@@ -150,8 +171,11 @@ function Context.new(materialService, art, options)
             table.sort(list, function(a, b)
                 return if a.weight == b.weight then a.order < b.order else a.weight > b.weight
             end)
+            local limit = if list[1].level <= 0 then 3 elseif list[1].level <= 2 then 2 else 1
             for index, entry in list do
-                if index <= 3 then
+                if index <= limit then
+                    entry.light:SetAttribute("CyberOutlawBrilhoBase", entry.light.Brightness)
+                    entry.light:AddTag("CyberOutlawLuzCidade")
                     entry.light.Parent = entry.part
                     stats.lights += 1
                 else
@@ -160,9 +184,36 @@ function Context.new(materialService, art, options)
             end
         end
         table.clear(lightGroups)
+        -- Somente as fontes legíveis a partir das poças entram no índice replicado de reflexos.
+        local groups = {}
+        for _, entry in reflectionCandidates do
+            local p, nearest = entry.position, math.huge
+            for _, mirror in mirrors do
+                local dx, dz = p.X - mirror.X, p.Z - mirror.Z
+                nearest = math.min(nearest, dx * dx + dz * dz)
+            end
+            if nearest > 128 * 128 then continue end
+            local key = cell(p, 58)
+            local list = groups[key] or {}
+            groups[key] = list
+            entry.score -= math.sqrt(nearest) * 0.054 + p.Y * 0.14
+            if entry.part:GetAttribute("MareReflexoCor") then entry.score += 27 end
+            table.insert(list, entry)
+        end
+        for _, list in groups do
+            table.sort(list, function(a, b)
+                return if a.score == b.score then a.order < b.order else a.score > b.score
+            end)
+            for index = 1, math.min(#list, 28) do
+                list[index].part:AddTag("CyberOutlawReflexoFonte")
+            end
+        end
+        table.clear(reflectionCandidates)
+        table.clear(mirrors)
     end
 
     function api.sign(part, face, inscription, accent, name)
+        part:SetAttribute("MareReflexoCor", accent)
         local gui = Instance.new("SurfaceGui")
         gui.Name = name or "Identificação"
         gui.Face = faceEnum(face)

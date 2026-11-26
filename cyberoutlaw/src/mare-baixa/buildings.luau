@@ -5,6 +5,7 @@ local buildings = {}
 local detail = {collision = false, shadow = false}
 local glass = {shadow = false, transparency = 0.32}
 local thinGlass = {shadow = false, transparency = 0.48}
+local reflectiveGlass = {collision = false, shadow = false, reflectance = 0.08}
 local cylinder = {shape = "Cylinder", roll = 90}
 local rotated = {
     left = {yaw = 45},
@@ -17,12 +18,79 @@ local faces = {
     {nx = -1, nz = 0, tx = 0, tz = -1, yaw = 90},
 }
 
-local function parcel(ctx, parent, x, z, name)
+local themes = {
+    vertice = {
+        tower = "fins", housing = "piers", porch = "arcade", trim = "steel", rise = 1,
+        colors = {
+            core = {37, 45, 56}, cement = {61, 74, 84}, precast = {68, 82, 91}, frame = {27, 36, 48},
+            steel = {90, 114, 127}, glazing = {38, 75, 98}, finish = {93, 113, 128}, entryLight = {255, 105, 160},
+        },
+    },
+    sodio = {
+        tower = "bands", housing = "bands", porch = "awning", trim = "brick", rise = 0,
+        colors = {
+            core = {103, 76, 63}, cement = {133, 109, 87}, precast = {135, 101, 78}, frame = {50, 57, 49},
+            steel = {100, 105, 83}, glazing = {72, 62, 51}, finish = {142, 88, 55}, entryLight = {251, 159, 84},
+        },
+    },
+    colmeia = {
+        tower = "piers", housing = "piers", porch = "arcade", trim = "cement", rise = 2,
+        colors = {
+            core = {67, 61, 72}, cement = {105, 99, 110}, precast = {107, 102, 117}, frame = {49, 46, 62},
+            steel = {91, 84, 110}, glazing = {64, 54, 87}, finish = {119, 109, 126}, entryLight = {172, 121, 232},
+        },
+    },
+    docas = {
+        tower = "piers", housing = "bands", porch = "service", trim = "metal", rise = -2,
+        colors = {
+            core = {73, 75, 60}, cement = {100, 101, 79}, precast = {113, 102, 83}, frame = {44, 55, 49},
+            steel = {88, 103, 83}, glazing = {48, 74, 66}, finish = {109, 119, 88}, entryLight = {187, 205, 141},
+        },
+    },
+    altos = {
+        tower = "fins", housing = "loggia", porch = "arcade", trim = "stone", rise = 1,
+        colors = {
+            core = {91, 88, 80}, cement = {146, 136, 112}, precast = {151, 137, 111}, frame = {71, 65, 57},
+            steel = {138, 120, 88}, glazing = {79, 89, 88}, finish = {164, 149, 124}, entryLight = {244, 220, 172},
+        },
+    },
+    costa = {
+        tower = "bands", housing = "loggia", porch = "awning", trim = "tile", rise = -1,
+        colors = {
+            core = {67, 85, 85}, cement = {132, 144, 134}, precast = {129, 151, 144}, frame = {45, 73, 76},
+            steel = {90, 115, 113}, glazing = {59, 100, 109}, finish = {108, 150, 141}, entryLight = {155, 219, 206},
+        },
+    },
+    cercado = {
+        tower = "piers", housing = "piers", porch = "service", trim = "brick", rise = -1,
+        colors = {
+            core = {70, 72, 64}, cement = {96, 99, 81}, precast = {117, 101, 79}, frame = {50, 57, 54},
+            steel = {119, 101, 74}, glazing = {62, 69, 63}, finish = {140, 79, 55}, entryLight = {235, 169, 99},
+        },
+    },
+    limite = {
+        tower = "bands", housing = "piers", porch = "service", trim = "cement", rise = -2,
+        colors = {
+            core = {53, 61, 66}, cement = {77, 84, 86}, precast = {90, 92, 87}, frame = {43, 49, 58},
+            steel = {94, 99, 105}, glazing = {45, 59, 70}, finish = {91, 95, 105}, entryLight = {183, 188, 204},
+        },
+    },
+    prisma = {
+        tower = "fins", housing = "bands", porch = "awning", trim = "metal", rise = 0,
+        colors = {
+            core = {58, 60, 76}, cement = {96, 86, 112}, precast = {101, 99, 123}, frame = {49, 43, 66},
+            steel = {97, 104, 126}, glazing = {45, 80, 97}, finish = {113, 101, 133}, entryLight = {234, 131, 198},
+        },
+    },
+}
+
+local function parcel(ctx, parent, x, z, name, theme)
     local rgb = ctx.rgb
-    return {
+    local site = {
         model = ctx.group(parent, name),
         group = ctx.group,
         lamp = ctx.lamp,
+        theme = themes[theme],
         box = function(group, partName, px, y, pz, sx, sy, sz, color, material, options)
             return ctx.box(group, partName, x + px, y, z + pz, sx, sy, sz, color, material, options)
         end,
@@ -54,6 +122,18 @@ local function parcel(ctx, parent, x, z, name)
             wood = rgb(113, 87, 61),
         },
     }
+    if site.theme then
+        local c = site.color
+        for key, channels in site.theme.colors do
+            c[key] = rgb(table.unpack(channels))
+        end
+        for index, window in c.windows do
+            c.windows[index] = window:Lerp(c.glazing, 0.62)
+        end
+        c.paving = c.paving:Lerp(c.cement, 0.25)
+        c.softWarm = c.softWarm:Lerp(c.entryLight, 0.35)
+    end
+    return site
 end
 
 local function onFace(site, parent, name, side, x, y, z, depth, along, width, height, thickness, color, material, options)
@@ -115,6 +195,12 @@ end
 local function lobby(site, parent, plan)
     local p = site.group(parent, "Térreo e acessos")
     local box, c = site.box, site.color
+    local theme = site.theme
+    local porch = theme and theme.porch
+    local arcade = porch == "arcade"
+    local awning = porch == "awning"
+    local servicePorch = porch == "service"
+    local fasciaMaterial = if theme then theme.trim else "cement"
     local x, z, w, d, top = plan.x, plan.z, plan.w, plan.d, plan.top
     local entry = plan.entry or 14
     local openingHeight = if top >= 18 then 11.5 else 8.6
@@ -141,7 +227,7 @@ local function lobby(site, parent, plan)
         end
     end
     onFace(site, p, "Verga de concreto", 1, x, (top + openingHeight) / 2, z, depth, 0, w, top - openingHeight, 1.7,
-        plan.accent or c.cement, "cement")
+        plan.accent or c.cement, fasciaMaterial)
     aperture(site, p, "Pórtico de entrada", 1, x, z, depth + 0.19, 0, entry, openingHeight - floor, floor, c.steel)
     for _, side in {2, 4} do
         local data = faces[side]
@@ -184,19 +270,40 @@ local function lobby(site, parent, plan)
         3.75, 0.18, 0.42, c.softWarm, "neon", detail)
     site.lamp(backFixture, c.softWarm, 13, 0.46)
 
-    local canopyW = math.min(w - 3, entry + (plan.portico or 20))
-    local overhang = plan.portico and 11.5 or 5.4
+    local canopyW = math.min(w - 3, entry + (plan.portico or 20) + (if awning then 7.5 elseif arcade then 4 else 0))
+    local overhang = (if plan.portico then 11.5 else 5.4) + (if arcade then 2 elseif awning then 1.5 else 0)
     local roofY = openingHeight + 0.72
-    box(p, "Estrutura da marquise", x, roofY, z - depth - overhang / 2, canopyW, 1.1, overhang + 0.7, c.frame, "metal")
-    box(p, "Rufo da marquise", x, roofY + 0.64, z - depth - overhang / 2, canopyW + 0.65, 0.2, overhang + 1.05, c.steel, "metal", detail)
+    local canopyThickness = if arcade then 1.65 elseif servicePorch then 0.74 else 1.1
+    local canopyColor = if arcade then c.precast elseif awning then c.teal else c.frame
+    local canopyPitch = if awning then -5.5 elseif servicePorch then -3 else 0
+    local canopyZ = z - depth - overhang / 2
+    box(p, "Estrutura da marquise", x, roofY, canopyZ, canopyW, canopyThickness, overhang + 0.7,
+        canopyColor, if arcade then fasciaMaterial else "metal", {pitch = canopyPitch})
+    box(p, "Rufo da marquise", x, roofY + canopyThickness / 2 + 0.09, canopyZ, canopyW + 0.65, 0.2, overhang + 1.05,
+        c.steel, "metal", {pitch = canopyPitch, collision = false, shadow = false})
+    local entryColor = c.entryLight or c.warm
     for _, sign in {-1, 1} do
         local jambX = x + sign * (canopyW / 2 - 1.8)
+        local postWidth = if arcade then 1.2 else 0.64
         box(p, "Tirante da marquise", jambX, openingHeight / 2, z - depth - overhang + 0.78,
-            0.64, openingHeight, 0.64, c.steel, "metal")
-        local lamp = box(p, "Difusor de entrada", x + sign * (entry * 0.25 + 0.5), roofY - 0.58, z - depth - overhang / 2,
-            0.62, 0.13, overhang * 0.62, c.warm, "neon", detail)
+            postWidth, openingHeight, postWidth, c.steel, "metal")
+        if arcade then
+            box(p, "Pala de concreto", jambX, roofY + 0.85, canopyZ + overhang * 0.13,
+                2.5, 3.9, overhang * 0.73, c.finish, fasciaMaterial, detail)
+        elseif awning then
+            box(p, "Dobra do beiral", x + sign * canopyW * 0.26, roofY - 0.34, canopyZ - overhang * 0.5,
+                canopyW * 0.48, 0.46, 0.28, c.finish, "metal", detail)
+        elseif servicePorch then
+            box(p, "Mão-francesa galvanizada", jambX, openingHeight - 1.1, canopyZ + overhang * 0.2,
+                0.36, 0.38, overhang * 0.64, c.finish, "metal", {pitch = 24, collision = false, shadow = false})
+        end
+        local lampY = roofY - (if theme then canopyThickness / 2 + 0.065 else 0.58)
+        local lamp = box(p, "Difusor de entrada", x + sign * (entry * 0.25 + 0.5), lampY, canopyZ,
+            if arcade then 0.94 else 0.62, 0.13, overhang * 0.62, entryColor, "neon",
+            {pitch = canopyPitch, collision = false, shadow = false})
         if sign == -1 then
-            site.lamp(lamp, c.warm, if plan.portico then 22 else 15, 0.62)
+            site.lamp(lamp, entryColor, if plan.portico then (if theme then 25 else 22) else 15, if arcade then 1.03 else 0.62,
+                if theme then "Bottom" else nil)
         end
     end
 
@@ -237,9 +344,14 @@ local function chamferedCore(site, parent, plan)
     end
 end
 
-local function curtainWall(site, plan, seed)
+local function curtainWall(site, plan, seed, flagship)
     local p = site.group(site.model, plan.name)
     local c = site.color
+    local theme = site.theme
+    local style = theme and theme.tower
+    local vertical = style == "fins"
+    local piers = style == "piers"
+    local bands = style == "bands"
     local x, z, w, d, cut = plan.x, plan.z, plan.w, plan.d, plan.cut
     local height = plan.top - plan.bottom
     local stories = math.max(1, math.floor(height / plan.pitch + 0.5))
@@ -253,27 +365,65 @@ local function curtainWall(site, plan, seed)
             run, depth = d - cut * 2, w / 2
         end
         local ribs = math.max(4, math.floor(run / (plan.ribPitch or 12)))
+        if bands then
+            ribs = math.max(3, ribs - 2)
+        end
+        local bayWidth = run / ribs
+        if vertical then
+            for bay = 1, ribs do
+                local tint = (seed + bay * 5 + side * 13) % #c.windows + 1
+                onFace(site, p, "Caixilho de vidro entre aletas", side, x, plan.bottom + height / 2, z, depth + 0.16,
+                    -run / 2 + (bay - 0.5) * bayWidth, bayWidth - 0.32, height - 0.4, 0.3, c.windows[tint], "glass", reflectiveGlass)
+            end
+        end
         for i = 0, ribs do
-            local along = (i / ribs - 0.5) * run
+            local along = i * bayWidth - run / 2
             local heavy = i == 0 or i == ribs or i % 3 == 0
-            onFace(site, p, "Montante da fachada", side, x, plan.bottom + height / 2, z, depth + (if heavy then 0.55 else 0.44), along,
-                if heavy then 0.85 else 0.31, height, if heavy then 1.25 else 0.58, if heavy then c.steel else c.frame, "metal", detail)
+            local projection = if piers then 3.35 elseif vertical then (if heavy then 2.9 else 1.35) else (if heavy then 1.25 else 0.58)
+            local width = if piers then (if heavy then 2.7 else 1.5) elseif vertical then (if heavy then 1.45 else 0.68) else (if heavy then 0.85 else 0.31)
+            local offset = if vertical or piers then projection / 2 - 0.09 else (if heavy then 0.55 else 0.44)
+            onFace(site, p, "Montante da fachada", side, x, plan.bottom + height / 2, z, depth + offset, along,
+                width, height, projection, if (piers or vertical) and heavy then c.finish elseif heavy then c.steel else c.frame,
+                if piers then theme.trim else "metal", if theme then {collision = false} else detail)
+        end
+        if piers and side % 2 == 0 then
+            onFace(site, p, "Prumada técnica cega", side, x, plan.bottom + height / 2, z, depth + 0.78,
+                -bayWidth / 2, bayWidth * 0.77, height, 1.22, c.core, theme.trim, detail)
         end
         for row = 1, stories do
             local floor = plan.bottom + (row - 1) * step
             local tint = (seed + side * 23 + row * 11) % #c.windows + 1
-            local glazingH = step * (plan.glaze or 0.7)
+            local glazingH = step * (if piers then 0.49 elseif bands then 0.59 else (plan.glaze or 0.7))
             local y = floor + step * 0.55
-            onFace(site, p, "Fita de vidro fumê", side, x, y, z, depth + 0.145, 0, run - 0.26, glazingH, 0.31,
-                c.windows[tint], "glass", detail)
+            if vertical then
+                if row % 2 == 1 then
+                    onFace(site, p, "Travessa de dois pavimentos", side, x, floor + 1.05, z, depth + 0.37,
+                        0, run - 0.24, step * 0.19, 0.55, c.frame, "metal", detail)
+                end
+            else
+                onFace(site, p, "Fita de vidro fumê", side, x, y, z, depth + 0.145, 0, run - 0.26, glazingH, 0.31,
+                    c.windows[tint], "glass", detail)
+            end
             local hash = (seed * 37 + side * 19 + row * 31) % 100
-            if hash < 45 then
+            if hash < (if bands or piers then 29 else 45) then
                 local bay = ((row * 9 + seed + side * 5) % ribs + 0.5) / ribs
                 local filled = if hash < 17 then c.occupied[(hash + row) % #c.occupied + 1] else c.blinds[(hash + side) % #c.blinds + 1]
                 onFace(site, p, "Vidro com persiana", side, x, y, z, depth + 0.345, (bay - 0.5) * run,
-                    run / ribs - 0.45, glazingH - 0.35, 0.22, filled, if hash < 12 then "neon" else "glass", detail)
+                    bayWidth - (if piers then 2.9 else 0.45), glazingH - 0.35, 0.22, filled, if hash < 12 then "neon" else "glass", detail)
             end
-            if row % 4 == 0 and side == 1 then
+            if flagship and side >= 3 and row <= stories - 1 and hash % 7 < 3 then
+                local bay = ((row + seed + side) % (ribs - 1)) + 1
+                local along = -run / 2 + (bay - 0.5) * bayWidth
+                local occupied = c.occupied[(row + side) % #c.occupied + 1]
+                onFace(site, p, "Luz de sala ocupada", side, x, y + 0.18, z, depth + 0.53, along,
+                    bayWidth * 0.72, glazingH * 0.68, 0.16, occupied, "neon", detail)
+                onFace(site, p, "Travessa da sala ocupada", side, x, y - glazingH * 0.09, z, depth + 0.63, along,
+                    bayWidth * 0.75, 0.21, 0.19, c.frame, "metal", detail)
+            end
+            if bands and side % 2 == 1 and row % 3 == 0 then
+                onFace(site, p, "Brise corrido de pavimento", side, x, floor + 0.6, z, depth + 0.9, 0,
+                    run + 2.8, 1.08, 2.3, c.finish, theme.trim, detail)
+            elseif not vertical and row % 4 == 0 and side == 1 then
                 onFace(site, p, "Pingadeira da fachada", side, x, floor + 0.6, z, depth + 0.23, 0, run + 0.6, 0.68, 0.7,
                     c.frame, "metal", detail)
             end
@@ -438,38 +588,77 @@ local towerPlans = {
 local function addFacadeLighting(site, parent, layout, sides, accent)
     local feature = site.group(parent, "Frisos luminosos da torre")
     local c = site.color
+    local theme = site.theme
+    local flagship = theme and layout == towerPlans.vertice
+    local segments = if theme then 2 else 3
     for _, mass in layout.masses do
         local height = mass.top - mass.bottom
         for _, side in sides do
             local run = if side % 2 == 1 then mass.w else mass.d
             local depth = if side % 2 == 1 then mass.d / 2 else mass.w / 2
             local bay = run / 2 - mass.cut - 5.8
-            for _, offset in {-bay, bay} do
-                local width = if offset > 0 then 2.4 else 1.2
+            for _, offset in (if theme then {-bay} else {-bay, bay}) do
+                local width = if flagship or offset > 0 then 2.4 else 1.2
+                local mounting = depth + (if flagship then 2.65 elseif theme then 1.83 else 1.23)
                 onFace(site, feature, "Estrutura do friso", side, mass.x, (mass.top + mass.bottom) / 2, mass.z,
-                    depth + 1.23, offset, width + 1.9, height - 3.4, 0.85, c.frame, "steel", detail)
-                for band = 1, 3 do
-                    local piece = (height - 8) / 3
+                    mounting, offset, width + 1.9, height - 3.4, 0.85, c.frame, "steel", detail)
+                for band = 1, segments do
+                    local piece = (height - 8) / segments
                     onFace(site, feature, "Tubos luminosos", side, mass.x,
-                        mass.bottom + 4 + piece * (band - 0.5), mass.z, depth + 1.72, offset,
+                        mass.bottom + 4 + piece * (band - 0.5), mass.z, mounting + 0.49, offset,
                         width, piece - 2.4, 0.19, accent, "neon", detail)
                 end
             end
         end
     end
-    local g = layout.lobby
-    local light = site.box(feature, "Acento do térreo", g.x, 11.91, g.z - g.d / 2 - 5.32, g.entry + 11, 0.16,
-        0.4, accent, "neon", detail)
-    site.lamp(light, accent, 33, 1.74, "Bottom")
+    if not theme then
+        local g = layout.lobby
+        local light = site.box(feature, "Acento do térreo", g.x, 11.91, g.z - g.d / 2 - 5.32, g.entry + 11, 0.16,
+            0.4, accent, "neon", detail)
+        site.lamp(light, accent, 33, 1.74, "Bottom")
+    end
 end
 
-function buildings.tower(ctx, parent, x, z, seed, variant)
+local function verticeGallery(site, plan)
+    local gallery = site.group(site.model, "Galeria de transferência da Torre Vértice")
+    local c = site.color
+    for _, side in {3, 4} do
+        local span = (if side == 3 then plan.w else plan.d) - 6
+        local depth = (if side == 3 then plan.d else plan.w) / 2
+        local roofY = plan.top - 4.25
+        onFace(site, gallery, "Marquise de concreto em balanço", side, plan.x, roofY, plan.z, depth + 2.9,
+            0, span, 2.25, 8.8, c.precast, "cement")
+        onFace(site, gallery, "Lábio da laje de transferência", side, plan.x, roofY + 3.15, plan.z, depth + 4.55,
+            0, span - 5.5, 1.12, 3.9, c.frame, "steel", detail)
+        for _, sign in {-1, 1} do
+            local along = sign * (span / 2 - 6.7)
+            onFace(site, gallery, "Consolo da marquise", side, plan.x, roofY - 3.18, plan.z, depth + 0.62,
+                along, 3.75, 5.5, 4.9, c.finish, "cement")
+            onFace(site, gallery, "Montante da galeria técnica", side, plan.x, roofY + 1.56, plan.z, depth + 4.55,
+                along, 1.15, 3.5, 2.12, c.steel, "steel", detail)
+            onFace(site, gallery, "Pilar do acesso lateral", side, plan.x, (roofY - 1.1) / 2, plan.z, depth + 6.02,
+                along, 2.5, roofY - 1.1, 1.86, c.precast, "cement")
+            local diffuser = onFace(site, gallery, "Arandela da galeria lateral", side, plan.x, 6.85, plan.z, depth + 7.02,
+                along, 0.51, 3.32, 0.19, c.warm, "neon", detail)
+            site.lamp(diffuser, c.warm, 15, 0.92)
+        end
+        onFace(site, gallery, "Friso da galeria", side, plan.x, roofY - 0.25, plan.z, depth + 7.33,
+            0, span - 4, 0.4, 0.19, c.entryLight, "neon", detail)
+        for _, along in {-span * 0.23, 0, span * 0.23} do
+            local light = onFace(site, gallery, "Calha de luz da galeria", side, plan.x, roofY - 1.18, plan.z, depth + 4.38,
+                along, span * 0.16, 0.17, 0.74, c.softWarm, "neon", detail)
+            site.lamp(light, c.softWarm, 29, 1.21, "Bottom")
+        end
+    end
+end
+
+function buildings.tower(ctx, parent, x, z, seed, variant, theme: string?)
     local layout = assert(towerPlans[variant], "unknown tower variant")
-    local site = parcel(ctx, parent, x, z, layout.name)
+    local site = parcel(ctx, parent, x, z, layout.name, theme)
     local p, c, box = site.model, site.color, site.box
     paving(site, layout.width, layout.depth, layout.plaza)
     local ground = table.clone(layout.lobby)
-    ground.accent = if variant == "hotel" then c.ochre elseif variant == "tech" then c.teal else c.cement
+    ground.accent = if site.theme then c.finish elseif variant == "hotel" then c.ochre elseif variant == "tech" then c.teal else c.cement
     local lobbyModel = lobby(site, p, ground)
     for _, sign in {-1, 1} do
         planter(site, p, sign * (ground.w * 0.33), ground.z - ground.d / 2 - 10.6, 18, sign == -1)
@@ -486,15 +675,18 @@ function buildings.tower(ctx, parent, x, z, seed, variant)
     box(lobbyModel, "Duto da doca", ground.w * 0.35, 6.5, ground.z + ground.d / 2 + 1.1, 0.9, 11.25, 1.04, c.steel, "metal", detail)
 
     for i, mass in layout.masses do
-        curtainWall(site, mass, seed + i * 37)
+        curtainWall(site, mass, seed + i * 37, variant == "vertice" and site.theme ~= nil)
         setback(site, mass, 2, true)
     end
     if variant == "vertice" then
         addFacadeLighting(site, p, layout, {3, 4}, ctx.rgb(251, 61, 143))
+        if site.theme then
+            verticeGallery(site, ground)
+        end
     elseif variant == "tech" and x <= 360 then
-        addFacadeLighting(site, p, layout, {3}, ctx.rgb(79, 217, 241))
+        addFacadeLighting(site, p, layout, {3}, if theme == "vertice" then ctx.rgb(112, 210, 233) else (c.entryLight or ctx.rgb(79, 217, 241)))
     elseif variant == "hotel" and x <= 360 then
-        addFacadeLighting(site, p, layout, {1, 4}, ctx.rgb(201, 88, 238))
+        addFacadeLighting(site, p, layout, {1, 4}, c.entryLight or ctx.rgb(201, 88, 238))
     end
     local upper = layout.masses[#layout.masses]
     if variant == "vertice" then
@@ -571,6 +763,14 @@ local homes = {
 
 local function balcony(site, parent, plan, floor, row, seed)
     local c = site.color
+    local theme = site.theme
+    local style = theme and theme.housing
+    local boxed = style == "piers"
+    local ribbon = style == "bands"
+    local loggia = style == "loggia"
+    if theme and theme.porch == "service" and row % 2 == 0 then
+        return
+    end
     local side = plan.balconies
     local span = if side == 1 then plan.w else plan.d
     local outer = (if side == 1 then plan.d else plan.w) / 2
@@ -578,37 +778,51 @@ local function balcony(site, parent, plan, floor, row, seed)
     local along = if band < 3 then span * 0.23 else -span * 0.25
     local width = math.min(18, span * 0.39)
     local depth = if row % 3 == 1 then 4.75 else 3.85
+    if ribbon then
+        along, width, depth = 0, span * 0.78, if row % 3 == 1 then 4.25 else 2.85
+    elseif loggia then
+        along, width, depth = along * 0.55, span * 0.60, 5.05
+    end
     local x, z = plan.x, plan.z
     onFace(site, parent, "Borda da laje da varanda", side, x, floor - 0.22, z, outer + depth / 2 - 0.1, along,
-        width, 0.48, depth + 0.46, c.precast, "cement")
+        width, if boxed then 0.82 else 0.48, depth + 0.46, c.precast, "cement")
     onFace(site, parent, "Painel do guarda-corpo", side, x, floor + 1.51, z, outer + depth, along,
-        width, 2.98, 0.33, c.glazing, "glass", thinGlass)
+        width, 2.98, if boxed then 0.65 else 0.33, if boxed then c.finish else c.glazing,
+        if boxed then theme.trim else "glass", if boxed then nil else thinGlass)
     for _, sign in {-1, 1} do
         onFace(site, parent, "Ala do guarda-corpo", side, x, floor + 1.32, z, outer + depth / 2, along + sign * width / 2,
-            0.35, 2.64, depth + 0.2, c.frame, "metal")
+            if boxed then 0.9 else 0.35, 2.64, depth + 0.2, if boxed then c.precast else c.frame,
+            if boxed then "cement" else "metal")
     end
-    if row % 4 == 2 then
+    if row % 4 == 2 and (not theme or loggia) then
         onFace(site, parent, "Corrimão da varanda", side, x, floor + 3.04, z, outer + depth, along,
             width + 0.25, 0.22, 0.57, c.steel, "metal", detail)
         onFace(site, parent, "Brise da varanda", side, x, floor + 7.1, z, outer + depth * 0.55, along,
-            width - 0.4, 0.29, depth * 0.91, c.ochre, "metal", detail)
+            width - 0.4, 0.29, depth * 0.91, if loggia then c.finish else c.ochre, "metal", detail)
     end
 end
 
 local function finishWing(site, p, plan, seed)
     local box, c = site.box, site.color
+    local theme = site.theme
+    local style = theme and theme.housing
+    local piers = style == "piers"
+    local loggia = style == "loggia"
+    local bands = style == "bands"
     local levelHeight = 10.25
     local first = plan.top
     local height = levelHeight * plan.floors
     local roof = first + height
     local x, z, w, d = plan.x, plan.z, plan.w, plan.d
-    local finish = c[plan.finish]
+    local finish = plan.accent
+    local porticoTrim = if theme then theme.trim else "cement"
+    local wallMaterial = if porticoTrim == "brick" then "brick" else "cement"
     box(p, "Núcleo dos elevadores", x - w * 0.15, first + height / 2, z + d * 0.09, w * 0.26, height, d * 0.34, c.core, "cement")
     box(p, "Parede do corredor dos apartamentos", x, first + height / 2, z - d * 0.12, w * 0.71, height, 0.86, c.core, "cement")
     for _, ix in {-1, 1} do
         for _, iz in {-1, 1} do
             box(p, "Pilastra independente", x + ix * (w / 2 - 1.3), first + height / 2, z + iz * (d / 2 - 1.3),
-                3.8, height, 3.8, finish, "cement")
+                if piers then 5.4 else 3.8, height, if piers then 5.4 else 3.8, finish, "cement")
         end
     end
     for side = 1, 4 do
@@ -616,21 +830,29 @@ local function finishWing(site, p, plan, seed)
         local depth = (if side % 2 == 1 then d else w) / 2
         local step = if side == 1 or side == plan.balconies then 1 else 2
         onFace(site, p, "Vedação do pavimento", side, x, first + height / 2, z, depth - 0.22, 0,
-            span - 0.2, height, 0.76, finish, "cement")
+            span - 0.2, height, 0.76, finish, wallMaterial)
         for _, sign in {-1, 1} do
-            onFace(site, p, "Faixa vertical da fachada", side, x, first + height / 2, z, depth + 0.34, sign * (span * 0.17),
-                1.45, height, 0.7, finish, "cement", detail)
+            local width = if piers then span * 0.13 elseif loggia then 2.75 else 1.45
+            local projection = if piers then 2.5 elseif loggia then 1.65 else 0.7
+            local along = sign * span * (if piers or loggia then 0.26 else 0.17)
+            onFace(site, p, "Faixa vertical da fachada", side, x, first + height / 2, z, depth + projection / 2 - 0.01, along,
+                width, height, projection, if bands then c.frame else finish, porticoTrim, {collision = false, shadow = piers or loggia})
         end
         for row = 1, plan.floors, step do
             local floor = first + (row - 1) * levelHeight
             local tint = (seed + side * 13 + row * 11) % #c.windows + 1
             local length = math.min(step, plan.floors - row + 1)
-            onFace(site, p, "Janela horizontal", side, x, floor + 4.95 + (length - 1) * levelHeight / 2, z, depth + 0.235, 0,
-                span - 4, 5.24 + (length - 1) * levelHeight, 0.29, c.windows[tint], "glass", detail)
+            local heightOfGlass = if piers then 4.05 elseif loggia then 6.8 else 5.24
+            local windowY = floor + 4.95 + (length - 1) * levelHeight / 2
+            local windowWidth = span - (if piers then 7.5 elseif loggia then 3.3 else 4)
+            onFace(site, p, "Janela horizontal", side, x, windowY, z, depth + 0.235, 0,
+                windowWidth, heightOfGlass + (length - 1) * levelHeight, 0.29, c.windows[tint], "glass",
+                if loggia then reflectiveGlass else detail)
             local pattern = (seed * 13 + side * 23 + row * 37) % 100
-            if pattern < 46 then
-                local center = (pattern % 3 - 1) * span * 0.27
-                onFace(site, p, "Apartamento com persiana", side, x, floor + 4.7, z, depth + 0.435, center, span * 0.14, 4.45, 0.12,
+            if pattern < (if theme and side > 1 then 30 else 46) then
+                local center = (pattern % 3 - 1) * span * (if piers then 0.36 else 0.27)
+                onFace(site, p, "Apartamento com persiana", side, x, floor + 4.7, z, depth + 0.435, center,
+                    span * 0.14, math.min(4.45, heightOfGlass - 0.48), 0.12,
                     if pattern < 18 then c.occupied[(row + side) % #c.occupied + 1] else c.blinds[tint % #c.blinds + 1],
                     if pattern < 10 then "neon" else "glass", detail)
             end
@@ -639,7 +861,10 @@ local function finishWing(site, p, plan, seed)
 
     for row = 1, plan.floors do
         local floor = first + (row - 1) * levelHeight
-        box(p, "Laje e junta de dilatação", x, floor - 0.18, z, w + 1.55, 0.40, d + 1.5, c.core, "cement")
+        local outerBand = bands and row % 2 == 1
+        local slabProjection = if outerBand then 3.3 else 1.55
+        box(p, "Laje e junta de dilatação", x, floor - 0.18, z, w + slabProjection, if outerBand then 0.85 else 0.40,
+            d + slabProjection - 0.05, if outerBand then c.precast else c.core, "cement")
         balcony(site, p, plan, floor, row, seed)
         if row % 3 == 2 then
             local y = floor + 2.55
@@ -652,6 +877,19 @@ local function finishWing(site, p, plan, seed)
     local cap = roof + 0.9
     box(p, "Laje superior do último pavimento", x, roof + 0.45, z, w + 1.6, 0.9, d + 1.6, c.precast, "roof")
     guard(site, p, x, z, cap, w, d, true)
+    if piers then
+        local shaftWidth = w * 0.17
+        box(p, "Prumada de serviços aparente", x + w * 0.26, first + height / 2 + 2.95, z + d / 2 - 0.1,
+            shaftWidth, height + 5.9, 3.2, c.core, porticoTrim)
+        box(p, "Tampa da prumada externa", x + w * 0.26, roof + 6.0, z + d / 2 - 0.1,
+            shaftWidth + 0.65, 0.4, 3.85, c.steel, "metal", detail)
+    elseif loggia then
+        local shadeZ = z - d * 0.28
+        for _, ix in {-1, 1} do
+            box(p, "Pilastra do terraço coberto", x + ix * w * 0.31, cap + 3.3, shadeZ, 0.9, 6.6, 1.1, c.finish, porticoTrim)
+        end
+        box(p, "Brise do terraço coberto", x, cap + 6.66, shadeZ, w * 0.68, 0.46, d * 0.21, c.precast, porticoTrim)
+    end
     local tankZ = z + d * 0.17
     box(p, "Casa da caixa d'água", x - 6, cap + 1.1, tankZ, 15, 2.2, 11, c.core, "cement")
     box(p, "Reservatório cilíndrico", x - 6, cap + 5.0, tankZ, 5.8, 8.1, 8.1, c.frame, "metal", cylinder)
@@ -659,10 +897,11 @@ local function finishWing(site, p, plan, seed)
     serviceVent(site, p, x + w * 0.22, cap, z - d * 0.12, 6.1, 4.15)
 end
 
-function buildings.residential(ctx, parent, x, z, seed, variant)
+function buildings.residential(ctx, parent, x, z, seed, variant, theme: string?)
     local layout = assert(homes[variant], "unknown residential variant")
-    local site = parcel(ctx, parent, x, z, layout.name)
+    local site = parcel(ctx, parent, x, z, layout.name, theme)
     local model, c = site.model, site.color
+    local profile = site.theme
     paving(site, layout.width, layout.depth, layout.center)
     local court = layout.court
     local patio = site.group(model, "Pátio dos moradores")
@@ -672,15 +911,22 @@ function buildings.residential(ctx, parent, x, z, seed, variant)
     planter(site, patio, court.rx, court.z - 2.5, 12, true)
     for _, px in {court.lx + 6.7, court.rx - 6.7} do
         site.box(patio, "Poste do pátio", px, 3.55, court.z + 5.5, 7.1, 0.25, 0.28, c.steel, "metal", cylinder)
-        local lamp = site.box(patio, "Luz baixa do pátio", px, 7.25, court.z + 5.5, 1.65, 0.3, 1.1, c.warm, "neon", detail)
-        site.lamp(lamp, c.warm, 16, 0.39)
+        local color = if profile then c.warm:Lerp(c.entryLight, 0.45) else c.warm
+        local lamp = site.box(patio, "Luz baixa do pátio", px, 7.25, court.z + 5.5, 1.65, 0.3, 1.1, color, "neon", detail)
+        site.lamp(lamp, color, 16, 0.39)
     end
     for index, wing in layout.wings do
         local plan = table.clone(wing)
-        plan.accent = c[plan.finish]
+        plan.accent = if profile then c.finish:Lerp(c[plan.finish], 0.24 + (index - 1) * 0.13) else c[plan.finish]
+        if profile and index == 2 then
+            plan.floors = math.max(3, plan.floors + profile.rise)
+        end
         local p = site.group(model, plan.name)
         lobby(site, p, plan)
         finishWing(site, p, plan, seed + index * 37)
+    end
+    if theme == "colmeia" and variant == "towers" then
+        skybridge(site, layout.wings[1], layout.wings[2], 61.7)
     end
     return model
 end

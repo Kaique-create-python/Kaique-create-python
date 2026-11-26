@@ -113,6 +113,7 @@ end
 
 local function buildCity(root: Instance, art, options)
 	options = options or {}
+	root:SetAttribute("MareBaixaVisualVersion", 1)
 	local spawn = options.spawn or spawnAt(root)
 	if options.onSpawn then
 		options.onSpawn(spawn)
@@ -122,6 +123,7 @@ local function buildCity(root: Instance, art, options)
 	city.WorldPivot = CFrame.new()
 	city:SetAttribute("CityVersion", CITY_VERSION)
 	city:SetAttribute("MareBaixaVersion", 1)
+	city:SetAttribute("MareBaixaVisualVersion", 1)
 	city:SetAttribute("LarguraEmStuds", Layout.halfX * 2)
 	city:SetAttribute("ComprimentoEmStuds", Layout.halfZ * 2)
 	city:SetAttribute("PassoDaQuadra", Layout.pitch)
@@ -135,12 +137,14 @@ local function buildCity(root: Instance, art, options)
 
 	local function blockAt(column: number, row: number)
 		local kind = Layout.blocks[row][column]
+		local theme = Layout.themes[row][column]
 		local x, z = Layout.cell(column, row)
 		local id = string.char(64 + column) .. row
 		local plot = ctx.group(plots, id .. " · " .. BLOCK_NAMES[kind])
 		plot.WorldPivot = CFrame.new(x, 0, z)
 		plot:SetAttribute("Quadra", id)
 		plot:SetAttribute("Tipo", kind)
+		plot:SetAttribute("DistritoVisual", theme)
 		local seed = 202607 + row * 941 + column * 1651
 		local tone = if kind == "docks" or kind == "grid" or kind == "warehouse" then rgb(69, 71, 83) else rgb(76, 81, 95)
 		local x0, x1 = x - 99, x + 99
@@ -150,10 +154,12 @@ local function buildCity(root: Instance, art, options)
 			x0 = 29
 		end
 		ctx.box(plot, "Base transitável da quadra", (x0 + x1) / 2, -1.02, z, x1 - x0, 2.02, 198, tone, "cement", {shadow = false})
-		if TOWER_TYPES[kind] then
-			Mare.Buildings.tower(ctx, plot, x, z, seed, kind)
+		if Layout.edgeLots[id] then
+			Mare.EdgeBlocks.build(ctx, plot, x, z, seed, theme)
+		elseif TOWER_TYPES[kind] then
+			Mare.Buildings.tower(ctx, plot, x, z, seed, kind, theme)
 		elseif RESIDENTIAL_TYPES[kind] then
-			Mare.Buildings.residential(ctx, plot, x, z, seed, kind)
+			Mare.Buildings.residential(ctx, plot, x, z, seed, kind, theme)
 		elseif kind == "arcade" or kind == "sodio" then
 			Mare.Commerce.market(ctx, plot, x, z, seed, kind)
 		elseif kind == "warehouse" or kind == "docks" then
@@ -213,6 +219,10 @@ local function buildCity(root: Instance, art, options)
 	end
 	point("estacao", "Estação do Dique (monotrilho)", Vector3.new(Layout.stationX, Layout.deck + 0.8, -15.75))
 	point("viaduto", "Ponte da Avenida Central", Vector3.new(0, 0.065, -28.45))
+	point("altos", "Altos do Dique", Vector3.new(840, Layout.walkY, -696))
+	point("costa", "Costa da Maré", Vector3.new(360, Layout.walkY, 264))
+	point("cercado", "Pátio do Cercado", Vector3.new(840, Layout.walkY, 24))
+	point("limite", "Faixa de Serviço", Vector3.new(1080, Layout.walkY, 744))
 	table.sort(mirrors, function(a, b)
 		return (a.CFrame.Position - SPAWN).Magnitude < (b.CFrame.Position - SPAWN).Magnitude
 	end)
@@ -239,32 +249,32 @@ local function applyLighting(lighting: Lighting, art)
 		return item
 	end
 	lighting.ClockTime = 1.15
-	lighting.Brightness = 2.15
+	lighting.Brightness = 1.90
 	lighting.GlobalShadows = true
-	lighting.ShadowSoftness = 0.38
-	lighting.ExposureCompensation = 0.18
+	lighting.ShadowSoftness = 0.29
+	lighting.ExposureCompensation = -0.14
 	lighting.GeographicLatitude = 25
-	lighting.Ambient = rgb(69, 70, 91)
-	lighting.OutdoorAmbient = rgb(82, 92, 121)
-	lighting.EnvironmentDiffuseScale = 0.70
-	lighting.EnvironmentSpecularScale = 0.92
+	lighting.Ambient = rgb(47, 43, 69)
+	lighting.OutdoorAmbient = rgb(74, 77, 114)
+	lighting.EnvironmentDiffuseScale = 0.55
+	lighting.EnvironmentSpecularScale = 1
 
 	local haze = effect("Atmosphere", "Névoa de Maré Baixa", true)
-	haze.Density = 0.21
+	haze.Density = 0.26
 	haze.Offset = 0
-	haze.Color = rgb(123, 144, 188)
-	haze.Decay = rgb(55, 65, 103)
-	haze.Haze = 1.55
+	haze.Color = rgb(105, 127, 173)
+	haze.Decay = rgb(43, 50, 83)
+	haze.Haze = 1.70
 	haze.Glare = 0
 	local bloom = effect("BloomEffect", "CyberOutlawCityBloom")
-	bloom.Intensity = 0.26
-	bloom.Size = 25
-	bloom.Threshold = 0.86
+	bloom.Intensity = 0.50
+	bloom.Size = 26
+	bloom.Threshold = 0.96
 	local grade = effect("ColorCorrectionEffect", "CyberOutlawCityGrade")
-	grade.Brightness = 0.024
-	grade.Contrast = 0.075
-	grade.Saturation = -0.12
-	grade.TintColor = rgb(231, 235, 255)
+	grade.Brightness = 0.018
+	grade.Contrast = 0.20
+	grade.Saturation = 0.08
+	grade.TintColor = rgb(243, 235, 255)
 
 	local sky = effect("Sky", "Céu de Maré Baixa", true)
 	local faceIds = {}
@@ -392,6 +402,7 @@ local function main()
 	end
 	local root = Instance.new("Model")
 	root.Name = "CyberOutlawCity"
+	root:SetAttribute("MareBaixaVisualVersion", 1)
 	root:SetAttribute("SafeZoneCenter", Vector3.new(plazaX, 0, plazaZ))
 	root:SetAttribute("SafeZoneRadius", SAFE_RADIUS)
 	local spawn = spawnAt(root)

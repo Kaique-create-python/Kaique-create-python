@@ -1,5 +1,13 @@
 # CyberOutlaw · terraço de Maré Baixa
 
+## Bairros e luz nas ruas
+
+A revisão visual da cidade mantém as 80 quadras, o canal, a Linha 07 e os acessos da versão integrada. Nove perfis diferenciam os volumes, a idade aparente dos materiais e a cor das luzes. A Praça do Dique, o Mercado do Sódio, o Colmeia, o Alto Vértice e as Docas da Maré são referências de orientação. Os Altos do Dique, a Costa da Maré, o Cercado e a Faixa de Serviço aparecem também no painel de destino do dono. [Pesquisa do mapa de Night City e aplicação em Maré Baixa](docs/REFERENCIAS_NIGHT_CITY.md)
+
+O brilho no asfalto vem das luminárias próximas e das 26 poças com aberturas na pista. A colisão continua sob a água. O cliente mantém até 12, 22 ou 34 luminárias locais e até uma, duas ou três poças espelhadas ao mesmo tempo. No modo automático, ele ajusta esse orçamento à cadência de quadros. A qualidade manual do Roblox de 8 a 10 usa o orçamento mais alto da cidade. O canal combina reflexo do ambiente com brilhos nos pontos iluminados. [Modos de iluminação do Roblox](https://create.roblox.com/docs/environment/lighting) · [Efeitos de pós-processamento](https://create.roblox.com/docs/environment/post-processing-effects)
+
+Os comparativos usam a geometria exportada da cidade, as mesmas posições de câmera e a mesma configuração do renderizador 3D. A aparência final depende da qualidade selecionada e do aparelho no Roblox. [Mercado do Sódio](dist/previews/mare-baixa-visual/mercado-comparativo.jpg) · [Térreo da Torre Vértice](dist/previews/mare-baixa-visual/vertice-comparativo.jpg) · [Avenida molhada](dist/previews/mare-baixa-visual/avenida.jpg) · [Canal](dist/previews/mare-baixa-visual/canal.jpg) · [Quatro bairros](dist/previews/mare-baixa-visual/bairros.jpg)
+
 ## Maré Baixa integrada
 
 A integração parte da v12.1 da branch `ccr-b4068ef4-7ky9v8` e conserva o universo `10774214423` e o Place `122033314086516`. A cidade jogável tem 80 quadras em uma malha de 2.400 × 1.920 studs. O servidor constrói a geometria de `src/mare-baixa/` por Luau. O instalador inclui os módulos no script gerenciado da cidade.

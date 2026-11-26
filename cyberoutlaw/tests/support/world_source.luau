@@ -9,6 +9,7 @@ local modules = {
     {"PublicSpace", "public_space"},
     {"Buildings", "buildings"},
     {"Commerce", "commerce"},
+    {"EdgeBlocks", "edge_blocks"},
 }
 
 return function(art)

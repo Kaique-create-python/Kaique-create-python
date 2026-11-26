@@ -857,6 +857,67 @@ do
 	end
 	assert(play.nightSky(2) and play.nightSky(21) and not play.nightSky(12) and not play.nightSky(7))
 end
+
+-- A iluminação próxima e as poças seguem o nível manual ou a estabilidade dos quadros no móvel.
+do
+	local quality = { touch = true }
+	local function sample(count: number, dt: number)
+		for _ = 1, count do
+			play.sampleVisualQuality(quality, dt)
+		end
+	end
+	play.setVisualQuality(quality, 0)
+	assert(quality.tier == 1 and not quality.manual)
+	sample(122, 1 / 60)
+	play.sampleVisualQuality(quality, 0.5)
+	assert(quality.fast == 0 and quality.tier == 1, "suspender o app descarta as amostras anteriores")
+	sample(780, 1 / 60)
+	assert(quality.tier == 2)
+	sample(780, 1 / 60)
+	assert(quality.tier == 2, "o perfil máximo espera quadros rápidos sustentados no celular")
+	sample(780, 1 / 60)
+	assert(quality.tier == 3)
+	sample(96, 1 / 24)
+	assert(quality.tier == 2, "o perfil automático reduz a carga quando a cadência cai")
+	for _, level in {1, 4, 5, 7, 8, 10} do
+		play.setVisualQuality(quality, level)
+		local tier = if level <= 4 then 1 elseif level <= 7 then 2 else 3
+		assert(quality.manual and quality.tier == tier and quality.value == level)
+		sample(120, 1 / 24)
+		assert(quality.tier == tier)
+	end
+	local night = play.visualDayLight(0, true, 3)
+	local lightMobile = play.visualDayLight(0, true, 1)
+	local day = play.visualDayLight(13, true, 3)
+	assert(night.lamps == 1 and night.bloom > day.bloom and night.ambient.B > night.ambient.R)
+	assert(day.lamps < 0.5 and day.brightness > night.brightness)
+	assert(lightMobile.exposure > night.exposure and lightMobile.bloom < night.bloom)
+	assert(play.CITY_VISUAL_BUDGETS[1].puddles == 1 and play.CITY_VISUAL_BUDGETS[3].puddles == 3)
+end
+
+-- Reflexos de fachadas e letreiros, com recorte no plano da rua e seleção pela abertura.
+do
+	local part = roblox.Instance.new("Part")
+	part.Name, part.Anchored, part.Transparency = "Fachada", true, 0
+	part.Shape, part.Material = roblox.Enum.PartType.Block, roblox.Enum.Material.Glass
+	part.CFrame, part.Size, part.Color = CF.new(0, 1, -8), V3.new(3, 6, 0.5), roblox.Color3.fromRGB(80, 119, 150)
+	local source = play.mirrorSource(part)
+	local pose, size = play.mirrorSourcePose(source, 0)
+	assert(not source.emitted and size.Y < part.Size.Y)
+	assert(math.abs(pose.Position.Y + size.Y / 2 + 0.045) < 1e-5, "a fachada espelhada acaba sob a rua")
+	part:SetAttribute("MareBrilhoPiso", true)
+	assert(play.mirrorSource(part) == nil, "o brilho do piso não vira uma fonte")
+	part:SetAttribute("MareBrilhoPiso", nil)
+	part:SetAttribute("MareReflexoCor", roblox.Color3.fromRGB(250, 100, 128))
+	assert(play.mirrorSource(part).emitted)
+	local opening = { eye = V3.new(0, 6, 8), height = 6, puddle = { frame = CF.new(), size = V3.new(4, 0.02, 3), plane = 0 } }
+	part.CFrame = CF.new(0, 6, -8)
+	assert(play.mirrorMiss(opening, play.mirrorSource(part)) == 0)
+	part.CFrame = CF.new(55, 6, -8)
+	assert(play.mirrorMiss(opening, play.mirrorSource(part)) > 11 ^ 2)
+	part:Destroy()
+end
+
 -- Animações R6 originais: os dados do jogo batem com cada keyframe dos .rbxmx do usuário.
 do
 	assert(roblox.deserializeModel, "Lune com leitura de rbxmx")

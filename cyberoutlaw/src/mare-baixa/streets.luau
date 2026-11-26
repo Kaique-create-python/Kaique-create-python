@@ -4,20 +4,29 @@ function Streets.build(ctx, city, layout)
     local rgb, box, group = ctx.rgb, ctx.box, ctx.group
     local many = group(city, "Ruas e passagens")
     local canals = group(city, "Canal e pontes")
-    local roadway = rgb(37, 43, 56)
-    local paving = rgb(82, 89, 108)
+    local roadway = rgb(30, 35, 43)
+    local paving = rgb(85, 89, 98)
     local curb = rgb(116, 120, 134)
     local gray = rgb(54, 63, 83)
     local ink = rgb(28, 36, 49)
-    local warm = rgb(247, 183, 116)
     local cyan = rgb(99, 217, 242)
     local rose = rgb(242, 72, 157)
     local offWhite = rgb(192, 198, 201)
     local paint = {collision = false, shadow = false}
-    local glass = {collision = false, shadow = false, transparency = 0.22, reflectance = 0.32}
     local rng = ctx.random(51428)
     local bank = layout.bank
     local mirrors = {}
+    local palettes = {
+        sodio = {lamp = rgb(250, 164, 93), spill = rgb(246, 77, 151), paving = rgb(99, 74, 77), wet = true},
+        vertice = {lamp = rgb(137, 210, 245), spill = rgb(93, 220, 255), paving = rgb(82, 95, 110), wet = true},
+        prisma = {lamp = rgb(165, 218, 245), spill = rgb(193, 112, 255), paving = rgb(85, 91, 106), wet = true},
+        colmeia = {lamp = rgb(253, 205, 147), spill = rgb(243, 168, 95), paving = rgb(96, 88, 87), wet = true},
+        docas = {lamp = rgb(246, 164, 93), spill = rgb(255, 142, 70), paving = rgb(95, 82, 73), wet = true},
+        costa = {lamp = rgb(153, 222, 214), spill = rgb(76, 221, 207), paving = rgb(86, 94, 92), wet = true},
+        cercado = {lamp = rgb(251, 183, 112), spill = rgb(243, 139, 74), paving = rgb(105, 91, 73), wet = true},
+        altos = {lamp = rgb(238, 229, 198), paving = rgb(109, 104, 94)},
+        limite = {lamp = rgb(235, 190, 121), paving = rgb(123, 108, 89)},
+    }
 
     local function slab(parent, name, axis, span, center, line, along, across, y, h, color, material, options)
         if axis == "X" then
@@ -26,22 +35,33 @@ function Streets.build(ctx, city, layout)
         return box(parent, name, line + across, y, center + along, span[2], h, span[1], color, material, options)
     end
 
+    local function wetGlint(parent, axis, center, line, along, across, span, color, transparency)
+        local x, z = if axis == "X" then center + along else line + across, if axis == "X" then line + across else center + along
+        local width, depth = if axis == "X" then span[1] else span[2], if axis == "X" then span[2] else span[1]
+        local basis = CFrame.new(x, -0.229, z) * CFrame.Angles(0, 0, math.pi / 2)
+        local fleck = box(parent, "Reflexo de luminária no piso", x, -0.229, z, 0.012, width, depth, color, "neon", {
+            shape = "Cylinder", cframe = basis, collision = false, shadow = false, transparency = transparency,
+        })
+        fleck:SetAttribute("MareBrilhoPiso", true)
+    end
+
     local function roadPuddle(parent, axis, center, line, along, across, palette, reflective)
-        local length = rng:NextNumber(7.8, 16.4)
-        local width = rng:NextNumber(2.0, 4.8)
+        local length = if reflective then rng:NextNumber(20, 29) else rng:NextNumber(9.8, 18.4)
+        local width = if reflective then rng:NextNumber(3.6, 5.8) else rng:NextNumber(2.4, 4.4)
         local water = slab(parent, if reflective then "Poça" else "Lâmina de água", axis, {length, width},
-            center, line, along, across, -0.256, 0.024, rgb(49, 61, 81), "water",
-            if reflective then {collision = false, transparency = 0.7, reflectance = 0.32} else glass)
+            center, line, along, across, -0.256, 0.024, rgb(45, 54, 68), "water",
+            {collision = false, shadow = false, transparency = if reflective then 0.61 else 0.68, reflectance = 0.45})
         if reflective then
             water:SetAttribute("CyberOutlawPlano", layout.roadY)
+            ctx.reflection(water)
             table.insert(mirrors, water)
         end
-        for i = 1, 4 do
-            local fraction = i / 4
-            slab(parent, "Brilho fragmentado", axis, {length * rng:NextNumber(0.18, 0.44), 0.12 + 0.03 * i},
-                center, line, along + (fraction - 0.7) * length * 0.61, across + (i - 2.5) * 0.39,
-                -0.237 + i * 0.001, 0.013, palette, "neon",
-                {collision = false, shadow = false, transparency = 0.58 + 0.07 * i})
+        wetGlint(parent, axis, center, line, along, across, {length * 1.18, width * 0.78}, palette.spill, 0.93)
+        for index = 1, 3 do
+            local delta = (index - 2) * length * 0.24 + rng:NextNumber(-0.7, 0.7)
+            wetGlint(parent, axis, center, line, along + delta, across + (index - 2) * 0.67,
+                {length * rng:NextNumber(0.18, 0.37), rng:NextNumber(0.32, 0.72)},
+                if index == 2 then palette.lamp else palette.spill, 0.69 + index * 0.056)
         end
         return {along, across, length, width}
     end
@@ -57,7 +77,7 @@ function Streets.build(ctx, city, layout)
         local bulb = slab(parent, "Difusor de rua", axis, {1.66, 2.83}, center, line, along, across - s * 4.3, 14.73, 0.19,
             palette, "neon", paint)
         if active then
-            ctx.lamp(bulb, palette, 33, 1.45, "Bottom")
+            ctx.lamp(bulb, palette, 38, 2.05, "Bottom")
         end
     end
 
@@ -90,9 +110,19 @@ function Streets.build(ctx, city, layout)
         local length = last - first
         local radius = width / 2
         local segment = group(many, string.format("%s · %d / %d", if axis == "X" then "Avenida" else "Rua", line, center))
-        local lit = math.abs(line) <= 480 or math.abs(center) <= 390
+        local lit = math.abs(line) <= 480 or math.abs(center) <= 520
+        local mirrorSide
+        if axis == "X" and ((math.abs(center) < 390 and (line == -480 or line == -240 or line == 0 or line == 480))
+            or (line == 240 and math.abs(center) < 175)) then
+            mirrorSide = if line < 0 or (line > 0 and center < 0) then 1 else -1
+        elseif axis == "Z" and math.abs(line) == 240 and math.abs(center) < 390 then
+            mirrorSide = if line < 0 then 1 else -1
+        end
         local cut
         for _, side in {-1, 1} do
+            local offset = line + side * (radius + 8)
+            local theme = if axis == "X" then layout.themeAt(center, offset) else layout.themeAt(offset, center)
+            local palette = palettes[theme]
             slab(segment, "Faixa de bordo", axis, {length, 0.24}, center, line, 0, side * (radius - 1.4), -0.246, 0.023,
                 offWhite, "paint", paint)
             slab(segment, "Canaleta do passeio", axis, {length, 1.14}, center, line, 0, side * (radius + 0.56), -0.38, 0.24,
@@ -101,27 +131,26 @@ function Streets.build(ctx, city, layout)
                 "stone")
             if pedestrian then
                 slab(segment, "Passeio de placas drenantes", axis, {length, 11.0}, center, line, 0, side * (radius + 7.2),
-                    -0.28, 0.64, paving, "sidewalk", {shadow = false})
+                    -0.28, 0.64, palette.paving, "sidewalk", {shadow = false})
                 slab(segment, "Linha tátil do passeio", axis, {length - 2, 0.47}, center, line, 0, side * (radius + 3.3),
                     0.053, 0.039, rgb(136, 117, 88), "tile", paint)
                 local along = side * (length * 0.24)
-                local tone = if axis == "X" and line == 0 then cyan else warm
+                local tone = if axis == "X" and line == 0 and theme == "prisma" then cyan else palette.lamp
                 lamp(segment, axis, center, line, along, side * (radius + 3.8), tone, lit)
                 if lit then
                     drain(segment, axis, center, line, -along * 0.87, side * (radius - 0.65))
-                    local reflective = axis == "X" and center > -480 and center < -100
-                        and ((line == 0 and side == -1) or (line == -240 and side == 1))
-                    local puddle = roadPuddle(segment, axis, center, line, along + side * 3.2,
-                        side * (radius - 3.75), tone, reflective)
-                    if reflective then
-                        cut = puddle
+                    local reflective = side == mirrorSide
+                    if reflective or palette.wet then
+                        local puddle = roadPuddle(segment, axis, center, line, along + side * 3.2,
+                            side * (radius - 4.6), if palette.wet then palette else palettes.prisma, reflective)
+                        if reflective then cut = puddle end
                     end
                 end
             end
         end
         local function asphalt(a, b, c, d)
             slab(segment, "Pista de asfalto úmido", axis, {b - a, d - c}, center, line, (a + b) / 2, (c + d) / 2,
-                layout.roadY - 0.4, 0.8, roadway, "asphalt", {shadow = false, reflectance = 0.06})
+                layout.roadY - 0.4, 0.8, roadway, "asphalt", {shadow = false, reflectance = 0.13})
         end
         if cut then
             -- A abertura mostra o reflexo planar do cliente. O suporte mantém a pista plana.
@@ -222,8 +251,8 @@ function Streets.build(ctx, city, layout)
         local center = (z0 + z1) / 2
         local basin = group(canals, string.format("Cais %02d", row))
         box(basin, "Fundação do leito", 0, -9, center, layout.canalWidth, 2.3, layout.pitch, rgb(23, 33, 51), "cement")
-        box(basin, "Espelho de água do canal", 0, -3.28, center, layout.canalWidth - 0.3, 0.12, layout.pitch, rgb(25, 49, 70), "water",
-            {collision = false, transparency = 0.19, reflectance = 0.43})
+        box(basin, "Espelho de água do canal", 0, -3.28, center, layout.canalWidth - 0.3, 0.12, layout.pitch, rgb(21, 36, 53), "water",
+            {collision = false, transparency = 0.24, reflectance = 0.55})
         for _, side in {-1, 1} do
             box(basin, "Muro de contenção", side * 28, -4.34, center, 5.7, 8.12, layout.pitch, rgb(64, 75, 92), "cement")
             for i = 1, 12 do
@@ -242,11 +271,12 @@ function Streets.build(ctx, city, layout)
                 local lampPart = box(basin, "Balizador ribeirinho", side * 31.2, 0.77, center + localZ, 0.48, 1.52, 0.48,
                     gray, "metal")
                 box(basin, "Friso do balizador", side * 31.2, 1.44, center + localZ, 0.49, 0.14, 0.49, hue, "neon", paint)
-                for j = 1, 4 do
-                    local length = rng:NextNumber(3.6, 15) * (1.11 - j * 0.13)
-                    box(basin, "Reflexo no canal", side * (22 - j * 1.18), -3.198 + j * 0.002, center + localZ + (j - 2) * 1.71,
-                        0.3 + j * 0.17, 0.012, length, hue, "neon",
-                        {collision = false, shadow = false, transparency = 0.63 + j * 0.064})
+                for j = 1, 5 do
+                    local length = rng:NextNumber(4.6, 18) * (1.14 - j * 0.13)
+                    local reflected = box(basin, "Reflexo no canal", side * (23 - j * 1.46), -3.198 + j * 0.002,
+                        center + localZ + (j - 2) * 1.71, 0.36 + j * 0.21, 0.012, length, hue, "neon",
+                        {collision = false, shadow = false, transparency = 0.54 + j * 0.081})
+                    reflected:SetAttribute("MareBrilhoPiso", true)
                 end
                 if row == 4 or row == 5 then
                     ctx.lamp(lampPart, hue, 13, 0.45, "Front")

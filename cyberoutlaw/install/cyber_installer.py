@@ -37,6 +37,7 @@ MARE_MODULES_MARKER = "-- __CYBEROUTLAW_MARE_MODULES__"
 MARE_MODULES = (
     ("Context", "context"), ("Layout", "layout"), ("Streets", "streets"), ("Transit", "transit"),
     ("PublicSpace", "public_space"), ("Buildings", "buildings"), ("Commerce", "commerce"),
+    ("EdgeBlocks", "edge_blocks"),
 )
 # Server scripts installed in ServerScriptService, in this order.
 SERVER_SCRIPTS = (

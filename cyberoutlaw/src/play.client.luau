@@ -2792,15 +2792,43 @@ local DAY_KEYS = {
 		tint = c3(244, 236, 255), rays = 0, clouds = c3(90, 70, 120), cover = 0.4, lamps = 1 },
 }
 M.DAY_KEYS = DAY_KEYS
+-- Maré Baixa mantém a luz ambiente fria para separar as fachadas das luzes locais quentes.
+local MARE_DAY_KEYS = {
+	{ hour = 0, brightness = 1.90, ambient = c3(47, 43, 69), outdoor = c3(74, 77, 114), exposure = -0.14, density = 0.26,
+		haze = c3(105, 127, 173), decay = c3(43, 50, 83), glare = 0, hazeAmount = 1.7, bloom = 0.50, threshold = 0.96,
+		tint = c3(243, 235, 255), grade = 0.018, contrast = 0.20, saturation = 0.08, rays = 0, clouds = c3(49, 46, 70), cover = 0.34, lamps = 1 },
+	{ hour = 5, brightness = 1.90, ambient = c3(43, 47, 73), outdoor = c3(71, 84, 123), exposure = -0.14, density = 0.27,
+		haze = c3(104, 131, 186), decay = c3(45, 58, 97), glare = 0, hazeAmount = 1.8, bloom = 0.50, threshold = 0.96,
+		tint = c3(239, 239, 255), grade = 0.018, contrast = 0.20, saturation = 0.08, rays = 0, clouds = c3(51, 53, 79), cover = 0.36, lamps = 1 },
+	{ hour = 6.4, brightness = 2.35, ambient = c3(70, 61, 83), outdoor = c3(123, 96, 110), exposure = -0.09, density = 0.30,
+		haze = c3(198, 148, 157), decay = c3(128, 78, 98), glare = 0.35, hazeAmount = 2.1, bloom = 0.42, threshold = 1.13,
+		tint = c3(255, 238, 231), grade = 0.014, contrast = 0.18, saturation = 0.06, rays = 0.10, clouds = c3(226, 177, 167), cover = 0.48, lamps = 0.65 },
+	{ hour = 9, brightness = 2.65, ambient = c3(97, 102, 120), outdoor = c3(143, 153, 173), exposure = -0.04, density = 0.27,
+		haze = c3(170, 192, 216), decay = c3(91, 118, 159), glare = 0.17, hazeAmount = 1.3, bloom = 0.29, threshold = 1.37,
+		tint = c3(245, 248, 255), grade = 0.009, contrast = 0.14, saturation = 0.02, rays = 0.05, clouds = c3(230, 236, 251), cover = 0.52, lamps = 0.32 },
+	{ hour = 13, brightness = 2.85, ambient = c3(103, 108, 125), outdoor = c3(151, 164, 183), exposure = -0.06, density = 0.26,
+		haze = c3(173, 202, 226), decay = c3(88, 114, 155), glare = 0.15, hazeAmount = 1.1, bloom = 0.27, threshold = 1.45,
+		tint = c3(248, 251, 255), grade = 0.009, contrast = 0.14, saturation = 0.02, rays = 0.04, clouds = c3(234, 242, 255), cover = 0.48, lamps = 0.32 },
+	{ hour = 17, brightness = 2.55, ambient = c3(100, 86, 104), outdoor = c3(153, 126, 136), exposure = -0.08, density = 0.28,
+		haze = c3(204, 176, 174), decay = c3(143, 96, 101), glare = 0.28, hazeAmount = 1.7, bloom = 0.34, threshold = 1.25,
+		tint = c3(255, 245, 239), grade = 0.010, contrast = 0.16, saturation = 0.05, rays = 0.08, clouds = c3(243, 211, 197), cover = 0.51, lamps = 0.48 },
+	{ hour = 18.5, brightness = 2.15, ambient = c3(76, 56, 83), outdoor = c3(142, 91, 111), exposure = -0.10, density = 0.30,
+		haze = c3(215, 135, 147), decay = c3(138, 66, 104), glare = 0.40, hazeAmount = 2.2, bloom = 0.44, threshold = 1.05,
+		tint = c3(255, 232, 235), grade = 0.012, contrast = 0.19, saturation = 0.07, rays = 0.11, clouds = c3(206, 125, 144), cover = 0.48, lamps = 0.80 },
+	{ hour = 20, brightness = 1.90, ambient = c3(50, 43, 72), outdoor = c3(80, 75, 119), exposure = -0.14, density = 0.27,
+		haze = c3(112, 121, 176), decay = c3(53, 48, 93), glare = 0, hazeAmount = 1.8, bloom = 0.50, threshold = 0.96,
+		tint = c3(246, 235, 255), grade = 0.018, contrast = 0.20, saturation = 0.08, rays = 0, clouds = c3(58, 49, 81), cover = 0.37, lamps = 1 },
+}
 -- Luz da cidade numa hora qualquer: mistura as duas horas-chave em volta (dá a volta da meia-noite).
-local function dayLight(hour: number)
+local function dayLight(hour: number, mare: boolean?)
 	hour %= 24
-	local count = #DAY_KEYS
-	local a, b = DAY_KEYS[count], DAY_KEYS[1]
+	local keys = if mare then MARE_DAY_KEYS else DAY_KEYS
+	local count = #keys
+	local a, b = keys[count], keys[1]
 	for index = 1, count do
-		local key = DAY_KEYS[index]
+		local key = keys[index]
 		if key.hour <= hour then
-			a, b = key, DAY_KEYS[index % count + 1]
+			a, b = key, keys[index % count + 1]
 		end
 	end
 	local span = (b.hour - a.hour) % 24
@@ -2826,6 +2854,706 @@ local function nightSky(hour: number): boolean
 end
 M.nightSky = nightSky
 
+-- A opção Automático não expõe o nível efetivo a LocalScripts. A cidade usa o tempo de quadro
+-- sustentado para variar o seu próprio orçamento e deixa a qualidade do Roblox com o jogador.
+local CITY_VISUAL_BUDGETS = {
+	{ puddles = 1, distance = 80, sourceRange = 82, parts = 42, lights = 12, lightRange = 100, bodies = 1, bodyRate = 14, builds = 6 },
+	{ puddles = 2, distance = 105, sourceRange = 112, parts = 46, lights = 22, lightRange = 145, bodies = 2, bodyRate = 20, builds = 8 },
+	{ puddles = 3, distance = 132, sourceRange = 128, parts = 52, lights = 34, lightRange = 180, bodies = 3, bodyRate = 24, builds = 10 },
+}
+M.CITY_VISUAL_BUDGETS = CITY_VISUAL_BUDGETS
+
+local function setVisualQuality(state, saved: number)
+	state.manual = saved > 0
+	state.value = if state.manual then saved else 7 -- O desfoque da mira continua seguindo o nível salvo.
+	state.tier = if state.manual then (if saved <= 4 then 1 elseif saved <= 7 then 2 else 3) else (if state.touch then 1 else 2)
+	state.seconds, state.frames, state.fast, state.slow = 0, 0, 0, 0
+end
+M.setVisualQuality = setVisualQuality
+
+local function sampleVisualQuality(state, dt: number)
+	if state.manual then
+		return
+	end
+	if dt >= 0.25 then -- Pausas do aplicativo não medem o desempenho da cena.
+		state.seconds, state.frames, state.fast, state.slow = 0, 0, 0, 0
+		return
+	end
+	state.seconds += dt
+	state.frames += 1
+	if state.seconds < 1 then
+		return
+	end
+	local average = state.seconds / state.frames
+	state.fast = if average < 0.020 then state.fast + state.seconds else 0
+	state.slow = if average > 0.036 then state.slow + state.seconds else 0
+	local upgradeTime = if state.touch and state.tier == 2 then 24 else 12
+	if state.slow >= 3 and state.tier > 1 then
+		state.tier -= 1
+		state.fast, state.slow = 0, 0
+	elseif state.fast >= upgradeTime and state.tier < #CITY_VISUAL_BUDGETS then
+		state.tier += 1
+		state.fast, state.slow = 0, 0
+	end
+	state.seconds, state.frames = 0, 0
+end
+M.sampleVisualQuality = sampleVisualQuality
+
+local function visualQuality(touch: boolean)
+	local state = { touch = touch }
+	setVisualQuality(state, 0)
+	pcall(function()
+		local settings = UserSettings():GetService("UserGameSettings")
+		local function read()
+			setVisualQuality(state, settings.SavedQualityLevel.Value)
+		end
+		settings:GetPropertyChangedSignal("SavedQualityLevel"):Connect(read)
+		read()
+	end)
+	return state
+end
+
+local function visualDayLight(hour: number, mare: boolean, tier: number)
+	local light = dayLight(hour, mare)
+	if mare and tier == 1 then
+		-- Nas qualidades que reduzem sombras e efeitos, a silhueta ainda precisa ser legível.
+		light.exposure += 0.13 * light.lamps
+		light.ambient = light.ambient:Lerp(c3(70, 66, 95), 0.29 * light.lamps)
+		light.contrast -= 0.035
+		light.bloom *= 0.83
+	end
+	return light
+end
+M.visualDayLight = visualDayLight
+
+-- Índice apenas dos emissores e das peças que podem entrar numa reflexão próxima.
+local function visualGrid()
+	local cells, entries = {}, {}
+	local cellSize = 48
+	local function key(x: number, z: number): string
+		return x .. "," .. z
+	end
+	local function add(item: Instance, entry)
+		local position = entry.position
+		local index = key(math.floor(position.X / cellSize), math.floor(position.Z / cellSize))
+		local bucket = cells[index]
+		if not bucket then
+			bucket = {}
+			cells[index] = bucket
+		end
+		entry.cell = index
+		bucket[item], entries[item] = entry, entry
+	end
+	local function remove(item: Instance)
+		local entry = entries[item]
+		if entry then
+			local bucket = cells[entry.cell]
+			bucket[item], entries[item] = nil, nil
+			if next(bucket) == nil then
+				cells[entry.cell] = nil
+			end
+		end
+	end
+	local function nearby(position: Vector3, range: number, visit)
+		for x = math.floor((position.X - range) / cellSize), math.floor((position.X + range) / cellSize) do
+			for z = math.floor((position.Z - range) / cellSize), math.floor((position.Z + range) / cellSize) do
+				local bucket = cells[key(x, z)]
+				if bucket then
+					for item, entry in bucket do
+						visit(item, entry)
+					end
+				end
+			end
+		end
+	end
+	return { add = add, remove = remove, nearby = nearby, entries = entries }
+end
+
+local MIRROR_SKIP = {
+	["Asfalto molhado"] = true, ["Poça"] = true, ["Calçada"] = true, ["Meio-fio"] = true, ["Pintura"] = true,
+	["Faixa de pedestres"] = true, ["Muro invisível"] = true, ["Canteiro central"] = true, ["Bueiro"] = true,
+}
+
+local function mirrorSource(part: BasePart, readLegacySign: boolean?)
+	if not part.Anchored or part.Transparency >= 0.96 or MIRROR_SKIP[part.Name] or part:GetAttribute("MareBrilhoPiso") then
+		return nil
+	end
+	local material = part:GetAttribute("MareMaterial")
+	if material == "asphalt" or material == "sidewalk" or material == "water" then
+		return nil
+	end
+	local glow = part.Material == Enum.Material.Neon
+	local signColor = part:GetAttribute("MareReflexoCor")
+	if not glow and typeof(signColor) ~= "Color3" and readLegacySign then
+		local gui = part:FindFirstChildOfClass("SurfaceGui")
+		local text = gui and gui:FindFirstChildWhichIsA("TextLabel", true)
+		if text then
+			signColor = text.TextColor3
+		end
+	end
+	local frame, size = part.CFrame, part.Size
+	local sign = not glow and typeof(signColor) == "Color3"
+	if sign then
+		-- Um traço com a cor do letreiro representa a luz no reflexo sem duplicar seu SurfaceGui.
+		size = Vector3.new(size.X * 0.9, math.max(0.12, size.Y * 0.34), size.Z * 0.9)
+	elseif not glow and (math.max(size.X, size.Y, size.Z) < 2.2 or material == "paint") then
+		return nil
+	end
+	local x, y, z = frame.RightVector, frame.UpVector, frame.LookVector
+	local half = (Vector3.new(math.abs(x.X), math.abs(x.Y), math.abs(x.Z)) * size.X
+		+ Vector3.new(math.abs(y.X), math.abs(y.Y), math.abs(y.Z)) * size.Y
+		+ Vector3.new(math.abs(z.X), math.abs(z.Y), math.abs(z.Z)) * size.Z) * 0.5
+	local shape = if part:IsA("WedgePart") then Enum.PartType.Wedge elseif part:IsA("Part") then part.Shape else Enum.PartType.Block
+	local emitted = glow or sign
+	return {
+		position = frame.Position, frame = frame, size = size, half = half, shape = shape, emitted = emitted,
+		color = (if sign then signColor else part.Color):Lerp(c3(17, 21, 36), if emitted then 0.26 else 0.40),
+		transparency = math.min(0.87, part.Transparency + (if emitted then 0.12 else 0.24)),
+	}
+end
+M.mirrorSource = mirrorSource
+
+local function mirrorSourcePose(source, plane: number)
+	local frame, size = source.frame, source.size
+	local bottom = source.position.Y - source.half.Y
+	if bottom < plane + 0.045 then
+		local clip = plane + 0.045 - bottom
+		if source.shape ~= Enum.PartType.Block or math.abs(frame.UpVector.Y) < 0.999 or size.Y - clip < 0.25 then
+			return nil, nil
+		end
+		-- A parte da fachada acima da rua é a única que entra no espelho.
+		size -= Vector3.new(0, clip, 0)
+		frame += Vector3.new(0, clip / 2, 0)
+	end
+	return mirrorCFrame(frame, plane, source.shape == Enum.PartType.Wedge), size
+end
+M.mirrorSourcePose = mirrorSourcePose
+
+local function mirrorMiss(view, source): number
+	-- Projeta os limites da peça pelo olho até o plano da água e mede a distância até a abertura.
+	local eye, puddle = view.eye, view.puddle
+	local sourceLocal = puddle.frame:PointToObjectSpace(source.position)
+	local high = math.max(0.045, source.position.Y + source.half.Y - puddle.plane)
+	local low = math.max(0.045, source.position.Y - source.half.Y - puddle.plane)
+	local t0, t1 = view.height / (view.height + high), view.height / (view.height + low)
+	local right, forward = puddle.frame.RightVector, puddle.frame.LookVector
+	local boundX = (math.abs(right.X) * source.half.X + math.abs(right.Z) * source.half.Z) * t1
+	local boundZ = (math.abs(forward.X) * source.half.X + math.abs(forward.Z) * source.half.Z) * t1
+	local x0, x1 = eye.X + (sourceLocal.X - eye.X) * t0, eye.X + (sourceLocal.X - eye.X) * t1
+	local z0, z1 = eye.Z + (sourceLocal.Z - eye.Z) * t0, eye.Z + (sourceLocal.Z - eye.Z) * t1
+	local dx = math.max(0, math.min(x0, x1) - puddle.size.X / 2 - boundX, -puddle.size.X / 2 - math.max(x0, x1) - boundX)
+	local dz = math.max(0, math.min(z0, z1) - puddle.size.Z / 2 - boundZ, -puddle.size.Z / 2 - math.max(z0, z1) - boundZ)
+	return dx * dx + dz * dz
+end
+M.mirrorMiss = mirrorMiss
+
+local function puddleReflections(workspace: Workspace, camera: Camera, players: Players)
+	local mirror = Instance.new("Folder")
+	mirror.Name = "CyberOutlawReflexos"
+	mirror.Parent = camera
+	local sources, puddles, pool = visualGrid(), {}, {}
+	local near, copies, wanted, queue = {}, {}, {}, {}
+	local emitters, silhouettes = {}, {}
+	local bodies, actorCandidates, actors, bodyParts, bodyFrames = {}, {}, {}, {}, {}
+	local bodyClock, cursor, visible, dirty = 0, 1, 0, true
+
+	local function acquire(): Part
+		local part = table.remove(pool)
+		if not part then
+			part = Instance.new("Part")
+			part.Name = "Reflexo"
+			part.Anchored, part.CanCollide, part.CanTouch, part.CanQuery, part.CastShadow = true, false, false, false, false
+		end
+		visible += 1
+		return part
+	end
+	local function recycle(part: Part)
+		part.Parent = nil
+		visible -= 1
+		table.insert(pool, part)
+	end
+	local function addPuddle(item: Instance)
+		if item:IsA("BasePart") then
+			local plane = item:GetAttribute("CyberOutlawPlano")
+			if type(plane) == "number" then
+				puddles[item] = { item = item, plane = plane, position = item.Position, frame = item.CFrame, size = item.Size }
+				dirty = true
+			end
+		end
+	end
+	local function removePuddle(item: Instance)
+		if puddles[item] then
+			puddles[item] = nil
+			dirty = true
+		end
+	end
+	local function addSource(item: Instance, legacy: boolean?)
+		if item:IsA("BasePart") and not sources.entries[item] then
+			local source = mirrorSource(item, legacy)
+			if source then
+				sources.add(item, source)
+			end
+		end
+	end
+	local function removeSource(item: Instance)
+		if not sources.entries[item] then
+			return
+		end
+		sources.remove(item)
+		for _, row in copies do
+			if row[item] then
+				recycle(row[item])
+				row[item] = nil
+			end
+		end
+	end
+	local function byScore(a, b)
+		return a.score < b.score
+	end
+
+	local function refreshSurfaces(view: CFrame, budget)
+		table.clear(near)
+		local eye = view.Position
+		for _, puddle in puddles do
+			local delta = puddle.position - eye
+			local distance = delta.Magnitude
+			if distance < budget.distance and eye.Y > puddle.plane + 0.1
+				and (distance < 15 or view.LookVector:Dot(delta) > -0.1 * distance) then
+				puddle.score = distance - (if puddle.selected then 8 else 0)
+				table.insert(near, puddle)
+			end
+			puddle.selected = false
+		end
+		table.sort(near, byScore)
+		for index = #near, budget.puddles + 1, -1 do
+			near[index] = nil
+		end
+
+		table.clear(wanted)
+		table.clear(queue)
+		table.clear(emitters)
+		table.clear(silhouettes)
+		cursor = 1
+		for _, puddle in near do
+			puddle.selected = true
+			local plane, center = puddle.plane, puddle.position
+			local projection = { eye = puddle.frame:PointToObjectSpace(eye), height = eye.Y - plane, puddle = puddle }
+			local row = wanted[plane] or {}
+			wanted[plane] = row
+			table.clear(emitters)
+			table.clear(silhouettes)
+			sources.nearby(center, budget.sourceRange, function(item, source)
+				if row[item] or source.position.Y + source.half.Y < plane + 0.3 then
+					return
+				end
+				local delta = center - source.position
+				local distance = delta.X * delta.X + delta.Z * delta.Z
+				if distance > budget.sourceRange ^ 2 then
+					return
+				end
+				local miss = mirrorMiss(projection, source)
+				if miss <= 11 ^ 2 then
+					source.item = item
+					source.score = distance + miss * 250 + math.max(0, delta.Y * delta.Y - 38 ^ 2)
+					if copies[plane] and copies[plane][item] then
+						source.score -= 100
+					end
+					table.insert(if source.emitted then emitters else silhouettes, source)
+				end
+			end)
+			table.sort(emitters, byScore)
+			table.sort(silhouettes, byScore)
+			local left = budget.parts
+			local function selectFrom(list, first: number, last: number)
+				for index = first, math.min(last, #list) do
+					local source = list[index]
+					local frame, size = mirrorSourcePose(source, plane)
+					if frame then
+						row[source.item] = true
+						if not (copies[plane] and copies[plane][source.item]) then
+							table.insert(queue, { item = source.item, source = source, plane = plane, frame = frame, size = size })
+						end
+						left -= 1
+					end
+				end
+			end
+			local glowSlots = math.floor(budget.parts * 0.67)
+			selectFrom(emitters, 1, glowSlots)
+			selectFrom(silhouettes, 1, left)
+			selectFrom(emitters, glowSlots + 1, glowSlots + left)
+		end
+
+		for plane, row in copies do
+			local keep = wanted[plane]
+			for item, part in row do
+				if not keep or not keep[item] then
+					recycle(part)
+					row[item] = nil
+				end
+			end
+			if not keep then
+				copies[plane] = nil
+			end
+		end
+	end
+
+	local function refreshBodies(budget)
+		table.clear(actorCandidates)
+		table.clear(actors)
+		if #near > 0 then
+			for _, player in players:GetPlayers() do
+				local body = player.Character
+				local root = body and body:FindFirstChild("HumanoidRootPart")
+				if not root or not root:IsA("BasePart") or not body:IsDescendantOf(workspace) then
+					continue
+				end
+				local score, plane = 56, nil
+				for _, puddle in near do
+					local distance = (puddle.position - root.Position).Magnitude
+					if distance < score and root.Position.Y > puddle.plane then
+						score, plane = distance, puddle.plane
+					end
+				end
+				if plane then
+					table.insert(actorCandidates, { actor = body, plane = plane, score = score })
+				end
+			end
+		end
+		table.sort(actorCandidates, byScore)
+		for index = 1, math.min(#actorCandidates, budget.bodies) do
+			local candidate = actorCandidates[index]
+			actors[candidate.actor] = candidate.plane
+		end
+		for actor, parts in bodies do
+			if not actors[actor] then
+				for _, part in parts do
+					recycle(part)
+				end
+				bodies[actor] = nil
+			end
+		end
+		for actor, plane in actors do
+			if bodies[actor] then
+				continue
+			end
+			local parts, count = {}, 0
+			for _, part in actor:GetChildren() do
+				if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.Transparency < 0.96 then
+					local proxy = acquire()
+					proxy.Shape, proxy.Material = Enum.PartType.Block, Enum.Material.SmoothPlastic
+					proxy.Color = part.Color:Lerp(c3(17, 21, 36), 0.26)
+					proxy.Size, proxy.Transparency = part.Size, math.min(0.9, part.Transparency + 0.29)
+					proxy.CFrame = mirrorCFrame(part.CFrame, plane)
+					proxy.Parent = mirror
+					parts[part] = proxy
+					count += 1
+					if count >= 15 then
+						break
+					end
+				end
+			end
+			if count > 0 then
+				bodies[actor] = parts
+			end
+		end
+	end
+
+	local function step(dt: number, budget, refresh: boolean)
+		if refresh or dirty then
+			dirty = false
+			refreshSurfaces(camera.CFrame, budget)
+			refreshBodies(budget)
+		end
+		for _ = 1, budget.builds do
+			local nextCopy = queue[cursor]
+			if not nextCopy then
+				break
+			end
+			cursor += 1
+			local source, item, plane = nextCopy.source, nextCopy.item, nextCopy.plane
+			if sources.entries[item] == source then
+				local proxy = acquire()
+				proxy.CFrame, proxy.Size, proxy.Shape = nextCopy.frame, nextCopy.size, source.shape
+				proxy.Color, proxy.Transparency = source.color, source.transparency
+				proxy.Material = if source.emitted then Enum.Material.Neon else Enum.Material.SmoothPlastic
+				proxy.Parent = mirror
+				local row = copies[plane] or {}
+				copies[plane] = row
+				row[item] = proxy
+			end
+		end
+		local poolLimit = if #near > 0 then budget.puddles * budget.parts + budget.bodies * 15 - visible else 8
+		for _ = 1, math.min(#pool - poolLimit, budget.builds) do
+			table.remove(pool):Destroy()
+		end
+		bodyClock -= dt
+		if next(bodies) and bodyClock <= 0 then
+			bodyClock = 1 / budget.bodyRate
+			table.clear(bodyParts)
+			table.clear(bodyFrames)
+			for actor, parts in bodies do
+				for source, proxy in parts do
+					if source.Parent == actor then
+						table.insert(bodyParts, proxy)
+						table.insert(bodyFrames, mirrorCFrame(source.CFrame, actors[actor]))
+					else
+						recycle(proxy)
+						parts[source] = nil
+					end
+				end
+			end
+			if #bodyParts > 0 then
+				workspace:BulkMoveTo(bodyParts, bodyFrames, Enum.BulkMoveMode.FireCFrameChanged)
+			end
+		end
+	end
+	return { addPuddle = addPuddle, removePuddle = removePuddle, addSource = addSource, removeSource = removeSource, step = step }
+end
+M.puddleReflections = puddleReflections
+
+local function cityLighting(workspace: Workspace, mare: boolean)
+	local lighting = game:GetService("Lighting")
+	local sky = lighting:FindFirstChildOfClass("Sky")
+	local dayFaces = {
+		SkyboxBk = "rbxassetid://6444884337", SkyboxDn = "rbxassetid://6444884785", SkyboxFt = "rbxassetid://6444884337",
+		SkyboxLf = "rbxassetid://6444884337", SkyboxRt = "rbxassetid://6444884337", SkyboxUp = "rbxassetid://6412503613",
+	}
+	local nightFaces = {}
+	local nightBodies, nightStars = true, 400
+	local custom = sky and sky.SkyboxUp ~= dayFaces.SkyboxUp and string.find(sky.SkyboxUp, "rbxassetid") ~= nil
+	if custom then
+		for key in dayFaces do
+			nightFaces[key] = (sky :: any)[key]
+		end
+		nightBodies, nightStars = sky.CelestialBodiesShown, sky.StarCount
+		task.spawn(function()
+			local probe = Instance.new("Sky")
+			for key, value in dayFaces do
+				(probe :: any)[key] = value
+			end
+			local failed = false
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ probe }, function(_, status)
+					if status == Enum.AssetFetchStatus.Failure then
+						failed = true
+					end
+				end)
+			end)
+			probe:Destroy()
+			if failed then
+				for key in dayFaces do
+					dayFaces[key] = "rbxasset://textures/sky/sky512_" .. string.lower(string.sub(key, 7)) .. ".tex"
+				end
+			end
+		end)
+	end
+	local haze = lighting:FindFirstChildOfClass("Atmosphere")
+	local bloom = lighting:FindFirstChild("CyberOutlawCityBloom")
+	local grade = lighting:FindFirstChild("CyberOutlawCityGrade")
+	local rays = Instance.new("SunRaysEffect")
+	rays.Name, rays.Intensity, rays.Spread = "CyberOutlawSol", 0, 0.55
+	rays.Parent = lighting
+	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	if not clouds then
+		clouds = Instance.new("Clouds")
+		clouds.Name, clouds.Density = "CyberOutlawNuvens", 0.55
+		clouds.Parent = workspace.Terrain
+	end
+	local lastNight
+	local lastFaces
+	return function(tier: number): number
+		local hour = dayClock(workspace:GetServerTimeNow())
+		local light = visualDayLight(hour, mare, tier)
+		lighting.ClockTime, lighting.Brightness = hour, light.brightness
+		lighting.Ambient, lighting.OutdoorAmbient, lighting.ExposureCompensation = light.ambient, light.outdoor, light.exposure
+		if haze then
+			haze.Density, haze.Color, haze.Decay = light.density, light.haze, light.decay
+			haze.Glare, haze.Haze = light.glare, light.hazeAmount
+		end
+		if bloom and bloom:IsA("BloomEffect") then
+			bloom.Intensity, bloom.Threshold = light.bloom, light.threshold
+			if mare then
+				bloom.Size = if tier == 1 then 20 else 26
+			end
+		end
+		if grade and grade:IsA("ColorCorrectionEffect") then
+			grade.TintColor = light.tint
+			if mare then
+				grade.Brightness, grade.Contrast, grade.Saturation = light.grade, light.contrast, light.saturation
+			end
+		end
+		rays.Intensity = light.rays
+		rays.Enabled = (not mare or tier > 1) and light.rays >= 0.005
+		clouds.Color, clouds.Cover = light.clouds, light.cover
+		if mare then
+			clouds.Enabled = tier > 1
+		end
+		if sky and custom then
+			local night = nightSky(hour)
+			local faces = if night then nightFaces else dayFaces
+			if night ~= lastNight or faces.SkyboxUp ~= lastFaces then
+				lastNight, lastFaces = night, faces.SkyboxUp
+				for key, value in faces do
+					(sky :: any)[key] = value
+				end
+				sky.CelestialBodiesShown = if night then nightBodies else true
+				sky.StarCount = if night then nightStars else 0
+			end
+		end
+		return light.lamps
+	end
+end
+
+local function startCityVisuals(workspace: Workspace, camera: Camera, players: Players, runService: RunService, quality)
+	local city = workspace:WaitForChild("CyberOutlawCity", 120)
+	if not city then
+		return
+	end
+	local district = city:FindFirstChild("Maré Baixa")
+	local tagged = city:GetAttribute("MareBaixaVisualVersion") == 1 or (district and district:GetAttribute("MareBaixaVisualVersion") == 1)
+	local mare = tagged or (district and district:GetAttribute("MareBaixaVersion") ~= nil) or false
+	local applyDay = cityLighting(workspace, mare)
+	local reflections = puddleReflections(workspace, camera, players)
+	local lamps = visualGrid()
+	local active, wants, near = {}, {}, {}
+	local originalBrightness = setmetatable({}, { __mode = "k" })
+	local level = 1
+	local function dim(item: Light, brightness: number)
+		if math.abs(item.Brightness - brightness) > 0.02 then
+			item.Brightness = brightness
+		end
+	end
+	local function addLight(item: Instance)
+		if not item:IsA("Light") or lamps.entries[item] then
+			return
+		end
+		local parent = item.Parent
+		local position = if parent and parent:IsA("BasePart") then parent.Position
+			elseif parent and parent:IsA("Attachment") then parent.WorldPosition else nil
+		if position then
+			local authored = item:GetAttribute("CyberOutlawBrilhoBase")
+			local brightness = if type(authored) == "number" then authored else (originalBrightness[item] or item.Brightness)
+			originalBrightness[item] = brightness
+			lamps.add(item, { item = item, position = position, brightness = brightness, range = item.Range })
+			if tagged then
+				item.Enabled = false
+			else
+				dim(item, brightness * level)
+			end
+		end
+	end
+	local function removeLight(item: Instance)
+		lamps.remove(item)
+		active[item] = nil
+	end
+	local function refreshLights(budget)
+		local view = camera.CFrame
+		local eye, forward = view.Position, view.LookVector
+		table.clear(near)
+		table.clear(wants)
+		lamps.nearby(eye, budget.lightRange + 15, function(item, entry)
+			local delta = entry.position - eye
+			local distance = delta.Magnitude
+			local retain = if active[item] then 10 else 0
+			if distance < budget.lightRange + retain then
+				local behind = math.max(0, -forward:Dot(delta) - entry.range)
+				entry.score = distance - retain - entry.range * 0.36 + behind * 0.18
+				table.insert(near, entry)
+			end
+		end)
+		table.sort(near, function(a, b) return a.score < b.score end)
+		for index = 1, math.min(#near, budget.lights) do
+			local entry = near[index]
+			local item = entry.item
+			wants[item] = entry
+			dim(item, entry.brightness * level)
+			if not active[item] then
+				item.Enabled = true
+			end
+		end
+		for item in active do
+			if not wants[item] then
+				item.Enabled = false
+			end
+		end
+		active, wants = wants, active
+	end
+	if tagged then
+		local collection = game:GetService("CollectionService")
+		local function watch(tag: string, add, remove)
+			local function added(item: Instance)
+				if item:IsDescendantOf(city) then
+					add(item)
+				end
+			end
+			collection:GetInstanceAddedSignal(tag):Connect(added)
+			collection:GetInstanceRemovedSignal(tag):Connect(remove)
+			task.spawn(function()
+				for index, item in collection:GetTagged(tag) do
+					added(item)
+					if index % 120 == 0 then
+						task.wait()
+					end
+				end
+			end)
+		end
+		watch("CyberOutlawPoca", reflections.addPuddle, reflections.removePuddle)
+		watch("CyberOutlawReflexoFonte", reflections.addSource, reflections.removeSource)
+		watch("CyberOutlawLuzCidade", addLight, removeLight)
+	else
+		-- Places da cidade anterior não têm as etiquetas. O índice deles também acompanha o streaming.
+		local function addLegacy(item: Instance)
+			if item:IsA("Light") then
+				addLight(item)
+			elseif item:IsA("BasePart") then
+				if item.Name == "Poça" then
+					reflections.addPuddle(item)
+				else
+					reflections.addSource(item, true)
+				end
+			end
+		end
+		city.DescendantAdded:Connect(addLegacy)
+		city.DescendantRemoving:Connect(function(item)
+			removeLight(item)
+			reflections.removePuddle(item)
+			reflections.removeSource(item)
+		end)
+		task.spawn(function()
+			for index, item in city:GetDescendants() do
+				if item:IsDescendantOf(city) then
+					addLegacy(item)
+				end
+				if index % 480 == 0 then
+					task.wait()
+				end
+			end
+		end)
+	end
+	local sceneClock, previousTier = 0, 0
+	runService.Heartbeat:Connect(function(dt)
+		sampleVisualQuality(quality, dt)
+		local tier = quality.tier
+		local budget = CITY_VISUAL_BUDGETS[tier]
+		sceneClock -= dt
+		local refresh = sceneClock <= 0 or previousTier ~= tier
+		if refresh then
+			sceneClock, previousTier = 0.45, tier
+			local lampLevel = applyDay(tier)
+			if tagged then
+				level = lampLevel
+				refreshLights(budget)
+			elseif math.abs(lampLevel - level) > 0.02 then
+				level = lampLevel
+				for item, entry in lamps.entries do
+					dim(item, entry.brightness * level)
+				end
+			end
+		end
+		reflections.step(dt, budget, refresh)
+	end)
+end
+
 -- Runtime --------------------------------------------------------------------------------------
 local function start()
 	local Players = game:GetService("Players")
@@ -2841,11 +3569,7 @@ local function start()
 	local playerGui = player:WaitForChild("PlayerGui")
 
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	local quality = 10
-	pcall(function()
-		local saved = UserSettings():GetService("UserGameSettings").SavedQualityLevel
-		quality = if saved == Enum.SavedQualitySetting.Automatic then 7 else saved.Value
-	end)
+	local quality = visualQuality(touch)
 
 	if not player:GetAttribute("CyberOutlawMenuStarted") then
 		player:GetAttributeChangedSignal("CyberOutlawMenuStarted"):Wait()
@@ -3303,289 +4027,6 @@ local function start()
 		board:GetAttributeChangedSignal("Layout"):Connect(read)
 		read()
 	end)
-	-- Reflexos das poças -----------------------------------------------------------------------------
-	-- Por baixo de cada poça há um buraco no asfalto. O cliente monta ali uma cópia espelhada dos prédios,
-	-- néons, letreiros e personagens próximos, que aparece através da água. Não precisa de RTX e funciona
-	-- em qualquer aparelho; só as poças perto da câmera ficam ativas.
-	local mirror = Instance.new("Folder")
-	mirror.Name = "CyberOutlawReflexos"
-	mirror.Parent = camera
-	local MIRROR_SKIP = {
-		["Asfalto molhado"] = true, ["Poça"] = true, ["Calçada"] = true, ["Meio-fio"] = true, ["Pintura"] = true,
-		["Faixa de pedestres"] = true, ["Muro invisível"] = true, ["Canteiro central"] = true, ["Bueiro"] = true,
-	}
-	local CELL = 64
-	local grid, puddleList = {}, {}
-	local function cellOf(x: number, z: number): string
-		return math.floor(x / CELL) .. "," .. math.floor(z / CELL)
-	end
-	local function indexPart(item: Instance)
-		if item:IsA("BasePart") then
-			if item.Name == "Poça" and item:GetAttribute("CyberOutlawPlano") then
-				table.insert(puddleList, item)
-			elseif not MIRROR_SKIP[item.Name] then
-				local key = cellOf(item.Position.X, item.Position.Z)
-				local list = grid[key]
-				if not list then
-					list = {}
-					grid[key] = list
-				end
-				table.insert(list, item)
-			end
-		end
-	end
-	task.spawn(function()
-		local city = Workspace:WaitForChild("CyberOutlawCity", 120)
-		if not city then
-			return
-		end
-		city.DescendantAdded:Connect(indexPart)
-		for index, item in city:GetDescendants() do
-			indexPart(item)
-			if index % 1500 == 0 then
-				task.wait()
-			end
-		end
-	end)
-	local copies = {} -- [peça original] = { copy, users }
-	local zones = {} -- [poça] = { plane, parts = {original...} }
-	local queue = {}
-	local mirrorCount = 0
-	local MIRROR_LIMIT = if quality <= 4 then 160 else 320
-	local function worthReflecting(part: BasePart, plane: number): boolean
-		if part.Transparency >= 0.98 or not part.Parent then
-			return false
-		end
-		local cf, size = part.CFrame, part.Size
-		local _, _, _, _, _, _, r10, r11, r12 = cf:GetComponents()
-		local extent = math.abs(r10) * size.X / 2 + math.abs(r11) * size.Y / 2 + math.abs(r12) * size.Z / 2
-		if cf.Position.Y - extent < plane + 0.05 then
-			return false -- o que encosta no chão não aparece no reflexo
-		end
-		return math.max(size.X, size.Y, size.Z) >= 2 or part.Material == Enum.Material.Neon or part:FindFirstChildOfClass("SurfaceGui") ~= nil
-	end
-	local function makeCopy(part: BasePart, plane: number)
-		local ok, copy = pcall(function()
-			return part:Clone()
-		end)
-		if not ok or not copy then
-			return nil
-		end
-		for _, child in copy:GetDescendants() do
-			if child:IsA("Light") or child:IsA("ParticleEmitter") or child:IsA("Fire") or child:IsA("Sound") or child:IsA("BaseScript") then
-				child:Destroy()
-			end
-		end
-		copy.Anchored, copy.CanCollide, copy.CanQuery, copy.CanTouch, copy.CastShadow = true, false, false, false, false
-		local wedge = part:IsA("WedgePart") or (part:IsA("Part") and part.Shape == Enum.PartType.Wedge)
-		copy.CFrame = mirrorCFrame(part.CFrame, plane, wedge)
-		-- No reflexo, letreiros e janelas ficam de cabeça para baixo.
-		for _, gui in copy:GetChildren() do
-			if gui:IsA("SurfaceGui") and gui.Face ~= Enum.NormalId.Top and gui.Face ~= Enum.NormalId.Bottom then
-				local turn = Instance.new("Frame")
-				turn.Name = "Reflexo"
-				turn.BackgroundTransparency = 1
-				turn.Size = UDim2.fromScale(1, 1)
-				turn.Rotation = 180
-				for _, item in gui:GetChildren() do
-					item.Parent = turn
-				end
-				turn.Parent = gui
-			end
-		end
-		copy.Parent = mirror
-		return copy
-	end
-	local function release(part: BasePart)
-		local entry = copies[part]
-		if entry then
-			entry.users -= 1
-			if entry.users <= 0 then
-				if entry.copy then
-					entry.copy:Destroy()
-					mirrorCount -= 1
-				end
-				copies[part] = nil
-			end
-		end
-	end
-	local function activate(puddle: BasePart)
-		local plane = puddle:GetAttribute("CyberOutlawPlano") or puddle.Position.Y
-		local center = puddle.Position
-		local found = {}
-		local reach = 2
-		local cx, cz = math.floor(center.X / CELL), math.floor(center.Z / CELL)
-		for dx = -reach, reach do
-			for dz = -reach, reach do
-				for _, part in grid[(cx + dx) .. "," .. (cz + dz)] or {} do
-					if worthReflecting(part, plane) then
-						table.insert(found, part)
-					end
-				end
-			end
-		end
-		-- Primeiro o que brilha e o que está perto; o resto entra se sobrar orçamento.
-		table.sort(found, function(a, b)
-			local ga = if a.Material == Enum.Material.Neon or a:FindFirstChildOfClass("SurfaceGui") then 0 else 1
-			local gb = if b.Material == Enum.Material.Neon or b:FindFirstChildOfClass("SurfaceGui") then 0 else 1
-			if ga ~= gb then
-				return ga < gb
-			end
-			return (a.Position - center).Magnitude < (b.Position - center).Magnitude
-		end)
-		local zone = { plane = plane, parts = {} }
-		for _, part in found do
-			local entry = copies[part]
-			if entry then
-				entry.users += 1
-			else
-				copies[part] = { users = 1, plane = plane }
-				table.insert(queue, part)
-			end
-			table.insert(zone.parts, part)
-		end
-		zones[puddle] = zone
-	end
-	local function deactivate(puddle: BasePart)
-		local zone = zones[puddle]
-		if zone then
-			for _, part in zone.parts do
-				release(part)
-			end
-			zones[puddle] = nil
-		end
-	end
-	local zoneClock = 0
-	local function reflectionStep(dt: number)
-		zoneClock -= dt
-		if zoneClock <= 0 then
-			zoneClock = 0.5
-			local eye = camera.CFrame.Position
-			local wanted = {}
-			local near = {}
-			for _, puddle in puddleList do
-				if puddle.Parent then
-					local distance = (puddle.Position - eye).Magnitude
-					if distance < 130 then
-						table.insert(near, { puddle, distance })
-					end
-				end
-			end
-			table.sort(near, function(a, b)
-				return a[2] < b[2]
-			end)
-			for index = 1, math.min(3, #near) do
-				wanted[near[index][1]] = true
-			end
-			for puddle in zones do
-				if not wanted[puddle] then
-					deactivate(puddle)
-				end
-			end
-			for puddle in wanted do
-				if not zones[puddle] then
-					activate(puddle)
-				end
-			end
-		end
-		-- Cria as cópias aos poucos, para não travar o quadro.
-		local budget = 30
-		while budget > 0 and #queue > 0 do
-			local part = table.remove(queue, 1)
-			local entry = copies[part]
-			if entry and not entry.copy and mirrorCount < MIRROR_LIMIT then
-				entry.copy = makeCopy(part, entry.plane)
-				if entry.copy then
-					mirrorCount += 1
-				end
-			end
-			budget -= 1
-		end
-	end
-	-- Personagens refletidos: uma cópia por jogador perto de uma poça ativa, movida a cada quadro.
-	local mirrorBodies = {}
-	local function reflectCharacters()
-		local plane, centers = nil, {}
-		for puddle, zone in zones do
-			plane = zone.plane
-			table.insert(centers, puddle.Position)
-		end
-		local alive = {}
-		if plane then
-			for _, other in Players:GetPlayers() do
-				local model = other.Character
-				local rootPart = model and model:FindFirstChild("HumanoidRootPart")
-				if rootPart then
-					local close = false
-					for _, c in centers do
-						if (rootPart.Position - c).Magnitude < 70 then
-							close = true
-							break
-						end
-					end
-					if close then
-						alive[model] = true
-						local body = mirrorBodies[model]
-						if not body then
-							local archivable = model.Archivable
-							model.Archivable = true
-							local ok, clone = pcall(function()
-								return model:Clone()
-							end)
-							model.Archivable = archivable
-							if ok and clone then
-								-- Clone mantém a ordem da hierarquia: o i-ésimo descendente da cópia corresponde ao do original.
-								local links, parts, frames = {}, {}, {}
-								local originals, cloned = model:GetDescendants(), clone:GetDescendants()
-								for index, item in cloned do
-									if item:IsA("BasePart") then
-										item.Anchored, item.CanCollide, item.CanQuery, item.CanTouch, item.CastShadow = true, false, false, false, false
-										local source = originals[index]
-										if source and source.ClassName == item.ClassName and source.Name == item.Name and source.Name ~= "HumanoidRootPart" then
-											table.insert(links, { source, item })
-											table.insert(parts, item)
-										else
-											item.Transparency = 1
-										end
-									end
-								end
-								for _, item in cloned do
-									if item:IsA("BaseScript") or item:IsA("Sound") or item:IsA("Light") or item:IsA("ParticleEmitter") then
-										item:Destroy()
-									end
-								end
-								local clonedHumanoid = clone:FindFirstChildOfClass("Humanoid")
-								if clonedHumanoid then
-									clonedHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-									clonedHumanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
-									pcall(function()
-										clonedHumanoid.EvaluateStateMachine = false
-									end)
-								end
-								clone.Name = "Reflexo de " .. model.Name
-								clone.Parent = mirror
-								body = { clone = clone, links = links, parts = parts, frames = frames }
-								mirrorBodies[model] = body
-							end
-						end
-						if body then
-							for index, link in body.links do
-								body.frames[index] = mirrorCFrame(link[1].CFrame, plane)
-							end
-							Workspace:BulkMoveTo(body.parts, body.frames, Enum.BulkMoveMode.FireCFrameChanged)
-						end
-					end
-				end
-			end
-		end
-		for model, body in mirrorBodies do
-			if not alive[model] then
-				body.clone:Destroy()
-				mirrorBodies[model] = nil
-			end
-		end
-	end
-
 	local function districtOf(position: Vector3)
 		if type(cityLayout) ~= "table" or type(cityLayout.districts) ~= "table" then
 			return nil
@@ -4374,7 +4815,7 @@ local function start()
 
 		-- Ao mirar, a câmera foca no alvo: o ombro e o que está perto nas laterais ficam desfocados.
 		aimBlur += ((if aimingNow then 1 else 0) - aimBlur) * math.min(1, dt * 9)
-		depth.Enabled = aimBlur > 0.02 and quality >= 3
+		depth.Enabled = aimBlur > 0.02 and quality.value >= 3
 		if depth.Enabled then
 			local result = Workspace:Raycast(camera.CFrame.Position, camera.CFrame.LookVector * 400, rayParams)
 			local focus = if result then result.Distance else 200
@@ -5035,136 +5476,6 @@ local function start()
 			if cam.focus then
 				cam.focus += Vector3.new(moved.X, 0, moved.Z)
 				cam.height += moved.Y
-			end
-		end
-	end)()
-
-	-- Dia e noite: 24 minutos por dia, a mesma hora para todos. Luz, névoa, nuvens, raios de sol e o brilho
-	-- dos postes mudam aos poucos; o céu desenhado de Maré Baixa fica para a noite e o de dia é o do Roblox.
-	local dayStep = (function()
-		local Lighting = game:GetService("Lighting")
-		local sky = Lighting:FindFirstChildOfClass("Sky")
-		local FACES = { "SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp" }
-		local DAY_FACES = {
-			SkyboxBk = "rbxassetid://6444884337", SkyboxDn = "rbxassetid://6444884785", SkyboxFt = "rbxassetid://6444884337",
-			SkyboxLf = "rbxassetid://6444884337", SkyboxRt = "rbxassetid://6444884337", SkyboxUp = "rbxassetid://6412503613",
-		}
-		local nightFaces = {}
-		local nightBodies, nightStars = true, 400
-		local custom = false
-		if sky then
-			for _, key in FACES do
-				nightFaces[key] = (sky :: any)[key]
-			end
-			nightBodies, nightStars = sky.CelestialBodiesShown, sky.StarCount
-			custom = nightFaces.SkyboxUp ~= DAY_FACES.SkyboxUp and string.find(tostring(nightFaces.SkyboxUp), "rbxassetid") ~= nil
-		end
-		local dayFaces = DAY_FACES
-		if custom then
-			-- Se o céu padrão não carregar, usa o céu clássico que vem dentro do Roblox.
-			task.spawn(function()
-				local probe = Instance.new("Sky")
-				for key, value in DAY_FACES do
-					(probe :: any)[key] = value
-				end
-				local failed = false
-				pcall(function()
-					game:GetService("ContentProvider"):PreloadAsync({ probe }, function(_, status)
-						if status == Enum.AssetFetchStatus.Failure then
-							failed = true
-						end
-					end)
-				end)
-				probe:Destroy()
-				if failed then
-					local classic = {}
-					for key in DAY_FACES do
-						classic[key] = "rbxasset://textures/sky/sky512_" .. string.lower(string.sub(key, 7)) .. ".tex"
-					end
-					dayFaces = classic
-				end
-			end)
-		end
-		local haze = Lighting:FindFirstChildOfClass("Atmosphere")
-		local bloom = Lighting:FindFirstChild("CyberOutlawCityBloom")
-		local grade = Lighting:FindFirstChild("CyberOutlawCityGrade")
-		local rays = Instance.new("SunRaysEffect")
-		rays.Name = "CyberOutlawSol"
-		rays.Intensity = 0
-		rays.Spread = 0.55
-		rays.Parent = Lighting
-		local clouds = Workspace.Terrain:FindFirstChildOfClass("Clouds")
-		if not clouds then
-			local made = Instance.new("Clouds")
-			made.Name = "CyberOutlawNuvens"
-			made.Density = 0.55
-			made.Parent = Workspace.Terrain
-			clouds = made
-		end
-		-- Postes, letreiros e janelas acesas: de dia ficam mais fracos (as do trem e dos efeitos não mudam).
-		local lamps = {}
-		local level = 1
-		local function track(item: Instance)
-			if item:IsA("Light") and not item:IsDescendantOf(camera) and not item:IsDescendantOf(Workspace:FindFirstChild("CyberOutlawTrem") or camera) then
-				table.insert(lamps, { item, item.Brightness })
-				item.Brightness *= level
-			end
-		end
-		task.defer(function()
-			for _, item in Workspace:GetDescendants() do
-				track(item)
-			end
-			Workspace.DescendantAdded:Connect(track)
-		end)
-		local nightNow
-		local wait = 0
-		return function(dt: number)
-			wait -= dt
-			if wait > 0 then
-				return
-			end
-			wait = 0.1
-			local hour = dayClock(serverNow())
-			local light = dayLight(hour)
-			Lighting.ClockTime = hour
-			Lighting.Brightness = light.brightness
-			Lighting.Ambient = light.ambient
-			Lighting.OutdoorAmbient = light.outdoor
-			Lighting.ExposureCompensation = light.exposure
-			if haze then
-				haze.Density, haze.Color, haze.Decay = light.density, light.haze, light.decay
-				haze.Glare, haze.Haze = light.glare, light.hazeAmount
-			end
-			if bloom and bloom:IsA("BloomEffect") then
-				bloom.Intensity, bloom.Threshold = light.bloom, light.threshold
-			end
-			if grade and grade:IsA("ColorCorrectionEffect") then
-				grade.TintColor = light.tint
-			end
-			rays.Intensity = light.rays
-			clouds.Color, clouds.Cover = light.clouds, light.cover
-			if sky and custom then
-				local night = nightSky(hour)
-				if night ~= nightNow then
-					nightNow = night
-					for key, value in (if night then nightFaces else dayFaces) do
-						(sky :: any)[key] = value
-					end
-					sky.CelestialBodiesShown = if night then nightBodies else true
-					sky.StarCount = if night then nightStars else 0
-				end
-			end
-			if math.abs(light.lamps - level) > 0.02 then
-				level = light.lamps
-				for index = #lamps, 1, -1 do
-					local entry = lamps[index]
-					if entry[1].Parent then
-						entry[1].Brightness = entry[2] * level
-					else
-						lamps[index] = lamps[#lamps]
-						lamps[#lamps] = nil
-					end
-				end
 			end
 		end
 	end)()
@@ -6212,6 +6523,8 @@ local function start()
 		return { ability = abilityStep, ghost = ghostStep, terminal = terminalStep, scan = scanStep, legs = legsStep }
 	end)()
 
+	task.spawn(startCityVisuals, Workspace, camera, Players, RunService, quality)
+
 	local lastAimSent = false
 	RunService:BindToRenderStep("CyberOutlawCamera", Enum.RenderPriority.Camera.Value + 2, function(dt)
 		local ok, aimingNow, raised = pcall(cameraStep, dt)
@@ -6235,9 +6548,6 @@ local function start()
 		pcall(implantSteps.terminal, dt)
 		pcall(implantSteps.scan, dt)
 		pcall(implantSteps.legs, dt)
-		pcall(dayStep, dt)
-		pcall(reflectionStep, dt)
-		pcall(reflectCharacters)
 		pcall(pitchStep)
 		-- Automatic fire while the trigger is held.
 		if triggerHeld and def().auto and not wheelOpen and not implantsOpen and player:GetAttribute("CyberOutlawPainel") ~= true then
